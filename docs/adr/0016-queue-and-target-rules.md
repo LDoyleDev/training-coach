@@ -27,7 +27,8 @@ Step 1-C turns ADR-0006 and the product spec into code. A few cases were not dec
 
 **Progression**
 - Ready when every planned set is at or above the top of the range in each of the last two
-  sessions at the current step. Unilateral sets count the weaker side. At the last ladder
+  sessions at the current step. Unilateral sets count the weaker side and need both sides; a
+  missing set or side counts as 0, so gaps never trigger progression. At the last ladder
   step the result is `top_of_ladder` instead of `ready`.
 
 ## Consequences

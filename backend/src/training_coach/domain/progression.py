@@ -36,13 +36,25 @@ def assess(
     return Progress.READY if has_next_step else Progress.TOP_OF_LADDER
 
 
-def combine_sides(sets: Iterable[tuple[int, Side, int]]) -> list[int]:
-    """Per-set values for one session, from ``(set_no, side, value)`` rows.
+def combine_sides(sets: Iterable[tuple[int, Side, int]], *, unilateral: bool) -> list[int]:
+    """Per-set values for one session, from ``(set_no, side, value)`` rows, in set order.
 
-    For unilateral work the weaker side counts, so a set only "reaches the top" when both
-    sides do. Missing set numbers are skipped; the result is in set order.
+    The list always runs from set 1 to the highest logged set, so a gap cannot shift later
+    sets into its place: a missing set counts as 0. For unilateral work a set needs both
+    sides and the weaker side counts; a set with one side missing counts as 0.
     """
-    by_set: dict[int, int] = {}
-    for set_no, _side, value in sets:
-        by_set[set_no] = min(value, by_set.get(set_no, value))
-    return [by_set[n] for n in sorted(by_set)]
+    by_set: dict[int, dict[Side, int]] = {}
+    for set_no, side, value in sets:
+        if set_no < 1:
+            raise ValueError(f"set numbers start at 1, got {set_no}")
+        by_set.setdefault(set_no, {})[side] = value
+
+    def value_of(sides: dict[Side, int]) -> int:
+        if unilateral:
+            if Side.LEFT not in sides or Side.RIGHT not in sides:
+                return 0
+            return min(sides[Side.LEFT], sides[Side.RIGHT])
+        return min(sides.values())
+
+    last = max(by_set, default=0)
+    return [value_of(by_set[n]) if n in by_set else 0 for n in range(1, last + 1)]

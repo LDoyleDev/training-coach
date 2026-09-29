@@ -36,11 +36,36 @@ def test_combine_sides_takes_weaker_side_per_set() -> None:
         (1, Side.RIGHT, 10),
         (2, Side.RIGHT, 11),
         (2, Side.LEFT, 11),
-        (3, Side.BOTH, 9),
     ]
-    assert combine_sides(rows) == [10, 11, 9]
+    assert combine_sides(rows, unilateral=True) == [10, 11]
 
 
 def test_combine_sides_orders_by_set_number() -> None:
-    assert combine_sides([(3, Side.BOTH, 7), (1, Side.BOTH, 9), (2, Side.BOTH, 8)]) == [9, 8, 7]
-    assert combine_sides([]) == []
+    rows = [(3, Side.BOTH, 7), (1, Side.BOTH, 9), (2, Side.BOTH, 8)]
+    assert combine_sides(rows, unilateral=False) == [9, 8, 7]
+    assert combine_sides([], unilateral=False) == []
+
+
+def test_missing_set_counts_as_zero_and_blocks_progress() -> None:
+    rows = [(1, Side.BOTH, 20), (3, Side.BOTH, 20), (4, Side.BOTH, 20)]
+    values = combine_sides(rows, unilateral=False)
+    assert values == [20, 0, 20, 20]
+    assert not session_met_top(PUSH_UPS, values)
+
+
+def test_missing_side_counts_as_zero_and_blocks_progress() -> None:
+    rows = [
+        (1, Side.LEFT, 20),
+        (1, Side.RIGHT, 20),
+        (2, Side.LEFT, 20),
+        (3, Side.LEFT, 20),
+        (3, Side.RIGHT, 20),
+    ]
+    values = combine_sides(rows, unilateral=True)
+    assert values == [20, 0, 20]
+    assert assess(PUSH_UPS, [values, values], has_next_step=True) is Progress.HOLD
+
+
+def test_set_numbers_start_at_one() -> None:
+    with pytest.raises(ValueError, match="start at 1"):
+        combine_sides([(0, Side.BOTH, 5)], unilateral=False)
