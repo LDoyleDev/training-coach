@@ -1,0 +1,259 @@
+# Training plan seed. Loaded by `training-coach seed` (phase 1, step 1-B).
+# Order of [[sessions]] is the queue order (ADR-0006). Ladders run easiest -> hardest;
+# `start` is the ladder position (0-based) to begin at.
+
+[[exercises]]
+slug = "bulgarian-split-squat"
+name = "Bulgarian split squat"
+kind = "reps"
+muscle_groups = ["quads", "glutes"]
+aliases = ["split squat", "bulgarian", "bss"]
+start = 0
+ladder = ["Bodyweight, back foot on chair", "Goblet hold, 8 kg", "Goblet hold, 3 s lowering", "Heavier kettlebell"]
+
+[[exercises]]
+slug = "goblet-squat"
+name = "Goblet squat"
+kind = "reps"
+muscle_groups = ["quads", "glutes"]
+aliases = ["goblet", "squat", "squats"]
+start = 0
+ladder = ["8 kg, 3 s lowering", "1.5-rep squats, 8 kg", "Heavier kettlebell"]
+
+[[exercises]]
+slug = "single-leg-rdl"
+name = "Single-leg Romanian deadlift"
+kind = "reps"
+muscle_groups = ["hamstrings", "glutes"]
+aliases = ["rdl", "single leg rdl", "romanian deadlift"]
+start = 0
+ladder = ["8 kg", "8 kg, pause at bottom", "Heavier kettlebell"]
+
+[[exercises]]
+slug = "hamstring-curl"
+name = "Towel hamstring curl"
+kind = "reps"
+muscle_groups = ["hamstrings"]
+aliases = ["hamstring curl", "towel curl", "sliders", "leg curl"]
+start = 0
+ladder = ["Both legs", "Single leg", "Nordic curl negatives"]
+
+[[exercises]]
+slug = "calf-raise"
+name = "Single-leg calf raise"
+kind = "reps"
+muscle_groups = ["calves"]
+aliases = ["calf raise", "calves", "calf raises"]
+start = 0
+ladder = ["Bodyweight on a step", "Holding 8 kg", "8 kg, 2 s pause at top"]
+
+[[exercises]]
+slug = "pull-up"
+name = "Pull-up"
+kind = "reps"
+muscle_groups = ["back", "biceps"]
+aliases = ["pullups", "pull ups", "pull-ups"]
+start = 1
+ladder = ["Slow negatives", "Strict pull-up", "Pause at top", "Weighted backpack"]
+
+[[exercises]]
+slug = "dip"
+name = "Dip (chairs)"
+kind = "reps"
+muscle_groups = ["chest", "triceps"]
+aliases = ["dips"]
+start = 0
+ladder = ["Feet on floor", "Feet off floor", "Weighted backpack"]
+
+[[exercises]]
+slug = "push-up"
+name = "Push-up"
+kind = "reps"
+muscle_groups = ["chest", "triceps", "shoulders"]
+aliases = ["pushups", "push ups", "push-ups", "press ups"]
+start = 0
+ladder = ["Standard", "Feet elevated", "Deficit", "Archer"]
+
+[[exercises]]
+slug = "pike-push-up"
+name = "Pike push-up"
+kind = "reps"
+muscle_groups = ["shoulders", "triceps"]
+aliases = ["pike", "pikes", "pike pushups"]
+start = 0
+ladder = ["Feet on floor", "Feet on chair", "Wall handstand push-up negatives"]
+
+[[exercises]]
+slug = "kb-row"
+name = "One-arm kettlebell row"
+kind = "reps"
+muscle_groups = ["back", "biceps"]
+aliases = ["row", "rows", "kb row"]
+start = 0
+ladder = ["8 kg", "8 kg, 3 s lowering", "Heavier kettlebell"]
+
+[[exercises]]
+slug = "reverse-lunge"
+name = "Reverse lunge"
+kind = "reps"
+muscle_groups = ["quads", "glutes"]
+aliases = ["lunge", "lunges", "reverse lunges"]
+start = 0
+ladder = ["Bodyweight", "Holding 8 kg", "Deficit, holding 8 kg"]
+
+[[exercises]]
+slug = "pistol-squat"
+name = "Pistol squat"
+kind = "reps"
+muscle_groups = ["quads", "glutes"]
+aliases = ["pistol", "pistols"]
+start = 0
+ladder = ["Sit to chair on one leg", "Lower box", "Full pistol"]
+
+[[exercises]]
+slug = "kb-swing"
+name = "Kettlebell swing"
+kind = "reps"
+muscle_groups = ["glutes", "hamstrings"]
+aliases = ["swings", "swing", "kb swings"]
+start = 0
+ladder = ["Two-hand, 8 kg", "One-arm, 8 kg", "Heavier kettlebell"]
+
+[[exercises]]
+slug = "hanging-raise"
+name = "Hanging knee/leg raise"
+kind = "reps"
+muscle_groups = ["core"]
+aliases = ["leg raises", "knee raises", "hanging raises"]
+start = 0
+ladder = ["Knee raises", "Straight-leg raises", "Toes to bar"]
+
+[[exercises]]
+slug = "chin-up"
+name = "Chin-up"
+kind = "reps"
+muscle_groups = ["back", "biceps"]
+aliases = ["chinups", "chin ups", "chin-ups"]
+start = 0
+ladder = ["Strict", "3 s lowering", "Weighted backpack"]
+
+[[exercises]]
+slug = "diamond-push-up"
+name = "Diamond push-up"
+kind = "reps"
+muscle_groups = ["triceps", "chest"]
+aliases = ["diamonds", "diamond pushups"]
+start = 0
+ladder = ["Standard", "Feet elevated"]
+
+[[exercises]]
+slug = "kb-curl"
+name = "Kettlebell curl"
+kind = "reps"
+muscle_groups = ["biceps"]
+aliases = ["curls", "curl", "bicep curls"]
+start = 0
+ladder = ["8 kg", "8 kg, slow tempo", "Heavier kettlebell"]
+
+[[exercises]]
+slug = "lateral-raise"
+name = "Kettlebell lateral raise"
+kind = "reps"
+muscle_groups = ["shoulders"]
+aliases = ["lateral raises", "laterals", "side raises"]
+start = 0
+ladder = ["8 kg or water bottles", "Lean-away single-arm"]
+
+[[exercises]]
+slug = "zone2"
+name = "Zone 2 cardio"
+kind = "duration_min"
+muscle_groups = ["conditioning"]
+aliases = ["zone 2", "walk", "easy run", "bike"]
+start = 0
+ladder = ["Brisk walk", "Easy jog / bike"]
+
+[[exercises]]
+slug = "moderate-cardio"
+name = "Moderate cardio"
+kind = "duration_min"
+muscle_groups = ["conditioning"]
+aliases = ["run", "cardio", "kb circuit"]
+start = 0
+ladder = ["Steady run or KB circuit"]
+
+[[exercises]]
+slug = "intervals"
+name = "4x4 intervals"
+kind = "reps"
+muscle_groups = ["conditioning"]
+aliases = ["intervals", "4x4", "vo2"]
+start = 0
+ladder = ["4 rounds", "5 rounds"]
+
+# ---------------------------------------------------------------- sessions (queue order)
+
+[[sessions]]
+slug = "legs"
+name = "Legs"
+focus = "Strength / hypertrophy"
+items = [
+  { exercise = "bulgarian-split-squat", sets = 4, rep_min = 8, rep_max = 15, per_side = true },
+  { exercise = "goblet-squat", sets = 3, rep_min = 12, rep_max = 20 },
+  { exercise = "single-leg-rdl", sets = 3, rep_min = 10, rep_max = 15, per_side = true },
+  { exercise = "hamstring-curl", sets = 3, rep_min = 8, rep_max = 15 },
+  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, per_side = true },
+]
+
+[[sessions]]
+slug = "zone2"
+name = "Zone 2"
+focus = "Endurance"
+items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 60 }]
+
+[[sessions]]
+slug = "upper"
+name = "Upper body"
+focus = "Strength / hypertrophy"
+items = [
+  { exercise = "pull-up", sets = 4, rep_min = 5, rep_max = 12 },
+  { exercise = "dip", sets = 3, rep_min = 8, rep_max = 15 },
+  { exercise = "push-up", sets = 3, rep_min = 10, rep_max = 20 },
+  { exercise = "pike-push-up", sets = 3, rep_min = 6, rep_max = 12 },
+  { exercise = "kb-row", sets = 3, rep_min = 12, rep_max = 20, per_side = true },
+]
+
+[[sessions]]
+slug = "moderate-cardio"
+name = "Moderate cardio"
+focus = "Conditioning"
+items = [{ exercise = "moderate-cardio", sets = 1, rep_min = 30, rep_max = 35 }]
+
+[[sessions]]
+slug = "legs-core"
+name = "Legs + core"
+focus = "Strength / hypertrophy"
+items = [
+  { exercise = "reverse-lunge", sets = 3, rep_min = 10, rep_max = 15, per_side = true },
+  { exercise = "pistol-squat", sets = 3, rep_min = 5, rep_max = 10, per_side = true },
+  { exercise = "kb-swing", sets = 4, rep_min = 20, rep_max = 20 },
+  { exercise = "hanging-raise", sets = 3, rep_min = 8, rep_max = 15 },
+]
+
+[[sessions]]
+slug = "intervals"
+name = "Intervals"
+focus = "VO2 max"
+items = [{ exercise = "intervals", sets = 1, rep_min = 4, rep_max = 5 }]
+
+[[sessions]]
+slug = "arms"
+name = "Arms (or rest)"
+focus = "Accessories"
+is_rest_optional = true
+items = [
+  { exercise = "chin-up", sets = 3, rep_min = 6, rep_max = 12 },
+  { exercise = "diamond-push-up", sets = 3, rep_min = 8, rep_max = 15 },
+  { exercise = "kb-curl", sets = 3, rep_min = 12, rep_max = 20 },
+  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 20 },
+]
