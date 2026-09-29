@@ -27,7 +27,7 @@ interface, `unattended-upgrades` enabled.
 ssh vybe-pi
 cd ~/training-coach
 git fetch --tags && git checkout vX.Y.Z    # deploy released versions only
-make up                                    # rebuilds, runs migrations on start
+make up                                    # rebuilds; runs migrations + plan seed on start
 make logs                                  # watch for bot.started
 ```
 
