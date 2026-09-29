@@ -17,11 +17,15 @@ an issue is done when all are met and `make check` passes.
 | `exercise_state` | Current ladder step per exercise | exercise_id (PK), ladder_step_id, updated_at |
 | `plan_state` | Queue pointer (single row) | id=1, next_template_id, updated_at |
 | `settings` | User settings (single row) | id=1, morning_time, nudge_time, nudges_enabled, paused |
-| `workouts` | One logged day | id, local_date, template_id, status (`done`/`rest`/`skipped`), created_at |
-| `set_logs` | One set | id, workout_id, exercise_id, ladder_step_id, set_no, value, side |
+| `workouts` | One training session; several per day allowed (ADR-0014) | id, local_date, template_id (NULL = extra session), status (`done`/`rest`/`skipped`), created_at |
+| `set_logs` | One set; only for `done` workouts (service rule) | id, workout_id, exercise_id, ladder_step_id, set_no, value, side (`both`/`left`/`right`, never NULL) |
 | `events` | Audit log | id, at, kind, payload (JSON, no secrets or transcripts) |
 
-All timestamps UTC. `local_date` is the date in Europe/Berlin.
+All timestamps UTC (`UTCDateTime` rejects naive datetimes). `local_date` is the date in Europe/Berlin.
+Database constraints guard enums, ranges (set value 0-3600, set_no >= 1, rep_max >= rep_min),
+unique ladder positions, unique sets per workout/exercise/set/side, single-row tables
+(`plan_state`, `settings`), and composite foreign keys so a referenced ladder step always
+belongs to the same exercise. Migrations never import application code.
 
 ## Steps
 

@@ -18,3 +18,4 @@ Code). Template: [template.md](template.md).
 | [0011](0011-claude-github-action-subscription.md) | Claude GitHub Action on the owner's subscription | Accepted |
 | [0012](0012-dashboard-auth-and-share-links.md) | Dashboard auth via Telegram, read-only share links | Accepted |
 | [0013](0013-uv-for-python-dependencies.md) | uv and pyproject.toml for Python dependencies | Accepted |
+| [0014](0014-multiple-workouts-per-day.md) | Several workouts per day | Accepted |
