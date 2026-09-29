@@ -23,7 +23,8 @@ class WorkoutStatus(StrEnum):
 
 
 class Side(StrEnum):
-    """Side for unilateral exercises; ``None`` in the database means both or not applicable."""
+    """Side of a set. ``both`` for bilateral exercises; never NULL, so uniqueness holds."""
 
+    BOTH = "both"
     LEFT = "left"
     RIGHT = "right"

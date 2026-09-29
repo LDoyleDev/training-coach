@@ -9,7 +9,7 @@ from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
-from sqlalchemy import Engine, func, select
+from sqlalchemy import Engine, func, insert, select
 from sqlalchemy.exc import IntegrityError, StatementError
 from sqlalchemy.orm import Session
 
@@ -200,8 +200,9 @@ def test_same_set_number_allowed_per_side(session: Session) -> None:
     session.commit()
 
 
-def test_duplicate_set_rejected(session: Session) -> None:
-    _bad_set(session, side=Side.LEFT)
+@pytest.mark.parametrize("side", [Side.BOTH, Side.LEFT])
+def test_duplicate_set_rejected(session: Session, side: Side) -> None:
+    _bad_set(session, side=side)
     session.flush()
     first = session.scalars(select(SetLog)).one()
     session.add(
@@ -211,7 +212,7 @@ def test_duplicate_set_rejected(session: Session) -> None:
             ladder_step_id=first.ladder_step_id,
             set_no=1,
             value=6,
-            side=Side.LEFT,
+            side=side,
         )
     )
     with pytest.raises(IntegrityError):
@@ -266,3 +267,51 @@ def test_naive_datetimes_rejected(session: Session) -> None:
     session.add(Event(kind="test.event", at=datetime(2026, 9, 30, 7, 30)))  # noqa: DTZ001
     with pytest.raises(StatementError, match="naive datetime"):
         session.commit()
+
+
+def test_side_defaults_to_both(session: Session) -> None:
+    _bad_set(session)
+    session.commit()
+    assert session.scalars(select(SetLog)).one().side == Side.BOTH
+
+
+def test_set_ladder_step_must_belong_to_exercise(session: Session) -> None:
+    pull_up = _exercise(session, "pull-up")
+    dip = _exercise(session, "dip")
+    workout = Workout(local_date=date(2026, 9, 30), status=WorkoutStatus.DONE)
+    workout.sets = [
+        SetLog(exercise_id=pull_up.id, ladder_step_id=dip.ladder[0].id, set_no=1, value=5)
+    ]
+    session.add(workout)
+    with pytest.raises(IntegrityError):
+        session.commit()
+
+
+def test_exercise_state_step_must_belong_to_exercise(session: Session) -> None:
+    pull_up = _exercise(session, "pull-up")
+    dip = _exercise(session, "dip")
+    session.add(ExerciseState(exercise_id=pull_up.id, ladder_step_id=dip.ladder[0].id))
+    with pytest.raises(IntegrityError):
+        session.commit()
+
+
+def test_migration_does_not_import_application_code() -> None:
+    for migration in (BACKEND / "migrations" / "versions").glob("*.py"):
+        assert "training_coach" not in migration.read_text(encoding="utf-8"), migration.name
+
+
+def test_null_side_rejected_by_database(session: Session) -> None:
+    _bad_set(session)
+    session.flush()
+    first = session.scalars(select(SetLog)).one()
+    with pytest.raises(IntegrityError):
+        session.execute(
+            insert(SetLog).values(
+                workout_id=first.workout_id,
+                exercise_id=first.exercise_id,
+                ladder_step_id=first.ladder_step_id,
+                set_no=2,
+                value=5,
+                side=None,
+            )
+        )

@@ -17,7 +17,8 @@ training twice in a day to be possible.
   queue twice.
 - A workout with `template_id = NULL` is an extra, unplanned session. It is logged and counts
   towards history and personal bests, but never moves the queue.
-- The evening nudge is suppressed as soon as any workout exists for that day.
+- The evening nudge is suppressed as soon as any workout exists for that day, whatever its
+  status (`done`, `rest` or `skipped`): a deliberate skip is an answer, not an omission.
 
 ## Options considered
 

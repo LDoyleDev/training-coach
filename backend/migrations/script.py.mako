@@ -10,8 +10,6 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
-
-import training_coach.db.types
 ${imports if imports else ""}
 
 # revision identifiers, used by Alembic.

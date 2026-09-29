@@ -5,6 +5,7 @@ Import every model here so Alembic autogenerate sees it. All timestamps are UTC
 """
 
 from datetime import date, datetime, time
+from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import (
@@ -13,6 +14,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Text,
@@ -28,7 +30,7 @@ from training_coach.db.types import UTCDateTime, utcnow
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 
 
-def _in(column: str, values: type[ExerciseKind | WorkoutStatus | Side]) -> str:
+def _in(column: str, values: type[StrEnum]) -> str:
     allowed = ", ".join(f"'{v.value}'" for v in values)
     return f"{column} IN ({allowed})"
 
@@ -60,6 +62,8 @@ class LadderStep(Base):
     __tablename__ = "ladder_steps"
     __table_args__ = (
         UniqueConstraint("exercise_id", "position"),
+        # Target for composite FKs that guarantee a step belongs to the referenced exercise.
+        UniqueConstraint("exercise_id", "id"),
         CheckConstraint("position >= 0", name="position_non_negative"),
     )
 
@@ -124,11 +128,18 @@ class ExerciseState(Base):
     """The ladder step currently being trained for each exercise."""
 
     __tablename__ = "exercise_state"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["exercise_id", "ladder_step_id"],
+            ["ladder_steps.exercise_id", "ladder_steps.id"],
+            ondelete="RESTRICT",
+        ),
+    )
 
     exercise_id: Mapped[int] = mapped_column(
         ForeignKey("exercises.id", ondelete="CASCADE"), primary_key=True
     )
-    ladder_step_id: Mapped[int] = mapped_column(ForeignKey("ladder_steps.id", ondelete="RESTRICT"))
+    ladder_step_id: Mapped[int] = mapped_column(Integer)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
@@ -189,14 +200,23 @@ class Workout(Base):
 
 
 class SetLog(Base):
-    """One logged set. ``value`` is reps, seconds or minutes depending on the exercise kind."""
+    """One logged set. ``value`` is reps, seconds or minutes depending on the exercise kind.
+
+    Sets are only saved for ``done`` workouts; ``rest``/``skipped`` workouts have none
+    (enforced in the logging service, step 1-E).
+    """
 
     __tablename__ = "set_logs"
     __table_args__ = (
         UniqueConstraint("workout_id", "exercise_id", "set_no", "side"),
         CheckConstraint("set_no >= 1", name="set_no_positive"),
         CheckConstraint("value >= 0 AND value <= 3600", name="value_in_range"),
-        CheckConstraint(f"side IS NULL OR {_in('side', Side)}", name="side_valid"),
+        CheckConstraint(_in("side", Side), name="side_valid"),
+        ForeignKeyConstraint(
+            ["exercise_id", "ladder_step_id"],
+            ["ladder_steps.exercise_id", "ladder_steps.id"],
+            ondelete="RESTRICT",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -206,10 +226,10 @@ class SetLog(Base):
     exercise_id: Mapped[int] = mapped_column(
         ForeignKey("exercises.id", ondelete="RESTRICT"), index=True
     )
-    ladder_step_id: Mapped[int] = mapped_column(ForeignKey("ladder_steps.id", ondelete="RESTRICT"))
+    ladder_step_id: Mapped[int] = mapped_column(Integer)
     set_no: Mapped[int] = mapped_column(Integer)
     value: Mapped[int] = mapped_column(Integer)
-    side: Mapped[str | None] = mapped_column(String(8))
+    side: Mapped[str] = mapped_column(String(8), default=Side.BOTH, server_default=Side.BOTH.value)
 
     workout: Mapped[Workout] = relationship(back_populates="sets")
 

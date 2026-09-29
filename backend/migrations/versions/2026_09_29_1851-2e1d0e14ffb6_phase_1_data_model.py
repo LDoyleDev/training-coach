@@ -1,8 +1,8 @@
 """phase 1 data model
 
-Revision ID: ebb5cd57e294
+Revision ID: 2e1d0e14ffb6
 Revises:
-Create Date: 2026-09-29 14:05:33.859769
+Create Date: 2026-09-29 18:51:57.420956
 
 """
 
@@ -11,10 +11,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-import training_coach.db.types
-
 # revision identifiers, used by Alembic.
-revision: str = "ebb5cd57e294"
+revision: str = "2e1d0e14ffb6"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -25,7 +23,7 @@ def upgrade() -> None:
     op.create_table(
         "events",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("at", training_coach.db.types.UTCDateTime(), nullable=False),
+        sa.Column("at", sa.DateTime(), nullable=False),
         sa.Column("kind", sa.String(length=64), nullable=False),
         sa.Column("payload", sa.JSON(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_events")),
@@ -70,7 +68,7 @@ def upgrade() -> None:
         sa.Column("nudge_time", sa.Time(), nullable=False),
         sa.Column("nudges_enabled", sa.Boolean(), server_default=sa.text("1"), nullable=False),
         sa.Column("paused", sa.Boolean(), server_default=sa.text("0"), nullable=False),
-        sa.Column("updated_at", training_coach.db.types.UTCDateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.CheckConstraint("id = 1", name=op.f("ck_settings_single_row")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_settings")),
     )
@@ -89,6 +87,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_ladder_steps")),
+        sa.UniqueConstraint("exercise_id", "id", name=op.f("uq_ladder_steps_exercise_id_id")),
         sa.UniqueConstraint(
             "exercise_id", "position", name=op.f("uq_ladder_steps_exercise_id_position")
         ),
@@ -97,7 +96,7 @@ def upgrade() -> None:
         "plan_state",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("next_template_id", sa.Integer(), nullable=True),
-        sa.Column("updated_at", training_coach.db.types.UTCDateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.CheckConstraint("id = 1", name=op.f("ck_plan_state_single_row")),
         sa.ForeignKeyConstraint(
             ["next_template_id"],
@@ -144,7 +143,7 @@ def upgrade() -> None:
         sa.Column("local_date", sa.Date(), nullable=False),
         sa.Column("template_id", sa.Integer(), nullable=True),
         sa.Column("status", sa.String(length=16), nullable=False),
-        sa.Column("created_at", training_coach.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.CheckConstraint(
             "status IN ('done', 'rest', 'skipped')", name=op.f("ck_workouts_status_valid")
         ),
@@ -163,18 +162,18 @@ def upgrade() -> None:
         "exercise_state",
         sa.Column("exercise_id", sa.Integer(), nullable=False),
         sa.Column("ladder_step_id", sa.Integer(), nullable=False),
-        sa.Column("updated_at", training_coach.db.types.UTCDateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["exercise_id", "ladder_step_id"],
+            ["ladder_steps.exercise_id", "ladder_steps.id"],
+            name=op.f("fk_exercise_state_exercise_id_ladder_steps"),
+            ondelete="RESTRICT",
+        ),
         sa.ForeignKeyConstraint(
             ["exercise_id"],
             ["exercises.id"],
             name=op.f("fk_exercise_state_exercise_id_exercises"),
             ondelete="CASCADE",
-        ),
-        sa.ForeignKeyConstraint(
-            ["ladder_step_id"],
-            ["ladder_steps.id"],
-            name=op.f("fk_exercise_state_ladder_step_id_ladder_steps"),
-            ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("exercise_id", name=op.f("pk_exercise_state")),
     )
@@ -186,22 +185,22 @@ def upgrade() -> None:
         sa.Column("ladder_step_id", sa.Integer(), nullable=False),
         sa.Column("set_no", sa.Integer(), nullable=False),
         sa.Column("value", sa.Integer(), nullable=False),
-        sa.Column("side", sa.String(length=8), nullable=True),
+        sa.Column("side", sa.String(length=8), server_default="both", nullable=False),
         sa.CheckConstraint(
-            "side IS NULL OR side IN ('left', 'right')", name=op.f("ck_set_logs_side_valid")
+            "side IN ('both', 'left', 'right')", name=op.f("ck_set_logs_side_valid")
         ),
         sa.CheckConstraint("set_no >= 1", name=op.f("ck_set_logs_set_no_positive")),
         sa.CheckConstraint("value >= 0 AND value <= 3600", name=op.f("ck_set_logs_value_in_range")),
         sa.ForeignKeyConstraint(
-            ["exercise_id"],
-            ["exercises.id"],
-            name=op.f("fk_set_logs_exercise_id_exercises"),
+            ["exercise_id", "ladder_step_id"],
+            ["ladder_steps.exercise_id", "ladder_steps.id"],
+            name=op.f("fk_set_logs_exercise_id_ladder_steps"),
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
-            ["ladder_step_id"],
-            ["ladder_steps.id"],
-            name=op.f("fk_set_logs_ladder_step_id_ladder_steps"),
+            ["exercise_id"],
+            ["exercises.id"],
+            name=op.f("fk_set_logs_exercise_id_exercises"),
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
