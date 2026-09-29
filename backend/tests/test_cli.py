@@ -49,14 +49,37 @@ def test_seed_command_logs_reason_and_exits_nonzero(
     get_settings.cache_clear()
     command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
 
-    def boom(*_args: object) -> None:
-        raise SeedError("sessions ['upper'] exist in the database but not in plan.toml")
+    errors: list[Exception] = [
+        SeedError("sessions ['upper'] exist in the database but not in plan.toml"),
+        RuntimeError("disk full"),
+    ]
+    for error in errors:
 
-    monkeypatch.setattr(cli, "apply_seed", boom)
-    with pytest.raises(SystemExit) as exc:
-        main(["seed"])
-    assert exc.value.code == 1
-    out = capsys.readouterr().out
-    assert "seed.failed" in out
-    assert "not in plan.toml" in out
+        def boom(*_args: object, _error: Exception = error) -> None:
+            raise _error
+
+        monkeypatch.setattr(cli, "apply_seed", boom)
+        with pytest.raises(SystemExit) as exc:
+            main(["seed"])
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "seed.failed" in out
+        assert str(error) in out
+    get_settings.cache_clear()
+
+
+def test_noop_seed_logs_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("TC_DATABASE_URL", f"sqlite:///{tmp_path / 'noop.db'}")
+    monkeypatch.setenv("TC_ENVIRONMENT", "test")
+    get_settings.cache_clear()
+    command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
+
+    main(["seed"])
+    assert "seed.applied" in capsys.readouterr().out
+    main(["seed"])
+    second = capsys.readouterr().out
+    assert "seed.unchanged" in second
+    assert "seed.applied" not in second
     get_settings.cache_clear()

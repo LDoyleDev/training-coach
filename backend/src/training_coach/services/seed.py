@@ -260,11 +260,10 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
         session.add(UserSettings(id=1))
         result.created += 1
 
+    counts = {"created": result.created, "updated": result.updated, "deleted": result.deleted}
     if result.changed:
-        session.add(
-            Event(
-                kind="seed.applied", payload={"created": result.created, "updated": result.updated}
-            )
-        )
-    log.info("seed.applied", created=result.created, updated=result.updated)
+        session.add(Event(kind="seed.applied", payload=counts))
+        log.info("seed.applied", **counts)
+    else:
+        log.info("seed.unchanged")
     return result

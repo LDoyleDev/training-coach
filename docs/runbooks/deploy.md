@@ -39,6 +39,7 @@ the pre-deploy backup (see backup-restore.md), because downgrades may drop data.
 ## Changing the training plan
 
 Edit `backend/src/training_coach/seed/plan.toml` in a PR (CI validates it). After deploying,
-`make logs` should show `seed.applied` with the counts. If it shows `seed.failed`, the app is
+`make logs` should show `seed.applied` with the counts (`seed.unchanged` means the file already
+matched the database). If it shows `seed.failed`, the app is
 still running on the previous plan; fix the file in a new PR. Removing a session is rejected by
 design: write a data migration that repoints the queue first.

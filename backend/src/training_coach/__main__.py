@@ -40,6 +40,9 @@ def seed() -> None:
     except (SeedError, ValidationError, tomllib.TOMLDecodeError) as exc:
         log.error("seed.failed", reason=str(exc))
         raise SystemExit(1) from exc
+    except Exception as exc:  # unexpected: keep the traceback in the log
+        log.exception("seed.failed", reason=f"{type(exc).__name__}: {exc}")
+        raise SystemExit(1) from exc
     finally:
         engine.dispose()
 
