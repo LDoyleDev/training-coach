@@ -1,0 +1,17 @@
+name: Feature idea
+description: Something new the app should do
+labels: ["type: feature", "status: needs-spec"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+    validations: { required: true }
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed behaviour
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

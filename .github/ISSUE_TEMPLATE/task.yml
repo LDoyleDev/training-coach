@@ -1,0 +1,27 @@
+name: Build task
+description: One build step from a phase spec, sized for one PR
+labels: ["type: task"]
+body:
+  - type: input
+    id: spec
+    attributes:
+      label: Spec reference
+      description: Phase spec and step, e.g. docs/specs/phase-1-daily-loop.md, step 1-C
+    validations: { required: true }
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+    validations: { required: true }
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checklist that proves this is done
+      value: |
+        - [ ]
+    validations: { required: true }
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes, dependencies
