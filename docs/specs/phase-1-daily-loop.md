@@ -34,9 +34,16 @@ belongs to the same exercise. Migrations never import application code.
 - `alembic check` clean in CI; migration test upgrades and downgrades.
 
 ### 1-B Seed the plan
-- `training-coach seed` loads `seed/plan.toml` idempotently (re-running changes nothing).
-- Sets each exercise to its `start` ladder step; pointer to the first session.
-- Tests: idempotency; every template item references a known exercise.
+- `training-coach seed` (`make seed`) loads `seed/plan.toml` idempotently (re-running changes
+  nothing). The container runs it on every start, after migrations.
+- The file is validated first (Pydantic, unknown keys rejected): slugs, kinds, ladder `start`,
+  rep ranges, references between sessions and exercises.
+- Upserts by slug/position: edits and additions apply; sessions can be reordered or inserted
+  anywhere. Removing a session or shortening a ladder is rejected before any write (history
+  depends on them) and needs a data migration; items removed from a session are deleted. A
+  failed seed logs `seed.failed` with the reason and does not stop the container (ADR-0015). Progress is never reset: existing exercise state, queue pointer and settings stay.
+- New exercises start at their `start` ladder step; a new database points at the first session.
+- To change the plan: edit `plan.toml` in a PR; it applies on the next deploy.
 
 ### 1-C Session queue and targets (pure domain)
 - `domain/queue.py`: next session; advance on done/rest; no advance on nothing logged

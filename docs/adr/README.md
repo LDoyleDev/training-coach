@@ -19,3 +19,4 @@ Code). Template: [template.md](template.md).
 | [0012](0012-dashboard-auth-and-share-links.md) | Dashboard auth via Telegram, read-only share links | Accepted |
 | [0013](0013-uv-for-python-dependencies.md) | uv and pyproject.toml for Python dependencies | Accepted |
 | [0014](0014-multiple-workouts-per-day.md) | Several workouts per day | Accepted |
+| [0015](0015-seed-failure-does-not-block-startup.md) | A failed plan seed does not block startup | Accepted |

@@ -3,7 +3,7 @@
 BACKEND := backend
 FRONTEND := frontend
 
-.PHONY: help setup lint format typecheck test check build dev-api dev-web migrate migration audit up down logs
+.PHONY: help setup lint format typecheck test check build dev-api dev-web migrate migration seed audit up down logs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -46,6 +46,9 @@ dev-web: ## Run the dashboard dev server (proxies API to :8080)
 
 migrate: ## Apply database migrations
 	cd $(BACKEND) && uv run alembic upgrade head
+
+seed: ## Load or update the training plan from seed/plan.toml (idempotent)
+	cd $(BACKEND) && uv run training-coach seed
 
 migration: ## Create a migration: make migration m="add sessions table"
 	cd $(BACKEND) && uv run alembic revision --autogenerate -m "$(m)"

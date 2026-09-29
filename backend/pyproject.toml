@@ -65,4 +65,4 @@ addopts = "--strict-markers --cov=training_coach --cov-report=term-missing --cov
 [tool.coverage.run]
 branch = true
 source = ["training_coach"]
-omit = ["src/training_coach/__main__.py"]
+omit = []
