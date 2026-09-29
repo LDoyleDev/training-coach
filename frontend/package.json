@@ -11,7 +11,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run --coverage",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "api-types": "openapi-typescript src/api/openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -27,6 +28,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "@vitest/coverage-v8": "^5.0.2",
     "jsdom": "^30.1.1",
+    "openapi-typescript": "^7.13.0",
     "oxlint": "^1.81.0",
     "prettier": "^3.9.9",
     "tailwindcss": "^4.3.3",
@@ -36,5 +38,10 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }

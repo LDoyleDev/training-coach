@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -31,6 +32,17 @@ def test_seed_command_loads_plan_twice_safely(
         assert session.scalar(select(func.count()).select_from(SessionTemplate)) == 7
     engine.dispose()
     get_settings.cache_clear()
+
+
+def test_openapi_command_prints_schema(capsys: pytest.CaptureFixture[str]) -> None:
+    main(["openapi"])
+    schema = json.loads(capsys.readouterr().out)
+    assert "/healthz" in schema["paths"]
+    assert set(schema["components"]["schemas"]["Health"]["properties"]) == {
+        "status",
+        "version",
+        "bot_enabled",
+    }
 
 
 def test_unknown_command_rejected() -> None:
