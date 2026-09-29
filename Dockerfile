@@ -10,7 +10,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # --- 2. Python dependencies ----------------------------------------------
-FROM python:3.12-slim AS deps
+FROM python:3.14-slim AS deps
 COPY --from=ghcr.io/astral-sh/uv:0.8.17 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
@@ -20,7 +20,7 @@ COPY backend/ ./
 RUN uv sync --frozen --no-dev
 
 # --- 3. Runtime ------------------------------------------------------------
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 RUN groupadd --system --gid 10001 app \
  && useradd --system --uid 10001 --gid app --home /app --shell /usr/sbin/nologin app
 WORKDIR /app
