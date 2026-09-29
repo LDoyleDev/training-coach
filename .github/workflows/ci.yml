@@ -29,6 +29,8 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy
       - run: uv run pytest
+      - name: Domain coverage is 100%
+        run: uv run coverage report --include='*/training_coach/domain/*' --fail-under=100
       - name: Migrations have no pending model changes
         env:
           TC_DATABASE_URL: sqlite:///./ci.db
