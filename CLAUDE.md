@@ -34,6 +34,7 @@ make dev-api     # API + bot on :8080 with reload
 make dev-web     # dashboard dev server, proxies to :8080
 make migration m="describe change"   # autogenerate an Alembic migration
 make migrate     # apply migrations
+make api-types   # regenerate dashboard API types after changing a response model (ADR-0017)
 make seed        # load/update the training plan (idempotent, never resets progress)
 ```
 

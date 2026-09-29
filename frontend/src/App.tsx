@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import type { components } from './api/schema'
 
-type Health = { status: string; version: string; bot_enabled: boolean }
+type Health = components['schemas']['Health']
 
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null)
