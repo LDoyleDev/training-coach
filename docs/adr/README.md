@@ -20,3 +20,4 @@ Code). Template: [template.md](template.md).
 | [0013](0013-uv-for-python-dependencies.md) | uv and pyproject.toml for Python dependencies | Accepted |
 | [0014](0014-multiple-workouts-per-day.md) | Several workouts per day | Accepted |
 | [0015](0015-seed-failure-does-not-block-startup.md) | A failed plan seed does not block startup | Accepted |
+| [0016](0016-queue-and-target-rules.md) | Queue edge cases and target rules | Accepted |
