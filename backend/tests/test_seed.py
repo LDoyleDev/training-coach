@@ -20,7 +20,7 @@ from training_coach.db.models import (
     UserSettings,
 )
 from training_coach.db.session import make_engine
-from training_coach.services.seed import PlanSeed, apply_seed, load_plan
+from training_coach.services.seed import PlanSeed, SeedError, apply_seed, load_plan
 
 BACKEND = Path(__file__).resolve().parents[1]
 
@@ -209,3 +209,47 @@ def test_full_bundled_plan_seeds(session: Session) -> None:
     assert _count(session, Exercise) == len(plan.exercises)
     assert _count(session, SessionTemplate) == 7
     assert _count(session, ExerciseState) == len(plan.exercises)
+
+
+NEW_SESSION = """
+[[sessions]]
+slug = "core"
+name = "Core"
+focus = "Core"
+items = [{ exercise = "dip", sets = 2, rep_min = 5, rep_max = 10 }]
+"""
+
+
+def _sessions(text: str) -> tuple[str, list[str]]:
+    head, *blocks = text.split("[[sessions]]")
+    return head, ["[[sessions]]" + b for b in blocks]
+
+
+@pytest.mark.parametrize("insert_at", [0, 1, 2], ids=["front", "middle", "end"])
+def test_new_session_can_be_inserted_anywhere(session: Session, insert_at: int) -> None:
+    apply_seed(session, load_plan(MINI_PLAN))
+    session.commit()
+    head, blocks = _sessions(MINI_PLAN)
+    blocks.insert(insert_at, NEW_SESSION)
+    apply_seed(session, load_plan(head + "".join(blocks)))
+    session.commit()
+
+    order = session.scalars(select(SessionTemplate.slug).order_by(SessionTemplate.position)).all()
+    expected = ["upper", "arms"]
+    expected.insert(insert_at, "core")
+    assert order == expected
+    positions = session.scalars(select(SessionTemplate.position).order_by(SessionTemplate.position))
+    assert list(positions) == [0, 1, 2]
+
+
+def test_removing_a_session_is_rejected_and_changes_nothing(session: Session) -> None:
+    apply_seed(session, load_plan(MINI_PLAN))
+    session.commit()
+    head, blocks = _sessions(MINI_PLAN)
+
+    with pytest.raises(SeedError, match=r"\['upper'\].*needs a migration"):
+        apply_seed(session, load_plan(head + blocks[1]))
+    session.rollback()
+
+    order = session.scalars(select(SessionTemplate.slug).order_by(SessionTemplate.position)).all()
+    assert order == ["upper", "arms"]

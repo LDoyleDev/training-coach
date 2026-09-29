@@ -38,8 +38,10 @@ belongs to the same exercise. Migrations never import application code.
   nothing). The container runs it on every start, after migrations.
 - The file is validated first (Pydantic, unknown keys rejected): slugs, kinds, ladder `start`,
   rep ranges, references between sessions and exercises.
-- Upserts by slug/position: edits and additions apply; nothing is deleted; sessions can be
-  reordered. Progress is never reset: existing exercise state, queue pointer and settings stay.
+- Upserts by slug/position: edits and additions apply; sessions can be reordered or inserted
+  anywhere. Nothing is deleted: removing a session from the file is rejected (it would leave an
+  orphan in the queue) and needs a data migration instead. A failed seed does not stop the
+  container; it serves with the existing plan and logs `seed.failed`. Progress is never reset: existing exercise state, queue pointer and settings stay.
 - New exercises start at their `start` ladder step; a new database points at the first session.
 - To change the plan: edit `plan.toml` in a PR; it applies on the next deploy.
 

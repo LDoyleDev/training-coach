@@ -28,10 +28,17 @@ ssh vybe-pi
 cd ~/training-coach
 git fetch --tags && git checkout vX.Y.Z    # deploy released versions only
 make up                                    # rebuilds; runs migrations + plan seed on start
-make logs                                  # watch for bot.started
+make logs                                  # watch for bot.started (and no seed.failed)
 ```
 
 ## Rollback
 
 `git checkout <previous tag> && make up`. If the release included a migration, first restore
 the pre-deploy backup (see backup-restore.md), because downgrades may drop data.
+
+## Changing the training plan
+
+Edit `backend/src/training_coach/seed/plan.toml` in a PR (CI validates it). After deploying,
+`make logs` should show `seed.applied` with the counts. If it shows `seed.failed`, the app is
+still running on the previous plan; fix the file in a new PR. Removing a session is rejected by
+design: write a data migration that repoints the queue first.

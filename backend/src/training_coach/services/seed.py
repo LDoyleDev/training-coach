@@ -36,6 +36,10 @@ SLUG = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 _PARK_OFFSET = 10_000
 
 
+class SeedError(RuntimeError):
+    """The plan file cannot be applied to the current database."""
+
+
 # ------------------------------------------------------------------ file schema
 
 
@@ -174,9 +178,19 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
 
     templates = {t.slug: t for t in session.scalars(select(SessionTemplate))}
     wanted = {s.slug: i for i, s in enumerate(plan.sessions)}
-    if any(wanted.get(t.slug, t.position) != t.position for t in templates.values()):
+    removed = sorted(set(templates) - set(wanted))
+    if removed:
+        # Sessions define the queue (ADR-0006). Dropping one silently would leave an
+        # orphan in the cycle, so removal is a deliberate migration, never a seed side effect.
+        raise SeedError(
+            f"sessions {removed} exist in the database but not in plan.toml; "
+            "removing a session needs a migration (see docs/specs/phase-1-daily-loop.md)"
+        )
+    current = {t.slug: t.position for t in templates.values()}
+    if current != {slug: wanted[slug] for slug in current}:
         # Reordering: park existing positions out of the way so the unique index never
-        # sees two sessions on one position mid-update.
+        # sees two sessions on one position mid-update. New sessions always get positions
+        # after the existing ones' final positions, so they cannot collide.
         for existing in templates.values():
             existing.position += _PARK_OFFSET
         session.flush()
