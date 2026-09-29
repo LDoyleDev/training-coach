@@ -21,3 +21,4 @@ Code). Template: [template.md](template.md).
 | [0014](0014-multiple-workouts-per-day.md) | Several workouts per day | Accepted |
 | [0015](0015-seed-failure-does-not-block-startup.md) | A failed plan seed does not block startup | Accepted |
 | [0017](0017-generated-api-types.md) | Dashboard API types are generated from the OpenAPI schema | Proposed |
+| [0018](0018-claude-code-guardrails.md) | Claude Code guardrails: hooks, review subagents, a lean CLAUDE.md | Proposed |

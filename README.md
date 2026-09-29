@@ -32,7 +32,7 @@ make check                 # everything CI runs
 | [Architecture](docs/architecture.md) | Components and request paths |
 | [Decisions (ADRs)](docs/adr/README.md) | Why things are the way they are |
 | [Threat model](docs/security/threat-model.md) | Security controls |
-| [Runbooks](docs/runbooks/) | Deploy, backup/restore, rotate secrets, GitHub setup |
+| [Runbooks](docs/runbooks/) | Deploy, backup/restore, rotate secrets, GitHub setup, developing on Windows |
 | [Contributing](CONTRIBUTING.md) | Workflow, commits, releases |
 | [CLAUDE.md](CLAUDE.md) | Instructions for Claude Code |
 
