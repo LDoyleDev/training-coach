@@ -2,7 +2,7 @@
 # Multi-stage build for the Raspberry Pi (linux/arm64). See ADR-0003.
 
 # --- 1. Dashboard ---------------------------------------------------------
-FROM node:22-alpine AS web
+FROM node:26-alpine AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
