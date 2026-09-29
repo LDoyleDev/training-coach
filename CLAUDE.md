@@ -27,7 +27,8 @@ Later, an MCP endpoint lets Claude read and log data.
 
 ```
 make setup       # install deps + git hooks (once)
-make check       # lint + typecheck + tests, backend and frontend. Must pass before any PR.
+make check       # lint, types, tests, migration check, dashboard build. Must pass before any PR.
+make ci          # check + dependency audit (network)
 make format      # auto-fix formatting
 make dev-api     # API + bot on :8080 with reload
 make dev-web     # dashboard dev server, proxies to :8080
@@ -36,7 +37,11 @@ make migrate     # apply migrations
 make seed        # load/update the training plan (idempotent, never resets progress)
 ```
 
-Single test: `cd backend && uv run pytest tests/test_api.py::test_healthz_reports_ok`.
+Single test: `cd backend && uv run pytest tests/api/test_app.py::test_healthz_reports_ok`.
+
+Test tools: shared fixtures in `tests/conftest.py` (`engine`/`session` give a migrated SQLite DB),
+row builders in `tests/factories.py`, `time-machine` to freeze or travel the clock (DST tests),
+`respx` to fake Groq and Telegram HTTP. Never call a real external API from a test.
 
 ## Workflow (every task)
 

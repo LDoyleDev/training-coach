@@ -3,7 +3,7 @@
 BACKEND := backend
 FRONTEND := frontend
 
-.PHONY: help setup lint format typecheck test check build dev-api dev-web migrate migration seed audit up down logs
+.PHONY: help setup lint format typecheck test migrations-check check ci build dev-api dev-web migrate migration seed audit up down logs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -29,10 +29,17 @@ test: ## Run all tests
 	cd $(BACKEND) && uv run pytest
 	cd $(FRONTEND) && npm test
 
-check: lint typecheck test ## Everything CI runs; must pass before every PR
+migrations-check: ## Migrations apply cleanly and match the models (alembic check)
+	cd $(BACKEND) && rm -f .check.db && export TC_DATABASE_URL=sqlite:///./.check.db \
+		&& uv run alembic upgrade head && uv run alembic check; status=$$?; rm -f .check.db; exit $$status
+
+check: lint typecheck test migrations-check build ## Everything CI runs offline; must pass before every PR
+
+ci: check audit ## check + dependency audit (needs network); the full CI job set minus Docker
 
 audit: ## Dependency vulnerability scan
-	cd $(BACKEND) && uv export --frozen --no-hashes --no-emit-project > /tmp/tc-req.txt && uv run pip-audit -r /tmp/tc-req.txt --strict
+	cd $(BACKEND) && uv export --frozen --no-hashes --no-emit-project -o requirements-audit.txt \
+		&& uv run pip-audit -r requirements-audit.txt --strict; status=$$?; rm -f requirements-audit.txt; exit $$status
 	cd $(FRONTEND) && npm audit --audit-level=high
 
 build: ## Build the dashboard

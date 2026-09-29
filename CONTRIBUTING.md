@@ -11,7 +11,7 @@ This is a one-person project built mostly with Claude Code, run like a team proj
    `type(scope): summary`. Types: feat, fix, docs, style, refactor, perf, test, build, ci,
    chore, revert. Scopes: bot, api, web, db, domain, parser, scheduler, infra, docs.
    A `commit-msg` hook enforces this.
-4. **Check** with `make check` (lint, types, tests; backend and frontend).
+4. **Check** with `make check` (lint, types, tests, migration check, dashboard build).
 5. **PR** with a Conventional Commit title and the template filled in (`Closes #N`). CI and
    Claude review run automatically. Squash-merge when green.
 6. **Decisions** go in an ADR in the same PR (`docs/adr/`, or `/adr` in Claude Code).
