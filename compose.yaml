@@ -1,0 +1,31 @@
+# Production stack on the Pi. Cloudflare Tunnel (cloudflared on the host) points at
+# http://127.0.0.1:8080; nothing is published on other interfaces. See ADR-0003.
+name: training-coach
+
+services:
+  app:
+    build: .
+    image: training-coach:local
+    env_file: .env
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    networks: [coach]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  coach:
+    name: training-coach
