@@ -119,10 +119,31 @@ def load_plan(text: str | None = None) -> PlanSeed:
 class SeedResult:
     created: int = 0
     updated: int = 0
+    deleted: int = 0
 
     @property
     def changed(self) -> bool:
-        return self.created > 0 or self.updated > 0
+        return self.created > 0 or self.updated > 0 or self.deleted > 0
+
+
+def _preflight(session: Session, plan: PlanSeed, exercises: dict[str, Exercise]) -> None:
+    """Refuse plans that would drop things history depends on, before any write."""
+    existing_sessions = set(session.scalars(select(SessionTemplate.slug)))
+    removed = sorted(existing_sessions - {s.slug for s in plan.sessions})
+    if removed:
+        # Sessions define the queue (ADR-0006); dropping one would orphan it in the cycle.
+        raise SeedError(
+            f"sessions {removed} exist in the database but not in plan.toml; "
+            "removing a session needs a data migration (see docs/specs/phase-1-daily-loop.md)"
+        )
+    for seed in plan.exercises:
+        exercise = exercises.get(seed.slug)
+        if exercise is not None and len(exercise.ladder) > len(seed.ladder):
+            raise SeedError(
+                f"exercise {seed.slug!r} has {len(exercise.ladder)} ladder steps in the database "
+                f"but {len(seed.ladder)} in plan.toml; logged sets reference ladder steps, so "
+                "shortening a ladder needs a data migration"
+            )
 
 
 def _set(obj: object, result: SeedResult, **values: object) -> None:
@@ -137,10 +158,16 @@ def _set(obj: object, result: SeedResult, **values: object) -> None:
 
 
 def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
-    """Upsert the plan. The caller owns the transaction (commit / rollback)."""
+    """Upsert the plan. The caller owns the transaction (commit / rollback).
+
+    Raises ``SeedError`` before changing anything if the plan would remove a session or
+    shorten a ladder; both are referenced by history and need a deliberate data migration.
+    Items removed from a session are deleted (nothing else references them).
+    """
     result = SeedResult()
 
     exercises = {e.slug: e for e in session.scalars(select(Exercise))}
+    _preflight(session, plan, exercises)
     for seed in plan.exercises:
         exercise = exercises.get(seed.slug)
         if exercise is None:
@@ -178,14 +205,6 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
 
     templates = {t.slug: t for t in session.scalars(select(SessionTemplate))}
     wanted = {s.slug: i for i, s in enumerate(plan.sessions)}
-    removed = sorted(set(templates) - set(wanted))
-    if removed:
-        # Sessions define the queue (ADR-0006). Dropping one silently would leave an
-        # orphan in the cycle, so removal is a deliberate migration, never a seed side effect.
-        raise SeedError(
-            f"sessions {removed} exist in the database but not in plan.toml; "
-            "removing a session needs a migration (see docs/specs/phase-1-daily-loop.md)"
-        )
     current = {t.slug: t.position for t in templates.values()}
     if current != {slug: wanted[slug] for slug in current}:
         # Reordering: park existing positions out of the way so the unique index never
@@ -227,6 +246,10 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 result.created += 1
             else:
                 _set(item, result, **values)
+        for position, item in items.items():
+            if position >= len(seed_session.items):
+                template.items.remove(item)  # delete-orphan: removed from the plan
+                result.deleted += 1
     session.flush()
 
     if session.get(PlanState, 1) is None:

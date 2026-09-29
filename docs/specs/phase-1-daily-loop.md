@@ -39,9 +39,9 @@ belongs to the same exercise. Migrations never import application code.
 - The file is validated first (Pydantic, unknown keys rejected): slugs, kinds, ladder `start`,
   rep ranges, references between sessions and exercises.
 - Upserts by slug/position: edits and additions apply; sessions can be reordered or inserted
-  anywhere. Nothing is deleted: removing a session from the file is rejected (it would leave an
-  orphan in the queue) and needs a data migration instead. A failed seed does not stop the
-  container; it serves with the existing plan and logs `seed.failed`. Progress is never reset: existing exercise state, queue pointer and settings stay.
+  anywhere. Removing a session or shortening a ladder is rejected before any write (history
+  depends on them) and needs a data migration; items removed from a session are deleted. A
+  failed seed logs `seed.failed` with the reason and does not stop the container (ADR-0015). Progress is never reset: existing exercise state, queue pointer and settings stay.
 - New exercises start at their `start` ladder step; a new database points at the first session.
 - To change the plan: edit `plan.toml` in a PR; it applies on the next deploy.
 

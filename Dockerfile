@@ -37,6 +37,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=4).status == 200 else 1)"
 # Migrations and the plan seed run on every start; both are idempotent and never reset progress.
 # A failed migration stops startup (the schema would not match the code). A failed seed does
-# not: the app serves with the plan already in the database, so a bad plan.toml can never
-# crash-loop the container. Check `make logs` for "seed.failed" after deploying plan changes.
-CMD ["sh", "-c", "alembic upgrade head && { training-coach seed || echo '{\"event\": \"seed.failed\", \"level\": \"error\"}'; } && exec training-coach serve"]
+# not (ADR-0015): the app serves with the plan already in the database and `seed` logs
+# "seed.failed" with the reason, so a bad plan.toml can never crash-loop the container.
+CMD ["sh", "-c", "alembic upgrade head && { training-coach seed || true; } && exec training-coach serve"]

@@ -247,9 +247,44 @@ def test_removing_a_session_is_rejected_and_changes_nothing(session: Session) ->
     session.commit()
     head, blocks = _sessions(MINI_PLAN)
 
-    with pytest.raises(SeedError, match=r"\['upper'\].*needs a migration"):
+    with pytest.raises(SeedError, match=r"\['upper'\].*needs a data migration"):
         apply_seed(session, load_plan(head + blocks[1]))
     session.rollback()
 
     order = session.scalars(select(SessionTemplate.slug).order_by(SessionTemplate.position)).all()
     assert order == ["upper", "arms"]
+
+
+def test_item_removed_from_session_is_deleted(session: Session) -> None:
+    two_items = MINI_PLAN.replace(
+        'items = [{ exercise = "pull-up", sets = 4, rep_min = 5, rep_max = 12 }]',
+        'items = [{ exercise = "pull-up", sets = 4, rep_min = 5, rep_max = 12 },'
+        ' { exercise = "dip", sets = 3, rep_min = 8, rep_max = 15 }]',
+    )
+    apply_seed(session, load_plan(two_items))
+    session.commit()
+    assert _count(session, TemplateItem) == 3
+
+    result = apply_seed(session, load_plan(MINI_PLAN))
+    session.commit()
+
+    assert result.deleted == 1
+    upper = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "upper")).one()
+    assert [item.position for item in upper.items] == [0]
+    assert _count(session, TemplateItem) == 2
+
+
+def test_shortening_a_ladder_is_rejected_before_any_write(session: Session) -> None:
+    apply_seed(session, load_plan(MINI_PLAN))
+    session.commit()
+    shorter = MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet down"]').replace(
+        'name = "Pull-up"', 'name = "Pull-up renamed"'
+    )
+
+    with pytest.raises(SeedError, match="'dip' has 2 ladder steps"):
+        apply_seed(session, load_plan(shorter))
+    session.rollback()
+
+    assert (
+        session.scalars(select(Exercise.name).where(Exercise.slug == "pull-up")).one() == "Pull-up"
+    )
