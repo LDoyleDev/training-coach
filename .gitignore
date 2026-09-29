@@ -1,0 +1,35 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Runtime data (SQLite database, backups, uploads)
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code: local, per-user settings stay out of git
+.claude/settings.local.json

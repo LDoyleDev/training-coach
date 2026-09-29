@@ -1,0 +1,60 @@
+# Common tasks. Run `make help` for the list. CI runs the same targets.
+.DEFAULT_GOAL := help
+BACKEND := backend
+FRONTEND := frontend
+
+.PHONY: help setup lint format typecheck test check build dev-api dev-web migrate migration audit up down logs
+
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+
+setup: ## Install all dependencies and git hooks
+	cd $(BACKEND) && uv sync --frozen
+	cd $(FRONTEND) && npm ci
+	cd $(BACKEND) && uv run pre-commit install --install-hooks -t pre-commit -t commit-msg --config ../.pre-commit-config.yaml
+
+lint: ## Lint backend and frontend
+	cd $(BACKEND) && uv run ruff check . && uv run ruff format --check .
+	cd $(FRONTEND) && npm run lint && npm run format:check
+
+format: ## Auto-format everything
+	cd $(BACKEND) && uv run ruff check --fix . && uv run ruff format .
+	cd $(FRONTEND) && npm run format
+
+typecheck: ## Type-check backend (mypy strict) and frontend (tsc)
+	cd $(BACKEND) && uv run mypy
+	cd $(FRONTEND) && npm run typecheck
+
+test: ## Run all tests
+	cd $(BACKEND) && uv run pytest
+	cd $(FRONTEND) && npm test
+
+check: lint typecheck test ## Everything CI runs; must pass before every PR
+
+audit: ## Dependency vulnerability scan
+	cd $(BACKEND) && uv export --frozen --no-hashes --no-emit-project > /tmp/tc-req.txt && uv run pip-audit -r /tmp/tc-req.txt --strict
+	cd $(FRONTEND) && npm audit --audit-level=high
+
+build: ## Build the dashboard
+	cd $(FRONTEND) && npm run build
+
+dev-api: ## Run the API (and bot, if configured) with reload
+	cd $(BACKEND) && uv run uvicorn training_coach.api.app:create_app --factory --reload --port 8080
+
+dev-web: ## Run the dashboard dev server (proxies API to :8080)
+	cd $(FRONTEND) && npm run dev
+
+migrate: ## Apply database migrations
+	cd $(BACKEND) && uv run alembic upgrade head
+
+migration: ## Create a migration: make migration m="add sessions table"
+	cd $(BACKEND) && uv run alembic revision --autogenerate -m "$(m)"
+
+up: ## Build and start the stack (on the Pi)
+	docker compose up -d --build
+
+down: ## Stop the stack
+	docker compose down
+
+logs: ## Follow app logs
+	docker compose logs -f app
