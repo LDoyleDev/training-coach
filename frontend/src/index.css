@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+
+/* Design tokens live here. The visual direction is set in docs/specs/dashboard-design.md. */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light dark;
+}
