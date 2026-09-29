@@ -1,8 +1,12 @@
 version: 2
 updates:
+  # Major upgrades are deliberate decisions (ADR + PR), not weekly bot PRs.
   - package-ecosystem: uv
     directory: /backend
     schedule: { interval: weekly, day: monday }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       python-minor-patch:
         update-types: [minor, patch]
@@ -11,6 +15,9 @@ updates:
   - package-ecosystem: npm
     directory: /frontend
     schedule: { interval: weekly, day: monday }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
@@ -21,7 +28,13 @@ updates:
     schedule: { interval: weekly, day: monday }
     commit-message: { prefix: ci }
 
+  # Python and Node versions are pinned by ADR-0002/0004; only patch-level image updates.
   - package-ecosystem: docker
     directory: /
     schedule: { interval: monthly }
+    ignore:
+      - dependency-name: python
+        versions: [">=3.13"]
+      - dependency-name: node
+        versions: [">=23"]
     commit-message: { prefix: build }
