@@ -26,7 +26,7 @@ typecheck: ## Type-check backend (mypy strict) and frontend (tsc)
 	cd $(FRONTEND) && npm run typecheck
 
 test: ## Run all tests (domain/ must stay at 100% coverage)
-	cd $(BACKEND) && uv run pytest && uv run coverage report --include='*/training_coach/domain/*' --fail-under=100 >/dev/null
+	cd $(BACKEND) && uv run pytest && uv run coverage report --include='*/training_coach/domain/*' --fail-under=100 --skip-covered
 	cd $(FRONTEND) && npm test
 
 check: lint typecheck test ## Everything CI runs; must pass before every PR
