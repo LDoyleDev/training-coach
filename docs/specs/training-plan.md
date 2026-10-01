@@ -23,8 +23,9 @@ shift everything back (ADR-0006).
 
 ## Training rules (Galpin, from the Huberman Lab guest series)
 
-- **Volume:** 10-20 hard sets per muscle group per week; each muscle trained directly once and
-  indirectly once per week.
+- **Volume:** 10-20 hard sets per muscle group per week (Galpin counts direct work; the table
+  below also counts secondary movers, so treat it as an upper estimate). Each muscle is trained
+  directly once and indirectly once per week.
 - **Effort:** stop 1-2 reps short of failure on most sets.
 - **Reps:** hypertrophy 6-30 reps (mostly 8-15). Bodyweight progression comes from harder
   ladder variations, which keeps sets inside the range.
@@ -37,7 +38,9 @@ shift everything back (ADR-0006).
 
 ## Weekly hard sets per muscle group
 
-Direct sets only, counted from `plan.toml` (CI checks the big groups stay within 10-20).
+Counted from `plan.toml`: every set counts for each muscle group an exercise lists, primary or
+secondary (pull-ups count for lats, upper back and biceps). CI checks the big groups stay
+within 10-20.
 
 | Group | Sets | From |
 | --- | --- | --- |
