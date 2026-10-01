@@ -8,8 +8,10 @@ Help one person (Liam) follow a Huberman/Galpin-style weekly training plan at ho
 stronger and bigger, and see progress clearly, with the least friction possible from a phone.
 
 Equipment: 8 kg kettlebell, pull-up bar, dips (chairs), floor. Bodyweight progress comes from
-harder variations (ladders), not added weight. The plan itself lives in
-`backend/src/training_coach/seed/plan.toml`.
+harder variations (ladders), not added weight. The plan follows Huberman's Foundational Fitness
+Protocol: legs; recovery + posture; torso + neck; moderate cardio; high intensity; arms,
+calves + neck; long zone 2. Rationale, volume per muscle and sources: `docs/specs/training-plan.md`
+(ADR-0017). Data: `backend/src/training_coach/seed/plan.toml`.
 
 ## Daily flow
 
