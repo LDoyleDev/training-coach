@@ -43,3 +43,6 @@ Edit `backend/src/training_coach/seed/plan.toml` in a PR (CI validates it). Afte
 matched the database). If it shows `seed.failed`, the app is
 still running on the previous plan; fix the file in a new PR. Removing a session is rejected by
 design: write a data migration that repoints the queue first.
+
+Before any workouts are logged (no history to keep), the simpler fix is to start from an empty
+database: `make down`, move `data/training_coach.db` aside, `make up`.

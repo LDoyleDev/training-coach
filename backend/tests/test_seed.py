@@ -1,3 +1,4 @@
+import re
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -83,12 +84,12 @@ def test_bundled_plan_is_valid() -> None:
     plan = load_plan()
     assert [s.slug for s in plan.sessions] == [
         "legs",
-        "zone2",
-        "upper",
+        "recovery",
+        "torso",
         "moderate-cardio",
-        "legs-core",
-        "intervals",
+        "hiit",
         "arms",
+        "zone2",
     ]
 
 
@@ -288,3 +289,62 @@ def test_shortening_a_ladder_is_rejected_before_any_write(session: Session) -> N
     assert (
         session.scalars(select(Exercise.name).where(Exercise.slug == "pull-up")).one() == "Pull-up"
     )
+
+
+def test_bundled_plan_covers_huberman_protocol() -> None:
+    """docs/specs/training-plan.md: neck twice a week, posture work, every major muscle trained."""
+    plan = load_plan()
+    groups = {e.slug: set(e.muscle_groups) for e in plan.exercises}
+
+    def sessions_hitting(group: str) -> int:
+        return sum(any(group in groups[item.exercise] for item in s.items) for s in plan.sessions)
+
+    assert sessions_hitting("neck") >= 2
+    assert sessions_hitting("posture") >= 2
+    for group in (
+        "quads",
+        "hamstrings",
+        "glutes",
+        "calves",
+        "tibialis",
+        "chest",
+        "lats",
+        "upper back",
+        "rear delts",
+        "side delts",
+        "biceps",
+        "triceps",
+        "core",
+        "lower back",
+        "grip",
+    ):
+        assert sessions_hitting(group) >= 1, group
+
+
+def test_bundled_plan_weekly_volume_in_galpin_range() -> None:
+    """10-20 hard sets per week for the big muscle groups (Galpin)."""
+    volume = _weekly_volume()
+    for group in ("quads", "glutes", "lats", "upper back", "biceps", "triceps"):
+        assert 10 <= volume[group] <= 20, (group, volume[group])
+
+
+def _weekly_volume() -> dict[str, int]:
+    plan = load_plan()
+    groups = {e.slug: e.muscle_groups for e in plan.exercises}
+    volume: dict[str, int] = {}
+    for session in plan.sessions:
+        for item in session.items:
+            for group in groups[item.exercise]:
+                volume[group] = volume.get(group, 0) + item.sets
+    return volume
+
+
+def test_training_plan_spec_volume_table_matches_plan() -> None:
+    """The hand-written weekly-sets table in the spec must not drift from plan.toml."""
+    spec = (Path(__file__).resolve().parents[2] / "docs/specs/training-plan.md").read_text()
+    section = spec.split("## Weekly hard sets per muscle group", 1)[1].split("\n## ", 1)[0]
+    rows = re.findall(r"^\| ([A-Za-z ]+) \| (\d+) \|", section, flags=re.M)
+    assert len(rows) >= 10
+    volume = _weekly_volume()
+    for name, sets in rows:
+        assert volume[name.lower()] == int(sets), (name, volume[name.lower()], sets)
