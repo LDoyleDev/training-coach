@@ -12,7 +12,7 @@ const pullUp: Exercise = {
   per_side: false,
   muscle_groups: ['lats'],
   ladder: ['Slow negatives', 'Strict pull-up', 'Pause at top'],
-  current_step: 1,
+  start_step: 1,
 }
 
 const torso: Session = {
@@ -44,7 +44,7 @@ const zone2: Session = {
       rep_min: 45,
       rep_max: 75,
       ladder: ['Walk'],
-      current_step: 0,
+      start_step: 0,
     },
   ],
 }

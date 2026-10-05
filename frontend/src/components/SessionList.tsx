@@ -47,7 +47,7 @@ export function SessionList({ sessions, open, onToggle }: Props) {
                   <tr>
                     <th scope="col">Exercise</th>
                     <th scope="col">Work</th>
-                    <th scope="col">Variation now</th>
+                    <th scope="col">Starting variation</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -55,7 +55,7 @@ export function SessionList({ sessions, open, onToggle }: Props) {
                     <tr key={e.slug}>
                       <th scope="row">{e.name}</th>
                       <td className="num">{prescription(e)}</td>
-                      <td>{e.ladder[e.current_step]}</td>
+                      <td>{e.ladder[e.start_step]}</td>
                     </tr>
                   ))}
                 </tbody>

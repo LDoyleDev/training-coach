@@ -11,7 +11,7 @@ export type Exercise = {
   per_side: boolean
   muscle_groups: string[]
   ladder: string[]
-  current_step: number
+  start_step: number
 }
 
 export type Session = {

@@ -12,7 +12,7 @@ colours), dark and light mode, CSP without inline scripts, fast on mobile networ
 ## Plan screen (built)
 
 The public root page (`/`) is a read-only view of the training plan from `GET /api/plan`: the
-seven-session cycle, each session's exercises and current variations, weekly sets per muscle
+seven-session cycle, each session's exercises and starting variations, weekly sets per muscle
 against Galpin's 10-20 range, progression ladders, and a preview of the Telegram flow. It holds
 no personal data (no logs, measurements or photos), so it is safe to share.
 

@@ -1,7 +1,8 @@
 """Read-only view of the training plan for the dashboard (``GET /api/plan``).
 
-Public by design: the plan holds no personal data (no measurements, photos or logs), so it is
-safe to show through the share-visible dashboard (ADR-0012).
+Public by design (ADR-0019): it serves only the static plan bundled in the image. It must
+never carry per-user data (progress, logs, measurements, photos, settings); those stay behind
+dashboard auth or a share token (ADR-0012). ``test_plan_api`` locks the response fields.
 """
 
 from typing import Literal
@@ -26,7 +27,7 @@ class ExerciseView(BaseModel):
     per_side: bool
     muscle_groups: list[str]
     ladder: list[str]
-    current_step: int
+    start_step: int  # the plan's starting rung, not live progress (that comes from the db)
 
 
 class SessionView(BaseModel):
@@ -71,7 +72,7 @@ def build_plan_view() -> PlanView:
                     per_side=item.per_side,
                     muscle_groups=list(ex.muscle_groups),
                     ladder=list(ex.ladder),
-                    current_step=ex.start,
+                    start_step=ex.start,
                 )
             )
         sessions.append(

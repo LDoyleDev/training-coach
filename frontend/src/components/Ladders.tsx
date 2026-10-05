@@ -8,13 +8,13 @@ export function Ladders({ exercises }: { exercises: Exercise[] }) {
           <h3>{e.name}</h3>
           <ol>
             {e.ladder.map((step, i) => {
-              const state = i < e.current_step ? 'done' : i === e.current_step ? 'now' : 'next'
+              const state = i < e.start_step ? 'done' : i === e.start_step ? 'now' : 'next'
               return (
                 <li key={step} className={`ladder-step is-${state}`}>
                   <span className="ladder-dot" aria-hidden="true" />
                   <span className="ladder-text">
                     {step}
-                    {state === 'now' && <span className="ladder-now"> (current)</span>}
+                    {state === 'now' && <span className="ladder-now"> (start)</span>}
                   </span>
                 </li>
               )
