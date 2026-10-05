@@ -39,8 +39,9 @@ shift everything back (ADR-0006).
 ## Weekly hard sets per muscle group
 
 Counted from `plan.toml`: every set counts for each muscle group an exercise lists, primary or
-secondary (pull-ups count for lats, upper back and biceps). CI checks the big groups stay
-within 10-20.
+secondary (pull-ups count for lats, upper back and biceps). CI checks that this table matches
+`plan.toml`, and that quads, glutes, lats, upper back, biceps and triceps stay within 10-20.
+Hamstrings, chest and calves sit below 10 (see Known limits).
 
 | Group | Sets | From |
 | --- | --- | --- |
@@ -63,6 +64,8 @@ moderate cardio (muscular endurance / threshold), high intensity (anaerobic and 
 
 ## Known limits
 
+- Hamstrings and chest get 9 sets a week and calves 6, under Galpin's 10. Adding more would
+  lengthen the Legs and Torso days past an hour. Raise them first if those groups lag.
 - Legs outgrow an 8 kg kettlebell first. A 16 kg (then 24 kg) bell is the most useful upgrade;
   the ladders already include "heavier kettlebell" steps.
 - Huberman alternates monthly between strength blocks (4-8 reps, 3-4 sets, 2-4 min rest) and

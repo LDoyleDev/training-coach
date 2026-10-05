@@ -27,7 +27,11 @@ strength before hypertrophy, sessions of about 60 min. Details and sources:
 
 ## Consequences
 
-- The previous plan was never deployed, so no data migration is needed.
+- The previous plan was never deployed to the Pi, so no data migration is needed. A local dev
+  database seeded with the old plan will fail the seed (removed sessions); delete it and run
+  `make migrate seed`.
 - CI checks that neck and posture work appear at least twice a week, that every major group is
-  trained, and that the big groups get 10-20 sets a week.
+  trained, that quads, glutes, lats, upper back, biceps and triceps get 10-20 sets a week, and
+  that the weekly-sets table in `docs/specs/training-plan.md` matches `plan.toml`. Hamstrings
+  and chest (9) and calves (6) are below 10 by choice, to keep sessions under an hour.
 - Monthly strength/hypertrophy blocks are a follow-up feature.
