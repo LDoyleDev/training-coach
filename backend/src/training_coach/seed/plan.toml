@@ -293,6 +293,7 @@ ladder = ["Brisk walk / hike", "Easy jog / bike", "Easy jog with weight vest or 
 
 [[sessions]]
 slug = "legs"
+type = "strength"
 name = "Legs"
 focus = "Strength / hypertrophy: tibialis, power, quads, hamstrings, calves"
 items = [
@@ -308,6 +309,7 @@ items = [
 
 [[sessions]]
 slug = "recovery"
+type = "recovery"
 name = "Recovery + posture"
 focus = "Posture, mobility; optional sauna / cold"
 is_rest_optional = true
@@ -320,6 +322,7 @@ items = [
 
 [[sessions]]
 slug = "torso"
+type = "strength"
 name = "Torso + neck"
 focus = "Strength / hypertrophy: back, chest, shoulders, neck"
 items = [
@@ -335,18 +338,21 @@ items = [
 
 [[sessions]]
 slug = "moderate-cardio"
+type = "conditioning"
 name = "Moderate cardio"
 focus = "~35 min at 75-80% effort"
 items = [{ exercise = "moderate-cardio", sets = 1, rep_min = 30, rep_max = 40 }]
 
 [[sessions]]
 slug = "hiit"
+type = "conditioning"
 name = "High intensity"
 focus = "Short all-out intervals (bike, hill sprints, swings or burpees)"
 items = [{ exercise = "hiit", sets = 1, rep_min = 8, rep_max = 12 }]
 
 [[sessions]]
 slug = "arms"
+type = "strength"
 name = "Arms, calves + neck"
 focus = "Hypertrophy: biceps, triceps, side delts, calves, neck, core, grip"
 items = [
@@ -363,6 +369,7 @@ items = [
 
 [[sessions]]
 slug = "zone2"
+type = "conditioning"
 name = "Long zone 2"
 focus = "60-75 min at conversational pace (30 min minimum)"
 items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
