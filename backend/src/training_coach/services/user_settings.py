@@ -60,7 +60,8 @@ def update(
     row.nudge_time = prefs.nudge_time
     row.nudges_enabled = prefs.nudges_enabled
     row.paused = prefs.paused
-    session.add(Event(kind="settings.changed", payload=changes))
+    if prefs != old:  # a repeated press changes nothing and logs nothing
+        session.add(Event(kind="settings.changed", payload=changes))
     return prefs
 
 

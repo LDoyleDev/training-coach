@@ -39,3 +39,11 @@ def test_anything_logged_counts_every_status(session: Session) -> None:
     session.flush()
     assert user_settings.anything_logged(session, DAY)
     assert not user_settings.anything_logged(session, date(2026, 10, 7))
+
+
+def test_no_event_when_nothing_changes(session: Session) -> None:
+    user_settings.update(session, paused=True)
+    user_settings.update(session, paused=True)
+    session.flush()
+    kinds = session.scalars(select(Event.kind).where(Event.kind == "settings.changed"))
+    assert len(list(kinds)) == 1

@@ -317,6 +317,9 @@ def build_bot(settings: Settings, sessions: sessionmaker[Session]) -> Applicatio
     application.add_handler(
         CallbackQueryHandler(settings_handlers.button, pattern=rf"^{settings_ui.PREFIX}:")
     )
+    # Takes every plain-text message from the owner; PTB runs only the first matching handler
+    # in a group. Text logging (1-E) must dispatch from here on AWAITING, or sit in its own
+    # handler group, or it will never see a message.
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND & allowed, settings_handlers.typed_time)
     )
