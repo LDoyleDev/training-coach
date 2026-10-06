@@ -10,7 +10,8 @@ tracks progress. A dashboard (React) shows history and progress and can be share
 Later, an MCP endpoint lets Claude read and log data.
 
 - Product spec: `docs/specs/product-spec.md`
-- Current phase spec: `docs/specs/phase-1-daily-loop.md`
+- Current phase spec: `docs/specs/phase-1-daily-loop.md` (its Status table says what is done and next)
+- Next phase (draft, not agreed): `docs/specs/phase-2-overview.md`
 - Decisions: `docs/adr/` (accepted ADRs are binding)
 - Security: `docs/security/threat-model.md`
 - Architecture: `docs/architecture.md`
@@ -53,6 +54,7 @@ Single test: `cd backend && uv run pytest tests/test_api.py::test_healthz_report
    `Closes #<issue>`. PRs are squash-merged; the title becomes the commit on `main`.
 7. If you made a design decision that is not already in an ADR, add one (`/adr`) in the same PR.
 8. Update docs in the same PR when behaviour changes (spec, runbook, README, CHANGELOG is automatic).
+   A PR that finishes a phase step also marks it done in that phase spec's Status table.
 
 Never bump versions or edit `CHANGELOG.md` by hand: release-please does it from commit history.
 

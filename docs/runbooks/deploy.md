@@ -21,6 +21,29 @@ managed rules and a rate-limit rule for `/api/auth/*`.
 Host hardening checklist (once): `ufw default deny incoming`, SSH only on the Tailscale
 interface, `unattended-upgrades` enabled.
 
+## Production on vybe-pi today
+
+| What | Value |
+| --- | --- |
+| Checkout | `~/training-coach` on vybe-pi |
+| App port on the host | `127.0.0.1:8095` (Alliona's web server already holds 8080 on this Pi) |
+| Public address | `https://coach.vybe-dev.com`, via the existing Cloudflare tunnel (`/etc/cloudflared/config.yml`) to `http://localhost:8095` |
+| Public surface | The plan page, `GET /api/plan` and `/healthz` only (ADR-0019); no personal data |
+| Bot | Off until `TC_TELEGRAM_BOT_TOKEN` and `TC_TELEGRAM_ALLOWED_USER_ID` are set in `.env` |
+
+Keep the port change out of the tracked `compose.yaml`: put it in an untracked
+`compose.override.yaml` next to it on the Pi, which `docker compose` reads automatically:
+
+```yaml
+services:
+  app:
+    ports: !override
+      - "127.0.0.1:8095:8080"
+```
+
+Check after any deploy: `curl -s localhost:8095/healthz` on the Pi and
+`curl -s https://coach.vybe-dev.com/healthz` from anywhere.
+
 ## Routine deploy (after a release)
 
 ```bash
