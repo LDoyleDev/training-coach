@@ -84,8 +84,9 @@ def target(session: Session, on: date, tz: ZoneInfo) -> SessionTemplate | None:
         .order_by(Event.id.desc())
         .limit(1)
     )
-    if picked is not None:
-        template = session.get(SessionTemplate, picked.get("picked"))
+    picked_id = picked.get("picked") if isinstance(picked, dict) else None
+    if isinstance(picked_id, int):
+        template = session.get(SessionTemplate, picked_id)
         if template is not None:
             return template
     current = position(session)

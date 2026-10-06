@@ -252,3 +252,12 @@ def test_a_racing_duplicate_save_reports_already_saved(
     assert workout_log.save(seeded, draft, BERLIN) == workout_log.Saved(winner.id, True)
     assert _count(seeded, Workout) == 1
     assert _pointer(seeded) == ids["upper"]
+
+
+@pytest.mark.parametrize("payload", [{}, {"picked": "2"}, {"picked": None}])
+def test_a_malformed_pick_event_is_ignored(seeded: Session, payload: dict[str, object]) -> None:
+    seeded.add(Event(kind="queue.picked", payload=payload))
+    seeded.flush()
+    template = workout_log.target(seeded, TODAY, BERLIN)
+    assert template is not None
+    assert template.id == _ids(seeded)["upper"]

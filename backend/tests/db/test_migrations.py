@@ -54,3 +54,35 @@ def test_batch_migrations_keep_logged_sets(tmp_path: Path, monkeypatch: pytest.M
     assert sets() == 1
     engine.dispose()
     get_settings.cache_clear()
+
+
+def test_a_migration_that_leaves_dangling_keys_is_rolled_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """foreign_key_check runs inside the migration's transaction, so a failure undoes it."""
+    from sqlalchemy import create_engine, text
+
+    from training_coach.config import get_settings
+
+    url = f"sqlite:///{tmp_path / 'dangling.db'}"
+    monkeypatch.setenv("TC_DATABASE_URL", url)
+    get_settings.cache_clear()
+    cfg = Config(str(BACKEND / "alembic.ini"))
+    command.upgrade(cfg, "head")
+    engine = create_engine(url)  # plain engine: foreign keys off, so a dangling row can exist
+    with engine.begin() as db:
+        db.execute(
+            text(
+                "INSERT INTO set_logs (workout_id, exercise_id, ladder_step_id, set_no, value, side)"
+                " VALUES (999, 999, 999, 1, 10, 'both')"
+            )
+        )
+    with pytest.raises(RuntimeError, match="broken foreign keys"):
+        command.downgrade(cfg, "-1")
+    with engine.connect() as db:
+        version = db.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+        columns = [row[1] for row in db.execute(text("PRAGMA table_info(workouts)"))]
+    assert version == "f58870988024"  # still at head: the downgrade was rolled back
+    assert "log_token" in columns
+    engine.dispose()
+    get_settings.cache_clear()
