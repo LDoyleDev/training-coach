@@ -97,7 +97,7 @@ def test_parses(text: str, entries: list[Entry]) -> None:
         pytest.param("plank 2h", "7200 is more than 3600 seconds for Plank", id="seconds-bound"),
         pytest.param("dips 10 kg 10", "I don't understand 'kg'", id="unknown-word"),
         pytest.param("dips left 10", "Dip isn't done one side at a time", id="side-on-two-sided"),
-        pytest.param("dips 21x1", "21 sets of Dip is more than 20", id="too-many-sets"),
+        pytest.param("dips 21x1", "more than 20 sets of Dip", id="too-many-sets"),
         pytest.param("", "nothing to log", id="empty"),
         pytest.param(" ,;\n ", "nothing to log", id="only-separators"),
         pytest.param("dips 1," * 31, "more than 30 exercises", id="too-many-entries"),
@@ -130,3 +130,44 @@ def test_hostile_input_never_raises_and_never_saves_junk(text: str) -> None:
     result = parse_log(text, KNOWN)
     for entry in result.entries:
         assert all(0 <= value <= 200 for _, _, value in entry.sets)
+
+
+# ------------------------------------------------------------- review of #51 (hostile sizes)
+
+
+@pytest.mark.parametrize(
+    ("text", "problem"),
+    [
+        pytest.param("pull-ups 1000000000x8", "more than 20", id="huge-set-count"),
+        pytest.param("pull-ups " + "9" * 30 + "x8", "more than 20", id="30-digit-set-count"),
+        pytest.param("pull-ups 0x8", "at least one set", id="zero-sets"),
+        pytest.param("pull-ups 30s", "Pull-up is counted in reps", id="time-on-reps"),
+        pytest.param("dips 1:30", "Dip is counted in reps", id="clock-on-reps"),
+        pytest.param("zone 2 30s", "Zone 2 is counted in minutes", id="seconds-on-minutes"),
+        pytest.param("plank 1:99", "'1:99' isn't a time", id="clock-seconds-over-59"),
+        pytest.param("dips 3x30s", "Dip is counted in reps", id="unit-inside-sets-x"),
+        pytest.param("dips " + "1 " * 21, "more than 20 sets of Dip", id="21-numbers-one-line"),
+        pytest.param("dips 10x1, dips 11x1", "more than 20 sets of Dip", id="21-sets-across-lines"),
+        pytest.param("burpee" * 20 + " 5", "...", id="long-name-truncated"),
+    ],
+)
+def test_review_cases_are_problems(text: str, problem: str) -> None:
+    result = parse_log(text, KNOWN)
+    assert result.entries == ()
+    assert any(problem in p for p in result.problems), result.problems
+
+
+@pytest.mark.parametrize("phrase", ["pull", "dip", "run", "side"])
+def test_short_words_need_an_exact_match(phrase: str) -> None:
+    """Typo tolerance only for names of five letters or more: 'pull' isn't 'Pull-up'."""
+    known = (*KNOWN, Known("slider-curl", ("Slider curl", "sliders"), REPS, False))
+    result = parse_log(f"{phrase} 5", known)
+    exact = {"dip": "dip", "run": "zone2"}
+    assert [e.slug for e in result.entries] == ([exact[phrase]] if phrase in exact else [])
+
+
+def test_problems_quote_at_most_a_short_excerpt() -> None:
+    hostile = "\x01" * 1500 + " 5"
+    (problem,) = parse_log(hostile, KNOWN).problems
+    assert len(problem) < 120
+    assert "\x01" not in problem

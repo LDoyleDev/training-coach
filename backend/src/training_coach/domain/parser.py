@@ -27,6 +27,8 @@ UNIT = {
 }
 FUZZY_CUTOFF = 0.8  # similarity needed for a typo match
 FUZZY_MARGIN = 0.05  # two different exercises this close to each other: ambiguous
+FUZZY_MIN_LENGTH = 5  # shorter words must match a name exactly ('pull' isn't 'Pull-up')
+QUOTE_LENGTH = 40  # problems echo at most this much of the user's text
 
 FILLER = frozenset(
     {
@@ -86,6 +88,14 @@ class ParseResult:
     problems: tuple[str, ...]
 
 
+def _quote(text: str) -> str:
+    """A short, printable excerpt of user text for a problem message."""
+    clean = " ".join("".join(c if c.isprintable() else " " for c in text).split())
+    if len(clean) > QUOTE_LENGTH:
+        clean = clean[:QUOTE_LENGTH] + "..."
+    return f"'{clean}'"
+
+
 def _normal(text: str) -> str:
     words = re.sub(r"[^a-z0-9]+", " ", text.lower()).split()
     return " ".join(_singular(w) for w in words if w not in FILLER)
@@ -107,41 +117,42 @@ def _match(phrase: str, known: Sequence[Known]) -> Known | str:
     scored: dict[str, tuple[float, Known]] = {}
     for exercise in known:
         for name in exercise.names:
-            score = (
-                1.0
-                if _normal(name) == wanted
-                else SequenceMatcher(None, wanted, _normal(name)).ratio()
-            )
+            if _normal(name) == wanted:
+                score = 1.0
+            elif len(wanted) >= FUZZY_MIN_LENGTH:
+                score = SequenceMatcher(None, wanted, _normal(name)).ratio()
+            else:
+                score = 0.0
             if score > scored.get(exercise.slug, (0.0, exercise))[0]:
                 scored[exercise.slug] = (score, exercise)
     ranked = sorted(scored.values(), key=lambda pair: pair[0], reverse=True)
     if not ranked or ranked[0][0] < FUZZY_CUTOFF:
-        return f"I don't know the exercise {phrase.strip()!r}"
+        return f"I don't know the exercise {_quote(phrase)}"
     if len(ranked) > 1 and ranked[0][0] < 1.0 and ranked[0][0] - ranked[1][0] < FUZZY_MARGIN:
         a, b = ranked[0][1].names[0], ranked[1][1].names[0]
-        return f"{phrase.strip()!r} could be {a} or {b}"
+        return f"{_quote(phrase)} could be {a} or {b}"
     return ranked[0][1]
 
 
-def _clock(text: str) -> tuple[int, int]:
-    big, small = text.split(":")
-    return int(big), int(small)
-
-
-def _value(number: str, unit: str | None, kind: ExerciseKind) -> int:
-    """A number in the exercise's own unit (reps, seconds or minutes)."""
+def _value(number: str, unit: str | None, exercise: Known) -> int | str:
+    """A number in the exercise's own unit (reps, seconds or minutes), or a problem."""
     u = (unit or "").lower()
     hours, minutes, seconds = u.startswith("h"), u.startswith("m"), u.startswith("s")
+    name, kind = exercise.names[0], exercise.kind
+    if kind == ExerciseKind.REPS and (u or ":" in number):
+        return f"{name} is counted in reps, not time"
     if ":" in number:
-        big, small = _clock(number)
+        big, small = (int(part) for part in number.split(":"))
+        if small > 59:
+            return f"{_quote(number)} isn't a time"
         # 1:30 is minutes:seconds for timed holds, hours:minutes for durations.
         return big * 60 + small
     n = int(number)
     if kind == ExerciseKind.SECONDS:
         return n * 3600 if hours else n * 60 if minutes else n
-    if kind == ExerciseKind.DURATION_MIN:
-        return n * 60 if hours else n // 60 if seconds else n
-    return n
+    if seconds:  # durations are whole minutes; don't round seconds away
+        return f"{name} is counted in minutes"
+    return n * 60 if hours else n
 
 
 def _split(text: str, start: int) -> tuple[str, str]:
@@ -158,7 +169,7 @@ def _entry(text: str, known: Sequence[Known]) -> tuple[Known, list[tuple[Side | 
     """One exercise and its values in order (side None = not given), or a problem."""
     starts = [m.start() for m in re.finditer(r"(?<![a-z0-9])\d", text.lower())]
     if not starts:
-        return f"no numbers for {text.strip()!r}"
+        return f"no numbers for {_quote(text)}"
     # A name can contain a number ("zone 2 45"): prefer the split where the whole name
     # matches exactly, otherwise the numbers start at the first number.
     exact = {_normal(name) for exercise in known for name in exercise.names}
@@ -171,22 +182,34 @@ def _entry(text: str, known: Sequence[Known]) -> tuple[Known, list[tuple[Side | 
     values: list[tuple[Side | None, int]] = []
     side: Side | None = None
     rest = re.sub(r"(?<=\d)[/\-](?=\d)", " ", rest.lower())
+    name = exercise.names[0]
     for token in TOKEN.finditer(rest):
         if token["sets"]:
-            each = token["each"]
-            values += [(side, _value(each, token["eachunit"], exercise.kind))] * int(token["sets"])
-        elif token["clock"]:
-            values.append((side, _value(token["clock"], None, exercise.kind)))
-        elif token["num"]:
-            values.append((side, _value(token["num"], token["unit"], exercise.kind)))
+            # Check the count before building anything: "999999999x8" must not allocate.
+            count = int(token["sets"]) if len(token["sets"]) <= 3 else MAX_SETS + 1
+            if count == 0:
+                return f"{name} needs at least one set"
+            if count > MAX_SETS:
+                return f"that's more than {MAX_SETS} sets of {name}"
+            value = _value(token["each"], token["eachunit"], exercise)
+            if isinstance(value, str):
+                return value
+            values += [(side, value)] * count
+        elif token["clock"] or token["num"]:
+            value = _value(token["clock"] or token["num"], token["unit"], exercise)
+            if isinstance(value, str):
+                return value
+            values.append((side, value))
         elif token["word"] in SIDE_WORDS:
             if not exercise.per_side:
-                return f"{exercise.names[0]} isn't done one side at a time"
+                return f"{name} isn't done one side at a time"
             side = SIDE_WORDS[token["word"]]
         elif token["word"] in EACH_WORDS or token["word"] in FILLER:
             continue
         else:
-            return f"I don't understand {token['word']!r} in {text.strip()!r}"
+            return f"I don't understand {_quote(token['word'])} in {_quote(text)}"
+        if len(values) > MAX_SETS:
+            return f"that's more than {MAX_SETS} sets of {name}"
     return exercise, values
 
 
@@ -239,7 +262,7 @@ def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
         if too_big:
             problems.append(f"{too_big[0]} is more than {limit} {UNIT[exercise.kind]} for {name}")
         elif len(values) > MAX_SETS:
-            problems.append(f"{len(values)} sets of {name} is more than {MAX_SETS}")
+            problems.append(f"that's more than {MAX_SETS} sets of {name}")
         else:
             entries.append(Entry(slug, _sets(exercise, values)))
     return ParseResult(tuple(entries), tuple(problems))
