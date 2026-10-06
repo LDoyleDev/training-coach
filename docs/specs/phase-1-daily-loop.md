@@ -21,8 +21,8 @@ Keep this table current: the PR that finishes a step marks it done here.
 | 1-G Feedback and progress | #13 | Not started |
 | 1-H Backups and ops | #14 | Not started |
 
-Also in this milestone: #18 (guard ladder-step edits that would remap logged history; do it
-before real workouts are logged). Built outside the step list: the public plan page and
+Also in this milestone: #18 (guard ladder-step edits that would remap logged history; done).
+Built outside the step list: the public plan page and
 `GET /api/plan` (#32, ADR-0019). The bot sends the morning session with Start / Rest today / Swap buttons and an evening nudge, and answers `/today`, `/week`, `/settings` and `/help`.
 
 ## Data model (step 1-A)
@@ -59,8 +59,10 @@ belongs to the same exercise. Migrations never import application code.
   rep ranges, references between sessions and exercises.
 - Upserts by slug/position: edits and additions apply; sessions can be reordered or inserted
   anywhere. Removing a session or shortening a ladder is rejected before any write (history
-  depends on them) and needs a data migration; items removed from a session are deleted. A
-  failed seed logs `seed.failed` with the reason and does not stop the container (ADR-0015). Progress is never reset: existing exercise state, queue pointer and settings stay.
+  depends on them) and needs a data migration. Ladder steps are matched by position, so a step
+  that logged sets or current progress use can't change name unless the exercise lists it in
+  `renames = { "old" = "new" }`; new steps go at the end of a ladder (#18).
+- Items removed from a session are deleted. A failed seed logs `seed.failed` with the reason and does not stop the container (ADR-0015). Progress is never reset: existing exercise state, queue pointer and settings stay.
 - New exercises start at their `start` ladder step; a new database points at the first session.
 - To change the plan: edit `plan.toml` in a PR; it applies on the next deploy.
 

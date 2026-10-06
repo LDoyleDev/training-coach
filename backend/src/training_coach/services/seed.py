@@ -4,6 +4,7 @@ The seed is idempotent: running it again changes nothing. It is also safe to run
 plan file has been edited:
 
 - exercises, ladder steps and sessions are matched by slug / position and updated in place;
+  a ladder step that history uses keeps its name unless the exercise lists a rename;
 - new ones are added; nothing is deleted (removing things is a deliberate migration);
 - progress is never reset: existing exercise state, queue pointer and settings are kept.
 """
@@ -26,6 +27,7 @@ from training_coach.db.models import (
     LadderStep,
     PlanState,
     SessionTemplate,
+    SetLog,
     TemplateItem,
     UserSettings,
 )
@@ -56,11 +58,19 @@ class ExerciseSeed(_Strict):
     aliases: list[str] = Field(default_factory=list)
     start: int = Field(ge=0)
     ladder: list[str] = Field(min_length=1)
+    # old name -> new name: renames a step in place, keeping its history (see _preflight)
+    renames: dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _start_within_ladder(self) -> Self:
         if self.start >= len(self.ladder):
             raise ValueError(f"{self.slug}: start {self.start} is beyond the ladder")
+        repeated = sorted({name for name in self.ladder if self.ladder.count(name) > 1})
+        if repeated:
+            raise ValueError(f"{self.slug}: ladder step {repeated} appears twice")
+        missing = sorted(set(self.renames.values()) - set(self.ladder))
+        if missing:
+            raise ValueError(f"{self.slug}: renames to {missing}, which is not in its ladder")
         return self
 
 
@@ -145,14 +155,43 @@ def _preflight(session: Session, plan: PlanSeed, exercises: dict[str, Exercise])
             f"sessions {removed} exist in the database but not in plan.toml; "
             "removing a session needs a data migration (see docs/specs/phase-1-daily-loop.md)"
         )
+    in_use = set(session.scalars(select(SetLog.ladder_step_id).distinct())) | set(
+        session.scalars(select(ExerciseState.ladder_step_id))
+    )
     for seed in plan.exercises:
         exercise = exercises.get(seed.slug)
-        if exercise is not None and len(exercise.ladder) > len(seed.ladder):
+        if exercise is None:
+            continue
+        if len(exercise.ladder) > len(seed.ladder):
             raise SeedError(
                 f"exercise {seed.slug!r} has {len(exercise.ladder)} ladder steps in the database "
                 f"but {len(seed.ladder)} in plan.toml; logged sets reference ladder steps, so "
                 "shortening a ladder needs a data migration"
             )
+        # Steps are matched by position, so a new name at a used position would silently move
+        # logged sets and current progress to a different variation (#18).
+        by_name = {step.name: step for step in exercise.ladder}
+        for step in exercise.ladder:
+            new = seed.ladder[step.position]
+            if new == step.name:
+                continue
+            other = by_name.get(new)
+            if other is not None:
+                # A swap, a chain of renames or an insert dressed up as renames: a rename can't
+                # make any of these safe, so don't offer one.
+                raise SeedError(
+                    f"exercise {seed.slug!r} step {step.position + 1} would become {new!r}, "
+                    f"which is already the name of step {other.position + 1}. Moving a name "
+                    "between steps moves its logged sets and progress; add new steps at the end "
+                    "of the ladder instead"
+                )
+            if step.id in in_use and seed.renames.get(step.name) != new:
+                raise SeedError(
+                    f"exercise {seed.slug!r} step {step.position + 1} is {step.name!r} in the "
+                    f"database but {new!r} in plan.toml, and logged sets or current progress "
+                    "use it. Add new steps at the end of the ladder; to fix the name of the "
+                    f'same step, add renames = {{ "{step.name}" = "{new}" }} to the exercise'
+                )
 
 
 def _set(obj: object, result: SeedResult, **values: object) -> None:
@@ -169,8 +208,9 @@ def _set(obj: object, result: SeedResult, **values: object) -> None:
 def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
     """Upsert the plan. The caller owns the transaction (commit / rollback).
 
-    Raises ``SeedError`` before changing anything if the plan would remove a session or
-    shorten a ladder; both are referenced by history and need a deliberate data migration.
+    Raises ``SeedError`` before changing anything if the plan would remove a session, shorten
+    a ladder, or rename a ladder step that history uses without a ``renames`` entry: all would
+    remap or orphan logged history.
     Items removed from a session are deleted (nothing else references them).
     """
     result = SeedResult()

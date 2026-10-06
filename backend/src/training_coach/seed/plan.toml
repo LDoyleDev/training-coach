@@ -1,6 +1,8 @@
 # Training plan seed. Loaded by `training-coach seed`.
 # Order of [[sessions]] is the queue order (ADR-0006). Ladders run easiest -> hardest;
-# `start` is the ladder position (0-based) to begin at.
+# `start` is the ladder position (0-based) to begin at. Add new steps at the end of a ladder:
+# steps are matched by position, and a step with history can only change name through
+# `renames = { "old" = "new" }` on its exercise (the seed refuses anything else).
 #
 # Structure follows Huberman's Foundational Fitness Protocol (Huberman Lab ep. 94, with
 # Andy Galpin; see docs/specs/training-plan.md): 3 resistance days (legs; torso + neck;
