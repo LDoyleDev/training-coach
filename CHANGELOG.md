@@ -4,6 +4,29 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.2.0](https://github.com/LDoyleDev/training-coach/compare/v0.1.0...v0.2.0) (2026-10-06)
+
+
+### Features
+
+* **db:** add phase 1 data model and initial migration ([#15](https://github.com/LDoyleDev/training-coach/issues/15)) ([1659578](https://github.com/LDoyleDev/training-coach/commit/1659578d6981fb7105425a980098b8bd75a93986))
+* **db:** seed the training plan from plan.toml ([#17](https://github.com/LDoyleDev/training-coach/issues/17)) ([db56602](https://github.com/LDoyleDev/training-coach/commit/db566027d12e02b0e4fc5d059531d53374f617fd))
+* **domain:** add session queue, targets and progression rules ([#19](https://github.com/LDoyleDev/training-coach/issues/19)) ([f0352d0](https://github.com/LDoyleDev/training-coach/commit/f0352d08b7033b16d1281b32834885e4b7998fa7))
+* **domain:** align the training plan with Huberman's foundational fitness protocol ([#27](https://github.com/LDoyleDev/training-coach/issues/27)) ([80f5740](https://github.com/LDoyleDev/training-coach/commit/80f5740410ee58a529fb9c1dcf16f608e8b144e3))
+* **web:** add the public training plan page and GET /api/plan ([#32](https://github.com/LDoyleDev/training-coach/issues/32)) ([16a4500](https://github.com/LDoyleDev/training-coach/commit/16a450015d3ab04ec36c8fe8dfbf09ec1bc6ee4a))
+
+
+### Bug Fixes
+
+* **infra:** stop .env.example overriding the database path inside the container ([#33](https://github.com/LDoyleDev/training-coach/issues/33)) ([8236dd0](https://github.com/LDoyleDev/training-coach/commit/8236dd0e4a18b41cf1cfb28b6fcfae293745ead3))
+* **web:** bump source-map-js to 1.2.2 for GHSA-68fv-2mgg-jv7q ([#37](https://github.com/LDoyleDev/training-coach/issues/37)) ([966e540](https://github.com/LDoyleDev/training-coach/commit/966e540f5036fc6951aba07e997f12d3cba4d8a8))
+
+
+### Documentation
+
+* move development to WSL 2 on the Windows desktop ([#31](https://github.com/LDoyleDev/training-coach/issues/31)) ([9ff84f3](https://github.com/LDoyleDev/training-coach/commit/9ff84f3e07b34895905efbf215a1d59211fea52f))
+* record phase 1 status, draft the phase 2 spec and document the live Pi setup ([#35](https://github.com/LDoyleDev/training-coach/issues/35)) ([1bf9f9f](https://github.com/LDoyleDev/training-coach/commit/1bf9f9f79bc355acd838c20edccf7198137d64b4))
+
 ## 0.1.0 (2026-09-29)
 
 ### Features
