@@ -2,9 +2,11 @@
 (plus ``:<picked id>`` for a pick); every action re-checks the id against the queue, so a
 button on an old message can't act on a different session (ADR-0022)."""
 
+from collections.abc import Awaitable
 from dataclasses import dataclass
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import BadRequest
 
 PREFIX = "q"
 MAX_ID = 2**63
@@ -78,3 +80,17 @@ def pick(template_id: int, choices: list[tuple[int, str]]) -> InlineKeyboardMark
     ]
     rows.append([InlineKeyboardButton("Back", callback_data=_data("back", template_id))])
     return InlineKeyboardMarkup(rows)
+
+
+async def edit_quietly(edit: Awaitable[object]) -> None:
+    """Run a message edit, ignoring Telegram's refusal when nothing would change.
+
+    Telegram answers 400 "message is not modified" when, say, a second tap retires buttons
+    that are already gone. That isn't a failure, and it must not reach the error handler
+    (which would tell the owner something went wrong after it worked). Other errors raise.
+    """
+    try:
+        await edit
+    except BadRequest as exc:
+        if "not modified" not in str(exc).lower():
+            raise

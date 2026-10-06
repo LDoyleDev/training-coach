@@ -50,7 +50,7 @@ def test_every_command_is_restricted_to_owner(application: Application) -> None:
     # Button presses can't carry a filter and typed text combines filters; test_buttons.py and
     # test_settings.py prove strangers are ignored by behaviour instead.
     others = [type(h) for h in handlers if not isinstance(h, CommandHandler)]
-    assert others == [CallbackQueryHandler, CallbackQueryHandler, MessageHandler]
+    assert others == [CallbackQueryHandler] * 3 + [MessageHandler]
 
 
 async def _replies(application: Application, text: str, sender: int) -> list[str]:  # type: ignore[type-arg]

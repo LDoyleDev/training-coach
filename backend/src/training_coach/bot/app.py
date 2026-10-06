@@ -27,8 +27,10 @@ from telegram.ext import (
 )
 from telegram.warnings import PTBDeprecationWarning
 
-from training_coach.bot import buttons
+from training_coach.bot import buttons, logging_flow
 from training_coach.bot import settings as settings_ui
+from training_coach.bot.buttons import edit_quietly
+from training_coach.bot.logging_flow import LogHandlers
 from training_coach.bot.messages import (
     NO_PLAN,
     NUDGE,
@@ -58,6 +60,8 @@ HELP_TEXT = (
     "/week - the next 7 sessions\n"
     "/settings - message times, nudges, pause\n"
     "/help - this message\n\n"
+    "Log a workout by sending it as a message, like: pull-ups 8 8 7, dips 12 11 10. "
+    "I'll show what I understood before saving anything.\n\n"
     "The session for the day also arrives every morning, with buttons to start it, "
     "take a rest day or swap it."
 )
@@ -182,17 +186,17 @@ class Handlers:
 
         if press.action == "swap":
             await query.answer()
-            await query.edit_message_reply_markup(buttons.swap(tid))
+            await edit_quietly(query.edit_message_reply_markup(buttons.swap(tid)))
             return
         if press.action == "back":
             await query.answer()
-            await query.edit_message_reply_markup(buttons.morning(tid))
+            await edit_quietly(query.edit_message_reply_markup(buttons.morning(tid)))
             return
         if press.action == "pickmenu":
             with session_scope(self.sessions) as session:
                 markup = buttons.pick(tid, queue_actions.choices(session))
             await query.answer()
-            await query.edit_message_reply_markup(markup)
+            await edit_quietly(query.edit_message_reply_markup(markup))
             return
         if press.action == "start":
             with session_scope(self.sessions) as session:
@@ -220,7 +224,7 @@ class Handlers:
                 picked = queue_actions.pick(session, tid, press.picked_id or 0)
                 text = picked_text(picked, offered.name) if picked and offered else None
         await query.answer()
-        await query.edit_message_reply_markup(None)
+        await edit_quietly(query.edit_message_reply_markup(None))
         await reply(STALE if text is None else text, reply_markup=new_markup)
         log.info("bot.button", action=press.action, stale=text is None)
 
@@ -317,12 +321,26 @@ def build_bot(settings: Settings, sessions: sessionmaker[Session]) -> Applicatio
     application.add_handler(
         CallbackQueryHandler(settings_handlers.button, pattern=rf"^{settings_ui.PREFIX}:")
     )
-    # Takes every plain-text message from the owner; PTB runs only the first matching handler
-    # in a group. Text logging (1-E) must dispatch from here on AWAITING, or sit in its own
-    # handler group, or it will never see a message.
+    log_handlers = LogHandlers(settings, sessions)
     application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND & allowed, settings_handlers.typed_time)
+        CallbackQueryHandler(log_handlers.button, pattern=rf"^{logging_flow.PREFIX}:")
     )
+
+    async def text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """The one handler for plain text: PTB runs only the first match in a group. A pending
+        /settings question gets the answer; anything else is a workout log (1-E)."""
+        awaiting = context.user_data.get(settings_ui.AWAITING) if context.user_data else None
+        message = update.effective_message
+        words = message is not None and any(c.isalpha() for c in message.text or "")
+        if awaiting and words and context.user_data is not None:
+            context.user_data.pop(settings_ui.AWAITING, None)  # a log, not a time: stop asking
+            awaiting = None
+        if awaiting:
+            await settings_handlers.typed_time(update, context)
+        else:
+            await log_handlers.message(update, context)
+
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & allowed, text))
 
     application.add_error_handler(handlers.error)
 
