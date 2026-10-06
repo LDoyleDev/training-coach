@@ -14,6 +14,7 @@ from training_coach.api.plan import router as plan_router
 from training_coach.api.security import security_headers_middleware
 from training_coach.bot.app import build_bot
 from training_coach.config import Settings, get_settings
+from training_coach.db.session import make_engine, make_session_factory
 from training_coach.logging import configure_logging
 
 log = structlog.get_logger(__name__)
@@ -31,7 +32,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        bot = build_bot(settings) if settings.bot_enabled else None
+        engine = make_engine(settings.database_url) if settings.bot_enabled else None
+        bot = build_bot(settings, make_session_factory(engine)) if engine is not None else None
         if bot is not None:
             await bot.initialize()
             await bot.start()
@@ -49,6 +51,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await bot.stop()
                 await bot.shutdown()
                 log.info("bot.stopped")
+            if engine is not None:
+                engine.dispose()
 
     app = FastAPI(
         title="Training Coach",
