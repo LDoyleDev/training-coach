@@ -19,6 +19,21 @@
           "type": "json",
           "path": "frontend/package.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "toml",
+          "path": "backend/uv.lock",
+          "jsonpath": "$.package[?(@.name.value=='training-coach')].version"
+        },
+        {
+          "type": "json",
+          "path": "frontend/package-lock.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "frontend/package-lock.json",
+          "jsonpath": "$.packages[''].version"
         }
       ],
       "changelog-sections": [
