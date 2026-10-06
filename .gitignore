@@ -36,3 +36,6 @@ data/
 
 # Claude Code: local, per-user settings stay out of git
 .claude/settings.local.json
+
+# Host-specific Compose overrides (e.g. the port on vybe-pi; see docs/runbooks/deploy.md)
+compose.override.yaml
