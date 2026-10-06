@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.4.0](https://github.com/LDoyleDev/training-coach/compare/v0.3.0...v0.4.0) (2026-10-06)
+
+
+### Features
+
+* **domain:** parse typed workout logs ([#54](https://github.com/LDoyleDev/training-coach/issues/54)) ([4cdd627](https://github.com/LDoyleDev/training-coach/commit/4cdd627acbfec0589fb9c7ea99fa098bef658fd9))
+
+
+### Bug Fixes
+
+* **db:** refuse plan edits that would remap a ladder step's history ([#48](https://github.com/LDoyleDev/training-coach/issues/48)) ([0828390](https://github.com/LDoyleDev/training-coach/commit/0828390edf96f3290413d32b0a31c6f7b89cd296))
+
 ## [0.3.0](https://github.com/LDoyleDev/training-coach/compare/v0.2.0...v0.3.0) (2026-10-06)
 
 
