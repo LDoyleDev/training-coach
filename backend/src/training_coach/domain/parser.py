@@ -181,7 +181,11 @@ def _entry(text: str, known: Sequence[Known]) -> tuple[Known, list[tuple[Side | 
 
     values: list[tuple[Side | None, int]] = []
     side: Side | None = None
-    rest = re.sub(r"(?<=\d)[/\-](?=\d)", " ", rest.lower())
+    # "8/8/7" lists sets; "8-10" is more likely a range than two sets, so ask instead.
+    dash = re.search(r"\d+\s*-\s*\d+", rest)
+    if dash:
+        return f"{_quote(dash.group())} looks like a range; give each set, like 8 9 10"
+    rest = re.sub(r"(?<=\d)/(?=\d)", " ", rest.lower())
     name = exercise.names[0]
     for token in TOKEN.finditer(rest):
         if token["sets"]:

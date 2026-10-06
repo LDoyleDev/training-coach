@@ -153,6 +153,7 @@ def test_hostile_input_never_raises_and_never_saves_junk(text: str) -> None:
             "split squat left 10 10", "left has 2 sets and right has 0", id="one-side-only"
         ),
         pytest.param("split squat left 10 right 9 9", "left has 1 set", id="lopsided"),
+        pytest.param("pull-ups 8-10", "looks like a range", id="range-is-not-two-sets"),
     ],
 )
 def test_review_cases_are_problems(text: str, problem: str) -> None:
