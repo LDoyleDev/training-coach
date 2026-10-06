@@ -13,8 +13,9 @@ side at a time and trusts the type checker to catch the other.
 
 ## Decision
 
-- `training-coach openapi` prints the API schema. It uses fixed test settings and pins
-  `info.version`, so the output depends only on the code.
+- `training-coach openapi` prints the API schema. It builds settings from the class defaults
+  only (never `.env` or `TC_` variables) and pins `info.version`, so the output depends only
+  on the code.
 - `make api-types` writes it to `frontend/src/api/openapi.json` and generates
   `frontend/src/api/schema.d.ts` with `openapi-typescript`. Both files are committed.
 - `make check` and the CI frontend job run `make api-types-check`, which fails when the

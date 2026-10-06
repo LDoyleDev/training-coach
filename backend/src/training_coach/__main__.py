@@ -50,8 +50,9 @@ def seed() -> None:
 
 def openapi() -> None:
     """Print the API schema as JSON. The dashboard's TypeScript types are generated from it
-    (ADR-0020). Uses fixed test settings so the output never depends on the environment."""
-    schema = create_app(Settings(environment="test")).openapi()
+    (ADR-0020). Settings come from the class defaults alone, never from `.env` or `TC_`
+    variables, so the output depends only on the code."""
+    schema = create_app(Settings.model_construct(environment="test")).openapi()
     # The release version changes on every release PR; the types do not depend on it.
     schema["info"]["version"] = "0.0.0"
     sys.stdout.write(json.dumps(schema, indent=2, sort_keys=True) + "\n")
