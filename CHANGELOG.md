@@ -4,6 +4,20 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.3.0](https://github.com/LDoyleDev/training-coach/compare/v0.2.0...v0.3.0) (2026-10-06)
+
+
+### Features
+
+* **bot:** add /settings and the evening nudge ([#47](https://github.com/LDoyleDev/training-coach/issues/47)) ([2415f9f](https://github.com/LDoyleDev/training-coach/commit/2415f9f504c23cc5ff742bd9b54be83afc572a6e))
+* **bot:** add Start, Rest today and Swap buttons to the morning message ([#46](https://github.com/LDoyleDev/training-coach/issues/46)) ([ff3395d](https://github.com/LDoyleDev/training-coach/commit/ff3395da9a7107682242026dea15abe6957424f9))
+* **bot:** send the morning session and answer /today and /week ([#43](https://github.com/LDoyleDev/training-coach/issues/43)) ([a390388](https://github.com/LDoyleDev/training-coach/commit/a39038835a7e4b067497a29a5744070a9e075aef))
+
+
+### Documentation
+
+* drop notes about who wrote the code ([#44](https://github.com/LDoyleDev/training-coach/issues/44)) ([f5aeccc](https://github.com/LDoyleDev/training-coach/commit/f5aeccc4ee7c15b53477aa885d6faeeca3aa5062))
+
 ## [0.2.0](https://github.com/LDoyleDev/training-coach/compare/v0.1.0...v0.2.0) (2026-10-06)
 
 
