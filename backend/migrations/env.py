@@ -60,7 +60,21 @@ def _run(connection: Connection) -> None:
 def run_migrations_online() -> None:
     engine = make_engine(database_url)
     with engine.connect() as connection:
+        sqlite = connection.dialect.name == "sqlite"
+        if sqlite:
+            # Batch mode rebuilds a table by dropping it; with foreign keys on, that drop
+            # cascades and deletes child rows (e.g. every set_log of a rebuilt workouts
+            # table). The pragma only takes effect outside a transaction, so set it first,
+            # then check nothing was left dangling before turning it back on.
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            connection.commit()
         _run(connection)
+        if sqlite:
+            broken = connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
+            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+            connection.commit()
+            if broken:
+                raise RuntimeError(f"migration left broken foreign keys: {broken[:5]}")
 
 
 if context.is_offline_mode():
