@@ -106,3 +106,6 @@ claude remote-control --spawn worktree --name "Desktop"   # space shows a QR cod
 - Line endings: `.gitattributes` forces LF; don't clone into a Windows folder.
 - A clean OS install gets a **new Tailscale IP**. Update anything pointing at the old desktop IP
   (for example Vybe's `OLLAMA_HOST`).
+- AVG Antivirus's HTTPS scanning re-signs TLS with its own root. Tools that ship their own CA
+  bundle reject it when run natively on Windows: use `git config http.sslBackend schannel` and
+  `uv sync --system-certs` (or `UV_SYSTEM_CERTS=1`). Inside WSL, fix it the same way if it bites.
