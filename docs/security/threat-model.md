@@ -13,6 +13,7 @@ token, session cookies, the Pi itself (shared with Vybe).
 
 | Threat | Entry point | Controls | Tests / checks |
 | --- | --- | --- | --- |
+| T1: Strangers using the bot | Telegram commands and button presses | Commands carry the `owner_only` filter; button presses (which can't take a filter) check the sender first and get no answer otherwise; button data names a session and is re-checked against the queue, so an old or forged press can't act on another session | Stranger tests for every command and button; stale-button tests |
 | Prompt injection in a log | Voice/text -> Groq parser | Owner-only bot; no tools for the model; strict Pydantic schema; confirm before save | Hostile-transcript parser tests |
 | Prompt injection via other Claude connectors | Phase 3 MCP | Narrow tools (read, log, propose); no delete; plan changes need Telegram approval; audit log | MCP tool tests; audit log assertions |
 | Injected instructions in issues/PRs | Claude GitHub Action | OWNER-only triggers; no forks; no `pull_request_target`; restricted tools; secrets never in prompts | Workflow review in PRs |

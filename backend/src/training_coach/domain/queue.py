@@ -1,12 +1,16 @@
-"""The session queue (ADR-0006, ADR-0014, ADR-0016). Pure logic, no I/O.
+"""The session queue (ADR-0006, ADR-0014, ADR-0016, ADR-0022). Pure logic, no I/O.
 
 The plan is a cycle of sessions in a fixed order. A pointer names the next session. It moves
 only when that session is completed as ``done`` or ``rest``. Nothing logged, a ``skipped``
 workout, an extra (unplanned) workout or a session done out of order leaves it in place, so
 the order is kept and everything later shifts back by a day.
+
+A swap queues sessions ahead of the cycle: when the pointer moves it takes the first queued
+session, and the cycle resumes once the queue is empty.
 """
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -26,32 +30,59 @@ def next_in_cycle(order: Sequence[int], current: int) -> int:
     return order[(index + 1) % len(order)]
 
 
+@dataclass(frozen=True)
+class Position:
+    """Where the queue stands: the next session, and sessions queued before the cycle resumes."""
+
+    pointer: int
+    queued: tuple[int, ...] = ()
+
+
+def advance(order: Sequence[int], position: Position) -> Position:
+    """The position after the session at the pointer is completed."""
+    if position.queued:
+        return Position(position.queued[0], position.queued[1:])
+    return Position(next_in_cycle(order, position.pointer))
+
+
 def complete(
     order: Sequence[int],
-    pointer: int,
+    position: Position,
     template_id: int | None,
     status: WorkoutStatus,
-) -> int:
-    """The pointer after logging one workout.
+) -> Position:
+    """The position after logging one workout.
 
     Advances by exactly one when the workout completes the session at the pointer with an
-    advancing status. Calling it again with the new pointer and the same workout does not
+    advancing status. Calling it again with the new position and the same workout does not
     advance again, so the caller must apply each workout once (the service guards that).
     """
-    if template_id is None or status not in ADVANCING or template_id != pointer:
-        return pointer
-    return next_in_cycle(order, pointer)
+    if template_id is None or status not in ADVANCING or template_id != position.pointer:
+        return position
+    return advance(order, position)
 
 
-def upcoming(order: Sequence[int], pointer: int, days: int) -> list[int]:
+def swap_with_next(order: Sequence[int], position: Position) -> Position:
+    """Do the next session first and the current one after it (ADR-0022).
+
+    With nothing queued, the cycle resumes after the session that was pulled forward, so
+    neither session comes round twice: P N A B ... becomes N P A B ...
+    """
+    if len(order) < 2:
+        raise ValueError("a swap needs at least two sessions in the plan")
+    upcoming_session = advance(order, position)
+    after = upcoming_session.queued or (next_in_cycle(order, upcoming_session.pointer),)
+    return Position(upcoming_session.pointer, (position.pointer, *after))
+
+
+def upcoming(order: Sequence[int], position: Position, days: int) -> list[int]:
     """The sessions for the next ``days`` days if every one is completed on its day."""
     if days < 0:
         raise ValueError("days must be >= 0")
     sessions: list[int] = []
-    current = pointer
     for _ in range(days):
-        sessions.append(current)
-        current = next_in_cycle(order, current)
+        sessions.append(position.pointer)
+        position = advance(order, position)
     return sessions
 
 

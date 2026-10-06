@@ -200,3 +200,14 @@ def test_missing_exercise_state_falls_back_to_the_first_rung(seeded: Session) ->
     plan = today(seeded, DAY)
     assert plan is not None
     assert plan.session.items[0].step == "Negatives"
+
+
+def test_queued_sessions_missing_from_the_plan_are_ignored(seeded: Session) -> None:
+    """A swap queued before a template was removed must not break /week or the queue."""
+    state = seeded.get(PlanState, 1)
+    assert state is not None
+    state.queued = [999]
+    seeded.flush()
+    days = week(seeded, DAY, days=2)
+    assert days is not None
+    assert [d.session for d in days] == ["Upper", "Zone 2"]

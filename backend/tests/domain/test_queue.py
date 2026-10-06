@@ -4,7 +4,14 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from training_coach.domain.enums import WorkoutStatus
-from training_coach.domain.queue import complete, local_date, next_in_cycle, upcoming
+from training_coach.domain.queue import (
+    Position,
+    complete,
+    local_date,
+    next_in_cycle,
+    swap_with_next,
+    upcoming,
+)
 
 ORDER = [10, 20, 30, 40, 50, 60, 70]  # legs, zone2, upper, cardio, legs-core, intervals, arms
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -14,11 +21,12 @@ DONE, REST, SKIPPED = WorkoutStatus.DONE, WorkoutStatus.REST, WorkoutStatus.SKIP
 def replay(days: list[list[tuple[int | None, WorkoutStatus]]], pointer: int = 10) -> list[int]:
     """Pointer at the start of each day, then the final pointer."""
     seen = []
+    position = Position(pointer)
     for workouts in days:
-        seen.append(pointer)
+        seen.append(position.pointer)
         for template_id, status in workouts:
-            pointer = complete(ORDER, pointer, template_id, status)
-    return [*seen, pointer]
+            position = complete(ORDER, position, template_id, status)
+    return [*seen, position.pointer]
 
 
 @pytest.mark.parametrize(
@@ -42,7 +50,7 @@ def test_queue_scenarios(
 
 
 def test_wraps_around_after_last_session() -> None:
-    assert complete(ORDER, 70, 70, DONE) == 10
+    assert complete(ORDER, Position(70), 70, DONE) == Position(10)
     assert replay([[(t, DONE)] for t in ORDER]) == [*ORDER, 10]
 
 
@@ -60,10 +68,10 @@ def test_next_in_cycle_rejects_bad_input(order: list[int], current: int, message
 
 
 def test_upcoming_projects_the_week() -> None:
-    assert upcoming(ORDER, 60, 4) == [60, 70, 10, 20]
-    assert upcoming(ORDER, 10, 0) == []
+    assert upcoming(ORDER, Position(60), 4) == [60, 70, 10, 20]
+    assert upcoming(ORDER, Position(10), 0) == []
     with pytest.raises(ValueError, match=">= 0"):
-        upcoming(ORDER, 10, -1)
+        upcoming(ORDER, Position(10), -1)
 
 
 @pytest.mark.parametrize(
@@ -104,3 +112,39 @@ def test_local_date_across_dst(moment: datetime, expected: date) -> None:
 def test_local_date_rejects_naive() -> None:
     with pytest.raises(ValueError, match="naive"):
         local_date(datetime(2026, 9, 30, 7, 30), BERLIN)  # noqa: DTZ001
+
+
+# ---------------------------------------------------------------- swaps (ADR-0022)
+
+
+def test_swap_with_next_exchanges_two_sessions_then_resumes() -> None:
+    swapped = swap_with_next(ORDER, Position(10))
+    assert swapped == Position(20, (10, 30))
+    assert upcoming(ORDER, swapped, 5) == [20, 10, 30, 40, 50]
+
+
+def test_swap_completes_like_any_session() -> None:
+    position = swap_with_next(ORDER, Position(10))
+    for template_id in (20, 10, 30):
+        position = complete(ORDER, position, template_id, DONE)
+    assert position == Position(40)
+
+
+def test_skipping_holds_a_swapped_session() -> None:
+    position = swap_with_next(ORDER, Position(10))
+    assert complete(ORDER, position, 20, SKIPPED) == position
+    assert complete(ORDER, position, 10, DONE) == position  # out of order: P waits its turn
+
+
+def test_swapping_again_swaps_within_the_queue() -> None:
+    twice = swap_with_next(ORDER, swap_with_next(ORDER, Position(10)))
+    assert upcoming(ORDER, twice, 4) == [10, 20, 30, 40]
+
+
+def test_swap_at_the_end_of_the_cycle_wraps() -> None:
+    assert upcoming(ORDER, swap_with_next(ORDER, Position(70)), 3) == [10, 70, 20]
+
+
+def test_swap_needs_two_sessions() -> None:
+    with pytest.raises(ValueError, match="two sessions"):
+        swap_with_next([5], Position(5))
