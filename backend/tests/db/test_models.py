@@ -1,19 +1,16 @@
 """Schema tests against the real migrated database (not metadata.create_all)."""
 
-from collections.abc import Iterator
 from datetime import UTC, date, datetime, time
 from pathlib import Path
 
 import pytest
-from alembic import command
 from alembic.autogenerate import compare_metadata
-from alembic.config import Config
 from alembic.migration import MigrationContext
 from sqlalchemy import Engine, func, insert, select
 from sqlalchemy.exc import IntegrityError, StatementError
 from sqlalchemy.orm import Session
 
-from training_coach.config import get_settings
+from tests import factories
 from training_coach.db.base import Base
 from training_coach.db.models import (
     Event,
@@ -27,49 +24,9 @@ from training_coach.db.models import (
     UserSettings,
     Workout,
 )
-from training_coach.db.session import make_engine
-from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
+from training_coach.domain.enums import Side, WorkoutStatus
 
-BACKEND = Path(__file__).resolve().parents[1]
-
-
-@pytest.fixture
-def engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Engine]:
-    url = f"sqlite:///{tmp_path / 'models.db'}"
-    monkeypatch.setenv("TC_DATABASE_URL", url)
-    get_settings.cache_clear()
-    command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
-    get_settings.cache_clear()
-    eng = make_engine(url)
-    yield eng
-    eng.dispose()
-
-
-@pytest.fixture
-def session(engine: Engine) -> Iterator[Session]:
-    with Session(engine) as s:
-        yield s
-
-
-def _exercise(session: Session, slug: str = "pull-up") -> Exercise:
-    exercise = Exercise(slug=slug, name="Pull-up", kind=ExerciseKind.REPS, muscle_groups=["back"])
-    exercise.ladder = [
-        LadderStep(position=0, name="Negatives"),
-        LadderStep(position=1, name="Strict"),
-    ]
-    session.add(exercise)
-    session.flush()
-    return exercise
-
-
-def _template(session: Session, exercise: Exercise, position: int = 0) -> SessionTemplate:
-    template = SessionTemplate(position=position, slug=f"upper-{position}", name="Upper", focus="x")
-    template.items = [
-        TemplateItem(position=0, exercise_id=exercise.id, sets=4, rep_min=5, rep_max=12)
-    ]
-    session.add(template)
-    session.flush()
-    return template
+BACKEND = Path(__file__).resolve().parents[2]
 
 
 def test_migration_matches_models(engine: Engine) -> None:
@@ -79,8 +36,8 @@ def test_migration_matches_models(engine: Engine) -> None:
 
 
 def test_full_graph_round_trip(session: Session) -> None:
-    exercise = _exercise(session)
-    template = _template(session, exercise)
+    exercise = factories.exercise(session)
+    template = factories.template(session, exercise)
     session.add_all(
         [
             ExerciseState(exercise_id=exercise.id, ladder_step_id=exercise.ladder[1].id),
@@ -123,8 +80,8 @@ def test_single_row_tables_reject_second_row(
 
 
 def test_several_workouts_per_day_allowed(session: Session) -> None:
-    exercise = _exercise(session)
-    template = _template(session, exercise)
+    exercise = factories.exercise(session)
+    template = factories.template(session, exercise)
     day = date(2026, 9, 30)
     session.add_all(
         [
@@ -140,7 +97,7 @@ def test_several_workouts_per_day_allowed(session: Session) -> None:
 
 
 def test_deleting_workout_deletes_its_sets(session: Session) -> None:
-    exercise = _exercise(session)
+    exercise = factories.exercise(session)
     workout = Workout(local_date=date(2026, 9, 30), status=WorkoutStatus.DONE)
     workout.sets = [
         SetLog(exercise_id=exercise.id, ladder_step_id=exercise.ladder[0].id, set_no=1, value=5)
@@ -153,8 +110,8 @@ def test_deleting_workout_deletes_its_sets(session: Session) -> None:
 
 
 def test_exercise_in_use_cannot_be_deleted(session: Session) -> None:
-    exercise = _exercise(session)
-    _template(session, exercise)
+    exercise = factories.exercise(session)
+    factories.template(session, exercise)
     session.commit()
     session.delete(exercise)
     with pytest.raises(IntegrityError):
@@ -162,7 +119,7 @@ def test_exercise_in_use_cannot_be_deleted(session: Session) -> None:
 
 
 def _bad_set(session: Session, **overrides: object) -> None:
-    exercise = _exercise(session)
+    exercise = factories.exercise(session)
     workout = Workout(local_date=date(2026, 9, 30), status=WorkoutStatus.DONE)
     session.add(workout)
     session.flush()
@@ -189,7 +146,7 @@ def test_set_log_constraints(session: Session, overrides: dict[str, object]) -> 
 
 
 def test_same_set_number_allowed_per_side(session: Session) -> None:
-    exercise = _exercise(session)
+    exercise = factories.exercise(session)
     workout = Workout(local_date=date(2026, 9, 30), status=WorkoutStatus.DONE)
     step = exercise.ladder[0].id
     workout.sets = [
@@ -232,7 +189,7 @@ def test_invalid_exercise_kind_rejected(session: Session) -> None:
 
 
 def test_duplicate_ladder_position_rejected(session: Session) -> None:
-    exercise = _exercise(session)
+    exercise = factories.exercise(session)
     session.add(LadderStep(exercise_id=exercise.id, position=0, name="Duplicate"))
     with pytest.raises(IntegrityError):
         session.commit()
@@ -244,7 +201,7 @@ def test_duplicate_ladder_position_rejected(session: Session) -> None:
     ids=["range", "min", "sets"],
 )
 def test_template_item_constraints(session: Session, rep_min: int, rep_max: int, sets: int) -> None:
-    exercise = _exercise(session)
+    exercise = factories.exercise(session)
     template = SessionTemplate(position=0, slug="s", name="S", focus="x")
     template.items = [
         TemplateItem(
@@ -276,8 +233,8 @@ def test_side_defaults_to_both(session: Session) -> None:
 
 
 def test_set_ladder_step_must_belong_to_exercise(session: Session) -> None:
-    pull_up = _exercise(session, "pull-up")
-    dip = _exercise(session, "dip")
+    pull_up = factories.exercise(session, "pull-up")
+    dip = factories.exercise(session, "dip")
     workout = Workout(local_date=date(2026, 9, 30), status=WorkoutStatus.DONE)
     workout.sets = [
         SetLog(exercise_id=pull_up.id, ladder_step_id=dip.ladder[0].id, set_no=1, value=5)
@@ -288,8 +245,8 @@ def test_set_ladder_step_must_belong_to_exercise(session: Session) -> None:
 
 
 def test_exercise_state_step_must_belong_to_exercise(session: Session) -> None:
-    pull_up = _exercise(session, "pull-up")
-    dip = _exercise(session, "dip")
+    pull_up = factories.exercise(session, "pull-up")
+    dip = factories.exercise(session, "dip")
     session.add(ExerciseState(exercise_id=pull_up.id, ladder_step_id=dip.ladder[0].id))
     with pytest.raises(IntegrityError):
         session.commit()

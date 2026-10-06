@@ -1,6 +1,42 @@
-# Training plan seed. Loaded by `training-coach seed` (phase 1, step 1-B).
+# Training plan seed. Loaded by `training-coach seed`.
 # Order of [[sessions]] is the queue order (ADR-0006). Ladders run easiest -> hardest;
 # `start` is the ladder position (0-based) to begin at.
+#
+# Structure follows Huberman's Foundational Fitness Protocol (Huberman Lab ep. 94, with
+# Andy Galpin; see docs/specs/training-plan.md): 3 resistance days (legs; torso + neck;
+# arms, calves + neck), 3 conditioning days (long zone 2; moderate ~35 min; high intensity),
+# 1 recovery day. Every major muscle gets direct and indirect work each week. Order within a
+# session: power -> strength -> hypertrophy -> small muscles (Galpin). Each resistance session
+# starts with a ~10 min warm-up and stays within ~60 min of work.
+
+# ------------------------------------------------------------------- legs
+
+[[exercises]]
+slug = "tibialis-raise"
+name = "Tibialis raise"
+kind = "reps"
+muscle_groups = ["tibialis"]
+aliases = ["tib raise", "tib raises", "tibialis", "toe raises"]
+start = 0
+ladder = ["Back against wall, heels forward", "Heels further from wall", "Single leg", "Holding 8 kg on toes"]
+
+[[exercises]]
+slug = "jump-squat"
+name = "Jump squat"
+kind = "reps"
+muscle_groups = ["quads", "glutes", "power"]
+aliases = ["jump squat", "jump squats", "squat jumps"]
+start = 0
+ladder = ["Bodyweight, full rest", "Pause at bottom, then jump", "Holding 8 kg"]
+
+[[exercises]]
+slug = "kb-swing"
+name = "Kettlebell swing"
+kind = "reps"
+muscle_groups = ["glutes", "hamstrings", "lower back"]
+aliases = ["swings", "swing", "kb swings"]
+start = 0
+ladder = ["Two-hand, 8 kg", "One-arm, 8 kg", "Heavier kettlebell"]
 
 [[exercises]]
 slug = "bulgarian-split-squat"
@@ -12,31 +48,31 @@ start = 0
 ladder = ["Bodyweight, back foot on chair", "Goblet hold, 8 kg", "Goblet hold, 3 s lowering", "Heavier kettlebell"]
 
 [[exercises]]
-slug = "goblet-squat"
-name = "Goblet squat"
+slug = "pistol-squat"
+name = "Pistol squat"
 kind = "reps"
 muscle_groups = ["quads", "glutes"]
-aliases = ["goblet", "squat", "squats"]
+aliases = ["pistol", "pistols"]
 start = 0
-ladder = ["8 kg, 3 s lowering", "1.5-rep squats, 8 kg", "Heavier kettlebell"]
+ladder = ["Sit to chair on one leg", "Lower box", "Full pistol", "Holding 8 kg"]
 
 [[exercises]]
 slug = "single-leg-rdl"
 name = "Single-leg Romanian deadlift"
 kind = "reps"
-muscle_groups = ["hamstrings", "glutes"]
+muscle_groups = ["hamstrings", "glutes", "lower back"]
 aliases = ["rdl", "single leg rdl", "romanian deadlift"]
 start = 0
 ladder = ["8 kg", "8 kg, pause at bottom", "Heavier kettlebell"]
 
 [[exercises]]
 slug = "hamstring-curl"
-name = "Towel hamstring curl"
+name = "Hamstring curl"
 kind = "reps"
 muscle_groups = ["hamstrings"]
-aliases = ["hamstring curl", "towel curl", "sliders", "leg curl"]
+aliases = ["hamstring curl", "towel curl", "sliders", "leg curl", "nordic", "nordics"]
 start = 0
-ladder = ["Both legs", "Single leg", "Nordic curl negatives"]
+ladder = ["Towel slide, both legs", "Towel slide, single leg", "Nordic curl negatives", "Full Nordic curl"]
 
 [[exercises]]
 slug = "calf-raise"
@@ -47,11 +83,13 @@ aliases = ["calf raise", "calves", "calf raises"]
 start = 0
 ladder = ["Bodyweight on a step", "Holding 8 kg", "8 kg, 2 s pause at top"]
 
+# ------------------------------------------------------------------ torso
+
 [[exercises]]
 slug = "pull-up"
 name = "Pull-up"
 kind = "reps"
-muscle_groups = ["back", "biceps"]
+muscle_groups = ["lats", "upper back", "biceps"]
 aliases = ["pullups", "pull ups", "pull-ups"]
 start = 1
 ladder = ["Slow negatives", "Strict pull-up", "Pause at top", "Weighted backpack"]
@@ -60,16 +98,25 @@ ladder = ["Slow negatives", "Strict pull-up", "Pause at top", "Weighted backpack
 slug = "dip"
 name = "Dip (chairs)"
 kind = "reps"
-muscle_groups = ["chest", "triceps"]
+muscle_groups = ["chest", "triceps", "front delts"]
 aliases = ["dips"]
 start = 0
 ladder = ["Feet on floor", "Feet off floor", "Weighted backpack"]
 
 [[exercises]]
+slug = "kb-row"
+name = "One-arm kettlebell row"
+kind = "reps"
+muscle_groups = ["lats", "upper back", "biceps"]
+aliases = ["row", "rows", "kb row"]
+start = 0
+ladder = ["8 kg", "8 kg, 3 s lowering", "Heavier kettlebell"]
+
+[[exercises]]
 slug = "push-up"
 name = "Push-up"
 kind = "reps"
-muscle_groups = ["chest", "triceps", "shoulders"]
+muscle_groups = ["chest", "triceps", "front delts"]
 aliases = ["pushups", "push ups", "push-ups", "press ups"]
 start = 0
 ladder = ["Standard", "Feet elevated", "Deficit", "Archer"]
@@ -84,55 +131,39 @@ start = 0
 ladder = ["Feet on floor", "Feet on chair", "Wall handstand push-up negatives"]
 
 [[exercises]]
-slug = "kb-row"
-name = "One-arm kettlebell row"
+slug = "reverse-fly"
+name = "Rear-delt reverse fly"
 kind = "reps"
-muscle_groups = ["back", "biceps"]
-aliases = ["row", "rows", "kb row"]
+muscle_groups = ["rear delts", "upper back", "posture"]
+aliases = ["reverse fly", "rear delt", "rear delts", "reverse flyes"]
 start = 0
-ladder = ["8 kg", "8 kg, 3 s lowering", "Heavier kettlebell"]
+ladder = ["Chest on bench/bed, water bottles", "Chest on bench/bed, 8 kg one arm", "Chest-supported, 3 s lowering"]
 
 [[exercises]]
-slug = "reverse-lunge"
-name = "Reverse lunge"
+slug = "neck-flexion"
+name = "Neck flexion (lying on back, head off edge)"
 kind = "reps"
-muscle_groups = ["quads", "glutes"]
-aliases = ["lunge", "lunges", "reverse lunges"]
+muscle_groups = ["neck"]
+aliases = ["neck flexion", "neck curl", "neck curls", "neck front"]
 start = 0
-ladder = ["Bodyweight", "Holding 8 kg", "Deficit, holding 8 kg"]
+ladder = ["Bodyweight, slow", "Hand resistance on forehead", "Folded towel + light plate/bottle on forehead"]
 
 [[exercises]]
-slug = "pistol-squat"
-name = "Pistol squat"
+slug = "neck-extension"
+name = "Neck extension (lying face down, head off edge)"
 kind = "reps"
-muscle_groups = ["quads", "glutes"]
-aliases = ["pistol", "pistols"]
+muscle_groups = ["neck", "posture"]
+aliases = ["neck extension", "neck back", "neck extensions"]
 start = 0
-ladder = ["Sit to chair on one leg", "Lower box", "Full pistol"]
+ladder = ["Bodyweight, slow", "Hand resistance on back of head", "Towel-wrapped light weight on back of head"]
 
-[[exercises]]
-slug = "kb-swing"
-name = "Kettlebell swing"
-kind = "reps"
-muscle_groups = ["glutes", "hamstrings"]
-aliases = ["swings", "swing", "kb swings"]
-start = 0
-ladder = ["Two-hand, 8 kg", "One-arm, 8 kg", "Heavier kettlebell"]
-
-[[exercises]]
-slug = "hanging-raise"
-name = "Hanging knee/leg raise"
-kind = "reps"
-muscle_groups = ["core"]
-aliases = ["leg raises", "knee raises", "hanging raises"]
-start = 0
-ladder = ["Knee raises", "Straight-leg raises", "Toes to bar"]
+# ------------------------------------------------------- arms, calves, neck
 
 [[exercises]]
 slug = "chin-up"
 name = "Chin-up"
 kind = "reps"
-muscle_groups = ["back", "biceps"]
+muscle_groups = ["biceps", "lats"]
 aliases = ["chinups", "chin ups", "chin-ups"]
 start = 0
 ladder = ["Strict", "3 s lowering", "Weighted backpack"]
@@ -150,7 +181,7 @@ ladder = ["Standard", "Feet elevated"]
 slug = "kb-curl"
 name = "Kettlebell curl"
 kind = "reps"
-muscle_groups = ["biceps"]
+muscle_groups = ["biceps", "forearms"]
 aliases = ["curls", "curl", "bicep curls"]
 start = 0
 ladder = ["8 kg", "8 kg, slow tempo", "Heavier kettlebell"]
@@ -159,101 +190,186 @@ ladder = ["8 kg", "8 kg, slow tempo", "Heavier kettlebell"]
 slug = "lateral-raise"
 name = "Kettlebell lateral raise"
 kind = "reps"
-muscle_groups = ["shoulders"]
+muscle_groups = ["side delts"]
 aliases = ["lateral raises", "laterals", "side raises"]
 start = 0
 ladder = ["8 kg or water bottles", "Lean-away single-arm"]
 
 [[exercises]]
-slug = "zone2"
-name = "Zone 2 cardio"
-kind = "duration_min"
-muscle_groups = ["conditioning"]
-aliases = ["zone 2", "walk", "easy run", "bike"]
+slug = "neck-lateral"
+name = "Neck side bend (lying on side, head off edge)"
+kind = "reps"
+muscle_groups = ["neck"]
+aliases = ["neck side", "neck lateral", "side neck"]
 start = 0
-ladder = ["Brisk walk", "Easy jog / bike"]
+ladder = ["Bodyweight, slow", "Hand resistance on side of head", "Towel-wrapped light weight"]
+
+[[exercises]]
+slug = "hanging-raise"
+name = "Hanging knee/leg raise"
+kind = "reps"
+muscle_groups = ["core", "hip flexors", "grip"]
+aliases = ["leg raises", "knee raises", "hanging raises"]
+start = 0
+ladder = ["Knee raises", "Straight-leg raises", "Toes to bar"]
+
+[[exercises]]
+slug = "dead-hang"
+name = "Dead hang"
+kind = "seconds"
+muscle_groups = ["grip", "forearms", "shoulders"]
+aliases = ["hang", "dead hang", "hangs"]
+start = 0
+ladder = ["Two hands", "Two hands, active shoulders", "One hand, alternating"]
+
+# --------------------------------------------------------- recovery + posture
+
+[[exercises]]
+slug = "prone-ytw"
+name = "Prone Y-T-W raise"
+kind = "reps"
+muscle_groups = ["upper back", "rear delts", "posture"]
+aliases = ["ytw", "y t w", "y-t-w", "prone raises"]
+start = 0
+ladder = ["Bodyweight", "Water bottles", "3 s hold at top"]
+
+[[exercises]]
+slug = "back-extension"
+name = "Back extension (superman)"
+kind = "reps"
+muscle_groups = ["lower back", "glutes", "posture"]
+aliases = ["superman", "supermans", "back extension", "back extensions"]
+start = 0
+ladder = ["Floor superman", "Hips on bed edge, feet anchored", "Holding 8 kg at chest"]
+
+[[exercises]]
+slug = "chin-tuck"
+name = "Chin tuck (against wall)"
+kind = "reps"
+muscle_groups = ["neck", "posture"]
+aliases = ["chin tuck", "chin tucks"]
+start = 0
+ladder = ["5 s hold", "10 s hold", "Lying, head lifted 1 cm, 10 s hold"]
+
+[[exercises]]
+slug = "mobility"
+name = "Mobility flow (hip flexors, thoracic spine, hamstrings)"
+kind = "duration_min"
+muscle_groups = ["mobility"]
+aliases = ["mobility", "stretch", "stretching"]
+start = 0
+ladder = ["Guided 10 min"]
+
+# ------------------------------------------------------------- conditioning
 
 [[exercises]]
 slug = "moderate-cardio"
-name = "Moderate cardio"
+name = "Moderate cardio (~75-80% effort)"
 kind = "duration_min"
 muscle_groups = ["conditioning"]
-aliases = ["run", "cardio", "kb circuit"]
+aliases = ["run", "cardio", "moderate", "kb circuit", "jump rope"]
 start = 0
-ladder = ["Steady run or KB circuit"]
+ladder = ["Run, bike, stairs, jump rope or KB circuit"]
 
 [[exercises]]
-slug = "intervals"
-name = "4x4 intervals"
+slug = "hiit"
+name = "High-intensity intervals (20 s all-out / 10 s easy)"
 kind = "reps"
 muscle_groups = ["conditioning"]
-aliases = ["intervals", "4x4", "vo2"]
+aliases = ["hiit", "intervals", "sprints", "tabata"]
 start = 0
-ladder = ["4 rounds", "5 rounds"]
+ladder = ["8 rounds", "10 rounds", "12 rounds", "12 rounds, 30 s on"]
+
+[[exercises]]
+slug = "zone2"
+name = "Zone 2 (conversational pace)"
+kind = "duration_min"
+muscle_groups = ["conditioning"]
+aliases = ["zone 2", "walk", "easy run", "bike", "hike", "long run"]
+start = 0
+ladder = ["Brisk walk / hike", "Easy jog / bike", "Easy jog with weight vest or backpack"]
 
 # ---------------------------------------------------------------- sessions (queue order)
 
 [[sessions]]
 slug = "legs"
+type = "strength"
 name = "Legs"
-focus = "Strength / hypertrophy"
+focus = "Strength / hypertrophy: tibialis, power, quads, hamstrings, calves"
 items = [
+  { exercise = "tibialis-raise", sets = 3, rep_min = 15, rep_max = 25 },
+  { exercise = "jump-squat", sets = 3, rep_min = 5, rep_max = 8 },
+  { exercise = "kb-swing", sets = 3, rep_min = 15, rep_max = 20 },
   { exercise = "bulgarian-split-squat", sets = 4, rep_min = 8, rep_max = 15, per_side = true },
-  { exercise = "goblet-squat", sets = 3, rep_min = 12, rep_max = 20 },
+  { exercise = "pistol-squat", sets = 3, rep_min = 5, rep_max = 10, per_side = true },
   { exercise = "single-leg-rdl", sets = 3, rep_min = 10, rep_max = 15, per_side = true },
-  { exercise = "hamstring-curl", sets = 3, rep_min = 8, rep_max = 15 },
+  { exercise = "hamstring-curl", sets = 3, rep_min = 6, rep_max = 15 },
   { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, per_side = true },
 ]
 
 [[sessions]]
-slug = "zone2"
-name = "Zone 2"
-focus = "Endurance"
-items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 60 }]
+slug = "recovery"
+type = "recovery"
+name = "Recovery + posture"
+focus = "Posture, mobility; optional sauna / cold"
+is_rest_optional = true
+items = [
+  { exercise = "prone-ytw", sets = 2, rep_min = 8, rep_max = 12 },
+  { exercise = "back-extension", sets = 2, rep_min = 10, rep_max = 15 },
+  { exercise = "chin-tuck", sets = 2, rep_min = 8, rep_max = 12 },
+  { exercise = "mobility", sets = 1, rep_min = 10, rep_max = 15 },
+]
 
 [[sessions]]
-slug = "upper"
-name = "Upper body"
-focus = "Strength / hypertrophy"
+slug = "torso"
+type = "strength"
+name = "Torso + neck"
+focus = "Strength / hypertrophy: back, chest, shoulders, neck"
 items = [
   { exercise = "pull-up", sets = 4, rep_min = 5, rep_max = 12 },
   { exercise = "dip", sets = 3, rep_min = 8, rep_max = 15 },
+  { exercise = "kb-row", sets = 3, rep_min = 10, rep_max = 20, per_side = true },
   { exercise = "push-up", sets = 3, rep_min = 10, rep_max = 20 },
   { exercise = "pike-push-up", sets = 3, rep_min = 6, rep_max = 12 },
-  { exercise = "kb-row", sets = 3, rep_min = 12, rep_max = 20, per_side = true },
+  { exercise = "reverse-fly", sets = 3, rep_min = 12, rep_max = 20 },
+  { exercise = "neck-flexion", sets = 2, rep_min = 10, rep_max = 15 },
+  { exercise = "neck-extension", sets = 2, rep_min = 10, rep_max = 15 },
 ]
 
 [[sessions]]
 slug = "moderate-cardio"
+type = "conditioning"
 name = "Moderate cardio"
-focus = "Conditioning"
-items = [{ exercise = "moderate-cardio", sets = 1, rep_min = 30, rep_max = 35 }]
+focus = "~35 min at 75-80% effort"
+items = [{ exercise = "moderate-cardio", sets = 1, rep_min = 30, rep_max = 40 }]
 
 [[sessions]]
-slug = "legs-core"
-name = "Legs + core"
-focus = "Strength / hypertrophy"
-items = [
-  { exercise = "reverse-lunge", sets = 3, rep_min = 10, rep_max = 15, per_side = true },
-  { exercise = "pistol-squat", sets = 3, rep_min = 5, rep_max = 10, per_side = true },
-  { exercise = "kb-swing", sets = 4, rep_min = 20, rep_max = 20 },
-  { exercise = "hanging-raise", sets = 3, rep_min = 8, rep_max = 15 },
-]
-
-[[sessions]]
-slug = "intervals"
-name = "Intervals"
-focus = "VO2 max"
-items = [{ exercise = "intervals", sets = 1, rep_min = 4, rep_max = 5 }]
+slug = "hiit"
+type = "conditioning"
+name = "High intensity"
+focus = "Short all-out intervals (bike, hill sprints, swings or burpees)"
+items = [{ exercise = "hiit", sets = 1, rep_min = 8, rep_max = 12 }]
 
 [[sessions]]
 slug = "arms"
-name = "Arms (or rest)"
-focus = "Accessories"
-is_rest_optional = true
+type = "strength"
+name = "Arms, calves + neck"
+focus = "Hypertrophy: biceps, triceps, side delts, calves, neck, core, grip"
 items = [
   { exercise = "chin-up", sets = 3, rep_min = 6, rep_max = 12 },
   { exercise = "diamond-push-up", sets = 3, rep_min = 8, rep_max = 15 },
   { exercise = "kb-curl", sets = 3, rep_min = 12, rep_max = 20 },
-  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 20 },
+  { exercise = "lateral-raise", sets = 4, rep_min = 12, rep_max = 20 },
+  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, per_side = true },
+  { exercise = "neck-lateral", sets = 2, rep_min = 10, rep_max = 15, per_side = true },
+  { exercise = "neck-extension", sets = 1, rep_min = 10, rep_max = 15 },
+  { exercise = "hanging-raise", sets = 3, rep_min = 8, rep_max = 15 },
+  { exercise = "dead-hang", sets = 2, rep_min = 30, rep_max = 60 },
 ]
+
+[[sessions]]
+slug = "zone2"
+type = "conditioning"
+name = "Long zone 2"
+focus = "60-75 min at conversational pace (30 min minimum)"
+items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
