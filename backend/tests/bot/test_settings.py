@@ -148,8 +148,10 @@ async def test_typed_time_after_other(application: App, seeded: Sessions) -> Non
     assert "Evening nudge: 20:30 (on)" in texts(good)[0]
     assert _prefs(seeded).nudge_time == time(20, 30)
     assert _next_run(application, NUDGE_JOB) == datetime(2026, 10, 6, 18, 30, tzinfo=UTC)
-    # The question is answered: the next plain text is no longer read as a time.
-    assert await run(application, text_message("21:00", OWNER)) == {}
+    # The question is answered: the next plain text is a workout log, not a time.
+    reply = texts(await run(application, text_message("21:00", OWNER)))
+    assert reply[0].startswith("I couldn't read that log")
+    assert _prefs(seeded).nudge_time == time(20, 30)
 
 
 async def test_settings_command_cancels_a_pending_question(
@@ -157,12 +159,15 @@ async def test_settings_command_cancels_a_pending_question(
 ) -> None:
     await run(application, press("s:ask-morning", OWNER))
     await run(application, command("/settings", OWNER))
-    assert await run(application, text_message("06:00", OWNER)) == {}
+    reply = texts(await run(application, text_message("06:00", OWNER)))
+    assert reply[0].startswith("I couldn't read that log")
     assert _prefs(seeded).morning_time == time(7, 30)
 
 
-async def test_text_is_ignored_unless_asked(application: App) -> None:
-    assert await run(application, text_message("07:00", OWNER)) == {}
+async def test_text_without_a_question_is_a_log(application: App, seeded: Sessions) -> None:
+    reply = texts(await run(application, text_message("07:00", OWNER)))
+    assert reply[0].startswith("I couldn't read that log")
+    assert _prefs(seeded) == Prefs()
 
 
 async def test_strangers_text_is_ignored_even_mid_question(

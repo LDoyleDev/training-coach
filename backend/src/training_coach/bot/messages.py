@@ -1,8 +1,10 @@
 """Message text for the bot. Pure functions over service data; plain text, no markup."""
 
-from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.enums import ExerciseKind, Side
+from training_coach.domain.parser import Entry
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.today import Day, ItemPlan, SessionPlan, Today
+from training_coach.services.workout_log import Draft
 
 NO_PLAN = (
     "There is no training plan in the database, so I can't pick a session. "
@@ -61,3 +63,54 @@ def pushed_text(session: str) -> str:
 
 def picked_text(plan: SessionPlan, offered: str) -> str:
     return f"{session_detail_text(plan)}\n\n{offered} is still next in the plan."
+
+
+# ------------------------------------------------------------------ logging (1-E)
+
+LOG_SAVED_BEFORE = "That log was already saved."
+LOG_STALE = "Things changed since you sent that log (a rest, swap or another log). Send it again."
+LOG_EXPIRED = "That log has expired. Send it again."
+LOG_EDIT = "Send the corrected log as a new message."
+LOG_CANCELLED = "Discarded. Nothing was saved."
+
+
+def _sets_text(entry: Entry, kind: ExerciseKind) -> str:
+    unit = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: "s", ExerciseKind.DURATION_MIN: " min"}
+    by_side: dict[Side, list[int]] = {}
+    for _, side, value in sorted(entry.sets):
+        by_side.setdefault(side, []).append(value)
+
+    def join(values: list[int]) -> str:
+        return " / ".join(f"{v}{unit[kind]}" for v in values)
+
+    if set(by_side) == {Side.BOTH}:
+        return join(by_side[Side.BOTH])
+    left, right = by_side.get(Side.LEFT, []), by_side.get(Side.RIGHT, [])
+    if left == right:
+        return f"{join(left)} each side"
+    return f"left {join(left)}, right {join(right)}"
+
+
+def log_text(draft: Draft, exercises: dict[str, tuple[str, ExerciseKind]]) -> str:
+    """What the bot understood, for the user to confirm (ADR-0007). Plain text only."""
+    lines: list[str] = []
+    if draft.entries:
+        lines += [f"Log for {draft.session_name}:", ""]
+        for entry in draft.entries:
+            name, kind = exercises[entry.slug]
+            lines.append(f"- {name}: {_sets_text(entry, kind)}")
+    if draft.problems:
+        if lines:
+            lines.append("")
+        lines.append("Not understood:" if draft.entries else "I couldn't read that log:")
+        lines += [f"- {problem}" for problem in draft.problems]
+    if draft.entries:
+        lines += ["", "Save it?" if not draft.problems else "Save the part I understood?"]
+    else:
+        lines += ["", "Try again, like: pull-ups 8 8 7, dips 12 11 10"]
+    return "\n".join(lines)
+
+
+def log_saved_text(sets: int, exercises: int, session: str, next_session: str | None) -> str:
+    saved = f"Saved {session}: {exercises} exercise{'s' * (exercises != 1)}, {sets} sets."
+    return f"{saved} Next up: {next_session}." if next_session else saved
