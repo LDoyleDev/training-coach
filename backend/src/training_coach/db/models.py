@@ -191,6 +191,9 @@ class Workout(Base):
         ForeignKey("session_templates.id", ondelete="RESTRICT")
     )
     status: Mapped[str] = mapped_column(String(16))
+    # Set when a confirmed text/voice log is saved: one token per draft, so a repeated Save
+    # can never create a second workout or advance the queue twice (step 1-E).
+    log_token: Mapped[str | None] = mapped_column(String(32), unique=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     sets: Mapped[list["SetLog"]] = relationship(

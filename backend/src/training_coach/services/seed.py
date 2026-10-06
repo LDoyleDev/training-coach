@@ -32,6 +32,7 @@ from training_coach.db.models import (
     UserSettings,
 )
 from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.parser import normalise_name
 
 log = structlog.get_logger(__name__)
 
@@ -109,6 +110,14 @@ class PlanSeed(_Strict):
         session_slugs = [s.slug for s in self.sessions]
         if len(session_slugs) != len(set(session_slugs)):
             raise ValueError("duplicate session slug")
+        owners: dict[str, str] = {}
+        for exercise in self.exercises:
+            for name in {normalise_name(n) for n in (exercise.name, *exercise.aliases)}:
+                other = owners.setdefault(name, exercise.slug)
+                if other != exercise.slug:
+                    raise ValueError(
+                        f"the name {name!r} is used by both {other} and {exercise.slug}"
+                    )
         known = set(slugs)
         for session in self.sessions:
             for item in session.items:

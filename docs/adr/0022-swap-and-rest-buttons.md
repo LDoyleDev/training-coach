@@ -45,5 +45,7 @@ round again two days later.
 ## Consequences
 
 - `domain/queue.py` works on a `Position` (pointer plus queued sessions); `/week` shows swaps.
+- A held session (Push to tomorrow, or Rest on a training session) can still be done the same
+  day: logging it then counts as normal and moves the queue.
 - Text logging (1-E) defaults to the session at the pointer; after "Pick another" it should
   offer the picked session too (the `queue.picked` event records it).

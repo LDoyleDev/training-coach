@@ -46,6 +46,9 @@ tests/        mirrors src/: tests/api/, tests/bot/, tests/db/, tests/domain/, te
 
 ## Gotchas
 
+- Migrations run with SQLite foreign keys off (`migrations/env.py`): batch mode rebuilds a table
+  by dropping it, and with keys on the drop cascades and deletes child rows. `env.py` runs
+  `PRAGMA foreign_key_check` afterwards and fails the migration if anything dangles.
 - A PTB `CommandHandler` only matches once the bot knows its username, so handler tests call
   `application.initialize()` with respx faking `getMe`. See `tests/bot/test_app.py`.
 - `training-coach openapi` pins `info.version`, so a version bump never makes the dashboard

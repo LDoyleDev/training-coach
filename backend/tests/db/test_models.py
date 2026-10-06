@@ -272,3 +272,26 @@ def test_null_side_rejected_by_database(session: Session) -> None:
                 side=None,
             )
         )
+
+
+def test_log_token_is_unique_but_may_repeat_as_null(session: Session) -> None:
+    """Idempotent saves rely on the database refusing a second workout per token (#52)."""
+    from datetime import date
+
+    from sqlalchemy.exc import IntegrityError
+
+    from training_coach.db.models import Workout
+
+    day = date(2026, 10, 1)
+    session.add_all(
+        [
+            Workout(local_date=day, status=WorkoutStatus.REST),
+            Workout(local_date=day, status=WorkoutStatus.REST),
+        ]
+    )
+    session.flush()  # several NULL tokens are fine
+    session.add(Workout(local_date=day, status=WorkoutStatus.DONE, log_token="a" * 32))
+    session.flush()
+    session.add(Workout(local_date=day, status=WorkoutStatus.DONE, log_token="a" * 32))
+    with pytest.raises(IntegrityError):
+        session.flush()

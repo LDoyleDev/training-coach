@@ -45,22 +45,42 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def _run(connection: Connection) -> None:
-    # render_as_batch: SQLite cannot ALTER most columns in place.
+def _run(connection: Connection, *, check_foreign_keys: bool) -> None:
+    # render_as_batch: SQLite cannot ALTER most columns in place. SQLite DDL is transactional,
+    # so one transaction covers the whole run and a failed check below rolls all of it back.
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
         render_as_batch=True,
         render_item=render_item,
+        transactional_ddl=True,
     )
     with context.begin_transaction():
         context.run_migrations()
+        if check_foreign_keys:
+            broken = connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
+            if broken:
+                raise RuntimeError(f"migration left broken foreign keys: {broken[:5]}")
 
 
 def run_migrations_online() -> None:
     engine = make_engine(database_url)
     with engine.connect() as connection:
-        _run(connection)
+        if connection.dialect.name != "sqlite":
+            _run(connection, check_foreign_keys=False)
+            return
+        # Batch mode rebuilds a table by dropping it; with foreign keys on, that drop cascades
+        # and deletes child rows (e.g. every set_log of a rebuilt workouts table). The pragma
+        # only takes effect outside a transaction, so switch it off first and back on after,
+        # whatever happens; foreign_key_check inside the transaction catches anything dangling.
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        connection.commit()
+        try:
+            _run(connection, check_foreign_keys=True)
+        finally:
+            connection.rollback()
+            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+            connection.commit()
 
 
 if context.is_offline_mode():
