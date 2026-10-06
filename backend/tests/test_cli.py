@@ -45,6 +45,23 @@ def test_openapi_command_prints_schema(capsys: pytest.CaptureFixture[str]) -> No
     }
 
 
+def test_openapi_command_ignores_env_and_dotenv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The schema depends only on the code: a bad .env or TC_ variable must not matter."""
+    main(["openapi"])
+    clean = json.loads(capsys.readouterr().out)
+
+    (tmp_path / ".env").write_text("TC_TIMEZONE=Not/AZone\n")
+    monkeypatch.chdir(tmp_path)
+    main(["openapi"])
+    assert json.loads(capsys.readouterr().out) == clean
+
+    monkeypatch.setenv("TC_TIMEZONE", "Not/AZone")
+    main(["openapi"])
+    assert json.loads(capsys.readouterr().out) == clean
+
+
 def test_unknown_command_rejected() -> None:
     with pytest.raises(SystemExit):
         main(["dance"])
