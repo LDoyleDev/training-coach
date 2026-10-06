@@ -20,6 +20,12 @@ SETTINGS = Settings(
     telegram_allowed_user_id=OWNER,
 )
 DATE = 1_790_000_000
+NOT_MODIFIED = {
+    "ok": False,
+    "error_code": 400,
+    "description": "Bad Request: message is not modified: specified new message content and "
+    "reply markup are exactly the same",
+}
 
 
 def _message(user_id: int, text: str, message_id: int = 1) -> dict[str, Any]:
@@ -62,14 +68,24 @@ def press(data: str, user_id: int) -> dict[str, Any]:
 Calls = dict[str, list[dict[str, str]]]
 
 
-async def run(application: Application, update: dict[str, Any]) -> Calls:  # type: ignore[type-arg]
-    """Process one update with Telegram faked; return the Bot API calls made, by method."""
+async def run(
+    application: Application,  # type: ignore[type-arg]
+    update: dict[str, Any],
+    *,
+    unmodified: bool = False,
+) -> Calls:
+    """Process one update with Telegram faked; return the Bot API calls made, by method.
+
+    ``unmodified`` answers message edits the way Telegram does when nothing would change
+    (HTTP 400 "message is not modified"), e.g. retiring buttons that are already gone.
+    """
     sent = {"ok": True, "result": _message(OWNER, "ok", message_id=8) | {"from": BOT_USER}}
     with respx.mock(assert_all_called=False) as telegram:
         telegram.post(url__regex=TELEGRAM + "getMe$").respond(json={"ok": True, "result": BOT_USER})
         telegram.post(url__regex=TELEGRAM + "sendMessage$").respond(json=sent)
-        telegram.post(url__regex=TELEGRAM + "editMessageReplyMarkup$").respond(json=sent)
-        telegram.post(url__regex=TELEGRAM + "editMessageText$").respond(json=sent)
+        edited = {"status_code": 400, "json": NOT_MODIFIED} if unmodified else {"json": sent}
+        telegram.post(url__regex=TELEGRAM + "editMessageReplyMarkup$").respond(**edited)
+        telegram.post(url__regex=TELEGRAM + "editMessageText$").respond(**edited)
         telegram.post(url__regex=TELEGRAM + "answerCallbackQuery$").respond(
             json={"ok": True, "result": True}
         )

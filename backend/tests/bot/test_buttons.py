@@ -3,12 +3,13 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
+from telegram.error import BadRequest
 from telegram.ext import Application
 
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, button_data, command, press, run, texts
 from training_coach.bot import buttons
 from training_coach.bot.app import Handlers
-from training_coach.bot.messages import STALE
+from training_coach.bot.messages import SOMETHING_WENT_WRONG, STALE
 from training_coach.db.models import PlanState, SessionTemplate, Workout
 from training_coach.domain.enums import WorkoutStatus
 
@@ -172,3 +173,22 @@ async def test_a_stale_button_says_so(application: App, seeded: Sessions, action
 async def test_a_malformed_press_is_only_acknowledged(application: App) -> None:
     calls = await run(application, press("q:dance:1", OWNER))
     assert list(calls) == ["answerCallbackQuery"]
+
+
+@pytest.mark.parametrize("action", ["swap", "back", "pickmenu", "rest"])
+async def test_an_unchanged_message_is_not_an_error(
+    application: App, seeded: Sessions, action: str
+) -> None:
+    """Telegram refuses edits that change nothing; that must not reach the error handler."""
+    tid = _pointer(seeded)
+    calls = await run(application, press(f"q:{action}:{tid}", OWNER), unmodified=True)
+    assert SOMETHING_WENT_WRONG not in texts(calls)
+
+
+async def test_edit_quietly_only_swallows_not_modified() -> None:
+    async def fail(message: str) -> None:
+        raise BadRequest(message)
+
+    await buttons.edit_quietly(fail("Message is not modified: same content"))
+    with pytest.raises(BadRequest, match="Chat not found"):
+        await buttons.edit_quietly(fail("Chat not found"))

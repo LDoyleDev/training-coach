@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
+from training_coach.bot.buttons import edit_quietly
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.clock import parse_hhmm
@@ -155,7 +156,7 @@ class SettingsHandlers:
         if press.what in ("morning", "nudge"):
             self.reschedule(context, prefs)
         log.info("bot.settings_changed", what=press.what)
-        await query.edit_message_text(text(prefs), reply_markup=keyboard(prefs))
+        await edit_quietly(query.edit_message_text(text(prefs), reply_markup=keyboard(prefs)))
 
     async def typed_time(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Plain text from the owner: a time, if one was asked for."""

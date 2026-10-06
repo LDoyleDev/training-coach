@@ -137,7 +137,8 @@ async def test_a_second_save_tap_changes_nothing(application: App, seeded: Sessi
     token = _token(await run(application, text_message(LOG, OWNER)))
     await run(application, press(f"l:save:{token}", OWNER))
     pointer = _pointer(seeded)
-    again = texts(await run(application, press(f"l:save:{token}", OWNER)))
+    # The first tap removed the buttons, so Telegram refuses the second edit.
+    again = texts(await run(application, press(f"l:save:{token}", OWNER), unmodified=True))
     assert again == [LOG_SAVED_BEFORE]  # not "expired": that would invite a duplicate
     assert _count(seeded, Workout) == 1
     assert _pointer(seeded) == pointer
@@ -206,3 +207,26 @@ async def test_logging_an_extra_session_after_the_planned_one(
         assert templates[1] is None
         assert session.get(SessionTemplate, pointer) is not None
     assert _pointer(seeded) == pointer  # extras never move the queue
+
+
+def test_a_huge_log_reply_stays_under_telegrams_limit() -> None:
+    entries = tuple(
+        Entry(f"e{i}", tuple((n, Side.BOTH, 600) for n in range(1, 21))) for i in range(30)
+    )
+    draft = Draft("t" * 32, date(2026, 10, 6), None, "Extra session", entries, ("x" * 60,) * 30)
+    names = {f"e{i}": (f"Exercise number {i}", ExerciseKind.DURATION_MIN) for i in range(30)}
+    text = log_text(draft, names)
+    assert len(text) <= 4000
+    assert "more not shown" in text
+
+
+async def test_a_log_while_a_time_is_asked_for_is_still_a_log(
+    application: App, seeded: Sessions
+) -> None:
+    """Words cancel the pending /settings question; a bad time still gets the time hint."""
+    await run(application, press("s:ask-morning", OWNER))
+    assert "isn't a time" in texts(await run(application, text_message("7:3", OWNER)))[0]
+    reply = texts(await run(application, text_message(LOG, OWNER)))
+    assert reply[0].startswith("Log for ")
+    later = texts(await run(application, text_message("06:00", OWNER)))
+    assert later[0].startswith("I couldn't read that log")  # the question was cancelled

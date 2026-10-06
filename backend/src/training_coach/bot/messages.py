@@ -72,6 +72,7 @@ LOG_STALE = "Things changed since you sent that log (a rest, swap or another log
 LOG_EXPIRED = "That log has expired. Send it again."
 LOG_EDIT = "Send the corrected log as a new message."
 LOG_CANCELLED = "Discarded. Nothing was saved."
+LOG_TEXT_LIMIT = 4000  # Telegram allows 4096 characters per message
 
 
 def _sets_text(entry: Entry, kind: ExerciseKind) -> str:
@@ -105,10 +106,23 @@ def log_text(draft: Draft, exercises: dict[str, tuple[str, ExerciseKind]]) -> st
         lines.append("Not understood:" if draft.entries else "I couldn't read that log:")
         lines += [f"- {problem}" for problem in draft.problems]
     if draft.entries:
-        lines += ["", "Save it?" if not draft.problems else "Save the part I understood?"]
+        closing = ["", "Save it?" if not draft.problems else "Save the part I understood?"]
     else:
-        lines += ["", "Try again, like: pull-ups 8 8 7, dips 12 11 10"]
-    return "\n".join(lines)
+        closing = ["", "Try again, like: pull-ups 8 8 7, dips 12 11 10"]
+    return "\n".join(_fit(lines, closing))
+
+
+def _fit(lines: list[str], closing: list[str], limit: int = LOG_TEXT_LIMIT) -> list[str]:
+    """Keep a reply under Telegram's 4096-character limit (a long log can outgrow it)."""
+    budget = limit - sum(len(line) + 1 for line in closing) - 40
+    kept: list[str] = []
+    for index, line in enumerate(lines):
+        if budget - (len(line) + 1) < 0:
+            kept.append(f"... {len(lines) - index} more not shown")
+            break
+        kept.append(line)
+        budget -= len(line) + 1
+    return kept + closing
 
 
 def log_saved_text(sets: int, exercises: int, session: str, next_session: str | None) -> str:

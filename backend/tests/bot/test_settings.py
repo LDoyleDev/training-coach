@@ -18,7 +18,7 @@ from tests.bot.fakes import (
 )
 from training_coach.bot import settings as settings_ui
 from training_coach.bot.app import MORNING_JOB, NUDGE_JOB, Handlers
-from training_coach.bot.messages import NUDGE
+from training_coach.bot.messages import NUDGE, SOMETHING_WENT_WRONG
 from training_coach.db.models import Workout
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.services import user_settings
@@ -142,7 +142,7 @@ async def test_toggles_set_their_value(
 async def test_typed_time_after_other(application: App, seeded: Sessions) -> None:
     asked = await run(application, press("s:ask-nudge", OWNER))
     assert texts(asked) == ["Send the nudge time as HH:MM, for example 07:15."]
-    bad = await run(application, text_message("half eight", OWNER))
+    bad = await run(application, text_message("7:3", OWNER))
     assert texts(bad) == [settings_ui.BAD_TIME]
     good = await run(application, text_message("20:30", OWNER))
     assert "Evening nudge: 20:30 (on)" in texts(good)[0]
@@ -237,3 +237,11 @@ async def test_no_nudge_without_a_plan(sessions: Sessions) -> None:
     context = _context()
     await Handlers(SETTINGS, sessions).nudge(context)  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()  # type: ignore[attr-defined]
+
+
+async def test_pressing_a_toggle_on_an_unchanged_message_is_not_an_error(
+    application: App, seeded: Sessions
+) -> None:
+    calls = await run(application, press("s:pause:on", OWNER), unmodified=True)
+    assert SOMETHING_WENT_WRONG not in texts(calls)
+    assert _prefs(seeded).paused

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
+from training_coach.bot.buttons import edit_quietly
 from training_coach.bot.messages import (
     LOG_CANCELLED,
     LOG_EDIT,
@@ -113,7 +114,9 @@ class LogHandlers:
         # Saved drafts stay (bounded by MAX_DRAFTS) so a second Save tap answers "already
         # saved" from the database instead of "expired", which would invite a duplicate.
         draft = self.drafts.get(press.token)
-        await query.edit_message_reply_markup(None)  # every outcome retires these buttons
+        await edit_quietly(
+            query.edit_message_reply_markup(None)
+        )  # every outcome retires these buttons
         if press.action == "cancel":
             self.drafts.pop(press.token, None)
             await query.message.reply_text(LOG_CANCELLED)
