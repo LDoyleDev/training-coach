@@ -1,15 +1,12 @@
 import re
-from collections.abc import Iterator
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from pydantic import ValidationError
-from sqlalchemy import Engine, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from training_coach.config import get_settings
 from training_coach.db.models import (
     Event,
     Exercise,
@@ -20,10 +17,7 @@ from training_coach.db.models import (
     TemplateItem,
     UserSettings,
 )
-from training_coach.db.session import make_engine
 from training_coach.services.seed import PlanSeed, SeedError, apply_seed, load_plan
-
-BACKEND = Path(__file__).resolve().parents[1]
 
 MINI_PLAN = """
 [[exercises]]
@@ -53,24 +47,6 @@ focus = "Accessories"
 is_rest_optional = true
 items = [{ exercise = "dip", sets = 3, rep_min = 8, rep_max = 15 }]
 """
-
-
-@pytest.fixture
-def engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Engine]:
-    url = f"sqlite:///{tmp_path / 'seed.db'}"
-    monkeypatch.setenv("TC_DATABASE_URL", url)
-    get_settings.cache_clear()
-    command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
-    eng = make_engine(url)
-    yield eng
-    eng.dispose()
-    get_settings.cache_clear()
-
-
-@pytest.fixture
-def session(engine: Engine) -> Iterator[Session]:
-    with Session(engine) as s:
-        yield s
 
 
 def _count(session: Session, model: type) -> int:
@@ -106,9 +82,9 @@ def test_bundled_plan_is_valid() -> None:
     ],
     ids=["unknown-exercise", "start", "range", "dup-slug", "kind", "slug-format", "unknown-key"],
 )
-def test_invalid_plans_rejected(change: object, message: str) -> None:
+def test_invalid_plans_rejected(change: Callable[[str], str], message: str) -> None:
     with pytest.raises(ValidationError, match=message):
-        load_plan(change(MINI_PLAN))  # type: ignore[operator]
+        load_plan(change(MINI_PLAN))
 
 
 # ----------------------------------------------------------------------- applying
@@ -341,7 +317,7 @@ def _weekly_volume() -> dict[str, int]:
 
 def test_training_plan_spec_volume_table_matches_plan() -> None:
     """The hand-written weekly-sets table in the spec must not drift from plan.toml."""
-    spec = (Path(__file__).resolve().parents[2] / "docs/specs/training-plan.md").read_text()
+    spec = (Path(__file__).resolve().parents[3] / "docs/specs/training-plan.md").read_text()
     section = spec.split("## Weekly hard sets per muscle group", 1)[1].split("\n## ", 1)[0]
     rows = re.findall(r"^\| ([A-Za-z ]+) \| (\d+) \|", section, flags=re.M)
     assert len(rows) >= 10

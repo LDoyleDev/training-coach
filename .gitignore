@@ -12,6 +12,9 @@ __pycache__/
 .ruff_cache/
 .coverage
 coverage.xml
+frontend/coverage/
+backend/requirements-audit.txt
+backend/.check.db
 htmlcov/
 *.egg-info/
 

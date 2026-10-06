@@ -28,6 +28,8 @@ async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> N
         await update.effective_message.reply_text(HELP_TEXT)
 
 
+# PTB's Application takes six type parameters, all fixed by the default builder; spelling them
+# out adds nothing, so the bare generic is deliberate.
 def build_bot(settings: Settings) -> Application:  # type: ignore[type-arg]
     if settings.telegram_bot_token is None:
         raise ValueError("TC_TELEGRAM_BOT_TOKEN must be set to run the bot")
