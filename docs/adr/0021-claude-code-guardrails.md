@@ -17,7 +17,8 @@ main context document (312 KB) became too big to load at all.
 - **Hooks enforce rules deterministically** (`.claude/hooks/`, registered in
   `.claude/settings.json`; standard-library Python, tested in `backend/tests/`):
   - PreToolUse `guard_protected_files.py` blocks edits to `CHANGELOG.md`, real `.env` files and
-    migrations that are already on `origin/main`.
+    migrations that are already on `origin/main`. It fails closed: when git can't tell (no
+    `origin/main` ref), it blocks the migration edit and asks for `git fetch origin main`.
   - PostToolUse `format_edited_file.py` runs ruff (backend) or Prettier (frontend) on each edited
     file. It never blocks; `make check` stays the gate.
 - **Review subagents** (`.claude/agents/`): `security-reviewer` checks the diff against the
@@ -42,7 +43,10 @@ main context document (312 KB) became too big to load at all.
 ## Consequences
 
 - New protected paths are added in `guard_protected_files.py` with a test, not as prose.
-- The hooks take effect only once `.claude/settings.json` registers them. Claude Code does not
-  edit its own permission file, so the owner applies that change.
+- `.claude/settings.json` registers the hooks with `python3` (present in WSL and on the Windows
+  desktop); a test fails if either hook is unregistered.
+- The guard covers the Edit, Write and MultiEdit tools only. A shell command (`sed -i`, a
+  redirect) can still change a protected file; the `.env` deny rules in `settings.json`,
+  branch protection and review are the backstop there.
 - The review subagents cost tokens on every `/ship`; if that becomes a problem, run
   `security-reviewer` only when the diff touches `bot/`, `api/`, `services/` or config.
