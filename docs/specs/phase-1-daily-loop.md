@@ -61,8 +61,8 @@ belongs to the same exercise. Migrations never import application code.
   anywhere. Removing a session or shortening a ladder is rejected before any write (history
   depends on them) and needs a data migration. Ladder steps are matched by position, so a step
   that logged sets or current progress use can't change name unless the exercise lists it in
-  `renames = { "old" = "new" }`; new steps go at the end of a ladder (#18); items removed from a session are deleted. A
-  failed seed logs `seed.failed` with the reason and does not stop the container (ADR-0015). Progress is never reset: existing exercise state, queue pointer and settings stay.
+  `renames = { "old" = "new" }`; new steps go at the end of a ladder (#18).
+- Items removed from a session are deleted. A failed seed logs `seed.failed` with the reason and does not stop the container (ADR-0015). Progress is never reset: existing exercise state, queue pointer and settings stay.
 - New exercises start at their `start` ladder step; a new database points at the first session.
 - To change the plan: edit `plan.toml` in a PR; it applies on the next deploy.
 
