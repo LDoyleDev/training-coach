@@ -14,6 +14,7 @@ __pycache__/
 coverage.xml
 frontend/coverage/
 backend/requirements-audit.txt
+backend/.check.db
 htmlcov/
 *.egg-info/
 
