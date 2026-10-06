@@ -59,7 +59,7 @@ TOKEN = re.compile(
     r"(?P<sets>\d+)\s*[x\u00d7]\s*"
     r"(?P<each>\d+(?::\d{2})?)\s*(?P<eachunit>h|hrs?|hours?|m|min|mins|minutes?|s|sec|secs|seconds?)?\b"
     r"|(?P<clock>\d+:\d{2})"
-    r"|(?P<num>\d+)\s*(?P<unit>h|hrs?|hours?|m|min|mins|minutes?|s|sec|secs|seconds?)?\b"
+    r"|(?P<num>\d+)\s*(?:(?P<unit>h|hrs?|hours?|m|min|mins|minutes?|s|sec|secs|seconds?)|reps?)?\b"
     r"|(?P<word>[a-z]+)",
 )
 SIDE_WORDS = {"left": Side.LEFT, "l": Side.LEFT, "right": Side.RIGHT, "r": Side.RIGHT}
@@ -214,6 +214,8 @@ def _entry(text: str, known: Sequence[Known]) -> tuple[Known, list[tuple[Side | 
             return f"I don't understand {_quote(token['word'])} in {_quote(text)}"
         if len(values) > MAX_SETS:
             return f"that's more than {MAX_SETS} sets of {name}"
+    if not values:  # e.g. "10x": digits that never formed a set
+        return f"couldn't read any sets for {name}"
     return exercise, values
 
 

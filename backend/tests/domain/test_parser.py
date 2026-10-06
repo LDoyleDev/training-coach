@@ -76,6 +76,7 @@ def each_side(*values: int) -> tuple[tuple[int, Side, int], ...]:
             id="repeated-exercise-adds-sets",
         ),
         pytest.param("dips 0", [Entry("dip", both(0))], id="zero-allowed"),
+        pytest.param("dips 8reps 9 reps", [Entry("dip", both(8, 9))], id="reps-suffix"),
         pytest.param("overhead presses 8 8", [Entry("overhead-press", both(8, 8))], id="es-plural"),
         pytest.param("dips 3\u00d710", [Entry("dip", both(10, 10, 10))], id="multiplication-sign"),
     ],
@@ -154,6 +155,7 @@ def test_hostile_input_never_raises_and_never_saves_junk(text: str) -> None:
         ),
         pytest.param("split squat left 10 right 9 9", "left has 1 set", id="lopsided"),
         pytest.param("pull-ups 8-10", "looks like a range", id="range-is-not-two-sets"),
+        pytest.param("dips 10x", "couldn't read any sets for Dip", id="no-values-read"),
     ],
 )
 def test_review_cases_are_problems(text: str, problem: str) -> None:
