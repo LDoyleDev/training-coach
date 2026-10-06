@@ -8,10 +8,11 @@ The caller owns the transaction.
 
 import secrets
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import (
@@ -35,6 +36,7 @@ class Draft:
     """What the user is asked to confirm. ``template_id`` None means an extra session."""
 
     token: str
+    on: date  # the day it was drafted for; saving after midnight keeps it
     template_id: int | None
     session_name: str  # "Upper" or "Extra session"
     entries: tuple[Entry, ...]
@@ -45,6 +47,12 @@ class Draft:
 class Saved:
     workout_id: int
     already_saved: bool  # True when this draft had been saved before: nothing changed
+
+
+@dataclass(frozen=True)
+class Stale:
+    """The draft no longer fits: today's target session changed (rest, swap, pick or another
+    log) or it names an exercise that is gone. Nothing was written; ask for the log again."""
 
 
 def _day_start_utc(on: date, tz: ZoneInfo) -> datetime:
@@ -68,7 +76,11 @@ def target(session: Session, on: date, tz: ZoneInfo) -> SessionTemplate | None:
         return None
     picked = session.scalar(
         select(Event.payload)
-        .where(Event.kind == "queue.picked", Event.at >= _day_start_utc(on, tz))
+        .where(
+            Event.kind == "queue.picked",
+            Event.at >= _day_start_utc(on, tz),
+            Event.at < _day_start_utc(on + timedelta(days=1), tz),
+        )
         .order_by(Event.id.desc())
         .limit(1)
     )
@@ -108,6 +120,7 @@ def draft(session: Session, text: str, on: date, tz: ZoneInfo) -> Draft:
     parsed: ParseResult = parse_log(text, catalogue(session, template))
     return Draft(
         token=secrets.token_hex(16),
+        on=on,
         template_id=template.id if template is not None else None,
         session_name=template.name if template is not None else "Extra session",
         entries=parsed.entries,
@@ -115,17 +128,25 @@ def draft(session: Session, text: str, on: date, tz: ZoneInfo) -> Draft:
     )
 
 
-def save(session: Session, confirmed: Draft, on: date) -> Saved | None:
+def _saved_before(session: Session, token: str) -> Saved | None:
+    existing = session.scalar(select(Workout.id).where(Workout.log_token == token))
+    return Saved(existing, already_saved=True) if existing is not None else None
+
+
+def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | None:
     """Write the workout, its sets at the current ladder steps and the queue move.
 
-    Returns None when there is nothing to save (no entries). A draft saved before returns
-    that workout with ``already_saved`` and writes nothing.
+    Nothing in the draft is trusted beyond what is re-checked here: a draft saved before
+    returns that workout with ``already_saved``; one whose target session or exercises no
+    longer fit returns ``Stale``; one with no entries returns None. None of them write.
     """
-    existing = session.scalar(select(Workout.id).where(Workout.log_token == confirmed.token))
-    if existing is not None:
-        return Saved(existing, already_saved=True)
+    if (before := _saved_before(session, confirmed.token)) is not None:
+        return before
     if not confirmed.entries:
         return None
+    now = target(session, confirmed.on, tz)
+    if (now.id if now is not None else None) != confirmed.template_id:
+        return Stale()
 
     exercises = {
         e.slug: e
@@ -133,8 +154,10 @@ def save(session: Session, confirmed: Draft, on: date) -> Saved | None:
             select(Exercise).where(Exercise.slug.in_([x.slug for x in confirmed.entries]))
         )
     }
+    if len(exercises) != len({x.slug for x in confirmed.entries}):
+        return Stale()
     workout = Workout(
-        local_date=on,
+        local_date=confirmed.on,
         template_id=confirmed.template_id,
         status=WorkoutStatus.DONE,  # only done workouts carry sets (rest/skip have none)
         log_token=confirmed.token,
@@ -151,17 +174,25 @@ def save(session: Session, confirmed: Draft, on: date) -> Saved | None:
             SetLog(exercise_id=exercise.id, ladder_step_id=step_id, set_no=n, side=side, value=v)
             for n, side, v in entry.sets
         )
-    session.add(workout)
-
     plan = session.get(PlanState, 1)
     current = position(session)
-    if plan is not None and current is not None:
-        order = list(session.scalars(select(SessionTemplate.id).order_by(SessionTemplate.position)))
-        moved = complete(order, current, confirmed.template_id, WorkoutStatus.DONE)
-        if moved != current:
-            plan.next_template_id = moved.pointer
-            plan.queued = list(moved.queued)
-    session.flush()
+    order = list(session.scalars(select(SessionTemplate.id).order_by(SessionTemplate.position)))
+    try:
+        # One savepoint for the workout and the queue move: a racing duplicate save (same
+        # token) rolls both back together, so the queue can never advance twice.
+        with session.begin_nested():
+            session.add(workout)
+            if plan is not None and current is not None:
+                moved = complete(order, current, confirmed.template_id, WorkoutStatus.DONE)
+                plan.next_template_id = moved.pointer
+                plan.queued = list(moved.queued)
+            session.flush()
+    except IntegrityError:
+        session.expire_all()
+        before = _saved_before(session, confirmed.token)
+        if before is None:
+            raise
+        return before
     session.add(
         Event(
             kind="workout.logged",

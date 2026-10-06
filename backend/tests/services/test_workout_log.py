@@ -65,7 +65,7 @@ def test_catalogue_knows_one_sided_work_from_the_plan(seeded: Session) -> None:
 def test_save_writes_sets_at_the_current_step_and_moves_the_queue(seeded: Session) -> None:
     ids = _ids(seeded)
     draft = workout_log.draft(seeded, "pull-ups 8 7, split squat 10", TODAY, BERLIN)
-    saved = workout_log.save(seeded, draft, TODAY)
+    saved = workout_log.save(seeded, draft, BERLIN)
     assert saved is not None
     assert not saved.already_saved
 
@@ -97,8 +97,8 @@ def test_saving_the_same_draft_twice_changes_nothing(seeded: Session) -> None:
     """A double tap or a duplicate Telegram callback (from the review of #15)."""
     ids = _ids(seeded)
     draft = workout_log.draft(seeded, "pull-ups 8", TODAY, BERLIN)
-    first = workout_log.save(seeded, draft, TODAY)
-    second = workout_log.save(seeded, draft, TODAY)
+    first = workout_log.save(seeded, draft, BERLIN)
+    second = workout_log.save(seeded, draft, BERLIN)
     assert first is not None
     assert second is not None
     assert second == workout_log.Saved(first.workout_id, already_saved=True)
@@ -109,10 +109,10 @@ def test_saving_the_same_draft_twice_changes_nothing(seeded: Session) -> None:
 
 def test_a_second_log_after_the_planned_session_is_an_extra(seeded: Session) -> None:
     ids = _ids(seeded)
-    workout_log.save(seeded, workout_log.draft(seeded, "pull-ups 8", TODAY, BERLIN), TODAY)
+    workout_log.save(seeded, workout_log.draft(seeded, "pull-ups 8", TODAY, BERLIN), BERLIN)
     extra = workout_log.draft(seeded, "run 30", TODAY, BERLIN)
     assert (extra.template_id, extra.session_name) == (None, "Extra session")
-    workout_log.save(seeded, extra, TODAY)
+    workout_log.save(seeded, extra, BERLIN)
     assert _pointer(seeded) == ids["zone2"]  # extras never move the queue (ADR-0014)
 
 
@@ -130,7 +130,7 @@ def test_a_session_picked_today_is_the_target_and_keeps_the_queue(seeded: Sessio
     seeded.flush()
     draft = workout_log.draft(seeded, "run 45", TODAY, BERLIN)
     assert (draft.template_id, draft.session_name) == (ids["zone2"], "Zone 2")
-    workout_log.save(seeded, draft, TODAY)
+    workout_log.save(seeded, draft, BERLIN)
     assert _pointer(seeded) == ids["upper"]  # out of order: upper is still next (ADR-0016)
 
 
@@ -153,7 +153,7 @@ def test_a_draft_with_only_problems_saves_nothing(seeded: Session) -> None:
     draft = workout_log.draft(seeded, "burpees 10", TODAY, BERLIN)
     assert draft.entries == ()
     assert draft.problems
-    assert workout_log.save(seeded, draft, TODAY) is None
+    assert workout_log.save(seeded, draft, BERLIN) is None
     assert _count(seeded, Workout) == 0
 
 
@@ -163,14 +163,14 @@ def test_no_plan_means_an_extra_and_no_queue_move(session: Session) -> None:
     session.flush()
     draft = workout_log.draft(session, "pull-ups 5", TODAY, BERLIN)
     assert draft.template_id is None
-    assert workout_log.save(session, draft, TODAY) is not None
+    assert workout_log.save(session, draft, BERLIN) is not None
 
 
 def test_only_done_workouts_carry_sets(seeded: Session) -> None:
     """Rest and skipped workouts are saved without sets (from the review of #15)."""
     ids = _ids(seeded)
     queue_actions.push_to_tomorrow(seeded, ids["upper"], TODAY)
-    workout_log.save(seeded, workout_log.draft(seeded, "pull-ups 8", TODAY, BERLIN), TODAY)
+    workout_log.save(seeded, workout_log.draft(seeded, "pull-ups 8", TODAY, BERLIN), BERLIN)
     seeded.flush()
     for workout in seeded.scalars(select(Workout)):
         assert bool(workout.sets) == (workout.status == WorkoutStatus.DONE)
@@ -182,3 +182,73 @@ def test_a_pick_of_a_missing_session_falls_back_to_the_pointer(seeded: Session) 
     template = workout_log.target(seeded, TODAY, BERLIN)
     assert template is not None
     assert template.id == _ids(seeded)["upper"]
+
+
+# ------------------------------------------------------------- review of #52 (stale drafts)
+
+
+def test_a_draft_remembers_its_day() -> None:
+    assert "on" in workout_log.Draft.__dataclass_fields__
+
+
+def test_a_draft_made_before_the_queue_moved_is_stale(seeded: Session) -> None:
+    ids = _ids(seeded)
+    draft = workout_log.draft(seeded, "pull-ups 8", TODAY, BERLIN)
+    queue_actions.swap_next(seeded, ids["upper"])  # today's target is now Zone 2
+    assert workout_log.save(seeded, draft, BERLIN) == workout_log.Stale()
+    assert _count(seeded, Workout) == 0
+
+
+def test_a_draft_naming_an_exercise_that_is_gone_is_stale(seeded: Session) -> None:
+    draft = workout_log.draft(seeded, "pull-ups 8", TODAY, BERLIN)
+    forged = workout_log.Draft(
+        draft.token,
+        draft.on,
+        draft.template_id,
+        draft.session_name,
+        (workout_log.Entry("no-such-exercise", ((1, Side.BOTH, 5),)),),
+        (),
+    )
+    assert workout_log.save(seeded, forged, BERLIN) == workout_log.Stale()
+    assert _count(seeded, Workout) == 0
+
+
+def test_a_draft_saved_after_midnight_keeps_its_day(seeded: Session) -> None:
+    yesterday = TODAY - timedelta(days=1)
+    draft = workout_log.draft(seeded, "pull-ups 8", yesterday, BERLIN)
+    saved = workout_log.save(seeded, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    assert seeded.get_one(Workout, saved.workout_id).local_date == yesterday
+
+
+def test_a_pick_made_after_the_day_does_not_count_for_it(seeded: Session) -> None:
+    ids = _ids(seeded)
+    queue_actions.pick(seeded, ids["upper"], ids["zone2"])  # stamped now, i.e. today
+    seeded.flush()
+    template = workout_log.target(seeded, TODAY - timedelta(days=1), BERLIN)
+    assert template is not None
+    assert template.id == ids["upper"]
+
+
+def test_a_racing_duplicate_save_reports_already_saved(
+    seeded: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two saves that both pass the token check: the database refuses the second insert."""
+    ids = _ids(seeded)
+    draft = workout_log.draft(seeded, "pull-ups 8", TODAY, BERLIN)
+    winner = Workout(
+        local_date=TODAY, template_id=None, status=WorkoutStatus.DONE, log_token=draft.token
+    )
+    seeded.add(winner)
+    seeded.flush()
+    real = workout_log._saved_before
+    checks: list[str] = []
+
+    def first_check_misses(session: Session, token: str) -> workout_log.Saved | None:
+        checks.append(token)  # the first look happens before the other save commits
+        return None if len(checks) == 1 else real(session, token)
+
+    monkeypatch.setattr(workout_log, "_saved_before", first_check_misses)
+    assert workout_log.save(seeded, draft, BERLIN) == workout_log.Saved(winner.id, True)
+    assert _count(seeded, Workout) == 1
+    assert _pointer(seeded) == ids["upper"]
