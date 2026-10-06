@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from training_coach import __version__
+from training_coach.api.plan import router as plan_router
 from training_coach.api.security import security_headers_middleware
 from training_coach.bot.app import build_bot
 from training_coach.config import Settings, get_settings
@@ -62,6 +63,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/healthz", response_model=Health, tags=["ops"])
     async def healthz() -> Health:
         return Health(status="ok", version=__version__, bot_enabled=settings.bot_enabled)
+
+    app.include_router(plan_router)
 
     # Mounted last so API routes always win over static files.
     if settings.web_dist_dir is not None and settings.web_dist_dir.is_dir():

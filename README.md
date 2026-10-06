@@ -14,7 +14,8 @@ Phase 0 (scaffold) done. Phase 1 (daily loop) in progress: see the
 
 ## Quick start (development)
 
-Requirements: [uv](https://docs.astral.sh/uv/), Node 22, make.
+Requirements: [uv](https://docs.astral.sh/uv/), Node 22, make. On Windows, work inside WSL 2:
+see [the Windows setup runbook](docs/runbooks/dev-environment-windows.md).
 
 ```bash
 make setup                 # deps + git hooks
@@ -32,7 +33,7 @@ make check                 # everything CI runs
 | [Architecture](docs/architecture.md) | Components and request paths |
 | [Decisions (ADRs)](docs/adr/README.md) | Why things are the way they are |
 | [Threat model](docs/security/threat-model.md) | Security controls |
-| [Runbooks](docs/runbooks/) | Deploy, backup/restore, rotate secrets, GitHub setup, developing on Windows |
+| [Runbooks](docs/runbooks/) | Windows dev setup, deploy, backup/restore, rotate secrets, GitHub setup |
 | [Contributing](CONTRIBUTING.md) | Workflow, commits, releases |
 | [CLAUDE.md](CLAUDE.md) | Instructions for Claude Code |
 

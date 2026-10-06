@@ -36,7 +36,7 @@ flowchart LR
 
 | Env | How | Data |
 | --- | --- | --- |
-| development | `make dev-api` + `make dev-web` on the desktop, optional test bot token | `backend/data/` |
+| development | `make dev-api` + `make dev-web` in WSL 2 on the Windows desktop (ADR-0018), optional test bot token | `backend/data/` |
 | test | pytest, in-memory or tmp SQLite | ephemeral |
 | production | `make up` on the Pi | `./data` volume |
 

@@ -1,6 +1,6 @@
-# ADR-0018: Claude Code guardrails: hooks, review subagents, a lean CLAUDE.md
+# ADR-0021: Claude Code guardrails: hooks, review subagents, a lean CLAUDE.md
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-29
 - Deciders: Liam
 

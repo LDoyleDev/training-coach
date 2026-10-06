@@ -10,8 +10,9 @@ plan file has been edited:
 
 import tomllib
 from dataclasses import dataclass
+from functools import lru_cache
 from importlib.resources import files
-from typing import Self
+from typing import Literal, Self
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -79,6 +80,7 @@ class ItemSeed(_Strict):
 
 class SessionSeed(_Strict):
     slug: str = Field(pattern=SLUG, max_length=64)
+    type: Literal["strength", "conditioning", "recovery"] = "strength"
     name: str = Field(min_length=1, max_length=120)
     focus: str = Field(min_length=1, max_length=120)
     is_rest_optional: bool = False
@@ -108,7 +110,14 @@ class PlanSeed(_Strict):
 def load_plan(text: str | None = None) -> PlanSeed:
     """Parse and validate the plan. Defaults to the bundled ``seed/plan.toml``."""
     if text is None:
-        text = files("training_coach.seed").joinpath("plan.toml").read_text(encoding="utf-8")
+        return bundled_plan()
+    return PlanSeed.model_validate(tomllib.loads(text))
+
+
+@lru_cache(maxsize=1)
+def bundled_plan() -> PlanSeed:
+    """The bundled plan, parsed once per process (the file ships inside the image)."""
+    text = files("training_coach.seed").joinpath("plan.toml").read_text(encoding="utf-8")
     return PlanSeed.model_validate(tomllib.loads(text))
 
 

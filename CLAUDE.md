@@ -35,7 +35,7 @@ make dev-api     # API + bot on :8080 with reload
 make dev-web     # dashboard dev server, proxies to :8080
 make migration m="describe change"   # autogenerate an Alembic migration
 make migrate     # apply migrations
-make api-types   # regenerate dashboard API types after changing a response model (ADR-0017)
+make api-types   # regenerate dashboard API types after changing a response model (ADR-0020)
 make seed        # load/update the training plan (idempotent, never resets progress)
 ```
 
@@ -62,7 +62,7 @@ make seed        # load/update the training plan (idempotent, never resets progr
 
 Never bump versions or edit `CHANGELOG.md` by hand: release-please does it from commit history.
 A hook blocks edits to `CHANGELOG.md`, real `.env` files and migrations already on `main`, and
-formats every file you edit (ADR-0018).
+formats every file you edit (ADR-0021).
 
 ## Architecture rules
 
@@ -112,10 +112,9 @@ cause is gone.
   `make check` fails with "API types are stale".
 - Tests import builders as `from tests import factories`; the migrated-DB fixtures `engine`
   and `session` live in `tests/conftest.py`. Don't recreate them per file.
-- On the Windows desktop, AVG's HTTPS scanning re-signs TLS (git needs
-  `http.sslBackend=schannel`) and AVG blocks `uv.exe`, so `make` targets cannot run natively
-  until uv is allowed in AVG. Until then run them in a container:
-  `docs/runbooks/dev-on-windows.md`.
+- Develop in WSL 2, not natively on Windows (ADR-0018, `docs/runbooks/dev-environment-windows.md`).
+  Natively, AVG's HTTPS scanning breaks TLS: use `git config http.sslBackend schannel` and
+  `uv ... --system-certs`; there is no `make`, and a CLI logging test fails on Windows only.
 
 ## Keeping this file useful
 

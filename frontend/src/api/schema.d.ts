@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Plan */
+        get: operations["get_plan_api_plan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -25,6 +42,34 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ExerciseKind
+         * @description How an exercise is measured.
+         * @enum {string}
+         */
+        ExerciseKind: "reps" | "seconds" | "duration_min";
+        /** ExerciseView */
+        ExerciseView: {
+            kind: components["schemas"]["ExerciseKind"];
+            /** Ladder */
+            ladder: string[];
+            /** Muscle Groups */
+            muscle_groups: string[];
+            /** Name */
+            name: string;
+            /** Per Side */
+            per_side: boolean;
+            /** Rep Max */
+            rep_max: number;
+            /** Rep Min */
+            rep_min: number;
+            /** Sets */
+            sets: number;
+            /** Slug */
+            slug: string;
+            /** Start Step */
+            start_step: number;
+        };
         /** Health */
         Health: {
             /** Bot Enabled */
@@ -33,6 +78,46 @@ export interface components {
             status: string;
             /** Version */
             version: string;
+        };
+        /** PlanView */
+        PlanView: {
+            /** Sessions */
+            sessions: components["schemas"]["SessionView"][];
+            /** Volume */
+            volume: components["schemas"]["VolumeView"][];
+            /** Volume Target Max */
+            volume_target_max: number;
+            /** Volume Target Min */
+            volume_target_min: number;
+        };
+        /** SessionView */
+        SessionView: {
+            /** Exercises */
+            exercises: components["schemas"]["ExerciseView"][];
+            /** Focus */
+            focus: string;
+            /** Name */
+            name: string;
+            /** Optional */
+            optional: boolean;
+            /** Position */
+            position: number;
+            /** Slug */
+            slug: string;
+            /** Total Sets */
+            total_sets: number;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "strength" | "conditioning" | "recovery";
+        };
+        /** VolumeView */
+        VolumeView: {
+            /** Group */
+            group: string;
+            /** Sets */
+            sets: number;
         };
     };
     responses: never;
@@ -43,6 +128,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_plan_api_plan_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanView"];
+                };
+            };
+        };
+    };
     healthz_healthz_get: {
         parameters: {
             query?: never;

@@ -1,6 +1,6 @@
-# ADR-0017: Dashboard API types are generated from the OpenAPI schema
+# ADR-0020: Dashboard API types are generated from the OpenAPI schema
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-29
 - Deciders: Liam
 
