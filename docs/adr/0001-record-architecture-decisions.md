@@ -6,7 +6,7 @@
 
 ## Context
 
-The project is built mostly by Claude Code across many sessions. Without a written record,
+The project is built across many short sessions. Without a written record,
 decisions get re-litigated or silently reversed by a later session that lacks the context.
 
 ## Decision
