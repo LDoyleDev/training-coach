@@ -66,7 +66,9 @@ def position(session: Session) -> Position | None:
     state = session.get(PlanState, 1)
     if state is None or state.next_template_id is None:
         return None
-    return Position(state.next_template_id, tuple(state.queued))
+    # Queued ids have no foreign key; drop any whose session has left the plan.
+    known = set(session.scalars(select(SessionTemplate.id)))
+    return Position(state.next_template_id, tuple(t for t in state.queued if t in known))
 
 
 def _last_values(session: Session, item: TemplateItem, step_id: int) -> list[int] | None:

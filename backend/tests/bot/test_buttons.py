@@ -52,6 +52,9 @@ def _workouts(sessions: Sessions) -> list[tuple[int | None, str]]:
         ("x:rest:5", None),
         ("q:rest:five", None),
         ("q:pick:5:9:1", None),
+        ("q:rest:0", None),
+        ("q:rest:-3", None),
+        ("q:rest:99999999999999999999", None),
         (None, None),
     ],
 )
@@ -85,12 +88,17 @@ async def test_morning_message_carries_the_buttons(seeded: Sessions) -> None:
     assert markup == buttons.morning(_pointer(seeded))
 
 
-@pytest.mark.parametrize("action", ["start", "rest", "swap", "next", "push", "pickmenu"])
-async def test_strangers_presses_do_nothing(
-    application: App, seeded: Sessions, action: str
-) -> None:
-    """Threat model T1 for buttons: no answer, no message, no change."""
-    calls = await run(application, press(f"q:{action}:{_pointer(seeded)}", STRANGER))
+@pytest.mark.parametrize(
+    "data",
+    ["start", "rest", "swap", "next", "push", "pickmenu", "back", "pick", "dance", "junk"],
+)
+async def test_strangers_presses_do_nothing(application: App, seeded: Sessions, data: str) -> None:
+    """Threat model T1 for buttons: no answer, no message, no change, even for bad data."""
+    tid = _pointer(seeded)
+    payload = {"pick": f"q:pick:{tid}:{tid + 1}", "junk": "not-a-button"}.get(
+        data, f"q:{data}:{tid}"
+    )
+    calls = await run(application, press(payload, STRANGER))
     assert calls == {}
     assert _workouts(seeded) == []
 

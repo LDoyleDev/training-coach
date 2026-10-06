@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import Event, PlanState, SessionTemplate, Workout
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import Position, complete, swap_with_next
-from training_coach.services.today import SessionPlan, session_plan
+from training_coach.services.today import SessionPlan, position, session_plan
 
 
 @dataclass(frozen=True)
@@ -30,13 +30,32 @@ def _state_at(session: Session, template_id: int) -> PlanState | None:
     return state
 
 
+def _hold(session: Session, template_id: int, on: date, status: WorkoutStatus) -> None:
+    """Log the workout unless the same answer was already given for this session today
+    (the morning message and /today both carry buttons for it)."""
+    existing = session.scalar(
+        select(Workout.id).where(
+            Workout.template_id == template_id,
+            Workout.local_date == on,
+            Workout.status == status,
+        )
+    )
+    if existing is None:
+        session.add(Workout(local_date=on, template_id=template_id, status=status))
+
+
 def _order(session: Session) -> list[int]:
     return list(session.scalars(select(SessionTemplate.id).order_by(SessionTemplate.position)))
 
 
-def _save(state: PlanState, position: Position) -> None:
-    state.next_template_id = position.pointer
-    state.queued = list(position.queued)
+def _current(session: Session, template_id: int) -> Position:
+    """The queue position, already known to be at ``template_id`` (see ``_state_at``)."""
+    return position(session) or Position(template_id)
+
+
+def _save(state: PlanState, new: Position) -> None:
+    state.next_template_id = new.pointer
+    state.queued = list(new.queued)
 
 
 def rest_today(session: Session, template_id: int, on: date) -> RestOutcome | None:
@@ -46,13 +65,12 @@ def rest_today(session: Session, template_id: int, on: date) -> RestOutcome | No
     session is held for tomorrow: a ``skipped`` workout, which also silences the nudge.
     """
     state = _state_at(session, template_id)
-    template = session.get(SessionTemplate, template_id)
+    template = session.get(SessionTemplate, template_id) if state is not None else None
     if state is None or template is None:
         return None
     status = WorkoutStatus.REST if template.is_rest_optional else WorkoutStatus.SKIPPED
-    session.add(Workout(local_date=on, template_id=template_id, status=status))
-    position = Position(template_id, tuple(state.queued))
-    _save(state, complete(_order(session), position, template_id, status))
+    _hold(session, template_id, on, status)
+    _save(state, complete(_order(session), _current(session, template_id), template_id, status))
     session.add(Event(kind="queue.rest", payload={"template_id": template_id, "status": status}))
     return RestOutcome(session=template.name, advanced=template.is_rest_optional)
 
@@ -60,10 +78,10 @@ def rest_today(session: Session, template_id: int, on: date) -> RestOutcome | No
 def push_to_tomorrow(session: Session, template_id: int, on: date) -> str | None:
     """Hold the offered session for tomorrow; everything after it shifts a day (ADR-0006)."""
     state = _state_at(session, template_id)
-    template = session.get(SessionTemplate, template_id)
+    template = session.get(SessionTemplate, template_id) if state is not None else None
     if state is None or template is None:
         return None
-    session.add(Workout(local_date=on, template_id=template_id, status=WorkoutStatus.SKIPPED))
+    _hold(session, template_id, on, WorkoutStatus.SKIPPED)
     session.add(Event(kind="queue.pushed", payload={"template_id": template_id}))
     return template.name
 
@@ -74,7 +92,7 @@ def swap_next(session: Session, template_id: int) -> SessionPlan | None:
     order = _order(session)
     if state is None or len(order) < 2:
         return None
-    swapped = swap_with_next(order, Position(template_id, tuple(state.queued)))
+    swapped = swap_with_next(order, _current(session, template_id))
     _save(state, swapped)
     session.add(Event(kind="queue.swapped", payload={"from": template_id, "to": swapped.pointer}))
     return session_plan(session, swapped.pointer)

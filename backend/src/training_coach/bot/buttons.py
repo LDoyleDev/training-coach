@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 PREFIX = "q"
+MAX_ID = 2**63
 ACTIONS = frozenset({"start", "rest", "swap", "next", "pickmenu", "pick", "push", "back"})
 
 
@@ -32,6 +33,8 @@ def parse(data: str | None) -> Press | None:
     try:
         numbers = [int(p) for p in parts[2:]]
     except ValueError:
+        return None
+    if not all(0 < n < MAX_ID for n in numbers):  # ids are SQLite integers; reject forgeries
         return None
     return Press(parts[1], numbers[0], numbers[1] if len(numbers) == 2 else None)
 

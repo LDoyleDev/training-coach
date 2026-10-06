@@ -130,3 +130,13 @@ def test_no_plan_means_every_action_is_stale(session: Session) -> None:
     assert queue_actions.push_to_tomorrow(session, 1, DAY) is None
     assert queue_actions.swap_next(session, 1) is None
     assert queue_actions.pick(session, 1, 2) is None
+
+
+@pytest.mark.parametrize("action", ["rest", "push"])
+def test_pressing_rest_or_push_twice_logs_once(seeded: Session, action: str) -> None:
+    """The morning message and /today both carry buttons for the same session."""
+    upper = _ids(seeded)["upper"]
+    act = queue_actions.rest_today if action == "rest" else queue_actions.push_to_tomorrow
+    assert act(seeded, upper, DAY) is not None
+    assert act(seeded, upper, DAY) is not None
+    assert _workouts(seeded) == [(upper, WorkoutStatus.SKIPPED)]
