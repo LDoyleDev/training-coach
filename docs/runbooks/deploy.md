@@ -8,15 +8,16 @@ Host: `vybe-pi` (Raspberry Pi 5, Ubuntu Server 24.04), reached over Tailscale.
 ssh vybe-pi
 git clone git@github.com:LDoyleDev/training-coach.git ~/training-coach
 cd ~/training-coach
-cp .env.example .env && chmod 600 .env && nano .env   # production values, TC_ENVIRONMENT=production
+cp .env.example .env && chmod 600 .env && nano .env   # secrets only; leave TC_DATABASE_URL and TC_ENVIRONMENT commented (the image sets them)
 mkdir -p data && sudo chown 10001:10001 data           # container runs as uid 10001
 make up
 curl -s http://127.0.0.1:8080/healthz
 ```
 
-Cloudflare Tunnel (phase 2, when the dashboard ships): add a public hostname, e.g.
-`coach.<your-domain>` -> `http://127.0.0.1:8080`, in the existing tunnel config. Enable WAF
-managed rules and a rate-limit rule for `/api/auth/*`.
+Cloudflare Tunnel: add a public hostname, e.g. `coach.<your-domain>` -> `http://127.0.0.1:8080`,
+in the existing tunnel. Only the public plan page and `GET /api/plan` are open today
+(ADR-0019). When dashboard login ships, enable WAF managed rules and a rate-limit rule for
+`/api/auth/*`. The app runs without Telegram secrets; the bot simply stays off until both are set.
 
 Host hardening checklist (once): `ufw default deny incoming`, SSH only on the Tailscale
 interface, `unattended-upgrades` enabled.
@@ -43,3 +44,6 @@ Edit `backend/src/training_coach/seed/plan.toml` in a PR (CI validates it). Afte
 matched the database). If it shows `seed.failed`, the app is
 still running on the previous plan; fix the file in a new PR. Removing a session is rejected by
 design: write a data migration that repoints the queue first.
+
+Before any workouts are logged (no history to keep), the simpler fix is to start from an empty
+database: `make down`, move `data/training_coach.db` aside, `make up`.

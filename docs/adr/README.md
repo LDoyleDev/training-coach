@@ -20,3 +20,7 @@ Code). Template: [template.md](template.md).
 | [0013](0013-uv-for-python-dependencies.md) | uv and pyproject.toml for Python dependencies | Accepted |
 | [0014](0014-multiple-workouts-per-day.md) | Several workouts per day | Accepted |
 | [0015](0015-seed-failure-does-not-block-startup.md) | A failed plan seed does not block startup | Accepted |
+| [0016](0016-queue-and-target-rules.md) | Queue edge cases and target rules | Accepted |
+| [0017](0017-plan-follows-huberman-protocol.md) | The training plan follows Huberman's Foundational Fitness Protocol | Accepted |
+| [0018](0018-develop-in-wsl2-on-windows.md) | Develop in WSL 2 on the Windows desktop | Accepted |
+| [0019](0019-public-plan-endpoint.md) | The bundled training plan is public at GET /api/plan | Accepted |
