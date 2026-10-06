@@ -1,6 +1,7 @@
 """The Claude Code hooks in .claude/hooks/ enforce CLAUDE.md rules; test them like code."""
 
 import importlib.util
+import io
 import json
 import subprocess
 from pathlib import Path, PurePosixPath
@@ -108,3 +109,13 @@ def test_format_hook_picks_tool_by_location(monkeypatch: pytest.MonkeyPatch) -> 
 def test_format_hook_skips_when_tools_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(fmt.shutil, "which", lambda _name: None)
     assert fmt.commands_for(ROOT / "backend" / "src" / "training_coach" / "config.py", ROOT) == []
+
+
+@pytest.mark.parametrize("stdin", ["not json", "[]"])
+def test_guard_fails_closed_on_bad_input(
+    stdin: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 1 would let the edit through; anything unexpected must block (exit 2)."""
+    monkeypatch.setattr(guard.sys, "stdin", io.StringIO(stdin))
+    assert guard.main() == 2
+    assert "guard hook failed" in capsys.readouterr().err

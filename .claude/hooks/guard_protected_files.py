@@ -12,6 +12,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path, PurePosixPath
+from typing import Any
 
 
 def _repo_path(file_path: str, root: Path) -> PurePosixPath | None:
@@ -63,7 +64,14 @@ def reason_to_block(path: PurePosixPath, root: Path) -> str | None:
 
 
 def main() -> int:
-    event = json.load(sys.stdin)
+    try:
+        return _check(json.load(sys.stdin))
+    except Exception as exc:  # exit 1 would let the edit through, so fail closed
+        sys.stderr.write(f"guard hook failed ({type(exc).__name__}: {exc}); edit blocked.\n")
+        return 2
+
+
+def _check(event: dict[str, Any]) -> int:
     file_path = event.get("tool_input", {}).get("file_path")
     if not file_path:
         return 0
