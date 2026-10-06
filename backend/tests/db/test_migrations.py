@@ -73,7 +73,8 @@ def test_a_migration_that_leaves_dangling_keys_is_rolled_back(
     with engine.begin() as db:
         db.execute(
             text(
-                "INSERT INTO set_logs (workout_id, exercise_id, ladder_step_id, set_no, value, side)"
+                "INSERT INTO set_logs"
+                " (workout_id, exercise_id, ladder_step_id, set_no, value, side)"
                 " VALUES (999, 999, 999, 1, 10, 'both')"
             )
         )
