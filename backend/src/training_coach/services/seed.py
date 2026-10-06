@@ -65,6 +65,9 @@ class ExerciseSeed(_Strict):
     def _start_within_ladder(self) -> Self:
         if self.start >= len(self.ladder):
             raise ValueError(f"{self.slug}: start {self.start} is beyond the ladder")
+        repeated = sorted({name for name in self.ladder if self.ladder.count(name) > 1})
+        if repeated:
+            raise ValueError(f"{self.slug}: ladder step {repeated} appears twice")
         missing = sorted(set(self.renames.values()) - set(self.ladder))
         if missing:
             raise ValueError(f"{self.slug}: renames to {missing}, which is not in its ladder")
@@ -167,9 +170,22 @@ def _preflight(session: Session, plan: PlanSeed, exercises: dict[str, Exercise])
             )
         # Steps are matched by position, so a new name at a used position would silently move
         # logged sets and current progress to a different variation (#18).
+        by_name = {step.name: step for step in exercise.ladder}
         for step in exercise.ladder:
             new = seed.ladder[step.position]
-            if new != step.name and step.id in in_use and seed.renames.get(step.name) != new:
+            if new == step.name:
+                continue
+            other = by_name.get(new)
+            if other is not None:
+                # A swap, a chain of renames or an insert dressed up as renames: a rename can't
+                # make any of these safe, so don't offer one.
+                raise SeedError(
+                    f"exercise {seed.slug!r} step {step.position + 1} would become {new!r}, "
+                    f"which is already the name of step {other.position + 1}. Moving a name "
+                    "between steps moves its logged sets and progress; add new steps at the end "
+                    "of the ladder instead"
+                )
+            if step.id in in_use and seed.renames.get(step.name) != new:
                 raise SeedError(
                     f"exercise {seed.slug!r} step {step.position + 1} is {step.name!r} in the "
                     f"database but {new!r} in plan.toml, and logged sets or current progress "

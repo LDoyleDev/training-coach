@@ -406,3 +406,45 @@ def test_rename_must_name_a_step_in_the_ladder() -> None:
     )
     with pytest.raises(ValidationError, match="not in its ladder"):
         load_plan(bad)
+
+
+@pytest.mark.parametrize(
+    ("ladder", "renames"),
+    [
+        pytest.param('["Strict", "Negatives", "Weighted"]', "", id="swap-unused-and-used"),
+        pytest.param(
+            '["Strict", "Negatives", "Weighted"]',
+            'renames = { "Negatives" = "Strict", "Strict" = "Negatives" }\n',
+            id="swap-with-renames",
+        ),
+        pytest.param(
+            '["Negatives", "Weighted", "Archer"]',
+            'renames = { "Strict" = "Weighted", "Weighted" = "Archer" }\n',
+            id="chain",
+        ),
+        pytest.param(
+            '["Negatives", "Assisted", "Strict", "Weighted"]',
+            'renames = { "Strict" = "Assisted", "Weighted" = "Strict" }\n',
+            id="insert-dressed-as-renames",
+        ),
+    ],
+)
+def test_moving_names_between_steps_is_rejected(
+    session: Session, ladder: str, renames: str
+) -> None:
+    """A step may only take a name no other step has: anything else moves history."""
+    apply_seed(session, load_plan(MINI_PLAN))
+    session.commit()
+    edited = MINI_PLAN.replace(
+        'ladder = ["Negatives", "Strict", "Weighted"]', f"{renames}ladder = {ladder}"
+    )
+    with pytest.raises(SeedError, match="already the name of step"):
+        apply_seed(session, load_plan(edited))
+    session.rollback()
+    assert _step_names(session, "pull-up") == ["Negatives", "Strict", "Weighted"]
+
+
+def test_ladder_names_must_be_unique() -> None:
+    dupes = MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet up", "Feet up"]')
+    with pytest.raises(ValidationError, match="appears twice"):
+        load_plan(dupes)
