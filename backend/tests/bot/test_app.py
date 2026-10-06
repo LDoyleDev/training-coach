@@ -2,18 +2,15 @@ import warnings
 from datetime import UTC, datetime, time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
-from urllib.parse import parse_qs
 
 import pytest
-import respx
-from pydantic import SecretStr
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
-from telegram import Bot, Update
 from telegram.error import Forbidden, NetworkError, RetryAfter, TimedOut
-from telegram.ext import Application, CommandHandler
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler
 from telegram.warnings import PTBDeprecationWarning
 
+from tests.bot.fakes import OWNER, SETTINGS, STRANGER, command, run, texts
 from training_coach.bot.app import (
     MORNING_JOB,
     Handlers,
@@ -26,34 +23,6 @@ from training_coach.bot.messages import NO_PLAN, SOMETHING_WENT_WRONG
 from training_coach.config import Settings
 from training_coach.db.models import UserSettings
 from training_coach.db.session import make_session_factory
-from training_coach.services.seed import apply_seed, load_plan
-
-TELEGRAM = r"https://api\.telegram\.org/bot[^/]+/"
-BOT_USER = {"id": 1, "is_bot": True, "first_name": "Coach", "username": "coach_bot"}
-OWNER, STRANGER = 42, 99
-SETTINGS = Settings(
-    environment="test",
-    telegram_bot_token=SecretStr("123456:TEST-TOKEN"),
-    telegram_allowed_user_id=OWNER,
-)
-
-
-@pytest.fixture
-def sessions(engine: Engine) -> sessionmaker[Session]:
-    return make_session_factory(engine)
-
-
-@pytest.fixture
-def seeded(sessions: sessionmaker[Session]) -> sessionmaker[Session]:
-    with sessions() as session:
-        apply_seed(session, load_plan())
-        session.commit()
-    return sessions
-
-
-@pytest.fixture
-def application(seeded: sessionmaker[Session]) -> Application:  # type: ignore[type-arg]  # see build_bot
-    return build_bot(SETTINGS, seeded)
 
 
 def test_owner_only_requires_configured_user() -> None:
@@ -66,59 +35,20 @@ def test_build_bot_requires_token(sessions: sessionmaker[Session]) -> None:
         build_bot(Settings(environment="test", telegram_allowed_user_id=1), sessions)
 
 
-def test_every_handler_is_restricted_to_owner(application: Application) -> None:  # type: ignore[type-arg]
+def test_every_command_is_restricted_to_owner(application: Application) -> None:  # type: ignore[type-arg]
     handlers = [h for group in application.handlers.values() for h in group]
-    assert {c for h in handlers if isinstance(h, CommandHandler) for c in h.commands} == {
-        "start",
-        "help",
-        "today",
-        "week",
-    }
-    for handler in handlers:
-        assert isinstance(handler, CommandHandler)
-        assert OWNER in handler.filters.user_ids  # type: ignore[union-attr]  # BaseFilter has no user_ids; this one is filters.User
-
-
-def _command(text: str, user_id: int, bot: Bot) -> Update:
-    update = Update.de_json(
-        {
-            "update_id": 1,
-            "message": {
-                "message_id": 1,
-                "date": 1_790_000_000,
-                "chat": {"id": user_id, "type": "private"},
-                "from": {"id": user_id, "is_bot": False, "first_name": "Someone"},
-                "text": text,
-                "entities": [{"type": "bot_command", "offset": 0, "length": len(text)}],
-            },
-        },
-        bot,
-    )
-    assert update is not None
-    return update
+    commands = [h for h in handlers if isinstance(h, CommandHandler)]
+    assert {c for h in commands for c in h.commands} == {"start", "help", "today", "week"}
+    for handler in commands:
+        assert OWNER in handler.filters.user_ids  # type: ignore[attr-defined]  # BaseFilter has no user_ids; this one is filters.User
+    # Button presses can't carry a filter; tests/bot/test_buttons.py proves strangers are ignored.
+    assert [type(h) for h in handlers if not isinstance(h, CommandHandler)] == [
+        CallbackQueryHandler
+    ]
 
 
 async def _replies(application: Application, text: str, sender: int) -> list[str]:  # type: ignore[type-arg]
-    """Run one command through the real dispatcher with Telegram faked; return replies sent."""
-    with respx.mock(assert_all_called=False) as telegram:
-        telegram.post(url__regex=TELEGRAM + "getMe$").respond(json={"ok": True, "result": BOT_USER})
-        send = telegram.post(url__regex=TELEGRAM + "sendMessage$").respond(
-            json={
-                "ok": True,
-                "result": {
-                    "message_id": 2,
-                    "date": 1_790_000_000,
-                    "chat": {"id": sender, "type": "private"},
-                    "text": "ok",
-                },
-            }
-        )
-        await application.initialize()
-        try:
-            await application.process_update(_command(text, sender, application.bot))
-        finally:
-            await application.shutdown()
-    return [parse_qs(call.request.content.decode())["text"][0] for call in send.calls]
+    return texts(await run(application, command(text, sender)))
 
 
 @pytest.mark.parametrize("command", ["/help", "/today", "/week"])

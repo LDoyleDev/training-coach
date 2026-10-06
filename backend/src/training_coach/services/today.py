@@ -21,7 +21,7 @@ from training_coach.db.models import (
 )
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.progression import combine_sides
-from training_coach.domain.queue import ADVANCING, upcoming
+from training_coach.domain.queue import ADVANCING, Position, upcoming
 from training_coach.domain.targets import Prescription, targets
 
 
@@ -37,6 +37,7 @@ class ItemPlan:
 
 @dataclass(frozen=True)
 class SessionPlan:
+    template_id: int
     name: str
     focus: str
     optional: bool
@@ -60,9 +61,12 @@ def _order(session: Session) -> list[SessionTemplate]:
     return list(session.scalars(query))
 
 
-def _pointer(session: Session) -> int | None:
+def position(session: Session) -> Position | None:
+    """The queue position, or None when there is no plan (or it points nowhere)."""
     state = session.get(PlanState, 1)
-    return state.next_template_id if state is not None else None
+    if state is None or state.next_template_id is None:
+        return None
+    return Position(state.next_template_id, tuple(state.queued))
 
 
 def _last_values(session: Session, item: TemplateItem, step_id: int) -> list[int] | None:
@@ -104,31 +108,36 @@ def _item_plan(session: Session, item: TemplateItem) -> ItemPlan:
     )
 
 
-def today(session: Session, on: date) -> Today | None:
-    """The session at the pointer, with targets, and what has been logged on ``on``."""
-    pointer = _pointer(session)
-    template = (
-        session.scalar(
-            select(SessionTemplate)
-            .where(SessionTemplate.id == pointer)
-            .options(selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise))
-        )
-        if pointer is not None
-        else None
+def session_plan(session: Session, template_id: int) -> SessionPlan | None:
+    """One session of the plan with today's ladder steps and targets."""
+    template = session.scalar(
+        select(SessionTemplate)
+        .where(SessionTemplate.id == template_id)
+        .options(selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise))
     )
     if template is None:
+        return None
+    return SessionPlan(
+        template_id=template.id,
+        name=template.name,
+        focus=template.focus,
+        optional=template.is_rest_optional,
+        items=tuple(_item_plan(session, item) for item in template.items),
+    )
+
+
+def today(session: Session, on: date) -> Today | None:
+    """The session at the pointer, with targets, and what has been logged on ``on``."""
+    current = position(session)
+    plan = session_plan(session, current.pointer) if current is not None else None
+    if plan is None:
         return None
     names = {t.id: t.name for t in _order(session)}
     logged = session.scalars(
         select(Workout).where(Workout.local_date == on).order_by(Workout.created_at)
     )
     return Today(
-        session=SessionPlan(
-            name=template.name,
-            focus=template.focus,
-            optional=template.is_rest_optional,
-            items=tuple(_item_plan(session, item) for item in template.items),
-        ),
+        session=plan,
         logged_today=tuple(
             f"{names[w.template_id] if w.template_id else 'Extra'} ({w.status})" for w in logged
         ),
@@ -140,10 +149,10 @@ def week(session: Session, on: date, days: int = 7) -> list[Day] | None:
 
     Starts tomorrow when today's planned session is already done or rested.
     """
-    pointer = _pointer(session)
+    current = position(session)
     order = _order(session)
     ids = [t.id for t in order]
-    if pointer is None or pointer not in ids:
+    if current is None or current.pointer not in ids:
         return None
     advanced_today = session.scalar(
         select(Workout.id).where(
@@ -156,5 +165,5 @@ def week(session: Session, on: date, days: int = 7) -> list[Day] | None:
     names = {t.id: t.name for t in order}
     return [
         Day(date=start + timedelta(days=i), session=names[template_id])
-        for i, template_id in enumerate(upcoming(ids, pointer, days))
+        for i, template_id in enumerate(upcoming(ids, current, days))
     ]

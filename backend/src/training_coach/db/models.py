@@ -144,7 +144,7 @@ class ExerciseState(Base):
 
 
 class PlanState(Base):
-    """Single row: the next session in the queue (ADR-0006)."""
+    """Single row: the next session in the queue (ADR-0006), plus any swapped ones (ADR-0022)."""
 
     __tablename__ = "plan_state"
     __table_args__ = (CheckConstraint("id = 1", name="single_row"),)
@@ -153,6 +153,8 @@ class PlanState(Base):
     next_template_id: Mapped[int | None] = mapped_column(
         ForeignKey("session_templates.id", ondelete="RESTRICT")
     )
+    # Template ids served after the pointer before the cycle resumes (a swap, ADR-0022).
+    queued: Mapped[list[int]] = mapped_column(JSON, default=list, server_default="[]")
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

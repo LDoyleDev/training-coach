@@ -1,26 +1,40 @@
 """Telegram bot. Long polling only: no inbound port is ever opened (ADR-0009).
 
-Every handler is registered behind ``owner_only`` so the bot ignores anyone who
-is not ``TC_TELEGRAM_ALLOWED_USER_ID``.
+Every command handler is registered behind ``owner_only`` so the bot ignores anyone who
+is not ``TC_TELEGRAM_ALLOWED_USER_ID``. Button presses (callback queries) can't take a filter,
+so ``Handlers.button`` checks the sender itself before doing anything.
 """
 
 import asyncio
 import warnings
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
-from telegram import Bot, Update
+from telegram import Bot, InlineKeyboardMarkup, Message, Update
 from telegram.error import NetworkError, RetryAfter, TelegramError
-from telegram.ext import Application, CommandHandler, ContextTypes, filters
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, filters
 from telegram.warnings import PTBDeprecationWarning
 
-from training_coach.bot.messages import NO_PLAN, SOMETHING_WENT_WRONG, today_text, week_text
+from training_coach.bot import buttons
+from training_coach.bot.messages import (
+    NO_PLAN,
+    SOMETHING_WENT_WRONG,
+    STALE,
+    picked_text,
+    pushed_text,
+    rest_text,
+    session_detail_text,
+    today_text,
+    week_text,
+)
 from training_coach.config import Settings
 from training_coach.db.models import UserSettings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
+from training_coach.services import queue_actions
+from training_coach.services.today import session_plan
 from training_coach.services.today import today as todays_session
 from training_coach.services.today import week as upcoming_week
 
@@ -31,7 +45,8 @@ HELP_TEXT = (
     "/today - today's session with targets\n"
     "/week - the next 7 sessions\n"
     "/help - this message\n\n"
-    "The session for the day also arrives every morning."
+    "The session for the day also arrives every morning, with buttons to start it, "
+    "take a rest day or swap it."
 )
 DEFAULT_MORNING = time(7, 30)
 MORNING_JOB = "morning"
@@ -52,13 +67,19 @@ def _retry_seconds(exc: RetryAfter) -> float:
 
 
 async def send_with_retry(
-    bot: Bot, chat_id: int, text: str, *, attempts: int = 3, backoff: float = 2.0
+    bot: Bot,
+    chat_id: int,
+    text: str,
+    *,
+    reply_markup: InlineKeyboardMarkup | None = None,
+    attempts: int = 3,
+    backoff: float = 2.0,
 ) -> bool:
     """Send a scheduled message. Network errors are retried with backoff and flood control
     is waited out; any other Telegram error (blocked, bad chat) gives up. False if not sent."""
     for attempt in range(1, attempts + 1):
         try:
-            await bot.send_message(chat_id=chat_id, text=text)
+            await bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
         except RetryAfter as exc:
             log.warning("bot.send_failed", attempt=attempt, error="RetryAfter")
             if attempt < attempts:
@@ -82,10 +103,16 @@ class Handlers:
         self.settings = settings
         self.sessions = sessions
 
-    def _today_text(self) -> str:
+    def _local_today(self) -> date:
+        return local_date(datetime.now(UTC), self.settings.tz)
+
+    def _today(self) -> tuple[str, InlineKeyboardMarkup | None]:
+        """Today's message, with the Start / Rest today / Swap buttons when there is a plan."""
         with session_scope(self.sessions) as session:
-            plan = todays_session(session, local_date(datetime.now(UTC), self.settings.tz))
-            return NO_PLAN if plan is None else today_text(plan)
+            plan = todays_session(session, self._local_today())
+            if plan is None:
+                return NO_PLAN, None
+            return today_text(plan), buttons.morning(plan.session.template_id)
 
     async def help(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_message is not None:
@@ -93,11 +120,12 @@ class Handlers:
 
     async def today(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_message is not None:
-            await update.effective_message.reply_text(self._today_text())
+            text, markup = self._today()
+            await update.effective_message.reply_text(text, reply_markup=markup)
 
     async def week(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         with session_scope(self.sessions) as session:
-            days = upcoming_week(session, local_date(datetime.now(UTC), self.settings.tz))
+            days = upcoming_week(session, self._local_today())
             text = NO_PLAN if days is None else week_text(days)
         if update.effective_message is not None:
             await update.effective_message.reply_text(text)
@@ -107,7 +135,7 @@ class Handlers:
             with session_scope(self.sessions) as session:
                 prefs = session.get(UserSettings, 1)
                 paused = prefs is not None and prefs.paused
-            text = self._today_text()
+            text, markup = self._today()
         except SQLAlchemyError as exc:
             log.error("bot.morning_failed", error=type(exc).__name__)
             return
@@ -115,10 +143,73 @@ class Handlers:
             log.info("bot.morning_skipped", reason="paused")
             return
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
-        if await send_with_retry(context.bot, self.settings.telegram_allowed_user_id, text):
+        if await send_with_retry(
+            context.bot, self.settings.telegram_allowed_user_id, text, reply_markup=markup
+        ):
             log.info("bot.morning_sent")
         else:
             log.error("bot.morning_failed")
+
+    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+        """A morning-message button. Strangers get nothing, not even an answer (T1)."""
+        query = update.callback_query
+        if (
+            query is None
+            or update.effective_user is None
+            or update.effective_user.id != self.settings.telegram_allowed_user_id
+        ):
+            return
+        press = buttons.parse(query.data)
+        if press is None or not isinstance(query.message, Message):
+            await query.answer()
+            return
+        reply = query.message.reply_text
+        on = self._local_today()
+        tid = press.template_id
+
+        if press.action == "swap":
+            await query.answer()
+            await query.edit_message_reply_markup(buttons.swap(tid))
+            return
+        if press.action == "back":
+            await query.answer()
+            await query.edit_message_reply_markup(buttons.morning(tid))
+            return
+        if press.action == "pickmenu":
+            with session_scope(self.sessions) as session:
+                markup = buttons.pick(tid, queue_actions.choices(session))
+            await query.answer()
+            await query.edit_message_reply_markup(markup)
+            return
+        if press.action == "start":
+            with session_scope(self.sessions) as session:
+                plan = session_plan(session, tid)
+            await query.answer()
+            await reply(STALE if plan is None else session_detail_text(plan))
+            return
+
+        # Actions that change the queue: one transaction, then retire the old buttons.
+        with session_scope(self.sessions) as session:
+            text: str | None
+            new_markup: InlineKeyboardMarkup | None = None
+            if press.action == "rest":
+                outcome = queue_actions.rest_today(session, tid, on)
+                text = rest_text(outcome) if outcome else None
+            elif press.action == "push":
+                name = queue_actions.push_to_tomorrow(session, tid, on)
+                text = pushed_text(name) if name else None
+            elif press.action == "next":
+                swapped = queue_actions.swap_next(session, tid)
+                text = session_detail_text(swapped) if swapped else None
+                new_markup = buttons.morning(swapped.template_id) if swapped else None
+            else:  # pick
+                offered = session_plan(session, tid)
+                picked = queue_actions.pick(session, tid, press.picked_id or 0)
+                text = picked_text(picked, offered.name) if picked and offered else None
+        await query.answer()
+        await query.edit_message_reply_markup(None)
+        await reply(STALE if text is None else text, reply_markup=new_markup)
+        log.info("bot.button", action=press.action, stale=text is None)
 
     async def error(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Log any handler failure (type only, never the message) and tell the owner."""
@@ -160,6 +251,7 @@ def build_bot(settings: Settings, sessions: sessionmaker[Session]) -> Applicatio
     application.add_handler(CommandHandler(["start", "help"], handlers.help, filters=allowed))
     application.add_handler(CommandHandler("today", handlers.today, filters=allowed))
     application.add_handler(CommandHandler("week", handlers.week, filters=allowed))
+    application.add_handler(CallbackQueryHandler(handlers.button, pattern=rf"^{buttons.PREFIX}:"))
 
     application.add_error_handler(handlers.error)
 
