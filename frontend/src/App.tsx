@@ -123,8 +123,8 @@ export default function App() {
 
       <footer className="footer">
         <p>
-          Built by Liam Doyle with Claude Code. Runs on a Raspberry Pi at home. Programme based on
-          Huberman Lab episode 94, with Andy Galpin.
+          Built by Liam Doyle. Runs on a Raspberry Pi at home. Programme based on Huberman Lab
+          episode 94, with Andy Galpin.
         </p>
       </footer>
     </div>
