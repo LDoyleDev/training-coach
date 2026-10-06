@@ -96,9 +96,14 @@ def _quote(text: str) -> str:
     return f"'{clean}'"
 
 
-def _normal(text: str) -> str:
+def normalise_name(text: str) -> str:
+    """The form names are compared in: lower case, no punctuation, filler or plurals.
+    The seed uses it to keep every exercise name and alias unique."""
     words = re.sub(r"[^a-z0-9]+", " ", text.lower()).split()
     return " ".join(_singular(w) for w in words if w not in FILLER)
+
+
+_normal = normalise_name
 
 
 def _singular(word: str) -> str:

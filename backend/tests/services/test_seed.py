@@ -448,3 +448,15 @@ def test_ladder_names_must_be_unique() -> None:
     dupes = MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet up", "Feet up"]')
     with pytest.raises(ValidationError, match="appears twice"):
         load_plan(dupes)
+
+
+@pytest.mark.parametrize(
+    ("exercise", "alias"),
+    [("Pull-up", "dips"), ("Dip", "PULL UP")],
+    ids=["alias-equals-other-name", "differs-only-in-case-and-punctuation"],
+)
+def test_two_exercises_cannot_share_a_name(exercise: str, alias: str) -> None:
+    """A typed log matches names exactly first, so a shared one would pick silently (#54)."""
+    clash = MINI_PLAN.replace(f'name = "{exercise}"', f'name = "{exercise}"\naliases = ["{alias}"]')
+    with pytest.raises(ValidationError, match="used by both"):
+        load_plan(clash)
