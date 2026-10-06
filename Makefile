@@ -25,15 +25,15 @@ typecheck: ## Type-check backend (mypy strict) and frontend (tsc)
 	cd $(BACKEND) && uv run mypy
 	cd $(FRONTEND) && npm run typecheck
 
-test: ## Run all tests
-	cd $(BACKEND) && uv run pytest
+test: ## Run all tests (domain/ must stay at 100% coverage)
+	cd $(BACKEND) && uv run pytest && uv run coverage report --include='*/training_coach/domain/*' --fail-under=100 --skip-covered
 	cd $(FRONTEND) && npm test
 
 migrations-check: ## Migrations apply cleanly and match the models (alembic check)
 	cd $(BACKEND) && rm -f .check.db && export TC_DATABASE_URL=sqlite:///./.check.db \
 		&& uv run alembic upgrade head && uv run alembic check; status=$$?; rm -f .check.db; exit $$status
 
-api-types: ## Regenerate the dashboard's API types from the FastAPI schema (ADR-0017)
+api-types: ## Regenerate the dashboard's API types from the FastAPI schema (ADR-0020)
 	cd $(BACKEND) && uv run --quiet training-coach openapi > ../$(FRONTEND)/src/api/openapi.json
 	cd $(FRONTEND) && npm run --silent api-types
 

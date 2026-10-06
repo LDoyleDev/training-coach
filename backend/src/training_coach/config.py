@@ -19,6 +19,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        env_ignore_empty=True,  # `TC_X=` in .env means "not set", never an empty value
     )
 
     environment: Literal["development", "test", "production"] = "development"

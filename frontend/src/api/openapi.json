@@ -1,6 +1,79 @@
 {
   "components": {
     "schemas": {
+      "ExerciseKind": {
+        "description": "How an exercise is measured.",
+        "enum": [
+          "reps",
+          "seconds",
+          "duration_min"
+        ],
+        "title": "ExerciseKind",
+        "type": "string"
+      },
+      "ExerciseView": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ExerciseKind"
+          },
+          "ladder": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ladder",
+            "type": "array"
+          },
+          "muscle_groups": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Muscle Groups",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "rep_max": {
+            "title": "Rep Max",
+            "type": "integer"
+          },
+          "rep_min": {
+            "title": "Rep Min",
+            "type": "integer"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "start_step": {
+            "title": "Start Step",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "kind",
+          "sets",
+          "rep_min",
+          "rep_max",
+          "per_side",
+          "muscle_groups",
+          "ladder",
+          "start_step"
+        ],
+        "title": "ExerciseView",
+        "type": "object"
+      },
       "Health": {
         "properties": {
           "bot_enabled": {
@@ -23,6 +96,114 @@
         ],
         "title": "Health",
         "type": "object"
+      },
+      "PlanView": {
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SessionView"
+            },
+            "title": "Sessions",
+            "type": "array"
+          },
+          "volume": {
+            "items": {
+              "$ref": "#/components/schemas/VolumeView"
+            },
+            "title": "Volume",
+            "type": "array"
+          },
+          "volume_target_max": {
+            "title": "Volume Target Max",
+            "type": "integer"
+          },
+          "volume_target_min": {
+            "title": "Volume Target Min",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sessions",
+          "volume",
+          "volume_target_min",
+          "volume_target_max"
+        ],
+        "title": "PlanView",
+        "type": "object"
+      },
+      "SessionView": {
+        "properties": {
+          "exercises": {
+            "items": {
+              "$ref": "#/components/schemas/ExerciseView"
+            },
+            "title": "Exercises",
+            "type": "array"
+          },
+          "focus": {
+            "title": "Focus",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "optional": {
+            "title": "Optional",
+            "type": "boolean"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "total_sets": {
+            "title": "Total Sets",
+            "type": "integer"
+          },
+          "type": {
+            "enum": [
+              "strength",
+              "conditioning",
+              "recovery"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "position",
+          "slug",
+          "name",
+          "focus",
+          "type",
+          "optional",
+          "total_sets",
+          "exercises"
+        ],
+        "title": "SessionView",
+        "type": "object"
+      },
+      "VolumeView": {
+        "properties": {
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "group",
+          "sets"
+        ],
+        "title": "VolumeView",
+        "type": "object"
       }
     }
   },
@@ -32,6 +213,27 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/plan": {
+      "get": {
+        "operationId": "get_plan_api_plan_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Plan",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
     "/healthz": {
       "get": {
         "operationId": "healthz_healthz_get",

@@ -46,11 +46,15 @@ belongs to the same exercise. Migrations never import application code.
 - To change the plan: edit `plan.toml` in a PR; it applies on the next deploy.
 
 ### 1-C Session queue and targets (pure domain)
-- `domain/queue.py`: next session; advance on done/rest; no advance on nothing logged
-  (ADR-0006). Tests: skip, double skip, rest, wrap-around, DST dates.
-- `domain/targets.py`: target per set from the last session of that exercise at the same
-  ladder step (+1 rep on the lowest sets, capped at rep_max); first time = rep_min.
-- `domain/progression.py`: ready-to-progress rule from the product spec. Tests with fixtures.
+- `domain/queue.py`: next session; advance on done/rest of the session at the pointer; no
+  advance on nothing logged, skipped, extra or out-of-order sessions (ADR-0006, ADR-0016).
+  Tests: skip, double skip, rest, wrap-around, two sessions a day, DST dates.
+- `domain/targets.py`: target per set from the last session at the same ladder step: all equal
+  -> +1 each, otherwise +1 on sets below the best; capped at rep_max; no jump up to rep_min;
+  first time = rep_min (ADR-0016). Example: 8/7/6/5 -> 8/8/7/6.
+- `domain/progression.py`: ready when all planned sets hit rep_max in the last two sessions at
+  the step; weaker side counts for unilateral work; `top_of_ladder` at the last step.
+- CI enforces 100% coverage of `domain/` and a test forbids framework/I/O imports there.
 
 ### 1-D Morning message, nudge and settings
 - JobQueue daily job at `settings.morning_time` (Europe/Berlin), rescheduled when changed.
