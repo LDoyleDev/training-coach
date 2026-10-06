@@ -27,3 +27,13 @@ def test_invalid_timezone_rejected() -> None:
 
 def test_timezone_property() -> None:
     assert Settings(environment="test").tz.key == "Europe/Berlin"
+
+
+def test_empty_env_values_mean_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A copied .env.example has blank secrets; they must not crash startup or enable the bot."""
+    for name in ("TC_TELEGRAM_BOT_TOKEN", "TC_TELEGRAM_ALLOWED_USER_ID", "TC_GROQ_API_KEY"):
+        monkeypatch.setenv(name, "")
+    settings = Settings(environment="test", _env_file=None)  # type: ignore[call-arg]  # pydantic-settings init kwarg
+    assert settings.telegram_allowed_user_id is None
+    assert settings.telegram_bot_token is None
+    assert not settings.bot_enabled
