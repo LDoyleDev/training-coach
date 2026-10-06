@@ -11,7 +11,8 @@ tracks progress. A dashboard (React) shows history and progress and can be share
 Later, an MCP endpoint lets Claude read and log data.
 
 - Product spec: `docs/specs/product-spec.md`
-- Current phase spec: `docs/specs/phase-1-daily-loop.md`
+- Current phase spec: `docs/specs/phase-1-daily-loop.md` (its Status table says what is done and next)
+- Next phase (draft, not agreed): `docs/specs/phase-2-overview.md`
 - Decisions: `docs/adr/` (accepted ADRs are binding)
 - Security: `docs/security/threat-model.md`
 - Architecture: `docs/architecture.md`
@@ -59,6 +60,7 @@ make seed        # load/update the training plan (idempotent, never resets progr
    files and migrations. If an issue needs more, split it into issues before starting.
 8. If you made a design decision that is not already in an ADR, add one (`/adr`) in the same PR.
 9. Update docs in the same PR when behaviour changes (spec, runbook, README).
+   A PR that finishes a phase step also marks it done in that phase spec's Status table.
 
 Never bump versions or edit `CHANGELOG.md` by hand: release-please does it from commit history.
 A hook blocks edits to `CHANGELOG.md`, real `.env` files and migrations already on `main`, and
