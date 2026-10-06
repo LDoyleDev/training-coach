@@ -231,6 +231,19 @@ def _sets(
     return tuple(rows)
 
 
+def _unbalanced(exercise: Known, values: list[tuple[Side | None, int]]) -> str | None:
+    """Explicit left/right sets must pair up: a missing side would count as 0 for progress."""
+    left = sum(1 for side, _ in values if side is not Side.RIGHT)
+    right = sum(1 for side, _ in values if side is not Side.LEFT)
+    if not exercise.per_side or left == right:
+        return None
+    sets = "set" if left == 1 else "sets"
+    return (
+        f"{exercise.names[0]}: left has {left} {sets} and right has {right}; "
+        "give both sides, or say 'each side'"
+    )
+
+
 def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
     """Every entry the text names, and every problem found. Never raises on user input."""
     if len(text) > MAX_TEXT:
@@ -263,6 +276,8 @@ def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
             problems.append(f"{too_big[0]} is more than {limit} {UNIT[exercise.kind]} for {name}")
         elif len(values) > MAX_SETS:
             problems.append(f"that's more than {MAX_SETS} sets of {name}")
+        elif unbalanced := _unbalanced(exercise, values):
+            problems.append(unbalanced)
         else:
             entries.append(Entry(slug, _sets(exercise, values)))
     return ParseResult(tuple(entries), tuple(problems))

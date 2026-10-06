@@ -149,6 +149,10 @@ def test_hostile_input_never_raises_and_never_saves_junk(text: str) -> None:
         pytest.param("dips " + "1 " * 21, "more than 20 sets of Dip", id="21-numbers-one-line"),
         pytest.param("dips 10x1, dips 11x1", "more than 20 sets of Dip", id="21-sets-across-lines"),
         pytest.param("burpee" * 20 + " 5", "...", id="long-name-truncated"),
+        pytest.param(
+            "split squat left 10 10", "left has 2 sets and right has 0", id="one-side-only"
+        ),
+        pytest.param("split squat left 10 right 9 9", "left has 1 set", id="lopsided"),
     ],
 )
 def test_review_cases_are_problems(text: str, problem: str) -> None:
