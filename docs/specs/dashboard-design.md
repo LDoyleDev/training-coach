@@ -1,6 +1,6 @@
 # Dashboard design (phase 2)
 
-Status: to be designed before phase 2 starts. The design (screens and tokens) is agreed first,
+Status: to be designed before phase 2 starts (decision D1 in `phase-2-overview.md`). The design (screens and tokens) is agreed first,
 then built to match.
 
 Screens: Today, Plan (week and ladders), Progress (per exercise charts), Baseline vs retests,

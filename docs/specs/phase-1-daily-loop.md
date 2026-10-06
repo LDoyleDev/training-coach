@@ -6,6 +6,25 @@ personal bests and progression flags. Milestone: **Phase 1 - Daily loop**. Targe
 Each step below is one GitHub issue and one PR, in this order. Steps list acceptance criteria;
 an issue is done when all are met and `make check` passes.
 
+## Status
+
+Keep this table current: the PR that finishes a step marks it done here.
+
+| Step | Issue | Status |
+| --- | --- | --- |
+| 1-A Data model and migrations | #7 | Done (#15) |
+| 1-B Seed the plan | #8 | Done (#17, plan aligned with Huberman in #27) |
+| 1-C Session queue and targets | #9 | Done (#19) |
+| 1-D Morning message, nudge and settings | #10 | **Next** |
+| 1-E Text logging with confirmation | #11 | Not started |
+| 1-F Voice logging (Groq) | #12 | Not started |
+| 1-G Feedback and progress | #13 | Not started |
+| 1-H Backups and ops | #14 | Not started |
+
+Also in this milestone: #18 (guard ladder-step edits that would remap logged history; do it
+before real workouts are logged). Built outside the step list: the public plan page and
+`GET /api/plan` (#32, ADR-0019). The bot currently answers `/help` only.
+
 ## Data model (step 1-A)
 
 | Table | Purpose | Key columns |
