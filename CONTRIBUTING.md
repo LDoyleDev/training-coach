@@ -1,6 +1,6 @@
 # Contributing
 
-This is a one-person project built mostly with Claude Code, run like a team project.
+This is a one-person project, run like a team project.
 
 ## Flow
 

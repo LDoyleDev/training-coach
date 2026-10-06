@@ -6,11 +6,11 @@
 
 ## Context
 
-Most code in this repo is written by Claude Code. Rules that live only in prose get followed
-most of the time, and "most of the time" is not good enough for secrets, applied migrations or
-the changelog. The previous project (vybe-trading) showed the other failure: its CLAUDE.md grew
-to 65 KB of build status, ADR lists and changelog, went stale and contradicted itself, and its
-main context document (312 KB) became too big to load at all.
+Rules that live only in prose get followed most of the time, and "most of the time" is not
+good enough for secrets, applied migrations or the changelog. The previous project
+(vybe-trading) showed the other failure: its CLAUDE.md grew to 65 KB of build status, ADR lists
+and changelog, went stale and contradicted itself, and its main context document (312 KB)
+became too big to load at all.
 
 ## Decision
 

@@ -8,8 +8,8 @@
 
 The dashboard calls the FastAPI backend. Until now its types were copied by hand (`Health` in
 `App.tsx`), so a backend change could silently break the dashboard: both sides type-check on
-their own, and nothing compares them. Most of the work is done by Claude Code, which edits one
-side at a time and trusts the type checker to catch the other.
+their own, and nothing compares them. Changes often touch one side at a time and rely on the
+type checker to catch the other.
 
 ## Decision
 
