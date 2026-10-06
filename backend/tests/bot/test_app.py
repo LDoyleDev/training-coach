@@ -1,3 +1,4 @@
+import warnings
 from datetime import UTC, datetime, time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -6,11 +7,12 @@ from urllib.parse import parse_qs
 import pytest
 import respx
 from pydantic import SecretStr
-from sqlalchemy import Engine
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram import Bot, Update
-from telegram.error import NetworkError, TimedOut
+from telegram.error import Forbidden, NetworkError, RetryAfter, TimedOut
 from telegram.ext import Application, CommandHandler
+from telegram.warnings import PTBDeprecationWarning
 
 from training_coach.bot.app import (
     MORNING_JOB,
@@ -20,7 +22,7 @@ from training_coach.bot.app import (
     schedule_morning,
     send_with_retry,
 )
-from training_coach.bot.messages import NO_PLAN
+from training_coach.bot.messages import NO_PLAN, SOMETHING_WENT_WRONG
 from training_coach.config import Settings
 from training_coach.db.models import UserSettings
 from training_coach.db.session import make_session_factory
@@ -230,3 +232,36 @@ async def test_send_gives_up_after_the_last_attempt() -> None:
     bot = SimpleNamespace(send_message=AsyncMock(side_effect=NetworkError("down")))
     assert not await send_with_retry(bot, OWNER, "hi", attempts=2, backoff=0)  # type: ignore[arg-type]
     assert bot.send_message.await_count == 2
+
+
+async def test_send_waits_out_flood_control() -> None:
+    with warnings.catch_warnings():  # PTB's own __init__ reads its deprecated int property
+        warnings.simplefilter("ignore", PTBDeprecationWarning)
+        flood = RetryAfter(0)
+    bot = SimpleNamespace(send_message=AsyncMock(side_effect=[flood, None]))
+    assert await send_with_retry(bot, OWNER, "hi", backoff=0)  # type: ignore[arg-type]
+    assert bot.send_message.await_count == 2
+
+
+async def test_send_gives_up_on_other_telegram_errors() -> None:
+    bot = SimpleNamespace(send_message=AsyncMock(side_effect=Forbidden("blocked")))
+    assert not await send_with_retry(bot, OWNER, "hi", backoff=0)  # type: ignore[arg-type]
+    assert bot.send_message.await_count == 1
+
+
+async def test_morning_survives_a_database_error(engine: Engine) -> None:
+    """No tables: the read fails, nothing is sent and the job does not raise."""
+    broken = make_session_factory(create_engine("sqlite://"))
+    context = _context()
+    await Handlers(SETTINGS, broken).morning(context)  # type: ignore[arg-type]
+    context.bot.send_message.assert_not_awaited()
+
+
+@pytest.mark.parametrize(("sender", "replies"), [(OWNER, 1), (STRANGER, 0)])
+async def test_a_failing_command_gets_a_fixed_reply_for_the_owner_only(
+    sender: int, replies: int
+) -> None:
+    broken = make_session_factory(create_engine("sqlite://"))
+    application = build_bot(SETTINGS, broken)
+    sent = await _replies(application, "/today", sender)
+    assert sent == [SOMETHING_WENT_WRONG] * replies

@@ -5,15 +5,18 @@ is not ``TC_TELEGRAM_ALLOWED_USER_ID``.
 """
 
 import asyncio
-from datetime import UTC, datetime, time
+import warnings
+from datetime import UTC, datetime, time, timedelta
 
 import structlog
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 from telegram import Bot, Update
-from telegram.error import NetworkError
+from telegram.error import NetworkError, RetryAfter, TelegramError
 from telegram.ext import Application, CommandHandler, ContextTypes, filters
+from telegram.warnings import PTBDeprecationWarning
 
-from training_coach.bot.messages import NO_PLAN, today_text, week_text
+from training_coach.bot.messages import NO_PLAN, SOMETHING_WENT_WRONG, today_text, week_text
 from training_coach.config import Settings
 from training_coach.db.models import UserSettings
 from training_coach.db.session import session_scope
@@ -40,17 +43,33 @@ def owner_only(settings: Settings) -> filters.BaseFilter:
     return filters.User(user_id=settings.telegram_allowed_user_id)
 
 
+def _retry_seconds(exc: RetryAfter) -> float:
+    """``retry_after`` is an int today and a timedelta in a future PTB; accept both."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", PTBDeprecationWarning)
+        value = exc.retry_after
+    return value.total_seconds() if isinstance(value, timedelta) else float(value)
+
+
 async def send_with_retry(
     bot: Bot, chat_id: int, text: str, *, attempts: int = 3, backoff: float = 2.0
 ) -> bool:
-    """Send a scheduled message, retrying network errors with backoff. False if all fail."""
+    """Send a scheduled message. Network errors are retried with backoff and flood control
+    is waited out; any other Telegram error (blocked, bad chat) gives up. False if not sent."""
     for attempt in range(1, attempts + 1):
         try:
             await bot.send_message(chat_id=chat_id, text=text)
+        except RetryAfter as exc:
+            log.warning("bot.send_failed", attempt=attempt, error="RetryAfter")
+            if attempt < attempts:
+                await asyncio.sleep(_retry_seconds(exc))
         except NetworkError as exc:
             log.warning("bot.send_failed", attempt=attempt, error=type(exc).__name__)
             if attempt < attempts:
                 await asyncio.sleep(backoff * 2 ** (attempt - 1))
+        except TelegramError as exc:
+            log.warning("bot.send_failed", attempt=attempt, error=type(exc).__name__)
+            return False
         else:
             return True
     return False
@@ -84,19 +103,33 @@ class Handlers:
             await update.effective_message.reply_text(text)
 
     async def morning(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        with session_scope(self.sessions) as session:
-            prefs = session.get(UserSettings, 1)
-            paused = prefs is not None and prefs.paused
+        try:
+            with session_scope(self.sessions) as session:
+                prefs = session.get(UserSettings, 1)
+                paused = prefs is not None and prefs.paused
+            text = self._today_text()
+        except SQLAlchemyError as exc:
+            log.error("bot.morning_failed", error=type(exc).__name__)
+            return
         if paused:
             log.info("bot.morning_skipped", reason="paused")
             return
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
-        if await send_with_retry(
-            context.bot, self.settings.telegram_allowed_user_id, self._today_text()
-        ):
+        if await send_with_retry(context.bot, self.settings.telegram_allowed_user_id, text):
             log.info("bot.morning_sent")
         else:
             log.error("bot.morning_failed")
+
+    async def error(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Log any handler failure (type only, never the message) and tell the owner."""
+        log.error("bot.handler_failed", error=type(context.error).__name__)
+        if (
+            isinstance(update, Update)
+            and update.effective_user is not None
+            and update.effective_user.id == self.settings.telegram_allowed_user_id
+            and update.effective_message is not None
+        ):
+            await update.effective_message.reply_text(SOMETHING_WENT_WRONG)
 
 
 def schedule_morning(application: Application, handlers: Handlers, at: time) -> None:  # type: ignore[type-arg]  # see build_bot
@@ -128,9 +161,15 @@ def build_bot(settings: Settings, sessions: sessionmaker[Session]) -> Applicatio
     application.add_handler(CommandHandler("today", handlers.today, filters=allowed))
     application.add_handler(CommandHandler("week", handlers.week, filters=allowed))
 
-    with session_scope(sessions) as session:
-        prefs = session.get(UserSettings, 1)
-        at = prefs.morning_time if prefs is not None else DEFAULT_MORNING
+    application.add_error_handler(handlers.error)
+
+    try:
+        with session_scope(sessions) as session:
+            prefs = session.get(UserSettings, 1)
+            at = prefs.morning_time if prefs is not None else DEFAULT_MORNING
+    except SQLAlchemyError as exc:  # don't block startup (ADR-0015 spirit); use the default
+        log.error("bot.settings_unreadable", error=type(exc).__name__)
+        at = DEFAULT_MORNING
     schedule_morning(application, handlers, at)
     log.info("bot.built", allowed_user_id=settings.telegram_allowed_user_id)
     return application

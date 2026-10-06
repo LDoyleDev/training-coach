@@ -8,6 +8,8 @@ NO_PLAN = (
     "The plan seed probably failed: check the logs for seed.failed."
 )
 
+SOMETHING_WENT_WRONG = "Something went wrong on my side. Try again in a minute."
+
 
 def targets_text(item: ItemPlan) -> str:
     unit = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: "s", ExerciseKind.DURATION_MIN: " min"}
