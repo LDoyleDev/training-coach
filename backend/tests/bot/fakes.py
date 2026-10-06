@@ -38,6 +38,11 @@ def command(text: str, user_id: int) -> dict[str, Any]:
     return {"update_id": 1, "message": message}
 
 
+def text_message(text: str, user_id: int) -> dict[str, Any]:
+    """Plain text, not a command."""
+    return {"update_id": 3, "message": _message(user_id, text)}
+
+
 def press(data: str, user_id: int) -> dict[str, Any]:
     """A button press on a message the bot sent to ``user_id``."""
     message = _message(user_id, "Today: ...", message_id=7)
@@ -64,6 +69,7 @@ async def run(application: Application, update: dict[str, Any]) -> Calls:  # typ
         telegram.post(url__regex=TELEGRAM + "getMe$").respond(json={"ok": True, "result": BOT_USER})
         telegram.post(url__regex=TELEGRAM + "sendMessage$").respond(json=sent)
         telegram.post(url__regex=TELEGRAM + "editMessageReplyMarkup$").respond(json=sent)
+        telegram.post(url__regex=TELEGRAM + "editMessageText$").respond(json=sent)
         telegram.post(url__regex=TELEGRAM + "answerCallbackQuery$").respond(
             json={"ok": True, "result": True}
         )

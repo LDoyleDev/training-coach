@@ -7,19 +7,31 @@ so ``Handlers.button`` checks the sender itself before doing anything.
 
 import asyncio
 import warnings
+from collections.abc import Callable, Coroutine
 from datetime import UTC, date, datetime, time, timedelta
+from typing import Any
+from zoneinfo import ZoneInfo
 
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 from telegram import Bot, InlineKeyboardMarkup, Message, Update
 from telegram.error import NetworkError, RetryAfter, TelegramError
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, filters
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 from telegram.warnings import PTBDeprecationWarning
 
 from training_coach.bot import buttons
+from training_coach.bot import settings as settings_ui
 from training_coach.bot.messages import (
     NO_PLAN,
+    NUDGE,
     SOMETHING_WENT_WRONG,
     STALE,
     picked_text,
@@ -30,13 +42,13 @@ from training_coach.bot.messages import (
     week_text,
 )
 from training_coach.config import Settings
-from training_coach.db.models import UserSettings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import queue_actions
+from training_coach.services import queue_actions, user_settings
 from training_coach.services.today import session_plan
 from training_coach.services.today import today as todays_session
 from training_coach.services.today import week as upcoming_week
+from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
 
@@ -44,12 +56,14 @@ HELP_TEXT = (
     "Training Coach\n\n"
     "/today - today's session with targets\n"
     "/week - the next 7 sessions\n"
+    "/settings - message times, nudges, pause\n"
     "/help - this message\n\n"
     "The session for the day also arrives every morning, with buttons to start it, "
     "take a rest day or swap it."
 )
-DEFAULT_MORNING = time(7, 30)
 MORNING_JOB = "morning"
+NUDGE_JOB = "nudge"
+Job = Callable[[ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
 
 
 def owner_only(settings: Settings) -> filters.BaseFilter:
@@ -133,8 +147,7 @@ class Handlers:
     async def morning(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         try:
             with session_scope(self.sessions) as session:
-                prefs = session.get(UserSettings, 1)
-                paused = prefs is not None and prefs.paused
+                paused = user_settings.load(session).paused
             text, markup = self._today()
         except SQLAlchemyError as exc:
             log.error("bot.morning_failed", error=type(exc).__name__)
@@ -211,6 +224,36 @@ class Handlers:
         await reply(STALE if text is None else text, reply_markup=new_markup)
         log.info("bot.button", action=press.action, stale=text is None)
 
+    async def nudge(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Evening reminder: only if nudges are on, not paused and nothing is logged today."""
+        try:
+            with session_scope(self.sessions) as session:
+                prefs = user_settings.load(session)
+                logged = user_settings.anything_logged(session, self._local_today())
+                plan = todays_session(session, self._local_today())
+        except SQLAlchemyError as exc:
+            log.error("bot.nudge_failed", error=type(exc).__name__)
+            return
+        if prefs.paused or not prefs.nudges_enabled or logged or plan is None:
+            log.info(
+                "bot.nudge_skipped",
+                paused=prefs.paused,
+                enabled=prefs.nudges_enabled,
+                logged=logged,
+                plan=plan is not None,
+            )
+            return
+        assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
+        if await send_with_retry(
+            context.bot,
+            self.settings.telegram_allowed_user_id,
+            NUDGE.format(session=plan.session.name),
+            reply_markup=buttons.morning(plan.session.template_id),
+        ):
+            log.info("bot.nudge_sent")
+        else:
+            log.error("bot.nudge_failed")
+
     async def error(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Log any handler failure (type only, never the message) and tell the owner."""
         log.error("bot.handler_failed", error=type(context.error).__name__)
@@ -223,19 +266,33 @@ class Handlers:
             await update.effective_message.reply_text(SOMETHING_WENT_WRONG)
 
 
-def schedule_morning(application: Application, handlers: Handlers, at: time) -> None:  # type: ignore[type-arg]  # see build_bot
-    """(Re)schedule the daily morning message at local wall-clock time ``at``.
+def _schedule_daily(
+    application: Application,  # type: ignore[type-arg]  # see build_bot
+    name: str,
+    callback: Job,
+    at: time,
+    tz: ZoneInfo,
+) -> None:
+    """(Re)schedule a daily job at local wall-clock time ``at``.
 
     The time carries the user's timezone, so the job follows DST: 07:30 stays 07:30 local.
     """
     job_queue = application.job_queue
     assert job_queue is not None  # noqa: S101 - the job-queue extra is a dependency
-    for job in job_queue.get_jobs_by_name(MORNING_JOB):
+    for job in job_queue.get_jobs_by_name(name):
         job.schedule_removal()
-    job_queue.run_daily(
-        handlers.morning, time=at.replace(tzinfo=handlers.settings.tz), name=MORNING_JOB
-    )
-    log.info("bot.morning_scheduled", at=at.isoformat())
+    job_queue.run_daily(callback, time=at.replace(tzinfo=tz), name=name)
+    log.info("bot.job_scheduled", job=name, at=at.isoformat())
+
+
+def schedule_morning(application: Application, handlers: Handlers, at: time) -> None:  # type: ignore[type-arg]  # see build_bot
+    _schedule_daily(application, MORNING_JOB, handlers.morning, at, handlers.settings.tz)
+
+
+def schedule_jobs(application: Application, handlers: Handlers, prefs: Prefs) -> None:  # type: ignore[type-arg]  # see build_bot
+    """Schedule the morning message and the evening nudge from the saved settings."""
+    schedule_morning(application, handlers, prefs.morning_time)
+    _schedule_daily(application, NUDGE_JOB, handlers.nudge, prefs.nudge_time, handlers.settings.tz)
 
 
 # PTB's Application takes six type parameters, all fixed by the default builder; spelling them
@@ -253,15 +310,28 @@ def build_bot(settings: Settings, sessions: sessionmaker[Session]) -> Applicatio
     application.add_handler(CommandHandler("week", handlers.week, filters=allowed))
     application.add_handler(CallbackQueryHandler(handlers.button, pattern=rf"^{buttons.PREFIX}:"))
 
+    settings_handlers = settings_ui.SettingsHandlers(
+        settings, sessions, lambda _context, prefs: schedule_jobs(application, handlers, prefs)
+    )
+    application.add_handler(CommandHandler("settings", settings_handlers.command, filters=allowed))
+    application.add_handler(
+        CallbackQueryHandler(settings_handlers.button, pattern=rf"^{settings_ui.PREFIX}:")
+    )
+    # Takes every plain-text message from the owner; PTB runs only the first matching handler
+    # in a group. Text logging (1-E) must dispatch from here on AWAITING, or sit in its own
+    # handler group, or it will never see a message.
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND & allowed, settings_handlers.typed_time)
+    )
+
     application.add_error_handler(handlers.error)
 
     try:
         with session_scope(sessions) as session:
-            prefs = session.get(UserSettings, 1)
-            at = prefs.morning_time if prefs is not None else DEFAULT_MORNING
-    except SQLAlchemyError as exc:  # don't block startup (ADR-0015 spirit); use the default
+            prefs = user_settings.load(session)
+    except SQLAlchemyError as exc:  # don't block startup (ADR-0015 spirit); use the defaults
         log.error("bot.settings_unreadable", error=type(exc).__name__)
-        at = DEFAULT_MORNING
-    schedule_morning(application, handlers, at)
+        prefs = Prefs()
+    schedule_jobs(application, handlers, prefs)
     log.info("bot.built", allowed_user_id=settings.telegram_allowed_user_id)
     return application

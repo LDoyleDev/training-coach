@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.error import Forbidden, NetworkError, RetryAfter, TimedOut
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler
 from telegram.warnings import PTBDeprecationWarning
 
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, command, run, texts
@@ -38,13 +38,19 @@ def test_build_bot_requires_token(sessions: sessionmaker[Session]) -> None:
 def test_every_command_is_restricted_to_owner(application: Application) -> None:  # type: ignore[type-arg]
     handlers = [h for group in application.handlers.values() for h in group]
     commands = [h for h in handlers if isinstance(h, CommandHandler)]
-    assert {c for h in commands for c in h.commands} == {"start", "help", "today", "week"}
+    assert {c for h in commands for c in h.commands} == {
+        "start",
+        "help",
+        "today",
+        "week",
+        "settings",
+    }
     for handler in commands:
         assert OWNER in handler.filters.user_ids  # type: ignore[attr-defined]  # BaseFilter has no user_ids; this one is filters.User
-    # Button presses can't carry a filter; tests/bot/test_buttons.py proves strangers are ignored.
-    assert [type(h) for h in handlers if not isinstance(h, CommandHandler)] == [
-        CallbackQueryHandler
-    ]
+    # Button presses can't carry a filter and typed text combines filters; test_buttons.py and
+    # test_settings.py prove strangers are ignored by behaviour instead.
+    others = [type(h) for h in handlers if not isinstance(h, CommandHandler)]
+    assert others == [CallbackQueryHandler, CallbackQueryHandler, MessageHandler]
 
 
 async def _replies(application: Application, text: str, sender: int) -> list[str]:  # type: ignore[type-arg]

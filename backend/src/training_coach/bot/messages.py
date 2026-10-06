@@ -10,6 +10,7 @@ NO_PLAN = (
 )
 
 SOMETHING_WENT_WRONG = "Something went wrong on my side. Try again in a minute."
+NUDGE = "Nothing logged today yet. {session} is still waiting: start it, rest or swap it."
 STALE = "That message is out of date. Send /today for the current session."
 
 

@@ -15,15 +15,15 @@ Keep this table current: the PR that finishes a step marks it done here.
 | 1-A Data model and migrations | #7 | Done (#15) |
 | 1-B Seed the plan | #8 | Done (#17, plan aligned with Huberman in #27) |
 | 1-C Session queue and targets | #9 | Done (#19) |
-| 1-D Morning message, nudge and settings | #10 | In progress: #40 morning message, /today, /week (done); #41 Start / Rest today / Swap buttons (done, ADR-0022); #42 settings and nudge next |
-| 1-E Text logging with confirmation | #11 | Not started |
+| 1-D Morning message, nudge and settings | #10 | Done (#43, #46 with ADR-0022, and the settings and nudge PR) |
+| 1-E Text logging with confirmation | #11 | **Next** |
 | 1-F Voice logging (Groq) | #12 | Not started |
 | 1-G Feedback and progress | #13 | Not started |
 | 1-H Backups and ops | #14 | Not started |
 
 Also in this milestone: #18 (guard ladder-step edits that would remap logged history; do it
 before real workouts are logged). Built outside the step list: the public plan page and
-`GET /api/plan` (#32, ADR-0019). The bot sends the morning session and answers `/today`, `/week` and `/help`.
+`GET /api/plan` (#32, ADR-0019). The bot sends the morning session with Start / Rest today / Swap buttons and an evening nudge, and answers `/today`, `/week`, `/settings` and `/help`.
 
 ## Data model (step 1-A)
 
