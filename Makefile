@@ -3,7 +3,7 @@
 BACKEND := backend
 FRONTEND := frontend
 
-.PHONY: help setup lint format typecheck test migrations-check check ci build dev-api dev-web migrate migration seed audit up down logs
+.PHONY: help setup lint format typecheck test migrations-check api-types api-types-check check ci build dev-api dev-web migrate migration seed audit up down logs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -33,7 +33,16 @@ migrations-check: ## Migrations apply cleanly and match the models (alembic chec
 	cd $(BACKEND) && rm -f .check.db && export TC_DATABASE_URL=sqlite:///./.check.db \
 		&& uv run alembic upgrade head && uv run alembic check; status=$$?; rm -f .check.db; exit $$status
 
-check: lint typecheck test migrations-check build ## Everything CI runs offline; must pass before every PR
+api-types: ## Regenerate the dashboard's API types from the FastAPI schema (ADR-0020)
+	cd $(BACKEND) && uv run --quiet training-coach openapi > ../$(FRONTEND)/src/api/openapi.json
+	cd $(FRONTEND) && npm run --silent api-types
+
+api-types-check: api-types ## Fail if the committed API types are stale
+	@git diff --quiet -- $(FRONTEND)/src/api \
+		&& test -z "$$(git ls-files --others --exclude-standard -- $(FRONTEND)/src/api)" \
+		|| { git status --short -- $(FRONTEND)/src/api; echo "API types are stale: run 'make api-types' and git add them"; exit 1; }
+
+check: lint typecheck test migrations-check api-types-check build ## Everything CI runs offline; must pass before every PR
 
 ci: check audit ## check + dependency audit (needs network); the full CI job set minus Docker
 
