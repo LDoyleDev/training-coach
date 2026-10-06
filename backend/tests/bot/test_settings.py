@@ -55,8 +55,10 @@ def _next_run(application: App, name: str) -> datetime:
         ("s:morning:0645", settings_ui.Press("morning", time(6, 45))),
         ("s:nudge:2100", settings_ui.Press("nudge", time(21, 0))),
         ("s:ask-morning", settings_ui.Press("ask-morning")),
-        ("s:nudges", settings_ui.Press("nudges")),
-        ("s:pause", settings_ui.Press("pause")),
+        ("s:nudges:off", settings_ui.Press("nudges", on=False)),
+        ("s:pause:on", settings_ui.Press("pause", on=True)),
+        ("s:pause", None),
+        ("s:pause:maybe", None),
         ("s:morning:2560", None),
         ("s:morning:645", None),
         ("s:morning", None),
@@ -91,10 +93,12 @@ async def test_settings_command_is_owner_only(application: App, sender: int, rep
     calls = await run(application, command("/settings", sender))
     assert len(texts(calls)) == replies
     if replies:
-        assert "s:pause" in button_data(calls["sendMessage"][0])
+        assert "s:pause:on" in button_data(calls["sendMessage"][0])
 
 
-@pytest.mark.parametrize("data", ["s:morning:0645", "s:pause", "s:nudges", "s:ask-morning", "s:x"])
+@pytest.mark.parametrize(
+    "data", ["s:morning:0645", "s:pause:on", "s:nudges:off", "s:ask-morning", "s:x"]
+)
 async def test_strangers_settings_presses_do_nothing(
     application: App, seeded: Sessions, data: str
 ) -> None:
@@ -116,13 +120,23 @@ async def test_nudge_preset_reschedules_the_nudge(application: App, seeded: Sess
     assert _next_run(application, NUDGE_JOB) == datetime(2026, 10, 6, 19, 0, tzinfo=UTC)
 
 
-@pytest.mark.parametrize(("data", "field"), [("s:pause", "paused"), ("s:nudges", "nudges_enabled")])
-async def test_toggles_flip(application: App, seeded: Sessions, data: str, field: str) -> None:
-    before = getattr(_prefs(seeded), field)
+@pytest.mark.parametrize(
+    ("data", "field", "value"),
+    [
+        ("s:pause:on", "paused", True),
+        ("s:pause:off", "paused", False),
+        ("s:nudges:off", "nudges_enabled", False),
+        ("s:nudges:on", "nudges_enabled", True),
+    ],
+)
+async def test_toggles_set_their_value(
+    application: App, seeded: Sessions, data: str, field: str, value: bool
+) -> None:
+    """A button on an old /settings message sets what it says, never the opposite."""
     await run(application, press(data, OWNER))
-    assert getattr(_prefs(seeded), field) is not before
+    assert getattr(_prefs(seeded), field) is value
     await run(application, press(data, OWNER))
-    assert getattr(_prefs(seeded), field) is before
+    assert getattr(_prefs(seeded), field) is value
 
 
 async def test_typed_time_after_other(application: App, seeded: Sessions) -> None:

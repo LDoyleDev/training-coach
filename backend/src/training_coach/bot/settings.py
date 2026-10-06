@@ -34,6 +34,7 @@ Reschedule = Callable[[ContextTypes.DEFAULT_TYPE, Prefs], None]
 class Press:
     what: str  # morning | nudge | ask-morning | ask-nudge | nudges | pause
     at: time | None = None
+    on: bool | None = None  # the value a nudges/pause button sets
 
 
 def _hhmm(t: time) -> str:
@@ -44,20 +45,17 @@ def _data(what: str, at: time | None = None) -> str:
     return f"{PREFIX}:{what}" + (f":{at:%H%M}" if at is not None else "")
 
 
+def _toggle(what: str, on: bool) -> str:
+    return f"{PREFIX}:{what}:{'on' if on else 'off'}"
+
+
 def parse(data: str | None) -> Press | None:
     parts = (data or "").split(":")
-    if (
-        len(parts) == 2
-        and parts[0] == PREFIX
-        and parts[1]
-        in {
-            "ask-morning",
-            "ask-nudge",
-            "nudges",
-            "pause",
-        }
-    ):
+    if len(parts) == 2 and parts[0] == PREFIX and parts[1] in {"ask-morning", "ask-nudge"}:
         return Press(parts[1])
+    if len(parts) == 3 and parts[0] == PREFIX and parts[1] in {"nudges", "pause"}:
+        # Toggles carry their target, so a button on an old message sets what it says.
+        return Press(parts[1], on=parts[2] == "on") if parts[2] in ("on", "off") else None
     if len(parts) == 3 and parts[0] == PREFIX and parts[1] in {"morning", "nudge"}:
         at = parse_hhmm(f"{parts[2][:2]}:{parts[2][2:]}") if len(parts[2]) == 4 else None
         return Press(parts[1], at) if at is not None else None
@@ -98,10 +96,15 @@ def keyboard(prefs: Prefs) -> InlineKeyboardMarkup:
                 button("Nudge: other time…", callback_data=_data("ask-nudge")),
                 button(
                     "Turn nudges off" if prefs.nudges_enabled else "Turn nudges on",
-                    callback_data=_data("nudges"),
+                    callback_data=_toggle("nudges", not prefs.nudges_enabled),
                 ),
             ],
-            [button("Resume" if prefs.paused else "Pause", callback_data=_data("pause"))],
+            [
+                button(
+                    "Resume" if prefs.paused else "Pause",
+                    callback_data=_toggle("pause", not prefs.paused),
+                )
+            ],
         ]
     )
 
@@ -142,13 +145,12 @@ class SettingsHandlers:
             await query.message.reply_text(f"Send the {which} time as HH:MM, for example 07:15.")
             return
         with session_scope(self.sessions) as session:
-            current = user_settings.load(session)
             prefs = user_settings.update(
                 session,
                 morning_time=press.at if press.what == "morning" else None,
                 nudge_time=press.at if press.what == "nudge" else None,
-                nudges_enabled=not current.nudges_enabled if press.what == "nudges" else None,
-                paused=not current.paused if press.what == "pause" else None,
+                nudges_enabled=press.on if press.what == "nudges" else None,
+                paused=press.on if press.what == "pause" else None,
             )
         if press.what in ("morning", "nudge"):
             self.reschedule(context, prefs)
