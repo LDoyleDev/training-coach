@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
+from telegram.error import TimedOut
 from telegram.ext import Application
 
 from tests.bot.fakes import OWNER, STRANGER, button_data, press, run, text_message, texts
@@ -230,3 +231,21 @@ async def test_a_log_while_a_time_is_asked_for_is_still_a_log(
     assert reply[0].startswith("Log for ")
     later = texts(await run(application, text_message("06:00", OWNER)))
     assert later[0].startswith("I couldn't read that log")  # the question was cancelled
+
+
+async def test_save_happens_even_if_retiring_the_buttons_fails(
+    application: App, seeded: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The edit runs after the save, so a network error there can't lose the log."""
+    token = _token(await run(application, text_message(LOG, OWNER)))
+
+    async def broken(edit: object) -> None:
+        await edit  # type: ignore[misc]  # an awaitable edit call
+        raise TimedOut()
+
+    monkeypatch.setattr(logging_flow, "edit_quietly", broken)
+    await run(application, press(f"l:save:{token}", OWNER))
+    assert _count(seeded, Workout) == 1
+    monkeypatch.undo()
+    again = texts(await run(application, press(f"l:save:{token}", OWNER), unmodified=True))
+    assert again == [LOG_SAVED_BEFORE]

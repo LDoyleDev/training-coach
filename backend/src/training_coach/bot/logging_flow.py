@@ -114,21 +114,15 @@ class LogHandlers:
         # Saved drafts stay (bounded by MAX_DRAFTS) so a second Save tap answers "already
         # saved" from the database instead of "expired", which would invite a duplicate.
         draft = self.drafts.get(press.token)
-        await edit_quietly(
-            query.edit_message_reply_markup(None)
-        )  # every outcome retires these buttons
-        if press.action == "cancel":
+        if press.action == "save":
+            reply = LOG_EXPIRED if draft is None else self._save(draft)
+        else:
             self.drafts.pop(press.token, None)
-            await query.message.reply_text(LOG_CANCELLED)
-            return
-        if press.action == "edit":
-            self.drafts.pop(press.token, None)
-            await query.message.reply_text(LOG_EDIT)
-            return
-        if draft is None:
-            await query.message.reply_text(LOG_EXPIRED)
-            return
-        await query.message.reply_text(self._save(draft))
+            reply = LOG_CANCELLED if press.action == "cancel" else LOG_EDIT
+        # Act first, then retire the buttons: if the edit fails, the outcome already stands
+        # and a retry answers "already saved".
+        await edit_quietly(query.edit_message_reply_markup(None))
+        await query.message.reply_text(reply)
 
     def _save(self, draft: Draft) -> str:
         with session_scope(self.sessions) as session:
