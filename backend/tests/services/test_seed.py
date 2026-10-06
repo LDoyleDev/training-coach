@@ -1,5 +1,6 @@
 import re
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -14,9 +15,12 @@ from training_coach.db.models import (
     LadderStep,
     PlanState,
     SessionTemplate,
+    SetLog,
     TemplateItem,
     UserSettings,
+    Workout,
 )
+from training_coach.domain.enums import WorkoutStatus
 from training_coach.services.seed import PlanSeed, SeedError, apply_seed, load_plan
 
 MINI_PLAN = """
@@ -324,3 +328,81 @@ def test_training_plan_spec_volume_table_matches_plan() -> None:
     volume = _weekly_volume()
     for name, sets in rows:
         assert volume[name.lower()] == int(sets), (name, volume[name.lower()], sets)
+
+
+# ----------------------------------------------------- ladder steps that history uses (#18)
+
+INSERTED = MINI_PLAN.replace(
+    '["Negatives", "Strict", "Weighted"]', '["Negatives", "Assisted", "Strict", "Weighted"]'
+)
+
+
+def _step_names(session: Session, slug: str) -> list[str]:
+    exercise = session.scalars(select(Exercise).where(Exercise.slug == slug)).one()
+    return [s.name for s in sorted(exercise.ladder, key=lambda s: s.position)]
+
+
+def test_inserting_a_step_mid_ladder_is_rejected_before_any_write(session: Session) -> None:
+    """Strict is the current step: shifting it would silently move progress to Assisted."""
+    apply_seed(session, load_plan(MINI_PLAN))
+    session.commit()
+    with pytest.raises(SeedError, match=r"'pull-up' step 2 .*'Strict'.*'Assisted'"):
+        apply_seed(session, load_plan(INSERTED))
+    session.rollback()
+    assert _step_names(session, "pull-up") == ["Negatives", "Strict", "Weighted"]
+
+
+def test_renaming_a_step_in_use_needs_a_rename_entry(session: Session) -> None:
+    apply_seed(session, load_plan(MINI_PLAN))
+    session.commit()
+    typo_fix = MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet flat", "Feet up"]')
+    with pytest.raises(SeedError, match="renames"):
+        apply_seed(session, load_plan(typo_fix))
+    session.rollback()
+
+    marked = typo_fix.replace(
+        'ladder = ["Feet flat"', 'renames = { "Feet down" = "Feet flat" }\nladder = ["Feet flat"'
+    )
+    state_before = session.get_one(ExerciseState, _dip_id(session)).ladder_step_id
+    apply_seed(session, load_plan(marked))
+    session.commit()
+    assert _step_names(session, "dip") == ["Feet flat", "Feet up"]
+    assert session.get_one(ExerciseState, _dip_id(session)).ladder_step_id == state_before
+    # The rename entry can stay in plan.toml: once applied it changes nothing.
+    assert not apply_seed(session, load_plan(marked)).changed
+
+
+def _dip_id(session: Session) -> int:
+    return session.scalars(select(Exercise.id).where(Exercise.slug == "dip")).one()
+
+
+def test_a_step_with_logged_sets_is_protected(session: Session) -> None:
+    apply_seed(session, load_plan(MINI_PLAN))
+    pull_up = session.scalars(select(Exercise).where(Exercise.slug == "pull-up")).one()
+    weighted = next(s for s in pull_up.ladder if s.name == "Weighted")
+    workout = Workout(local_date=date(2026, 10, 1), template_id=None, status=WorkoutStatus.DONE)
+    workout.sets = [SetLog(exercise_id=pull_up.id, ladder_step_id=weighted.id, set_no=1, value=5)]
+    session.add(workout)
+    session.commit()
+    vest = MINI_PLAN.replace('"Strict", "Weighted"]', '"Strict", "Weighted vest"]')
+    with pytest.raises(SeedError, match="'Weighted'"):
+        apply_seed(session, load_plan(vest))
+
+
+def test_unused_steps_can_change_and_appending_stays_allowed(session: Session) -> None:
+    apply_seed(session, load_plan(MINI_PLAN))
+    session.commit()
+    edited = MINI_PLAN.replace(
+        '["Negatives", "Strict", "Weighted"]', '["Slow negatives", "Strict", "Weighted", "Archer"]'
+    )
+    apply_seed(session, load_plan(edited))
+    session.commit()
+    assert _step_names(session, "pull-up") == ["Slow negatives", "Strict", "Weighted", "Archer"]
+
+
+def test_rename_must_name_a_step_in_the_ladder() -> None:
+    bad = MINI_PLAN.replace(
+        'ladder = ["Feet down"', 'renames = { "Feet down" = "Feet flat" }\nladder = ["Feet down"'
+    )
+    with pytest.raises(ValidationError, match="not in its ladder"):
+        load_plan(bad)
