@@ -242,3 +242,20 @@ def test_an_unbound_session_writes_only_rows_that_name_their_user(engine: Engine
         session.add(UserSettings(user_id=users.OWNER))  # named: fine
     with pytest.raises(IntegrityError), session_scope(unbound) as session:
         session.add(Workout(local_date=DAY, status=WorkoutStatus.DONE))  # no user
+
+
+def test_no_shared_model_links_to_a_per_person_one() -> None:
+    """Lazy loads follow their parent's query and skip the unbound guard. That is only safe while
+    every per-person relationship starts from a per-person row: a shared model linking to an
+    owned one (say Exercise.set_logs) would lazy-load every user's rows from an unbound session."""
+    from training_coach.db.base import Base
+    from training_coach.db.models import Owned
+
+    links = [
+        f"{mapper.class_.__name__}.{rel.key}"
+        for mapper in Base.registry.mappers
+        if not issubclass(mapper.class_, Owned)
+        for rel in mapper.relationships
+        if issubclass(rel.mapper.class_, Owned)
+    ]
+    assert links == []
