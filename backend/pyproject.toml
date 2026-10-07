@@ -21,6 +21,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "import-linter>=2.15",
     "mypy>=2.3.1",
     "pip-audit>=2.10.1",
     "pre-commit>=4.6.2",
@@ -54,6 +55,44 @@ strict = true
 plugins = ["pydantic.mypy"]
 mypy_path = "src"
 packages = ["training_coach"]
+
+# The dependency map (CLAUDE.md "Architecture rules"), enforced by `lint-imports` in CI.
+[tool.importlinter]
+root_package = "training_coach"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Adapters -> services -> db -> domain"
+type = "layers"
+layers = [
+    "training_coach.api | training_coach.bot",
+    "training_coach.services",
+    "training_coach.db",
+    "training_coach.domain",
+]
+ignore_imports = [
+    # The API process is the composition root: its lifespan starts the bot.
+    "training_coach.api.app -> training_coach.bot.app",
+]
+
+[[tool.importlinter.contracts]]
+name = "Adapters query the database only through services"
+type = "forbidden"
+source_modules = ["training_coach.api", "training_coach.bot"]
+forbidden_modules = ["training_coach.db.models"]
+allow_indirect_imports = true  # going through services is the point
+
+[[tool.importlinter.contracts]]
+name = "HTTP to Groq and Telegram goes through services"
+type = "forbidden"
+source_modules = [
+    "training_coach.api",
+    "training_coach.bot",
+    "training_coach.db",
+    "training_coach.domain",
+]
+forbidden_modules = ["httpx"]
+allow_indirect_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

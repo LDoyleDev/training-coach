@@ -14,7 +14,7 @@ setup: ## Install all dependencies and git hooks
 	cd $(BACKEND) && uv run pre-commit install --install-hooks -t pre-commit -t commit-msg --config ../.pre-commit-config.yaml
 
 lint: ## Lint backend and frontend
-	cd $(BACKEND) && uv run ruff check . && uv run ruff format --check .
+	cd $(BACKEND) && uv run ruff check . && uv run ruff format --check . && uv run lint-imports
 	cd $(FRONTEND) && npm run lint && npm run format:check
 
 format: ## Auto-format everything
