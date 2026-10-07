@@ -3,7 +3,7 @@
 from training_coach.domain.enums import ExerciseKind, Side
 from training_coach.domain.parser import Entry
 from training_coach.domain.progression import Progress
-from training_coach.services.progress import Feedback
+from training_coach.services.progress import Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.today import Day, ItemPlan, SessionPlan, Today
 from training_coach.services.workout_log import Draft
@@ -188,3 +188,32 @@ def feedback_text(items: list[Feedback]) -> str:
                 "variation to plan.toml when you're ready."
             )
     return "\n".join(lines)
+
+
+PROGRESS_EMPTY = "No exercises in the plan yet."
+
+
+def _values(values: tuple[int, ...], kind: ExerciseKind) -> str:
+    unit = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: "s", ExerciseKind.DURATION_MIN: " min"}
+    return " / ".join(f"{v}{unit[kind]}" for v in values)
+
+
+def progress_text(standings: list[Standing]) -> str:
+    """/progress: one line per exercise, under Telegram's limit."""
+    if not standings:
+        return PROGRESS_EMPTY
+    lines = ["Progress: current step, last session, best set at this step", ""]
+    for s in standings:
+        line = f"- {s.exercise}: {s.step} ({s.step_number}/{s.steps})"
+        if s.last:
+            line += f", last {_values(s.last, s.kind)}"
+            if s.best_set is not None:
+                line += f", best {_amount(s.best_set, s.kind)}"
+        else:
+            line += ", not logged at this step yet"
+        if s.status is Progress.READY:
+            line += ". Ready to move up"
+        elif s.status is Progress.TOP_OF_LADDER:
+            line += ". Top of the ladder"
+        lines.append(line)
+    return "\n".join(_fit(lines, []))

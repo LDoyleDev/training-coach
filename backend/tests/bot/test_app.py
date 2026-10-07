@@ -43,6 +43,7 @@ def test_every_command_is_restricted_to_owner(application: Application) -> None:
         "help",
         "today",
         "week",
+        "progress",
         "settings",
     }
     for handler in commands:

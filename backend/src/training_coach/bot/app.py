@@ -60,6 +60,7 @@ HELP_TEXT = (
     "Training Coach\n\n"
     "/today - today's session with targets\n"
     "/week - the next 7 sessions\n"
+    "/progress - each exercise's step, last session and best\n"
     "/settings - message times, nudges, pause\n"
     "/help - this message\n\n"
     "Log a workout by sending it as a message, like: pull-ups 8 8 7, dips 12 11 10. "
@@ -316,6 +317,8 @@ def build_bot(
     application.add_handler(CommandHandler(["start", "help"], handlers.help, filters=allowed))
     application.add_handler(CommandHandler("today", handlers.today, filters=allowed))
     application.add_handler(CommandHandler("week", handlers.week, filters=allowed))
+    progress_handlers = progress_ui.ProgressHandlers(settings, sessions)
+    application.add_handler(CommandHandler("progress", progress_handlers.command, filters=allowed))
     application.add_handler(CallbackQueryHandler(handlers.button, pattern=rf"^{buttons.PREFIX}:"))
 
     settings_handlers = settings_ui.SettingsHandlers(
@@ -338,7 +341,6 @@ def build_bot(
     application.add_handler(
         CallbackQueryHandler(log_handlers.button, pattern=rf"^{logging_flow.PREFIX}:")
     )
-    progress_handlers = progress_ui.ProgressHandlers(settings, sessions)
     application.add_handler(
         CallbackQueryHandler(progress_handlers.button, pattern=rf"^{progress_ui.PREFIX}:")
     )
