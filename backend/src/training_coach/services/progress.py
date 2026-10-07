@@ -147,8 +147,11 @@ def feedback(session: Session, workout_id: int) -> list[Feedback]:
         item = _item(session, exercise_id, workout.template_id)
         per_side = item.per_side if item is not None else False
         history = _sessions(session, exercise_id, step_id, per_side)
-        current = next((v for w, v in history if w == workout_id), [])
-        bests = new_bests(current, (v for w, v in history if w != workout_id))
+        # History is newest first, so what follows this workout came before it: a backdated
+        # log is compared with the sessions before its day, not with later ones.
+        at = next((i for i, (w, _) in enumerate(history) if w == workout_id), len(history))
+        current = history[at][1] if at < len(history) else []
+        bests = new_bests(current, (v for _, v in history[at + 1 :]))
         state = session.get(ExerciseState, exercise_id)
         # Progression is about the step being trained now; a log at an older step only
         # counts for bests.

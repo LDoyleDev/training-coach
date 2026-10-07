@@ -29,10 +29,10 @@ from training_coach.bot.messages import (
     VOICE_FAILED,
     VOICE_OFF,
     VOICE_TOO_LONG,
-    feedback_text,
     heard_text,
     log_saved_text,
     log_text,
+    saved_reply,
 )
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
@@ -50,6 +50,17 @@ MAX_DRAFTS = 10  # bounded memory: only the most recent drafts can be saved
 TOKEN_LENGTH = 32
 MAX_VOICE_SECONDS = 120
 MAX_VOICE_BYTES = 5 * 1024 * 1024
+
+
+def _feedback(session: Session, workout_id: int) -> list[progress.Feedback]:
+    """Bests and prompts for a saved workout. In a savepoint and never raising: a bug here
+    must not roll back the save, or every later log would fail the same way."""
+    try:
+        with session.begin_nested():
+            return progress.feedback(session, workout_id)
+    except Exception as exc:
+        log.error("bot.feedback_failed", error=type(exc).__name__)
+        return []
 
 
 def _seconds(voice: Voice) -> float:
@@ -246,9 +257,8 @@ class LogHandlers:
                     session=draft.session_name,
                     next_session=workout_log.next_session_name(session),
                 )
-                earned = progress.feedback(session, result.workout_id)
-                if extra := feedback_text(earned):
-                    text = f"{text}\n\n{extra}"
+                earned = _feedback(session, result.workout_id)
+                text = saved_reply(text, earned)
                 markup = progress_ui.keyboard(earned)
             elif isinstance(result, Saved):
                 text = LOG_SAVED_BEFORE

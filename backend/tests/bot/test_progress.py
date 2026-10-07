@@ -4,18 +4,20 @@ only, and checked again on every press."""
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
+from structlog.testing import capture_logs
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application
 
 from tests.bot.fakes import OWNER, STRANGER, button_data, press, run, text_message, texts
 from training_coach.bot import progress as progress_ui
-from training_coach.bot.messages import feedback_text
+from training_coach.bot.messages import feedback_text, saved_reply
 from training_coach.db.models import Exercise, ExerciseState, LadderStep, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
+from training_coach.services import progress as progress_service
 from training_coach.services.progress import Feedback
 
 App = Application  # type: ignore[type-arg]  # see build_bot
@@ -205,3 +207,38 @@ def test_feedback_text_units_and_cases() -> None:
     assert "last step in your plan" in feedback_text([top])
     quiet = _feedback(exercise="Dip", status=Progress.TOP_OF_LADDER, note_top=False)
     assert feedback_text([quiet]) == ""
+
+
+async def test_a_feedback_bug_never_undoes_the_save(
+    application: App, seeded: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(_session: Session, _workout_id: int) -> list[Feedback]:
+        raise ValueError("a bug in feedback")
+
+    monkeypatch.setattr(progress_service, "feedback", broken)
+    with capture_logs() as logs:
+        calls = await _save(application, "pull-ups 8 7 6 6")
+    (reply,) = texts(calls)
+    assert reply.startswith("Saved ")
+    with seeded() as session:
+        assert session.scalar(select(func.count()).select_from(Workout)) == 1
+    assert {"event": "bot.feedback_failed", "error": "ValueError", "log_level": "error"} in logs
+
+
+def test_a_long_saved_reply_fits_one_message() -> None:
+    """The save has committed by then: a reply Telegram rejects would look like a failure."""
+    many = [
+        _feedback(
+            exercise="X" * 120,
+            kind=ExerciseKind.REPS,
+            bests=NewBests(best_set=200, total=4000),
+            status=Progress.READY,
+            next_step="Y" * 120,
+        )
+        for _ in range(30)
+    ]
+    reply = saved_reply("Saved Torso: 30 exercises, 600 sets.", many)
+    assert len(reply) <= 4096
+    assert reply.startswith("Saved Torso")
+    assert "more not shown" in reply
+    assert saved_reply("Saved.", []) == "Saved."

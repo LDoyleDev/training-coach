@@ -156,6 +156,15 @@ def _amount(value: int, kind: ExerciseKind) -> str:
     return f"{value} rep{'s' * (value != 1)}"
 
 
+def saved_reply(saved: str, items: list[Feedback]) -> str:
+    """The saved message plus feedback, kept under Telegram's limit: the save has already
+    committed, so a reply that fails to send would wrongly look like a failed save."""
+    extra = feedback_text(items)
+    if not extra:
+        return saved
+    return "\n".join(_fit([saved, "", *extra.split("\n")], []))
+
+
 def feedback_text(items: list[Feedback]) -> str:
     """Bests and progression after a save (ADR-0025). Empty when there is nothing to say."""
     lines: list[str] = []

@@ -222,3 +222,11 @@ def test_not_yet_records_the_choice(plan: Session) -> None:
     dip = _step(plan, "dip")
     assert not_yet(plan, step.exercise_id, dip.id) is None  # a step of another exercise
     assert not_yet(plan, 999, step.id) is None
+
+
+def test_a_backdated_log_is_compared_with_earlier_sessions_only(plan: Session) -> None:
+    """ADR-0025: a record beats every *earlier* session; a later, better one doesn't count."""
+    _log(plan, "pull-up", [10, 10, 10, 10], 0)
+    _log(plan, "pull-up", [12, 12, 12, 12], 4)
+    (item,) = feedback(plan, _log(plan, "pull-up", [11, 10, 10, 10], 2))
+    assert item.bests == NewBests(best_set=11, total=41)
