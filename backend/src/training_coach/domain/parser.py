@@ -6,7 +6,8 @@ confirmation message (ADR-0007: nothing is saved without "Save").
 
 Formats per entry: plain numbers (``8 8 7``, ``8/8/7``), ``3x8`` (three sets of eight),
 seconds (``30s``, ``1:30``, ``2 min``), minutes (``45``, ``45 min``, ``1h``, ``1:15``), and for
-one-sided exercises ``each side`` (default) or ``left 10 9 right 9 9``.
+one-sided exercises ``each side`` (default) or ``left 10 9 right 9 9``. Lines copied from the
+bot's own message work too: ``- Pistol squat (Sit to chair): 7, 7, 7 per side``.
 """
 
 import re
@@ -53,7 +54,15 @@ FILLER = frozenset(
         "my",
     }
 )
-SPLIT_ENTRIES = re.compile(r"[,;\n]+")
+# Entries split on new lines, semicolons and commas, except a comma before a number: that one
+# separates sets, so "pull-ups 8, 8, 7" and "8,8,7" stay one exercise.
+SPLIT_ENTRIES = re.compile(r"[;\n]+|,(?!\s*\d)")
+# Copying the bot's own lines back ("- Tibialis raise (Back against wall): 20, 20, 20") is a
+# natural way to log, so those decorations are tidied away before reading.
+BULLET = re.compile(r"^[ \t]*[-\u2013\u2014\u2022*\u00b7][ \t]*", re.MULTILINE)
+BRACKETS = re.compile(r"\([^()\n]*\)")
+NAME_COLON = re.compile(r"(?<!\d):")  # "Tibialis raise: 20", never a time like 1:30
+GLUED_SIDE = re.compile(r"(?<=\d)(?=(?:per|each)\b)", re.IGNORECASE)  # "7per side"
 TOKEN = re.compile(
     # 3x8, or 3 times-sign 8: phones autocorrect "x" to the multiplication sign.
     r"(?P<sets>\d+)\s*[x\u00d7]\s*"
@@ -255,13 +264,38 @@ def _unbalanced(exercise: Known, values: list[tuple[Side | None, int]]) -> str |
     )
 
 
+def _notes(line: str) -> str:
+    """Drop bracketed notes: a step name or "(8 kg)" before the sets, or words alone.
+    Numbers in brackets after the sets ("dips 10 (then 8 8)") or holding every number on
+    the line ("pull-ups (8 8 7)") are sets, so only their brackets go."""
+
+    def note(match: re.Match[str]) -> str:
+        before, inside = line[: match.start()], match.group()
+        is_note = not re.search(r"\d", before) or not re.search(r"\d", inside)
+        return " " if is_note else f" {inside[1:-1]} "
+
+    dropped = BRACKETS.sub(note, line)
+    if re.search(r"\d", line) and not re.search(r"\d", dropped):
+        return BRACKETS.sub(lambda m: f" {m.group()[1:-1]} ", line)
+    return dropped
+
+
+def tidy(text: str) -> str:
+    """Drop what isn't part of a log: list bullets, bracketed notes, the colon after a name,
+    and the missing space in "7per side"."""
+    text = BULLET.sub("", text)
+    text = "\n".join(_notes(line) for line in text.split("\n"))
+    text = NAME_COLON.sub(" ", text)
+    return GLUED_SIDE.sub(" ", text)
+
+
 def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
     """Every entry the text names, and every problem found. Never raises on user input."""
     if len(text) > MAX_TEXT:
         return ParseResult(
             (), (f"That's too long to read: keep a log under {MAX_TEXT} characters.",)
         )
-    chunks = [c for c in SPLIT_ENTRIES.split(text) if c.strip()]
+    chunks = [c for c in SPLIT_ENTRIES.split(tidy(text)) if c.strip()]
     if not chunks:
         return ParseResult((), ("There's nothing to log in that message.",))
     if len(chunks) > MAX_ENTRIES:
