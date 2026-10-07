@@ -48,7 +48,11 @@ def _volume(session: Session, start: date, end: date) -> list[tuple[str, int]]:
     one_per_set = (
         select(SetLog.exercise_id, SetLog.workout_id, SetLog.set_no)
         .join(Workout)
-        .where(Workout.local_date >= start, Workout.local_date <= end)
+        .where(
+            Workout.local_date >= start,
+            Workout.local_date <= end,
+            Workout.status == WorkoutStatus.DONE,  # as the other sections count
+        )
         .distinct()
         .subquery()
     )
@@ -94,12 +98,14 @@ def weekly(session: Session, on: date) -> Review:
         )
     )
     done = [w for w in workouts if w.status == WorkoutStatus.DONE]
+    # Each planned session counts once; doing one again that week is an extra.
+    planned_done = len({w.template_id for w in done if w.template_id is not None})
     return Review(
         start=start,
         planned=session.scalar(select(func.count()).select_from(SessionTemplate)) or 0,
-        done=sum(1 for w in done if w.template_id is not None),
+        done=planned_done,
         rested=sum(1 for w in workouts if w.status == WorkoutStatus.REST),
-        extras=sum(1 for w in done if w.template_id is None),
+        extras=len(done) - planned_done,
         volume=_volume(session, start, end),
         bests=_bests(session, done),
         ready=[s.exercise for s in progress.overview(session) if s.status is Progress.READY],

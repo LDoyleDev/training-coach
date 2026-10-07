@@ -118,3 +118,19 @@ def test_ready_to_move_up(plan: Session) -> None:
     _log(plan, "pull-up", [12, 12, 12, 12], MONDAY - timedelta(days=4))
     _log(plan, "pull-up", [12, 12, 12, 12], MONDAY)
     assert weekly(plan, SUNDAY).ready == ["Pull-up"]
+
+
+def test_a_repeated_session_is_an_extra(plan: Session) -> None:
+    torso = _torso(plan)
+    _log(plan, "pull-up", [8, 8, 8, 8], MONDAY, template=torso)
+    _log(plan, "pull-up", [8, 8, 8, 8], MONDAY + timedelta(days=4), template=torso)
+    review = weekly(plan, SUNDAY)
+    assert (review.done, review.extras) == (1, 1)  # never "8 of 7"
+
+
+def test_only_done_workouts_count_toward_volume(plan: Session) -> None:
+    _log(plan, "pull-up", [8, 8, 8, 8], MONDAY)
+    skipped = plan.scalars(select(Workout)).one()
+    skipped.status = WorkoutStatus.SKIPPED
+    plan.flush()
+    assert weekly(plan, SUNDAY).volume == []
