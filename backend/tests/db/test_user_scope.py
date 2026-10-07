@@ -125,6 +125,12 @@ def test_a_set_cannot_be_added_to_another_users_workout(two: tuple[Sessions, Ses
     assert len(_all(one, SetLog.id)) == 1
 
 
+def test_a_set_without_a_workout_is_refused(two: tuple[Sessions, Sessions]) -> None:
+    _, other = two
+    with pytest.raises(PermissionError), session_scope(other) as session:
+        session.add(SetLog(exercise_id=1, ladder_step_id=1, set_no=1, side=Side.BOTH, value=1))
+
+
 def test_a_row_cannot_be_handed_to_another_user(two: tuple[Sessions, Sessions]) -> None:
     one, other = two
     with pytest.raises(PermissionError), session_scope(other) as session:

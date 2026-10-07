@@ -87,7 +87,9 @@ def _stamp_owner(session: Session, _context: object, _instances: object) -> None
         for row in session.new:
             # A set belongs to its workout's owner: one of this user's own workouts.
             if isinstance(row, SetLog):
-                workout = row.workout or session.get(Workout, row.workout_id)
+                workout = row.workout
+                if workout is None and row.workout_id is not None:
+                    workout = session.get(Workout, row.workout_id)
                 if workout is None or workout.user_id != user:
                     raise PermissionError("a set can only be added to the user's own workout")
     for row in session.dirty:
