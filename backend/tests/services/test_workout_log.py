@@ -9,7 +9,6 @@ from tests.services.test_today import PLAN
 from training_coach.db.models import (
     Event,
     Exercise,
-    ExerciseState,
     LadderStep,
     PlanState,
     SessionTemplate,
@@ -18,7 +17,7 @@ from training_coach.db.models import (
 )
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.queue import local_date
-from training_coach.services import queue_actions, workout_log
+from training_coach.services import queue_actions, users, workout_log
 from training_coach.services.seed import apply_seed, load_plan
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -76,7 +75,7 @@ def test_save_writes_sets_at_the_current_step_and_moves_the_queue(seeded: Sessio
         TODAY,
     )
     pull_up = seeded.scalars(select(Exercise).where(Exercise.slug == "pull-up")).one()
-    strict = seeded.get_one(ExerciseState, pull_up.id).ladder_step_id
+    strict = users.exercise_state(seeded, pull_up.id).ladder_step_id
     assert seeded.get_one(LadderStep, strict).name == "Strict"
     rows = sorted((s.exercise_id == pull_up.id, s.set_no, s.side, s.value) for s in workout.sets)
     assert rows == [

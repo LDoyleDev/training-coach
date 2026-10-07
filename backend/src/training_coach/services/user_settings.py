@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, UserSettings, Workout
+from training_coach.services import users
 
 DEFAULT_MORNING = time(7, 30)
 DEFAULT_NUDGE = time(20, 0)
@@ -21,7 +22,7 @@ class Prefs:
 
 
 def load(session: Session) -> Prefs:
-    row = session.get(UserSettings, 1)
+    row = users.settings_row(session)
     if row is None:
         return Prefs()
     return Prefs(row.morning_time, row.nudge_time, row.nudges_enabled, row.paused)
@@ -52,9 +53,9 @@ def update(
         changes["nudges_enabled"] = nudges_enabled
     if paused is not None:
         changes["paused"] = paused
-    row = session.get(UserSettings, 1)
+    row = users.settings_row(session)
     if row is None:
-        row = UserSettings(id=1)
+        row = UserSettings()
         session.add(row)
     row.morning_time = prefs.morning_time
     row.nudge_time = prefs.nudge_time

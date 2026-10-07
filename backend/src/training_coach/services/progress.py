@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import (
     Event,
     Exercise,
-    ExerciseState,
     LadderStep,
     SessionTemplate,
     SetLog,
@@ -26,6 +25,7 @@ from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.progression import Progress, assess, combine_sides
 from training_coach.domain.records import NewBests, new_bests
 from training_coach.domain.targets import Prescription
+from training_coach.services import users
 
 TOP_NOTED = "progress.top_of_ladder"
 
@@ -157,7 +157,7 @@ def feedback(session: Session, workout_id: int) -> list[Feedback]:
         at = next((i for i, (w, _) in enumerate(history) if w == workout_id), len(history))
         current = history[at][1] if at < len(history) else []
         bests = new_bests(current, (v for _, v in history[at + 1 :]))
-        state = session.get(ExerciseState, exercise_id)
+        state = users.exercise_state(session, exercise_id)
         # Progression is about the step being trained now; a log at an older step only
         # counts for bests.
         on_current = state is not None and state.ladder_step_id == step_id
@@ -189,7 +189,7 @@ def move_up(session: Session, exercise_id: int, from_step_id: int) -> Move | Non
     """Move to the next ladder step if the exercise is still on ``from_step_id`` and still
     ready under one of its prescriptions. None for an exercise that doesn't exist."""
     exercise = session.get(Exercise, exercise_id)
-    state = session.get(ExerciseState, exercise_id)
+    state = users.exercise_state(session, exercise_id)
     if exercise is None or state is None:
         return None
     if state.ladder_step_id != from_step_id:
@@ -263,7 +263,7 @@ def overview(session: Session) -> list[Standing]:
     result = []
     for exercise_id in order:
         exercise = session.get(Exercise, exercise_id)
-        state = session.get(ExerciseState, exercise_id)
+        state = users.exercise_state(session, exercise_id)
         step = session.get(LadderStep, state.ladder_step_id) if state is not None else None
         if exercise is None or step is None:
             continue

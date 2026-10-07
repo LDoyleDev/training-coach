@@ -17,9 +17,9 @@ from training_coach.api.plan import router as plan_router
 from training_coach.api.security import security_headers_middleware
 from training_coach.bot.app import build_bot, send_with_retry
 from training_coach.config import Settings, get_settings
-from training_coach.db.session import make_engine, make_session_factory
+from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.logging import configure_logging
-from training_coach.services import backup
+from training_coach.services import backup, users
 
 log = structlog.get_logger(__name__)
 
@@ -71,7 +71,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         engine = make_engine(settings.database_url) if settings.bot_enabled else None
-        bot = build_bot(settings, make_session_factory(engine)) if engine is not None else None
+        bot = None
+        if engine is not None and settings.telegram_allowed_user_id is not None:
+            # The owner's data only (ADR-0026): link the allowed account to its user, then hand
+            # the bot sessions bound to that user.
+            with session_scope(make_session_factory(engine)) as session:
+                owner = users.link_owner(session, settings.telegram_allowed_user_id)
+            bot = build_bot(settings, make_session_factory(engine, user_id=owner))
         if bot is not None:
             await bot.initialize()
             await bot.start()

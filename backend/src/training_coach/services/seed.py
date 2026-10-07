@@ -29,6 +29,7 @@ from training_coach.db.models import (
     SessionTemplate,
     SetLog,
     TemplateItem,
+    User,
     UserSettings,
 )
 from training_coach.domain.enums import ExerciseKind
@@ -254,12 +255,25 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 _set(step, result, name=name)
     session.flush()
 
-    for seed in plan.exercises:
-        exercise = exercises[seed.slug]
-        if session.get(ExerciseState, exercise.id) is None:
-            start_step = next(s for s in exercise.ladder if s.position == seed.start)
-            session.add(ExerciseState(exercise_id=exercise.id, ladder_step_id=start_step.id))
-            result.created += 1
+    # Each person's own rows: where they are on every ladder (ADR-0026). The seed runs in an
+    # unbound session, so every per-person query here names the user.
+    people = list(session.scalars(select(User.id).order_by(User.id)))
+    for user_id in people:
+        started = set(
+            session.scalars(
+                select(ExerciseState.exercise_id).where(ExerciseState.user_id == user_id)
+            )
+        )
+        for seed in plan.exercises:
+            exercise = exercises[seed.slug]
+            if exercise.id not in started:
+                start_step = next(s for s in exercise.ladder if s.position == seed.start)
+                session.add(
+                    ExerciseState(
+                        user_id=user_id, exercise_id=exercise.id, ladder_step_id=start_step.id
+                    )
+                )
+                result.created += 1
 
     templates = {t.slug: t for t in session.scalars(select(SessionTemplate))}
     wanted = {s.slug: i for i, s in enumerate(plan.sessions)}
@@ -310,13 +324,14 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 result.deleted += 1
     session.flush()
 
-    if session.get(PlanState, 1) is None:
-        first = templates[plan.sessions[0].slug]
-        session.add(PlanState(id=1, next_template_id=first.id))
-        result.created += 1
-    if session.get(UserSettings, 1) is None:
-        session.add(UserSettings(id=1))
-        result.created += 1
+    first = templates[plan.sessions[0].slug]
+    for user_id in people:
+        if session.scalar(select(PlanState.id).where(PlanState.user_id == user_id)) is None:
+            session.add(PlanState(user_id=user_id, next_template_id=first.id))
+            result.created += 1
+        if session.scalar(select(UserSettings.id).where(UserSettings.user_id == user_id)) is None:
+            session.add(UserSettings(user_id=user_id))
+            result.created += 1
 
     counts = {"created": result.created, "updated": result.updated, "deleted": result.deleted}
     if result.changed:

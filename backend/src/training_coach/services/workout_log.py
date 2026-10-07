@@ -18,8 +18,6 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import (
     Event,
     Exercise,
-    ExerciseState,
-    PlanState,
     SessionTemplate,
     SetLog,
     TemplateItem,
@@ -28,6 +26,7 @@ from training_coach.db.models import (
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.parser import Entry, Known, ParseResult, parse_log
 from training_coach.domain.queue import ADVANCING, complete
+from training_coach.services import users
 from training_coach.services.groq import Rewrite
 from training_coach.services.today import position
 
@@ -193,7 +192,7 @@ def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | No
     )
     for entry in confirmed.entries:
         exercise = exercises[entry.slug]
-        state = session.get(ExerciseState, exercise.id)
+        state = users.exercise_state(session, exercise.id)
         step_id = (
             state.ladder_step_id
             if state is not None
@@ -203,7 +202,7 @@ def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | No
             SetLog(exercise_id=exercise.id, ladder_step_id=step_id, set_no=n, side=side, value=v)
             for n, side, v in entry.sets
         )
-    plan = session.get(PlanState, 1)
+    plan = users.plan_state(session)
     current = position(session)
     order = list(session.scalars(select(SessionTemplate.id).order_by(SessionTemplate.position)))
     try:

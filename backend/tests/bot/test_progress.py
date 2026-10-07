@@ -22,11 +22,12 @@ from tests.bot.fakes import (
 )
 from training_coach.bot import progress as progress_ui
 from training_coach.bot.messages import feedback_text, progress_text, saved_reply
-from training_coach.db.models import Exercise, ExerciseState, LadderStep, SetLog, Workout
+from training_coach.db.models import Exercise, LadderStep, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
 from training_coach.services import progress as progress_service
+from training_coach.services import users
 from training_coach.services.progress import Feedback, Standing
 
 App = Application  # type: ignore[type-arg]  # see build_bot
@@ -37,7 +38,7 @@ def _pull_up(sessions: Sessions) -> tuple[int, int]:
     """(exercise id, current step id) for Pull-up."""
     with sessions() as session:
         exercise = session.scalars(select(Exercise).where(Exercise.slug == "pull-up")).one()
-        state = session.get(ExerciseState, exercise.id)
+        state = users.exercise_state(session, exercise.id)
         assert state is not None
         return exercise.id, state.ladder_step_id
 
