@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.9.1](https://github.com/LDoyleDev/training-coach/compare/v0.9.0...v0.9.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **parser:** read lines copied from the bot's own message ([#86](https://github.com/LDoyleDev/training-coach/issues/86)) ([8454b1c](https://github.com/LDoyleDev/training-coach/commit/8454b1c72547569a97c972cc6ef8b11d5839b3a9))
+
+
+### Documentation
+
+* decide photo storage (D3) and habits (D5) ([#84](https://github.com/LDoyleDev/training-coach/issues/84)) ([d290fa3](https://github.com/LDoyleDev/training-coach/commit/d290fa3959681baa6c52c82948ffcb90fd8f776b))
+
 ## [0.9.0](https://github.com/LDoyleDev/training-coach/compare/v0.8.0...v0.9.0) (2026-10-07)
 
 
