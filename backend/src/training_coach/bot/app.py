@@ -178,13 +178,12 @@ class Handlers:
         """Sunday's review of the week (#73), unless paused."""
         try:
             with session_scope(self.sessions) as session:
-                paused = user_settings.load(session).paused
+                if user_settings.load(session).paused:
+                    log.info("bot.review_skipped", reason="paused")
+                    return
                 text = review_text(review.weekly(session, self._local_today()))
         except SQLAlchemyError as exc:
             log.error("bot.review_failed", error=type(exc).__name__)
-            return
-        if paused:
-            log.info("bot.review_skipped", reason="paused")
             return
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
         if await send_with_retry(context.bot, self.settings.telegram_allowed_user_id, text):

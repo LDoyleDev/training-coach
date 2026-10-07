@@ -105,7 +105,16 @@ async def test_settings_command_is_owner_only(application: App, sender: int, rep
 
 
 @pytest.mark.parametrize(
-    "data", ["s:morning:0645", "s:pause:on", "s:nudges:off", "s:ask-morning", "s:x"]
+    "data",
+    [
+        "s:morning:0645",
+        "s:pause:on",
+        "s:nudges:off",
+        "s:ask-morning",
+        "s:review:2000",
+        "s:ask-review",
+        "s:x",
+    ],
 )
 async def test_strangers_settings_presses_do_nothing(
     application: App, seeded: Sessions, data: str
