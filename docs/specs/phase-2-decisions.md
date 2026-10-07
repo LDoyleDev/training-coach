@@ -1,10 +1,8 @@
-# Phase 2: decisions on blocks, overload, retests and the weekly review
+# Phase 2: decisions on blocks, overload, retests, the weekly review, photos and habits
 
 Status: **all decided by Liam on 2026-10-07**, including the overload step size (section 1),
-photo storage (D3) and habits (D5).
-Next: ADRs and issues. The table of open
-decisions stays in `phase-2-overview.md`; D1 (dashboard design), D3 (photo storage) and D5
-(habits) are still open there.
+photo storage (D3) and habits (D5). The table of decisions stays in `phase-2-overview.md`; only
+D1 (dashboard design) is still open there.
 
 ## 1. Progressive overload: how big a step (decided, ADR-0027)
 
