@@ -4,6 +4,15 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.10.0](https://github.com/LDoyleDev/training-coach/compare/v0.9.1...v0.10.0) (2026-10-07)
+
+
+### Features
+
+* **bot:** habit buttons in the evening message and /habits ([#93](https://github.com/LDoyleDev/training-coach/issues/93)) ([3135ea3](https://github.com/LDoyleDev/training-coach/commit/3135ea350c0740723093b593e09669fa6d6b42d8))
+* **db:** store habit check-offs and tally them in the weekly review ([#92](https://github.com/LDoyleDev/training-coach/issues/92)) ([caf3801](https://github.com/LDoyleDev/training-coach/commit/caf3801e963161eb7dd084ea21e871ea1212367e))
+* **infra:** deploy new releases on the Pi from a timer ([#88](https://github.com/LDoyleDev/training-coach/issues/88)) ([c515a4c](https://github.com/LDoyleDev/training-coach/commit/c515a4ca66dea738394bb492b3369c7bb479717b))
+
 ## [0.9.1](https://github.com/LDoyleDev/training-coach/compare/v0.9.0...v0.9.1) (2026-10-07)
 
 
