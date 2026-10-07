@@ -44,9 +44,13 @@ main() {
     return 0
   fi
 
-  # Tags are fetched without +: a release tag that moved is refused, not deployed.
-  git fetch --quiet --no-tags "$REMOTE" \
-    "+refs/heads/main:refs/remotes/deploy/main" "refs/tags/v*:refs/tags/v*"
+  # Tags are fetched without +: a release tag that moved is refused, not deployed. That stops
+  # every deploy until a person looks, which is the point: release tags never move.
+  if ! git fetch --quiet --no-tags "$REMOTE" \
+    "+refs/heads/main:refs/remotes/deploy/main" "refs/tags/v*:refs/tags/v*"; then
+    log "ERROR: fetching releases failed (network down, or a release tag moved upstream)"
+    return 1
+  fi
   local latest
   latest=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1) || true
   if [ -z "$latest" ]; then
@@ -80,7 +84,10 @@ main() {
   from=$(git describe --tags --always)
   git diff --quiet "$current" "$target" -- backend/migrations || schema_changed=yes
   log "deploying $latest over $from"
-  if ! docker compose exec -T app training-coach backup; then
+  # In the running app if it is up; otherwise in a one-off container of the current image, so
+  # a release that fixes a crashing app can still go out.
+  if ! docker compose exec -T app training-coach backup &&
+    ! docker compose run --rm --no-deps -T app training-coach backup; then
     log "ERROR: the pre-deploy backup failed; not deploying $latest"
     return 1
   fi
@@ -99,8 +106,14 @@ main() {
       "backup; left as is for a person (docs/runbooks/deploy.md, Rollback)"
     return 1
   fi
+  # Back on a release, wait for its version, so a container left over from the bad build can't
+  # pass for it. A checkout that isn't on a release has no version to wait for.
+  local previous='"status":"ok"'
+  if [[ "$from" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    previous="\"version\":\"${from#v}\""
+  fi
   git -c advice.detachedHead=false checkout --quiet "$current"
-  if docker compose up -d --build && healthy '"status":"ok"'; then
+  if docker compose up -d --build && healthy "$previous"; then
     log "rolled back to $from"
   else
     log "ERROR: rolled the code back to $from but it is not healthy either"

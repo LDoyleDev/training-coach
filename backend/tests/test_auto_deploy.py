@@ -23,6 +23,7 @@ pytestmark = pytest.mark.skipif(BASH is None, reason="needs bash (set TC_TEST_BA
 DOCKER = """#!/usr/bin/env bash
 echo "$*" >> "$STUB_DIR/docker.log"
 case "$*" in
+  *exec*backup*) [ ! -e "$STUB_DIR/fail-backup" ] && [ ! -e "$STUB_DIR/fail-exec" ] ;;
   *backup*) [ ! -e "$STUB_DIR/fail-backup" ] ;;
   *up\\ -d*) [ ! -e "$STUB_DIR/fail-up" ] ;;
 esac
@@ -111,6 +112,7 @@ def pi(tmp_path: Path) -> Pi:
 
 
 BACKUP = "compose exec -T app training-coach backup"
+ONE_OFF_BACKUP = "compose run --rm --no-deps -T app training-coach backup"
 BUILD = "compose up -d --build"
 
 
@@ -143,8 +145,38 @@ def test_a_failed_backup_deploys_nothing(pi: Pi) -> None:
     result = pi.deploy()
     assert result.returncode == 1
     assert pi.at() == "v0.1.0"
-    assert pi.docker_calls() == [BACKUP]
+    assert pi.docker_calls() == [BACKUP, ONE_OFF_BACKUP]
     assert "backup failed" in result.stdout
+
+
+def test_a_stopped_app_is_backed_up_from_a_one_off_container(pi: Pi) -> None:
+    # The app being down is when a fix release matters most; exec can't reach it then.
+    pi.release("v0.2.0")
+    pi.fail("exec")
+    pi.health("0.2.0")
+    assert pi.deploy().returncode == 0
+    assert pi.docker_calls() == [BACKUP, ONE_OFF_BACKUP, BUILD]
+
+
+def test_a_moved_release_tag_is_refused_and_says_so(pi: Pi) -> None:
+    pi.release("v0.2.0")
+    pi.health("0.2.0")
+    pi.deploy()
+    _git(pi.origin, "commit", "-q", "--allow-empty", "-m", "rewritten")
+    _git(pi.origin, "tag", "-f", "v0.2.0")
+    pi.release("v0.3.0")
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert pi.at() == "v0.2.0"
+    assert "a release tag moved" in result.stdout
+
+
+def test_a_rollback_waits_for_the_old_version_not_any_answer(pi: Pi) -> None:
+    pi.release("v0.2.0")
+    pi.health("0.1.9")  # something answers, but neither the new nor the old version
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert "not healthy either" in result.stdout
 
 
 def test_an_unhealthy_release_rolls_back_and_is_not_retried(pi: Pi) -> None:
