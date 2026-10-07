@@ -132,6 +132,23 @@ def _top_noted(session: Session, exercise_id: int, step_id: int) -> bool:
     )
 
 
+def bests_in(
+    session: Session, workout_id: int, exercise_id: int, step_id: int, per_side: bool
+) -> NewBests:
+    """The records one workout set for an exercise at a step, against the sessions before it."""
+    history = sessions_at_step(session, exercise_id, step_id, per_side)
+    # History is newest first, so what follows this workout came before it: a backdated log
+    # is compared with the sessions before its day, not with later ones.
+    at = next((i for i, (w, _) in enumerate(history) if w == workout_id), len(history))
+    current = history[at][1] if at < len(history) else []
+    return new_bests(current, (v for _, v in history[at + 1 :]))
+
+
+def per_side_for(session: Session, exercise_id: int, template_id: int | None) -> bool:
+    item = _item(session, exercise_id, template_id)
+    return item.per_side if item is not None else False
+
+
 def feedback(session: Session, workout_id: int) -> list[Feedback]:
     """Bests and progression for each exercise in a just-saved workout, in logged order.
 
@@ -151,12 +168,7 @@ def feedback(session: Session, workout_id: int) -> list[Feedback]:
             continue
         item = _item(session, exercise_id, workout.template_id)
         per_side = item.per_side if item is not None else False
-        history = sessions_at_step(session, exercise_id, step_id, per_side)
-        # History is newest first, so what follows this workout came before it: a backdated
-        # log is compared with the sessions before its day, not with later ones.
-        at = next((i for i, (w, _) in enumerate(history) if w == workout_id), len(history))
-        current = history[at][1] if at < len(history) else []
-        bests = new_bests(current, (v for _, v in history[at + 1 :]))
+        bests = bests_in(session, workout_id, exercise_id, step_id, per_side)
         state = users.exercise_state(session, exercise_id)
         # Progression is about the step being trained now; a log at an older step only
         # counts for bests.

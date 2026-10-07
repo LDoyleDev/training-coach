@@ -3,8 +3,10 @@
 from training_coach.domain.enums import ExerciseKind, Side
 from training_coach.domain.parser import Entry
 from training_coach.domain.progression import Progress
+from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS
 from training_coach.services.progress import Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
+from training_coach.services.review import Review
 from training_coach.services.today import Day, ItemPlan, SessionPlan, Today
 from training_coach.services.workout_log import Draft
 
@@ -216,4 +218,37 @@ def progress_text(standings: list[Standing]) -> str:
         elif s.status is Progress.TOP_OF_LADDER:
             line += ". Top of the ladder"
         lines.append(line)
+    return "\n".join(_fit(lines, []))
+
+
+def review_text(review: Review) -> str:
+    """The weekly review (#73): sessions, hard sets per muscle, bests and what's ready."""
+    lines = [f"Week of {review.start:%a %d %b}", ""]
+    sessions = f"Sessions: {review.done} of {review.planned} done"
+    extra = []
+    if review.rested:
+        extra.append(f"{review.rested} rest day{'s' * (review.rested != 1)}")
+    if review.extras:
+        extra.append(f"{review.extras} extra")
+    lines.append(sessions + (f" ({', '.join(extra)})" if extra else "") + ".")
+    if review.volume:
+        lines += ["", f"Hard sets per muscle (aim {TARGET_MIN_SETS}-{TARGET_MAX_SETS}):"]
+        for group, sets in review.volume:
+            note = (
+                " (low)" if sets < TARGET_MIN_SETS else " (high)" if sets > TARGET_MAX_SETS else ""
+            )
+            lines.append(f"- {group}: {sets}{note}")
+    else:
+        lines += ["", "No sets logged this week."]
+    if review.bests:
+        lines += ["", "New bests:"]
+        for best in review.bests:
+            parts = []
+            if best.bests.best_set is not None:
+                parts.append(f"{_amount(best.bests.best_set, best.kind)} in one set")
+            if best.bests.total is not None:
+                parts.append(f"{_amount(best.bests.total, best.kind)} in total")
+            lines.append(f"- {best.exercise} ({best.step}): {' and '.join(parts)}")
+    if review.ready:
+        lines += ["", f"Ready to move up: {', '.join(review.ready)}. See /progress."]
     return "\n".join(_fit(lines, []))
