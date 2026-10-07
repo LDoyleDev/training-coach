@@ -4,6 +4,7 @@ Buttons carry ``p:<up|no>:<exercise id>:<step id>``. The service checks everythi
 press, so a stale or forged press can at most get an "already moved" answer.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -11,13 +12,15 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
 from training_coach.bot.buttons import edit_quietly, row_id
+from training_coach.bot.messages import progress_text
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.progression import Progress
 from training_coach.services import progress
-from training_coach.services.progress import Feedback, MoveOutcome
+from training_coach.services.progress import Feedback, MoveOutcome, Standing
 
 PREFIX = "p"
+MAX_ROWS = 40  # two buttons each, well under Telegram's 100
 
 
 @dataclass(frozen=True)
@@ -37,7 +40,7 @@ def parse(data: str | None) -> Press | None:
     return Press(parts[1], exercise_id, step_id)
 
 
-def _row(item: Feedback) -> list[InlineKeyboardButton]:
+def _row(item: Feedback | Standing) -> list[InlineKeyboardButton]:
     ids = f"{item.exercise_id}:{item.step_id}"
     return [
         InlineKeyboardButton(f"Move up: {item.exercise}", callback_data=f"{PREFIX}:up:{ids}"),
@@ -45,8 +48,10 @@ def _row(item: Feedback) -> list[InlineKeyboardButton]:
     ]
 
 
-def keyboard(items: list[Feedback]) -> InlineKeyboardMarkup | None:
-    rows = [_row(item) for item in items if item.status is Progress.READY]
+def keyboard(items: Sequence[Feedback | Standing]) -> InlineKeyboardMarkup | None:
+    """Move up / Not yet per ready exercise. Telegram rejects a message with more than 100
+    buttons, which would lose the whole reply, so at most ``MAX_ROWS`` prompts get them."""
+    rows = [_row(item) for item in items if item.status is Progress.READY][:MAX_ROWS]
     return InlineKeyboardMarkup(rows) if rows else None
 
 
@@ -83,6 +88,15 @@ class ProgressHandlers:
     def __init__(self, settings: Settings, sessions: sessionmaker[Session]) -> None:
         self.settings = settings
         self.sessions = sessions
+
+    async def command(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+        """/progress: where every exercise stands, with Move up for any that are ready."""
+        with session_scope(self.sessions) as session:
+            standings = progress.overview(session)
+        if update.effective_message is not None:
+            await update.effective_message.reply_text(
+                progress_text(standings), reply_markup=keyboard(standings)
+            )
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """Move up / Not yet. Strangers get nothing, not even an answer (T1)."""

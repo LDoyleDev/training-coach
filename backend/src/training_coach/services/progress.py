@@ -224,3 +224,65 @@ def not_yet(session: Session, exercise_id: int, step_id: int) -> str | None:
         Event(kind="progress.not_yet", payload={"exercise_id": exercise_id, "step_id": step_id})
     )
     return f"{exercise.name} ({step.name})"
+
+
+@dataclass(frozen=True)
+class Standing:
+    """One exercise in /progress."""
+
+    exercise_id: int
+    exercise: str
+    kind: ExerciseKind
+    step_id: int
+    step: str
+    step_number: int  # 1-based position on the ladder
+    steps: int
+    last: tuple[int, ...]  # the latest session at this step; empty if none yet
+    best_set: int | None
+    status: Progress
+
+
+def overview(session: Session) -> list[Standing]:
+    """Every exercise in plan order (first session it appears in), then any the plan doesn't
+    use. Ready means ready under at least one of its prescriptions, as Move up checks."""
+    order: dict[int, None] = {}
+    for item in session.scalars(
+        select(TemplateItem)
+        .join(SessionTemplate)
+        .order_by(SessionTemplate.position, TemplateItem.position)
+    ):
+        order.setdefault(item.exercise_id, None)
+    for exercise_id in session.scalars(select(Exercise.id).order_by(Exercise.id)):
+        order.setdefault(exercise_id, None)
+
+    result = []
+    for exercise_id in order:
+        exercise = session.get(Exercise, exercise_id)
+        state = session.get(ExerciseState, exercise_id)
+        step = session.get(LadderStep, state.ladder_step_id) if state is not None else None
+        if exercise is None or step is None:
+            continue
+        items = _items(session, exercise_id)
+        # Display only: "last" and "best" use the first prescription's sides. Readiness is
+        # judged per prescription below, exactly as Move up re-checks it.
+        per_side = items[0].per_side if items else False
+        history = [v for _, v in _sessions(session, exercise_id, step.id, per_side)]
+        statuses = {_status(session, item, step) for item in items}
+        status = next(
+            (s for s in (Progress.READY, Progress.TOP_OF_LADDER) if s in statuses), Progress.HOLD
+        )
+        result.append(
+            Standing(
+                exercise_id=exercise_id,
+                exercise=exercise.name,
+                kind=ExerciseKind(exercise.kind),
+                step_id=step.id,
+                step=step.name,
+                step_number=step.position + 1,
+                steps=len(exercise.ladder),
+                last=tuple(history[0]) if history else (),
+                best_set=max((max(v, default=0) for v in history), default=None),
+                status=status,
+            )
+        )
+    return result

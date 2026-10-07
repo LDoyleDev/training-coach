@@ -10,15 +10,24 @@ from structlog.testing import capture_logs
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application
 
-from tests.bot.fakes import OWNER, STRANGER, button_data, press, run, text_message, texts
+from tests.bot.fakes import (
+    OWNER,
+    STRANGER,
+    button_data,
+    command,
+    press,
+    run,
+    text_message,
+    texts,
+)
 from training_coach.bot import progress as progress_ui
-from training_coach.bot.messages import feedback_text, saved_reply
+from training_coach.bot.messages import feedback_text, progress_text, saved_reply
 from training_coach.db.models import Exercise, ExerciseState, LadderStep, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
 from training_coach.services import progress as progress_service
-from training_coach.services.progress import Feedback
+from training_coach.services.progress import Feedback, Standing
 
 App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
@@ -242,3 +251,62 @@ def test_a_long_saved_reply_fits_one_message() -> None:
     assert reply.startswith("Saved Torso")
     assert "more not shown" in reply
     assert saved_reply("Saved.", []) == "Saved."
+
+
+async def test_progress_shows_each_exercise_and_offers_move_up(
+    application: App, seeded: Sessions
+) -> None:
+    _top_session(seeded, days_ago=3)
+    _top_session(seeded, days_ago=1)
+    calls = await run(application, command("/progress", OWNER))
+    (reply,) = texts(calls)
+    assert reply.startswith("Progress: current step, last session, best set at this step")
+    assert (
+        "- Pull-up: Strict pull-up (2/4), last 12 / 12 / 12 / 12, best 12 reps. Ready to move up"
+    ) in reply
+    assert "- Dip (chairs): Feet on floor (1/3), not logged at this step yet" in reply
+    exercise_id, step_id = _pull_up(seeded)
+    assert button_data(calls["sendMessage"][0]) == [
+        f"p:up:{exercise_id}:{step_id}",
+        f"p:no:{exercise_id}:{step_id}",
+    ]
+
+
+async def test_progress_ignores_strangers(application: App) -> None:
+    assert await run(application, command("/progress", STRANGER)) == {}
+
+
+def _standing(**changes: object) -> Standing:
+    base = Standing(
+        exercise_id=1,
+        exercise="Plank",
+        kind=ExerciseKind.SECONDS,
+        step_id=1,
+        step="Front plank",
+        step_number=1,
+        steps=3,
+        last=(45, 40),
+        best_set=60,
+        status=Progress.HOLD,
+    )
+    return Standing(**{**base.__dict__, **changes})  # type: ignore[arg-type]
+
+
+def test_progress_text_units_and_limits() -> None:
+    assert progress_text([]) == "No exercises in the plan yet."
+    text = progress_text([_standing(), _standing(status=Progress.TOP_OF_LADDER)])
+    assert "- Plank: Front plank (1/3), last 45s / 40s, best 60s" in text
+    assert text.endswith("Top of the ladder")
+    long = progress_text([_standing(exercise="X" * 120, step="Y" * 120)] * 40)
+    assert len(long) <= 4096
+    assert "more not shown" in long
+
+
+def test_the_keyboard_stays_under_telegrams_button_limit() -> None:
+    """More than 100 buttons and Telegram rejects the whole reply."""
+    ready = [_standing(exercise_id=n, status=Progress.READY) for n in range(1, 61)]
+    markup = progress_ui.keyboard(ready)
+    assert markup is not None
+    assert len(markup.inline_keyboard) == progress_ui.MAX_ROWS
+    assert sum(len(row) for row in markup.inline_keyboard) <= 100
+    assert progress_ui.keyboard([_standing()]) is None  # nothing ready, no buttons

@@ -18,7 +18,7 @@ from training_coach.db.models import (
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
-from training_coach.services.progress import MoveOutcome, feedback, move_up, not_yet
+from training_coach.services.progress import MoveOutcome, feedback, move_up, not_yet, overview
 from training_coach.services.seed import apply_seed, load_plan
 
 DAY = date(2026, 10, 1)
@@ -230,3 +230,36 @@ def test_a_backdated_log_is_compared_with_earlier_sessions_only(plan: Session) -
     _log(plan, "pull-up", [12, 12, 12, 12], 4)
     (item,) = feedback(plan, _log(plan, "pull-up", [11, 10, 10, 10], 2))
     assert item.bests == NewBests(best_set=11, total=41)
+
+
+def test_overview_lists_every_exercise_in_plan_order(plan: Session) -> None:
+    standings = overview(plan)
+    assert len(standings) == len(plan.scalars(select(Exercise.id)).all())
+    names = [s.exercise for s in standings]
+    assert names.index("Pull-up") < names.index("Dip (chairs)")  # Torso lists pull-ups first
+    pull = standings[names.index("Pull-up")]
+    assert (pull.step, pull.step_number, pull.steps) == ("Strict pull-up", 2, 4)
+    assert (pull.last, pull.best_set, pull.status) == ((), None, Progress.HOLD)
+
+
+def test_overview_shows_last_session_best_and_readiness(plan: Session) -> None:
+    _log(plan, "pull-up", [12, 12, 12, 12], 0)
+    _log(plan, "pull-up", [12, 12, 12, 12], 2)
+    _log(plan, "dip", [15, 9, 8], 0)
+    _log(plan, "dip", [10, 10, 10], 2)
+    by_name = {s.exercise: s for s in overview(plan)}
+    assert by_name["Pull-up"].status is Progress.READY
+    dip = by_name["Dip (chairs)"]
+    assert (dip.last, dip.best_set, dip.status) == ((10, 10, 10), 15, Progress.HOLD)
+
+
+def test_overview_reports_the_top_of_the_ladder(plan: Session) -> None:
+    exercise = _exercise(plan, "pull-up")
+    last = max(exercise.ladder, key=lambda s: s.position)
+    state = plan.get(ExerciseState, exercise.id)
+    assert state is not None
+    state.ladder_step_id = last.id
+    _log(plan, "pull-up", TOP, 0)
+    _log(plan, "pull-up", TOP, 2)
+    by_name = {s.exercise: s for s in overview(plan)}
+    assert by_name["Pull-up"].status is Progress.TOP_OF_LADDER
