@@ -7,10 +7,12 @@ import pkgutil
 from types import ModuleType
 
 import pytest
+import sqlalchemy
 from sqlalchemy import select
 
 import training_coach.api
 import training_coach.bot
+from training_coach.db import models
 from training_coach.db.models import Exercise
 
 # The only parts of sqlalchemy an adapter may hold: session types for annotations, and
@@ -29,7 +31,11 @@ def _adapter_modules() -> list[ModuleType]:
 def _offences(module: ModuleType) -> list[str]:
     found = []
     for name, value in vars(module).items():
-        origin = getattr(value, "__module__", None)
+        # A module object (``import sqlalchemy``) counts as what it is; anything else by
+        # where it was defined.
+        origin = (
+            value.__name__ if isinstance(value, ModuleType) else getattr(value, "__module__", None)
+        )
         if not isinstance(origin, str) or name.startswith("__"):
             continue
         if origin == "training_coach.db.models":
@@ -48,7 +54,11 @@ def test_the_check_catches_a_model_and_a_query_builder() -> None:
     probe = ModuleType("probe")
     probe.Exercise = Exercise  # type: ignore[attr-defined]  # a fake adapter module
     probe.select = select  # type: ignore[attr-defined]
+    probe.sqlalchemy = sqlalchemy  # type: ignore[attr-defined]
+    probe.models = models  # type: ignore[attr-defined]
     assert sorted(_offences(probe)) == [
         "Exercise (a model)",
+        "models (a model)",
         "select (from sqlalchemy.sql._selectable_constructors)",
+        "sqlalchemy (from sqlalchemy)",
     ]
