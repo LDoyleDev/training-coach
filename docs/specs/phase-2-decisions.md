@@ -5,7 +5,7 @@ Next: ADRs and issues. The table of open
 decisions stays in `phase-2-overview.md`; D1 (dashboard design), D3 (photo storage) and D5
 (habits) are still open there.
 
-## 1. Progressive overload: how big a step (decided)
+## 1. Progressive overload: how big a step (decided, ADR-0027)
 
 **Liam's direction:** every session's target should be a little more than last time, "a couple
 of reps" per set, not ADR-0016's +1.
@@ -40,8 +40,8 @@ Rules around the step:
 - **Pace setting (optional, later):** "steady" (+1 everywhere), "standard" (the table above,
   the default), "fast" (+2 minimum). Worth having once other people use the app.
 
-Needs: a new ADR superseding ADR-0016's target rule, and table-driven test updates in
-`domain/targets.py` (pure code, 100% covered).
+Recorded in ADR-0027, which supersedes ADR-0016's target rules. Code: `domain/targets.py` and its
+table-driven tests (pure code, 100% covered).
 
 ## 2. Training blocks (D2): decided
 
@@ -74,4 +74,5 @@ Needs: a new ADR superseding ADR-0016's target rule, and table-driven test updat
 
 ## Next
 
-ADRs for overload and blocks, then `phase-2-overview.md` updated and the phase 2 issues opened.
+An ADR for blocks (D2), then the phase 2 issues opened. Until that ADR exists, blocks are a
+decided plan, not built behaviour.

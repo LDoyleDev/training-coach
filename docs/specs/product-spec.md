@@ -19,7 +19,7 @@ calves + neck; long zone 2. Rationale, volume per muscle and sources: `docs/spec
 
 1. **Morning message** at a configurable time (default 07:30 Europe/Berlin) with the next
    session in the queue (ADR-0006) and a target per exercise based on the last performance,
-   e.g. "Pull-ups 4 sets. Last: 8/7/6/5, aim 8/8/7/6". Buttons: Start, Rest today, Swap.
+   e.g. "Pull-ups 4 sets. Last: 8/7/6/5, aim 9/8/7/6" (ADR-0027). Buttons: Start, Rest today, Swap.
 2. **Workout** (optional guided mode in phase 2: one exercise at a time, rest timer).
 3. **Log** by one voice note or text: "pull-ups 8 8 7 6, dips 12 11 10".
 4. **Confirm**: the bot shows what it understood; nothing is saved without "Save".
