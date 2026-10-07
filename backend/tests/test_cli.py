@@ -112,3 +112,40 @@ def test_noop_seed_logs_unchanged(
     assert "seed.unchanged" in second
     assert "seed.applied" not in second
     get_settings.cache_clear()
+
+
+def test_backup_command_writes_a_manual_backup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    url = f"sqlite:///{tmp_path / 'cli.db'}"
+    monkeypatch.setenv("TC_DATABASE_URL", url)
+    monkeypatch.setenv("TC_ENVIRONMENT", "test")
+    get_settings.cache_clear()
+    command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
+
+    main(["backup"])
+
+    (made,) = (tmp_path / "backups").iterdir()
+    assert made.name.startswith("training_coach-manual-")
+    get_settings.cache_clear()
+
+
+def test_backup_command_fails_without_a_database_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TC_DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("TC_ENVIRONMENT", "test")
+    get_settings.cache_clear()
+    with pytest.raises(SystemExit):
+        main(["backup"])
+    get_settings.cache_clear()
+
+
+def test_backup_command_fails_when_the_database_is_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("TC_DATABASE_URL", f"sqlite:///{tmp_path / 'nope.db'}")
+    monkeypatch.setenv("TC_ENVIRONMENT", "test")
+    get_settings.cache_clear()
+    with pytest.raises(SystemExit):
+        main(["backup"])
+    assert not (tmp_path / "backups").exists()
+    get_settings.cache_clear()
