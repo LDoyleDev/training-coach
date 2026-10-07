@@ -11,7 +11,6 @@ from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 
 import structlog
-from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update, Voice
 from telegram.error import TelegramError
@@ -34,14 +33,11 @@ from training_coach.bot.messages import (
     log_text,
 )
 from training_coach.config import Settings
-from training_coach.db.models import Exercise, SessionTemplate
 from training_coach.db.session import session_scope
-from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.parser import MAX_TEXT, SPLIT_ENTRIES
 from training_coach.domain.queue import local_date
 from training_coach.services import workout_log
 from training_coach.services.groq import GroqClient, GroqUnavailableError
-from training_coach.services.today import position
 from training_coach.services.workout_log import Draft, Saved, Stale
 
 log = structlog.get_logger(__name__)
@@ -132,7 +128,7 @@ class LogHandlers:
             await message.reply_text(VOICE_TOO_LONG)
             return
         with session_scope(self.sessions) as session:
-            vocabulary = list(session.scalars(select(Exercise.name).order_by(Exercise.id)))
+            vocabulary = workout_log.exercise_names(session)
         try:
             file = await voice.get_file()
             # The Bot API may omit a size; never download something of unknown size.
@@ -157,9 +153,7 @@ class LogHandlers:
     ) -> None:
         with session_scope(self.sessions) as session:
             draft = workout_log.draft(session, text, self._today(), self.settings.tz)
-            names = {
-                e.slug: (e.name, ExerciseKind(e.kind)) for e in session.scalars(select(Exercise))
-            }
+            names = workout_log.exercise_labels(session)
         assisted = False
         if draft.problems and len(text) <= MAX_TEXT:
             model_draft = await self._model_reading(text, [name for name, _ in names.values()])
@@ -241,13 +235,11 @@ class LogHandlers:
         with session_scope(self.sessions) as session:
             result = workout_log.save(session, draft, self.settings.tz)
             if isinstance(result, Saved) and not result.already_saved:
-                current = position(session)
-                upcoming = session.get(SessionTemplate, current.pointer) if current else None
                 text = log_saved_text(
                     sets=sum(len(e.sets) for e in draft.entries),
                     exercises=len(draft.entries),
                     session=draft.session_name,
-                    next_session=upcoming.name if upcoming is not None else None,
+                    next_session=workout_log.next_session_name(session),
                 )
             elif isinstance(result, Saved):
                 text = LOG_SAVED_BEFORE
