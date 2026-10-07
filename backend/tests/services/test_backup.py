@@ -2,6 +2,7 @@
 touches nightly files, and a failure is reported instead of killing the loop."""
 
 import asyncio
+import os
 import sqlite3
 import sys
 from contextlib import closing
@@ -72,6 +73,28 @@ def test_a_backup_is_a_complete_standalone_copy(live: Path, tmp_path: Path) -> N
     assert sorted(p.name for p in out.parent.iterdir()) == [out.name]  # no partial, no -wal
     if sys.platform != "win32":
         assert out.stat().st_mode & 0o777 == backup.FILE_MODE
+        assert out.parent.stat().st_mode & 0o777 == backup.DIR_MODE
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX modes")
+def test_an_existing_open_directory_is_closed_and_partials_start_private(
+    live: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    folder = tmp_path / "backups"
+    folder.mkdir(mode=0o755)
+    folder.chmod(0o755)
+    seen: list[int] = []
+    real = sqlite3.connect
+
+    def spy(path: Path) -> sqlite3.Connection:
+        if Path(path).name.endswith(".partial"):
+            seen.append(Path(path).stat().st_mode & 0o777)
+        return real(path)
+
+    monkeypatch.setattr(backup.sqlite3, "connect", spy)
+    create(live, folder, "x.db")
+    assert seen == [0o600]
+    assert folder.stat().st_mode & 0o777 == backup.DIR_MODE
 
 
 def test_a_restored_backup_works_with_the_app(live: Path, tmp_path: Path) -> None:
@@ -121,10 +144,14 @@ def test_a_failed_integrity_check_is_an_error(
         def close(self) -> None:
             self.conn.close()
 
+    folder = tmp_path / "backups"
+    folder.mkdir()
+    (folder / "x.db").write_bytes(b"yesterday")
     monkeypatch.setattr(backup.sqlite3, "connect", lambda path: Corrupt(real(path)))
     with pytest.raises(BackupError, match="integrity"):
-        create(live, tmp_path / "backups", "x.db")
-    assert list((tmp_path / "backups").iterdir()) == []
+        create(live, folder, "x.db")
+    assert sorted(p.name for p in folder.iterdir()) == ["x.db"]
+    assert (folder / "x.db").read_bytes() == b"yesterday"  # the good copy stands
 
 
 def test_prune_touches_only_nightly_files(tmp_path: Path) -> None:
@@ -144,6 +171,19 @@ def test_prune_touches_only_nightly_files(tmp_path: Path) -> None:
     assert set(others) <= left
     assert nightly_name(today) in left
     assert len(left) == 11 + len(others)
+
+
+def test_prune_clears_partials_left_by_a_killed_run(tmp_path: Path) -> None:
+    old = tmp_path / ".training_coach-manual-20261001T080000Z.db.partial"
+    old_journal = tmp_path / ".training_coach-manual-20261001T080000Z.db.partial-journal"
+    fresh = tmp_path / ".training_coach-2026-10-07.db.partial"
+    for path in (old, old_journal, fresh):
+        path.write_bytes(b"x")
+    now = fresh.stat().st_mtime
+    for path in (old, old_journal):
+        os.utime(path, (now - 2 * backup.STALE_PARTIAL, now - 2 * backup.STALE_PARTIAL))
+    prune(tmp_path, now=now)
+    assert [p.name for p in tmp_path.iterdir()] == [fresh.name]  # one may be in progress
 
 
 async def test_a_failure_is_logged_and_reported_not_raised(tmp_path: Path) -> None:
@@ -193,31 +233,27 @@ class StopLoopError(Exception):
     pass
 
 
-def _clock(*times: datetime):  # type: ignore[no-untyped-def]
-    it = iter(times)
-    last = times[-1]
-    return lambda: next(it, last)
-
-
 async def test_the_loop_catches_up_then_sleeps_until_half_three(live: Path, tmp_path: Path) -> None:
     folder = tmp_path / "b"
+    noon = datetime(2026, 10, 7, 10, 0, tzinfo=UTC)  # 12:00 in Berlin
+    now = [noon]
     slept: list[float] = []
 
-    async def sleep(seconds: float) -> None:
+    async def sleep(seconds: float) -> None:  # time passes only while the loop sleeps
         slept.append(seconds)
-        if len(slept) == 2:
+        if len(slept) == 3:
             raise StopLoopError
+        now[0] += timedelta(seconds=seconds)
 
-    noon = datetime(2026, 10, 7, 10, 0, tzinfo=UTC)  # 12:00 in Berlin
-    night = datetime(2026, 10, 8, 1, 30, tzinfo=UTC)  # 03:30 the next morning
-    clock = _clock(noon, noon, noon, night, night, night)
     with pytest.raises(StopLoopError):
-        await run_nightly(live, folder, BERLIN, clock=clock, sleep=sleep)
+        await run_nightly(live, folder, BERLIN, clock=lambda: now[0], sleep=sleep)
     assert sorted(p.name for p in folder.iterdir()) == [
         "training_coach-2026-10-07.db",  # caught up: the Pi was off at 03:30
         "training_coach-2026-10-08.db",
+        "training_coach-2026-10-09.db",
     ]
-    assert slept[0] == (night - noon).total_seconds()
+    night = datetime(2026, 10, 8, 1, 30, tzinfo=UTC)  # 03:30 the next morning
+    assert slept == [(night - noon).total_seconds(), 86400.0, 86400.0]
 
 
 async def test_no_catch_up_when_today_is_already_backed_up(live: Path, tmp_path: Path) -> None:
@@ -232,6 +268,24 @@ async def test_no_catch_up_when_today_is_already_backed_up(live: Path, tmp_path:
     with pytest.raises(StopLoopError):
         await run_nightly(live, folder, BERLIN, clock=lambda: noon, sleep=sleep)
     assert (folder / "training_coach-2026-10-07.db").read_bytes() == b"from 03:30"
+
+
+async def test_a_clock_behind_the_newest_backup_skips_rather_than_misnames(
+    live: Path, tmp_path: Path
+) -> None:
+    """A Pi without a clock battery may boot thinking it is last week until NTP syncs."""
+    folder = tmp_path / "b"
+    folder.mkdir()
+    (folder / "training_coach-2026-10-07.db").write_bytes(b"real")
+
+    async def sleep(_seconds: float) -> None:
+        raise StopLoopError
+
+    stale = datetime(2026, 9, 30, 10, 0, tzinfo=UTC)
+    with capture_logs() as logs, pytest.raises(StopLoopError):
+        await run_nightly(live, folder, BERLIN, clock=lambda: stale, sleep=sleep)
+    assert [p.name for p in folder.iterdir()] == ["training_coach-2026-10-07.db"]
+    assert [e["event"] for e in logs] == ["backup.skipped"]
 
 
 async def test_the_loop_is_cancelled_cleanly(live: Path, tmp_path: Path) -> None:

@@ -10,6 +10,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from telegram import Bot
 
 from training_coach import __version__
 from training_coach.api.plan import router as plan_router
@@ -29,15 +30,38 @@ class Health(BaseModel):
     bot_enabled: bool
 
 
+def _owner_notifier(settings: Settings, telegram: Bot | None) -> backup.Notify | None:
+    """A failed backup is worth a message, to the owner only (ADR-0009)."""
+    owner = settings.telegram_allowed_user_id
+    if telegram is None or owner is None:
+        return None
+
+    async def notify(text: str) -> bool:
+        return await send_with_retry(telegram, owner, text)
+
+    return notify
+
+
 def _start_backups(settings: Settings, notify: backup.Notify | None) -> asyncio.Task[None] | None:
     """Nightly backups (ADR-0010) run whenever the database is a file, bot or no bot."""
     source = backup.database_path(settings.database_url)
     if source is None:
         return None
-    return asyncio.create_task(
+    task = asyncio.create_task(
         backup.run_nightly(source, source.parent / "backups", settings.tz, notify),
         name="backup.nightly",
     )
+    task.add_done_callback(_report_death)
+    return task
+
+
+def _report_death(task: "asyncio.Task[None]") -> None:
+    """The loop never returns or raises on its own; if it does, say so rather than stop
+    backing up in silence."""
+    if task.cancelled():
+        return
+    error = task.exception()
+    log.error("backup.loop_died", error=type(error).__name__ if error else "returned")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -56,20 +80,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             log.info("bot.started")
         else:
             log.warning("bot.disabled", reason="telegram token or allowed user id not set")
-        notify = None
-        if bot is not None and settings.telegram_allowed_user_id is not None:
-            owner, telegram = settings.telegram_allowed_user_id, bot.bot
-
-            async def notify(text: str) -> bool:  # a failed backup is worth a message
-                return await send_with_retry(telegram, owner, text)
-
-        nightly = _start_backups(settings, notify)
+        nightly = _start_backups(settings, _owner_notifier(settings, bot.bot if bot else None))
         try:
             yield
         finally:
             if nightly is not None:
                 nightly.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
+                # A loop that died was logged by its done-callback; never let it stop shutdown.
+                with contextlib.suppress(asyncio.CancelledError, Exception):
                     await nightly
             if bot is not None:
                 assert bot.updater is not None  # noqa: S101

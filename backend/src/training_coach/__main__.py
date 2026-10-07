@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sys
 import tomllib
 from datetime import UTC, datetime
@@ -21,6 +22,9 @@ log = structlog.get_logger(__name__)
 
 
 def serve() -> None:
+    # The database, its WAL and the backups hold personal data: group-readable at most, so
+    # the backup pull can read them (ADR-0024) and other users on the Pi can't.
+    os.umask(0o027)
     settings = get_settings()
     uvicorn.run(
         create_app(settings),

@@ -23,3 +23,11 @@ def test_a_logger_writes_to_stdout_as_it_is_now(monkeypatch: pytest.MonkeyPatch)
     assert "first.event" in first.getvalue()
     assert "second.event" in second.getvalue()
     assert "second.event" not in first.getvalue()
+
+
+def test_production_still_caches_loggers() -> None:
+    configure_logging(Settings(environment="production"))
+    try:
+        assert structlog.get_config()["cache_logger_on_first_use"] is True
+    finally:
+        configure_logging(Settings(environment="test"))

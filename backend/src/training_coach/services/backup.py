@@ -15,6 +15,7 @@ from collections.abc import Awaitable, Callable
 from contextlib import closing
 from datetime import UTC, date, datetime, time
 from pathlib import Path
+from time import time as time_now
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -27,6 +28,8 @@ log = structlog.get_logger(__name__)
 AT = time(3, 30)  # local; quiet, and clear of the DST jumps at 02:00-03:00
 NIGHTLY = re.compile(r"^training_coach-(\d{4}-\d{2}-\d{2})\.db$")
 FILE_MODE = 0o640  # owner and the app group only: the copy holds the same data as the live db
+DIR_MODE = 0o750
+STALE_PARTIAL = 3600  # seconds: older partials were left by a killed run, not one in progress
 FAILED = (
     "The nightly backup failed. Your data is fine, but there is no fresh copy; "
     "check the app logs for backup.failed."
@@ -59,11 +62,15 @@ def create(source: Path, directory: Path, name: str) -> Path:
     """Copy ``source`` to ``directory/name``. Raises ``BackupError``; never leaves a partial."""
     if not source.is_file():
         raise BackupError("database file not found")
-    directory.mkdir(mode=0o750, parents=True, exist_ok=True)
     final = directory / name
     partial = directory / f".{name}.partial"
-    partial.unlink(missing_ok=True)
     try:
+        directory.mkdir(mode=DIR_MODE, parents=True, exist_ok=True)
+        directory.chmod(DIR_MODE)  # mkdir leaves an existing directory's mode alone
+        partial.unlink(missing_ok=True)
+        # Private from the first byte: sqlite would create it with the process umask, and a
+        # run killed mid-copy would leave it that way. Its journal inherits this mode.
+        os.close(os.open(partial, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600))
         with closing(sqlite3.connect(source)) as live, closing(sqlite3.connect(partial)) as copy:
             live.backup(copy)
             # One self-contained file: no -wal/-shm beside it. The app turns WAL back on.
@@ -93,8 +100,13 @@ def nightly_days(directory: Path) -> dict[date, Path]:
     return found
 
 
-def prune(directory: Path) -> int:
-    """Delete nightly backups outside the retention. Returns how many were removed."""
+def prune(directory: Path, now: float | None = None) -> int:
+    """Delete nightly backups outside the retention, and partial copies left by a killed run.
+    Returns how many backups were removed."""
+    cutoff = (time_now() if now is None else now) - STALE_PARTIAL
+    for leftover in directory.glob(".training_coach-*.partial*"):
+        if leftover.stat().st_mtime < cutoff:
+            leftover.unlink(missing_ok=True)
     days = nightly_days(directory)
     kept = keep(days)
     removed = 0
@@ -138,9 +150,23 @@ async def run_nightly(
 ) -> None:
     """Back up now if today has no backup yet (the Pi may have been off at 03:30), then
     every night at ``AT`` local time. Runs until cancelled."""
-    if clock().astimezone(tz).date() not in nightly_days(directory):
-        await back_up(source, directory, clock().astimezone(tz).date(), notify)
+    today = clock().astimezone(tz).date()
+    if today not in nightly_days(directory):
+        await _back_up_unless_clock_behind(source, directory, today, notify)
     while True:
         now = clock()
         await sleep((next_run(now, tz, AT) - now).total_seconds())
-        await back_up(source, directory, clock().astimezone(tz).date(), notify)
+        today = clock().astimezone(tz).date()
+        await _back_up_unless_clock_behind(source, directory, today, notify)
+
+
+async def _back_up_unless_clock_behind(
+    source: Path, directory: Path, today: date, notify: Notify | None
+) -> None:
+    """A Pi without a clock battery can boot with a stale date until NTP syncs. A "today"
+    older than the newest backup means the clock is wrong: don't name a backup after it."""
+    newest = max(nightly_days(directory), default=None)
+    if newest is not None and today < newest:
+        log.warning("backup.skipped", reason="clock behind the newest backup")
+        return
+    await back_up(source, directory, today, notify)
