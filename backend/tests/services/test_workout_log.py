@@ -260,3 +260,30 @@ def test_a_malformed_pick_event_is_ignored(seeded: Session, payload: dict[str, o
     template = workout_log.target(seeded, TODAY, BERLIN)
     assert template is not None
     assert template.id == _ids(seeded)["upper"]
+
+
+def test_lines_copied_from_the_bot_and_filled_in_parse_against_the_real_plan(
+    session: Session,
+) -> None:
+    # Liam's Legs log of 2026-10-07: the bot's lines pasted back with numbers. It got no entries.
+    apply_seed(session, load_plan())
+    session.flush()
+    log = "\n".join(
+        [
+            "- Tibialis raise (Back against wall, heels forward): 20, 20,20",
+            "- Jump squat (Bodyweight, full rest): 7,7,7",
+            "- Kettlebell swing (Two-hand, 8 kg): 28,18,18",
+            "- Bulgarian split squat 12,12,12,12 per side",
+            "- Pistol squat (Sit to chair on one leg): 7,7,7per side",
+            "- Single-leg Romanian deadlift (8 kg): 12,12,12 per side",
+            "- Hamstring curl (Towel slide, both legs): 11,11,11",
+            "- Single-leg calf raise (Bodyweight on a step): 20,20,20 per side",
+        ]
+    )
+    draft = workout_log.draft(session, log, TODAY, BERLIN)
+    assert draft.problems == ()
+    sets = {e.slug: [(side, value) for _, side, value in e.sets] for e in draft.entries}
+    assert len(sets) == 8
+    assert sets["kb-swing"] == [(Side.BOTH, 28), (Side.BOTH, 18), (Side.BOTH, 18)]
+    assert sets["pistol-squat"] == [(Side.LEFT, 7), (Side.RIGHT, 7)] * 3
+    assert len(sets["bulgarian-split-squat"]) == 8

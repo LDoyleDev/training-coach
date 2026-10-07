@@ -52,6 +52,18 @@ def each_side(*values: int) -> tuple[tuple[int, Side, int], ...]:
             [Entry("pull-up", both(8, 8)), Entry("dip", both(10))],
             id="newlines",
         ),
+        pytest.param("dips 12, 11,10", [Entry("dip", both(12, 11, 10))], id="commas-between-sets"),
+        pytest.param("dips 12 / 11 / 10", [Entry("dip", both(12, 11, 10))], id="spaced-slashes"),
+        pytest.param(
+            "- Pull-up (Strict, slow lower): 8, 8,7\n- Plank: 1:30",
+            [Entry("pull-up", both(8, 8, 7)), Entry("plank", both(90))],
+            id="copied-bot-lines",
+        ),
+        pytest.param(
+            "\u2022 Split squat (8 kg): 10,10per side",
+            [Entry("split-squat", each_side(10, 10))],
+            id="bullet-weight-glued-per-side",
+        ),
         pytest.param(
             "plank 45s 1:30 1 min", [Entry("plank", both(45, 90, 60))], id="seconds-units"
         ),
