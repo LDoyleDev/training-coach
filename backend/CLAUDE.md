@@ -21,6 +21,10 @@ tests/        mirrors src/: tests/api/, tests/bot/, tests/db/, tests/domain/, te
 
 - Typing: mypy strict must pass. No `Any` in domain code. Every `# type: ignore[code]` names
   the error code (ruff `PGH` enforces it) and gives a reason in a comment.
+- Per-person data (ADR-0029): use a session bound to the user (`make_session_factory(engine,
+  user_id=...)`); it filters and stamps `user_id` itself. Never filter by user by hand, and use
+  an unbound session only for shared work (seed, linking the owner). New per-person tables
+  inherit `Owned`.
 - Database: every schema change is an Alembic migration with a working downgrade. Never edit
   an applied migration. SQLite is on an SD card: batch writes, no chatty per-second writes.
   Use `op.batch_alter_table` to alter columns; follow the naming convention in `db/base.py`.
