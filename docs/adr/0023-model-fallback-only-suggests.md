@@ -20,7 +20,8 @@ make this the first place where text from outside meets a language model.
   spacing, Unicode look-alikes) is stripped first.
 - Its answer is never used as data. It is turned back into plain `exercise n n n` lines and
   read by the same bounded rule parser; the reading is used only if that parse has no
-  problems at all. The reply always says the model helped and asks the user to check every
+  problems at all and it keeps every entry the rules had already read exactly (the model may
+  fill gaps, never overwrite). The reply always says the model helped and asks the user to check every
   number and that nothing is missing: omissions in free speech can't be detected reliably.
   When the message had more comma- or line-separated parts than the model read, it says so too.
 - Otherwise, including any Groq failure, the user sees the rule parser's own problems.
