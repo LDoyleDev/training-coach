@@ -75,8 +75,8 @@ def test_a_migration_that_leaves_dangling_keys_is_rolled_back(
         db.execute(
             text(
                 "INSERT INTO set_logs"
-                " (workout_id, exercise_id, ladder_step_id, set_no, value, side)"
-                " VALUES (999, 999, 999, 1, 10, 'both')"
+                " (user_id, workout_id, exercise_id, ladder_step_id, set_no, value, side)"
+                " VALUES (1, 999, 999, 999, 1, 10, 'both')"
             )
         )
     with pytest.raises(RuntimeError, match="broken foreign keys"):
@@ -153,5 +153,34 @@ def test_users_migration_gives_everything_to_the_owner(
     with engine.connect() as db:
         for table in ("workouts", "exercise_state", "plan_state", "settings", "set_logs"):
             assert db.execute(text(f"SELECT count(*) FROM {table}")).scalar_one() == 1, table  # noqa: S608
+    engine.dispose()
+    get_settings.cache_clear()
+
+
+def test_a_failed_upgrade_leaves_nothing_behind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """sqlite3 used to commit a leading CREATE TABLE at once, so a later failure left the
+    table behind and the retry failed on "already exists" (review of #72). One real
+    transaction now covers the whole upgrade."""
+    from sqlalchemy import create_engine, inspect, text
+
+    from training_coach.config import get_settings
+
+    url = f"sqlite:///{tmp_path / 'partial.db'}"
+    monkeypatch.setenv("TC_DATABASE_URL", url)
+    get_settings.cache_clear()
+    cfg = Config(str(BACKEND / "alembic.ini"))
+    command.upgrade(cfg, "f58870988024")
+    engine = create_engine(url)
+    with engine.begin() as db:  # the users migration's later step will trip over this
+        db.execute(text("CREATE TABLE exercise_state_new (x INTEGER)"))
+    with pytest.raises(Exception, match="already exists"):
+        command.upgrade(cfg, "head")
+    assert "users" not in inspect(engine).get_table_names()  # its CREATE TABLE was undone
+    with engine.begin() as db:
+        db.execute(text("DROP TABLE exercise_state_new"))
+    command.upgrade(cfg, "head")  # and the retry works
+    assert "users" in inspect(engine).get_table_names()
     engine.dispose()
     get_settings.cache_clear()

@@ -235,7 +235,7 @@ class Workout(Owned, Base):
     )
 
 
-class SetLog(Base):
+class SetLog(Owned, Base):
     """One logged set. ``value`` is reps, seconds or minutes depending on the exercise kind.
 
     Sets are only saved for ``done`` workouts; ``rest``/``skipped`` workouts have none
@@ -256,6 +256,7 @@ class SetLog(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()  # always the workout's owner (checked on flush)
     workout_id: Mapped[int] = mapped_column(
         ForeignKey("workouts.id", ondelete="CASCADE"), index=True
     )

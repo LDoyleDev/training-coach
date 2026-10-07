@@ -265,8 +265,9 @@ def test_null_side_rejected_by_database(session: Session) -> None:
     session.flush()
     first = session.scalars(select(SetLog)).one()
     with pytest.raises(IntegrityError):
-        session.execute(
-            insert(SetLog).values(
+        session.execute(  # a plain table insert: the database itself must refuse it
+            insert(SetLog.__table__).values(
+                user_id=first.user_id,
                 workout_id=first.workout_id,
                 exercise_id=first.exercise_id,
                 ladder_step_id=first.ladder_step_id,

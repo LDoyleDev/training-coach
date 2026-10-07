@@ -11,10 +11,14 @@ from typing import Any
 
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import ORMExecuteState, Session, sessionmaker, with_loader_criteria
+from sqlalchemy.orm.attributes import get_history
 
-from training_coach.db.models import Owned
+from training_coach.db.models import Owned, SetLog, Workout
 
 USER = "user_id"  # key in Session.info
+# Execution option for shared checks that must see everyone's rows from any session (the
+# seed's "is this ladder step in use" guard). Never for per-person reads.
+ALL_USERS = "all_users"
 
 
 def make_engine(database_url: str) -> Engine:
@@ -43,12 +47,23 @@ def bound_user(session: Session) -> int | None:
     return user if isinstance(user, int) else None
 
 
+def _targets_owned(state: ORMExecuteState) -> bool:
+    mapper = state.bind_mapper
+    return mapper is not None and issubclass(mapper.class_, Owned)
+
+
 @event.listens_for(Session, "do_orm_execute")
 def _only_this_users_rows(state: ORMExecuteState) -> None:
     user = bound_user(state.session)
-    if user is None or state.is_column_load or state.is_relationship_load:
+    if user is None or state.execution_options.get(ALL_USERS):
         return
-    if state.is_select or state.is_update or state.is_delete:
+    if (state.is_insert or state.is_update) and _targets_owned(state):
+        # These skip the flush, so nothing would stamp or check the owner: per-person rows are
+        # added and changed through the unit of work only.
+        raise PermissionError("bulk inserts and updates of per-person rows are not allowed")
+    if state.is_column_load or state.is_relationship_load:
+        return  # the criteria of the parent query already apply
+    if state.is_select or state.is_delete:
         state.statement = state.statement.options(
             *(
                 with_loader_criteria(model, lambda cls: cls.user_id == user, include_aliases=True)
@@ -68,6 +83,16 @@ def _stamp_owner(session: Session, _context: object, _instances: object) -> None
                 row.user_id = user
             elif row.user_id != user:
                 raise PermissionError("a session bound to one user wrote another user's row")
+    with session.no_autoflush:
+        for row in session.new:
+            # A set belongs to its workout's owner: one of this user's own workouts.
+            if isinstance(row, SetLog):
+                workout = row.workout or session.get(Workout, row.workout_id)
+                if workout is None or workout.user_id != user:
+                    raise PermissionError("a set can only be added to the user's own workout")
+    for row in session.dirty:
+        if isinstance(row, Owned) and get_history(row, "user_id").has_changes():
+            raise PermissionError("a row can't be handed to another user")
 
 
 @contextmanager

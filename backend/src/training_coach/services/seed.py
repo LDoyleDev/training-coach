@@ -32,6 +32,7 @@ from training_coach.db.models import (
     User,
     UserSettings,
 )
+from training_coach.db.session import ALL_USERS
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.parser import normalise_name
 
@@ -165,9 +166,11 @@ def _preflight(session: Session, plan: PlanSeed, exercises: dict[str, Exercise])
             f"sessions {removed} exist in the database but not in plan.toml; "
             "removing a session needs a data migration (see docs/specs/phase-1-daily-loop.md)"
         )
-    in_use = set(session.scalars(select(SetLog.ladder_step_id).distinct())) | set(
-        session.scalars(select(ExerciseState.ladder_step_id))
-    )
+    # Every person's history protects the shared ladders, whoever this session is bound to.
+    everyone = {ALL_USERS: True}
+    in_use = set(
+        session.scalars(select(SetLog.ladder_step_id).distinct(), execution_options=everyone)
+    ) | set(session.scalars(select(ExerciseState.ladder_step_id), execution_options=everyone))
     for seed in plan.exercises:
         exercise = exercises.get(seed.slug)
         if exercise is None:
@@ -261,7 +264,8 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
     for user_id in people:
         started = set(
             session.scalars(
-                select(ExerciseState.exercise_id).where(ExerciseState.user_id == user_id)
+                select(ExerciseState.exercise_id).where(ExerciseState.user_id == user_id),
+                execution_options={ALL_USERS: True},
             )
         )
         for seed in plan.exercises:
@@ -326,10 +330,22 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
 
     first = templates[plan.sessions[0].slug]
     for user_id in people:
-        if session.scalar(select(PlanState.id).where(PlanState.user_id == user_id)) is None:
+        mine = {ALL_USERS: True}  # the seed names the user itself
+        if (
+            session.scalar(
+                select(PlanState.id).where(PlanState.user_id == user_id), execution_options=mine
+            )
+            is None
+        ):
             session.add(PlanState(user_id=user_id, next_template_id=first.id))
             result.created += 1
-        if session.scalar(select(UserSettings.id).where(UserSettings.user_id == user_id)) is None:
+        if (
+            session.scalar(
+                select(UserSettings.id).where(UserSettings.user_id == user_id),
+                execution_options=mine,
+            )
+            is None
+        ):
             session.add(UserSettings(user_id=user_id))
             result.created += 1
 
