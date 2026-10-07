@@ -57,8 +57,9 @@ others wait on D1, D3 and D5.
 - Per D5. One message or buttons; streaks shown in the weekly review.
 
 ### 2-E Strength and hypertrophy blocks (#26)
-- Optional 4-week blocks per ADR-0028. Morning message names the current block and prompts the
-  warm-up.
+- Optional 4-week blocks per ADR-0028. Built: the "Train in blocks" setting, the block calendar
+  (paused days don't count), each workout's block, and the morning message naming the block
+  and prompting the warm-up before strength sessions. Next: what a strength block prescribes.
 
 ### 2-F Dashboard login and share links
 - Owner sign-in and read-only share links exactly as ADR-0012 (Telegram HMAC, hashed expiring
