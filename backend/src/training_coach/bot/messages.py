@@ -73,7 +73,10 @@ LOG_EXPIRED = "That log has expired. Send it again."
 LOG_EDIT = "Send the corrected log as a new message."
 LOG_CANCELLED = "Discarded. Nothing was saved."
 LOG_TEXT_LIMIT = 4000  # Telegram allows 4096 characters per message
-MODEL_ASSISTED = "I needed the language model to read that, so check every number before saving."
+MODEL_ASSISTED = (
+    "I needed the language model to read that. Check every number, and that nothing you "
+    "did is missing, before saving."
+)
 VOICE_FAILED = "Couldn't transcribe that. Please type the log instead."
 VOICE_OFF = "Voice logging isn't set up yet. Please type the log instead."
 VOICE_TOO_LONG = "That voice note is too long. Keep it under two minutes, or type the log."

@@ -165,3 +165,13 @@ async def test_a_reading_that_skips_part_of_the_log_says_so(assisted: App) -> No
     (reply,) = texts(calls)
     assert reply.startswith(MODEL_ASSISTED)
     assert "read 1 of 2 parts" in reply
+
+
+async def test_the_assisted_reply_always_asks_to_check_nothing_is_missing(assisted: App) -> None:
+    """Free speech has no separators, so a dropped exercise can't be counted; always ask."""
+    calls = await run(
+        assisted, text_message(WORDS, OWNER), routes=model_says({"lines": [line("Pull-up", [8])]})
+    )
+    (reply,) = texts(calls)
+    assert reply.startswith(MODEL_ASSISTED)
+    assert "nothing you did is missing" in reply
