@@ -17,7 +17,7 @@ Keep this table current: the PR that finishes a step marks it done here.
 | 1-C Session queue and targets | #9 | Done (#19) |
 | 1-D Morning message, nudge and settings | #10 | Done (#43, #46 with ADR-0022, and the settings and nudge PR) |
 | 1-E Text logging with confirmation | #11 | Done (#54 parser, #55 save, and the bot flow PR) |
-| 1-F Voice logging (Groq) | #12 | **Next** |
+| 1-F Voice logging (Groq) | #12 | In progress: #58 transcription (done); #59 model fallback next |
 | 1-G Feedback and progress | #13 | Not started |
 | 1-H Backups and ops | #14 | Not started |
 
