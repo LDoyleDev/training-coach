@@ -4,6 +4,21 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.8.0](https://github.com/LDoyleDev/training-coach/compare/v0.7.0...v0.8.0) (2026-10-07)
+
+
+### Features
+
+* **bot:** add /review with the week's sessions, sets per muscle and bests ([#79](https://github.com/LDoyleDev/training-coach/issues/79)) ([f056c24](https://github.com/LDoyleDev/training-coach/commit/f056c243da96731bf5c6a7ace4393fa7967af790))
+* **bot:** send the weekly review every Sunday at 19:00 ([#80](https://github.com/LDoyleDev/training-coach/issues/80)) ([e429121](https://github.com/LDoyleDev/training-coach/commit/e4291216596e5fef0a210d4a72aae0a1d4d3019f)), closes [#73](https://github.com/LDoyleDev/training-coach/issues/73)
+* **db:** bind sessions to a user and give every person their own rows ([#76](https://github.com/LDoyleDev/training-coach/issues/76)) ([b8ef45b](https://github.com/LDoyleDev/training-coach/commit/b8ef45b4d5428e7b71a3cbe0e212a9bedfa425a0))
+* **db:** refuse per-person rows in an unbound session ([#78](https://github.com/LDoyleDev/training-coach/issues/78)) ([91c0fe6](https://github.com/LDoyleDev/training-coach/commit/91c0fe6cb434ad9774f6fd4046ec6abc350f973b)), closes [#72](https://github.com/LDoyleDev/training-coach/issues/72)
+
+
+### Documentation
+
+* ADR-0028 for training blocks; phase 2 steps linked to issues ([#75](https://github.com/LDoyleDev/training-coach/issues/75)) ([4ce96f0](https://github.com/LDoyleDev/training-coach/commit/4ce96f002a5c85e532aff3aeba63666f6c64ffd0))
+
 ## [0.7.0](https://github.com/LDoyleDev/training-coach/compare/v0.6.0...v0.7.0) (2026-10-07)
 
 
