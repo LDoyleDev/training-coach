@@ -18,12 +18,12 @@ Keep this table current: the PR that finishes a step marks it done here.
 | 1-D Morning message, nudge and settings | #10 | Done (#43, #46 with ADR-0022, and the settings and nudge PR) |
 | 1-E Text logging with confirmation | #11 | Done (#54 parser, #55 save, and the bot flow PR) |
 | 1-F Voice logging (Groq) | #12 | Done (#60 voice, and the model fallback PR, ADR-0023) |
-| 1-G Feedback and progress | #13 | In progress (bests and the Move up prompt, ADR-0025; `/progress` next) |
+| 1-G Feedback and progress | #13 | Done (#64 bests and the Move up prompt, ADR-0025, and the /progress PR) |
 | 1-H Backups and ops | #14 | Done (#63, ADR-0024; restore rehearsed on the desktop, Pi drill pending) |
 
 Also in this milestone: #18 (guard ladder-step edits that would remap logged history; done).
 Built outside the step list: the public plan page and
-`GET /api/plan` (#32, ADR-0019). The bot sends the morning session with Start / Rest today / Swap buttons and an evening nudge, answers `/today`, `/week`, `/settings` and `/help`, and takes typed or voice workout logs with a confirm step, then reports personal bests and offers to move up the ladder. The database is backed up nightly.
+`GET /api/plan` (#32, ADR-0019). The bot sends the morning session with Start / Rest today / Swap buttons and an evening nudge, answers `/today`, `/week`, `/progress`, `/settings` and `/help`, and takes typed or voice workout logs with a confirm step, then reports personal bests and offers to move up the ladder. The database is backed up nightly.
 
 ## Data model (step 1-A)
 
@@ -111,5 +111,5 @@ belongs to the same exercise. Migrations never import application code.
 - Runbook updated; restore rehearsed once and noted in the PR.
 
 ## Definition of done (phase)
-- All steps merged; release PR merged as v0.2.0; deployed on the Pi.
+- All steps merged; a release with all of them merged and deployed on the Pi.
 - One real week of training logged through the bot.
