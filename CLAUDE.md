@@ -71,7 +71,8 @@ formats every file you edit (ADR-0021).
 - Layering: `domain/` is pure logic (no I/O, no framework imports; a test enforces it);
   `services/` orchestrates domain + db + external APIs; `bot/` and `api/` are thin adapters
   that never query models themselves. The import-linter contracts in `backend/pyproject.toml`
-  are the dependency map; `make lint` and CI enforce them.
+  are the dependency map (`make lint` and CI run them); `tests/test_architecture.py` covers
+  what they can't see (models re-exported by a service, `select` in a handler).
 - One way in for each risky thing: settings via `config.Settings`, HTTP to Groq/Telegram via
   `services/`, database via `db/session.py`. Don't add a second path.
 - Details (typing, database, time, logging, external calls): `backend/CLAUDE.md`.
