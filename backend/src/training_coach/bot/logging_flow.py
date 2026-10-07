@@ -163,7 +163,8 @@ class LogHandlers:
         assisted = False
         if draft.problems and len(text) <= MAX_TEXT:
             model_draft = await self._model_reading(text, [name for name, _ in names.values()])
-            if model_draft is not None:
+            # Exact rule readings are never overwritten: the model may only fill the gaps.
+            if model_draft is not None and set(draft.entries) <= set(model_draft.entries):
                 draft, assisted = model_draft, True
         markup = None
         if draft.entries:

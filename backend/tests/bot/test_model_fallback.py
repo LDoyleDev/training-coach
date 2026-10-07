@@ -175,3 +175,24 @@ async def test_the_assisted_reply_always_asks_to_check_nothing_is_missing(assist
     (reply,) = texts(calls)
     assert reply.startswith(MODEL_ASSISTED)
     assert "nothing you did is missing" in reply
+
+
+MIXED = "pull-ups 8 8, and did twelve dips"  # the rules read the first part exactly
+
+
+async def test_a_model_reading_that_changes_an_exact_entry_is_not_used(assisted: App) -> None:
+    content = {"lines": [line("Pull-up", [7, 7]), line("Dip (chairs)", [12])]}
+    calls = await run(assisted, text_message(MIXED, OWNER), routes=model_says(content))
+    (reply,) = texts(calls)
+    assert not reply.startswith(MODEL_ASSISTED)
+    assert "- Pull-up: 8 / 8" in reply  # the exact reading stands, with its problems listed
+    assert "Not understood:" in reply
+
+
+async def test_a_model_reading_that_keeps_exact_entries_fills_the_gaps(assisted: App) -> None:
+    content = {"lines": [line("Pull-up", [8, 8]), line("Dip (chairs)", [12])]}
+    calls = await run(assisted, text_message(MIXED, OWNER), routes=model_says(content))
+    (reply,) = texts(calls)
+    assert reply.startswith(MODEL_ASSISTED)
+    assert "- Pull-up: 8 / 8" in reply
+    assert "- Dip (chairs): 12" in reply
