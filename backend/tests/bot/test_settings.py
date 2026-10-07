@@ -18,6 +18,7 @@ from tests.bot.fakes import (
     text_message,
     texts,
 )
+from training_coach.bot import habits as habits_ui
 from training_coach.bot import settings as settings_ui
 from training_coach.bot.app import MORNING_JOB, NUDGE_JOB, REVIEW_JOB, Handlers
 from training_coach.bot.messages import NUDGE, SOMETHING_WENT_WRONG
@@ -62,6 +63,7 @@ def _next_run(application: App, name: str) -> datetime:
         ("s:ask-review", settings_ui.Press("ask-review")),
         ("s:nudges:off", settings_ui.Press("nudges", on=False)),
         ("s:pause:on", settings_ui.Press("pause", on=True)),
+        ("s:habits:off", settings_ui.Press("habits", on=False)),
         ("s:pause", None),
         ("s:pause:maybe", None),
         ("s:morning:2560", None),
@@ -82,6 +84,7 @@ def test_text_and_keyboard_show_the_current_values() -> None:
         "Morning message: 07:00",
         "Evening nudge: 20:00 (off)",
         "Weekly review: Sundays 19:00",
+        "Habit buttons in the evening: on",
         "Training blocks: off",
         "Paused: yes, no messages until you resume",
     ]
@@ -92,6 +95,7 @@ def test_text_and_keyboard_show_the_current_values() -> None:
     assert "Review: other time…" in labels
     assert "Train in blocks" in labels
     assert "Turn nudges on" in labels
+    assert "Turn habits off" in labels
     assert "Resume" in labels
 
 
@@ -213,14 +217,17 @@ async def test_nudge_when_nothing_is_logged(seeded: Sessions) -> None:
     assert kwargs["chat_id"] == OWNER
     assert kwargs["text"].startswith("Nothing logged today yet.")
     assert NUDGE.split("{")[0] in kwargs["text"]
-    assert kwargs["reply_markup"] is not None
+    assert kwargs["text"].endswith(habits_ui.EVENING)
+    data = [b.callback_data for row in kwargs["reply_markup"].inline_keyboard for b in row]
+    assert [d.split(":")[0] for d in data] == ["q"] * 3 + ["h"] * 3
 
 
 @pytest.mark.parametrize(
     "setup",
     [
         {"paused": True},
-        {"nudges_enabled": False},
+        {"paused": True, "habits_enabled": False},
+        {"nudges_enabled": False, "habits_enabled": False},
     ],
 )
 async def test_nudge_respects_settings(seeded: Sessions, setup: dict[str, bool]) -> None:
@@ -238,6 +245,7 @@ async def test_any_workout_today_silences_the_nudge(
     with seeded() as session:
         session.add(Workout(local_date=handlers._local_today(), template_id=None, status=status))
         session.commit()
+    _set(seeded, habits_enabled=False)
     context = _context()
     await handlers.nudge(context)  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()  # type: ignore[attr-defined]
@@ -254,7 +262,19 @@ async def test_yesterdays_workout_does_not_silence_the_nudge(seeded: Sessions) -
     context.bot.send_message.assert_awaited_once()  # type: ignore[attr-defined]
 
 
+async def test_habits_alone_when_no_nudge_is_due(seeded: Sessions) -> None:
+    """Logged today, or nudges off: the habit buttons still come, on their own (D5)."""
+    _set(seeded, nudges_enabled=False)
+    context = _context()
+    await Handlers(SETTINGS, seeded).nudge(context)  # type: ignore[arg-type]
+    kwargs = context.bot.send_message.await_args.kwargs  # type: ignore[attr-defined]
+    assert kwargs["text"] == habits_ui.EVENING
+    data = [b.callback_data for row in kwargs["reply_markup"].inline_keyboard for b in row]
+    assert [d.split(":")[0] for d in data] == ["h"] * 3
+
+
 async def test_no_nudge_without_a_plan(sessions: Sessions) -> None:
+    _set(sessions, habits_enabled=False)
     context = _context()
     await Handlers(SETTINGS, sessions).nudge(context)  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()  # type: ignore[attr-defined]

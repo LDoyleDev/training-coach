@@ -7,7 +7,7 @@ so ``Handlers.button`` checks the sender itself before doing anything.
 
 import asyncio
 import warnings
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Sequence
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
-from telegram import Bot, InlineKeyboardMarkup, Message, Update
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.error import NetworkError, RetryAfter, TelegramError
 from telegram.ext import (
     Application,
@@ -28,6 +28,7 @@ from telegram.ext import (
 from telegram.warnings import PTBDeprecationWarning
 
 from training_coach.bot import buttons, logging_flow
+from training_coach.bot import habits as habits_ui
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import settings as settings_ui
 from training_coach.bot.buttons import edit_quietly
@@ -48,7 +49,7 @@ from training_coach.bot.messages import (
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import blocks, queue_actions, review, user_settings
+from training_coach.services import blocks, habits, queue_actions, review, user_settings
 from training_coach.services.groq import GroqClient
 from training_coach.services.today import session_plan
 from training_coach.services.today import today as todays_session
@@ -63,7 +64,8 @@ HELP_TEXT = (
     "/week - the next 7 sessions\n"
     "/progress - each exercise's step, last session and best\n"
     "/review - this week so far: sessions, sets per muscle, bests\n"
-    "/settings - message times, nudges, pause\n"
+    "/habits - tick today's habits: morning light, protein, wind-down\n"
+    "/settings - message times, nudges, habits, pause\n"
     "/help - this message\n\n"
     "Log a workout by sending it as a message, like: pull-ups 8 8 7, dips 12 11 10. "
     "A voice note works too. I'll show what I understood before saving anything.\n\n"
@@ -205,22 +207,29 @@ class Handlers:
             await query.answer()
             return
         reply = query.message.reply_text
+        current = query.message.reply_markup
+
+        def keep(markup: InlineKeyboardMarkup | None) -> InlineKeyboardMarkup | None:
+            """Change only the morning rows; habit buttons on the same message stay (#91)."""
+            rows = markup.inline_keyboard if markup is not None else ()
+            return buttons.merged(current, buttons.PREFIX, rows)
+
         on = self._local_today()
         tid = press.template_id
 
         if press.action == "swap":
             await query.answer()
-            await edit_quietly(query.edit_message_reply_markup(buttons.swap(tid)))
+            await edit_quietly(query.edit_message_reply_markup(keep(buttons.swap(tid))))
             return
         if press.action == "back":
             await query.answer()
-            await edit_quietly(query.edit_message_reply_markup(buttons.morning(tid)))
+            await edit_quietly(query.edit_message_reply_markup(keep(buttons.morning(tid))))
             return
         if press.action == "pickmenu":
             with session_scope(self.sessions) as session:
                 markup = buttons.pick(tid, queue_actions.choices(session))
             await query.answer()
-            await edit_quietly(query.edit_message_reply_markup(markup))
+            await edit_quietly(query.edit_message_reply_markup(keep(markup)))
             return
         if press.action == "start":
             with session_scope(self.sessions) as session:
@@ -251,21 +260,28 @@ class Handlers:
                 picked = queue_actions.pick(session, tid, press.picked_id or 0, block)
                 text = picked_text(picked, offered.name) if picked and offered else None
         await query.answer()
-        await edit_quietly(query.edit_message_reply_markup(None))
+        await edit_quietly(query.edit_message_reply_markup(keep(None)))
         await reply(STALE if text is None else text, reply_markup=new_markup)
         log.info("bot.button", action=press.action, stale=text is None)
 
     async def nudge(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Evening reminder: only if nudges are on, not paused and nothing is logged today."""
+        """The evening message, unless paused: the nudge when it's on and nothing is logged
+        today, and the habit buttons when they're on (D5). Both go in one message."""
+        today = self._local_today()
         try:
             with session_scope(self.sessions) as session:
                 prefs = user_settings.load(session)
-                logged = user_settings.anything_logged(session, self._local_today())
-                plan = todays_session(session, self._local_today())
+                logged = user_settings.anything_logged(session, today)
+                plan = todays_session(session, today)
+                ticked = habits.checked(session, today)
         except SQLAlchemyError as exc:
             log.error("bot.nudge_failed", error=type(exc).__name__)
             return
-        if prefs.paused or not prefs.nudges_enabled or logged or plan is None:
+        nudge = not prefs.paused and prefs.nudges_enabled and not logged and plan is not None
+        habit_rows = (
+            habits_ui.rows(today, ticked) if prefs.habits_enabled and not prefs.paused else []
+        )
+        if not nudge and not habit_rows:
             log.info(
                 "bot.nudge_skipped",
                 paused=prefs.paused,
@@ -274,14 +290,22 @@ class Handlers:
                 plan=plan is not None,
             )
             return
+        parts: list[str] = []
+        rows: list[Sequence[InlineKeyboardButton]] = []
+        if nudge and plan is not None:
+            parts.append(NUDGE.format(session=plan.session.name))
+            rows += buttons.morning(plan.session.template_id).inline_keyboard
+        if habit_rows:
+            parts.append(habits_ui.EVENING)
+            rows += habit_rows
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
         if await send_with_retry(
             context.bot,
             self.settings.telegram_allowed_user_id,
-            NUDGE.format(session=plan.session.name),
-            reply_markup=buttons.morning(plan.session.template_id),
+            "\n\n".join(parts),
+            reply_markup=InlineKeyboardMarkup(rows),
         ):
-            log.info("bot.nudge_sent")
+            log.info("bot.nudge_sent", nudge=nudge, habits=bool(habit_rows))
         else:
             log.error("bot.nudge_failed")
 
@@ -349,6 +373,11 @@ def build_bot(
     progress_handlers = progress_ui.ProgressHandlers(settings, sessions)
     application.add_handler(CommandHandler("progress", progress_handlers.command, filters=allowed))
     application.add_handler(CommandHandler("review", progress_handlers.review, filters=allowed))
+    habit_handlers = habits_ui.HabitHandlers(settings, sessions)
+    application.add_handler(CommandHandler("habits", habit_handlers.command, filters=allowed))
+    application.add_handler(
+        CallbackQueryHandler(habit_handlers.button, pattern=rf"^{habits_ui.PREFIX}:")
+    )
     application.add_handler(CallbackQueryHandler(handlers.button, pattern=rf"^{buttons.PREFIX}:"))
 
     settings_handlers = settings_ui.SettingsHandlers(

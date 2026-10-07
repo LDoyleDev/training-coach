@@ -1,4 +1,4 @@
-"""/settings: morning, nudge and weekly review times, nudges on/off, training blocks, pause.
+"""/settings: message times, nudges and habit buttons on/off, training blocks, pause.
 
 Callback data is ``s:<what>[:<HHMM>]``. A typed time (after "Other time...") is only read
 while the bot is waiting for one; otherwise plain text is left for logging (step 1-E).
@@ -28,6 +28,7 @@ MORNING_PRESETS = (time(6, 30), time(7, 0), time(7, 30), time(8, 0))
 NUDGE_PRESETS = (time(19, 0), time(20, 0), time(21, 0))
 REVIEW_PRESETS = (time(18, 0), time(19, 0), time(20, 0))  # Sundays
 TIMES = ("morning", "nudge", "review")
+TOGGLES = frozenset({"nudges", "habits", "blocks", "pause"})
 AWAITING = "awaiting_time"  # key in context.user_data: one of TIMES
 BAD_TIME = "That isn't a time like 07:30. Send it again, or /settings to cancel."
 
@@ -36,9 +37,10 @@ Reschedule = Callable[[ContextTypes.DEFAULT_TYPE, Prefs], None]
 
 @dataclass(frozen=True)
 class Press:
-    what: str  # morning | nudge | review | ask-<one of those> | nudges | blocks | pause
+    what: str  # morning | nudge | review | ask-<one of those> | nudges | habits | blocks
+    # | pause
     at: time | None = None
-    on: bool | None = None  # the value a nudges/pause button sets
+    on: bool | None = None  # the value a toggle (nudges, habits, blocks, pause) sets
 
 
 def _hhmm(t: time) -> str:
@@ -57,7 +59,7 @@ def parse(data: str | None) -> Press | None:
     parts = (data or "").split(":")
     if len(parts) == 2 and parts[0] == PREFIX and parts[1] in {f"ask-{t}" for t in TIMES}:
         return Press(parts[1])
-    if len(parts) == 3 and parts[0] == PREFIX and parts[1] in {"nudges", "blocks", "pause"}:
+    if len(parts) == 3 and parts[0] == PREFIX and parts[1] in TOGGLES:
         # Toggles carry their target, so a button on an old message sets what it says.
         return Press(parts[1], on=parts[2] == "on") if parts[2] in ("on", "off") else None
     if len(parts) == 3 and parts[0] == PREFIX and parts[1] in TIMES:
@@ -75,6 +77,7 @@ def text(prefs: Prefs) -> str:
             f"Morning message: {_hhmm(prefs.morning_time)}",
             f"Evening nudge: {_hhmm(prefs.nudge_time)} ({nudge})",
             f"Weekly review: Sundays {_hhmm(prefs.review_time)}",
+            f"Habit buttons in the evening: {'on' if prefs.habits_enabled else 'off'}",
             *_blocks_line(prefs),
             f"Paused: {'yes, no messages until you resume' if prefs.paused else 'no'}",
         ]
@@ -121,6 +124,12 @@ def keyboard(prefs: Prefs) -> InlineKeyboardMarkup:
                 for t in REVIEW_PRESETS
             ],
             [button("Review: other time…", callback_data=_data("ask-review"))],
+            [
+                button(
+                    "Turn habits off" if prefs.habits_enabled else "Turn habits on",
+                    callback_data=_toggle("habits", not prefs.habits_enabled),
+                )
+            ],
             *_blocks_row(prefs),
             [
                 button(
@@ -182,6 +191,7 @@ class SettingsHandlers:
                 nudges_enabled=press.on if press.what == "nudges" else None,
                 paused=press.on if press.what == "pause" else None,
                 blocks=press.on if press.what == "blocks" else None,
+                habits_enabled=press.on if press.what == "habits" else None,
                 today=local_date(datetime.now(UTC), self.settings.tz),
             )
         if press.what in TIMES:
