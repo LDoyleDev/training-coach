@@ -40,12 +40,12 @@ def test_turning_blocks_on_needs_a_date(plan: Session) -> None:
         user_settings.update(plan, blocks=True)
 
 
-def _paused(session: Session, on: date, paused: bool) -> None:
+def _paused(session: Session, on: date, paused: bool, hour_utc: int = 10) -> None:
     session.add(
         Event(
             kind="settings.changed",
             payload={"paused": paused},
-            at=datetime(on.year, on.month, on.day, 10, tzinfo=UTC),
+            at=datetime(on.year, on.month, on.day, hour_utc, tzinfo=UTC),
         )
     )
     session.flush()
@@ -53,8 +53,8 @@ def _paused(session: Session, on: date, paused: bool) -> None:
 
 def test_a_paused_week_does_not_count(plan: Session) -> None:
     user_settings.update(plan, blocks=True, today=START)
-    _paused(plan, START + timedelta(days=7), True)
-    _paused(plan, START + timedelta(days=14), False)
+    _paused(plan, START + timedelta(days=6), True, hour_utc=21)  # 23:00 Berlin, day 6
+    _paused(plan, START + timedelta(days=13), False, hour_utc=21)  # resumed late, day 13
     # Day 28 would start hypertrophy; with a week paused it's still week 4 of strength.
     assert blocks.current(plan, START + timedelta(days=28), BERLIN) == Block(
         1, BlockKind.STRENGTH, 4
@@ -86,3 +86,27 @@ def test_the_seed_stores_each_sessions_kind(plan: Session) -> None:
     assert kinds["legs"] == "strength"
     assert kinds["recovery"] == "recovery"
     assert "conditioning" in kinds.values()
+
+
+def test_a_day_counts_unless_paused_when_it_began(plan: Session) -> None:
+    """A pause set in the evening still counts that day; a resume in the morning doesn't bring
+    the day back. Days 1 and 2 are paused here."""
+    user_settings.update(plan, blocks=True, today=START)
+    _paused(plan, START, True, hour_utc=21)  # 23:00 Berlin on day 0: day 0 still counts
+    _paused(plan, START + timedelta(days=2), False, hour_utc=7)  # 09:00 on day 2: day 2 doesn't
+    # Before day 8: days 0 and 3-7 count (6 days), still week 1. Before day 9: 7 days, week 2.
+    assert blocks.current(plan, START + timedelta(days=8), BERLIN) == Block(
+        1, BlockKind.STRENGTH, 1
+    )
+    assert blocks.current(plan, START + timedelta(days=9), BERLIN) == Block(
+        1, BlockKind.STRENGTH, 2
+    )
+
+
+def test_an_evening_pause_still_counts_that_day(plan: Session) -> None:
+    """Paused at 23:00 on day 6 and still paused: day 6 counts, so day 7 is week 2."""
+    user_settings.update(plan, blocks=True, today=START)
+    _paused(plan, START + timedelta(days=6), True, hour_utc=21)
+    assert blocks.current(plan, START + timedelta(days=7), BERLIN) == Block(
+        1, BlockKind.STRENGTH, 2
+    )

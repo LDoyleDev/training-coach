@@ -28,6 +28,9 @@ MORNING_PRESETS = (time(6, 30), time(7, 0), time(7, 30), time(8, 0))
 NUDGE_PRESETS = (time(19, 0), time(20, 0), time(21, 0))
 REVIEW_PRESETS = (time(18, 0), time(19, 0), time(20, 0))  # Sundays
 TIMES = ("morning", "nudge", "review")
+# Training blocks can't be turned on until a strength block also changes the prescription
+# (#26 part 2): before that, "strength" workouts would be ordinary ones filed as strength history.
+BLOCKS_AVAILABLE = False
 AWAITING = "awaiting_time"  # key in context.user_data: one of TIMES
 BAD_TIME = "That isn't a time like 07:30. Send it again, or /settings to cancel."
 
@@ -75,15 +78,23 @@ def text(prefs: Prefs) -> str:
             f"Morning message: {_hhmm(prefs.morning_time)}",
             f"Evening nudge: {_hhmm(prefs.nudge_time)} ({nudge})",
             f"Weekly review: Sundays {_hhmm(prefs.review_time)}",
-            "Training blocks: "
-            + (
-                f"on since {prefs.blocks_started_on:%a %d %b} (4 weeks strength, 4 hypertrophy)"
-                if prefs.blocks_started_on is not None
-                else "off"
-            ),
+            *_blocks_line(prefs),
             f"Paused: {'yes, no messages until you resume' if prefs.paused else 'no'}",
         ]
     )
+
+
+def _blocks_line(prefs: Prefs) -> list[str]:
+    if not BLOCKS_AVAILABLE:
+        return []
+    return [
+        "Training blocks: "
+        + (
+            f"on since {prefs.blocks_started_on:%a %d %b} (4 weeks strength, 4 hypertrophy)"
+            if prefs.blocks_started_on is not None
+            else "off"
+        )
+    ]
 
 
 def _mark(t: time, current: time) -> str:
@@ -115,14 +126,7 @@ def keyboard(prefs: Prefs) -> InlineKeyboardMarkup:
                 for t in REVIEW_PRESETS
             ],
             [button("Review: other time…", callback_data=_data("ask-review"))],
-            [
-                button(
-                    "Stop training blocks"
-                    if prefs.blocks_started_on is not None
-                    else "Train in blocks",
-                    callback_data=_toggle("blocks", prefs.blocks_started_on is None),
-                )
-            ],
+            *_blocks_row(prefs),
             [
                 button(
                     "Resume" if prefs.paused else "Pause",
@@ -131,6 +135,14 @@ def keyboard(prefs: Prefs) -> InlineKeyboardMarkup:
             ],
         ]
     )
+
+
+def _blocks_row(prefs: Prefs) -> list[list[InlineKeyboardButton]]:
+    if not BLOCKS_AVAILABLE:
+        return []
+    on = prefs.blocks_started_on is not None
+    label = "Stop training blocks" if on else "Train in blocks"
+    return [[InlineKeyboardButton(label, callback_data=_toggle("blocks", not on))]]
 
 
 class SettingsHandlers:
@@ -162,6 +174,8 @@ class SettingsHandlers:
         await query.answer()
         if press is None or not isinstance(query.message, Message):
             return
+        if press.what == "blocks" and not BLOCKS_AVAILABLE:
+            return  # not offered yet; a crafted press changes nothing
         if press.what.startswith("ask-"):
             which = press.what.removeprefix("ask-")
             if context.user_data is not None:

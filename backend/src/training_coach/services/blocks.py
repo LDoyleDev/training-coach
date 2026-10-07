@@ -1,6 +1,6 @@
 """Which training block a day is in (ADR-0028), from the settings and the pause history."""
 
-from datetime import date
+from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -16,8 +16,11 @@ def current(session: Session, on: date, tz: ZoneInfo) -> Block | None:
     row = users.settings_row(session)
     if row is None or row.blocks_started_on is None:
         return None
+    # A day counts unless training was paused when it began: a change made during a day takes
+    # effect from the next one (a pause at 23:30 still counts that day; a resume at 09:00
+    # doesn't bring back a day whose morning message was already skipped).
     changes = [
-        (event.at.astimezone(tz).date(), bool(event.payload["paused"]))
+        (event.at.astimezone(tz).date() + timedelta(days=1), bool(event.payload["paused"]))
         for event in session.scalars(
             select(Event).where(Event.kind == "settings.changed").order_by(Event.at, Event.id)
         )
