@@ -11,27 +11,28 @@ it becomes an ADR.
 - **Telegram:** one surface of several. The web app (and later the phone app) does everything the
   bot does.
 - **Devices:** Android first (Poco X3 NFC, Android 12, the last update it gets). iPhone support
-  has to stay possible. A Xiaomi band and a Xiaomi smart scale through the Mi Fit app (now
-  called Zepp Life).
+  has to stay possible. A Xiaomi Smart Band 9 and a Xiaomi smart scale, both in the Mi Fitness
+  app.
 - **Budget:** zero for now. No paid services, no store fees, no aggregators, no subscriptions.
 
 What follows from that:
 - Build the web app (L1) now, but **multi-user ready** (L2's `users` table and per-user scoping)
   from the first schema change, since L3 is the goal. Cheaper now than retrofitting.
-- **Health data at zero cost on Android:** Zepp Life or Gadgetbridge (see below) writes to Health
-  Connect on the phone; the free, open-source Health Connect Webhook app posts it to the Pi.
+- **Health data at zero cost on Android:** Mi Fitness writes to Health Connect on the phone; the free, open-source Health Connect Webhook app posts it to the Pi.
   iPhone users later need our own app (Apple's developer fee) or a paid bridge, so iPhone waits
   until there is a budget.
-- **Your band:**
-  - Zepp Life supports Mi Band 1-7 and the Xiaomi body composition scales. Sources disagree on
-    whether it writes to Health Connect or only to Google Fit, which shuts down in 2026 (*verify*:
-    Zepp Life, Profile, Add accounts).
-  - If it only offers Google Fit, Gadgetbridge (free, open source, no Xiaomi cloud) talks to Mi
-    Bands directly and writes to Health Connect.
-  - An older band (a Mi Band 2 from 2016) gives steps, sleep and spot heart rate, but no
-    continuous heart rate during workouts. So **heart-rate zones need a newer band**; the rest
-    (steps, sleep times, resting HR, weight) works with what you have. Zone features stay in the
-    design and switch on when the data is there.
+- **Your band: a Xiaomi Smart Band 9 with the Mi Fitness app** (and the scale in the same app).
+  - The band records 24/7 heart rate (as often as every minute, continuous during workouts),
+    heart rate and zone during workouts, sleep stages (light, deep, REM), SpO2, stress and
+    steps, with 150+ workout modes.
+  - Mi Fitness can share steps, sleep, heart rate, workouts and weight with Health Connect;
+    you choose the types in its settings. That covers almost everything in section 3, including
+    **heart-rate zones**, which we compute ourselves from the workout's heart-rate samples and
+    your max heart rate, so they don't depend on Xiaomi's zone model.
+  - Not expected from Mi Fitness (*verify* once connected): HRV, VO2 max and resting heart rate
+    as their own records. Resting HR can be derived from the overnight heart rate; the others
+    stay "when available".
+  - Zepp Life and Gadgetbridge are not needed.
 - **Questions this raises:** see the end of section 7.
 
 ## 1. Where we are
@@ -221,13 +222,10 @@ Each has my recommendation; a one-line answer per question is plenty.
 
 Answered on 2026-10-07: 1, 2, 3 and 11 (section 0). Still open, plus new ones:
 
-12. **Exact band model.** In Zepp Life, what is the band called: "Mi Smart Band 2" / "Mi Band 2"
-    (2016), or something newer? It decides whether workouts carry heart rate.
-13. **Zepp Life and Health Connect.** In Zepp Life, Profile, Add accounts: is Health Connect
-    listed, or only Google Fit?
-14. **Gadgetbridge.** If Zepp Life can't write to Health Connect, are you OK replacing it with
-    Gadgetbridge (keeps data off Xiaomi's servers, but you lose Zepp Life's own charts)?
-15. Questions 4-10 above (sign-in, notifications, which data, cardio auto-logging, zones, bridge
+12. ~~Band model, Zepp Life, Gadgetbridge~~ Answered: Smart Band 9 with Mi Fitness (section 0).
+13. **Mi Fitness sharing.** When the time comes: Mi Fitness, Profile, Health Connect (or Third-
+    party data), and turn on steps, sleep, heart rate, workouts and weight.
+14. Questions 4-10 above (sign-in, notifications, which data, cardio auto-logging, zones, bridge
     apps, where data lives) can wait until the web app and health-data phases are planned.
 
 ## Sources
@@ -262,9 +260,10 @@ Answered on 2026-10-07: 1, 2, 3 and 11 (section 0). Still open, plus new ones:
   [PWA push on iOS](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide),
   [Apple keeps home-screen web apps in the EU](https://9to5mac.com/2024/03/01/apple-home-screen-web-apps-ios-17-eu/)
 - Your devices:
-  [Zepp Life and Mi Band support](https://www.androidauthority.com/zepp-life-mi-fit-app-3266258/),
   [Xiaomi and Health Connect](https://www.reaction-club.com/guides/xiaomi-health-connect),
-  [Gadgetbridge for Xiaomi](https://gadgetbridge.org/gadgets/wearables/xiaomi/),
+  [Mi Fitness and Health Connect](https://healthychronos.com/en/mi-fitness/),
+  [Smart Band 9 review](https://m.gsmarena.com/xiaomi_smart_band_9_review-amp-64873.php),
+  [Smart Band 9 FAQ](https://www.mi.com/uk/support/faq/details/KA-231124/),
   [Poco X3 NFC updates](https://www.androidupdatetracker.com/p/xiaomi_poco_x3_nfc),
   [Health Connect on Android 13 and lower](https://support.google.com/android/answer/12201227)
 - GDPR and health apps:
