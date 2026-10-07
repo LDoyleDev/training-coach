@@ -11,6 +11,7 @@ from training_coach.services import users
 
 DEFAULT_MORNING = time(7, 30)
 DEFAULT_NUDGE = time(20, 0)
+DEFAULT_REVIEW = time(19, 0)  # Sundays (D6)
 
 
 @dataclass(frozen=True)
@@ -19,13 +20,14 @@ class Prefs:
     nudge_time: time = DEFAULT_NUDGE
     nudges_enabled: bool = True
     paused: bool = False
+    review_time: time = DEFAULT_REVIEW
 
 
 def load(session: Session) -> Prefs:
     row = users.settings_row(session)
     if row is None:
         return Prefs()
-    return Prefs(row.morning_time, row.nudge_time, row.nudges_enabled, row.paused)
+    return Prefs(row.morning_time, row.nudge_time, row.nudges_enabled, row.paused, row.review_time)
 
 
 def update(
@@ -33,6 +35,7 @@ def update(
     *,
     morning_time: time | None = None,
     nudge_time: time | None = None,
+    review_time: time | None = None,
     nudges_enabled: bool | None = None,
     paused: bool | None = None,
 ) -> Prefs:
@@ -41,6 +44,7 @@ def update(
     prefs = Prefs(
         morning_time=old.morning_time if morning_time is None else morning_time,
         nudge_time=old.nudge_time if nudge_time is None else nudge_time,
+        review_time=old.review_time if review_time is None else review_time,
         nudges_enabled=old.nudges_enabled if nudges_enabled is None else nudges_enabled,
         paused=old.paused if paused is None else paused,
     )
@@ -49,6 +53,8 @@ def update(
         changes["morning_time"] = morning_time.isoformat()
     if nudge_time is not None:
         changes["nudge_time"] = nudge_time.isoformat()
+    if review_time is not None:
+        changes["review_time"] = review_time.isoformat()
     if nudges_enabled is not None:
         changes["nudges_enabled"] = nudges_enabled
     if paused is not None:
@@ -59,6 +65,7 @@ def update(
         session.add(row)
     row.morning_time = prefs.morning_time
     row.nudge_time = prefs.nudge_time
+    row.review_time = prefs.review_time
     row.nudges_enabled = prefs.nudges_enabled
     row.paused = prefs.paused
     if prefs != old:  # a repeated press changes nothing and logs nothing
