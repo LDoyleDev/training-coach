@@ -6,6 +6,8 @@ Status: living document. Source of truth for *what* the app does; phase specs sa
 
 Help one person (Liam) follow a Huberman/Galpin-style weekly training plan at home, get
 stronger and bigger, and see progress clearly, with the least friction possible from a phone.
+Built for Liam first; the direction is an app others can use too, from Telegram, the web and
+later a phone app (ADR-0026, `platform-and-health-data-proposal.md`).
 
 Equipment: 8 kg kettlebell, pull-up bar, dips (chairs), floor. Bodyweight progress comes from
 harder variations (ladders), not added weight. The plan follows Huberman's Foundational Fitness
@@ -17,7 +19,8 @@ calves + neck; long zone 2. Rationale, volume per muscle and sources: `docs/spec
 
 1. **Morning message** at a configurable time (default 07:30 Europe/Berlin) with the next
    session in the queue (ADR-0006) and a target per exercise based on the last performance,
-   e.g. "Pull-ups 4 sets. Last: 8/7/6/5, aim 8/8/7/6". Buttons: Start, Rest today, Swap.
+   e.g. "Pull-ups 4 sets. Last: 8/7/6/5, aim 9/8/7/6" (ADR-0027; until its code lands the bot
+   still aims 8/8/7/6 per ADR-0016). Buttons: Start, Rest today, Swap.
 2. **Workout** (optional guided mode in phase 2: one exercise at a time, rest timer).
 3. **Log** by one voice note or text: "pull-ups 8 8 7 6, dips 12 11 10".
 4. **Confirm**: the bot shows what it understood; nothing is saved without "Save".

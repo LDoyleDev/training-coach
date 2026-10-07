@@ -1,6 +1,6 @@
 # ADR-0016: Queue edge cases and target rules
 
-- Status: Accepted
+- Status: Accepted; the **Targets** rules are superseded by ADR-0027
 - Date: 2026-09-29
 - Deciders: Liam
 

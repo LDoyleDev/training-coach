@@ -11,14 +11,18 @@ and one real week logged first.
 
 ## Open decisions (before any issue is opened)
 
+D2, D4 and D6 are decided, with a bigger progressive overload step: `phase-2-decisions.md`.
+The web app, multi-user and wearable data direction: `platform-and-health-data-proposal.md`
+(ADR-0026).
+
 | # | Decision | Why it matters |
 | --- | --- | --- |
 | D1 | Dashboard visual design and screen list (`dashboard-design.md` says it is agreed first) | Every web step depends on it |
-| D2 | Monthly strength/hypertrophy blocks (#26): block length, how targets and ladder steps change, how progression counts across blocks | Changes the target and progression rules from ADR-0016; needs an ADR |
+| D2 | ~~Monthly strength/hypertrophy blocks (#26)~~ Decided: optional 4-week blocks | `phase-2-decisions.md` |
 | D3 | Where progress photos are stored, and whether they are encrypted at rest | Most sensitive data in the app; SD card and backups |
-| D4 | Retest cadence: fixed every N weeks, or prompted at the end of a block | Drives the reminder logic |
+| D4 | ~~Retest cadence~~ Decided: start of each block, else every 4 weeks | `phase-2-decisions.md` |
 | D5 | Which habits to track (product spec: morning light, sleep, protein) and how (one tap each, or a daily check-in) | Data model and message design |
-| D6 | Weekly review day and time (product spec: Sunday) | Scheduling |
+| D6 | ~~Weekly review day and time~~ Decided: Sunday 19:00, adjustable | `phase-2-decisions.md` |
 
 ## Proposed steps (draft)
 
