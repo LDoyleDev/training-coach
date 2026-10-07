@@ -18,7 +18,7 @@ flowchart LR
 | --- | --- | --- |
 | API | `backend/src/training_coach/api` | FastAPI; serves dashboard at `/`, API at `/api`, health at `/healthz` |
 | Bot | `backend/src/training_coach/bot` | python-telegram-bot, long polling, owner-only (ADR-0009) |
-| Scheduler | bot JobQueue | morning message, nudge, nightly backup; Europe/Berlin |
+| Scheduler | bot JobQueue; an app task for backups | morning message and nudge; the nightly backup runs from the app lifespan so it works with the bot off; Europe/Berlin |
 | Domain | `backend/src/training_coach/domain` | pure logic: queue, targets, progression, parsing |
 | Services | `backend/src/training_coach/services` | use cases, Groq client |
 | Storage | SQLite in `/data` | WAL, migrations via Alembic (ADR-0010) |

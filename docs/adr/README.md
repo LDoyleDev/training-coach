@@ -28,3 +28,4 @@ Code). Template: [template.md](template.md).
 | [0021](0021-claude-code-guardrails.md) | Claude Code guardrails: hooks, review subagents, a lean CLAUDE.md | Accepted |
 | [0022](0022-swap-and-rest-buttons.md) | What Swap and Rest today do to the queue | Accepted |
 | [0023](0023-model-fallback-only-suggests.md) | The model fallback only suggests; the rule parser decides | Accepted |
+| [0024](0024-backups-run-in-the-app-not-the-bot.md) | Backups run in the app, not the bot, and only a complete copy counts | Accepted |
