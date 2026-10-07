@@ -202,17 +202,37 @@ async def test_a_failure_is_logged_and_reported_not_raised(tmp_path: Path) -> No
 async def test_an_unexpected_error_and_a_failing_notify_do_not_escape(
     live: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def boom(_directory: Path) -> int:
+    def boom(*_args: object) -> Path:
         raise RuntimeError("disk on fire")
 
     async def notify(_text: str) -> None:
         raise ConnectionError("telegram down")
 
-    monkeypatch.setattr(backup, "prune", boom)
+    monkeypatch.setattr(backup, "create", boom)
     with capture_logs() as logs:
         ok = await back_up(live, tmp_path / "b", date(2026, 10, 7), notify)
     assert ok is False
     assert [e["event"] for e in logs] == ["backup.failed", "backup.notify_failed"]
+
+
+async def test_a_failed_prune_after_a_good_backup_is_not_an_alarm(
+    live: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    told: list[str] = []
+
+    async def notify(text: str) -> None:
+        told.append(text)
+
+    def boom(_directory: Path) -> int:
+        raise PermissionError("read-only")
+
+    monkeypatch.setattr(backup, "prune", boom)
+    with capture_logs() as logs:
+        ok = await back_up(live, tmp_path / "b", date(2026, 10, 7), notify)
+    assert ok is True
+    assert told == []
+    assert [e["event"] for e in logs] == ["backup.created", "backup.prune_failed"]
+    assert (tmp_path / "b" / "training_coach-2026-10-07.db").is_file()
 
 
 async def test_success_logs_the_file_and_tells_no_one(live: Path, tmp_path: Path) -> None:
@@ -224,9 +244,8 @@ async def test_success_logs_the_file_and_tells_no_one(live: Path, tmp_path: Path
     with capture_logs() as logs:
         assert await back_up(live, tmp_path / "b", date(2026, 10, 7), notify) is True
     assert told == []
-    (entry,) = logs
-    assert entry["event"] == "backup.created"
-    assert entry["file"] == "training_coach-2026-10-07.db"
+    assert [e["event"] for e in logs] == ["backup.created", "backup.pruned"]
+    assert logs[0]["file"] == "training_coach-2026-10-07.db"
 
 
 class StopLoopError(Exception):

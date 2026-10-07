@@ -105,8 +105,11 @@ def prune(directory: Path, now: float | None = None) -> int:
     Returns how many backups were removed."""
     cutoff = (time_now() if now is None else now) - STALE_PARTIAL
     for leftover in directory.glob(".training_coach-*.partial*"):
-        if leftover.stat().st_mtime < cutoff:
-            leftover.unlink(missing_ok=True)
+        try:
+            if leftover.stat().st_mtime < cutoff:
+                leftover.unlink(missing_ok=True)
+        except FileNotFoundError:  # finished or cleaned up meanwhile
+            continue
     days = nightly_days(directory)
     kept = keep(days)
     removed = 0
@@ -122,14 +125,19 @@ async def back_up(source: Path, directory: Path, today: date, notify: Notify | N
     crashed loop would mean no backups and no word about it."""
     try:
         path = await asyncio.to_thread(create, source, directory, nightly_name(today))
-        removed = await asyncio.to_thread(prune, directory)
-        size = path.stat().st_size
     except BackupError as exc:
         log.error("backup.failed", reason=str(exc))
     except Exception:
         log.exception("backup.failed", reason="unexpected")
     else:
-        log.info("backup.created", file=path.name, bytes=size, pruned=removed)
+        log.info("backup.created", file=path.name)
+        # The fresh copy stands either way: a failed prune is worth a log line, not an alarm.
+        try:
+            removed = await asyncio.to_thread(prune, directory)
+        except Exception:
+            log.exception("backup.prune_failed")
+        else:
+            log.info("backup.pruned", removed=removed)
         return True
     if notify is not None:
         try:
