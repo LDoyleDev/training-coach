@@ -1,5 +1,6 @@
 """Message text for the bot. Pure functions over service data; plain text, no markup."""
 
+from training_coach.domain.blocks import WEEKS
 from training_coach.domain.enums import ExerciseKind, Side
 from training_coach.domain.parser import Entry
 from training_coach.domain.progression import Progress
@@ -26,9 +27,17 @@ def targets_text(item: ItemPlan) -> str:
     return f"{text} per side" if item.per_side else text
 
 
+WARM_UP = "Warm up for about 10 minutes first."
+
+
 def today_text(today: Today) -> str:
     session = today.session
-    lines = [f"Today: {session.name}", session.focus, ""]
+    lines = [f"Today: {session.name}", session.focus]
+    if today.block is not None:
+        lines.append(f"Week {today.block.week} of {WEEKS}, {today.block.kind} block.")
+    if session.kind == "strength":
+        lines.append(WARM_UP)
+    lines.append("")
     for item in session.items:
         lines.append(f"- {item.exercise} ({item.step}): {targets_text(item)}")
     if session.optional:

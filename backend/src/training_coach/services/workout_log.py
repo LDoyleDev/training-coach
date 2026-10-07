@@ -26,7 +26,7 @@ from training_coach.db.models import (
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.parser import Entry, Known, ParseResult, parse_log
 from training_coach.domain.queue import ADVANCING, complete
-from training_coach.services import users
+from training_coach.services import blocks, users
 from training_coach.services.groq import Rewrite
 from training_coach.services.today import position
 
@@ -190,6 +190,8 @@ def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | No
         status=WorkoutStatus.DONE,  # only done workouts carry sets (rest/skip have none)
         log_token=confirmed.token,
     )
+    block = blocks.current(session, confirmed.on, tz)  # ADR-0028
+    workout.block = block.kind if block is not None else None
     for entry in confirmed.entries:
         exercise = exercises[entry.slug]
         state = users.exercise_state(session, exercise.id)

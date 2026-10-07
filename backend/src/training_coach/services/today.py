@@ -6,6 +6,7 @@ example a failed seed on a fresh install, ADR-0015), which callers must tell the
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -16,10 +17,11 @@ from training_coach.db.models import (
     TemplateItem,
     Workout,
 )
+from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import ADVANCING, Position, upcoming
 from training_coach.domain.targets import Prescription, targets
-from training_coach.services import users
+from training_coach.services import blocks, users
 from training_coach.services.progress import sessions_at_step
 
 
@@ -40,12 +42,14 @@ class SessionPlan:
     focus: str
     optional: bool
     items: tuple[ItemPlan, ...]
+    kind: str = "strength"  # strength | conditioning | recovery (plan.toml)
 
 
 @dataclass(frozen=True)
 class Today:
     session: SessionPlan
     logged_today: tuple[str, ...]  # "Legs (done)", one per workout already logged today
+    block: Block | None = None  # the training block, when blocks are on (ADR-0028)
 
 
 @dataclass(frozen=True)
@@ -104,11 +108,13 @@ def session_plan(session: Session, template_id: int) -> SessionPlan | None:
         focus=template.focus,
         optional=template.is_rest_optional,
         items=tuple(_item_plan(session, item) for item in template.items),
+        kind=template.kind,
     )
 
 
-def today(session: Session, on: date) -> Today | None:
-    """The session at the pointer, with targets, and what has been logged on ``on``."""
+def today(session: Session, on: date, tz: ZoneInfo | None = None) -> Today | None:
+    """The session at the pointer, with targets, and what has been logged on ``on``; with
+    ``tz``, also the training block ``on`` falls in."""
     current = position(session)
     plan = session_plan(session, current.pointer) if current is not None else None
     if plan is None:
@@ -122,6 +128,7 @@ def today(session: Session, on: date) -> Today | None:
         logged_today=tuple(
             f"{names[w.template_id] if w.template_id else 'Extra'} ({w.status})" for w in logged
         ),
+        block=blocks.current(session, on, tz) if tz is not None else None,
     )
 
 

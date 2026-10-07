@@ -134,7 +134,7 @@ class Handlers:
     def _today(self) -> tuple[str, InlineKeyboardMarkup | None]:
         """Today's message, with the Start / Rest today / Swap buttons when there is a plan."""
         with session_scope(self.sessions) as session:
-            plan = todays_session(session, self._local_today())
+            plan = todays_session(session, self._local_today(), self.settings.tz)
             if plan is None:
                 return NO_PLAN, None
             return today_text(plan), buttons.morning(plan.session.template_id)

@@ -297,6 +297,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
             templates[seed_session.slug] = template
             result.created += 1
             template.name, template.focus = seed_session.name, seed_session.focus
+            template.kind = seed_session.type
             template.is_rest_optional = seed_session.is_rest_optional
         else:
             _set(
@@ -306,6 +307,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 name=seed_session.name,
                 focus=seed_session.focus,
                 is_rest_optional=seed_session.is_rest_optional,
+                kind=seed_session.type,
             )
         items = {item.position: item for item in template.items}
         for item_position, item_seed in enumerate(seed_session.items):

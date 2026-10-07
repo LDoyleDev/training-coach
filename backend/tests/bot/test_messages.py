@@ -9,6 +9,7 @@ from training_coach.bot.messages import (
     today_text,
     week_text,
 )
+from training_coach.domain.blocks import Block, BlockKind
 from training_coach.domain.enums import ExerciseKind
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.today import Day, ItemPlan, SessionPlan, Today
@@ -37,9 +38,21 @@ def test_today_text_lists_exercises_and_notes() -> None:
         logged_today=("Legs (done)",),
     )
     assert today_text(plan) == (
-        "Today: Arms\nAccessories\n\n- Plank (Knees): 8\n\n"
+        "Today: Arms\nAccessories\nWarm up for about 10 minutes first.\n\n"
+        "- Plank (Knees): 8\n\n"
         "This one is optional: resting today is fine.\n\nAlready logged today: Legs (done)"
     )
+
+
+def test_today_text_names_the_block_and_skips_warm_up_for_cardio() -> None:
+    cardio = SessionPlan(4, "Zone 2", "Easy", False, (), kind="conditioning")
+    in_block = Today(session=cardio, logged_today=(), block=Block(2, BlockKind.HYPERTROPHY, 3))
+    assert today_text(in_block).splitlines()[:3] == [
+        "Today: Zone 2",
+        "Easy",
+        "Week 3 of 4, hypertrophy block.",
+    ]
+    assert "Warm up" not in today_text(in_block)
 
 
 def test_week_text() -> None:

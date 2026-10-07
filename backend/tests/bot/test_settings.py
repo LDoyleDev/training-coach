@@ -82,6 +82,7 @@ def test_text_and_keyboard_show_the_current_values() -> None:
         "Morning message: 07:00",
         "Evening nudge: 20:00 (off)",
         "Weekly review: Sundays 19:00",
+        "Training blocks: off",
         "Paused: yes, no messages until you resume",
     ]
     labels = [b.text for row in settings_ui.keyboard(prefs).inline_keyboard for b in row]
@@ -89,6 +90,7 @@ def test_text_and_keyboard_show_the_current_values() -> None:
     assert "• 20:00" in labels
     assert "Review • 19:00" in labels
     assert "Review: other time…" in labels
+    assert "Train in blocks" in labels
     assert "Turn nudges on" in labels
     assert "Resume" in labels
 
@@ -340,3 +342,23 @@ async def test_the_review_survives_a_database_error() -> None:
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
     await Handlers(SETTINGS, broken).weekly_review(context)  # type: ignore[arg-type]  # fake
     context.bot.send_message.assert_not_awaited()
+
+
+async def test_training_blocks_turn_on_from_today_and_off(
+    application: App, seeded: Sessions
+) -> None:
+    """ADR-0028: on starts a strength block today; a repeated press never restarts it."""
+    calls = await run(application, press("s:blocks:on", OWNER))
+    started = _prefs(seeded).blocks_started_on
+    assert started is not None
+    assert "Training blocks: on since" in calls["editMessageText"][0]["text"]
+    assert "s:blocks:off" in button_data(calls["editMessageText"][0])
+    await run(application, press("s:blocks:on", OWNER))  # an old button: still the same start
+    assert _prefs(seeded).blocks_started_on == started
+    await run(application, press("s:blocks:off", OWNER))
+    assert _prefs(seeded).blocks_started_on is None
+
+
+async def test_strangers_cannot_turn_blocks_on(application: App, seeded: Sessions) -> None:
+    assert await run(application, press("s:blocks:on", STRANGER)) == {}
+    assert _prefs(seeded).blocks_started_on is None
