@@ -181,7 +181,7 @@ class Handlers:
                 if user_settings.load(session).paused:
                     log.info("bot.review_skipped", reason="paused")
                     return
-                text = review_text(review.weekly(session, self._local_today()))
+                text = review_text(review.weekly(session, self._local_today(), self.settings.tz))
         except SQLAlchemyError as exc:
             log.error("bot.review_failed", error=type(exc).__name__)
             return

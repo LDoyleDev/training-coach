@@ -7,6 +7,7 @@ transaction.
 """
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
@@ -25,6 +26,7 @@ from training_coach.db.models import (
 from training_coach.domain.blocks import BlockKind, history_kind
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.progression import Progress, assess, combine_sides
+from training_coach.domain.queue import local_date
 from training_coach.domain.records import NewBests, new_bests
 from training_coach.domain.targets import Prescription
 from training_coach.services import blocks, users
@@ -190,9 +192,13 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
     workout = session.get(Workout, workout_id)
     if workout is None:
         return []
-    block = blocks.current(session, workout.local_date, tz) if tz is not None else None
-    in_strength = workout.block == BlockKind.STRENGTH or (
-        block is not None and block.kind is BlockKind.STRENGTH
+    # Held if the workout's day or today is in a strength block: a log drafted before midnight
+    # and saved on the first strength day mustn't offer a move the bot would then refuse.
+    days = (workout.local_date, local_date(datetime.now(UTC), tz)) if tz is not None else ()
+    in_strength = workout.block == BlockKind.STRENGTH or any(
+        (block := blocks.current(session, day, tz)) is not None and block.kind is BlockKind.STRENGTH
+        for day in days
+        if tz is not None
     )
     logged: dict[tuple[int, int], None] = {}
     for row in sorted(workout.sets, key=lambda s: s.id):

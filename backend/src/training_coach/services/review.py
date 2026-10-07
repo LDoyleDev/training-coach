@@ -7,16 +7,18 @@ bests set that week, and what is ready to move up. It only reads; the caller own
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Exercise, LadderStep, SessionTemplate, SetLog, Workout
+from training_coach.domain.blocks import BlockKind
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
 from training_coach.domain.volume import weekly_sets
-from training_coach.services import progress
+from training_coach.services import blocks, progress
 
 
 @dataclass(frozen=True)
@@ -25,6 +27,7 @@ class Best:
     step: str  # records are per ladder step (ADR-0025)
     kind: ExerciseKind
     bests: NewBests
+    strength: bool = False  # set in a strength block (ADR-0028), kept apart from the rest
 
 
 @dataclass(frozen=True)
@@ -37,6 +40,7 @@ class Review:
     volume: list[tuple[str, int]]  # hard sets logged per muscle group, largest first
     bests: list[Best]
     ready: list[str]  # exercises ready to move up
+    strength_block: bool = False  # moving up waits for the hypertrophy block (ADR-0028)
 
 
 def week_start(day: date) -> date:
@@ -92,12 +96,18 @@ def _bests(session: Session, workouts: list[Workout]) -> list[Best]:
                     _higher(bests.best_set, earlier.bests.best_set),
                     _higher(bests.total, earlier.bests.total),
                 )
-            found[key] = Best(exercise.name, step.name, ExerciseKind(exercise.kind), bests)
+            found[key] = Best(
+                exercise.name,
+                step.name,
+                ExerciseKind(exercise.kind),
+                bests,
+                strength=history is BlockKind.STRENGTH,
+            )
     return list(found.values())
 
 
-def weekly(session: Session, on: date) -> Review:
-    """The review of the week containing ``on``."""
+def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
+    """The review of the week containing ``on``; with ``tz``, aware of a strength block."""
     start = week_start(on)
     end = start + timedelta(days=6)
     workouts = list(
@@ -117,4 +127,9 @@ def weekly(session: Session, on: date) -> Review:
         volume=_volume(session, start, end),
         bests=_bests(session, done),
         ready=[s.exercise for s in progress.overview(session) if s.status is Progress.READY],
+        strength_block=(
+            tz is not None
+            and (block := blocks.current(session, on, tz)) is not None
+            and block.kind is BlockKind.STRENGTH
+        ),
     )

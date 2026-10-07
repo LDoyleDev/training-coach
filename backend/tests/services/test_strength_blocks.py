@@ -134,3 +134,38 @@ def test_no_move_up_during_a_strength_block(plan: Session) -> None:
     move = progress.move_up(plan, exercise.id, state.ladder_step_id, strength_block=True)
     assert move is not None
     assert move.outcome is progress.MoveOutcome.STRENGTH_BLOCK
+
+
+def test_turning_blocks_on_after_drafting_makes_the_draft_stale(plan: Session) -> None:
+    """Trained the ordinary prescription, then turned blocks on: saving it as strength would
+    file the sets one step too high. It is refused; the log is sent again."""
+    on = local_date(datetime.now(UTC), BERLIN)
+    drafted = workout_log.draft(plan, "tibialis 20 18 16", on, BERLIN)
+    user_settings.update(plan, blocks=True, today=on)
+    assert isinstance(workout_log.save(plan, drafted, BERLIN), workout_log.Stale)
+    assert plan.scalars(select(Workout.id)).all() == []
+
+
+def test_turning_blocks_off_after_drafting_makes_the_draft_stale(plan: Session) -> None:
+    on = _start_strength_block(plan)
+    drafted = workout_log.draft(plan, "tibialis 8 7 6", on, BERLIN)
+    assert drafted.strength
+    user_settings.update(plan, blocks=False)
+    assert isinstance(workout_log.save(plan, drafted, BERLIN), workout_log.Stale)
+
+
+def test_no_move_up_offered_when_today_starts_a_strength_block(plan: Session) -> None:
+    """Logged on the last hypertrophy days, saved once a strength block began: no button the
+    bot would then refuse."""
+    on = local_date(datetime.now(UTC), BERLIN)
+    saved = None
+    for days_ago in (4, 2):
+        draft = workout_log.draft(
+            plan, "pull-ups 12 12 12 12", on - timedelta(days=days_ago), BERLIN
+        )
+        saved = workout_log.save(plan, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    # Blocks started 56 days ago: today begins block 3 (strength); 2 days ago was hypertrophy.
+    user_settings.update(plan, blocks=True, today=on - timedelta(days=56))
+    found = progress.feedback(plan, saved.workout_id, BERLIN)
+    assert next(f.status for f in found if f.exercise == "Pull-up") is Progress.HOLD

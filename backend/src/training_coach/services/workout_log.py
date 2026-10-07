@@ -42,6 +42,10 @@ class Draft:
     session_name: str  # "Upper" or "Extra session"
     entries: tuple[Entry, ...]
     problems: tuple[str, ...]
+    # Whether the strength prescription applied when drafted (ADR-0028). If it no longer does
+    # at save time (blocks turned on or off meanwhile), the draft is stale: saving it would
+    # file the sets at the wrong step and in the wrong block's history.
+    strength: bool = False
 
 
 @dataclass(frozen=True)
@@ -133,6 +137,12 @@ def next_session_name(session: Session) -> str | None:
     return upcoming.name if upcoming is not None else None
 
 
+def _strength(session: Session, on: date, tz: ZoneInfo, template: SessionTemplate | None) -> bool:
+    """Whether a log on ``on`` for ``template`` is trained under the strength prescription."""
+    block = blocks.current(session, on, tz)
+    return blocks.strength_applies(block, template.kind if template is not None else None)
+
+
 def draft(session: Session, text: str, on: date, tz: ZoneInfo) -> Draft:
     """Parse a message into something to confirm. Never writes."""
     template = target(session, on, tz)
@@ -144,6 +154,7 @@ def draft(session: Session, text: str, on: date, tz: ZoneInfo) -> Draft:
         session_name=template.name if template is not None else "Extra session",
         entries=parsed.entries,
         problems=parsed.problems,
+        strength=_strength(session, on, tz, template),
     )
 
 
@@ -194,10 +205,9 @@ def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | No
     # ADR-0028: a planned strength session in a strength block is trained, and filed, under the
     # strength prescription (one step harder); everything else is ordinary history.
     block = blocks.current(session, confirmed.on, tz)
-    template = (
-        session.get(SessionTemplate, confirmed.template_id) if confirmed.template_id else None
-    )
-    strength = blocks.strength_applies(block, template.kind if template is not None else None)
+    strength = _strength(session, confirmed.on, tz, now)
+    if strength != confirmed.strength:
+        return Stale()
     if strength:
         workout.block = BlockKind.STRENGTH
     elif block is not None and block.kind is BlockKind.HYPERTROPHY:

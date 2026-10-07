@@ -119,7 +119,7 @@ class ProgressHandlers:
         """/review: this week so far (Monday to today), as in Sunday's review."""
         today = local_date(datetime.now(UTC), self.settings.tz)
         with session_scope(self.sessions) as session:
-            text = review_text(reviews.weekly(session, today))
+            text = review_text(reviews.weekly(session, today, self.settings.tz))
         if update.effective_message is not None:
             await update.effective_message.reply_text(text)
 
