@@ -28,10 +28,10 @@ The web app, multi-user and wearable data direction: `platform-and-health-data-p
 
 Order: data first, then Telegram features, then the dashboard that shows them.
 
-Issues open so far (milestone "Phase 2 - Overview"): 2-0 #72, 2-A #74, 2-C #73, 2-E #26. The
+Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74, 2-C #73 (done), 2-E #26. The
 others wait on D1, D3 and D5.
 
-### 2-0 Multi-user-ready schema (#72)
+### 2-0 Multi-user-ready schema (#72, done)
 - ADR-0026: a `users` table with Liam as the only row, `user_id` on every per-person table,
   every query scoped by it and a test that enforces it. Behaviour unchanged (still one user).
 
@@ -47,9 +47,9 @@ others wait on D1, D3 and D5.
 - Photos stored per D3; never in logs, never in share views (ADR-0012), excluded from any
   public endpoint (ADR-0019).
 
-### 2-C Weekly review message (#73)
-- `/review` (built): the week so far. Next: sent on its own every Sunday at 19:00, adjustable
-  in `/settings` (D6).
+### 2-C Weekly review message (#73, done)
+- Built: `/review` shows the week so far, and the review is sent every Sunday at 19:00 (local,
+  DST-safe, skipped while paused), adjustable in `/settings` (D6).
 - Contents: sessions done vs planned, hard sets per muscle group vs Galpin's 10-20,
   personal bests, exercises ready to progress.
 
