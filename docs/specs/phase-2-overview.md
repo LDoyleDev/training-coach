@@ -28,26 +28,35 @@ The web app, multi-user and wearable data direction: `platform-and-health-data-p
 
 Order: data first, then Telegram features, then the dashboard that shows them.
 
-### 2-A Baseline tests and retests
+Issues open so far (milestone "Phase 2 - Overview"): 2-0 #72, 2-A #74, 2-C #73, 2-E #26. The
+others wait on D1, D3 and D5.
+
+### 2-0 Multi-user-ready schema (#72)
+- ADR-0026: a `users` table with Liam as the only row, `user_id` on every per-person table,
+  every query scoped by it and a test that enforces it. Behaviour unchanged (still one user).
+
+### 2-A Baseline tests and retests (#74)
 - Model for test definitions (from the product spec list) and results with date and conditions.
 - `/baseline` walks through day 1 and day 2 tests in Telegram, one test at a time, with the
   same confirm-before-save rule as workout logs (ADR-0007).
-- Retest reminder per D4; results comparable test by test.
+- Retests at the start of each block, or every 4 weeks without blocks (D4); results comparable
+  test by test.
 
 ### 2-B Body measurements and progress photos
 - Measurements (bodyweight, waist, chest, upper arm, thigh, resting heart rate) logged by text.
 - Photos stored per D3; never in logs, never in share views (ADR-0012), excluded from any
   public endpoint (ADR-0019).
 
-### 2-C Weekly review message
-- Scheduled per D6: sessions done vs planned, hard sets per muscle group vs Galpin's 10-20,
+### 2-C Weekly review message (#73)
+- Sunday 19:00, adjustable (D6), plus `/review`: sessions done vs planned, hard sets per muscle group vs Galpin's 10-20,
   personal bests, exercises ready to progress.
 
 ### 2-D Habit check-offs
 - Per D5. One message or buttons; streaks shown in the weekly review.
 
 ### 2-E Strength and hypertrophy blocks (#26)
-- Per D2 and a new ADR. Morning message names the current block and prompts the warm-up.
+- Optional 4-week blocks per ADR-0028. Morning message names the current block and prompts the
+  warm-up.
 
 ### 2-F Dashboard login and share links
 - Owner sign-in and read-only share links exactly as ADR-0012 (Telegram HMAC, hashed expiring

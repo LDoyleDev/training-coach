@@ -25,7 +25,7 @@ actually hit. Each exercise here comes round about once a week, so a step is one
 | 8-15 | +2 | 10 / 9 / 8 | 12 / 11 / 10 |
 | 15-25 | +3 | 18 / 16 / 15 | 21 / 19 / 18 |
 | Timed, 20-60 s | +5 s (10%, rounded to 5 s) | 40 / 35 s | 45 / 40 s |
-| Duration, 30-40 min (cardio) | +1 min until zone data arrives (phase 3) | 32 min | 33 min |
+| Duration, 30-40 min (cardio) | +1 min until heart-rate zone data arrives | 32 min | 33 min |
 
 Rules around the step:
 - **Per set, from what you did.** Each set's target is that set's last value plus the step, never
@@ -43,7 +43,7 @@ Rules around the step:
 Recorded in ADR-0027, which supersedes ADR-0016's target rules. Code: `domain/targets.py` and its
 table-driven tests (pure code, 100% covered).
 
-## 2. Training blocks (D2): decided
+## 2. Training blocks (D2): decided (ADR-0028)
 
 - **Optional, per person.** A setting asks whether you train in blocks. Off by default; you'll
   turn it on.
@@ -74,5 +74,4 @@ table-driven tests (pure code, 100% covered).
 
 ## Next
 
-An ADR for blocks (D2), then the phase 2 issues opened. Until that ADR exists, blocks are a
-decided plan, not built behaviour.
+ADR-0028 records the blocks; the phase 2 issues are open in milestone "Phase 2 - Overview".

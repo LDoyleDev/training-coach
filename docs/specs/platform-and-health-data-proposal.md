@@ -188,8 +188,11 @@ The weekly review message (D6) is a text version of the Week screen.
 
 1. **Phase 2 as drafted**, with 2-F/2-G widened to L1: passkey sign-in, a `users` table with one
    row, the PWA with logging, Web Push. Telegram keeps working.
-2. **Phase 3: health data** (new): ingest endpoint and schema, cardio auto-logging with confirm,
-   zone targets, sleep and steps on the dashboard and in the weekly review.
+2. **Health data**: ingest endpoint and schema, cardio auto-logging with confirm,
+   zone targets, sleep and steps on the dashboard and in the weekly review. Phase 3 is already
+   "Claude and adaptivity" (MCP endpoint, readiness check from sleep and soreness); health data
+   could join it, since the readiness check needs sleep data, or become its own phase 4 (an open
+   question for Liam).
 3. **Later, only if wanted:** L2 (invites, per-user plans, consent) and L3 (native wrapper,
    cloud, store review).
 
