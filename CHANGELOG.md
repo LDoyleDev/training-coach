@@ -4,6 +4,14 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.9.0](https://github.com/LDoyleDev/training-coach/compare/v0.8.0...v0.9.0) (2026-10-07)
+
+
+### Features
+
+* **bot:** add the training block calendar and the warm-up prompt ([#81](https://github.com/LDoyleDev/training-coach/issues/81)) ([1147af4](https://github.com/LDoyleDev/training-coach/commit/1147af467a1cb7b2508944b6f98c79e1ede64f74))
+* **domain:** strength blocks train one step harder at 4-8 reps ([#83](https://github.com/LDoyleDev/training-coach/issues/83)) ([39eee4b](https://github.com/LDoyleDev/training-coach/commit/39eee4b55d060dfa147f98f83398cb17e003cf24)), closes [#26](https://github.com/LDoyleDev/training-coach/issues/26)
+
 ## [0.8.0](https://github.com/LDoyleDev/training-coach/compare/v0.7.0...v0.8.0) (2026-10-07)
 
 
