@@ -11,6 +11,9 @@ and one real week logged first.
 
 ## Open decisions (before any issue is opened)
 
+Options and recommendations for D2, D4 and D6: `phase-2-decisions.md`. A wider proposal (web app
+without Telegram, a standalone app, wearable data): `platform-and-health-data-proposal.md`.
+
 | # | Decision | Why it matters |
 | --- | --- | --- |
 | D1 | Dashboard visual design and screen list (`dashboard-design.md` says it is agreed first) | Every web step depends on it |
