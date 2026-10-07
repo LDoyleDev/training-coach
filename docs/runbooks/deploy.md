@@ -86,7 +86,7 @@ hand and `rm .git/auto-deploy-failed`.
 ```bash
 ssh vybe-pi
 cd ~/training-coach
-docker compose exec app training-coach backup
+docker compose exec app training-coach backup   # app down? docker compose run --rm --no-deps app training-coach backup
 git fetch --tags && git checkout vX.Y.Z    # deploy released versions only
 make up                                    # rebuilds; runs migrations + plan seed on start
 make logs                                  # watch for bot.started (and no seed.failed)
