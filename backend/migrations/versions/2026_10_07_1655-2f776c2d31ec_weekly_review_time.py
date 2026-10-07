@@ -4,6 +4,8 @@ Revision ID: 2f776c2d31ec
 Revises: c8b760ed9e52
 Create Date: 2026-10-07 16:55:37.055388
 
+Sunday's weekly review time (#73), 19:00 for existing rows. Downgrade drops it: a time the
+owner chose is lost, and the review goes back to 19:00 after a re-upgrade.
 """
 
 from collections.abc import Sequence
