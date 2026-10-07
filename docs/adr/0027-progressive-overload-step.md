@@ -23,8 +23,13 @@ block kind):
 - **Per set:** each set's target is that set's last value plus the step, never above the top of
   the range. Weaker sets no longer jump to the best set.
 - **A miss holds the target:** if a set fell short of the target it was given, its next target is
-  that same target, not a step from the lower number. The previous target is recomputed from the
-  session before it, so nothing new is stored.
+  that same target, not a step from the lower number. Missed or not is judged per set.
+  - "The target it was given" is recomputed, so nothing new is stored: it is the target rule
+    applied to the session before it at the same ladder step (and, once blocks exist, the same
+    block kind). With no such session, it was the bottom of the range, as for any first session.
+  - **Two misses in a row** of the same set at the same held target: the next target for that
+    set is its last value plus 1, so a bad patch (illness, poor sleep) never leaves a target
+    out of reach for good.
 - **Unchanged from ADR-0016:** no history means the bottom of the range; below the bottom,
   targets still grow by the step; fewer sets logged than planned start the missing sets from the
   weakest logged set.
