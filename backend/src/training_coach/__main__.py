@@ -1,9 +1,11 @@
-"""Entry point: ``training-coach [serve|seed|openapi]`` (or ``python -m training_coach``)."""
+"""Entry point: ``training-coach [serve|seed|openapi|backup]`` (or ``python -m training_coach``)."""
 
 import argparse
 import json
+import os
 import sys
 import tomllib
+from datetime import UTC, datetime
 
 import structlog
 import uvicorn
@@ -13,12 +15,16 @@ from training_coach.api.app import create_app
 from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.logging import configure_logging
+from training_coach.services import backup as backups
 from training_coach.services.seed import SeedError, apply_seed, load_plan
 
 log = structlog.get_logger(__name__)
 
 
 def serve() -> None:
+    # The database, its WAL and the backups hold personal data: group-readable at most, so
+    # the backup pull can read them (ADR-0024) and other users on the Pi can't.
+    os.umask(0o027)
     settings = get_settings()
     uvicorn.run(
         create_app(settings),
@@ -48,6 +54,25 @@ def seed() -> None:
         engine.dispose()
 
 
+def backup() -> None:
+    """A manual backup next to the nightly ones, e.g. before a deploy with a migration. It is
+    never pruned; delete it by hand once it is no longer needed."""
+    settings = get_settings()
+    configure_logging(settings)
+    source = backups.database_path(settings.database_url)
+    if source is None:
+        log.error("backup.failed", reason="the database is not a SQLite file")
+        raise SystemExit(1)
+    try:
+        path = backups.create(
+            source, source.parent / "backups", backups.manual_name(datetime.now(UTC))
+        )
+    except backups.BackupError as exc:
+        log.error("backup.failed", reason=str(exc))
+        raise SystemExit(1) from exc
+    log.info("backup.created", file=str(path), bytes=path.stat().st_size)
+
+
 def openapi() -> None:
     """Print the API schema as JSON. The dashboard's TypeScript types are generated from it
     (ADR-0020). Settings come from the class defaults alone, never from `.env` or `TC_`
@@ -64,12 +89,13 @@ def main(argv: list[str] | None = None) -> None:
         "command",
         nargs="?",
         default="serve",
-        choices=["serve", "seed", "openapi"],
+        choices=["serve", "seed", "openapi", "backup"],
         help="serve: API + bot (default). seed: load the training plan (idempotent). "
-        "openapi: print the API schema.",
+        "openapi: print the API schema. backup: copy the database to data/backups/ now.",
     )
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
-    {"serve": serve, "seed": seed, "openapi": openapi}[args.command]()
+    commands = {"serve": serve, "seed": seed, "openapi": openapi, "backup": backup}
+    commands[args.command]()
 
 
 if __name__ == "__main__":

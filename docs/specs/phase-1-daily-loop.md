@@ -19,7 +19,7 @@ Keep this table current: the PR that finishes a step marks it done here.
 | 1-E Text logging with confirmation | #11 | Done (#54 parser, #55 save, and the bot flow PR) |
 | 1-F Voice logging (Groq) | #12 | Done (#60 voice, and the model fallback PR, ADR-0023) |
 | 1-G Feedback and progress | #13 | **Next** |
-| 1-H Backups and ops | #14 | Not started |
+| 1-H Backups and ops | #14 | Done (this PR; restore rehearsed on the desktop, Pi drill pending) |
 
 Also in this milestone: #18 (guard ladder-step edits that would remap logged history; done).
 Built outside the step list: the public plan page and

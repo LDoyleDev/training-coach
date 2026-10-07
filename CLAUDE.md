@@ -119,7 +119,7 @@ cause is gone.
   and `session` live in `tests/conftest.py`. Don't recreate them per file.
 - Develop in WSL 2, not natively on Windows (ADR-0018, `docs/runbooks/dev-environment-windows.md`).
   Natively, AVG's HTTPS scanning breaks TLS: use `git config http.sslBackend schannel` and
-  `uv ... --system-certs`; there is no `make`, and a CLI logging test fails on Windows only.
+  `uv ... --system-certs`; there is no `make`.
 
 ## Keeping this file useful
 
