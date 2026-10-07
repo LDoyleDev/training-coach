@@ -186,6 +186,7 @@ def test_link_owner_links_and_follows_a_changed_account(engine: Engine) -> None:
         users.link_owner(session, 99)  # the allowed account changed: the owner moves with it
     with sessions() as session:
         assert session.get_one(User, users.OWNER).telegram_user_id == 99
+    with make_session_factory(engine, user_id=users.OWNER)() as session:
         events = [(e.kind, e.user_id, e.payload) for e in session.scalars(select(Event))]
     assert events == [("users.owner_relinked", users.OWNER, {"from": 4242, "to": 99})]
 
@@ -198,3 +199,20 @@ def test_link_owner_recreates_a_missing_owner(engine: Engine) -> None:
         assert users.link_owner(session, 7) == users.OWNER
     with sessions() as session:
         assert session.get_one(User, users.OWNER).telegram_user_id == 7
+
+
+def test_an_unbound_session_must_ask_to_see_everyone(
+    two: tuple[Sessions, Sessions], engine: Engine
+) -> None:
+    """#72 follow-up: per-person rows read without a user would be everyone's."""
+    unbound = make_session_factory(engine)
+    with unbound() as session:
+        with pytest.raises(PermissionError):
+            session.scalars(select(Workout)).all()
+        with pytest.raises(PermissionError):
+            session.get(Workout, 1)
+        with pytest.raises(PermissionError):
+            session.scalars(select(LadderStep.id).join(SetLog)).all()  # a join counts too
+        assert session.scalars(select(LadderStep.id)).all()  # shared tables are fine
+        owners = session.scalars(select(Workout.user_id), execution_options={ALL_USERS: True})
+        assert sorted(owners) == [1, 2]
