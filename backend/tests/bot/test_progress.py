@@ -300,3 +300,13 @@ def test_progress_text_units_and_limits() -> None:
     long = progress_text([_standing(exercise="X" * 120, step="Y" * 120)] * 40)
     assert len(long) <= 4096
     assert "more not shown" in long
+
+
+def test_the_keyboard_stays_under_telegrams_button_limit() -> None:
+    """More than 100 buttons and Telegram rejects the whole reply."""
+    ready = [_standing(exercise_id=n, status=Progress.READY) for n in range(1, 61)]
+    markup = progress_ui.keyboard(ready)
+    assert markup is not None
+    assert len(markup.inline_keyboard) == progress_ui.MAX_ROWS
+    assert sum(len(row) for row in markup.inline_keyboard) <= 100
+    assert progress_ui.keyboard([_standing()]) is None  # nothing ready, no buttons

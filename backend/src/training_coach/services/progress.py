@@ -263,6 +263,8 @@ def overview(session: Session) -> list[Standing]:
         if exercise is None or step is None:
             continue
         items = _items(session, exercise_id)
+        # Display only: "last" and "best" use the first prescription's sides. Readiness is
+        # judged per prescription below, exactly as Move up re-checks it.
         per_side = items[0].per_side if items else False
         history = [v for _, v in _sessions(session, exercise_id, step.id, per_side)]
         statuses = {_status(session, item, step) for item in items}

@@ -20,6 +20,7 @@ from training_coach.services import progress
 from training_coach.services.progress import Feedback, MoveOutcome, Standing
 
 PREFIX = "p"
+MAX_ROWS = 40  # two buttons each, well under Telegram's 100
 
 
 @dataclass(frozen=True)
@@ -48,7 +49,9 @@ def _row(item: Feedback | Standing) -> list[InlineKeyboardButton]:
 
 
 def keyboard(items: Sequence[Feedback | Standing]) -> InlineKeyboardMarkup | None:
-    rows = [_row(item) for item in items if item.status is Progress.READY]
+    """Move up / Not yet per ready exercise. Telegram rejects a message with more than 100
+    buttons, which would lose the whole reply, so at most ``MAX_ROWS`` prompts get them."""
+    rows = [_row(item) for item in items if item.status is Progress.READY][:MAX_ROWS]
     return InlineKeyboardMarkup(rows) if rows else None
 
 
