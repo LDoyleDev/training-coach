@@ -212,6 +212,8 @@ class UserSettings(Owned, Base):
     # The day training blocks were turned on (ADR-0028); empty means blocks are off.
     blocks_started_on: Mapped[date | None] = mapped_column(Date)
     nudges_enabled: Mapped[bool] = mapped_column(Boolean, server_default=true())
+    # Habit check-off buttons in the evening message (D5, #91).
+    habits_enabled: Mapped[bool] = mapped_column(Boolean, server_default=true())
     paused: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 

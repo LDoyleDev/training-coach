@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
 from telegram.ext import Application
 
@@ -127,6 +128,20 @@ async def test_rest_holds_a_training_session_and_retires_the_buttons(
     assert _pointer(seeded) == tid
 
 
+async def test_retiring_the_morning_buttons_keeps_the_habit_buttons(
+    application: App, seeded: Sessions
+) -> None:
+    """The evening message carries both (#91); Rest retires only its own row."""
+    tid = _pointer(seeded)
+    habit_rows = [["h:20261007:protein"], ["h:20261007:wind_down"]]
+    morning = [[f"q:start:{tid}", f"q:rest:{tid}", f"q:swap:{tid}"]]
+    calls = await run(application, press(f"q:rest:{tid}", OWNER, morning + habit_rows))
+    assert button_data(calls["editMessageReplyMarkup"][0]) == [
+        "h:20261007:protein",
+        "h:20261007:wind_down",
+    ]
+
+
 async def test_swap_opens_the_choices(application: App, seeded: Sessions) -> None:
     tid = _pointer(seeded)
     calls = await run(application, press(f"q:swap:{tid}", OWNER))
@@ -196,3 +211,28 @@ async def test_edit_quietly_only_swallows_not_modified() -> None:
     await buttons.edit_quietly(fail("Message is not modified: same content"))
     with pytest.raises(BadRequest, match="Chat not found"):
         await buttons.edit_quietly(fail("Chat not found"))
+
+
+def _keyboard(*rows: list[str]) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(d, callback_data=d) for d in r] for r in rows]
+    )
+
+
+def _data_of(markup: InlineKeyboardMarkup | None) -> list[list[str]]:
+    rows = markup.inline_keyboard if markup is not None else ()
+    return [[str(b.callback_data) for b in row] for row in rows]
+
+
+def test_merged_replaces_only_its_own_rows_in_place() -> None:
+    current = _keyboard(["q:start:1", "q:rest:1"], ["h:1:a"], ["h:1:b"])
+    new = [[InlineKeyboardButton("x", callback_data="h:1:c")]]
+    assert _data_of(buttons.merged(current, "h", new)) == [["q:start:1", "q:rest:1"], ["h:1:c"]]
+    swap = buttons.swap(1).inline_keyboard
+    assert _data_of(buttons.merged(current, "q", swap))[-2:] == [["h:1:a"], ["h:1:b"]]
+
+
+def test_merged_appends_new_rows_and_is_none_when_empty() -> None:
+    new = [[InlineKeyboardButton("x", callback_data="h:1:a")]]
+    assert _data_of(buttons.merged(None, "h", new)) == [["h:1:a"]]
+    assert buttons.merged(_keyboard(["q:rest:1"]), "q", ()) is None

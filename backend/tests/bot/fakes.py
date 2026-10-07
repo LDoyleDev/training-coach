@@ -66,9 +66,14 @@ def voice(user_id: int, *, seconds: int = 8, size: int = 20_000) -> dict[str, An
     return {"update_id": 4, "message": message}
 
 
-def press(data: str, user_id: int) -> dict[str, Any]:
-    """A button press on a message the bot sent to ``user_id``."""
+def press(data: str, user_id: int, markup: list[list[str]] | None = None) -> dict[str, Any]:
+    """A button press on a message the bot sent to ``user_id``; ``markup`` gives the
+    message's buttons as rows of callback data."""
     message = _message(user_id, "Today: ...", message_id=7)
+    if markup is not None:
+        message["reply_markup"] = {
+            "inline_keyboard": [[{"text": d, "callback_data": d} for d in row] for row in markup]
+        }
     message["from"] = BOT_USER
     return {
         "update_id": 2,

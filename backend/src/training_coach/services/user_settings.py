@@ -22,6 +22,7 @@ class Prefs:
     paused: bool = False
     review_time: time = DEFAULT_REVIEW
     blocks_started_on: date | None = None  # training blocks on since then (ADR-0028)
+    habits_enabled: bool = True  # habit buttons in the evening message (D5)
 
 
 def load(session: Session) -> Prefs:
@@ -35,6 +36,7 @@ def load(session: Session) -> Prefs:
         row.paused,
         row.review_time,
         row.blocks_started_on,
+        row.habits_enabled,
     )
 
 
@@ -47,6 +49,7 @@ def update(
     nudges_enabled: bool | None = None,
     paused: bool | None = None,
     blocks: bool | None = None,
+    habits_enabled: bool | None = None,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
@@ -68,6 +71,7 @@ def update(
         nudges_enabled=old.nudges_enabled if nudges_enabled is None else nudges_enabled,
         paused=old.paused if paused is None else paused,
         blocks_started_on=started,
+        habits_enabled=old.habits_enabled if habits_enabled is None else habits_enabled,
     )
     changes: dict[str, str | bool] = {}
     if morning_time is not None:
@@ -82,6 +86,8 @@ def update(
         changes["paused"] = paused
     if blocks is not None:
         changes["blocks"] = blocks
+    if habits_enabled is not None:
+        changes["habits_enabled"] = habits_enabled
     row = users.settings_row(session)
     if row is None:
         row = UserSettings()
@@ -92,6 +98,7 @@ def update(
     row.nudges_enabled = prefs.nudges_enabled
     row.paused = prefs.paused
     row.blocks_started_on = prefs.blocks_started_on
+    row.habits_enabled = prefs.habits_enabled
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

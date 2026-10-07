@@ -2,7 +2,7 @@
 (plus ``:<picked id>`` for a pick); every action re-checks the id against the queue, so a
 button on an old message can't act on a different session (ADR-0022)."""
 
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Sequence
 from dataclasses import dataclass
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -87,6 +87,33 @@ def pick(template_id: int, choices: list[tuple[int, str]]) -> InlineKeyboardMark
     ]
     rows.append([InlineKeyboardButton("Back", callback_data=_data("back", template_id))])
     return InlineKeyboardMarkup(rows)
+
+
+def _owned(row: Sequence[InlineKeyboardButton], prefix: str) -> bool:
+    return all(str(b.callback_data or "").startswith(f"{prefix}:") for b in row)
+
+
+def merged(
+    current: InlineKeyboardMarkup | None,
+    prefix: str,
+    rows: Sequence[Sequence[InlineKeyboardButton]],
+) -> InlineKeyboardMarkup | None:
+    """``current`` with its ``prefix`` rows replaced by ``rows``, where they were (or at the end).
+
+    One message can carry the morning buttons and the habit buttons (#91); each set changes
+    only its own rows, so retiring the morning buttons leaves the habits, and the other way
+    round. None when nothing is left."""
+    result: list[list[InlineKeyboardButton]] = []
+    placed = False
+    for row in current.inline_keyboard if current is not None else ():
+        if not _owned(row, prefix):
+            result.append(list(row))
+        elif not placed:
+            result += [list(r) for r in rows]
+            placed = True
+    if not placed:
+        result += [list(r) for r in rows]
+    return InlineKeyboardMarkup(result) if result else None
 
 
 async def edit_quietly(edit: Awaitable[object]) -> None:
