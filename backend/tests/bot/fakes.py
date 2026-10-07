@@ -1,6 +1,7 @@
 """A faked Telegram Bot API for driving real updates through the PTB dispatcher."""
 
 import json
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -12,6 +13,8 @@ from telegram.ext import Application
 from training_coach.config import Settings
 
 TELEGRAM = r"https://api\.telegram\.org/bot[^/]+/"
+FILES = r"https://api\.telegram\.org/file/bot[^/]+/"
+AUDIO = b"OggS-fake-voice"
 BOT_USER = {"id": 1, "is_bot": True, "first_name": "Coach", "username": "coach_bot"}
 OWNER, STRANGER = 42, 99
 SETTINGS = Settings(
@@ -49,6 +52,20 @@ def text_message(text: str, user_id: int) -> dict[str, Any]:
     return {"update_id": 3, "message": _message(user_id, text)}
 
 
+def voice(user_id: int, *, seconds: int = 8, size: int = 20_000) -> dict[str, Any]:
+    """A voice note; its audio is served by ``run`` at the fake file URL."""
+    message = _message(user_id, "")
+    del message["text"]
+    message["voice"] = {
+        "file_id": "voice-1",
+        "file_unique_id": "u1",
+        "duration": seconds,
+        "mime_type": "audio/ogg",
+        "file_size": size,
+    }
+    return {"update_id": 4, "message": message}
+
+
 def press(data: str, user_id: int) -> dict[str, Any]:
     """A button press on a message the bot sent to ``user_id``."""
     message = _message(user_id, "Today: ...", message_id=7)
@@ -73,11 +90,13 @@ async def run(
     update: dict[str, Any],
     *,
     unmodified: bool = False,
+    routes: Callable[[respx.Router], None] | None = None,
 ) -> Calls:
     """Process one update with Telegram faked; return the Bot API calls made, by method.
 
     ``unmodified`` answers message edits the way Telegram does when nothing would change
     (HTTP 400 "message is not modified"), e.g. retiring buttons that are already gone.
+    ``routes`` adds more fakes (e.g. Groq) to the same mock.
     """
     sent = {"ok": True, "result": _message(OWNER, "ok", message_id=8) | {"from": BOT_USER}}
     with respx.mock(assert_all_called=False) as telegram:
@@ -89,6 +108,11 @@ async def run(
         telegram.post(url__regex=TELEGRAM + "answerCallbackQuery$").respond(
             json={"ok": True, "result": True}
         )
+        file = {"file_id": "voice-1", "file_unique_id": "u1", "file_path": "voice/file_1.oga"}
+        telegram.post(url__regex=TELEGRAM + "getFile$").respond(json={"ok": True, "result": file})
+        telegram.get(url__regex=FILES + "voice/file_1.oga$").respond(content=AUDIO)
+        if routes is not None:
+            routes(telegram)
         await application.initialize()
         try:
             parsed = Update.de_json(update, application.bot)
@@ -99,7 +123,7 @@ async def run(
         calls: Calls = {}  # read inside the context: respx resets its calls on exit
         for call in telegram.calls:
             method = str(call.request.url).rsplit("/", 1)[-1]
-            if method != "getMe":
+            if method not in ("getMe", "file_1.oga") and "telegram" in str(call.request.url):
                 form = parse_qs(call.request.content.decode())
                 calls.setdefault(method, []).append({k: v[0] for k, v in form.items()})
     return calls

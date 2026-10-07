@@ -5,15 +5,18 @@ Drafts stay in the bot's memory keyed by their random token; buttons carry only
 A restart forgets drafts: the user is asked to send the log again.
 """
 
+import warnings
 from collections import OrderedDict
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import structlog
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update, Voice
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
+from telegram.warnings import PTBDeprecationWarning
 
 from training_coach.bot.buttons import edit_quietly
 from training_coach.bot.messages import (
@@ -22,6 +25,10 @@ from training_coach.bot.messages import (
     LOG_EXPIRED,
     LOG_SAVED_BEFORE,
     LOG_STALE,
+    VOICE_FAILED,
+    VOICE_OFF,
+    VOICE_TOO_LONG,
+    heard_text,
     log_saved_text,
     log_text,
 )
@@ -31,6 +38,7 @@ from training_coach.db.session import session_scope
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import local_date
 from training_coach.services import workout_log
+from training_coach.services.groq import GroqClient, GroqUnavailableError
 from training_coach.services.today import position
 from training_coach.services.workout_log import Draft, Saved, Stale
 
@@ -40,6 +48,16 @@ PREFIX = "l"
 ACTIONS = frozenset({"save", "edit", "cancel"})
 MAX_DRAFTS = 10  # bounded memory: only the most recent drafts can be saved
 TOKEN_LENGTH = 32
+MAX_VOICE_SECONDS = 120
+MAX_VOICE_BYTES = 5 * 1024 * 1024
+
+
+def _seconds(voice: Voice) -> float:
+    """``Voice.duration`` is an int today and a timedelta in a future PTB; accept both."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", PTBDeprecationWarning)
+        duration = voice.duration
+    return duration.total_seconds() if isinstance(duration, timedelta) else float(duration)
 
 
 @dataclass(frozen=True)
@@ -71,9 +89,12 @@ def keyboard(token: str) -> InlineKeyboardMarkup:
 
 
 class LogHandlers:
-    def __init__(self, settings: Settings, sessions: sessionmaker[Session]) -> None:
+    def __init__(
+        self, settings: Settings, sessions: sessionmaker[Session], groq: GroqClient | None = None
+    ) -> None:
         self.settings = settings
         self.sessions = sessions
+        self.groq = groq  # None until TC_GROQ_API_KEY is set: voice notes get the typed fallback
         self.drafts: OrderedDict[str, Draft] = OrderedDict()
 
     def _today(self) -> date:
@@ -89,8 +110,45 @@ class LogHandlers:
         message = update.effective_message
         if message is None or not message.text:
             return
+        await self._draft_and_confirm(message, message.text)
+
+    async def voice(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+        """A voice note from the owner: transcribe, then the same confirm flow as text.
+
+        The audio is downloaded into memory only, never to disk, and the transcript is shown
+        to the owner but never logged (ADR-0008, threat model).
+        """
+        message = update.effective_message
+        if message is None or message.voice is None:
+            return
+        if self.groq is None:
+            await message.reply_text(VOICE_OFF)
+            return
+        voice = message.voice
+        seconds = _seconds(voice)
+        if seconds > MAX_VOICE_SECONDS or (voice.file_size or 0) > MAX_VOICE_BYTES:
+            await message.reply_text(VOICE_TOO_LONG)
+            return
         with session_scope(self.sessions) as session:
-            draft = workout_log.draft(session, message.text, self._today(), self.settings.tz)
+            vocabulary = list(session.scalars(select(Exercise.name).order_by(Exercise.id)))
+        try:
+            audio = bytes(await (await voice.get_file()).download_as_bytearray())
+            heard = await self.groq.transcribe(audio, vocabulary=vocabulary)
+        except (GroqUnavailableError, TelegramError) as exc:
+            log.warning("bot.voice_failed", error=type(exc).__name__)
+            await message.reply_text(VOICE_FAILED)
+            return
+        if not heard:
+            await message.reply_text(VOICE_FAILED)
+            return
+        log.info("bot.voice_transcribed", seconds=seconds)
+        await self._draft_and_confirm(message, heard, heard=heard)
+
+    async def _draft_and_confirm(
+        self, message: Message, text: str, heard: str | None = None
+    ) -> None:
+        with session_scope(self.sessions) as session:
+            draft = workout_log.draft(session, text, self._today(), self.settings.tz)
             names = {
                 e.slug: (e.name, ExerciseKind(e.kind)) for e in session.scalars(select(Exercise))
             }
@@ -99,7 +157,10 @@ class LogHandlers:
             self._remember(draft)
             markup = keyboard(draft.token)
         log.info("bot.log_drafted", entries=len(draft.entries), problems=len(draft.problems))
-        await message.reply_text(log_text(draft, names), reply_markup=markup)
+        reply = log_text(draft, names)
+        if heard is not None:
+            reply = f"{heard_text(heard)}\n\n{reply}"
+        await message.reply_text(reply, reply_markup=markup)
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """Save / Edit / Cancel. Strangers get nothing, not even an answer (T1)."""

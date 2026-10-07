@@ -38,8 +38,9 @@ class Settings(BaseSettings):
         description="The only Telegram user ID the bot will respond to (ADR-0009).",
     )
 
-    # Groq (transcription + fallback parsing, ADR-0008)
+    # Groq (transcription + fallback parsing, ADR-0008). Voice logs are off until a key is set.
     groq_api_key: SecretStr | None = None
+    groq_transcribe_model: str = "whisper-large-v3-turbo"
 
     # Scheduling
     timezone: str = "Europe/Berlin"
