@@ -15,10 +15,13 @@ make this the first place where text from outside meets a language model.
 - The model is asked only when the rule parser reports problems and a Groq key is set.
 - It gets no tools. It must answer in a strict JSON schema (`openai/gpt-oss-20b`, temperature
   0) whose exercise names are an enum of the plan's names and whose units are "", "s" or
-  "min". The log sits between `<log>` tags as data, and the tags are stripped from the text.
+  "min"; the client re-checks names and rejects negative values in case a provider ignores the
+  schema. The log sits between `<log>` tags as data; any spelling of the tag in the text (case,
+  spacing, Unicode look-alikes) is stripped first.
 - Its answer is never used as data. It is turned back into plain `exercise n n n` lines and
   read by the same bounded rule parser; the reading is used only if that parse has no
-  problems at all, and the reply says the model helped ("check every number").
+  problems at all, and the reply says the model helped ("check every number"). If it read
+  fewer parts than the message had, the reply says so.
 - Otherwise, including any Groq failure, the user sees the rule parser's own problems.
 - Nothing is saved without Save (ADR-0007). Model output is never logged.
 
