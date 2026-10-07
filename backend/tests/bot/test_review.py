@@ -40,7 +40,11 @@ def test_a_full_review() -> None:
             rested=2,
             extras=1,
             volume=[("quads", 24), ("lats", 12), ("biceps", 6)],
-            bests=[Best("Pull-up", ExerciseKind.REPS, NewBests(best_set=12, total=44))],
+            bests=[
+                Best(
+                    "Pull-up", "Strict pull-up", ExerciseKind.REPS, NewBests(best_set=12, total=44)
+                )
+            ],
             ready=["Pull-up", "Dip (chairs)"],
         )
     )
@@ -49,16 +53,19 @@ def test_a_full_review() -> None:
     assert "- quads: 24 (high)" in text
     assert "- lats: 12\n" in text
     assert "- biceps: 6 (low)" in text
-    assert "- Pull-up: 12 reps in one set and 44 reps in total" in text
+    assert "- Pull-up (Strict pull-up): 12 reps in one set and 44 reps in total" in text
     assert text.endswith("Ready to move up: Pull-up, Dip (chairs). See /progress.")
 
 
 def test_one_rest_day_and_a_total_only_best() -> None:
     text = review_text(
-        _review(rested=1, bests=[Best("Plank", ExerciseKind.SECONDS, NewBests(total=150))])
+        _review(
+            rested=1,
+            bests=[Best("Plank", "Front plank", ExerciseKind.SECONDS, NewBests(total=150))],
+        )
     )
     assert "(1 rest day)" in text
-    assert "- Plank: 150s in total" in text
+    assert "- Plank (Front plank): 150s in total" in text
 
 
 def test_a_long_review_fits_one_message() -> None:

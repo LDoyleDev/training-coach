@@ -111,7 +111,11 @@ def test_bests_this_week_keep_the_highest(plan: Session) -> None:
     _log(plan, "pull-up", [9, 8, 8, 8], MONDAY)  # best set 9, total 33
     _log(plan, "pull-up", [10, 9, 8, 7], MONDAY + timedelta(days=3))  # best set 10, total 34
     (best,) = weekly(plan, SUNDAY).bests
-    assert (best.exercise, best.bests) == ("Pull-up", NewBests(best_set=10, total=34))
+    assert (best.exercise, best.step, best.bests) == (
+        "Pull-up",
+        "Strict pull-up",
+        NewBests(best_set=10, total=34),
+    )
 
 
 def test_ready_to_move_up(plan: Session) -> None:
@@ -134,3 +138,21 @@ def test_only_done_workouts_count_toward_volume(plan: Session) -> None:
     skipped.status = WorkoutStatus.SKIPPED
     plan.flush()
     assert weekly(plan, SUNDAY).volume == []
+
+
+def test_records_at_two_steps_are_kept_apart(plan: Session) -> None:
+    """Moving up mid-week: a record at each step, never one merged from both."""
+    pull_up = _exercise(plan, "pull-up")
+    _log(plan, "pull-up", [8, 8, 8, 8], MONDAY - timedelta(days=3))
+    _log(plan, "pull-up", [12, 12, 12, 12], MONDAY)  # best at Strict pull-up: 12, 48
+    state = users.exercise_state(plan, pull_up.id)
+    assert state is not None
+    harder = next(s for s in pull_up.ladder if s.name == "Pause at top")
+    state.ladder_step_id = harder.id
+    _log(plan, "pull-up", [5, 5, 5, 5], MONDAY + timedelta(days=1))  # first at the new step
+    _log(plan, "pull-up", [6, 6, 5, 5], MONDAY + timedelta(days=4))  # best there: 6, 22
+    bests = [(b.step, b.bests) for b in weekly(plan, SUNDAY).bests]
+    assert bests == [
+        ("Strict pull-up", NewBests(best_set=12, total=48)),
+        ("Pause at top", NewBests(best_set=6, total=22)),
+    ]

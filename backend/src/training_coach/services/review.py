@@ -11,7 +11,7 @@ from datetime import date, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Exercise, SessionTemplate, SetLog, Workout
+from training_coach.db.models import Exercise, LadderStep, SessionTemplate, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
@@ -22,6 +22,7 @@ from training_coach.services import progress
 @dataclass(frozen=True)
 class Best:
     exercise: str
+    step: str  # records are per ladder step (ADR-0025)
     kind: ExerciseKind
     bests: NewBests
 
@@ -68,23 +69,27 @@ def _higher(a: int | None, b: int | None) -> int | None:
 
 
 def _bests(session: Session, workouts: list[Workout]) -> list[Best]:
-    """The best record per exercise set this week, in the order first achieved."""
-    found: dict[int, Best] = {}
+    """The best record per exercise and ladder step set this week, in the order first
+    achieved. Records at different steps are never merged: they aren't comparable."""
+    found: dict[tuple[int, int], Best] = {}
     for workout in sorted(workouts, key=lambda w: (w.local_date, w.created_at, w.id)):
         steps = {(s.exercise_id, s.ladder_step_id) for s in workout.sets}
         for exercise_id, step_id in sorted(steps):
             per_side = progress.per_side_for(session, exercise_id, workout.template_id)
             bests = progress.bests_in(session, workout.id, exercise_id, step_id, per_side)
             exercise = session.get(Exercise, exercise_id)
-            if not bests or exercise is None:
+            step = session.get(LadderStep, step_id)
+            if not bests or exercise is None or step is None:
                 continue
-            earlier = found.get(exercise_id)
+            earlier = found.get((exercise_id, step_id))
             if earlier is not None:  # a second record that week: keep the higher of each
                 bests = NewBests(
                     _higher(bests.best_set, earlier.bests.best_set),
                     _higher(bests.total, earlier.bests.total),
                 )
-            found[exercise_id] = Best(exercise.name, ExerciseKind(exercise.kind), bests)
+            found[(exercise_id, step_id)] = Best(
+                exercise.name, step.name, ExerciseKind(exercise.kind), bests
+            )
     return list(found.values())
 
 
