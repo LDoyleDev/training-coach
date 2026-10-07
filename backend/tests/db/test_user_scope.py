@@ -8,6 +8,7 @@ from datetime import date
 
 import pytest
 from sqlalchemy import Engine, delete, insert, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from tests import factories
@@ -186,6 +187,7 @@ def test_link_owner_links_and_follows_a_changed_account(engine: Engine) -> None:
         users.link_owner(session, 99)  # the allowed account changed: the owner moves with it
     with sessions() as session:
         assert session.get_one(User, users.OWNER).telegram_user_id == 99
+    with make_session_factory(engine, user_id=users.OWNER)() as session:
         events = [(e.kind, e.user_id, e.payload) for e in session.scalars(select(Event))]
     assert events == [("users.owner_relinked", users.OWNER, {"from": 4242, "to": 99})]
 
@@ -198,3 +200,62 @@ def test_link_owner_recreates_a_missing_owner(engine: Engine) -> None:
         assert users.link_owner(session, 7) == users.OWNER
     with sessions() as session:
         assert session.get_one(User, users.OWNER).telegram_user_id == 7
+
+
+def test_an_unbound_session_must_ask_to_see_everyone(
+    two: tuple[Sessions, Sessions], engine: Engine
+) -> None:
+    """#72 follow-up: per-person rows read without a user would be everyone's."""
+    unbound = make_session_factory(engine)
+    with unbound() as session:
+        with pytest.raises(PermissionError):
+            session.scalars(select(Workout)).all()
+        with pytest.raises(PermissionError):
+            session.get(Workout, 1)
+        with pytest.raises(PermissionError):
+            session.scalars(select(LadderStep.id).join(SetLog)).all()  # a join counts too
+        assert session.scalars(select(LadderStep.id)).all()  # shared tables are fine
+        owners = session.scalars(select(Workout.user_id), execution_options={ALL_USERS: True})
+        assert sorted(owners) == [1, 2]
+
+
+def test_every_per_person_table_is_covered() -> None:
+    """The guard's list follows the models: a new per-person table can't be missed."""
+    from training_coach.db.session import owned_models
+
+    assert {m.__tablename__ for m in owned_models()} == {  # type: ignore[attr-defined]
+        "workouts",
+        "set_logs",
+        "exercise_state",
+        "plan_state",
+        "settings",
+        "events",
+    }
+
+
+def test_an_unbound_session_writes_only_rows_that_name_their_user(engine: Engine) -> None:
+    """The seed and owner linking write per-person rows naming the user; the database refuses
+    one with no user, except a system event."""
+    unbound = make_session_factory(engine)
+    with session_scope(unbound) as session:
+        session.add(Event(kind="seed.applied", payload={}))  # a system event: no user
+        session.add(UserSettings(user_id=users.OWNER))  # named: fine
+    with pytest.raises(IntegrityError), session_scope(unbound) as session:
+        session.add(Workout(local_date=DAY, status=WorkoutStatus.DONE))  # no user
+
+
+def test_no_shared_model_links_to_a_per_person_one() -> None:
+    """Lazy loads follow their parent's query and skip the unbound guard. That is only safe while
+    every per-person relationship starts from a per-person row: a shared model linking to an
+    owned one (say Exercise.set_logs) would lazy-load every user's rows from an unbound session."""
+    from training_coach.db.base import Base
+    from training_coach.db.models import Owned
+
+    links = [
+        f"{mapper.class_.__name__}.{rel.key}"
+        for mapper in Base.registry.mappers
+        if not issubclass(mapper.class_, Owned)
+        for rel in mapper.relationships
+        if issubclass(rel.mapper.class_, Owned)
+    ]
+    assert links == []
