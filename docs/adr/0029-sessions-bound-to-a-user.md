@@ -29,6 +29,8 @@ another person's training data, and nothing would notice until a second person e
   naming them explicitly), linking the owner's Telegram account at start-up, and migrations.
   A shared check that must see everyone from any session (the seed's "ladder step in use"
   guard) passes the `all_users` execution option explicitly.
+- `session.get` may answer from the identity map without a query; that is safe because a bound
+  session can only ever have loaded its own user's rows.
 - **Covered:** ORM statements run through `Session.execute`, `scalars`, `get` and the unit of
   work. **Not covered:** string SQL (already banned by CLAUDE.md) and Core statements on
   `session.connection()`; neither may be used for per-person data.
