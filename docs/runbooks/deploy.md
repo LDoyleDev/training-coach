@@ -45,11 +45,48 @@ services:
 Check after any deploy: `curl -s localhost:8095/healthz` on the Pi and
 `curl -s https://coach.vybe-dev.com/healthz` from anywhere.
 
-## Routine deploy (after a release)
+## Automatic deploys (ADR-0030)
+
+Merging a release PR is the deploy. Within about 15 minutes, a timer on the Pi does these steps:
+- takes a backup
+- checks out the new tag and rebuilds
+- waits for `/healthz` to report the new version
+
+It deploys only release tags on `main`, only forward, and never over local changes. Steady
+state is silent; every deploy logs `auto-deploy: deployed vX.Y.Z`.
+
+One-time setup on the Pi (the units assume the `vybe` user and `~/training-coach`; edit them
+first if either differs; `vybe` must be in the `docker` group):
+
+```bash
+cd ~/training-coach
+scripts/auto-deploy.sh            # once by hand: deploys the newest release, or prints nothing
+sudo cp scripts/systemd/training-coach-deploy.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now training-coach-deploy.timer
+systemctl list-timers training-coach-deploy.timer
+```
+
+Day to day:
+
+| What | How |
+| --- | --- |
+| What did it do? | `journalctl -u training-coach-deploy -n 50` |
+| Did a deploy fail? | `systemctl --failed`, or the journal shows `auto-deploy: ERROR` |
+| Hold releases back | `sudo systemctl stop training-coach-deploy.timer` (`start` to resume) |
+| Unit files changed in a release | Copy them again and `daemon-reload` (the units aren't updated by a deploy) |
+
+When a release doesn't come up healthy, the script rolls the code back to the previous version
+and the bot keeps working. If the release changed the schema, it leaves the new version in
+place, because going back needs the backup it took (see Rollback). Either way, the failed tag
+is saved in `.git/auto-deploy-failed` and not retried. Fix it with a new release, or deploy by
+hand and `rm .git/auto-deploy-failed`.
+
+## Deploy by hand
 
 ```bash
 ssh vybe-pi
 cd ~/training-coach
+docker compose exec app training-coach backup
 git fetch --tags && git checkout vX.Y.Z    # deploy released versions only
 make up                                    # rebuilds; runs migrations + plan seed on start
 make logs                                  # watch for bot.started (and no seed.failed)

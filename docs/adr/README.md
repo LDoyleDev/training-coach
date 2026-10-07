@@ -34,3 +34,4 @@ Code). Template: [template.md](template.md).
 | [0027](0027-progressive-overload-step.md) | Progressive overload step of about 10% of the range | Accepted |
 | [0028](0028-training-blocks.md) | Optional 4-week strength and hypertrophy blocks | Accepted |
 | [0029](0029-sessions-bound-to-a-user.md) | Per-person data is scoped by binding the session to a user | Accepted |
+| [0030](0030-deploy-releases-from-a-timer.md) | The Pi deploys new releases itself, from a timer | Accepted |
