@@ -15,6 +15,7 @@ from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.sql import visitors
 from sqlalchemy.sql.expression import ClauseElement, TableClause
 
+from training_coach.db.base import Base
 from training_coach.db.models import Owned, SetLog, Workout
 
 USER = "user_id"  # key in Session.info
@@ -44,6 +45,11 @@ def make_session_factory(engine: Engine, user_id: int | None = None) -> sessionm
     return sessionmaker(bind=engine, expire_on_commit=False, info={USER: user_id})
 
 
+def owned_models() -> list[type[Owned]]:
+    """Every mapped per-person model, however deep below ``Owned`` it inherits."""
+    return [m.class_ for m in Base.registry.mappers if issubclass(m.class_, Owned)]
+
+
 def bound_user(session: Session) -> int | None:
     user = session.info.get(USER)
     return user if isinstance(user, int) else None
@@ -58,7 +64,7 @@ def _touches_owned(state: ORMExecuteState) -> bool:
     """Whether the statement selects from or joins any per-person table."""
     if any(issubclass(mapper.class_, Owned) for mapper in state.all_mappers):
         return True
-    owned = {model.__tablename__ for model in Owned.__subclasses__()}  # type: ignore[attr-defined]  # every Owned model is mapped
+    owned = {model.__tablename__ for model in owned_models()}  # type: ignore[attr-defined]  # mapped models
     statement = state.statement
     if not isinstance(statement, ClauseElement):  # pragma: no cover - ORM statements always are
         return False
@@ -93,7 +99,7 @@ def _only_this_users_rows(state: ORMExecuteState) -> None:
         state.statement = state.statement.options(
             *(
                 with_loader_criteria(model, lambda cls: cls.user_id == user, include_aliases=True)
-                for model in Owned.__subclasses__()
+                for model in owned_models()
             )
         )
 

@@ -8,6 +8,7 @@ from datetime import date
 
 import pytest
 from sqlalchemy import Engine, delete, insert, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from tests import factories
@@ -216,3 +217,28 @@ def test_an_unbound_session_must_ask_to_see_everyone(
         assert session.scalars(select(LadderStep.id)).all()  # shared tables are fine
         owners = session.scalars(select(Workout.user_id), execution_options={ALL_USERS: True})
         assert sorted(owners) == [1, 2]
+
+
+def test_every_per_person_table_is_covered() -> None:
+    """The guard's list follows the models: a new per-person table can't be missed."""
+    from training_coach.db.session import owned_models
+
+    assert {m.__tablename__ for m in owned_models()} == {  # type: ignore[attr-defined]
+        "workouts",
+        "set_logs",
+        "exercise_state",
+        "plan_state",
+        "settings",
+        "events",
+    }
+
+
+def test_an_unbound_session_writes_only_rows_that_name_their_user(engine: Engine) -> None:
+    """The seed and owner linking write per-person rows naming the user; the database refuses
+    one with no user, except a system event."""
+    unbound = make_session_factory(engine)
+    with session_scope(unbound) as session:
+        session.add(Event(kind="seed.applied", payload={}))  # a system event: no user
+        session.add(UserSettings(user_id=users.OWNER))  # named: fine
+    with pytest.raises(IntegrityError), session_scope(unbound) as session:
+        session.add(Workout(local_date=DAY, status=WorkoutStatus.DONE))  # no user
