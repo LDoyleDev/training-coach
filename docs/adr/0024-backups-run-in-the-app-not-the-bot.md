@@ -25,7 +25,11 @@ backups.
   touches files with the nightly name; manual backups (`training-coach backup`) are kept.
 - Backups are mode 0640 with the app's group (gid 10001). The desktop pull reads them as a
   host user added to that group, rather than making personal data world-readable or giving
-  the pull passwordless sudo.
+  the pull passwordless sudo. The app runs with umask 027 and writes each partial copy 0600
+  from its first byte, so neither the live database nor a copy killed mid-write is readable by
+  other users. Partials older than an hour are removed by the next prune.
+- A backup is skipped (and logged) when the clock says today is older than the newest backup:
+  a Pi without a clock battery can boot with a stale date before NTP syncs.
 
 ## Consequences
 

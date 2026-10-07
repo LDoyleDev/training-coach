@@ -9,7 +9,7 @@ ssh vybe-pi
 git clone git@github.com:LDoyleDev/training-coach.git ~/training-coach
 cd ~/training-coach
 cp .env.example .env && chmod 600 .env && nano .env   # secrets only; leave TC_DATABASE_URL and TC_ENVIRONMENT commented (the image sets them)
-mkdir -p data && sudo chown 10001:10001 data           # container runs as uid 10001
+mkdir -p data && sudo chown 10001:10001 data && sudo chmod 750 data   # container runs as uid 10001; personal data
 make up
 curl -s http://127.0.0.1:8080/healthz
 ```

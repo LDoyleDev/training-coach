@@ -26,9 +26,17 @@ One-time setup on the Pi, so your SSH user can read the backups (the app writes 
 uid/gid 10001, mode 0640):
 
 ```bash
-getent group 10001 || sudo groupadd --gid 10001 coach-data   # the container's app group, by number
-sudo usermod -aG "$(getent group 10001 | cut -d: -f1)" vybe   # log out and back in afterwards
+getent group 10001          # must print nothing, or coach-data from an earlier run
+sudo groupadd --gid 10001 coach-data       # the container's app group, by number
+sudo usermod -aG coach-data vybe           # log out and back in afterwards
+sudo chmod 750 data && sudo chmod 640 data/training_coach.db*   # not readable by other users
 ```
+
+If gid 10001 already belongs to another group, stop: every member of that group could read
+your data. Pick the fix with that group's owner first.
+
+The app runs with umask 027, so database files it creates from now on are group-readable at
+most; the `chmod` fixes ones created before.
 
 Then on the desktop (Linux or WSL), run it once by hand and add the cron line from the
 script's header:
