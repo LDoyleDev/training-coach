@@ -6,17 +6,20 @@ press, so a stale or forged press can at most get an "already moved" answer.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
 from training_coach.bot.buttons import edit_quietly, row_id
-from training_coach.bot.messages import progress_text
+from training_coach.bot.messages import progress_text, review_text
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.progression import Progress
+from training_coach.domain.queue import local_date
 from training_coach.services import progress
+from training_coach.services import review as reviews
 from training_coach.services.progress import Feedback, MoveOutcome, Standing
 
 PREFIX = "p"
@@ -97,6 +100,14 @@ class ProgressHandlers:
             await update.effective_message.reply_text(
                 progress_text(standings), reply_markup=keyboard(standings)
             )
+
+    async def review(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+        """/review: this week so far (Monday to today), as in Sunday's review."""
+        today = local_date(datetime.now(UTC), self.settings.tz)
+        with session_scope(self.sessions) as session:
+            text = review_text(reviews.weekly(session, today))
+        if update.effective_message is not None:
+            await update.effective_message.reply_text(text)
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """Move up / Not yet. Strangers get nothing, not even an answer (T1)."""
