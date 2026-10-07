@@ -4,6 +4,14 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.6.0](https://github.com/LDoyleDev/training-coach/compare/v0.5.0...v0.6.0) (2026-10-07)
+
+
+### Features
+
+* **bot:** add /progress with each exercise's step, last session and best ([#65](https://github.com/LDoyleDev/training-coach/issues/65)) ([9c8d189](https://github.com/LDoyleDev/training-coach/commit/9c8d1899f275bfc4b5dccfb82e5cc02eb92babe1)), closes [#13](https://github.com/LDoyleDev/training-coach/issues/13)
+* **bot:** report personal bests and offer to move up after a save ([#64](https://github.com/LDoyleDev/training-coach/issues/64)) ([15ceb1c](https://github.com/LDoyleDev/training-coach/commit/15ceb1cbbca8dc1ad059571df8f8b5575a9c20dc))
+
 ## [0.5.0](https://github.com/LDoyleDev/training-coach/compare/v0.4.0...v0.5.0) (2026-10-07)
 
 
