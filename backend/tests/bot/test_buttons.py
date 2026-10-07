@@ -56,6 +56,10 @@ def _workouts(sessions: Sessions) -> list[tuple[int | None, str]]:
         ("q:rest:0", None),
         ("q:rest:-3", None),
         ("q:rest:99999999999999999999", None),
+        ("q:rest: 5", None),  # int() would accept each of these
+        ("q:rest:+5", None),
+        ("q:rest:5_0", None),
+        (f"q:rest:{chr(0xFF15)}", None),  # a full-width 5
         (None, None),
     ],
 )
