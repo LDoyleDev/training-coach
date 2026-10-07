@@ -36,8 +36,8 @@ block kind):
 
 ## Consequences
 
-- Until the code change lands (its own issue), the bot keeps computing targets the ADR-0016
-  way.
+- Implemented in `domain/targets.py` (#70): the targets each past session was given are replayed
+  from the oldest session at the step, so the rule needs nothing stored beyond the logged sets.
 - `domain/targets.py` changes; it stays pure and at 100% coverage, with the table-driven tests
   rewritten for the new rule.
 - Exercises reach the top of their range sooner, so the progression prompt (ADR-0016, ADR-0025)
