@@ -28,6 +28,7 @@ from telegram.ext import (
 from telegram.warnings import PTBDeprecationWarning
 
 from training_coach.bot import buttons, logging_flow
+from training_coach.bot import progress as progress_ui
 from training_coach.bot import settings as settings_ui
 from training_coach.bot.buttons import edit_quietly
 from training_coach.bot.logging_flow import LogHandlers
@@ -336,6 +337,10 @@ def build_bot(
     log_handlers = LogHandlers(settings, sessions, groq)
     application.add_handler(
         CallbackQueryHandler(log_handlers.button, pattern=rf"^{logging_flow.PREFIX}:")
+    )
+    progress_handlers = progress_ui.ProgressHandlers(settings, sessions)
+    application.add_handler(
+        CallbackQueryHandler(progress_handlers.button, pattern=rf"^{progress_ui.PREFIX}:")
     )
 
     async def text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

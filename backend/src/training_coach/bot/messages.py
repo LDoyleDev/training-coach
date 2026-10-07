@@ -2,6 +2,8 @@
 
 from training_coach.domain.enums import ExerciseKind, Side
 from training_coach.domain.parser import Entry
+from training_coach.domain.progression import Progress
+from training_coach.services.progress import Feedback
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.today import Day, ItemPlan, SessionPlan, Today
 from training_coach.services.workout_log import Draft
@@ -144,3 +146,36 @@ def _fit(lines: list[str], closing: list[str], limit: int = LOG_TEXT_LIMIT) -> l
 def log_saved_text(sets: int, exercises: int, session: str, next_session: str | None) -> str:
     saved = f"Saved {session}: {exercises} exercise{'s' * (exercises != 1)}, {sets} sets."
     return f"{saved} Next up: {next_session}." if next_session else saved
+
+
+def _amount(value: int, kind: ExerciseKind) -> str:
+    if kind is ExerciseKind.SECONDS:
+        return f"{value}s"
+    if kind is ExerciseKind.DURATION_MIN:
+        return f"{value} min"
+    return f"{value} rep{'s' * (value != 1)}"
+
+
+def feedback_text(items: list[Feedback]) -> str:
+    """Bests and progression after a save (ADR-0025). Empty when there is nothing to say."""
+    lines: list[str] = []
+    for item in items:
+        parts = []
+        if item.bests.best_set is not None:
+            parts.append(f"{_amount(item.bests.best_set, item.kind)} in one set")
+        if item.bests.total is not None:
+            parts.append(f"{_amount(item.bests.total, item.kind)} in total")
+        if parts:
+            lines.append(f"New best on {item.exercise}: {' and '.join(parts)}.")
+    for item in items:
+        if item.status is Progress.READY:
+            lines.append(
+                f"{item.exercise}: top of the range two sessions running. "
+                f"Ready to move up to {item.next_step}?"
+            )
+        elif item.note_top:
+            lines.append(
+                f"{item.exercise}: top of the range on the last step in your plan. Add a harder "
+                "variation to plan.toml when you're ready."
+            )
+    return "\n".join(lines)
