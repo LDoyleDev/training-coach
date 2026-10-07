@@ -7,6 +7,7 @@ from telegram.ext import Application
 from tests.bot.fakes import OWNER, STRANGER, command, run, texts
 from training_coach.bot.messages import review_text
 from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.habits import Habit, HabitWeek
 from training_coach.domain.records import NewBests
 from training_coach.services.review import Best, Review
 
@@ -99,3 +100,11 @@ def test_in_a_strength_block_moving_up_waits_and_strength_bests_say_so() -> None
     )
     assert "- Pull-up (Pause at top, strength block): 6 reps in one set" in text
     assert text.endswith("Ready to move up when the hypertrophy block starts: Pull-up.")
+
+
+def test_habits_show_days_done_with_so_far_mid_week() -> None:
+    full = review_text(_review(habits=[HabitWeek(Habit.MORNING_LIGHT, 5, 7)]))
+    assert full.endswith("Habits:\n- Morning light: 5 of 7")
+    partial = review_text(_review(habits=[HabitWeek(Habit.WIND_DOWN, 1, 3)]))
+    assert partial.endswith("- Wind-down: 1 of 3 so far")
+    assert "Habits" not in review_text(_review())

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from tests import factories
 from training_coach.db.models import (
     Event,
+    HabitCheck,
     LadderStep,
     PlanState,
     SetLog,
@@ -23,6 +24,7 @@ from training_coach.db.models import (
 )
 from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
 from training_coach.domain.enums import Side, WorkoutStatus
+from training_coach.domain.habits import Habit
 from training_coach.services import users
 
 DAY = date(2026, 10, 7)
@@ -32,7 +34,7 @@ Sessions = sessionmaker[Session]
 @pytest.fixture
 def two(engine: Engine) -> tuple[Sessions, Sessions]:
     """The owner (user 1, from the migration) and user 2, each with a workout and a set at
-    their own ladder step, settings, a plan row and an event."""
+    their own ladder step, settings, a plan row, an event and a habit check-off."""
     with session_scope(make_session_factory(engine)) as session:
         session.add(User(id=2))
         exercise = factories.exercise(session)
@@ -50,7 +52,15 @@ def two(engine: Engine) -> tuple[Sessions, Sessions]:
                     exercise_id=exercise_id, ladder_step_id=step, set_no=1, side=Side.BOTH, value=8
                 )
             ]
-            session.add_all([workout, UserSettings(), PlanState(), Event(kind="x", payload={})])
+            session.add_all(
+                [
+                    workout,
+                    UserSettings(),
+                    PlanState(),
+                    Event(kind="x", payload={}),
+                    HabitCheck(local_date=DAY, habit=Habit.PROTEIN),
+                ]
+            )
     return one, other
 
 
@@ -63,7 +73,7 @@ def test_each_user_sees_only_their_rows(two: tuple[Sessions, Sessions]) -> None:
     one, other = two
     assert _all(one, Workout.status) == ["done"]
     assert _all(other, Workout.status) == ["rest"]
-    for model in (Workout, SetLog, UserSettings, PlanState, Event):
+    for model in (Workout, SetLog, UserSettings, PlanState, Event, HabitCheck):
         assert _all(one, model.user_id) == [1], model
         assert _all(other, model.user_id) == [2], model
     with other() as session:
@@ -230,6 +240,7 @@ def test_every_per_person_table_is_covered() -> None:
         "plan_state",
         "settings",
         "events",
+        "habit_checks",
     }
 
 

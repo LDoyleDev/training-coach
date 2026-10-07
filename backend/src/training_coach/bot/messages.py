@@ -2,6 +2,8 @@
 
 from training_coach.domain.blocks import WEEKS
 from training_coach.domain.enums import ExerciseKind, Side
+from training_coach.domain.habits import LABELS as HABIT_LABELS
+from training_coach.domain.habits import WEEK_DAYS
 from training_coach.domain.parser import Entry
 from training_coach.domain.progression import Progress
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS
@@ -231,7 +233,7 @@ def progress_text(standings: list[Standing]) -> str:
 
 
 def review_text(review: Review) -> str:
-    """The weekly review (#73): sessions, hard sets per muscle, bests and what's ready."""
+    """The weekly review (#73): sessions, hard sets per muscle, bests, what's ready, habits."""
     lines = [f"Week of {review.start:%a %d %b}", ""]
     sessions = f"Sessions: {review.done} of {review.planned} done"
     extra = []
@@ -264,4 +266,9 @@ def review_text(review: Review) -> str:
         lines += ["", f"Ready to move up when the hypertrophy block starts: {names}."]
     elif review.ready:
         lines += ["", f"Ready to move up: {', '.join(review.ready)}. See /progress."]
+    if review.habits:
+        lines += ["", "Habits:"]
+        for week in review.habits:
+            so_far = "" if week.days == WEEK_DAYS else " so far"
+            lines.append(f"- {HABIT_LABELS[week.habit]}: {week.done} of {week.days}{so_far}")
     return "\n".join(_fit(lines, []))

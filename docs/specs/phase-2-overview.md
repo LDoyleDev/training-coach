@@ -28,8 +28,8 @@ The web app, multi-user and wearable data direction: `platform-and-health-data-p
 
 Order: data first, then Telegram features, then the dashboard that shows them.
 
-Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74, 2-C #73 (done), 2-E #26 (done). The
-others wait on D1, D3 and D5.
+Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74, 2-C #73 (done),
+2-D #90 (done) and #91, 2-E #26 (done). 2-B (D3 decided) has no issue yet; the dashboard waits on D1.
 
 ### 2-0 Multi-user-ready schema (#72, done)
 - ADR-0026: a `users` table with Liam as the only row, `user_id` on every per-person table,
@@ -53,7 +53,7 @@ others wait on D1, D3 and D5.
 - Contents: sessions done vs planned, hard sets per muscle group vs Galpin's 10-20,
   personal bests, exercises ready to progress.
 
-### 2-D Habit check-offs
+### 2-D Habit check-offs (#90 storage and review tally, done; #91 the bot)
 - Per D5: three one-tap check-offs in one evening message; the week's tally in the weekly
   review (5 of 7), no streaks to break. The protein target is a setting.
 

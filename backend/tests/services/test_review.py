@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Exercise, SessionTemplate, SetLog, Workout
 from training_coach.domain.enums import Side, WorkoutStatus
+from training_coach.domain.habits import Habit, HabitWeek
 from training_coach.domain.records import NewBests
-from training_coach.services import users
+from training_coach.services import habits, users
 from training_coach.services.review import week_start, weekly
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -155,4 +156,14 @@ def test_records_at_two_steps_are_kept_apart(plan: Session) -> None:
     assert bests == [
         ("Strict pull-up", NewBests(best_set=12, total=48)),
         ("Pause at top", NewBests(best_set=6, total=22)),
+    ]
+
+
+def test_habits_appear_only_in_a_week_with_a_check_off(plan: Session) -> None:
+    assert weekly(plan, SUNDAY).habits == []
+    habits.toggle(plan, MONDAY, Habit.WIND_DOWN, MONDAY)
+    assert weekly(plan, MONDAY + timedelta(days=2)).habits == [
+        HabitWeek(Habit.MORNING_LIGHT, 0, 3),
+        HabitWeek(Habit.PROTEIN, 0, 3),
+        HabitWeek(Habit.WIND_DOWN, 1, 3),
     ]

@@ -30,6 +30,7 @@ from training_coach.db.base import Base
 from training_coach.db.types import UTCDateTime, utcnow
 from training_coach.domain.blocks import BlockKind
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
+from training_coach.domain.habits import Habit
 
 
 def _in(column: str, values: type[StrEnum]) -> str:
@@ -289,6 +290,22 @@ class SetLog(Owned, Base):
     workout: Mapped[Workout] = relationship(back_populates="sets")
 
 
+class HabitCheck(Owned, Base):
+    """A habit ticked for a day (D5, #90). The row's presence means done; unticking deletes it."""
+
+    __tablename__ = "habit_checks"
+    __table_args__ = (
+        UniqueConstraint("user_id", "local_date", "habit"),
+        CheckConstraint(_in("habit", Habit), name="habit_valid"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    local_date: Mapped[date] = mapped_column(Date)
+    habit: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
 class Event(Owned, Base):
     """Audit log. Payloads must never contain secrets, transcripts or measurements.
     ``user_id`` is empty for system events such as ``seed.applied``."""
@@ -309,6 +326,7 @@ __all__ = [
     "Event",
     "Exercise",
     "ExerciseState",
+    "HabitCheck",
     "LadderStep",
     "Owned",
     "PlanState",
