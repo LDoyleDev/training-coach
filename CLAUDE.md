@@ -12,8 +12,8 @@ Later, an MCP endpoint lets Claude read and log data.
 
 - Product spec: `docs/specs/product-spec.md`
 - Current phase spec: `docs/specs/phase-1-daily-loop.md` (its Status table says what is done and next)
-- Next phase (draft, not agreed): `docs/specs/phase-2-overview.md`; proposals waiting on Liam:
-  `docs/specs/phase-2-decisions.md`, `docs/specs/platform-and-health-data-proposal.md`
+- Next phase (draft): `docs/specs/phase-2-overview.md`, decisions in `docs/specs/phase-2-decisions.md`;
+  the multi-surface and health-data direction: `docs/specs/platform-and-health-data-proposal.md`
 - Decisions: `docs/adr/` (accepted ADRs are binding)
 - Security: `docs/security/threat-model.md`
 - Architecture: `docs/architecture.md`

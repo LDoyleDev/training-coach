@@ -1,8 +1,38 @@
 # Proposal: a web app beside Telegram, a standalone app, and wearable health data
 
-Status: **proposal for discussion, not agreed.** Nothing here changes the product spec or any
-ADR until Liam answers the questions at the end. Research date: 2026-10-07; provider terms
-change often, so anything marked *verify* gets checked again before it becomes an ADR.
+Status: **direction agreed 2026-10-07 (section 0); details still a proposal.** Research date:
+2026-10-07; provider terms change often, so anything marked *verify* gets checked again before
+it becomes an ADR.
+
+## 0. Liam's answers (2026-10-07)
+
+- **Audience:** a public app in the end (L3). So every design choice from now on assumes many
+  users, even while there is one.
+- **Telegram:** one surface of several. The web app (and later the phone app) does everything the
+  bot does.
+- **Devices:** Android first (Poco X3 NFC, Android 12, the last update it gets). iPhone support
+  has to stay possible. A Xiaomi band and a Xiaomi smart scale through the Mi Fit app (now
+  called Zepp Life).
+- **Budget:** zero for now. No paid services, no store fees, no aggregators, no subscriptions.
+
+What follows from that:
+- Build the web app (L1) now, but **multi-user ready** (L2's `users` table and per-user scoping)
+  from the first schema change, since L3 is the goal. Cheaper now than retrofitting.
+- **Health data at zero cost on Android:** Zepp Life or Gadgetbridge (see below) writes to Health
+  Connect on the phone; the free, open-source Health Connect Webhook app posts it to the Pi.
+  iPhone users later need our own app (Apple's developer fee) or a paid bridge, so iPhone waits
+  until there is a budget.
+- **Your band:**
+  - Zepp Life supports Mi Band 1-7 and the Xiaomi body composition scales. Sources disagree on
+    whether it writes to Health Connect or only to Google Fit, which shuts down in 2026 (*verify*:
+    Zepp Life, Profile, Add accounts).
+  - If it only offers Google Fit, Gadgetbridge (free, open source, no Xiaomi cloud) talks to Mi
+    Bands directly and writes to Health Connect.
+  - An older band (a Mi Band 2 from 2016) gives steps, sleep and spot heart rate, but no
+    continuous heart rate during workouts. So **heart-rate zones need a newer band**; the rest
+    (steps, sleep times, resting HR, weight) works with what you have. Zone features stay in the
+    design and switch on when the data is there.
+- **Questions this raises:** see the end of section 7.
 
 ## 1. Where we are
 
@@ -189,6 +219,17 @@ Each has my recommendation; a one-line answer per question is plenty.
 11. **Budget.** Any monthly spend you're OK with (aggregators, a cloud host, Apple's developer
     fee at about $99/year)? *Default: zero, as today.*
 
+Answered on 2026-10-07: 1, 2, 3 and 11 (section 0). Still open, plus new ones:
+
+12. **Exact band model.** In Zepp Life, what is the band called: "Mi Smart Band 2" / "Mi Band 2"
+    (2016), or something newer? It decides whether workouts carry heart rate.
+13. **Zepp Life and Health Connect.** In Zepp Life, Profile, Add accounts: is Health Connect
+    listed, or only Google Fit?
+14. **Gadgetbridge.** If Zepp Life can't write to Health Connect, are you OK replacing it with
+    Gadgetbridge (keeps data off Xiaomi's servers, but you lose Zepp Life's own charts)?
+15. Questions 4-10 above (sign-in, notifications, which data, cardio auto-logging, zones, bridge
+    apps, where data lives) can wait until the web app and health-data phases are planned.
+
 ## Sources
 
 - Google Health API and the Fitbit Web API shutdown:
@@ -220,6 +261,12 @@ Each has my recommendation; a one-line answer per question is plenty.
 - Web apps on iPhone:
   [PWA push on iOS](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide),
   [Apple keeps home-screen web apps in the EU](https://9to5mac.com/2024/03/01/apple-home-screen-web-apps-ios-17-eu/)
+- Your devices:
+  [Zepp Life and Mi Band support](https://www.androidauthority.com/zepp-life-mi-fit-app-3266258/),
+  [Xiaomi and Health Connect](https://www.reaction-club.com/guides/xiaomi-health-connect),
+  [Gadgetbridge for Xiaomi](https://gadgetbridge.org/gadgets/wearables/xiaomi/),
+  [Poco X3 NFC updates](https://www.androidupdatetracker.com/p/xiaomi_poco_x3_nfc),
+  [Health Connect on Android 13 and lower](https://support.google.com/android/answer/12201227)
 - GDPR and health apps:
   [German regulators on health apps](https://www.oppenhoff.eu/en/news/detail/health-apps-data-protection-and-data-security),
   [Art. 9 and consent](https://www.themomentum.ai/blog/gdpr-consent-requirements-health-data)

@@ -6,6 +6,8 @@ Status: living document. Source of truth for *what* the app does; phase specs sa
 
 Help one person (Liam) follow a Huberman/Galpin-style weekly training plan at home, get
 stronger and bigger, and see progress clearly, with the least friction possible from a phone.
+Built for Liam first; the direction is an app others can use too, from Telegram, the web and
+later a phone app (ADR-0026, `platform-and-health-data-proposal.md`).
 
 Equipment: 8 kg kettlebell, pull-up bar, dips (chairs), floor. Bodyweight progress comes from
 harder variations (ladders), not added weight. The plan follows Huberman's Foundational Fitness

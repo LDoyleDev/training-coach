@@ -30,3 +30,4 @@ Code). Template: [template.md](template.md).
 | [0023](0023-model-fallback-only-suggests.md) | The model fallback only suggests; the rule parser decides | Accepted |
 | [0024](0024-backups-run-in-the-app-not-the-bot.md) | Backups run in the app, not the bot, and only a complete copy counts | Accepted |
 | [0025](0025-personal-bests-and-progress-prompts.md) | Personal bests and the "ready to progress" prompt | Accepted |
+| [0026](0026-multi-user-direction.md) | Built for one, designed for many | Accepted |

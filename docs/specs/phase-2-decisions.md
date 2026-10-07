@@ -1,103 +1,77 @@
-# Phase 2: options for the open decisions
+# Phase 2: decisions on blocks, overload, retests and the weekly review
 
-Status: **proposal, waiting on Liam.** Covers D2, D4 and D6 from `phase-2-overview.md` (the
-table of open decisions stays there; this file holds the options). D1 (dashboard design), D3
-(photo storage) and D5 (habits) are better settled together at the desktop. Each section ends
-with a recommendation; answer with the letter, or change anything.
+Status: **D2, D4 and D6 decided by Liam on 2026-10-07; the overload step size (section 1) is a
+proposal waiting for a yes.** Becomes ADRs and issues once confirmed. The table of open
+decisions stays in `phase-2-overview.md`; D1 (dashboard design), D3 (photo storage) and D5
+(habits) are still open there.
 
-## D2: Monthly strength and hypertrophy blocks (#26)
+## 1. Progressive overload: how big a step (proposal)
 
-**Background.** Huberman alternates monthly between strength (4-8 reps, 3-4 sets, 2-4 min rest)
-and hypertrophy (8-15 reps, 2-3 sets, about 90 s rest). The app runs hypertrophy ranges only.
-With bodyweight work, "heavier" means a harder ladder step, not more load.
+**Liam's direction:** every session's target should be a little more than last time, "a couple
+of reps" per set, not ADR-0016's +1.
 
-**Questions inside this decision**
-1. How long is a block, and when does it start?
-2. What changes in a strength block: the step, the rep range, the sets, the rest?
-3. How do targets and "ready to progress" count across blocks?
-4. Is there a lighter (deload) week between blocks?
+**Why not a flat +2.** Exercises have very different ranges in this plan. +2 is a lot for 4 sets
+of 5-12 pull-ups (a 20% jump on 10 reps every week, so most sets would miss and the target
+would stop meaning anything), and little for 15-25 tibialis raises. "Double progression" (add
+reps inside a range, then make the exercise harder) works best with small, regular steps you
+actually hit. Each exercise here comes round about once a week, so a step is one week's progress.
 
-### Options
+**Proposal: step about 10% of the top of the range (halves round up), at least 1.**
 
-| | A. Calendar months | B. 4-week blocks from a start date | C. Rep ranges only |
+| Range (top) | Step per set | Example: last session | Next target |
 | --- | --- | --- | --- |
-| Block length | Flips on the 1st of each month | 4 weeks from a date you pick; the count stops while the bot is paused | 4 weeks |
-| Strength block | One ladder step harder, 4-8 reps, sets as planned | Same as A | Same step, 4-8 reps (slower tempo or pauses for difficulty) |
-| Hypertrophy block | Current step, the planned ranges (8-15 mostly) | Same as A | Same as A |
-| Targets and progression | Kept separately per step and block kind | Same as A | Kept per step and rep range |
-| Effort to build | Medium | Medium | Small |
-| Catch | Months are 28-31 days; a holiday or illness eats the block | Needs a "pause the block" rule for missed weeks | Strength work at the same step is barely stronger; misses the point of the block |
+| 4-8 (strength block) | +1 | 6 / 6 / 5 | 7 / 7 / 6 |
+| 5-12 | +1 | 8 / 7 / 6 / 5 | 9 / 8 / 7 / 6 |
+| 8-15 | +2 | 10 / 9 / 8 | 12 / 11 / 10 |
+| 15-25 | +3 | 18 / 16 / 15 | 21 / 19 / 18 |
+| Timed, 20-60 s | +5 s (10%, rounded to 5 s) | 40 / 35 s | 45 / 40 s |
+| Duration, 30-40 min (cardio) | +1 min until zone data arrives (phase 3) | 32 min | 33 min |
 
-Notes that apply to A and B:
-- **Strength step.** "One step harder" uses the next ladder step. At the top of a ladder, the
-  strength block keeps the top step and adds a tempo or pause cue (the plan has no harder
-  variation to use).
-- **Where progression lives.** Move up is offered only in hypertrophy blocks, for the step you
-  train there. Strength blocks set personal bests and give the next hypertrophy block a head
-  start, but don't move you up on their own. This keeps ADR-0016's rule unchanged.
-- **Targets.** Each block kind keeps its own history per step, so a strength block's 5-rep sets
-  never become the target for the next hypertrophy block's 12-rep sets.
-- **Warm-up.** The morning message before every resistance session adds "~10 min warm-up first"
-  with the session's warm-up (from the plan), in both block kinds.
-- **Deload.** Huberman's protocol has no explicit deload. A simple option is the last 3 days of
-  each block at 2 sets instead of the planned number. Off by default.
+Rules around the step:
+- **Per set, from what you did.** Each set's target is that set's last value plus the step, never
+  above the top of the range. This replaces ADR-0016's "weaker sets catch up to the best"; with a
+  bigger step that rule over-reached.
+- **A miss holds the target.** If a set fell short of its target, the next target is the same as
+  the one missed (it doesn't climb from the lower number, and doesn't run away either).
+- **No history:** bottom of the range, as now.
+- **Moving up is unchanged:** every set at the top of the range in two sessions in a row, then
+  Move up / Not yet (ADR-0016, ADR-0025). Bigger steps simply get you there sooner.
+- **Pace setting (optional, later):** "steady" (+1 everywhere), "standard" (the table above,
+  the default), "fast" (+2 minimum). Worth having once other people use the app.
 
-**Recommendation: B** (4-week blocks from a start date, starting with hypertrophy), no deload
-for now, and "a block pauses while the bot is paused". A bad week then never cuts a block short.
-It needs one new ADR (it amends ADR-0016's target rule) and one small migration (block kind on
-workouts).
+Needs: a new ADR superseding ADR-0016's target rule, and table-driven test updates in
+`domain/targets.py` (pure code, 100% covered).
 
-## D4: Retest cadence
+## 2. Training blocks (D2): decided
 
-**Background.** The product spec lists two days of baseline tests (day 1: bodyweight, girths,
-photos, resting heart rate, max pull-ups/push-ups/dips, dead hang; day 2: split squats, goblet
-squat, calf raises, 12-minute run, deep squat hold, toe touch) and says retest every 4-6 weeks
-under the same conditions.
+- **Optional, per person.** A setting asks whether you train in blocks. Off by default; you'll
+  turn it on.
+- **When on:** 4-week blocks from a start date, alternating:
+  - **Strength block:** lower reps, higher intensity. 4-8 reps, the next ladder step (harder
+    variation), 3-4 sets. At the top of a ladder, the top step with a tempo or pause cue.
+  - **Hypertrophy block:** more reps, less intensity. The plan's ranges at the current step.
+- Targets are kept separately per block kind and step, so strength sets never become targets for
+  hypertrophy sets. Move up is offered in hypertrophy blocks; strength blocks set bests.
+- The count of block weeks stops while the bot is paused, so a lost week doesn't shorten a block.
+- The morning message names the block and adds the ~10 min warm-up before resistance sessions
+  (#26).
+- No deload week for now.
 
-### Options
+## 3. Retests (D4): decided
 
-| | A. Fixed every N weeks | B. At every block boundary | C. Every other block boundary |
-| --- | --- | --- | --- |
-| Cadence | 4, 5 or 6 weeks from the baseline | Every 4 weeks (with D2-B) | Every 8 weeks |
-| How it fits the queue | Two test days inserted when due | The first two days of each new block are test days | The first two days of each hypertrophy block |
-| Pros | Simple, independent of blocks | Before/after numbers for every block | Less testing time; still 6+ results a year |
-| Cons | Can land mid-block, testing tired or fresh by chance | 2 of every 28 days are tests (7%) | Outside the spec's 4-6 weeks |
+- **With blocks:** at the start of each block, so every block has a before and after.
+- **Without blocks:** every 4 weeks.
+- Test days go into the queue like any session (ADR-0006): the order is kept and everything
+  shifts by two days. The same short questions each time (time of day, fed or fasted, slept
+  well) sit next to the results.
 
-Notes:
-- Test days are inserted into the queue (ADR-0006), so the training order is kept and
-  everything shifts by two days; "Rest today" and "Swap" work on them as on any session.
-- "Same conditions": the bot asks the same questions each time (time of day, fed or fasted,
-  slept well) and shows them next to the results, rather than refusing to record a test.
-- The dashboard compares each result with the baseline and the previous retest.
+## 4. Weekly review (D6): decided
 
-**Recommendation: B** if you choose D2-B (retest at the start of every block, so every block has
-a before and after), otherwise **A every 6 weeks**.
-
-## D6: Weekly review day and time
-
-**Background.** The product spec says Sunday. The review covers sessions done vs planned, hard
-sets per muscle group vs Galpin's 10-20, personal bests and what is ready to progress (2-C).
-Once wearable data exists (see `platform-and-health-data-proposal.md`) it can add zone 2
-minutes, steps and sleep regularity.
-
-### Options
-
-| | A. Sunday evening | B. Monday morning | C. Configurable |
-| --- | --- | --- | --- |
-| When | Sun 18:00 | Folded into Monday's morning message | `/settings`, default Sun 18:00 |
-| Pros | The week is over; time to think about next week | One message instead of two | Fits any routine |
-| Cons | Sunday is the long zone 2 day; if logged late, the review misses it | Long morning message on a training day | One more setting |
-
-Notes:
-- The week is Monday to Sunday in Europe/Berlin.
-- Skipped while the bot is paused; sent even when nothing was logged ("0 of 7 sessions").
-- A late log for the week (after the review) does not resend it; `/review` shows the current one
+- **Sunday evening**, 19:00 by default (after the long zone 2 session), adjustable in `/settings`.
+- Monday to Sunday in Europe/Berlin; skipped while paused; `/review` shows the current week at
   any time.
 
-**Recommendation: C**, defaulting to Sunday 19:00 (after an afternoon zone 2 session), plus a
-`/review` command.
+## Next
 
-## Your answers
-
-Reply with a letter per decision (for example "D2 B, D4 B, D6 C") and anything you'd change. I
-then write the ADRs, update `phase-2-overview.md`, and open the issues.
+Once you confirm section 1: ADRs for overload and blocks, then `phase-2-overview.md` updated and
+the phase 2 issues opened.
