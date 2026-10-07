@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     # Groq (transcription + fallback parsing, ADR-0008). Voice logs are off until a key is set.
     groq_api_key: SecretStr | None = None
     groq_transcribe_model: str = "whisper-large-v3-turbo"
+    groq_parse_model: str = "openai/gpt-oss-20b"  # needs strict JSON-schema output
 
     # Scheduling
     timezone: str = "Europe/Berlin"

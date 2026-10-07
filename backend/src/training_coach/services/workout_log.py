@@ -28,6 +28,7 @@ from training_coach.db.models import (
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.parser import Entry, Known, ParseResult, parse_log
 from training_coach.domain.queue import ADVANCING, complete
+from training_coach.services.groq import Rewrite
 from training_coach.services.today import position
 
 
@@ -132,6 +133,16 @@ def draft(session: Session, text: str, on: date, tz: ZoneInfo) -> Draft:
 def _saved_before(session: Session, token: str) -> Saved | None:
     existing = session.scalar(select(Workout.id).where(Workout.log_token == token))
     return Saved(existing, already_saved=True) if existing is not None else None
+
+
+def rewrite_text(rewrite: Rewrite) -> str:
+    """The model's reading as plain log text, so the rule parser judges it like anything
+    typed: names must match exactly, values are bounded, units must fit (ADR-0007)."""
+    return "\n".join(
+        f"{line.exercise} " + " ".join(f"{value}{line.unit}" for value in line.sets)
+        for line in rewrite.lines
+        if line.sets
+    )
 
 
 def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | None:

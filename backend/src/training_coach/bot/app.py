@@ -325,7 +325,11 @@ def build_bot(
         CallbackQueryHandler(settings_handlers.button, pattern=rf"^{settings_ui.PREFIX}:")
     )
     groq = (
-        GroqClient(settings.groq_api_key, transcribe_model=settings.groq_transcribe_model)
+        GroqClient(
+            settings.groq_api_key,
+            transcribe_model=settings.groq_transcribe_model,
+            parse_model=settings.groq_parse_model,
+        )
         if groq is None and settings.groq_api_key is not None
         else groq
     )
