@@ -42,6 +42,11 @@ and a strength block is followed by a hypertrophy block.
 
 ## Consequences
 
+- As built (#26): a workout is filed as `strength` only when the strength prescription applied
+  to it (a planned strength session in a strength block); extras and other sessions that day
+  stay ordinary history. Timed and duration exercises keep one history across blocks. Move up
+  is held in feedback and in `/progress` during a strength block.
+
 - A migration adds the block kind to workouts and the setting (with the date blocks started) to
   user settings. Existing workouts have no block kind and count as hypertrophy.
 - `domain/` gains pure block maths (block number and kind for a day, paused days excluded),

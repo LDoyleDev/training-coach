@@ -28,7 +28,7 @@ The web app, multi-user and wearable data direction: `platform-and-health-data-p
 
 Order: data first, then Telegram features, then the dashboard that shows them.
 
-Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74, 2-C #73 (done), 2-E #26. The
+Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74, 2-C #73 (done), 2-E #26 (done). The
 others wait on D1, D3 and D5.
 
 ### 2-0 Multi-user-ready schema (#72, done)
@@ -56,10 +56,11 @@ others wait on D1, D3 and D5.
 ### 2-D Habit check-offs
 - Per D5. One message or buttons; streaks shown in the weekly review.
 
-### 2-E Strength and hypertrophy blocks (#26)
-- Optional 4-week blocks per ADR-0028. Built: the "Train in blocks" setting, the block calendar
-  (paused days don't count), each workout's block, and the morning message naming the block
-  and prompting the warm-up before strength sessions. Next: what a strength block prescribes.
+### 2-E Strength and hypertrophy blocks (#26, done)
+- Optional 4-week blocks per ADR-0028, built: "Train in blocks" in `/settings`, the block
+  calendar (paused days don't count), the strength prescription (one step harder, 4-8 reps,
+  3-4 sets) with its own history, Move up held for hypertrophy blocks, and the morning message
+  naming the block and prompting the warm-up before strength sessions.
 
 ### 2-F Dashboard login and share links
 - Owner sign-in and read-only share links exactly as ADR-0012 (Telegram HMAC, hashed expiring
