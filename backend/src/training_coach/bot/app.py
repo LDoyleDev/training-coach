@@ -47,6 +47,7 @@ from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
 from training_coach.services import queue_actions, user_settings
+from training_coach.services.groq import GroqClient
 from training_coach.services.today import session_plan
 from training_coach.services.today import today as todays_session
 from training_coach.services.today import week as upcoming_week
@@ -61,7 +62,7 @@ HELP_TEXT = (
     "/settings - message times, nudges, pause\n"
     "/help - this message\n\n"
     "Log a workout by sending it as a message, like: pull-ups 8 8 7, dips 12 11 10. "
-    "I'll show what I understood before saving anything.\n\n"
+    "A voice note works too. I'll show what I understood before saving anything.\n\n"
     "The session for the day also arrives every morning, with buttons to start it, "
     "take a rest day or swap it."
 )
@@ -301,7 +302,9 @@ def schedule_jobs(application: Application, handlers: Handlers, prefs: Prefs) ->
 
 # PTB's Application takes six type parameters, all fixed by the default builder; spelling them
 # out adds nothing, so the bare generic is deliberate.
-def build_bot(settings: Settings, sessions: sessionmaker[Session]) -> Application:  # type: ignore[type-arg]
+def build_bot(
+    settings: Settings, sessions: sessionmaker[Session], groq: GroqClient | None = None
+) -> Application:  # type: ignore[type-arg]  # see the comment above
     if settings.telegram_bot_token is None:
         raise ValueError("TC_TELEGRAM_BOT_TOKEN must be set to run the bot")
     application = (
@@ -321,7 +324,12 @@ def build_bot(settings: Settings, sessions: sessionmaker[Session]) -> Applicatio
     application.add_handler(
         CallbackQueryHandler(settings_handlers.button, pattern=rf"^{settings_ui.PREFIX}:")
     )
-    log_handlers = LogHandlers(settings, sessions)
+    groq = (
+        GroqClient(settings.groq_api_key, transcribe_model=settings.groq_transcribe_model)
+        if groq is None and settings.groq_api_key is not None
+        else groq
+    )
+    log_handlers = LogHandlers(settings, sessions, groq)
     application.add_handler(
         CallbackQueryHandler(log_handlers.button, pattern=rf"^{logging_flow.PREFIX}:")
     )
@@ -341,6 +349,7 @@ def build_bot(settings: Settings, sessions: sessionmaker[Session]) -> Applicatio
             await log_handlers.message(update, context)
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & allowed, text))
+    application.add_handler(MessageHandler(filters.VOICE & allowed, log_handlers.voice))
 
     application.add_error_handler(handlers.error)
 
