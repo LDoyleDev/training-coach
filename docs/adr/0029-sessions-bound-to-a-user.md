@@ -42,9 +42,9 @@ another person's training data, and nothing would notice until a second person e
 - A query that forgets the user is still scoped; tests with two users prove each sees and
   changes only their own rows: plain and joined reads, sets on their own, lookups by id,
   cached statements, bulk deletes, and the refused writes above.
-- An unbound session sees everyone. Using one for per-person work is a bug that tests won't
-  catch on their own yet; a guard that makes such access raise outside the seed and start-up is
-  the follow-up step of #72.
+- An unbound session refuses per-person rows: any ORM statement that selects from or joins an
+  owned table raises unless it passes `all_users` explicitly (the seed's shared checks), so
+  per-person work can't silently run unscoped.
 - Event payloads are unchanged; events now record whose they are, and system events have none.
   Deleting a user cascades to all their rows, events included.
 - Linking moves the owner to whatever Telegram account is allowed (recorded as
