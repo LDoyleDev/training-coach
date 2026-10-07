@@ -26,13 +26,16 @@ block kind):
   that same target, not a step from the lower number. Missed or not is judged per set.
   - "The target it was given" is recomputed, so nothing new is stored: it is the target rule
     applied to the session before it at the same ladder step (and, once blocks exist, the same
-    block kind). With no such session, it was the bottom of the range, as for any first session.
+    block kind).
+  - **The first session at a step is the baseline:** it is never a miss, and the next targets
+    step up from what was done. So below the bottom of the range targets grow by the step
+    instead of jumping to the minimum.
   - **Two misses in a row** of the same set at the same held target: the next target for that
     set is its last value plus 1, so a bad patch (illness, poor sleep) never leaves a target
     out of reach for good.
 - **Unchanged from ADR-0016:** no history means the bottom of the range; below the bottom,
-  targets still grow by the step; fewer sets logged than planned start the missing sets from the
-  weakest logged set.
+  targets grow gradually (here by the step, from the baseline above) rather than jumping to the
+  minimum; fewer sets logged than planned start the missing sets from the weakest logged set.
 
 ## Consequences
 
@@ -43,3 +46,6 @@ block kind):
 - Exercises reach the top of their range sooner, so the progression prompt (ADR-0016, ADR-0025)
   comes earlier; its rule is unchanged.
 - A pace setting (steady +1, standard as above, fast with at least +2) is left for later.
+- History is every session at the step, whichever planned session it was logged in, judged
+  against today's prescription. An exercise with different ranges in two sessions can see a
+  target held or eased against the "other" range; blocks will add the block kind to the scope.
