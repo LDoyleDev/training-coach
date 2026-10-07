@@ -197,6 +197,10 @@ class UserSettings(Owned, Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     morning_time: Mapped[time] = mapped_column(Time, default=time(7, 30))
     nudge_time: Mapped[time] = mapped_column(Time, default=time(20, 0))
+    # The weekly review goes out on Sundays at this time (D6, #73).
+    review_time: Mapped[time] = mapped_column(
+        Time, default=time(19, 0), server_default="19:00:00.000000"
+    )
     nudges_enabled: Mapped[bool] = mapped_column(Boolean, server_default=true())
     paused: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)

@@ -1,7 +1,9 @@
 from datetime import UTC, date, datetime, time
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
@@ -17,9 +19,10 @@ from tests.bot.fakes import (
     texts,
 )
 from training_coach.bot import settings as settings_ui
-from training_coach.bot.app import MORNING_JOB, NUDGE_JOB, Handlers
+from training_coach.bot.app import MORNING_JOB, NUDGE_JOB, REVIEW_JOB, Handlers
 from training_coach.bot.messages import NUDGE, SOMETHING_WENT_WRONG
 from training_coach.db.models import Workout
+from training_coach.db.session import make_session_factory
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.services import user_settings
 from training_coach.services.user_settings import Prefs
@@ -55,6 +58,8 @@ def _next_run(application: App, name: str) -> datetime:
         ("s:morning:0645", settings_ui.Press("morning", time(6, 45))),
         ("s:nudge:2100", settings_ui.Press("nudge", time(21, 0))),
         ("s:ask-morning", settings_ui.Press("ask-morning")),
+        ("s:review:2000", settings_ui.Press("review", time(20, 0))),
+        ("s:ask-review", settings_ui.Press("ask-review")),
         ("s:nudges:off", settings_ui.Press("nudges", on=False)),
         ("s:pause:on", settings_ui.Press("pause", on=True)),
         ("s:pause", None),
@@ -76,11 +81,14 @@ def test_text_and_keyboard_show_the_current_values() -> None:
     assert settings_ui.text(prefs).splitlines()[2:] == [
         "Morning message: 07:00",
         "Evening nudge: 20:00 (off)",
+        "Weekly review: Sundays 19:00",
         "Paused: yes, no messages until you resume",
     ]
     labels = [b.text for row in settings_ui.keyboard(prefs).inline_keyboard for b in row]
     assert "• 07:00" in labels
     assert "• 20:00" in labels
+    assert "Review • 19:00" in labels
+    assert "Review: other time…" in labels
     assert "Turn nudges on" in labels
     assert "Resume" in labels
 
@@ -245,3 +253,81 @@ async def test_pressing_a_toggle_on_an_unchanged_message_is_not_an_error(
     calls = await run(application, press("s:pause:on", OWNER), unmodified=True)
     assert SOMETHING_WENT_WRONG not in texts(calls)
     assert _prefs(seeded).paused
+
+
+# ------------------------------------------------------------------ weekly review (#73)
+
+
+def _review_run(application: App, after: datetime) -> datetime:
+    assert application.job_queue is not None
+    (job,) = application.job_queue.get_jobs_by_name(REVIEW_JOB)
+    fire: datetime = job.job.trigger.get_next_fire_time(None, after)
+    return fire.astimezone(UTC)
+
+
+@pytest.mark.parametrize(
+    ("after", "expected"),
+    [
+        pytest.param(
+            datetime(2026, 10, 6, 12, tzinfo=UTC),  # a Tuesday
+            datetime(2026, 10, 11, 17, 0, tzinfo=UTC),  # Sunday 19:00 CEST
+            id="next-sunday",
+        ),
+        pytest.param(
+            datetime(2026, 10, 24, 12, tzinfo=UTC),
+            datetime(2026, 10, 25, 18, 0, tzinfo=UTC),  # clocks went back that morning: CET
+            id="fall-back-sunday",
+        ),
+        pytest.param(
+            datetime(2027, 3, 27, 12, tzinfo=UTC),
+            datetime(2027, 3, 28, 17, 0, tzinfo=UTC),  # clocks went forward that morning: CEST
+            id="spring-forward-sunday",
+        ),
+    ],
+)
+def test_the_review_goes_out_on_sundays_at_seven_local(
+    application: App, after: datetime, expected: datetime
+) -> None:
+    assert _review_run(application, after) == expected
+
+
+async def test_review_preset_saves_and_reschedules(application: App, seeded: Sessions) -> None:
+    calls = await run(application, press("s:review:2000", OWNER))
+    assert _prefs(seeded).review_time == time(20, 0)
+    assert "Weekly review: Sundays 20:00" in calls["editMessageText"][0]["text"]
+    assert _review_run(application, datetime(2026, 10, 6, 12, tzinfo=UTC)) == datetime(
+        2026, 10, 11, 18, 0, tzinfo=UTC
+    )
+
+
+async def test_typed_review_time_after_other(application: App, seeded: Sessions) -> None:
+    asked = await run(application, press("s:ask-review", OWNER))
+    assert texts(asked) == ["Send the review time as HH:MM, for example 07:15."]
+    await run(application, text_message("17:45", OWNER))
+    assert _prefs(seeded).review_time == time(17, 45)
+    assert _review_run(application, datetime(2026, 10, 6, 12, tzinfo=UTC)) == datetime(
+        2026, 10, 11, 15, 45, tzinfo=UTC
+    )
+
+
+async def test_the_review_is_sent_to_the_owner(seeded: Sessions) -> None:
+    context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
+    await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    context.bot.send_message.assert_awaited_once()
+    kwargs = context.bot.send_message.await_args.kwargs
+    assert kwargs["chat_id"] == OWNER
+    assert kwargs["text"].startswith("Week of ")
+
+
+async def test_the_review_is_skipped_while_paused(seeded: Sessions) -> None:
+    _set(seeded, paused=True)
+    context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
+    await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    context.bot.send_message.assert_not_awaited()
+
+
+async def test_the_review_survives_a_database_error() -> None:
+    broken = make_session_factory(create_engine("sqlite://"), user_id=1)
+    context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
+    await Handlers(SETTINGS, broken).weekly_review(context)  # type: ignore[arg-type]  # fake
+    context.bot.send_message.assert_not_awaited()

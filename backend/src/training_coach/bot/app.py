@@ -40,6 +40,7 @@ from training_coach.bot.messages import (
     picked_text,
     pushed_text,
     rest_text,
+    review_text,
     session_detail_text,
     today_text,
     week_text,
@@ -47,7 +48,7 @@ from training_coach.bot.messages import (
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import queue_actions, user_settings
+from training_coach.services import queue_actions, review, user_settings
 from training_coach.services.groq import GroqClient
 from training_coach.services.today import session_plan
 from training_coach.services.today import today as todays_session
@@ -71,6 +72,8 @@ HELP_TEXT = (
 )
 MORNING_JOB = "morning"
 NUDGE_JOB = "nudge"
+REVIEW_JOB = "weekly-review"
+SUNDAY = 0  # PTB counts days from Sunday (0) to Saturday (6)
 Job = Callable[[ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
 
 
@@ -170,6 +173,24 @@ class Handlers:
             log.info("bot.morning_sent")
         else:
             log.error("bot.morning_failed")
+
+    async def weekly_review(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Sunday's review of the week (#73), unless paused."""
+        try:
+            with session_scope(self.sessions) as session:
+                paused = user_settings.load(session).paused
+                text = review_text(review.weekly(session, self._local_today()))
+        except SQLAlchemyError as exc:
+            log.error("bot.review_failed", error=type(exc).__name__)
+            return
+        if paused:
+            log.info("bot.review_skipped", reason="paused")
+            return
+        assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
+        if await send_with_retry(context.bot, self.settings.telegram_allowed_user_id, text):
+            log.info("bot.review_sent")
+        else:
+            log.error("bot.review_failed")
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """A morning-message button. Strangers get nothing, not even an answer (T1)."""
@@ -280,8 +301,9 @@ def _schedule_daily(
     callback: Job,
     at: time,
     tz: ZoneInfo,
+    days: tuple[int, ...] = tuple(range(7)),
 ) -> None:
-    """(Re)schedule a daily job at local wall-clock time ``at``.
+    """(Re)schedule a job at local wall-clock time ``at`` on ``days`` (PTB: 0 is Sunday).
 
     The time carries the user's timezone, so the job follows DST: 07:30 stays 07:30 local.
     """
@@ -289,7 +311,7 @@ def _schedule_daily(
     assert job_queue is not None  # noqa: S101 - the job-queue extra is a dependency
     for job in job_queue.get_jobs_by_name(name):
         job.schedule_removal()
-    job_queue.run_daily(callback, time=at.replace(tzinfo=tz), name=name)
+    job_queue.run_daily(callback, time=at.replace(tzinfo=tz), days=days, name=name)
     log.info("bot.job_scheduled", job=name, at=at.isoformat())
 
 
@@ -298,9 +320,13 @@ def schedule_morning(application: Application, handlers: Handlers, at: time) -> 
 
 
 def schedule_jobs(application: Application, handlers: Handlers, prefs: Prefs) -> None:  # type: ignore[type-arg]  # see build_bot
-    """Schedule the morning message and the evening nudge from the saved settings."""
+    """Schedule the morning message, the evening nudge and Sunday's review from the settings."""
+    tz = handlers.settings.tz
     schedule_morning(application, handlers, prefs.morning_time)
-    _schedule_daily(application, NUDGE_JOB, handlers.nudge, prefs.nudge_time, handlers.settings.tz)
+    _schedule_daily(application, NUDGE_JOB, handlers.nudge, prefs.nudge_time, tz)
+    _schedule_daily(
+        application, REVIEW_JOB, handlers.weekly_review, prefs.review_time, tz, days=(SUNDAY,)
+    )
 
 
 # PTB's Application takes six type parameters, all fixed by the default builder; spelling them

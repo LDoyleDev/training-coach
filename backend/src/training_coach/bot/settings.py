@@ -1,4 +1,4 @@
-"""/settings: morning and nudge times, nudges on/off, pause.
+"""/settings: morning, nudge and weekly review times, nudges on/off, pause.
 
 Callback data is ``s:<what>[:<HHMM>]``. A typed time (after "Other time...") is only read
 while the bot is waiting for one; otherwise plain text is left for logging (step 1-E).
@@ -25,7 +25,9 @@ log = structlog.get_logger(__name__)
 PREFIX = "s"
 MORNING_PRESETS = (time(6, 30), time(7, 0), time(7, 30), time(8, 0))
 NUDGE_PRESETS = (time(19, 0), time(20, 0), time(21, 0))
-AWAITING = "awaiting_time"  # key in context.user_data: "morning" or "nudge"
+REVIEW_PRESETS = (time(18, 0), time(19, 0), time(20, 0))  # Sundays
+TIMES = ("morning", "nudge", "review")
+AWAITING = "awaiting_time"  # key in context.user_data: one of TIMES
 BAD_TIME = "That isn't a time like 07:30. Send it again, or /settings to cancel."
 
 Reschedule = Callable[[ContextTypes.DEFAULT_TYPE, Prefs], None]
@@ -33,7 +35,7 @@ Reschedule = Callable[[ContextTypes.DEFAULT_TYPE, Prefs], None]
 
 @dataclass(frozen=True)
 class Press:
-    what: str  # morning | nudge | ask-morning | ask-nudge | nudges | pause
+    what: str  # morning | nudge | review | ask-<one of those> | nudges | pause
     at: time | None = None
     on: bool | None = None  # the value a nudges/pause button sets
 
@@ -52,12 +54,12 @@ def _toggle(what: str, on: bool) -> str:
 
 def parse(data: str | None) -> Press | None:
     parts = (data or "").split(":")
-    if len(parts) == 2 and parts[0] == PREFIX and parts[1] in {"ask-morning", "ask-nudge"}:
+    if len(parts) == 2 and parts[0] == PREFIX and parts[1] in {f"ask-{t}" for t in TIMES}:
         return Press(parts[1])
     if len(parts) == 3 and parts[0] == PREFIX and parts[1] in {"nudges", "pause"}:
         # Toggles carry their target, so a button on an old message sets what it says.
         return Press(parts[1], on=parts[2] == "on") if parts[2] in ("on", "off") else None
-    if len(parts) == 3 and parts[0] == PREFIX and parts[1] in {"morning", "nudge"}:
+    if len(parts) == 3 and parts[0] == PREFIX and parts[1] in TIMES:
         at = parse_hhmm(f"{parts[2][:2]}:{parts[2][2:]}") if len(parts[2]) == 4 else None
         return Press(parts[1], at) if at is not None else None
     return None
@@ -71,6 +73,7 @@ def text(prefs: Prefs) -> str:
             "",
             f"Morning message: {_hhmm(prefs.morning_time)}",
             f"Evening nudge: {_hhmm(prefs.nudge_time)} ({nudge})",
+            f"Weekly review: Sundays {_hhmm(prefs.review_time)}",
             f"Paused: {'yes, no messages until you resume' if prefs.paused else 'no'}",
         ]
     )
@@ -100,6 +103,11 @@ def keyboard(prefs: Prefs) -> InlineKeyboardMarkup:
                     callback_data=_toggle("nudges", not prefs.nudges_enabled),
                 ),
             ],
+            [
+                button(f"Review {_mark(t, prefs.review_time)}", callback_data=_data("review", t))
+                for t in REVIEW_PRESETS
+            ],
+            [button("Review: other time…", callback_data=_data("ask-review"))],
             [
                 button(
                     "Resume" if prefs.paused else "Pause",
@@ -139,7 +147,7 @@ class SettingsHandlers:
         await query.answer()
         if press is None or not isinstance(query.message, Message):
             return
-        if press.what in ("ask-morning", "ask-nudge"):
+        if press.what.startswith("ask-"):
             which = press.what.removeprefix("ask-")
             if context.user_data is not None:
                 context.user_data[AWAITING] = which
@@ -150,10 +158,11 @@ class SettingsHandlers:
                 session,
                 morning_time=press.at if press.what == "morning" else None,
                 nudge_time=press.at if press.what == "nudge" else None,
+                review_time=press.at if press.what == "review" else None,
                 nudges_enabled=press.on if press.what == "nudges" else None,
                 paused=press.on if press.what == "pause" else None,
             )
-        if press.what in ("morning", "nudge"):
+        if press.what in TIMES:
             self.reschedule(context, prefs)
         log.info("bot.settings_changed", what=press.what)
         await edit_quietly(query.edit_message_text(text(prefs), reply_markup=keyboard(prefs)))
@@ -162,7 +171,7 @@ class SettingsHandlers:
         """Plain text from the owner: a time, if one was asked for."""
         message = update.effective_message
         which = context.user_data.get(AWAITING) if context.user_data is not None else None
-        if message is None or which not in ("morning", "nudge"):
+        if message is None or which not in TIMES:
             return
         at = parse_hhmm(message.text or "")
         if at is None:
@@ -171,10 +180,12 @@ class SettingsHandlers:
         assert context.user_data is not None  # noqa: S101 - read above
         context.user_data.pop(AWAITING, None)
         with session_scope(self.sessions) as session:
-            if which == "morning":
-                prefs = user_settings.update(session, morning_time=at)
-            else:
-                prefs = user_settings.update(session, nudge_time=at)
+            prefs = user_settings.update(
+                session,
+                morning_time=at if which == "morning" else None,
+                nudge_time=at if which == "nudge" else None,
+                review_time=at if which == "review" else None,
+            )
         self.reschedule(context, prefs)
         log.info("bot.settings_changed", what=which)
         await message.reply_text(text(prefs), reply_markup=keyboard(prefs))
