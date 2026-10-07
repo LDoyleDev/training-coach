@@ -123,7 +123,8 @@ def test_first_session_without_history_aims_for_the_bottom(seeded: Session) -> N
     assert plan.logged_today == ()
 
 
-def test_targets_follow_the_last_session_at_the_same_step(seeded: Session) -> None:
+def test_targets_step_up_from_the_last_session_at_the_same_step(seeded: Session) -> None:
+    """ADR-0027: each set aims last value + about 10% of the range top (5-12: +1, 8-15: +2)."""
     _log(seeded, "pull-up", [(1, Side.BOTH, 8), (2, Side.BOTH, 7), (3, Side.BOTH, 6)])
     _log(
         seeded,
@@ -133,8 +134,8 @@ def test_targets_follow_the_last_session_at_the_same_step(seeded: Session) -> No
     plan = today(seeded, DAY)
     assert plan is not None
     pull_up, split_squat = plan.session.items
-    assert pull_up.targets == (8, 8, 7)
-    assert split_squat.targets == (10, 10)  # weaker side counts: 9/9 -> +1 each
+    assert pull_up.targets == (9, 8, 7)
+    assert split_squat.targets == (11, 11)  # weaker side counts: 9/9 -> +2 each
 
 
 def test_latest_session_wins(seeded: Session) -> None:
@@ -211,3 +212,22 @@ def test_queued_sessions_missing_from_the_plan_are_ignored(seeded: Session) -> N
     days = week(seeded, DAY, days=2)
     assert days is not None
     assert [d.session for d in days] == ["Upper", "Zone 2"]
+
+
+def test_a_missed_target_is_held_across_logged_sessions(seeded: Session) -> None:
+    """ADR-0027 through the database: history is replayed oldest first."""
+    _log(
+        seeded,
+        "pull-up",
+        [(1, Side.BOTH, 8), (2, Side.BOTH, 7), (3, Side.BOTH, 6)],
+        on=date(2026, 9, 28),
+    )  # next: 9 / 8 / 7
+    _log(
+        seeded,
+        "pull-up",
+        [(1, Side.BOTH, 9), (2, Side.BOTH, 7), (3, Side.BOTH, 7)],
+        on=date(2026, 10, 2),
+    )  # set 2 missed its 8
+    plan = today(seeded, DAY)
+    assert plan is not None
+    assert plan.session.items[0].targets == (10, 8, 8)
