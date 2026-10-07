@@ -91,7 +91,8 @@ source_modules = [
     "training_coach.db",
     "training_coach.domain",
 ]
-forbidden_modules = ["httpx"]
+# Whole packages only (import-linter rule): urllib.parse and http.HTTPStatus are blocked too.
+forbidden_modules = ["httpx", "requests", "aiohttp", "urllib3", "urllib", "http"]
 allow_indirect_imports = true
 
 [tool.pytest.ini_options]
