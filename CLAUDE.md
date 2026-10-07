@@ -106,8 +106,8 @@ scripts/     repo and ops scripts            .claude/        commands, subagents
 
 ## Deployment
 
-Desktop -> PR -> merge -> on the Pi: `git pull && make up`. Never edit code on the Pi.
-Details: `docs/runbooks/deploy.md`.
+Desktop -> PR -> merge -> release PR merged -> the Pi deploys the new tag itself within about
+15 minutes (ADR-0030). Never edit code on the Pi. Details: `docs/runbooks/deploy.md`.
 
 ## Gotchas
 

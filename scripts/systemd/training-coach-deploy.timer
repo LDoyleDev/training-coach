@@ -1,0 +1,11 @@
+# Checks for a new release every 15 minutes (ADR-0030).
+[Unit]
+Description=Check for a new Training Coach release every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
