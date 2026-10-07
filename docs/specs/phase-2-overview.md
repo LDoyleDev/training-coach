@@ -17,11 +17,11 @@ The web app, multi-user and wearable data direction: `platform-and-health-data-p
 
 | # | Decision | Why it matters |
 | --- | --- | --- |
-| D1 | Dashboard visual design and screen list (`dashboard-design.md` says it is agreed first) | Every web step depends on it |
+| D1 | Dashboard visual design and screen list (`dashboard-design.md` says it is agreed first); a clickable mockup is being prepared to decide it | Every web step depends on it |
 | D2 | ~~Monthly strength/hypertrophy blocks (#26)~~ Decided: optional 4-week blocks | `phase-2-decisions.md` |
-| D3 | Where progress photos are stored, and whether they are encrypted at rest | Most sensitive data in the app; SD card and backups |
+| D3 | ~~Where progress photos are stored~~ Decided: on the Pi for now | `phase-2-decisions.md` |
 | D4 | ~~Retest cadence~~ Decided: start of each block, else every 4 weeks | `phase-2-decisions.md` |
-| D5 | Which habits to track (product spec: morning light, sleep, protein) and how (one tap each, or a daily check-in) | Data model and message design |
+| D5 | ~~Which habits to track~~ Decided: morning light, protein, wind-down; sleep and steps from the band later | `phase-2-decisions.md` |
 | D6 | ~~Weekly review day and time~~ Decided: Sunday 19:00, adjustable | `phase-2-decisions.md` |
 
 ## Proposed steps (draft)
@@ -44,8 +44,8 @@ others wait on D1, D3 and D5.
 
 ### 2-B Body measurements and progress photos
 - Measurements (bodyweight, waist, chest, upper arm, thigh, resting heart rate) logged by text.
-- Photos stored per D3; never in logs, never in share views (ADR-0012), excluded from any
-  public endpoint (ADR-0019).
+- Photos stored on the Pi (D3); never in logs, never in share views (ADR-0012), excluded from
+  any public endpoint (ADR-0019); the nightly backup and the desktop pull include them.
 
 ### 2-C Weekly review message (#73, done)
 - Built: `/review` shows the week so far, and the review is sent every Sunday at 19:00 (local,
@@ -54,7 +54,8 @@ others wait on D1, D3 and D5.
   personal bests, exercises ready to progress.
 
 ### 2-D Habit check-offs
-- Per D5. One message or buttons; streaks shown in the weekly review.
+- Per D5: three one-tap check-offs in one evening message; the week's tally in the weekly
+  review (5 of 7), no streaks to break. The protein target is a setting.
 
 ### 2-E Strength and hypertrophy blocks (#26, done)
 - Optional 4-week blocks per ADR-0028, built: "Train in blocks" in `/settings`, the block

@@ -1,6 +1,7 @@
 # Phase 2: decisions on blocks, overload, retests and the weekly review
 
-Status: **all decided by Liam on 2026-10-07**, including the overload step size (section 1).
+Status: **all decided by Liam on 2026-10-07**, including the overload step size (section 1),
+photo storage (D3) and habits (D5).
 Next: ADRs and issues. The table of open
 decisions stays in `phase-2-overview.md`; D1 (dashboard design), D3 (photo storage) and D5
 (habits) are still open there.
@@ -72,6 +73,29 @@ table-driven tests (pure code, 100% covered).
 - Monday to Sunday in Europe/Berlin; skipped while paused; `/review` shows the current week at
   any time.
 
+## 5. Progress photos (D3): decided 2026-10-07
+
+- Stored on the Pi for now, next to the database, readable only by the app's user and group
+  (as the backups are, ADR-0024). Where, or whether, to store them is decided again when the
+  app moves to another server.
+- Never in logs, share views (ADR-0012) or public endpoints (ADR-0019).
+- The nightly backup and the desktop pull include them (today they copy the database only).
+
+## 6. Habits (D5): decided 2026-10-07
+
+- **Three one-tap check-offs**, in one evening message (sent in place of the nudge when
+  nothing else is due):
+  - **Morning light:** outside within an hour of waking, about 10 minutes when clear and
+    20-30 when cloudy.
+  - **Protein target:** a daily protein goal reached; the number is a setting.
+  - **Wind-down:** no screens or bright light in the last hour before bed.
+- **Two that track themselves** once the band's data arrives (health data phase): sleep
+  regularity (in bed and up within about 30 minutes of the usual times) and daily steps.
+- Left out on purpose: caffeine timing (a fourth daily tap), cold and heat (part of the
+  Recovery session instead), hydration.
+- The weekly review shows each habit's week ("5 of 7"); there are no streaks to break.
+
 ## Next
 
 ADR-0028 records the blocks; the phase 2 issues are open in milestone "Phase 2 - Overview".
+D1 (the dashboard) is being decided with a clickable mockup.
