@@ -80,10 +80,15 @@ def _item(session: Session, exercise_id: int, template_id: int | None) -> Templa
 
 
 def _prescription(item: TemplateItem) -> Prescription:
-    return Prescription(sets=item.sets, rep_min=item.rep_min, rep_max=item.rep_max)
+    return Prescription(
+        sets=item.sets,
+        rep_min=item.rep_min,
+        rep_max=item.rep_max,
+        kind=ExerciseKind(item.exercise.kind),
+    )
 
 
-def _sessions(
+def sessions_at_step(
     session: Session, exercise_id: int, step_id: int, per_side: bool
 ) -> list[tuple[int, list[int]]]:
     """Every done workout's per-set values for this exercise at this step, newest first."""
@@ -115,7 +120,7 @@ def _next_step(session: Session, step: LadderStep) -> LadderStep | None:
 def _status(session: Session, item: TemplateItem | None, step: LadderStep) -> Progress:
     if item is None:
         return Progress.HOLD
-    recent = [v for _, v in _sessions(session, step.exercise_id, step.id, item.per_side)]
+    recent = [v for _, v in sessions_at_step(session, step.exercise_id, step.id, item.per_side)]
     return assess(_prescription(item), recent, has_next_step=_next_step(session, step) is not None)
 
 
@@ -146,7 +151,7 @@ def feedback(session: Session, workout_id: int) -> list[Feedback]:
             continue
         item = _item(session, exercise_id, workout.template_id)
         per_side = item.per_side if item is not None else False
-        history = _sessions(session, exercise_id, step_id, per_side)
+        history = sessions_at_step(session, exercise_id, step_id, per_side)
         # History is newest first, so what follows this workout came before it: a backdated
         # log is compared with the sessions before its day, not with later ones.
         at = next((i for i, (w, _) in enumerate(history) if w == workout_id), len(history))
@@ -266,7 +271,7 @@ def overview(session: Session) -> list[Standing]:
         # Display only: "last" and "best" use the first prescription's sides. Readiness is
         # judged per prescription below, exactly as Move up re-checks it.
         per_side = items[0].per_side if items else False
-        history = [v for _, v in _sessions(session, exercise_id, step.id, per_side)]
+        history = [v for _, v in sessions_at_step(session, exercise_id, step.id, per_side)]
         statuses = {_status(session, item, step) for item in items}
         status = next(
             (s for s in (Progress.READY, Progress.TOP_OF_LADDER) if s in statuses), Progress.HOLD

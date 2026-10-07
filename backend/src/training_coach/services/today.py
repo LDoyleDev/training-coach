@@ -15,14 +15,13 @@ from training_coach.db.models import (
     LadderStep,
     PlanState,
     SessionTemplate,
-    SetLog,
     TemplateItem,
     Workout,
 )
-from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
-from training_coach.domain.progression import combine_sides
+from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import ADVANCING, Position, upcoming
 from training_coach.domain.targets import Prescription, targets
+from training_coach.services.progress import sessions_at_step
 
 
 @dataclass(frozen=True)
@@ -71,42 +70,23 @@ def position(session: Session) -> Position | None:
     return Position(state.next_template_id, tuple(t for t in state.queued if t in known))
 
 
-def _last_values(session: Session, item: TemplateItem, step_id: int) -> list[int] | None:
-    """Per-set values from the most recent done workout with this exercise at this step."""
-    workout_id = session.scalar(
-        select(Workout.id)
-        .join(SetLog)
-        .where(
-            Workout.status == WorkoutStatus.DONE,
-            SetLog.exercise_id == item.exercise_id,
-            SetLog.ladder_step_id == step_id,
-        )
-        .order_by(Workout.local_date.desc(), Workout.created_at.desc())
-        .limit(1)
-    )
-    if workout_id is None:
-        return None
-    rows = session.execute(
-        select(SetLog.set_no, SetLog.side, SetLog.value).where(
-            SetLog.workout_id == workout_id, SetLog.exercise_id == item.exercise_id
-        )
-    )
-    return combine_sides(((n, Side(s), v) for n, s, v in rows), unilateral=item.per_side)
-
-
 def _item_plan(session: Session, item: TemplateItem) -> ItemPlan:
     state = session.get(ExerciseState, item.exercise_id)
     step = session.get(LadderStep, state.ladder_step_id) if state is not None else None
     if step is None:  # seeding always creates state; fall back to the first rung if not
         step = min(item.exercise.ladder, key=lambda s: s.position)
-    prescription = Prescription(sets=item.sets, rep_min=item.rep_min, rep_max=item.rep_max)
+    kind = ExerciseKind(item.exercise.kind)
+    prescription = Prescription(
+        sets=item.sets, rep_min=item.rep_min, rep_max=item.rep_max, kind=kind
+    )
+    history = [v for _, v in sessions_at_step(session, item.exercise_id, step.id, item.per_side)]
     return ItemPlan(
         exercise=item.exercise.name,
-        kind=ExerciseKind(item.exercise.kind),
+        kind=kind,
         step=step.name,
         cue=step.cue,
         per_side=item.per_side,
-        targets=targets(prescription, _last_values(session, item, step.id)),
+        targets=targets(prescription, history),
     )
 
 
