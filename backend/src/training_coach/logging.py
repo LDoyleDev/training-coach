@@ -25,8 +25,11 @@ def configure_logging(settings: Settings) -> None:
             renderer,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(level),
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
-        cache_logger_on_first_use=True,
+        # No file argument: each logger writes to sys.stdout as it is when created. Caching
+        # pins that stream for good, so it's for production only; in tests a logger first used
+        # under one test's captured stdout kept writing to it after it closed (#39).
+        logger_factory=structlog.PrintLoggerFactory(),
+        cache_logger_on_first_use=settings.environment == "production",
     )
     logging.basicConfig(level=level, stream=sys.stdout, format="%(message)s")
     # httpx logs full request URLs, which contain the Telegram bot token.
