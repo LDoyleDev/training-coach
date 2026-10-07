@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.7.0](https://github.com/LDoyleDev/training-coach/compare/v0.6.0...v0.7.0) (2026-10-07)
+
+
+### Features
+
+* **domain:** aim about 10% of the range higher each session ([#71](https://github.com/LDoyleDev/training-coach/issues/71)) ([218b336](https://github.com/LDoyleDev/training-coach/commit/218b336c72eb1a41c1ac8e83a1949f6f5ac54a11)), closes [#70](https://github.com/LDoyleDev/training-coach/issues/70)
+
+
+### Documentation
+
+* options for phase 2 decisions and a web app and health data proposal ([#67](https://github.com/LDoyleDev/training-coach/issues/67)) ([6b7baef](https://github.com/LDoyleDev/training-coach/commit/6b7baef9c585315b60199649aa76f1d68aceb19b))
+
 ## [0.6.0](https://github.com/LDoyleDev/training-coach/compare/v0.5.0...v0.6.0) (2026-10-07)
 
 
