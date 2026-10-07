@@ -12,7 +12,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import (
-    LadderStep,
     SessionTemplate,
     TemplateItem,
     Workout,
@@ -20,7 +19,7 @@ from training_coach.db.models import (
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import ADVANCING, Position, upcoming
-from training_coach.domain.targets import Prescription, targets
+from training_coach.domain.targets import targets
 from training_coach.services import blocks, users
 from training_coach.services.progress import sessions_at_step
 
@@ -73,28 +72,30 @@ def position(session: Session) -> Position | None:
     return Position(state.next_template_id, tuple(t for t in state.queued if t in known))
 
 
-def _item_plan(session: Session, item: TemplateItem) -> ItemPlan:
-    state = users.exercise_state(session, item.exercise_id)
-    step = session.get(LadderStep, state.ladder_step_id) if state is not None else None
-    if step is None:  # seeding always creates state; fall back to the first rung if not
-        step = min(item.exercise.ladder, key=lambda s: s.position)
-    kind = ExerciseKind(item.exercise.kind)
-    prescription = Prescription(
-        sets=item.sets, rep_min=item.rep_min, rep_max=item.rep_max, kind=kind
-    )
-    history = [v for _, v in sessions_at_step(session, item.exercise_id, step.id, item.per_side)]
+def _item_plan(session: Session, item: TemplateItem, strength: bool) -> ItemPlan:
+    """One exercise: its step, cue and targets, under the strength prescription if it applies
+    (ADR-0028), with targets from the matching block's history (ADR-0027)."""
+    plan = blocks.assign(session, item, strength)
+    history = [
+        v
+        for _, v in sessions_at_step(
+            session, item.exercise_id, plan.step.id, item.per_side, plan.history
+        )
+    ]
     return ItemPlan(
         exercise=item.exercise.name,
-        kind=kind,
-        step=step.name,
-        cue=step.cue,
+        kind=ExerciseKind(item.exercise.kind),
+        step=plan.step.name,
+        cue=plan.cue,
         per_side=item.per_side,
-        targets=targets(prescription, history),
+        targets=targets(plan.prescription, history),
     )
 
 
-def session_plan(session: Session, template_id: int) -> SessionPlan | None:
-    """One session of the plan with today's ladder steps and targets."""
+def session_plan(
+    session: Session, template_id: int, block: Block | None = None
+) -> SessionPlan | None:
+    """One session of the plan with today's ladder steps and targets, in ``block``."""
     template = session.scalar(
         select(SessionTemplate)
         .where(SessionTemplate.id == template_id)
@@ -107,7 +108,10 @@ def session_plan(session: Session, template_id: int) -> SessionPlan | None:
         name=template.name,
         focus=template.focus,
         optional=template.is_rest_optional,
-        items=tuple(_item_plan(session, item) for item in template.items),
+        items=tuple(
+            _item_plan(session, item, blocks.strength_applies(block, template.kind))
+            for item in template.items
+        ),
         kind=template.kind,
     )
 
@@ -116,7 +120,8 @@ def today(session: Session, on: date, tz: ZoneInfo | None = None) -> Today | Non
     """The session at the pointer, with targets, and what has been logged on ``on``; with
     ``tz``, also the training block ``on`` falls in."""
     current = position(session)
-    plan = session_plan(session, current.pointer) if current is not None else None
+    block = blocks.current(session, on, tz) if tz is not None else None
+    plan = session_plan(session, current.pointer, block) if current is not None else None
     if plan is None:
         return None
     names = {t.id: t.name for t in _order(session)}
@@ -128,7 +133,7 @@ def today(session: Session, on: date, tz: ZoneInfo | None = None) -> Today | Non
         logged_today=tuple(
             f"{names[w.template_id] if w.template_id else 'Extra'} ({w.status})" for w in logged
         ),
-        block=blocks.current(session, on, tz) if tz is not None else None,
+        block=block,
     )
 
 

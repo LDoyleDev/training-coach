@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, PlanState, SessionTemplate, Workout
+from training_coach.domain.blocks import Block
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import Position, complete, swap_with_next
 from training_coach.services import users
@@ -87,7 +88,7 @@ def push_to_tomorrow(session: Session, template_id: int, on: date) -> str | None
     return template.name
 
 
-def swap_next(session: Session, template_id: int) -> SessionPlan | None:
+def swap_next(session: Session, template_id: int, block: Block | None = None) -> SessionPlan | None:
     """Do the next session today and the offered one tomorrow (ADR-0022)."""
     state = _state_at(session, template_id)
     order = _order(session)
@@ -96,15 +97,17 @@ def swap_next(session: Session, template_id: int) -> SessionPlan | None:
     swapped = swap_with_next(order, _current(session, template_id))
     _save(state, swapped)
     session.add(Event(kind="queue.swapped", payload={"from": template_id, "to": swapped.pointer}))
-    return session_plan(session, swapped.pointer)
+    return session_plan(session, swapped.pointer, block)
 
 
-def pick(session: Session, template_id: int, picked_id: int) -> SessionPlan | None:
+def pick(
+    session: Session, template_id: int, picked_id: int, block: Block | None = None
+) -> SessionPlan | None:
     """Show another session for today. The queue stays put: doing it is an out-of-order
     session (ADR-0016), so the offered one is still next tomorrow."""
     if _state_at(session, template_id) is None or picked_id == template_id:
         return None
-    plan = session_plan(session, picked_id)
+    plan = session_plan(session, picked_id, block)
     if plan is not None:
         session.add(
             Event(kind="queue.picked", payload={"offered": template_id, "picked": picked_id})

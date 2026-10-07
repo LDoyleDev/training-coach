@@ -79,3 +79,23 @@ async def test_review_answers_the_owner_only(application: App) -> None:
     assert reply.startswith("Week of ")
     assert "Sessions: 0 of 7 done." in reply
     assert await run(application, command("/review", STRANGER)) == {}
+
+
+def test_in_a_strength_block_moving_up_waits_and_strength_bests_say_so() -> None:
+    text = review_text(
+        _review(
+            strength_block=True,
+            ready=["Pull-up"],
+            bests=[
+                Best(
+                    "Pull-up",
+                    "Pause at top",
+                    ExerciseKind.REPS,
+                    NewBests(best_set=6),
+                    strength=True,
+                )
+            ],
+        )
+    )
+    assert "- Pull-up (Pause at top, strength block): 6 reps in one set" in text
+    assert text.endswith("Ready to move up when the hypertrophy block starts: Pull-up.")

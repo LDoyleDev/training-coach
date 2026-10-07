@@ -16,13 +16,15 @@ from training_coach.bot.buttons import edit_quietly, row_id
 from training_coach.bot.messages import progress_text, review_text
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
+from training_coach.domain.blocks import BlockKind
 from training_coach.domain.progression import Progress
 from training_coach.domain.queue import local_date
-from training_coach.services import progress
+from training_coach.services import blocks, progress
 from training_coach.services import review as reviews
 from training_coach.services.progress import Feedback, MoveOutcome, Standing
 
 PREFIX = "p"
+STRENGTH_BLOCK_WAIT = "{exercise} waits for the hypertrophy block: this is a strength block."
 MAX_ROWS = 40  # two buttons each, well under Telegram's 100
 
 
@@ -84,6 +86,8 @@ def reply(outcome: progress.Move | None) -> str:
         return f"{name} has already moved on since that message."
     if outcome.outcome is MoveOutcome.NO_NEXT_STEP:
         return f"{name} is on the last step in your plan."
+    if outcome.outcome is MoveOutcome.STRENGTH_BLOCK:
+        return STRENGTH_BLOCK_WAIT.format(exercise=name)
     return f"{name} doesn't meet the rule any more. Keep going."
 
 
@@ -93,19 +97,29 @@ class ProgressHandlers:
         self.sessions = sessions
 
     async def command(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """/progress: where every exercise stands, with Move up for any that are ready."""
+        """/progress: where every exercise stands, with Move up for any that are ready (not
+        during a strength block, ADR-0028)."""
         with session_scope(self.sessions) as session:
             standings = progress.overview(session)
+            strength = self._in_strength_block(session)
         if update.effective_message is not None:
+            text = progress_text(standings)
+            if strength and any(s.status is Progress.READY for s in standings):
+                text += "\n\n" + STRENGTH_BLOCK_WAIT.format(exercise="Moving up")
             await update.effective_message.reply_text(
-                progress_text(standings), reply_markup=keyboard(standings)
+                text, reply_markup=None if strength else keyboard(standings)
             )
+
+    def _in_strength_block(self, session: Session) -> bool:
+        today = local_date(datetime.now(UTC), self.settings.tz)
+        block = blocks.current(session, today, self.settings.tz)
+        return block is not None and block.kind is BlockKind.STRENGTH
 
     async def review(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """/review: this week so far (Monday to today), as in Sunday's review."""
         today = local_date(datetime.now(UTC), self.settings.tz)
         with session_scope(self.sessions) as session:
-            text = review_text(reviews.weekly(session, today))
+            text = review_text(reviews.weekly(session, today, self.settings.tz))
         if update.effective_message is not None:
             await update.effective_message.reply_text(text)
 
@@ -121,7 +135,14 @@ class ProgressHandlers:
             return
         with session_scope(self.sessions) as session:
             if press.action == "up":
-                text = reply(progress.move_up(session, press.exercise_id, press.step_id))
+                text = reply(
+                    progress.move_up(
+                        session,
+                        press.exercise_id,
+                        press.step_id,
+                        strength_block=self._in_strength_block(session),
+                    )
+                )
             else:
                 staying = progress.not_yet(session, press.exercise_id, press.step_id)
                 text = (

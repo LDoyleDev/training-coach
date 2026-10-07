@@ -257,7 +257,11 @@ def review_text(review: Review) -> str:
                 parts.append(f"{_amount(best.bests.best_set, best.kind)} in one set")
             if best.bests.total is not None:
                 parts.append(f"{_amount(best.bests.total, best.kind)} in total")
-            lines.append(f"- {best.exercise} ({best.step}): {' and '.join(parts)}")
-    if review.ready:
+            where = f"{best.step}, strength block" if best.strength else best.step
+            lines.append(f"- {best.exercise} ({where}): {' and '.join(parts)}")
+    if review.ready and review.strength_block:
+        names = ", ".join(review.ready)
+        lines += ["", f"Ready to move up when the hypertrophy block starts: {names}."]
+    elif review.ready:
         lines += ["", f"Ready to move up: {', '.join(review.ready)}. See /progress."]
     return "\n".join(_fit(lines, []))

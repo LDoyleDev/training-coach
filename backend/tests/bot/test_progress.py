@@ -27,7 +27,7 @@ from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
 from training_coach.services import progress as progress_service
-from training_coach.services import users
+from training_coach.services import user_settings, users
 from training_coach.services.progress import Feedback, Standing
 
 App = Application  # type: ignore[type-arg]  # see build_bot
@@ -222,7 +222,7 @@ def test_feedback_text_units_and_cases() -> None:
 async def test_a_feedback_bug_never_undoes_the_save(
     application: App, seeded: Sessions, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def broken(_session: Session, _workout_id: int) -> list[Feedback]:
+    def broken(_session: Session, _workout_id: int, _tz: object = None) -> list[Feedback]:
         raise ValueError("a bug in feedback")
 
     monkeypatch.setattr(progress_service, "feedback", broken)
@@ -311,3 +311,26 @@ def test_the_keyboard_stays_under_telegrams_button_limit() -> None:
     assert len(markup.inline_keyboard) == progress_ui.MAX_ROWS
     assert sum(len(row) for row in markup.inline_keyboard) <= 100
     assert progress_ui.keyboard([_standing()]) is None  # nothing ready, no buttons
+
+
+def _strength_block(sessions: Sessions) -> None:
+    with sessions() as session:
+        user_settings.update(session, blocks=True, today=datetime.now(UTC).date())
+        session.commit()
+
+
+async def test_progress_holds_move_up_in_a_strength_block(
+    application: App, seeded: Sessions
+) -> None:
+    """ADR-0028: moving up waits for the hypertrophy block."""
+    _top_session(seeded, days_ago=3)
+    _top_session(seeded, days_ago=1)
+    _strength_block(seeded)
+    calls = await run(application, command("/progress", OWNER))
+    (reply,) = texts(calls)
+    assert reply.endswith("Moving up waits for the hypertrophy block: this is a strength block.")
+    assert button_data(calls["sendMessage"][0]) == []
+    exercise_id, step_id = _pull_up(seeded)
+    pressed = await run(application, press(f"p:up:{exercise_id}:{step_id}", OWNER))
+    assert texts(pressed) == ["Pull-up waits for the hypertrophy block: this is a strength block."]
+    assert _step_name(seeded) == "Strict pull-up"

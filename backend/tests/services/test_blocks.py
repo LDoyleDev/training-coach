@@ -61,13 +61,15 @@ def test_a_paused_week_does_not_count(plan: Session) -> None:
     )
 
 
-def test_a_saved_workout_records_its_block(plan: Session) -> None:
+def test_a_saved_workout_records_whether_it_was_a_strength_session(plan: Session) -> None:
+    """The planned strength session in a strength block is filed as strength; an extra that
+    day isn't, since it wasn't trained under the strength prescription (ADR-0028)."""
     on = local_date(datetime.now(UTC), BERLIN)
-    workout_log.save(plan, workout_log.draft(plan, "pull-ups 8", on, BERLIN), BERLIN)
     user_settings.update(plan, blocks=True, today=on)
-    workout_log.save(plan, workout_log.draft(plan, "dips 10", on, BERLIN), BERLIN)
+    workout_log.save(plan, workout_log.draft(plan, "split squat 8 8", on, BERLIN), BERLIN)
+    workout_log.save(plan, workout_log.draft(plan, "dips 10", on, BERLIN), BERLIN)  # an extra
     kinds = plan.scalars(select(Workout.block).order_by(Workout.id)).all()
-    assert kinds == [None, "strength"]
+    assert kinds == ["strength", None]
 
 
 def test_today_carries_the_block_and_the_session_kind(plan: Session) -> None:
