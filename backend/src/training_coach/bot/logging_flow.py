@@ -9,6 +9,7 @@ import warnings
 from collections import OrderedDict
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import structlog
 from sqlalchemy.orm import Session, sessionmaker
@@ -52,12 +53,12 @@ MAX_VOICE_SECONDS = 120
 MAX_VOICE_BYTES = 5 * 1024 * 1024
 
 
-def _feedback(session: Session, workout_id: int) -> list[progress.Feedback]:
+def _feedback(session: Session, workout_id: int, tz: ZoneInfo) -> list[progress.Feedback]:
     """Bests and prompts for a saved workout. In a savepoint and never raising: a bug here
     must not roll back the save, or every later log would fail the same way."""
     try:
         with session.begin_nested():
-            return progress.feedback(session, workout_id)
+            return progress.feedback(session, workout_id, tz)
     except Exception as exc:
         log.error("bot.feedback_failed", error=type(exc).__name__)
         return []
@@ -257,7 +258,7 @@ class LogHandlers:
                     session=draft.session_name,
                     next_session=workout_log.next_session_name(session),
                 )
-                earned = _feedback(session, result.workout_id)
+                earned = _feedback(session, result.workout_id, self.settings.tz)
                 text = saved_reply(text, earned)
                 markup = progress_ui.keyboard(earned)
             elif isinstance(result, Saved):

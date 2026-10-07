@@ -2,7 +2,15 @@ from datetime import date, timedelta
 
 import pytest
 
-from training_coach.domain.blocks import Block, BlockKind, block_on, paused_days
+from training_coach.domain.blocks import (
+    Block,
+    BlockKind,
+    block_on,
+    history_kind,
+    paused_days,
+    strength_sets,
+)
+from training_coach.domain.enums import ExerciseKind
 
 START = date(2026, 10, 5)  # a Monday
 
@@ -49,3 +57,15 @@ def test_repeated_changes_change_nothing() -> None:
 
 def test_no_changes_no_pause() -> None:
     assert paused_days([], until=day(10)) == set()
+
+
+@pytest.mark.parametrize(("planned", "expected"), [(1, 3), (2, 3), (3, 3), (4, 4), (5, 4)])
+def test_strength_sets_are_three_or_four(planned: int, expected: int) -> None:
+    assert strength_sets(planned) == expected
+
+
+def test_only_rep_counted_work_keeps_block_histories_apart() -> None:
+    assert history_kind(ExerciseKind.REPS, BlockKind.STRENGTH) is BlockKind.STRENGTH
+    assert history_kind(ExerciseKind.REPS, BlockKind.HYPERTROPHY) is BlockKind.HYPERTROPHY
+    assert history_kind(ExerciseKind.SECONDS, BlockKind.STRENGTH) is None
+    assert history_kind(ExerciseKind.DURATION_MIN, BlockKind.HYPERTROPHY) is None

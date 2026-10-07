@@ -48,7 +48,7 @@ from training_coach.bot.messages import (
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import queue_actions, review, user_settings
+from training_coach.services import blocks, queue_actions, review, user_settings
 from training_coach.services.groq import GroqClient
 from training_coach.services.today import session_plan
 from training_coach.services.today import today as todays_session
@@ -224,7 +224,7 @@ class Handlers:
             return
         if press.action == "start":
             with session_scope(self.sessions) as session:
-                plan = session_plan(session, tid)
+                plan = session_plan(session, tid, blocks.current(session, on, self.settings.tz))
             await query.answer()
             await reply(STALE if plan is None else session_detail_text(plan))
             return
@@ -240,12 +240,15 @@ class Handlers:
                 name = queue_actions.push_to_tomorrow(session, tid, on)
                 text = pushed_text(name) if name else None
             elif press.action == "next":
-                swapped = queue_actions.swap_next(session, tid)
+                swapped = queue_actions.swap_next(
+                    session, tid, blocks.current(session, on, self.settings.tz)
+                )
                 text = session_detail_text(swapped) if swapped else None
                 new_markup = buttons.morning(swapped.template_id) if swapped else None
             else:  # pick
-                offered = session_plan(session, tid)
-                picked = queue_actions.pick(session, tid, press.picked_id or 0)
+                block = blocks.current(session, on, self.settings.tz)
+                offered = session_plan(session, tid, block)
+                picked = queue_actions.pick(session, tid, press.picked_id or 0, block)
                 text = picked_text(picked, offered.name) if picked and offered else None
         await query.answer()
         await edit_quietly(query.edit_message_reply_markup(None))

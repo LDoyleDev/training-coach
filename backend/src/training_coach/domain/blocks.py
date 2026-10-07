@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import StrEnum
 
+from training_coach.domain.enums import ExerciseKind
+
 BLOCK_DAYS = 28
 WEEKS = BLOCK_DAYS // 7
 
@@ -57,3 +59,22 @@ def paused_days(changes: list[tuple[date, bool]], until: date) -> set[date]:
     if since is not None:
         days.update(since + timedelta(days=n) for n in range((until - since).days + 1))
     return days
+
+
+# A strength block (ADR-0028): rep-counted exercises in strength sessions train one ladder step
+# harder, at 4-8 reps for 3-4 sets. At the top of a ladder the top step gets a tempo cue.
+STRENGTH_REPS = (4, 8)
+STRENGTH_SETS = (3, 4)
+TOP_STEP_CUE = "3 s lowering, pause at the bottom"
+
+
+def strength_sets(planned: int) -> int:
+    """The planned sets, raised to 3 and capped at 4."""
+    low, high = STRENGTH_SETS
+    return max(low, min(high, planned))
+
+
+def history_kind(exercise: ExerciseKind, prescribed: BlockKind) -> BlockKind | None:
+    """Which block's history a target or record looks at. Only rep-counted work changes in a
+    strength block, so timed and duration exercises keep one history across blocks (None)."""
+    return prescribed if exercise is ExerciseKind.REPS else None

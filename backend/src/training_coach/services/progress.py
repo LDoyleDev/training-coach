@@ -8,8 +8,9 @@ transaction.
 
 from dataclasses import dataclass
 from enum import StrEnum
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import (
@@ -21,11 +22,12 @@ from training_coach.db.models import (
     TemplateItem,
     Workout,
 )
+from training_coach.domain.blocks import BlockKind, history_kind
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.progression import Progress, assess, combine_sides
 from training_coach.domain.records import NewBests, new_bests
 from training_coach.domain.targets import Prescription
-from training_coach.services import users
+from training_coach.services import blocks, users
 
 TOP_NOTED = "progress.top_of_ladder"
 
@@ -49,6 +51,7 @@ class MoveOutcome(StrEnum):
     ALREADY_MOVED = "already_moved"  # the step changed since the prompt: nothing to do
     NOT_READY = "not_ready"
     NO_NEXT_STEP = "no_next_step"
+    STRENGTH_BLOCK = "strength_block"  # moving up waits for the hypertrophy block (ADR-0028)
 
 
 @dataclass(frozen=True)
@@ -89,10 +92,17 @@ def _prescription(item: TemplateItem) -> Prescription:
 
 
 def sessions_at_step(
-    session: Session, exercise_id: int, step_id: int, per_side: bool
+    session: Session,
+    exercise_id: int,
+    step_id: int,
+    per_side: bool,
+    block: BlockKind | None = None,
 ) -> list[tuple[int, list[int]]]:
-    """Every done workout's per-set values for this exercise at this step, newest first."""
-    rows = session.execute(
+    """Every done workout's per-set values for this exercise at this step, newest first.
+
+    ``block`` keeps strength and hypertrophy history apart (ADR-0028): ``STRENGTH`` only
+    strength-block workouts, ``HYPERTROPHY`` everything else, None both."""
+    query = (
         select(SetLog.workout_id, SetLog.set_no, SetLog.side, SetLog.value)
         .join(Workout)
         .where(
@@ -102,6 +112,11 @@ def sessions_at_step(
         )
         .order_by(Workout.local_date.desc(), Workout.created_at.desc(), Workout.id.desc())
     )
+    if block is BlockKind.STRENGTH:
+        query = query.where(Workout.block == BlockKind.STRENGTH)
+    elif block is BlockKind.HYPERTROPHY:
+        query = query.where(or_(Workout.block.is_(None), Workout.block != BlockKind.STRENGTH))
+    rows = session.execute(query)
     grouped: dict[int, list[tuple[int, Side, int]]] = {}
     for workout_id, set_no, side, value in rows:
         grouped.setdefault(workout_id, []).append((set_no, Side(side), value))
@@ -120,7 +135,11 @@ def _next_step(session: Session, step: LadderStep) -> LadderStep | None:
 def _status(session: Session, item: TemplateItem | None, step: LadderStep) -> Progress:
     if item is None:
         return Progress.HOLD
-    recent = [v for _, v in sessions_at_step(session, step.exercise_id, step.id, item.per_side)]
+    # Readiness is judged on the hypertrophy prescription and its history (ADR-0028).
+    block = history_kind(ExerciseKind(item.exercise.kind), BlockKind.HYPERTROPHY)
+    recent = [
+        v for _, v in sessions_at_step(session, step.exercise_id, step.id, item.per_side, block)
+    ]
     return assess(_prescription(item), recent, has_next_step=_next_step(session, step) is not None)
 
 
@@ -133,10 +152,16 @@ def _top_noted(session: Session, exercise_id: int, step_id: int) -> bool:
 
 
 def bests_in(
-    session: Session, workout_id: int, exercise_id: int, step_id: int, per_side: bool
+    session: Session,
+    workout_id: int,
+    exercise_id: int,
+    step_id: int,
+    per_side: bool,
+    block: BlockKind | None = None,
 ) -> NewBests:
-    """The records one workout set for an exercise at a step, against the sessions before it."""
-    history = sessions_at_step(session, exercise_id, step_id, per_side)
+    """The records one workout set for an exercise at a step, against the sessions before it
+    (of the same block kind, when ``block`` is given)."""
+    history = sessions_at_step(session, exercise_id, step_id, per_side, block)
     # History is newest first, so what follows this workout came before it: a backdated log
     # is compared with the sessions before its day, not with later ones.
     at = next((i for i, (w, _) in enumerate(history) if w == workout_id), len(history))
@@ -144,18 +169,31 @@ def bests_in(
     return new_bests(current, (v for _, v in history[at + 1 :]))
 
 
+def workout_history(workout: Workout, exercise: Exercise) -> BlockKind | None:
+    """The block history a workout's sets of ``exercise`` belong to."""
+    prescribed = (
+        BlockKind.STRENGTH if workout.block == BlockKind.STRENGTH else BlockKind.HYPERTROPHY
+    )
+    return history_kind(ExerciseKind(exercise.kind), prescribed)
+
+
 def per_side_for(session: Session, exercise_id: int, template_id: int | None) -> bool:
     item = _item(session, exercise_id, template_id)
     return item.per_side if item is not None else False
 
 
-def feedback(session: Session, workout_id: int) -> list[Feedback]:
+def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> list[Feedback]:
     """Bests and progression for each exercise in a just-saved workout, in logged order.
 
-    Records the top-of-ladder note as given, so it is said once per exercise and step."""
+    Records the top-of-ladder note as given, so it is said once per exercise and step. With
+    ``tz``, no Move up is offered while a strength block is on (ADR-0028)."""
     workout = session.get(Workout, workout_id)
     if workout is None:
         return []
+    block = blocks.current(session, workout.local_date, tz) if tz is not None else None
+    in_strength = workout.block == BlockKind.STRENGTH or (
+        block is not None and block.kind is BlockKind.STRENGTH
+    )
     logged: dict[tuple[int, int], None] = {}
     for row in sorted(workout.sets, key=lambda s: s.id):
         logged.setdefault((row.exercise_id, row.ladder_step_id), None)
@@ -168,11 +206,13 @@ def feedback(session: Session, workout_id: int) -> list[Feedback]:
             continue
         item = _item(session, exercise_id, workout.template_id)
         per_side = item.per_side if item is not None else False
-        bests = bests_in(session, workout_id, exercise_id, step_id, per_side)
+        bests = bests_in(
+            session, workout_id, exercise_id, step_id, per_side, workout_history(workout, exercise)
+        )
         state = users.exercise_state(session, exercise_id)
-        # Progression is about the step being trained now; a log at an older step only
-        # counts for bests.
-        on_current = state is not None and state.ladder_step_id == step_id
+        # Progression is about the step being trained now, outside strength blocks; a log at
+        # an older step, or a strength-block session, only counts for bests (ADR-0028).
+        on_current = state is not None and state.ladder_step_id == step_id and not in_strength
         status = _status(session, item, step) if on_current else Progress.HOLD
         upcoming = _next_step(session, step) if status is Progress.READY else None
         note_top = status is Progress.TOP_OF_LADDER and not _top_noted(
@@ -197,13 +237,18 @@ def feedback(session: Session, workout_id: int) -> list[Feedback]:
     return result
 
 
-def move_up(session: Session, exercise_id: int, from_step_id: int) -> Move | None:
+def move_up(
+    session: Session, exercise_id: int, from_step_id: int, *, strength_block: bool = False
+) -> Move | None:
     """Move to the next ladder step if the exercise is still on ``from_step_id`` and still
-    ready under one of its prescriptions. None for an exercise that doesn't exist."""
+    ready under one of its prescriptions, and it isn't a strength block (ADR-0028). None for
+    an exercise that doesn't exist."""
     exercise = session.get(Exercise, exercise_id)
     state = users.exercise_state(session, exercise_id)
     if exercise is None or state is None:
         return None
+    if strength_block:
+        return Move(MoveOutcome.STRENGTH_BLOCK, exercise.name)
     if state.ladder_step_id != from_step_id:
         return Move(MoveOutcome.ALREADY_MOVED, exercise.name)
     step = session.get(LadderStep, from_step_id)
@@ -283,7 +328,8 @@ def overview(session: Session) -> list[Standing]:
         # Display only: "last" and "best" use the first prescription's sides. Readiness is
         # judged per prescription below, exactly as Move up re-checks it.
         per_side = items[0].per_side if items else False
-        history = [v for _, v in sessions_at_step(session, exercise_id, step.id, per_side)]
+        block = history_kind(ExerciseKind(exercise.kind), BlockKind.HYPERTROPHY)
+        history = [v for _, v in sessions_at_step(session, exercise_id, step.id, per_side, block)]
         statuses = {_status(session, item, step) for item in items}
         status = next(
             (s for s in (Progress.READY, Progress.TOP_OF_LADDER) if s in statuses), Progress.HOLD

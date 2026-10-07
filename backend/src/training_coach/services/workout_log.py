@@ -23,6 +23,7 @@ from training_coach.db.models import (
     TemplateItem,
     Workout,
 )
+from training_coach.domain.blocks import BlockKind
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.parser import Entry, Known, ParseResult, parse_log
 from training_coach.domain.queue import ADVANCING, complete
@@ -190,16 +191,20 @@ def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | No
         status=WorkoutStatus.DONE,  # only done workouts carry sets (rest/skip have none)
         log_token=confirmed.token,
     )
-    block = blocks.current(session, confirmed.on, tz)  # ADR-0028
-    workout.block = block.kind if block is not None else None
+    # ADR-0028: a planned strength session in a strength block is trained, and filed, under the
+    # strength prescription (one step harder); everything else is ordinary history.
+    block = blocks.current(session, confirmed.on, tz)
+    template = (
+        session.get(SessionTemplate, confirmed.template_id) if confirmed.template_id else None
+    )
+    strength = blocks.strength_applies(block, template.kind if template is not None else None)
+    if strength:
+        workout.block = BlockKind.STRENGTH
+    elif block is not None and block.kind is BlockKind.HYPERTROPHY:
+        workout.block = BlockKind.HYPERTROPHY
     for entry in confirmed.entries:
         exercise = exercises[entry.slug]
-        state = users.exercise_state(session, exercise.id)
-        step_id = (
-            state.ladder_step_id
-            if state is not None
-            else min(exercise.ladder, key=lambda s: s.position).id
-        )
+        step_id = blocks.step_for(session, exercise, strength)[0].id
         workout.sets.extend(
             SetLog(exercise_id=exercise.id, ladder_step_id=step_id, set_no=n, side=side, value=v)
             for n, side, v in entry.sets
