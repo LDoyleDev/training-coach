@@ -48,7 +48,9 @@ others wait on D1, D3 and D5.
   public endpoint (ADR-0019).
 
 ### 2-C Weekly review message (#73)
-- Sunday 19:00, adjustable (D6), plus `/review`: sessions done vs planned, hard sets per muscle group vs Galpin's 10-20,
+- `/review` (built): the week so far. Next: sent on its own every Sunday at 19:00, adjustable
+  in `/settings` (D6).
+- Contents: sessions done vs planned, hard sets per muscle group vs Galpin's 10-20,
   personal bests, exercises ready to progress.
 
 ### 2-D Habit check-offs
