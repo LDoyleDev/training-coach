@@ -116,6 +116,23 @@ def catalogue(session: Session, template: SessionTemplate | None) -> list[Known]
     ]
 
 
+def exercise_names(session: Session) -> list[str]:
+    """Every exercise's display name, in plan order: Whisper's vocabulary and the model's enum."""
+    return list(session.scalars(select(Exercise.name).order_by(Exercise.id)))
+
+
+def exercise_labels(session: Session) -> dict[str, tuple[str, ExerciseKind]]:
+    """Display name and kind by slug, for showing a draft back to the user."""
+    return {e.slug: (e.name, ExerciseKind(e.kind)) for e in session.scalars(select(Exercise))}
+
+
+def next_session_name(session: Session) -> str | None:
+    """The session the queue points at now, e.g. after a save moved it on."""
+    current = position(session)
+    upcoming = session.get(SessionTemplate, current.pointer) if current is not None else None
+    return upcoming.name if upcoming is not None else None
+
+
 def draft(session: Session, text: str, on: date, tz: ZoneInfo) -> Draft:
     """Parse a message into something to confirm. Never writes."""
     template = target(session, on, tz)
