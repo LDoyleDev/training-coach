@@ -7,7 +7,7 @@ A restart forgets drafts: the user is asked to send the log again.
 
 import warnings
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 
 import structlog
@@ -37,7 +37,7 @@ from training_coach.config import Settings
 from training_coach.db.models import Exercise, SessionTemplate
 from training_coach.db.session import session_scope
 from training_coach.domain.enums import ExerciseKind
-from training_coach.domain.parser import MAX_TEXT
+from training_coach.domain.parser import MAX_TEXT, SPLIT_ENTRIES
 from training_coach.domain.queue import local_date
 from training_coach.services import workout_log
 from training_coach.services.groq import GroqClient, GroqUnavailableError
@@ -203,6 +203,14 @@ class LogHandlers:
         if not reread.entries or reread.problems:
             log.info("bot.model_fallback_rejected", problems=len(reread.problems))
             return None
+        # The model leaves out what it can't place; say so rather than drop it silently.
+        parts = len([chunk for chunk in SPLIT_ENTRIES.split(text) if chunk.strip()])
+        if len(reread.entries) < parts:
+            note = (
+                f"The model read {len(reread.entries)} of {parts} parts of your message; "
+                "check nothing is missing."
+            )
+            return replace(reread, problems=(note,))
         return reread
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -57,7 +57,7 @@ def _workouts(sessions: Sessions) -> int:
 
 
 async def test_the_model_reads_what_the_rules_cannot(assisted: App, seeded: Sessions) -> None:
-    content = {"lines": [line("Pull-up", [8]), line("Dip", [12])]}
+    content = {"lines": [line("Pull-up", [8]), line("Dip (chairs)", [12])]}
     calls = await run(assisted, text_message(WORDS, OWNER), routes=model_says(content))
     (reply,) = texts(calls)
     assert reply.startswith(MODEL_ASSISTED)
@@ -154,3 +154,14 @@ async def test_model_text_never_reaches_the_logs(assisted: App) -> None:
     assert "secretive" not in dumped
     assert "gsk_" not in dumped
     assert any(entry.get("assisted") is True for entry in logs)
+
+
+async def test_a_reading_that_skips_part_of_the_log_says_so(assisted: App) -> None:
+    """Two parts in the message, one read: the user is told something may be missing."""
+    text = "did eight pull ups, then a long walk with the dog"
+    calls = await run(
+        assisted, text_message(text, OWNER), routes=model_says({"lines": [line("Pull-up", [8])]})
+    )
+    (reply,) = texts(calls)
+    assert reply.startswith(MODEL_ASSISTED)
+    assert "read 1 of 2 parts" in reply

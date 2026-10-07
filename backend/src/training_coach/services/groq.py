@@ -7,8 +7,10 @@ type the log instead. Transcripts are returned to the caller and never logged he
 
 import asyncio
 import json
+import re
+import unicodedata
 from importlib.resources import files as package_files
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 import httpx
 import structlog
@@ -17,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 log = structlog.get_logger(__name__)
 
 BASE_URL = "https://api.groq.com/openai/v1"
+LOG_TAG = re.compile(r"<\s*/?\s*log\s*>", re.IGNORECASE)
 PROMPT_CHARS = 800  # Whisper takes up to 224 tokens of prompt; stay well under
 
 
@@ -37,7 +40,7 @@ class RewriteLine(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     exercise: str = Field(max_length=120)
-    sets: list[int] = Field(max_length=20)
+    sets: list[Annotated[int, Field(ge=0)]] = Field(max_length=20)
     unit: Literal["", "s", "min"]
 
 
@@ -113,8 +116,9 @@ class GroqClient:
     async def rewrite_log(self, text: str, *, names: list[str]) -> Rewrite:
         """The model's reading of a log the rule parser couldn't. Never trusted as data: no
         tools, a strict schema, and the caller re-parses the result with the rule parser."""
-        # The log is delimited as data; don't let it close the delimiter itself.
-        text = text.replace("<log>", " ").replace("</log>", " ")
+        # The log is delimited as data; don't let it open or close the delimiter itself,
+        # in any case, spacing or Unicode look-alike (NFKC folds full-width brackets).
+        text = LOG_TAG.sub(" ", unicodedata.normalize("NFKC", text))
         body = {
             "model": self._parse_model,
             "temperature": 0,
@@ -143,9 +147,14 @@ class GroqClient:
             raise GroqUnavailableError("timeout") from exc
         try:
             content = response.json()["choices"][0]["message"]["content"]
-            return Rewrite.model_validate_json(content)
+            rewrite = Rewrite.model_validate_json(content)
         except (ValueError, KeyError, IndexError, TypeError, ValidationError) as exc:
             raise GroqUnavailableError("bad_response") from exc
+        # Enforce the schema's enum here too, in case the provider or model ignores it: a
+        # name with a separator in it could smuggle in an extra line.
+        if any(line.exercise not in names for line in rewrite.lines):
+            raise GroqUnavailableError("bad_response")
+        return rewrite
 
     async def _post(
         self,
