@@ -1,11 +1,11 @@
 # Phase 2: decisions on blocks, overload, retests and the weekly review
 
-Status: **D2, D4 and D6 decided by Liam on 2026-10-07; the overload step size (section 1) is a
-proposal waiting for a yes.** Becomes ADRs and issues once confirmed. The table of open
+Status: **all decided by Liam on 2026-10-07**, including the overload step size (section 1).
+Next: ADRs and issues. The table of open
 decisions stays in `phase-2-overview.md`; D1 (dashboard design), D3 (photo storage) and D5
 (habits) are still open there.
 
-## 1. Progressive overload: how big a step (proposal)
+## 1. Progressive overload: how big a step (decided)
 
 **Liam's direction:** every session's target should be a little more than last time, "a couple
 of reps" per set, not ADR-0016's +1.
@@ -16,7 +16,7 @@ would stop meaning anything), and little for 15-25 tibialis raises. "Double prog
 reps inside a range, then make the exercise harder) works best with small, regular steps you
 actually hit. Each exercise here comes round about once a week, so a step is one week's progress.
 
-**Proposal: step about 10% of the top of the range (halves round up), at least 1.**
+**Decided: step about 10% of the top of the range (halves round up), at least 1.**
 
 | Range (top) | Step per set | Example: last session | Next target |
 | --- | --- | --- | --- |
@@ -73,5 +73,4 @@ Needs: a new ADR superseding ADR-0016's target rule, and table-driven test updat
 
 ## Next
 
-Once you confirm section 1: ADRs for overload and blocks, then `phase-2-overview.md` updated and
-the phase 2 issues opened.
+ADRs for overload and blocks, then `phase-2-overview.md` updated and the phase 2 issues opened.

@@ -11,7 +11,7 @@ and one real week logged first.
 
 ## Open decisions (before any issue is opened)
 
-D2, D4 and D6 are decided (plus a proposal for the progressive overload step): `phase-2-decisions.md`.
+D2, D4 and D6 are decided, with a bigger progressive overload step: `phase-2-decisions.md`.
 The web app, multi-user and wearable data direction: `platform-and-health-data-proposal.md`
 (ADR-0026).
 
