@@ -27,16 +27,23 @@ def _data(action: str, template_id: int, picked_id: int | None = None) -> str:
     return ":".join(parts)
 
 
+def row_id(text: str) -> int | None:
+    """A database id from callback data: plain ASCII digits within SQLite's integer range.
+    ``int()`` alone also takes " 1", "+1", "1_0" and other scripts' digits."""
+    if not (text.isascii() and text.isdecimal()):
+        return None
+    number = int(text)
+    return number if 0 < number < MAX_ID else None
+
+
 def parse(data: str | None) -> Press | None:
     """The button pressed, or None for anything malformed."""
     parts = (data or "").split(":")
     if len(parts) not in (3, 4) or parts[0] != PREFIX or parts[1] not in ACTIONS:
         return None
-    try:
-        numbers = [int(p) for p in parts[2:]]
-    except ValueError:
-        return None
-    if not all(0 < n < MAX_ID for n in numbers):  # ids are SQLite integers; reject forgeries
+    found = [row_id(p) for p in parts[2:]]
+    numbers = [n for n in found if n is not None]
+    if len(numbers) != len(found):  # ids are SQLite integers; reject forgeries
         return None
     return Press(parts[1], numbers[0], numbers[1] if len(numbers) == 2 else None)
 

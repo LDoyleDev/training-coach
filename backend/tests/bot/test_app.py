@@ -47,10 +47,11 @@ def test_every_command_is_restricted_to_owner(application: Application) -> None:
     }
     for handler in commands:
         assert OWNER in handler.filters.user_ids  # type: ignore[attr-defined]  # BaseFilter has no user_ids; this one is filters.User
-    # Button presses can't carry a filter and typed text combines filters; test_buttons.py and
-    # test_settings.py prove strangers are ignored by behaviour instead.
+    # Button presses can't carry a filter and typed text combines filters; test_buttons.py,
+    # test_settings.py, test_logging_flow.py and test_progress.py prove strangers are ignored
+    # by behaviour instead.
     others = [type(h) for h in handlers if not isinstance(h, CommandHandler)]
-    assert others == [CallbackQueryHandler] * 3 + [MessageHandler] * 2
+    assert others == [CallbackQueryHandler] * 4 + [MessageHandler] * 2
 
 
 async def _replies(application: Application, text: str, sender: int) -> list[str]:  # type: ignore[type-arg]
