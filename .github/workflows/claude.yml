@@ -46,3 +46,6 @@ jobs:
         uses: anthropics/claude-code-action@cab360f6565aa35a51d6ce9e43f1f4287c0a32ea # v1.0.241
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The owner's rule (CLAUDE.md): no AI attribution in commits, PRs or comments.
+          claude_args: |
+            --append-system-prompt "Never add attribution: no Co-Authored-By or Claude-Session trailers, no 'Generated with Claude Code' footers, no claude.ai or session links."
