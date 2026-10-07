@@ -4,6 +4,17 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.5.0](https://github.com/LDoyleDev/training-coach/compare/v0.4.0...v0.5.0) (2026-10-07)
+
+
+### Features
+
+* **bot:** log workouts by text with a confirm step ([#57](https://github.com/LDoyleDev/training-coach/issues/57)) ([e3fa439](https://github.com/LDoyleDev/training-coach/commit/e3fa439d23c2a93b79a22f32c39e746e7495ab1c))
+* **bot:** log workouts by voice ([#60](https://github.com/LDoyleDev/training-coach/issues/60)) ([7daa1a0](https://github.com/LDoyleDev/training-coach/commit/7daa1a0c044203e5aa826b8ca0aed328c2ff0cdd))
+* **db:** save confirmed workout logs once ([#55](https://github.com/LDoyleDev/training-coach/issues/55)) ([ca4396b](https://github.com/LDoyleDev/training-coach/commit/ca4396b0f99b069933cfa37e9ef99aa3cc3de546))
+* **infra:** back up the database nightly with rotation and a pull script ([#63](https://github.com/LDoyleDev/training-coach/issues/63)) ([bb179c7](https://github.com/LDoyleDev/training-coach/commit/bb179c76fb666c38c28d9340bf90786b93d92975)), closes [#14](https://github.com/LDoyleDev/training-coach/issues/14) [#39](https://github.com/LDoyleDev/training-coach/issues/39)
+* **parser:** let a model read logs the rules can't, as a suggestion only ([#61](https://github.com/LDoyleDev/training-coach/issues/61)) ([29abf47](https://github.com/LDoyleDev/training-coach/commit/29abf473133b4bc0ad14153dd8d5360158db6cd1))
+
 ## [0.4.0](https://github.com/LDoyleDev/training-coach/compare/v0.3.0...v0.4.0) (2026-10-06)
 
 
