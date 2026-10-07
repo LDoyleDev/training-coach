@@ -7,7 +7,8 @@ so a bad patch never leaves a target out of reach for good. With no history, aim
 of the range.
 
 The targets each past session was given are replayed from the oldest session at this ladder
-step, starting from the bottom of the range, so nothing but the logged sets is needed.
+step, so nothing but the logged sets is needed. The first session there is the baseline and
+never counts as a miss.
 
 Example: last 8/7/6/5 in a 5-12 range, all targets met -> 9/8/7/6.
 """
@@ -61,8 +62,12 @@ def targets(item: Prescription, history: Sequence[Sequence[int]]) -> tuple[int, 
     ladder step, newest first (as ``progression.assess`` takes them)."""
     given = [item.rep_min] * item.sets
     misses = [0] * item.sets
-    for values in reversed(history):
+    for index, values in enumerate(reversed(history)):
         done = _performed(item, values)
+        if index == 0:
+            # The first session at a step is the baseline, never a miss: below the range,
+            # targets grow from what was done instead of jumping to the bottom (ADR-0027).
+            given = list(done)
         for n in range(item.sets):
             if done[n] >= given[n]:
                 given[n], misses[n] = _cap(done[n] + step(item), item), 0

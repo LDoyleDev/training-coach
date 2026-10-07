@@ -41,7 +41,7 @@ def test_step_is_about_ten_percent_of_the_top(item: Prescription, expected: int)
         pytest.param(PULL_UPS, [[11, 12, 15, 9]], (12, 12, 12, 10), id="above-top-clamped"),
         pytest.param(PULL_UPS, [[8, 7]], (9, 8, 8, 8), id="missing-sets-start-from-weakest"),
         pytest.param(PULL_UPS, [[8, 7, 6, 5, 4, 3]], (9, 8, 7, 6), id="extra-sets-ignored"),
-        pytest.param(PULL_UPS, [[]], (5, 5, 5, 5), id="empty-session-is-a-miss"),
+        pytest.param(PULL_UPS, [[]], (1, 1, 1, 1), id="empty-first-session-starts-from-zero"),
         # Newest first: the second session aimed 9/8/7/6 and hit only the first two sets.
         pytest.param(
             PULL_UPS, [[9, 8, 6, 5], [8, 7, 6, 5]], (10, 9, 7, 6), id="a-miss-holds-the-target"
@@ -53,10 +53,10 @@ def test_step_is_about_ten_percent_of_the_top(item: Prescription, expected: int)
             (11, 10, 6, 8),
             id="two-misses-ease",
         ),
-        # A first session below the bottom: the target stays at the bottom until two misses.
-        pytest.param(PULL_UPS, [[3, 2, 2, 1]], (5, 5, 5, 5), id="below-range-first-miss-holds"),
+        # A first session below the bottom is the baseline: targets grow from it, no jump.
+        pytest.param(PULL_UPS, [[3, 2, 2, 1]], (4, 3, 3, 2), id="below-range-first-is-baseline"),
         pytest.param(
-            PULL_UPS, [[3, 3, 2, 1], [3, 2, 2, 1]], (4, 4, 3, 2), id="below-range-eases-then-grows"
+            PULL_UPS, [[3, 3, 2, 1], [3, 2, 2, 1]], (4, 4, 3, 2), id="below-range-miss-holds"
         ),
         pytest.param(
             PULL_UPS,
@@ -72,8 +72,9 @@ def test_targets(item: Prescription, history: list[list[int]], expected: tuple[i
 
 def test_fixed_rep_count() -> None:
     swings = Prescription(sets=4, rep_min=20, rep_max=20)
-    assert targets(swings, [[20, 18, 20, 15]]) == (20, 20, 20, 20)  # misses hold at 20
-    assert targets(swings, [[20, 18, 20, 15], [20, 18, 20, 15]]) == (20, 19, 20, 16)
+    assert targets(swings, [[20, 18, 20, 15]]) == (20, 20, 20, 17)  # baseline + 2, capped
+    assert targets(swings, [[20, 18, 20, 15], [20, 18, 20, 15]]) == (20, 20, 20, 17)  # held
+    assert targets(swings, [[20, 18, 20, 15]] * 3) == (20, 19, 20, 16)  # two misses ease
 
 
 def test_timed_and_duration_steps() -> None:
