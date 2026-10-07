@@ -1,4 +1,4 @@
-"""/settings: morning, nudge and weekly review times, nudges on/off, pause.
+"""/settings: morning, nudge and weekly review times, nudges on/off, training blocks, pause.
 
 Callback data is ``s:<what>[:<HHMM>]``. A typed time (after "Other time...") is only read
 while the bot is waiting for one; otherwise plain text is left for logging (step 1-E).
@@ -6,7 +6,7 @@ while the bot is waiting for one; otherwise plain text is left for logging (step
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import time
+from datetime import UTC, datetime, time
 
 import structlog
 from sqlalchemy.orm import Session, sessionmaker
@@ -17,6 +17,7 @@ from training_coach.bot.buttons import edit_quietly
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.clock import parse_hhmm
+from training_coach.domain.queue import local_date
 from training_coach.services import user_settings
 from training_coach.services.user_settings import Prefs
 
@@ -27,6 +28,9 @@ MORNING_PRESETS = (time(6, 30), time(7, 0), time(7, 30), time(8, 0))
 NUDGE_PRESETS = (time(19, 0), time(20, 0), time(21, 0))
 REVIEW_PRESETS = (time(18, 0), time(19, 0), time(20, 0))  # Sundays
 TIMES = ("morning", "nudge", "review")
+# Training blocks can't be turned on until a strength block also changes the prescription
+# (#26 part 2): before that, "strength" workouts would be ordinary ones filed as strength history.
+BLOCKS_AVAILABLE = False
 AWAITING = "awaiting_time"  # key in context.user_data: one of TIMES
 BAD_TIME = "That isn't a time like 07:30. Send it again, or /settings to cancel."
 
@@ -35,7 +39,7 @@ Reschedule = Callable[[ContextTypes.DEFAULT_TYPE, Prefs], None]
 
 @dataclass(frozen=True)
 class Press:
-    what: str  # morning | nudge | review | ask-<one of those> | nudges | pause
+    what: str  # morning | nudge | review | ask-<one of those> | nudges | blocks | pause
     at: time | None = None
     on: bool | None = None  # the value a nudges/pause button sets
 
@@ -56,7 +60,7 @@ def parse(data: str | None) -> Press | None:
     parts = (data or "").split(":")
     if len(parts) == 2 and parts[0] == PREFIX and parts[1] in {f"ask-{t}" for t in TIMES}:
         return Press(parts[1])
-    if len(parts) == 3 and parts[0] == PREFIX and parts[1] in {"nudges", "pause"}:
+    if len(parts) == 3 and parts[0] == PREFIX and parts[1] in {"nudges", "blocks", "pause"}:
         # Toggles carry their target, so a button on an old message sets what it says.
         return Press(parts[1], on=parts[2] == "on") if parts[2] in ("on", "off") else None
     if len(parts) == 3 and parts[0] == PREFIX and parts[1] in TIMES:
@@ -74,9 +78,23 @@ def text(prefs: Prefs) -> str:
             f"Morning message: {_hhmm(prefs.morning_time)}",
             f"Evening nudge: {_hhmm(prefs.nudge_time)} ({nudge})",
             f"Weekly review: Sundays {_hhmm(prefs.review_time)}",
+            *_blocks_line(prefs),
             f"Paused: {'yes, no messages until you resume' if prefs.paused else 'no'}",
         ]
     )
+
+
+def _blocks_line(prefs: Prefs) -> list[str]:
+    if not BLOCKS_AVAILABLE:
+        return []
+    return [
+        "Training blocks: "
+        + (
+            f"on since {prefs.blocks_started_on:%a %d %b} (4 weeks strength, 4 hypertrophy)"
+            if prefs.blocks_started_on is not None
+            else "off"
+        )
+    ]
 
 
 def _mark(t: time, current: time) -> str:
@@ -108,6 +126,7 @@ def keyboard(prefs: Prefs) -> InlineKeyboardMarkup:
                 for t in REVIEW_PRESETS
             ],
             [button("Review: other time…", callback_data=_data("ask-review"))],
+            *_blocks_row(prefs),
             [
                 button(
                     "Resume" if prefs.paused else "Pause",
@@ -116,6 +135,14 @@ def keyboard(prefs: Prefs) -> InlineKeyboardMarkup:
             ],
         ]
     )
+
+
+def _blocks_row(prefs: Prefs) -> list[list[InlineKeyboardButton]]:
+    if not BLOCKS_AVAILABLE:
+        return []
+    on = prefs.blocks_started_on is not None
+    label = "Stop training blocks" if on else "Train in blocks"
+    return [[InlineKeyboardButton(label, callback_data=_toggle("blocks", not on))]]
 
 
 class SettingsHandlers:
@@ -147,6 +174,8 @@ class SettingsHandlers:
         await query.answer()
         if press is None or not isinstance(query.message, Message):
             return
+        if press.what == "blocks" and not BLOCKS_AVAILABLE:
+            return  # not offered yet; a crafted press changes nothing
         if press.what.startswith("ask-"):
             which = press.what.removeprefix("ask-")
             if context.user_data is not None:
@@ -161,6 +190,8 @@ class SettingsHandlers:
                 review_time=press.at if press.what == "review" else None,
                 nudges_enabled=press.on if press.what == "nudges" else None,
                 paused=press.on if press.what == "pause" else None,
+                blocks=press.on if press.what == "blocks" else None,
+                today=local_date(datetime.now(UTC), self.settings.tz),
             )
         if press.what in TIMES:
             self.reschedule(context, prefs)

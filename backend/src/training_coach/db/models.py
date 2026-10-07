@@ -28,6 +28,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from training_coach.db.base import Base
 from training_coach.db.types import UTCDateTime, utcnow
+from training_coach.domain.blocks import BlockKind
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 
 
@@ -81,7 +82,10 @@ class SessionTemplate(Base):
     """A session in the cycle. ``position`` is its place in the queue (ADR-0006)."""
 
     __tablename__ = "session_templates"
-    __table_args__ = (CheckConstraint("position >= 0", name="position_non_negative"),)
+    __table_args__ = (
+        CheckConstraint("position >= 0", name="position_non_negative"),
+        CheckConstraint("kind IN ('strength', 'conditioning', 'recovery')", name="kind_valid"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     position: Mapped[int] = mapped_column(Integer, unique=True)
@@ -89,6 +93,9 @@ class SessionTemplate(Base):
     name: Mapped[str] = mapped_column(String(120))
     focus: Mapped[str] = mapped_column(String(120))
     is_rest_optional: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # strength | conditioning | recovery (plan.toml): strength sessions get the warm-up prompt
+    # and, in a strength block, the strength prescription (ADR-0028).
+    kind: Mapped[str] = mapped_column(String(16), server_default="strength")
 
     items: Mapped[list["TemplateItem"]] = relationship(
         back_populates="template",
@@ -201,6 +208,8 @@ class UserSettings(Owned, Base):
     review_time: Mapped[time] = mapped_column(
         Time, default=time(19, 0), server_default="19:00:00.000000"
     )
+    # The day training blocks were turned on (ADR-0028); empty means blocks are off.
+    blocks_started_on: Mapped[date | None] = mapped_column(Date)
     nudges_enabled: Mapped[bool] = mapped_column(Boolean, server_default=true())
     paused: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
@@ -217,7 +226,10 @@ class Workout(Owned, Base):
     """
 
     __tablename__ = "workouts"
-    __table_args__ = (CheckConstraint(_in("status", WorkoutStatus), name="status_valid"),)
+    __table_args__ = (
+        CheckConstraint(_in("status", WorkoutStatus), name="status_valid"),
+        CheckConstraint(_in("block", BlockKind), name="block_valid"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = _owner()
@@ -226,6 +238,8 @@ class Workout(Owned, Base):
         ForeignKey("session_templates.id", ondelete="RESTRICT")
     )
     status: Mapped[str] = mapped_column(String(16))
+    # The training block it was logged in (ADR-0028); empty when blocks were off.
+    block: Mapped[str | None] = mapped_column(String(16))
     # Set when a confirmed text/voice log is saved: one token per draft, so a repeated Save
     # can never create a second workout or advance the queue twice (step 1-E).
     log_token: Mapped[str | None] = mapped_column(String(32), unique=True)

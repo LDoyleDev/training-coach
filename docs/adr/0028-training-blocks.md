@@ -18,7 +18,9 @@ and a strength block is followed by a hypertrophy block.
   **strength block** that day; blocks then alternate every 4 weeks (strength, hypertrophy, ...).
   Turning it off returns to the plan's ranges at once.
 - **The block clock stops while paused:** days with the bot paused (from the settings events)
-  don't count towards the 4 weeks, so a lost week never shortens a block.
+  don't count towards the 4 weeks, so a lost week never shortens a block. A day counts unless
+  training was paused when it began: a pause set at 23:30 still counts that day, and a resume
+  at 09:00 doesn't bring back a day whose morning message was skipped.
 - **Strength block,** for rep-counted exercises in resistance sessions:
   - the next ladder step after the current one (at the top of a ladder, the top step with a
     "3 s lowering, pause at the bottom" cue);

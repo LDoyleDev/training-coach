@@ -184,3 +184,39 @@ def test_a_failed_upgrade_leaves_nothing_behind(
     assert "users" in inspect(engine).get_table_names()
     engine.dispose()
     get_settings.cache_clear()
+
+
+def test_blocks_migration_sets_session_kinds_without_the_seed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed seed (ADR-0015) must not leave cardio marked as a strength session (#26)."""
+    from sqlalchemy import create_engine, text
+
+    from training_coach.config import get_settings
+
+    url = f"sqlite:///{tmp_path / 'kinds.db'}"
+    monkeypatch.setenv("TC_DATABASE_URL", url)
+    get_settings.cache_clear()
+    cfg = Config(str(BACKEND / "alembic.ini"))
+    command.upgrade(cfg, "2f776c2d31ec")  # before session kinds
+    engine = create_engine(url)
+    with engine.begin() as db:
+        for position, slug in enumerate(("legs", "hiit", "recovery", "custom")):
+            db.execute(
+                text(
+                    "INSERT INTO session_templates (position, slug, name, focus, is_rest_optional)"
+                    " VALUES (:p, :s, :s, 'x', 0)"
+                ),
+                {"p": position, "s": slug},
+            )
+    command.upgrade(cfg, "head")
+    with engine.connect() as db:
+        kinds = dict(db.execute(text("SELECT slug, kind FROM session_templates")).all())
+    assert kinds == {
+        "legs": "strength",
+        "hiit": "conditioning",
+        "recovery": "recovery",
+        "custom": "strength",
+    }
+    engine.dispose()
+    get_settings.cache_clear()

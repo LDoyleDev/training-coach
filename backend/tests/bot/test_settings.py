@@ -89,6 +89,7 @@ def test_text_and_keyboard_show_the_current_values() -> None:
     assert "• 20:00" in labels
     assert "Review • 19:00" in labels
     assert "Review: other time…" in labels
+    assert "Train in blocks" not in labels  # not offered until #26 part 2
     assert "Turn nudges on" in labels
     assert "Resume" in labels
 
@@ -113,6 +114,8 @@ async def test_settings_command_is_owner_only(application: App, sender: int, rep
         "s:ask-morning",
         "s:review:2000",
         "s:ask-review",
+        "s:blocks:on",
+        "s:blocks:off",
         "s:x",
     ],
 )
@@ -340,3 +343,35 @@ async def test_the_review_survives_a_database_error() -> None:
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
     await Handlers(SETTINGS, broken).weekly_review(context)  # type: ignore[arg-type]  # fake
     context.bot.send_message.assert_not_awaited()
+
+
+async def test_training_blocks_turn_on_from_today_and_off(
+    application: App, seeded: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR-0028: on starts a strength block today; a repeated press never restarts it."""
+    monkeypatch.setattr(settings_ui, "BLOCKS_AVAILABLE", True)
+    calls = await run(application, press("s:blocks:on", OWNER))
+    started = _prefs(seeded).blocks_started_on
+    assert started is not None
+    assert "Training blocks: on since" in calls["editMessageText"][0]["text"]
+    assert "s:blocks:off" in button_data(calls["editMessageText"][0])
+    await run(application, press("s:blocks:on", OWNER))  # an old button: still the same start
+    assert _prefs(seeded).blocks_started_on == started
+    await run(application, press("s:blocks:off", OWNER))
+    assert _prefs(seeded).blocks_started_on is None
+
+
+async def test_strangers_cannot_turn_blocks_on(
+    application: App, seeded: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings_ui, "BLOCKS_AVAILABLE", True)
+    assert await run(application, press("s:blocks:on", STRANGER)) == {}
+    assert _prefs(seeded).blocks_started_on is None
+
+
+async def test_blocks_cannot_be_turned_on_before_they_prescribe(
+    application: App, seeded: Sessions
+) -> None:
+    """Until #26 part 2, a crafted press changes nothing (no mislabelled history)."""
+    await run(application, press("s:blocks:on", OWNER))
+    assert _prefs(seeded).blocks_started_on is None
