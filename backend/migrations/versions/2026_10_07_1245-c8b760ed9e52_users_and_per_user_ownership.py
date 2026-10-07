@@ -8,6 +8,9 @@ ADR-0026: a users table, and user_id on every per-person table. Everything that 
 belongs to user 1 (the owner); the app links user 1 to the allowed Telegram account on start.
 The shared plan (exercises, ladders, sessions) has no owner. The single-row checks on plan_state
 and settings become one row per user, and exercise_state is keyed by (user_id, exercise_id).
+
+Downgrade DESTROYS DATA of everyone but the owner: their workouts, sets, ladder positions,
+queue, settings and events are deleted, since the old schema can hold one person only.
 """
 
 from collections.abc import Sequence
@@ -23,7 +26,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 OWNER = 1
-OWNED = ("workouts", "exercise_state", "plan_state", "settings")
+OWNED = ("workouts", "set_logs", "exercise_state", "plan_state", "settings")
 
 
 def _rebuild_exercise_state(with_user: bool) -> None:
@@ -107,9 +110,10 @@ def upgrade() -> None:
         users, [{"id": OWNER, "telegram_user_id": None, "created_at": datetime.now(UTC)}]
     )
 
-    with op.batch_alter_table("workouts") as batch_op:
-        _owner_column(batch_op, "workouts")
-        batch_op.create_index(batch_op.f("ix_workouts_user_id"), ["user_id"], unique=False)
+    for table in ("workouts", "set_logs"):
+        with op.batch_alter_table(table) as batch_op:
+            _owner_column(batch_op, table)
+            batch_op.create_index(batch_op.f(f"ix_{table}_user_id"), ["user_id"], unique=False)
 
     _rebuild_exercise_state(with_user=True)
 
@@ -120,7 +124,7 @@ def upgrade() -> None:
             batch_op.create_unique_constraint(batch_op.f(f"uq_{table}_user_id"), ["user_id"])
 
     # No default owner from here on: a new row must say whose it is.
-    for table in ("workouts", "plan_state", "settings"):
+    for table in ("workouts", "set_logs", "plan_state", "settings"):
         with op.batch_alter_table(table) as batch_op:
             batch_op.alter_column("user_id", server_default=None)
 
@@ -139,10 +143,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Back to one person: rows of anyone but the owner are deleted.
-    for table in (*OWNED, "events"):
+    # Back to one person: rows of anyone but the owner are deleted (children first, since
+    # foreign keys are off and foreign_key_check would refuse dangling sets).
+    for table in ("set_logs", "workouts", "exercise_state", "plan_state", "settings", "events"):
         op.execute(
             sa.text(f"DELETE FROM {table} WHERE user_id != :owner").bindparams(owner=OWNER)  # noqa: S608 - fixed table names
+        )
+    # The old single-row tables require id 1; the owner's row may have another id by now.
+    for table in ("plan_state", "settings"):
+        op.execute(
+            sa.text(f"UPDATE {table} SET id = 1 WHERE user_id = :owner").bindparams(owner=OWNER)  # noqa: S608 - fixed table names
         )
 
     with op.batch_alter_table("events") as batch_op:
@@ -159,9 +169,10 @@ def downgrade() -> None:
 
     _rebuild_exercise_state(with_user=False)
 
-    with op.batch_alter_table("workouts") as batch_op:
-        batch_op.drop_constraint(batch_op.f("fk_workouts_user_id_users"), type_="foreignkey")
-        batch_op.drop_index(batch_op.f("ix_workouts_user_id"))
-        batch_op.drop_column("user_id")
+    for table in ("set_logs", "workouts"):
+        with op.batch_alter_table(table) as batch_op:
+            batch_op.drop_constraint(batch_op.f(f"fk_{table}_user_id_users"), type_="foreignkey")
+            batch_op.drop_index(batch_op.f(f"ix_{table}_user_id"))
+            batch_op.drop_column("user_id")
 
     op.drop_table("users")

@@ -5,7 +5,7 @@ from typing import Any
 
 from alembic import context
 from alembic.autogenerate.api import AutogenContext
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine, event
 
 from training_coach.config import get_settings
 from training_coach.db import models  # noqa: F401  (registers every model on Base.metadata)
@@ -63,24 +63,43 @@ def _run(connection: Connection, *, check_foreign_keys: bool) -> None:
                 raise RuntimeError(f"migration left broken foreign keys: {broken[:5]}")
 
 
+def _real_sqlite_transactions(engine: Engine) -> None:
+    """Python's sqlite3 only opens a transaction at the first INSERT/UPDATE/DELETE, so a
+    migration starting with CREATE TABLE committed it at once and a later failure left it
+    behind (the retry then failed on "table already exists"). Take transactions out of the
+    driver's hands and emit BEGIN ourselves (SQLAlchemy's pysqlite recipe)."""
+
+    @event.listens_for(engine, "connect")
+    def _driver_autocommit(dbapi_connection: Any, _record: Any) -> None:
+        dbapi_connection.isolation_level = None
+
+    @event.listens_for(engine, "begin")
+    def _begin(connection: Connection) -> None:
+        connection.exec_driver_sql("BEGIN")
+
+
 def run_migrations_online() -> None:
     engine = make_engine(database_url)
+    if engine.dialect.name == "sqlite":
+        _real_sqlite_transactions(engine)
     with engine.connect() as connection:
         if connection.dialect.name != "sqlite":
             _run(connection, check_foreign_keys=False)
             return
         # Batch mode rebuilds a table by dropping it; with foreign keys on, that drop cascades
         # and deletes child rows (e.g. every set_log of a rebuilt workouts table). The pragma
-        # only takes effect outside a transaction, so switch it off first and back on after,
-        # whatever happens; foreign_key_check inside the transaction catches anything dangling.
-        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
-        connection.commit()
+        # only takes effect outside a transaction, so it runs on the driver connection (in
+        # autocommit) before the migration's transaction and after it, whatever happens;
+        # foreign_key_check inside the transaction catches anything dangling.
+        driver = connection.connection.driver_connection
+        assert driver is not None  # noqa: S101 - a live connection always has one
+        driver.execute("PRAGMA foreign_keys=OFF")
         try:
             _run(connection, check_foreign_keys=True)
         finally:
-            connection.rollback()
-            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
-            connection.commit()
+            if connection.in_transaction():
+                connection.rollback()
+            driver.execute("PRAGMA foreign_keys=ON")
 
 
 if context.is_offline_mode():
