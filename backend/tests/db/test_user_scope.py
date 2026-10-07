@@ -180,8 +180,8 @@ def test_link_owner_links_and_follows_a_changed_account(engine: Engine) -> None:
         users.link_owner(session, 99)  # the allowed account changed: the owner moves with it
     with sessions() as session:
         assert session.get_one(User, users.OWNER).telegram_user_id == 99
-        kinds = session.scalars(select(Event.kind)).all()
-    assert kinds == ["users.owner_relinked"]
+        events = [(e.kind, e.user_id, e.payload) for e in session.scalars(select(Event))]
+    assert events == [("users.owner_relinked", users.OWNER, {"from": 4242, "to": 99})]
 
 
 def test_link_owner_recreates_a_missing_owner(engine: Engine) -> None:

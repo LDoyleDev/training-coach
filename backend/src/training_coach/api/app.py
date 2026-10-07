@@ -72,11 +72,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         engine = make_engine(settings.database_url) if settings.bot_enabled else None
         bot = None
-        if engine is not None and settings.telegram_allowed_user_id is not None:
+        if engine is not None:
+            # bot_enabled means the token and the allowed account are both set.
+            allowed = settings.telegram_allowed_user_id
+            assert allowed is not None  # noqa: S101 - guaranteed by bot_enabled
             # The owner's data only (ADR-0026): link the allowed account to its user, then hand
             # the bot sessions bound to that user.
             with session_scope(make_session_factory(engine)) as session:
-                owner = users.link_owner(session, settings.telegram_allowed_user_id)
+                owner = users.link_owner(session, allowed)
             bot = build_bot(settings, make_session_factory(engine, user_id=owner))
         if bot is not None:
             await bot.initialize()

@@ -22,7 +22,14 @@ def link_owner(session: Session, telegram_user_id: int) -> int:
     if owner.telegram_user_id != telegram_user_id:
         if owner.telegram_user_id is not None:
             log.warning("users.owner_relinked")
-            session.add(Event(kind="users.owner_relinked", user_id=OWNER, payload={}))
+            # Not secrets, and the owner's own: say which account the history moved from and to.
+            session.add(
+                Event(
+                    kind="users.owner_relinked",
+                    user_id=OWNER,
+                    payload={"from": owner.telegram_user_id, "to": telegram_user_id},
+                )
+            )
         owner.telegram_user_id = telegram_user_id
     return owner.id
 
