@@ -7,7 +7,7 @@ A restart forgets drafts: the user is asked to send the log again.
 
 import warnings
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 
 import structlog
@@ -25,6 +25,7 @@ from training_coach.bot.messages import (
     LOG_EXPIRED,
     LOG_SAVED_BEFORE,
     LOG_STALE,
+    MODEL_ASSISTED,
     VOICE_FAILED,
     VOICE_OFF,
     VOICE_TOO_LONG,
@@ -36,6 +37,7 @@ from training_coach.config import Settings
 from training_coach.db.models import Exercise, SessionTemplate
 from training_coach.db.session import session_scope
 from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.parser import MAX_TEXT, SPLIT_ENTRIES
 from training_coach.domain.queue import local_date
 from training_coach.services import workout_log
 from training_coach.services.groq import GroqClient, GroqUnavailableError
@@ -158,15 +160,59 @@ class LogHandlers:
             names = {
                 e.slug: (e.name, ExerciseKind(e.kind)) for e in session.scalars(select(Exercise))
             }
+        assisted = False
+        if draft.problems and len(text) <= MAX_TEXT:
+            model_draft = await self._model_reading(text, [name for name, _ in names.values()])
+            # Exact rule readings are never overwritten: the model may only fill the gaps.
+            if model_draft is not None and set(draft.entries) <= set(model_draft.entries):
+                draft, assisted = model_draft, True
         markup = None
         if draft.entries:
             self._remember(draft)
             markup = keyboard(draft.token)
-        log.info("bot.log_drafted", entries=len(draft.entries), problems=len(draft.problems))
+        log.info(
+            "bot.log_drafted",
+            entries=len(draft.entries),
+            problems=len(draft.problems),
+            assisted=assisted,
+        )
         reply = log_text(draft, names)
+        if assisted:
+            reply = f"{MODEL_ASSISTED}\n\n{reply}"
         if heard is not None:
             reply = f"{heard_text(heard)}\n\n{reply}"
         await message.reply_text(reply, reply_markup=markup)
+
+    async def _model_reading(self, text: str, names: list[str]) -> Draft | None:
+        """The language model's reading, used only when it reads cleanly (ADR-0007, 0008).
+
+        Its output is never data: it becomes plain log text, which the same rule parser must
+        accept with no problems at all, and the owner still confirms before anything is saved.
+        """
+        if self.groq is None:
+            return None
+        try:
+            rewrite = await self.groq.rewrite_log(text, names=names)
+        except GroqUnavailableError as exc:
+            log.warning("bot.model_fallback_failed", reason=exc.reason)
+            return None
+        model_text = workout_log.rewrite_text(rewrite)
+        if not model_text:
+            return None
+        with session_scope(self.sessions) as session:
+            reread = workout_log.draft(session, model_text, self._today(), self.settings.tz)
+        if not reread.entries or reread.problems:
+            log.info("bot.model_fallback_rejected", problems=len(reread.problems))
+            return None
+        # The model leaves out what it can't place; say so rather than drop it silently.
+        parts = len([chunk for chunk in SPLIT_ENTRIES.split(text) if chunk.strip()])
+        if len(reread.entries) < parts:
+            note = (
+                f"The model read {len(reread.entries)} of {parts} parts of your message; "
+                "check nothing is missing."
+            )
+            return replace(reread, problems=(note,))
+        return reread
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """Save / Edit / Cancel. Strangers get nothing, not even an answer (T1)."""

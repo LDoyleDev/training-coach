@@ -27,3 +27,4 @@ Code). Template: [template.md](template.md).
 | [0020](0020-generated-api-types.md) | Dashboard API types are generated from the OpenAPI schema | Accepted |
 | [0021](0021-claude-code-guardrails.md) | Claude Code guardrails: hooks, review subagents, a lean CLAUDE.md | Accepted |
 | [0022](0022-swap-and-rest-buttons.md) | What Swap and Rest today do to the queue | Accepted |
+| [0023](0023-model-fallback-only-suggests.md) | The model fallback only suggests; the rule parser decides | Accepted |
