@@ -2,10 +2,11 @@
 
 One week is Monday to Sunday in local time. The review counts what was logged: sessions done
 against the plan's cycle, hard sets per muscle group against Galpin's 10-20, the personal
-bests set that week, and what is ready to move up. It only reads; the caller owns the session.
+bests set that week, what is ready to move up, and the habits ticked (D5). It only reads; the
+caller owns the session.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
@@ -15,10 +16,11 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import Exercise, LadderStep, SessionTemplate, SetLog, Workout
 from training_coach.domain.blocks import BlockKind
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
+from training_coach.domain.habits import HabitWeek
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
 from training_coach.domain.volume import weekly_sets
-from training_coach.services import blocks, progress
+from training_coach.services import blocks, habits, progress
 
 
 @dataclass(frozen=True)
@@ -41,6 +43,7 @@ class Review:
     bests: list[Best]
     ready: list[str]  # exercises ready to move up
     strength_block: bool = False  # moving up waits for the hypertrophy block (ADR-0028)
+    habits: list[HabitWeek] = field(default_factory=list)  # empty in a week with no check-off
 
 
 def week_start(day: date) -> date:
@@ -118,6 +121,7 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
     done = [w for w in workouts if w.status == WorkoutStatus.DONE]
     # Each planned session counts once; doing one again that week is an extra.
     planned_done = len({w.template_id for w in done if w.template_id is not None})
+    ticked = habits.week(session, start, on)
     return Review(
         start=start,
         planned=session.scalar(select(func.count()).select_from(SessionTemplate)) or 0,
@@ -132,4 +136,5 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
             and (block := blocks.current(session, on, tz)) is not None
             and block.kind is BlockKind.STRENGTH
         ),
+        habits=ticked if any(h.done for h in ticked) else [],
     )
