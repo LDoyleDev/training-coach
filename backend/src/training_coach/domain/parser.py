@@ -264,11 +264,27 @@ def _unbalanced(exercise: Known, values: list[tuple[Side | None, int]]) -> str |
     )
 
 
+def _notes(line: str) -> str:
+    """Drop bracketed notes: a step name or "(8 kg)" before the sets, or words alone.
+    Numbers in brackets after the sets ("dips 10 (then 8 8)") or holding every number on
+    the line ("pull-ups (8 8 7)") are sets, so only their brackets go."""
+
+    def note(match: re.Match[str]) -> str:
+        before, inside = line[: match.start()], match.group()
+        is_note = not re.search(r"\d", before) or not re.search(r"\d", inside)
+        return " " if is_note else f" {inside[1:-1]} "
+
+    dropped = BRACKETS.sub(note, line)
+    if re.search(r"\d", line) and not re.search(r"\d", dropped):
+        return BRACKETS.sub(lambda m: f" {m.group()[1:-1]} ", line)
+    return dropped
+
+
 def tidy(text: str) -> str:
-    """Drop what isn't part of a log: list bullets, bracketed notes (a step name, "8 kg"),
-    the colon after a name, and the missing space in "7per side"."""
+    """Drop what isn't part of a log: list bullets, bracketed notes, the colon after a name,
+    and the missing space in "7per side"."""
     text = BULLET.sub("", text)
-    text = BRACKETS.sub(" ", text)
+    text = "\n".join(_notes(line) for line in text.split("\n"))
     text = NAME_COLON.sub(" ", text)
     return GLUED_SIDE.sub(" ", text)
 

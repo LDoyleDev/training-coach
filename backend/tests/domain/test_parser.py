@@ -64,6 +64,11 @@ def each_side(*values: int) -> tuple[tuple[int, Side, int], ...]:
             [Entry("split-squat", each_side(10, 10))],
             id="bullet-weight-glued-per-side",
         ),
+        pytest.param("pull-ups (8 8 7)", [Entry("pull-up", both(8, 8, 7))], id="sets-in-brackets"),
+        pytest.param(
+            "dips 10 (then 8 8)", [Entry("dip", both(10, 8, 8))], id="more-sets-in-brackets"
+        ),
+        pytest.param("dips 10 10 (easy)", [Entry("dip", both(10, 10))], id="note-after-sets"),
         pytest.param(
             "plank 45s 1:30 1 min", [Entry("plank", both(45, 90, 60))], id="seconds-units"
         ),
@@ -109,6 +114,8 @@ def test_parses(text: str, entries: list[Entry]) -> None:
         pytest.param("dips 250", "250 is more than 200 reps for Dip", id="reps-bound"),
         pytest.param("plank 2h", "7200 is more than 3600 seconds for Plank", id="seconds-bound"),
         pytest.param("dips 10 kg 10", "I don't understand 'kg'", id="unknown-word"),
+        # A weight after the sets is read, not dropped, so it can't pass silently.
+        pytest.param("dips 10 10 (8 kg)", "I don't understand 'kg'", id="weight-after-sets"),
         pytest.param("dips left 10", "Dip isn't done one side at a time", id="side-on-two-sided"),
         pytest.param("dips 21x1", "more than 20 sets of Dip", id="too-many-sets"),
         pytest.param("", "nothing to log", id="empty"),
