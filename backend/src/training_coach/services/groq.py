@@ -38,6 +38,7 @@ class GroqClient:
         timeout: float = 20.0,
         attempts: int = 3,
         backoff: float = 1.0,
+        deadline: float = 45.0,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._key = api_key
@@ -45,6 +46,7 @@ class GroqClient:
         self._timeout = timeout
         self._attempts = attempts
         self._backoff = backoff
+        self._deadline = deadline  # the whole call, retries included: the owner is waiting
         self._transport = transport
 
     async def transcribe(self, audio: bytes, *, vocabulary: list[str]) -> str:
@@ -54,7 +56,12 @@ class GroqClient:
         if prompt:
             data["prompt"] = prompt
         files = {"file": ("voice.ogg", audio, "audio/ogg")}
-        response = await self._post("/audio/transcriptions", data=data, files=files)
+        try:
+            async with asyncio.timeout(self._deadline):
+                response = await self._post("/audio/transcriptions", data=data, files=files)
+        except TimeoutError as exc:
+            log.warning("groq.deadline", path="/audio/transcriptions")
+            raise GroqUnavailableError("timeout") from exc
         try:
             return _Transcript.model_validate(response.json()).text.strip()
         except (ValueError, ValidationError) as exc:

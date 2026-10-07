@@ -91,6 +91,7 @@ async def run(
     *,
     unmodified: bool = False,
     routes: Callable[[respx.Router], None] | None = None,
+    file_size: int | None = 20_000,
 ) -> Calls:
     """Process one update with Telegram faked; return the Bot API calls made, by method.
 
@@ -108,7 +109,10 @@ async def run(
         telegram.post(url__regex=TELEGRAM + "answerCallbackQuery$").respond(
             json={"ok": True, "result": True}
         )
-        file = {"file_id": "voice-1", "file_unique_id": "u1", "file_path": "voice/file_1.oga"}
+        file: dict[str, Any] = {"file_id": "voice-1", "file_unique_id": "u1"}
+        file["file_path"] = "voice/file_1.oga"
+        if file_size is not None:
+            file["file_size"] = file_size
         telegram.post(url__regex=TELEGRAM + "getFile$").respond(json={"ok": True, "result": file})
         telegram.get(url__regex=FILES + "voice/file_1.oga$").respond(content=AUDIO)
         if routes is not None:

@@ -132,7 +132,13 @@ class LogHandlers:
         with session_scope(self.sessions) as session:
             vocabulary = list(session.scalars(select(Exercise.name).order_by(Exercise.id)))
         try:
-            audio = bytes(await (await voice.get_file()).download_as_bytearray())
+            file = await voice.get_file()
+            # The Bot API may omit a size; never download something of unknown size.
+            size = voice.file_size or file.file_size
+            if size is None or size > MAX_VOICE_BYTES:
+                await message.reply_text(VOICE_TOO_LONG if size else VOICE_FAILED)
+                return
+            audio = bytes(await file.download_as_bytearray())
             heard = await self.groq.transcribe(audio, vocabulary=vocabulary)
         except (GroqUnavailableError, TelegramError) as exc:
             log.warning("bot.voice_failed", error=type(exc).__name__)

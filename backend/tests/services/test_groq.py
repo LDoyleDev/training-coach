@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import httpx
@@ -87,3 +88,17 @@ async def test_transcripts_and_keys_never_reach_the_logs() -> None:
     assert "secret words" not in dumped
     assert "gsk_" not in dumped
     assert [entry["event"] for entry in logs] == ["groq.retry"]
+
+
+async def test_a_slow_groq_hits_the_overall_deadline() -> None:
+    """Per-phase timeouts and retries could add up to a minute; the whole call is capped."""
+
+    async def slow(_request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(1)
+        return httpx.Response(200, json={"text": "late"})
+
+    with respx.mock:
+        respx.post(URL).mock(side_effect=slow)
+        with pytest.raises(GroqUnavailableError) as exc:
+            await GroqClient(KEY, backoff=0, deadline=0.05).transcribe(b"x", vocabulary=[])
+    assert exc.value.reason == "timeout"
