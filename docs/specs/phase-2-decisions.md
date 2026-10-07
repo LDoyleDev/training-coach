@@ -34,7 +34,8 @@ Rules around the step:
 - **A miss holds the target.** If a set fell short of its target, the next target is the same as
   the one missed (it doesn't climb from the lower number, and doesn't run away either).
 - **No history:** bottom of the range, as now.
-- **Moving up is unchanged:** every set at the top of the range in two sessions in a row, then
+- **Moving up is unchanged** (only ADR-0016's target rule is replaced, not its progression
+  rule): every set at the top of the range in two sessions in a row, then
   Move up / Not yet (ADR-0016, ADR-0025). Bigger steps simply get you there sooner.
 - **Pace setting (optional, later):** "steady" (+1 everywhere), "standard" (the table above,
   the default), "fast" (+2 minimum). Worth having once other people use the app.
