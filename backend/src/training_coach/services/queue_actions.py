@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import Event, PlanState, SessionTemplate, Workout
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import Position, complete, swap_with_next
+from training_coach.services import users
 from training_coach.services.today import SessionPlan, position, session_plan
 
 
@@ -24,7 +25,7 @@ class RestOutcome:
 
 
 def _state_at(session: Session, template_id: int) -> PlanState | None:
-    state = session.get(PlanState, 1)
+    state = users.plan_state(session)
     if state is None or state.next_template_id != template_id:
         return None
     return state

@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import (
     Event,
     Exercise,
-    ExerciseState,
     LadderStep,
     SessionTemplate,
     SetLog,
@@ -18,6 +17,7 @@ from training_coach.db.models import (
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
+from training_coach.services import users
 from training_coach.services.progress import MoveOutcome, feedback, move_up, not_yet, overview
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -38,7 +38,7 @@ def _exercise(session: Session, slug: str) -> Exercise:
 
 
 def _step(session: Session, slug: str) -> LadderStep:
-    state = session.get(ExerciseState, _exercise(session, slug).id)
+    state = users.exercise_state(session, _exercise(session, slug).id)
     assert state is not None
     step = session.get(LadderStep, state.ladder_step_id)
     assert step is not None
@@ -124,7 +124,7 @@ def test_one_side_short_holds_unilateral_work(plan: Session) -> None:
 def test_a_log_at_an_older_step_counts_for_bests_only(plan: Session) -> None:
     old = _step(plan, "pull-up")
     _log(plan, "pull-up", TOP, 0, step=old)
-    state = plan.get(ExerciseState, old.exercise_id)
+    state = users.exercise_state(plan, old.exercise_id)
     assert state is not None
     state.ladder_step_id = plan.scalars(
         select(LadderStep.id).where(
@@ -138,7 +138,7 @@ def test_a_log_at_an_older_step_counts_for_bests_only(plan: Session) -> None:
 def test_the_top_of_the_ladder_is_said_once(plan: Session) -> None:
     exercise = _exercise(plan, "pull-up")
     last = max(exercise.ladder, key=lambda s: s.position)
-    state = plan.get(ExerciseState, exercise.id)
+    state = users.exercise_state(plan, exercise.id)
     assert state is not None
     state.ladder_step_id = last.id
     _log(plan, "pull-up", TOP, 0)
@@ -203,7 +203,7 @@ def test_move_up_rechecks_the_rule(plan: Session) -> None:
 def test_move_up_at_the_last_step(plan: Session) -> None:
     exercise = _exercise(plan, "pull-up")
     last = max(exercise.ladder, key=lambda s: s.position)
-    state = plan.get(ExerciseState, exercise.id)
+    state = users.exercise_state(plan, exercise.id)
     assert state is not None
     state.ladder_step_id = last.id
     move = move_up(plan, exercise.id, last.id)
@@ -256,7 +256,7 @@ def test_overview_shows_last_session_best_and_readiness(plan: Session) -> None:
 def test_overview_reports_the_top_of_the_ladder(plan: Session) -> None:
     exercise = _exercise(plan, "pull-up")
     last = max(exercise.ladder, key=lambda s: s.position)
-    state = plan.get(ExerciseState, exercise.id)
+    state = users.exercise_state(plan, exercise.id)
     assert state is not None
     state.ladder_step_id = last.id
     _log(plan, "pull-up", TOP, 0)

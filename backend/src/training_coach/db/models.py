@@ -10,6 +10,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
@@ -121,11 +122,36 @@ class TemplateItem(Base):
     exercise: Mapped[Exercise] = relationship()
 
 
+# ----------------------------------------------------------------------- people
+
+
+class User(Base):
+    """A person using the app (ADR-0026). Per-person rows below carry ``user_id``; the shared
+    plan above does not. Phase 1 has one user, linked to the allowed Telegram account."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class Owned:
+    """Marks a per-person table. A session bound to a user (``db.session``) sees and writes
+    only that user's rows of every ``Owned`` model."""
+
+    user_id: Mapped[int] | Mapped[int | None]
+
+
+def _owner() -> Mapped[int]:
+    return mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+
+
 # ----------------------------------------------------------------------- state
 
 
-class ExerciseState(Base):
-    """The ladder step currently being trained for each exercise."""
+class ExerciseState(Owned, Base):
+    """The ladder step each person is currently training for each exercise."""
 
     __tablename__ = "exercise_state"
     __table_args__ = (
@@ -136,6 +162,9 @@ class ExerciseState(Base):
         ),
     )
 
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
     exercise_id: Mapped[int] = mapped_column(
         ForeignKey("exercises.id", ondelete="CASCADE"), primary_key=True
     )
@@ -143,13 +172,14 @@ class ExerciseState(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
-class PlanState(Base):
-    """Single row: the next session in the queue (ADR-0006), plus any swapped ones (ADR-0022)."""
+class PlanState(Owned, Base):
+    """One row per person: the next session in the queue (ADR-0006), plus any swapped ones
+    (ADR-0022)."""
 
     __tablename__ = "plan_state"
-    __table_args__ = (CheckConstraint("id = 1", name="single_row"),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     next_template_id: Mapped[int | None] = mapped_column(
         ForeignKey("session_templates.id", ondelete="RESTRICT")
     )
@@ -158,13 +188,13 @@ class PlanState(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
-class UserSettings(Base):
-    """Single row of user settings. Times are local (Europe/Berlin) wall-clock times."""
+class UserSettings(Owned, Base):
+    """One row of settings per person. Times are local (Europe/Berlin) wall-clock times."""
 
     __tablename__ = "settings"
-    __table_args__ = (CheckConstraint("id = 1", name="single_row"),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     morning_time: Mapped[time] = mapped_column(Time, default=time(7, 30))
     nudge_time: Mapped[time] = mapped_column(Time, default=time(20, 0))
     nudges_enabled: Mapped[bool] = mapped_column(Boolean, server_default=true())
@@ -175,7 +205,7 @@ class UserSettings(Base):
 # ------------------------------------------------------------------------ logs
 
 
-class Workout(Base):
+class Workout(Owned, Base):
     """One training session. Several per day are allowed (ADR-0014).
 
     ``template_id`` is the planned session this completes; ``None`` means an extra,
@@ -186,6 +216,7 @@ class Workout(Base):
     __table_args__ = (CheckConstraint(_in("status", WorkoutStatus), name="status_valid"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
     local_date: Mapped[date] = mapped_column(Date, index=True)
     template_id: Mapped[int | None] = mapped_column(
         ForeignKey("session_templates.id", ondelete="RESTRICT")
@@ -204,7 +235,7 @@ class Workout(Base):
     )
 
 
-class SetLog(Base):
+class SetLog(Owned, Base):
     """One logged set. ``value`` is reps, seconds or minutes depending on the exercise kind.
 
     Sets are only saved for ``done`` workouts; ``rest``/``skipped`` workouts have none
@@ -225,6 +256,7 @@ class SetLog(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()  # always the workout's owner (checked on flush)
     workout_id: Mapped[int] = mapped_column(
         ForeignKey("workouts.id", ondelete="CASCADE"), index=True
     )
@@ -239,12 +271,16 @@ class SetLog(Base):
     workout: Mapped[Workout] = relationship(back_populates="sets")
 
 
-class Event(Base):
-    """Audit log. Payloads must never contain secrets, transcripts or measurements."""
+class Event(Owned, Base):
+    """Audit log. Payloads must never contain secrets, transcripts or measurements.
+    ``user_id`` is empty for system events such as ``seed.applied``."""
 
     __tablename__ = "events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
     kind: Mapped[str] = mapped_column(String(64), index=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
@@ -256,10 +292,12 @@ __all__ = [
     "Exercise",
     "ExerciseState",
     "LadderStep",
+    "Owned",
     "PlanState",
     "SessionTemplate",
     "SetLog",
     "TemplateItem",
+    "User",
     "UserSettings",
     "Workout",
 ]

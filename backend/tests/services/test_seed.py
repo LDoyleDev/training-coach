@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import (
@@ -17,10 +17,13 @@ from training_coach.db.models import (
     SessionTemplate,
     SetLog,
     TemplateItem,
+    User,
     UserSettings,
     Workout,
 )
+from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
+from training_coach.services import users
 from training_coach.services.seed import PlanSeed, SeedError, apply_seed, load_plan
 
 MINI_PLAN = """
@@ -105,7 +108,7 @@ def test_seed_creates_plan_state_and_settings(session: Session) -> None:
     assert _count(session, TemplateItem) == 2
 
     pull_up = session.scalars(select(Exercise).where(Exercise.slug == "pull-up")).one()
-    state = session.get_one(ExerciseState, pull_up.id)
+    state = users.exercise_state(session, pull_up.id)
     assert session.get_one(LadderStep, state.ladder_step_id).name == "Strict"
 
     first = session.scalars(select(SessionTemplate).where(SessionTemplate.position == 0)).one()
@@ -131,7 +134,7 @@ def test_reseed_keeps_progress(session: Session) -> None:
     apply_seed(session, load_plan(MINI_PLAN))
     session.commit()
     pull_up = session.scalars(select(Exercise).where(Exercise.slug == "pull-up")).one()
-    state = session.get_one(ExerciseState, pull_up.id)
+    state = users.exercise_state(session, pull_up.id)
     weighted = next(s for s in pull_up.ladder if s.name == "Weighted")
     state.ladder_step_id = weighted.id
     arms = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "arms")).one()
@@ -141,7 +144,7 @@ def test_reseed_keeps_progress(session: Session) -> None:
     apply_seed(session, load_plan(MINI_PLAN))
     session.commit()
 
-    assert session.get_one(ExerciseState, pull_up.id).ladder_step_id == weighted.id
+    assert users.exercise_state(session, pull_up.id).ladder_step_id == weighted.id
     assert session.get_one(PlanState, 1).next_template_id == arms.id
 
 
@@ -363,11 +366,11 @@ def test_renaming_a_step_in_use_needs_a_rename_entry(session: Session) -> None:
     marked = typo_fix.replace(
         'ladder = ["Feet flat"', 'renames = { "Feet down" = "Feet flat" }\nladder = ["Feet flat"'
     )
-    state_before = session.get_one(ExerciseState, _dip_id(session)).ladder_step_id
+    state_before = users.exercise_state(session, _dip_id(session)).ladder_step_id
     apply_seed(session, load_plan(marked))
     session.commit()
     assert _step_names(session, "dip") == ["Feet flat", "Feet up"]
-    assert session.get_one(ExerciseState, _dip_id(session)).ladder_step_id == state_before
+    assert users.exercise_state(session, _dip_id(session)).ladder_step_id == state_before
     # The rename entry can stay in plan.toml: once applied it changes nothing.
     assert not apply_seed(session, load_plan(marked)).changed
 
@@ -460,3 +463,17 @@ def test_two_exercises_cannot_share_a_name(exercise: str, alias: str) -> None:
     clash = MINI_PLAN.replace(f'name = "{exercise}"', f'name = "{exercise}"\naliases = ["{alias}"]')
     with pytest.raises(ValidationError, match="used by both"):
         load_plan(clash)
+
+
+def test_seed_gives_every_user_their_own_starting_rows(engine: Engine) -> None:
+    """ADR-0026: each person gets ladder positions, a queue and settings of their own."""
+    sessions = make_session_factory(engine)
+    with session_scope(sessions) as session:
+        session.add(User(id=2))
+    with session_scope(sessions) as session:
+        apply_seed(session, load_plan())
+    for user_id in (1, 2):
+        with make_session_factory(engine, user_id=user_id)() as session:
+            assert users.plan_state(session) is not None
+            assert users.settings_row(session) is not None
+            assert len(session.scalars(select(ExerciseState)).all()) == len(load_plan().exercises)

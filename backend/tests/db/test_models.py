@@ -71,10 +71,13 @@ def test_settings_defaults(session: Session) -> None:
 
 
 @pytest.mark.parametrize("model", [UserSettings, PlanState])
-def test_single_row_tables_reject_second_row(
+def test_one_settings_and_plan_row_per_user(
     session: Session, model: type[UserSettings] | type[PlanState]
 ) -> None:
-    session.add(model(id=2))
+    """ADR-0026: what used to be single-row tables hold one row per person."""
+    session.add(model())
+    session.commit()
+    session.add(model())
     with pytest.raises(IntegrityError):
         session.commit()
 
@@ -262,8 +265,9 @@ def test_null_side_rejected_by_database(session: Session) -> None:
     session.flush()
     first = session.scalars(select(SetLog)).one()
     with pytest.raises(IntegrityError):
-        session.execute(
-            insert(SetLog).values(
+        session.execute(  # a plain table insert: the database itself must refuse it
+            insert(SetLog.__table__).values(
+                user_id=first.user_id,
                 workout_id=first.workout_id,
                 exercise_id=first.exercise_id,
                 ladder_step_id=first.ladder_step_id,

@@ -1,11 +1,24 @@
-"""Engine and session factory. SQLite is tuned for an SD card: WAL, fewer fsyncs (ADR-0010)."""
+"""Engine and session factory. SQLite is tuned for an SD card: WAL, fewer fsyncs (ADR-0010).
+
+A session can be bound to a user (ADR-0026, ADR-0029): every query it runs on an ``Owned``
+(per-person) table is filtered to that user, and every new row it writes is stamped with them.
+Services never filter by user themselves, so they can't forget to.
+"""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
 from sqlalchemy import Engine, create_engine, event
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import ORMExecuteState, Session, sessionmaker, with_loader_criteria
+from sqlalchemy.orm.attributes import get_history
+
+from training_coach.db.models import Owned, SetLog, Workout
+
+USER = "user_id"  # key in Session.info
+# Execution option for shared checks that must see everyone's rows from any session (the
+# seed's "is this ladder step in use" guard). Never for per-person reads.
+ALL_USERS = "all_users"
 
 
 def make_engine(database_url: str) -> Engine:
@@ -23,8 +36,65 @@ def make_engine(database_url: str) -> Engine:
     return engine
 
 
-def make_session_factory(engine: Engine) -> sessionmaker[Session]:
-    return sessionmaker(bind=engine, expire_on_commit=False)
+def make_session_factory(engine: Engine, user_id: int | None = None) -> sessionmaker[Session]:
+    """Sessions for one user's data, or (``user_id`` None) unbound sessions for shared work
+    such as seeding the plan and linking the owner's account."""
+    return sessionmaker(bind=engine, expire_on_commit=False, info={USER: user_id})
+
+
+def bound_user(session: Session) -> int | None:
+    user = session.info.get(USER)
+    return user if isinstance(user, int) else None
+
+
+def _targets_owned(state: ORMExecuteState) -> bool:
+    mapper = state.bind_mapper
+    return mapper is not None and issubclass(mapper.class_, Owned)
+
+
+@event.listens_for(Session, "do_orm_execute")
+def _only_this_users_rows(state: ORMExecuteState) -> None:
+    user = bound_user(state.session)
+    if user is None or state.execution_options.get(ALL_USERS):
+        return
+    if (state.is_insert or state.is_update) and _targets_owned(state):
+        # These skip the flush, so nothing would stamp or check the owner: per-person rows are
+        # added and changed through the unit of work only.
+        raise PermissionError("bulk inserts and updates of per-person rows are not allowed")
+    if state.is_column_load or state.is_relationship_load:
+        return  # the criteria of the parent query already apply
+    if state.is_select or state.is_delete:
+        state.statement = state.statement.options(
+            *(
+                with_loader_criteria(model, lambda cls: cls.user_id == user, include_aliases=True)
+                for model in Owned.__subclasses__()
+            )
+        )
+
+
+@event.listens_for(Session, "before_flush")
+def _stamp_owner(session: Session, _context: object, _instances: object) -> None:
+    user = bound_user(session)
+    if user is None:
+        return
+    for row in session.new:
+        if isinstance(row, Owned):
+            if row.user_id is None:
+                row.user_id = user
+            elif row.user_id != user:
+                raise PermissionError("a session bound to one user wrote another user's row")
+    with session.no_autoflush:
+        for row in session.new:
+            # A set belongs to its workout's owner: one of this user's own workouts.
+            if isinstance(row, SetLog):
+                workout = row.workout
+                if workout is None and row.workout_id is not None:
+                    workout = session.get(Workout, row.workout_id)
+                if workout is None or workout.user_id != user:
+                    raise PermissionError("a set can only be added to the user's own workout")
+    for row in session.dirty:
+        if isinstance(row, Owned) and get_history(row, "user_id").has_changes():
+            raise PermissionError("a row can't be handed to another user")
 
 
 @contextmanager

@@ -11,9 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import (
-    ExerciseState,
     LadderStep,
-    PlanState,
     SessionTemplate,
     TemplateItem,
     Workout,
@@ -21,6 +19,7 @@ from training_coach.db.models import (
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import ADVANCING, Position, upcoming
 from training_coach.domain.targets import Prescription, targets
+from training_coach.services import users
 from training_coach.services.progress import sessions_at_step
 
 
@@ -62,7 +61,7 @@ def _order(session: Session) -> list[SessionTemplate]:
 
 def position(session: Session) -> Position | None:
     """The queue position, or None when there is no plan (or it points nowhere)."""
-    state = session.get(PlanState, 1)
+    state = users.plan_state(session)
     if state is None or state.next_template_id is None:
         return None
     # Queued ids have no foreign key; drop any whose session has left the plan.
@@ -71,7 +70,7 @@ def position(session: Session) -> Position | None:
 
 
 def _item_plan(session: Session, item: TemplateItem) -> ItemPlan:
-    state = session.get(ExerciseState, item.exercise_id)
+    state = users.exercise_state(session, item.exercise_id)
     step = session.get(LadderStep, state.ladder_step_id) if state is not None else None
     if step is None:  # seeding always creates state; fall back to the first rung if not
         step = min(item.exercise.ladder, key=lambda s: s.position)

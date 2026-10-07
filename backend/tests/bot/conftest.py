@@ -7,11 +7,12 @@ from tests.bot.fakes import SETTINGS
 from training_coach.bot.app import build_bot
 from training_coach.db.session import make_session_factory
 from training_coach.services.seed import apply_seed, load_plan
+from training_coach.services.users import OWNER
 
 
 @pytest.fixture
 def sessions(engine: Engine) -> sessionmaker[Session]:
-    return make_session_factory(engine)
+    return make_session_factory(engine, user_id=OWNER)
 
 
 @pytest.fixture

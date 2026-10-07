@@ -4,8 +4,9 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Exercise, ExerciseState, PlanState, SetLog, Workout
+from training_coach.db.models import Exercise, PlanState, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
+from training_coach.services import users
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.today import today, week
 
@@ -76,7 +77,7 @@ def _log(
     template_id: int | None = None,
 ) -> None:
     exercise = _exercise(session, slug)
-    step = session.get(ExerciseState, exercise.id)
+    step = users.exercise_state(session, exercise.id)
     assert step is not None
     workout = Workout(local_date=on, template_id=template_id, status=WorkoutStatus.DONE)
     workout.sets = [
@@ -196,7 +197,7 @@ def test_week_starts_tomorrow_once_today_is_done(
 
 
 def test_missing_exercise_state_falls_back_to_the_first_rung(seeded: Session) -> None:
-    seeded.delete(seeded.get(ExerciseState, _exercise(seeded, "pull-up").id))
+    seeded.delete(users.exercise_state(seeded, _exercise(seeded, "pull-up").id))
     seeded.flush()
     plan = today(seeded, DAY)
     assert plan is not None

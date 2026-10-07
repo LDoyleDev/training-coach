@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings, get_settings
-from training_coach.db.session import make_engine
+from training_coach.db.session import make_engine, make_session_factory
+from training_coach.services.users import OWNER
 
 BACKEND = Path(__file__).resolve().parents[1]
 
@@ -42,5 +43,6 @@ def engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Engine]:
 
 @pytest.fixture
 def session(engine: Engine) -> Iterator[Session]:
-    with Session(engine) as s:
+    """Bound to the owner (user 1, created by the migrations), as the app's sessions are."""
+    with make_session_factory(engine, user_id=OWNER)() as s:
         yield s
