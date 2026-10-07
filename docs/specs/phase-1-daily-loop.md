@@ -18,12 +18,12 @@ Keep this table current: the PR that finishes a step marks it done here.
 | 1-D Morning message, nudge and settings | #10 | Done (#43, #46 with ADR-0022, and the settings and nudge PR) |
 | 1-E Text logging with confirmation | #11 | Done (#54 parser, #55 save, and the bot flow PR) |
 | 1-F Voice logging (Groq) | #12 | Done (#60 voice, and the model fallback PR, ADR-0023) |
-| 1-G Feedback and progress | #13 | **Next** |
-| 1-H Backups and ops | #14 | Done (this PR; restore rehearsed on the desktop, Pi drill pending) |
+| 1-G Feedback and progress | #13 | In progress (bests and the Move up prompt, ADR-0025; `/progress` next) |
+| 1-H Backups and ops | #14 | Done (#63, ADR-0024; restore rehearsed on the desktop, Pi drill pending) |
 
 Also in this milestone: #18 (guard ladder-step edits that would remap logged history; done).
 Built outside the step list: the public plan page and
-`GET /api/plan` (#32, ADR-0019). The bot sends the morning session with Start / Rest today / Swap buttons and an evening nudge, answers `/today`, `/week`, `/settings` and `/help`, and takes typed workout logs with a confirm step.
+`GET /api/plan` (#32, ADR-0019). The bot sends the morning session with Start / Rest today / Swap buttons and an evening nudge, answers `/today`, `/week`, `/settings` and `/help`, and takes typed or voice workout logs with a confirm step, then reports personal bests and offers to move up the ladder. The database is backed up nightly.
 
 ## Data model (step 1-A)
 
