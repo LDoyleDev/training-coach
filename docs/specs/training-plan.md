@@ -30,6 +30,9 @@ shift everything back (ADR-0006).
 - **Reps:** hypertrophy 6-30 reps (mostly 8-15). Bodyweight progression comes from harder
   ladder variations, which keeps sets inside the range.
 - **Order within a session:** power (jumps, swings) -> strength -> hypertrophy -> small muscles.
+- **Pairs (ADR-0031):** resistance sessions are done in pairs of exercises that don't compete for
+  the same muscles, alternating set by set, so one rests while the other works. The pairs keep
+  the order above. Sessions list every set in the order it's done.
 - **Session length:** ~10 min warm-up + 50-60 min of work.
 - **Neck:** controlled flexion, extension and side bending, plus chin tucks; no neck bridges.
   About 10-15 reps, twice a week.
