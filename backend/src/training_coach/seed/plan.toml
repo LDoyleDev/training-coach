@@ -11,7 +11,8 @@
 # session: power -> strength -> hypertrophy -> small muscles (Galpin). Each resistance session
 # starts with a ~10 min warm-up and stays within ~60 min of work.
 # `pair = N` on two neighbouring items: they are done alternately, set by set, and should not
-# compete for the same muscles, so one rests while the other works (ADR-0031).
+# compete for the same muscles, so one rests while the other works. The order above applies to
+# each pair's first exercise; the second may be a small muscle filling that lift's rest (ADR-0031).
 
 # ------------------------------------------------------------------- legs
 

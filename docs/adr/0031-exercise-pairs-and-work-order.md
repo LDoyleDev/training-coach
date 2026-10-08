@@ -16,6 +16,9 @@ exercise rests while the other works.
 
 - Pairs are fixed in `plan.toml`: `pair = N` on two neighbouring items. The seed refuses a
   pair number that isn't on exactly two neighbours, and stores the number on `template_items`.
+- The plan's order (power -> strength -> hypertrophy -> small muscles) applies to each pair's
+  first exercise. The second can be a small muscle that fills the bigger lift's rest (calf
+  raise with KB swing), so some small-muscle work moves earlier than that order would put it.
 - The order is pure logic (`domain/work_order.py`): a pair alternates A1, B1, A2, B2, ...; the
   exercise with more sets finishes alone; unpaired items are done straight through.
 - `/today`, the morning message and Start show one numbered line per set in that order, with
