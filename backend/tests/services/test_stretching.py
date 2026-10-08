@@ -2,6 +2,7 @@
 
 from datetime import date
 
+import pytest
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
@@ -120,3 +121,13 @@ def test_another_persons_workout_is_not_there(engine: Engine) -> None:
         assert stretching.log(mine, their_id, 10) is None
     with session_scope(make_session_factory(engine, user_id=2)) as theirs:
         assert _stretching_sets(theirs, their_id) == []
+
+
+def test_no_stretches_chosen_means_no_routine(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An empty routine would still offer Done and log time nobody was given (#102 review)."""
+    legs = _workout(session, "legs")
+    empty = load_plan().model_copy(update={"stretches": []})
+    monkeypatch.setattr(stretching, "bundled_plan", lambda: empty)
+    assert stretching.for_workout(session, legs, 10) is None

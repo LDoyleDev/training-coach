@@ -66,14 +66,15 @@ def offered(session: Session, workout_id: int) -> bool:
 
 
 def for_workout(session: Session, workout_id: int, minutes: int) -> Routine | None:
-    """The routine after a saved resistance workout, or None if there's no such workout or
-    ``minutes`` isn't one of the choices."""
+    """The routine after a saved resistance workout, or None if there's no such workout,
+    ``minutes`` isn't one of the choices, or no stretch was chosen (never an empty routine
+    with a Done button that would log time nobody was given)."""
     found = _strength_workout(session, workout_id)
     if found is None or minutes not in CHOICES:
         return None
     _, template = found
-    steps = for_session(session, template.id, minutes) or []
-    return Routine(template.name, minutes, steps)
+    steps = for_session(session, template.id, minutes)
+    return Routine(template.name, minutes, steps) if steps else None
 
 
 def log(session: Session, workout_id: int, minutes: int) -> bool | None:

@@ -23,7 +23,7 @@ from training_coach.services.stretching import Routine
 log = structlog.get_logger(__name__)
 
 PREFIX = "st"
-GONE = "That workout isn't there any more, so there's nothing to stretch after."
+GONE = "I can't put stretching together for that workout. Is it still saved?"
 ALREADY = "Stretching is already logged for that workout."
 
 
