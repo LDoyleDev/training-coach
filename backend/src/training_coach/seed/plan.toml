@@ -378,3 +378,113 @@ type = "conditioning"
 name = "Long zone 2"
 focus = "60-75 min at conversational pace (30 min minimum)"
 items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
+
+# ---------------------------------------------------------------- stretches (#98, ADR-0032)
+# Offered after a resistance session (10, 20 or 30 min). Static holds of about 30 s at a gentle
+# effort, 3-4 out of 10: a stretch, never pain. `muscles` use the exercises' muscle groups, so
+# the routine can start with what the session worked. No equipment beyond a wall, door or chair.
+
+[[stretches]]
+slug = "standing-quad"
+name = "Standing quad stretch"
+muscles = ["quads", "hip flexors"]
+per_side = true
+cue = "Heel towards your glute, knees together, tuck the pelvis under. Hold a wall for balance."
+
+[[stretches]]
+slug = "half-kneeling-hip-flexor"
+name = "Half-kneeling hip flexor stretch"
+muscles = ["hip flexors", "quads"]
+per_side = true
+cue = "Back knee down, squeeze that glute and shift forward until the front of the hip stretches."
+
+[[stretches]]
+slug = "seated-hamstring"
+name = "Seated hamstring stretch"
+muscles = ["hamstrings", "lower back"]
+per_side = true
+cue = "One leg straight, the other foot against its thigh. Hinge from the hips, back long."
+
+[[stretches]]
+slug = "figure-four"
+name = "Figure-four glute stretch"
+muscles = ["glutes"]
+per_side = true
+cue = "On your back, ankle over the opposite knee, pull that thigh towards your chest."
+
+[[stretches]]
+slug = "wall-calf"
+name = "Wall calf stretch"
+muscles = ["calves"]
+per_side = true
+cue = "Hands on the wall, back leg straight and heel down. Bend that knee for the second half."
+
+[[stretches]]
+slug = "kneeling-shin"
+name = "Kneeling shin stretch"
+muscles = ["tibialis"]
+per_side = false
+cue = "Kneel with the tops of your feet flat and sit back towards your heels."
+
+[[stretches]]
+slug = "childs-pose"
+name = "Child's pose with a reach"
+muscles = ["lower back", "lats"]
+per_side = false
+cue = "Knees wide, sit back to your heels and walk your hands forward. Breathe into your back."
+
+[[stretches]]
+slug = "doorway-chest"
+name = "Doorway chest stretch"
+muscles = ["chest", "front delts"]
+per_side = false
+cue = "Forearms on the door frame, elbows at shoulder height, step through until the chest opens."
+
+[[stretches]]
+slug = "cross-body-shoulder"
+name = "Cross-body shoulder stretch"
+muscles = ["rear delts", "upper back", "shoulders", "side delts"]
+per_side = true
+cue = "Bring one arm across your chest and hold it above the elbow. Keep the shoulder down."
+
+[[stretches]]
+slug = "overhead-triceps"
+name = "Overhead triceps stretch"
+muscles = ["triceps", "lats"]
+per_side = true
+cue = "Hand down your back, the other hand eases the elbow back and in. Ribs down."
+
+[[stretches]]
+slug = "wall-biceps"
+name = "Wall biceps stretch"
+muscles = ["biceps", "front delts"]
+per_side = true
+cue = "Palm on the wall behind you at shoulder height, arm straight, turn your body away."
+
+[[stretches]]
+slug = "wrist-flexor"
+name = "Wrist and forearm stretch"
+muscles = ["forearms", "grip"]
+per_side = true
+cue = "Arm straight, palm up, gently pull the fingers back. Then palm down for the other side."
+
+[[stretches]]
+slug = "chair-lat"
+name = "Kneeling lat stretch on a chair"
+muscles = ["lats", "upper back"]
+per_side = false
+cue = "Elbows on a chair seat, hands together, sit your hips back and let the chest sink."
+
+[[stretches]]
+slug = "neck-side"
+name = "Neck side stretch"
+muscles = ["neck"]
+per_side = true
+cue = "Ear towards the shoulder, the opposite shoulder down. Your hand only rests on your head."
+
+[[stretches]]
+slug = "sphinx"
+name = "Sphinx stretch"
+muscles = ["core", "hip flexors"]
+per_side = false
+cue = "On your front, up on your forearms, hips on the floor. Relax the glutes and breathe."

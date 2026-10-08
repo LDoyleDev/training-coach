@@ -36,3 +36,4 @@ Code). Template: [template.md](template.md).
 | [0029](0029-sessions-bound-to-a-user.md) | Per-person data is scoped by binding the session to a user | Accepted |
 | [0030](0030-deploy-releases-from-a-timer.md) | The Pi deploys new releases itself, from a timer | Accepted |
 | [0031](0031-exercise-pairs-and-work-order.md) | Resistance sessions are done in fixed pairs, listed set by set | Accepted |
+| [0032](0032-stretching-after-resistance.md) | Stretching after a resistance session is chosen for the muscles worked | Accepted |

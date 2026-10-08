@@ -35,6 +35,7 @@ from training_coach.db.models import (
 from training_coach.db.session import ALL_USERS
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.parser import normalise_name
+from training_coach.domain.stretching import Stretch
 
 log = structlog.get_logger(__name__)
 
@@ -114,9 +115,24 @@ class SessionSeed(_Strict):
         return self
 
 
+class StretchSeed(_Strict):
+    """A stretch offered after a resistance session (#98). Read from the bundled plan, not
+    stored: nothing logged refers to a stretch."""
+
+    slug: str = Field(pattern=SLUG, max_length=64)
+    name: str = Field(min_length=1, max_length=120)
+    muscles: list[str] = Field(min_length=1)
+    per_side: bool = False
+    cue: str = Field(min_length=1, max_length=200)
+
+    def stretch(self) -> Stretch:
+        return Stretch(self.slug, self.name, frozenset(self.muscles), self.per_side, self.cue)
+
+
 class PlanSeed(_Strict):
     exercises: list[ExerciseSeed] = Field(min_length=1)
     sessions: list[SessionSeed] = Field(min_length=1)
+    stretches: list[StretchSeed] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _references(self) -> Self:
@@ -134,6 +150,14 @@ class PlanSeed(_Strict):
                     raise ValueError(
                         f"the name {name!r} is used by both {other} and {exercise.slug}"
                     )
+        stretch_slugs = [s.slug for s in self.stretches]
+        if len(stretch_slugs) != len(set(stretch_slugs)):
+            raise ValueError("duplicate stretch slug")
+        groups = {g for e in self.exercises for g in e.muscle_groups}
+        for stretch in self.stretches:
+            unknown = sorted(set(stretch.muscles) - groups)
+            if unknown:  # a typo would quietly never match a session's muscles
+                raise ValueError(f"stretch {stretch.slug}: no exercise works {unknown}")
         known = set(slugs)
         for session in self.sessions:
             for item in session.items:
