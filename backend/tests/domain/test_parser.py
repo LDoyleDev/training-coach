@@ -202,3 +202,17 @@ def test_problems_quote_at_most_a_short_excerpt() -> None:
     (problem,) = parse_log(hostile, KNOWN).problems
     assert len(problem) < 120
     assert "\x01" not in problem
+
+
+def test_a_name_matches_without_its_bracketed_note() -> None:
+    """Typed or pasted, brackets are dropped before matching, so the plan's own name
+    "Moderate cardio (~75-80% effort)" must match "Moderate cardio" (#104)."""
+    cardio = Known("cardio", ("Moderate cardio (~75-80% effort)",), MINUTES, False)
+    for text in ("Moderate cardio: 60", "Moderate cardio (~75-80% effort): 60"):
+        assert parse_log(text, (*KNOWN, cardio)).entries == (Entry("cardio", both(60)),)
+
+
+def test_a_step_after_a_bracketed_name_is_still_a_note() -> None:
+    hiit = Known("hiit", ("High-intensity intervals (20 s all-out / 10 s easy)",), REPS, False)
+    line = "High-intensity intervals (20 s all-out / 10 s easy) (8 rounds): 8"
+    assert parse_log(line, (*KNOWN, hiit)).entries == (Entry("hiit", both(8)),)
