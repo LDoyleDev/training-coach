@@ -46,6 +46,9 @@ def test_a_dash_after_the_date_is_dropped() -> None:
         "3 sets pull ups",
         "Mon 5 pull-ups",
         "30 Foo",
+        "3 decline push-ups 10",
+        "5 marching lunges 10",
+        "4 mayhem burpees 2",
     ],
 )
 def test_a_log_line_is_not_a_date(line: str) -> None:

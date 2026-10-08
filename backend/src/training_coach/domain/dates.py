@@ -18,7 +18,8 @@ _WEEKDAY = (
 )
 _DATE = (
     rf"^\s*(?:{_WEEKDAY}\s+)?"
-    r"(?:(?P<day>\d{1,2})(?:st|nd|rd|th)?\s+(?P<month>jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?"
+    r"(?:(?P<day>\d{1,2})(?:st|nd|rd|th)?\s+(?P<month>jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?"
+    r"|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b\.?"
     r"|(?P<d>\d{1,2})/(?P<m>\d{1,2})(?![/\d])"
     r"|(?P<iso>\d{4}-\d{2}-\d{2}))"
     r"(?P<rest>(?:\W.*)?)$"
@@ -68,7 +69,7 @@ def date_line(line: str, today: date) -> DateLine | str | None:
         except ValueError:
             day = None
     elif match["month"]:
-        month = match["month"].lower()
+        month = match["month"].lower()[:3]
         day = _recent(MONTHS.index(month) + 1, int(match["day"]), today)
     else:
         day = (
