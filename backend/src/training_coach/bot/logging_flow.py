@@ -38,6 +38,7 @@ from training_coach.bot.messages import (
 )
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
+from training_coach.domain.dates import date_line
 from training_coach.domain.parser import MAX_TEXT, SPLIT_ENTRIES
 from training_coach.domain.queue import local_date
 from training_coach.services import progress, stretching, workout_log
@@ -170,10 +171,27 @@ class LogHandlers:
             draft = workout_log.draft(session, text, self._today(), self.settings.tz)
             names = workout_log.exercise_labels(session)
         assisted = False
-        if draft.problems and len(text) <= MAX_TEXT:
-            model_draft = await self._model_reading(text, [name for name, _ in names.values()])
+        # A date line never goes to the model: it reads the log under it, and its reading is
+        # put back under the same line. A refused date isn't sent at all (#104).
+        first, _, body = text.partition("\n")
+        dated = date_line(first, self._today())
+        if (
+            draft.problems
+            and len(text) <= MAX_TEXT
+            and not draft.rest
+            and not isinstance(dated, str)
+        ):
+            model_draft = await self._model_reading(
+                body if dated else text,
+                [name for name, _ in names.values()],
+                heading=first if dated else None,
+            )
             # Exact rule readings are never overwritten: the model may only fill the gaps.
-            if model_draft is not None and set(draft.entries) <= set(model_draft.entries):
+            if (
+                model_draft is not None
+                and model_draft.on == draft.on
+                and set(draft.entries) <= set(model_draft.entries)
+            ):
                 draft, assisted = model_draft, True
         markup = None
         if draft.entries or (draft.rest and not draft.problems):
@@ -192,7 +210,9 @@ class LogHandlers:
             reply = f"{heard_text(heard)}\n\n{reply}"
         await message.reply_text(reply, reply_markup=markup)
 
-    async def _model_reading(self, text: str, names: list[str]) -> Draft | None:
+    async def _model_reading(
+        self, text: str, names: list[str], heading: str | None = None
+    ) -> Draft | None:
         """The language model's reading, used only when it reads cleanly (ADR-0007, 0008).
 
         Its output is never data: it becomes plain log text, which the same rule parser must
@@ -209,7 +229,8 @@ class LogHandlers:
         if not model_text:
             return None
         with session_scope(self.sessions) as session:
-            reread = workout_log.draft(session, model_text, self._today(), self.settings.tz)
+            reread_text = f"{heading}\n{model_text}" if heading is not None else model_text
+            reread = workout_log.draft(session, reread_text, self._today(), self.settings.tz)
         if not reread.entries or reread.problems:
             log.info("bot.model_fallback_rejected", problems=len(reread.problems))
             return None
