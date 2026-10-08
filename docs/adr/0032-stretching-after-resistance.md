@@ -40,4 +40,6 @@ mobility flow on the Recovery day.
 - At 10 minutes the routine covers 3-4 of the session's muscles; longer choices add third
   rounds before the rest of the body.
 - Adding a stretch is a plan edit; the selection picks it up without code changes.
-- Showing and logging the routine (buttons, the Done button) is the second half of #98.
+- The "Saved" reply to a resistance log offers Stretch 10 / 20 / 30 min. A choice sends the
+  routine with a Done button, and Done logs the minutes on that workout as the plan's mobility
+  exercise. That is one per workout, so a second tap can't double it.
