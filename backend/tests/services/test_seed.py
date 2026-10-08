@@ -515,3 +515,36 @@ def test_the_bundled_resistance_sessions_are_fully_paired() -> None:
     for slug in ("legs", "torso"):
         assert all(item.pair is not None for item in sessions[slug].items), slug
     assert [item.pair is None for item in sessions["arms"].items].count(True) == 1  # dead hang
+
+
+STRETCH = """
+[[stretches]]
+slug = "lat"
+name = "Lat stretch"
+muscles = ["MUSCLE"]
+cue = "Reach."
+"""
+
+
+def test_stretches_must_name_muscles_the_exercises_work() -> None:
+    plan = MINI_PLAN.replace('kind = "reps"', 'kind = "reps"\nmuscle_groups = ["lats"]', 1)
+    stretches = load_plan(plan + STRETCH.replace("MUSCLE", "lats")).stretches
+    assert [s.slug for s in stretches] == ["lat"]
+    with pytest.raises(ValidationError, match="no exercise works"):
+        load_plan(plan + STRETCH.replace("MUSCLE", "latz"))
+    with pytest.raises(ValidationError, match="duplicate stretch slug"):
+        load_plan(plan + (STRETCH.replace("MUSCLE", "lats") * 2))
+
+
+def test_the_bundled_plan_has_a_stretch_for_every_resistance_muscle() -> None:
+    plan = load_plan()
+    stretched = {m for s in plan.stretches for m in s.muscles}
+    exercises = {e.slug: e for e in plan.exercises}
+    worked = {
+        group
+        for session in plan.sessions
+        if session.type == "strength"
+        for item in session.items
+        for group in exercises[item.exercise].muscle_groups
+    }
+    assert worked - stretched == {"power", "posture"}  # qualities, not muscles
