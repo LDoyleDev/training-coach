@@ -62,6 +62,13 @@ def complete(
     return advance(order, position)
 
 
+def caught_up(order: Sequence[int], template_id: int) -> Position:
+    """The position after a past day's session logged late, when nothing later is logged
+    (#104, ADR-0033): the session after it, with any swap dropped. Catching up in date order
+    leaves the queue after the last session actually done, whatever order they came in."""
+    return Position(next_in_cycle(order, template_id))
+
+
 def swap_with_next(order: Sequence[int], position: Position) -> Position:
     """Do the next session first and the current one after it (ADR-0022).
 

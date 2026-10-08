@@ -4,6 +4,8 @@ saveable draft."""
 
 import json
 from collections.abc import Callable
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
@@ -18,6 +20,7 @@ from tests.bot.fakes import OWNER, SETTINGS, button_data, run, text_message, tex
 from training_coach.bot.app import build_bot
 from training_coach.bot.messages import MODEL_ASSISTED
 from training_coach.db.models import Workout
+from training_coach.domain.queue import local_date
 from training_coach.services.groq import BASE_URL, GroqClient
 
 App = Application  # type: ignore[type-arg]  # see build_bot
@@ -196,3 +199,37 @@ async def test_a_model_reading_that_keeps_exact_entries_fills_the_gaps(assisted:
     assert reply.startswith(MODEL_ASSISTED)
     assert "- Pull-up: 8 / 8" in reply
     assert "- Dip (chairs): 12" in reply
+
+
+# ------------------------------------------------------------------ a past day (#104)
+
+NL = chr(10)
+
+
+def _yesterday() -> date:
+    return local_date(datetime.now(UTC), ZoneInfo("Europe/Berlin")) - timedelta(days=1)
+
+
+async def test_a_refused_date_never_reaches_the_model(assisted: App, seeded: Sessions) -> None:
+    asked: list[httpx.Request] = []
+    content = {"lines": [line("Pull-up", [8])]}
+    calls = await run(
+        assisted, text_message("2020-01-01" + NL + WORDS, OWNER), routes=model_says(content, asked)
+    )
+    assert asked == []
+    (reply,) = texts(calls)
+    assert "more than 14 days ago" in reply
+    assert button_data(calls["sendMessage"][0]) == []
+    assert _workouts(seeded) == 0
+
+
+async def test_the_models_reading_keeps_the_past_day(assisted: App, seeded: Sessions) -> None:
+    asked: list[httpx.Request] = []
+    content = {"lines": [line("Pull-up", [8]), line("Dip (chairs)", [12])]}
+    calls = await run(
+        assisted, text_message("yesterday" + NL + WORDS, OWNER), routes=model_says(content, asked)
+    )
+    (reply,) = texts(calls)
+    assert reply.startswith(MODEL_ASSISTED)
+    assert f"on {_yesterday():%a %d %b}:" in reply
+    assert "yesterday" not in json.loads(asked[0].content)["messages"][-1]["content"]

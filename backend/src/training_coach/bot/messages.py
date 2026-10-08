@@ -1,5 +1,7 @@
 """Message text for the bot. Pure functions over service data; plain text, no markup."""
 
+from datetime import date
+
 from training_coach.domain.blocks import WEEKS
 from training_coach.domain.enums import ExerciseKind, Side
 from training_coach.domain.habits import LABELS as HABIT_LABELS
@@ -150,8 +152,12 @@ def _sets_text(entry: Entry, kind: ExerciseKind) -> str:
 def log_text(draft: Draft, exercises: dict[str, tuple[str, ExerciseKind]]) -> str:
     """What the bot understood, for the user to confirm (ADR-0007). Plain text only."""
     lines: list[str] = []
+    when = f" on {draft.on:%a %d %b}" if draft.backdated else ""
+    if draft.rest and not draft.problems:
+        session = "" if draft.template_id is None else f" ({draft.session_name})"
+        return f"A rest day{session}{when}.\n\nSave it?"
     if draft.entries:
-        lines += [f"Log for {draft.session_name}:", ""]
+        lines += [f"Log for {draft.session_name}{when}:", ""]
         for entry in draft.entries:
             name, kind = exercises[entry.slug]
             lines.append(f"- {name}: {_sets_text(entry, kind)}")
@@ -180,8 +186,15 @@ def _fit(lines: list[str], closing: list[str], limit: int = LOG_TEXT_LIMIT) -> l
     return kept + closing
 
 
-def log_saved_text(sets: int, exercises: int, session: str, next_session: str | None) -> str:
-    saved = f"Saved {session}: {exercises} exercise{'s' * (exercises != 1)}, {sets} sets."
+def log_saved_text(
+    sets: int, exercises: int, session: str, next_session: str | None, on: date | None = None
+) -> str:
+    """``on`` is set for a past day logged late (#104)."""
+    when = f" for {on:%a %d %b}" if on is not None else ""
+    if not exercises:  # a past rest day
+        saved = f"Saved a rest day{when}."
+    else:
+        saved = f"Saved {session}{when}: {exercises} exercise{'s' * (exercises != 1)}, {sets} sets."
     return f"{saved} Next up: {next_session}." if next_session else saved
 
 

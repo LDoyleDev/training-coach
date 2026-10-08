@@ -37,3 +37,4 @@ Code). Template: [template.md](template.md).
 | [0030](0030-deploy-releases-from-a-timer.md) | The Pi deploys new releases itself, from a timer | Accepted |
 | [0031](0031-exercise-pairs-and-work-order.md) | Resistance sessions are done in fixed pairs, listed set by set | Accepted |
 | [0032](0032-stretching-after-resistance.md) | Stretching after a resistance session is chosen for the muscles worked | Accepted |
+| [0033](0033-logging-a-past-day.md) | A past day is logged with a date line, and catching up moves the queue | Accepted |

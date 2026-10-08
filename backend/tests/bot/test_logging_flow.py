@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import func, select
@@ -19,12 +20,14 @@ from training_coach.bot.messages import (
 from training_coach.db.models import PlanState, SessionTemplate, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, Side
 from training_coach.domain.parser import Entry
+from training_coach.domain.queue import local_date
 from training_coach.services import queue_actions
 from training_coach.services.workout_log import Draft
 
 App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
 LOG = "pull ups 8 8 7, dips 12 11"
+NL = chr(10)
 
 
 def _count(sessions: Sessions, model: type) -> int:
@@ -249,3 +252,41 @@ async def test_save_happens_even_if_retiring_the_buttons_fails(
     monkeypatch.undo()
     again = texts(await run(application, press(f"l:save:{token}", OWNER), unmodified=True))
     assert again == [LOG_SAVED_BEFORE]
+
+
+# ------------------------------------------------------------------ a past day (#104)
+
+
+def _yesterday() -> date:
+    return local_date(datetime.now(UTC), ZoneInfo("Europe/Berlin")) - timedelta(days=1)
+
+
+async def test_a_dated_log_names_the_day_and_saves_there(
+    application: App, seeded: Sessions
+) -> None:
+    drafted = await run(application, text_message("yesterday" + NL + "pull ups 8 8", OWNER))
+    (reply,) = texts(drafted)
+    assert reply.startswith(f"Log for Torso + neck on {_yesterday():%a %d %b}:")
+    saved = await run(application, press(f"l:save:{_token(drafted)}", OWNER))
+    (text,) = texts(saved)
+    assert text.startswith(f"Saved Torso + neck for {_yesterday():%a %d %b}: 1 exercise, 2 sets.")
+    assert "Next up: Moderate cardio." in text  # the session after it
+    assert not any(d.startswith("st:") for d in button_data(saved["sendMessage"][0]))
+    with seeded() as session:
+        assert session.scalars(select(Workout.local_date)).one() == _yesterday()
+
+
+async def test_a_past_rest_day_can_be_saved(application: App, seeded: Sessions) -> None:
+    drafted = await run(application, text_message("yesterday rest", OWNER))
+    assert texts(drafted) == [f"A rest day on {_yesterday():%a %d %b}." + NL + NL + "Save it?"]
+    saved = await run(application, press(f"l:save:{_token(drafted)}", OWNER))
+    assert texts(saved)[0].startswith(f"Saved a rest day for {_yesterday():%a %d %b}.")
+    with seeded() as session:
+        assert session.scalars(select(Workout.status)).one() == "rest"
+
+
+async def test_a_bad_date_line_is_explained(application: App) -> None:
+    calls = await run(application, text_message("2020-01-01" + NL + "pull ups 8", OWNER))
+    (reply,) = texts(calls)
+    assert "more than 14 days ago" in reply
+    assert button_data(calls["sendMessage"][0]) == []

@@ -1,4 +1,5 @@
-from datetime import UTC, datetime, timedelta
+from dataclasses import replace
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -17,7 +18,7 @@ from training_coach.db.models import (
 )
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.queue import local_date
-from training_coach.services import queue_actions, users, workout_log
+from training_coach.services import queue_actions, user_settings, users, workout_log
 from training_coach.services.seed import apply_seed, load_plan
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -287,3 +288,116 @@ def test_lines_copied_from_the_bot_and_filled_in_parse_against_the_real_plan(
     assert sets["kb-swing"] == [(Side.BOTH, 28), (Side.BOTH, 18), (Side.BOTH, 18)]
     assert sets["pistol-squat"] == [(Side.LEFT, 7), (Side.RIGHT, 7)] * 3
     assert len(sets["bulgarian-split-squat"]) == 8
+
+
+# ------------------------------------------------------------------ a past day (#104)
+
+
+def _ago(days: int) -> date:
+    return TODAY - timedelta(days=days)
+
+
+def _past(session: Session, days: int, text: str) -> workout_log.Draft:
+    return workout_log.draft(session, f"{_ago(days):%Y-%m-%d} {text}", TODAY, BERLIN)
+
+
+def test_a_date_line_names_the_day_and_the_session(seeded: Session) -> None:
+    draft = _past(seeded, 3, "Zone 2\nzone 2 run 40")
+    assert (draft.on, draft.backdated, draft.session_name) == (_ago(3), True, "Zone 2")
+    assert [e.slug for e in draft.entries] == ["run"]
+
+
+def test_without_a_name_the_session_comes_from_the_exercises(seeded: Session) -> None:
+    draft = _past(seeded, 2, "\npull-ups 8 8, split squat 10 10")
+    assert (draft.session_name, draft.template_id) == ("Upper", _ids(seeded)["upper"])
+    split = next(e for e in draft.entries if e.slug == "split-squat")
+    assert {side for _, side, _ in split.sets} == {Side.LEFT, Side.RIGHT}  # its sides
+
+
+def test_saving_a_past_day_files_it_there_and_moves_the_queue(seeded: Session) -> None:
+    ids = _ids(seeded)
+    saved = workout_log.save(seeded, _past(seeded, 2, "Zone 2\nzone 2 run 45"), BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = seeded.get_one(Workout, saved.workout_id)
+    assert (workout.local_date, workout.template_id) == (_ago(2), ids["zone2"])
+    assert _pointer(seeded) == ids["rest"]  # the session after it, though Upper was next
+
+
+def test_catching_up_in_date_order_ends_after_the_last_session(seeded: Session) -> None:
+    ids = _ids(seeded)
+    for days, text in ((3, "Upper\npull-ups 6"), (2, "Upper rest"), (1, "Zone 2\nzone 2 run 50")):
+        assert isinstance(
+            workout_log.save(seeded, _past(seeded, days, text), BERLIN), workout_log.Saved
+        )
+    assert _pointer(seeded) == ids["rest"]
+    # An older day logged afterwards adds history only.
+    workout_log.save(seeded, _past(seeded, 5, "Upper\npull-ups 5"), BERLIN)
+    assert _pointer(seeded) == ids["rest"]
+
+
+def test_a_past_rest_day_has_no_sets(seeded: Session) -> None:
+    ids = _ids(seeded)
+    draft = _past(seeded, 1, "Zone 2 rest")
+    assert (draft.rest, draft.entries, draft.problems) == (True, (), ())
+    assert draft.template_id == ids["zone2"]
+    saved = workout_log.save(seeded, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = seeded.get_one(Workout, saved.workout_id)
+    assert (workout.status, workout.sets) == (WorkoutStatus.REST, [])
+    assert _pointer(seeded) == ids["rest"]  # a rested session counts, as on the day
+
+
+def test_a_rest_day_naming_no_session_leaves_the_queue(session: Session) -> None:
+    apply_seed(
+        session,
+        load_plan(
+            PLAN.replace('name = "Rest"', 'name = "Easy day"').replace(
+                'slug = "rest"', 'slug = "easy"'
+            )
+        ),
+    )
+    session.flush()
+    draft = workout_log.draft(session, f"{_ago(1):%Y-%m-%d} rest", TODAY, BERLIN)
+    assert (draft.rest, draft.template_id) == (True, None)
+    assert isinstance(workout_log.save(session, draft, BERLIN), workout_log.Saved)
+    assert _pointer(session) == _ids(session)["upper"]  # nothing named, nothing moved
+
+
+def test_a_rest_day_with_sets_is_a_problem(seeded: Session) -> None:
+    draft = _past(seeded, 1, "rest\npull-ups 8")
+    assert draft.problems == (workout_log.REST_HAS_SETS,)
+    assert workout_log.save(seeded, draft, BERLIN) is None
+
+
+def test_todays_date_on_top_is_an_ordinary_log(seeded: Session) -> None:
+    draft = workout_log.draft(seeded, f"{TODAY:%Y-%m-%d}\npull-ups 8", TODAY, BERLIN)
+    assert (draft.on, draft.backdated, draft.session_name) == (TODAY, False, "Upper")
+
+
+def test_an_unusable_date_is_a_problem_and_saves_nothing(seeded: Session) -> None:
+    draft = workout_log.draft(seeded, f"{_ago(30):%Y-%m-%d}\npull-ups 8", TODAY, BERLIN)
+    assert draft.entries == ()
+    assert "more than 14 days ago" in draft.problems[0]
+    assert workout_log.save(seeded, draft, BERLIN) is None
+
+
+def test_a_past_day_saved_twice_changes_nothing(seeded: Session) -> None:
+    draft = _past(seeded, 2, "Upper\npull-ups 8")
+    first = workout_log.save(seeded, draft, BERLIN)
+    second = workout_log.save(seeded, draft, BERLIN)
+    assert isinstance(first, workout_log.Saved)
+    assert second == workout_log.Saved(first.workout_id, already_saved=True)
+    assert _count(seeded, Workout) == 1
+
+
+def test_a_past_draft_goes_stale_like_any_other(seeded: Session) -> None:
+    draft = _past(seeded, 2, "Upper\npull-ups 8")
+    gone = replace(draft, entries=(workout_log.Entry("no-such-exercise", ((1, Side.BOTH, 5),)),))
+    assert workout_log.save(seeded, gone, BERLIN) == workout_log.Stale()
+    assert _count(seeded, Workout) == 0
+
+
+def test_a_past_draft_goes_stale_when_blocks_change_its_filing(seeded: Session) -> None:
+    draft = _past(seeded, 2, "Upper\nsplit squat 10")
+    user_settings.update(seeded, blocks=True, today=_ago(10))  # that day is now in a block
+    assert isinstance(workout_log.save(seeded, draft, BERLIN), workout_log.Stale)

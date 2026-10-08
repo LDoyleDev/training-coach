@@ -3,6 +3,7 @@
 from datetime import date
 from zoneinfo import ZoneInfo
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,7 @@ from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.today import session_plan
 
 BERLIN = ZoneInfo("Europe/Berlin")
+NL = chr(10)
 
 
 def _legs(session: Session) -> int:
@@ -53,3 +55,19 @@ def test_the_whole_start_message_names_the_list_as_the_thing_to_send(session: Se
     text = session_detail_text(plan)
     assert text.endswith("Copy the list, put in what you did and send it back to log it.")
     assert "Work down the list, alternating the two exercises of each pair." in text
+
+
+@pytest.mark.parametrize(
+    "slug", ["legs", "recovery", "torso", "moderate-cardio", "hiit", "arms", "zone2"]
+)
+def test_every_sessions_list_reads_back_as_its_log(session: Session, slug: str) -> None:
+    """Names with a bracketed note ("Moderate cardio (~75-80% effort)") must survive the
+    parser dropping brackets (found catching up on a week, #104)."""
+    apply_seed(session, load_plan())
+    session.flush()
+    template = session.scalars(select(SessionTemplate.id).where(SessionTemplate.slug == slug))
+    plan = session_plan(session, template.one())
+    assert plan is not None
+    draft = workout_log.draft(session, NL.join(work_list(plan.items)), date(2026, 10, 8), BERLIN)
+    assert draft.problems == ()
+    assert len(draft.entries) == len({item.exercise for item in plan.items})

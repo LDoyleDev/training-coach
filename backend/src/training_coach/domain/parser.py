@@ -124,6 +124,14 @@ def _singular(word: str) -> str:
     return word
 
 
+def _forms(name: str) -> tuple[str, ...]:
+    """The forms a name is matched in: whole, and without its bracketed note. A log has its
+    brackets dropped (``tidy``), so "Moderate cardio (~75-80% effort)" must also match
+    "Moderate cardio" (#104)."""
+    whole, short = _normal(name), _normal(BRACKETS.sub(" ", name))
+    return (whole,) if short in ("", whole) else (whole, short)
+
+
 def _match(phrase: str, known: Sequence[Known]) -> Known | str:
     """The exercise a phrase names, or a problem message."""
     wanted = _normal(phrase)
@@ -131,11 +139,11 @@ def _match(phrase: str, known: Sequence[Known]) -> Known | str:
         return "a line with numbers but no exercise name"
     scored: dict[str, tuple[float, Known]] = {}
     for exercise in known:
-        for name in exercise.names:
-            if _normal(name) == wanted:
+        for form in (f for name in exercise.names for f in _forms(name)):
+            if form == wanted:
                 score = 1.0
             elif len(wanted) >= FUZZY_MIN_LENGTH:
-                score = SequenceMatcher(None, wanted, _normal(name)).ratio()
+                score = SequenceMatcher(None, wanted, form).ratio()
             else:
                 score = 0.0
             if score > scored.get(exercise.slug, (0.0, exercise))[0]:
@@ -187,7 +195,7 @@ def _entry(text: str, known: Sequence[Known]) -> tuple[Known, list[tuple[Side | 
         return f"no numbers for {_quote(text)}"
     # A name can contain a number ("zone 2 45"): prefer the split where the whole name
     # matches exactly, otherwise the numbers start at the first number.
-    exact = {_normal(name) for exercise in known for name in exercise.names}
+    exact = {form for exercise in known for name in exercise.names for form in _forms(name)}
     splits = [_split(text, start) for start in starts]
     phrase, rest = next((s for s in splits if _normal(s[0]) in exact), splits[0])
     exercise = _match(phrase, known)
@@ -271,7 +279,8 @@ def _notes(line: str) -> str:
     the line ("pull-ups (8 8 7)") are sets, so only their brackets go."""
 
     def note(match: re.Match[str]) -> str:
-        before, inside = line[: match.start()], match.group()
+        # Numbers inside an earlier bracket (a name's note, "20 s all-out") aren't sets.
+        before, inside = BRACKETS.sub(" ", line[: match.start()]), match.group()
         is_note = not re.search(r"\d", before) or not re.search(r"\d", inside)
         return " " if is_note else f" {inside[1:-1]} "
 
