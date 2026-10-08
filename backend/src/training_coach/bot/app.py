@@ -31,6 +31,7 @@ from training_coach.bot import buttons, logging_flow
 from training_coach.bot import habits as habits_ui
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import settings as settings_ui
+from training_coach.bot import stretching as stretching_ui
 from training_coach.bot.buttons import edit_quietly
 from training_coach.bot.logging_flow import LogHandlers
 from training_coach.bot.messages import (
@@ -373,6 +374,10 @@ def build_bot(
     progress_handlers = progress_ui.ProgressHandlers(settings, sessions)
     application.add_handler(CommandHandler("progress", progress_handlers.command, filters=allowed))
     application.add_handler(CommandHandler("review", progress_handlers.review, filters=allowed))
+    stretch_handlers = stretching_ui.StretchHandlers(settings, sessions)
+    application.add_handler(
+        CallbackQueryHandler(stretch_handlers.button, pattern=rf"^{stretching_ui.PREFIX}:")
+    )
     habit_handlers = habits_ui.HabitHandlers(settings, sessions)
     application.add_handler(CommandHandler("habits", habit_handlers.command, filters=allowed))
     application.add_handler(
