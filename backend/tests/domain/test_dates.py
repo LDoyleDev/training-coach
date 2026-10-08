@@ -42,6 +42,10 @@ def test_a_dash_after_the_date_is_dropped() -> None:
         "",
         "monkey bars 5",
         "Sun salutation 5",
+        "20 pushups 3",
+        "3 sets pull ups",
+        "Mon 5 pull-ups",
+        "30 Foo",
     ],
 )
 def test_a_log_line_is_not_a_date(line: str) -> None:
@@ -54,7 +58,6 @@ def test_a_log_line_is_not_a_date(line: str) -> None:
         ("Tue 30 Sep", "30 Sep was a Wednesday"),
         ("31/2", "isn't a date I can read"),
         ("29/13", "isn't a date I can read"),
-        ("30 Foo", "isn't a date I can read"),
         ("2026-02-30", "isn't a date I can read"),
         ("2026-10-09", "hasn't happened yet"),
         ("20 Sep", "more than 14 days ago"),
