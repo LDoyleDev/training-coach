@@ -38,7 +38,7 @@ flowchart LR
 | --- | --- | --- |
 | development | `make dev-api` + `make dev-web` in WSL 2 on the Windows desktop (ADR-0018), optional test bot token | `backend/data/` |
 | test | pytest, in-memory or tmp SQLite | ephemeral |
-| production | `make up` on the Pi | `./data` volume |
+| production | `docker compose up -d --build` on the Pi | `./data` volume |
 
 Use a separate Telegram bot (second BotFather token) for development so testing never touches
 the production chat.

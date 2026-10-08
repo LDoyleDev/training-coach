@@ -51,12 +51,12 @@ but the Pi stopped backing up.
 ## Restore
 
 ```bash
-make down                                                  # or: docker compose down
+docker compose down
 cp data/training_coach.db data/training_coach.db.broken    # keep the bad one for later
 cp data/backups/<file>.db data/training_coach.db           # or copy one back from the desktop
 rm -f data/training_coach.db-wal data/training_coach.db-shm
 sudo chown 10001:10001 data/training_coach.db
-make up                                                    # migrations run on start
+docker compose up -d --build                               # migrations run on start
 curl -s localhost:8095/healthz && docker compose logs app | grep -E "bot.started|backup"
 ```
 
