@@ -2,10 +2,11 @@
 
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Exercise, SessionTemplate, SetLog, Workout
+from training_coach.db.models import Exercise, SessionTemplate, SetLog, User, Workout
+from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.services import stretching
 from training_coach.services.seed import apply_seed, load_plan
@@ -100,3 +101,22 @@ def test_done_refuses_what_it_cannot_log(session: Session) -> None:
     assert stretching.log(session, _workout(session, "zone2"), 10) is None
     assert stretching.log(session, _workout(session, "legs"), 7) is None
     assert stretching.log(session, 999_999, 10) is None
+
+
+def test_another_persons_workout_is_not_there(engine: Engine) -> None:
+    """Workout ids travel in button data; a bound session never reaches someone else's."""
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=2))
+        apply_seed(shared, load_plan())
+    with session_scope(make_session_factory(engine, user_id=2)) as theirs:
+        legs = theirs.scalars(select(SessionTemplate.id).where(SessionTemplate.slug == "legs"))
+        workout = Workout(local_date=date(2026, 10, 8), template_id=legs.one(), status="done")
+        theirs.add(workout)
+        theirs.flush()
+        their_id = workout.id
+    with session_scope(make_session_factory(engine, user_id=1)) as mine:
+        assert not stretching.offered(mine, their_id)
+        assert stretching.for_workout(mine, their_id, 10) is None
+        assert stretching.log(mine, their_id, 10) is None
+    with session_scope(make_session_factory(engine, user_id=2)) as theirs:
+        assert _stretching_sets(theirs, their_id) == []
