@@ -34,6 +34,11 @@ App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
 
 
+def _progress_buttons(calls: dict[str, list[dict[str, str]]]) -> list[str]:
+    """The Saved reply's progress prompts, without the stretching choice (#98)."""
+    return [d for d in button_data(calls["sendMessage"][0]) if d.startswith("p:")]
+
+
 def _pull_up(sessions: Sessions) -> tuple[int, int]:
     """(exercise id, current step id) for Pull-up."""
     with sessions() as session:
@@ -86,7 +91,7 @@ async def test_a_save_that_meets_the_rule_offers_to_move_up(
         "Pull-up: top of the range two sessions running. Ready to move up to Pause at top?" in reply
     )
     exercise_id, step_id = _pull_up(seeded)
-    assert button_data(calls["sendMessage"][0]) == [
+    assert _progress_buttons(calls) == [
         f"p:up:{exercise_id}:{step_id}",
         f"p:no:{exercise_id}:{step_id}",
     ]
@@ -96,7 +101,7 @@ async def test_a_save_below_the_rule_has_no_prompt(application: App, seeded: Ses
     calls = await _save(application, "pull-ups 8 7 6 6")
     (reply,) = texts(calls)
     assert "Ready to move up" not in reply
-    assert button_data(calls["sendMessage"][0]) == []
+    assert _progress_buttons(calls) == []
 
 
 async def test_move_up_moves_the_exercise(application: App, seeded: Sessions) -> None:

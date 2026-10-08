@@ -1,9 +1,12 @@
-"""The stretching routine after a session (#98), against the bundled plan."""
+"""Stretching after a session (#98), against the bundled plan."""
+
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import SessionTemplate
+from training_coach.db.models import Exercise, SessionTemplate, SetLog, Workout
+from training_coach.domain.enums import WorkoutStatus
 from training_coach.services import stretching
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -17,7 +20,10 @@ def _template(session: Session, slug: str) -> int:
 def test_legs_works_quads_and_glutes_most(session: Session) -> None:
     worked = stretching.worked(session, _template(session, "legs"))
     assert worked is not None
-    assert worked["glutes"] == 16  # jump squat 3, swing 3, split squat 4, pistol 3, RDL 3
+    plan = load_plan()
+    groups = {e.slug: e.muscle_groups for e in plan.exercises}
+    legs = next(p for p in plan.sessions if p.slug == "legs")
+    assert worked["glutes"] == sum(i.sets for i in legs.items if "glutes" in groups[i.exercise])
     assert worked.most_common(1)[0][0] == "glutes"
 
 
@@ -49,3 +55,48 @@ def test_every_choice_fits_and_longer_choices_cover_more(session: Session) -> No
 
 def test_an_unknown_session_has_no_routine(session: Session) -> None:
     assert stretching.for_session(session, 999_999, 10) is None
+
+
+def _workout(session: Session, slug: str, status: WorkoutStatus = WorkoutStatus.DONE) -> int:
+    template = _template(session, slug)
+    workout = Workout(local_date=date(2026, 10, 8), template_id=template, status=status)
+    session.add(workout)
+    session.flush()
+    return workout.id
+
+
+def _stretching_sets(session: Session, workout_id: int) -> list[int]:
+    mobility = session.scalars(select(Exercise.id).where(Exercise.slug == "mobility")).one()
+    query = select(SetLog.value).where(
+        SetLog.workout_id == workout_id, SetLog.exercise_id == mobility
+    )
+    return list(session.scalars(query))
+
+
+def test_stretching_is_offered_only_after_a_saved_resistance_session(session: Session) -> None:
+    assert stretching.offered(session, _workout(session, "legs"))
+    assert not stretching.offered(session, _workout(session, "zone2"))
+    assert not stretching.offered(session, _workout(session, "recovery"))
+    assert not stretching.offered(session, _workout(session, "torso", WorkoutStatus.REST))
+    assert not stretching.offered(session, 999_999)
+
+
+def test_the_routine_names_the_session_and_the_time(session: Session) -> None:
+    routine = stretching.for_workout(session, _workout(session, "legs"), 20)
+    assert routine is not None
+    assert (routine.session, routine.minutes) == ("Legs", 20)
+    assert sum(step.seconds for step in routine.steps) <= 20 * 60
+    assert stretching.for_workout(session, _workout(session, "legs"), 15) is None  # not a choice
+
+
+def test_done_adds_the_minutes_once(session: Session) -> None:
+    legs = _workout(session, "legs")
+    assert stretching.log(session, legs, 10) is True
+    assert stretching.log(session, legs, 20) is False
+    assert _stretching_sets(session, legs) == [10]
+
+
+def test_done_refuses_what_it_cannot_log(session: Session) -> None:
+    assert stretching.log(session, _workout(session, "zone2"), 10) is None
+    assert stretching.log(session, _workout(session, "legs"), 7) is None
+    assert stretching.log(session, 999_999, 10) is None

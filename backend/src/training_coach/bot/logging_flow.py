@@ -19,6 +19,7 @@ from telegram.ext import ContextTypes
 from telegram.warnings import PTBDeprecationWarning
 
 from training_coach.bot import progress as progress_ui
+from training_coach.bot import stretching as stretching_ui
 from training_coach.bot.buttons import edit_quietly
 from training_coach.bot.messages import (
     LOG_CANCELLED,
@@ -39,7 +40,7 @@ from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.parser import MAX_TEXT, SPLIT_ENTRIES
 from training_coach.domain.queue import local_date
-from training_coach.services import progress, workout_log
+from training_coach.services import progress, stretching, workout_log
 from training_coach.services.groq import GroqClient, GroqUnavailableError
 from training_coach.services.workout_log import Draft, Saved, Stale
 
@@ -261,6 +262,12 @@ class LogHandlers:
                 earned = _feedback(session, result.workout_id, self.settings.tz)
                 text = saved_reply(text, earned)
                 markup = progress_ui.keyboard(earned)
+                if stretching.offered(session, result.workout_id):  # #98
+                    rows = [
+                        *(markup.inline_keyboard if markup else ()),
+                        *stretching_ui.rows(result.workout_id),
+                    ]
+                    markup = InlineKeyboardMarkup(rows)
             elif isinstance(result, Saved):
                 text = LOG_SAVED_BEFORE
             elif isinstance(result, Stale):
