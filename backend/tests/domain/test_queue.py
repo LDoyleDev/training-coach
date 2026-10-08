@@ -6,6 +6,7 @@ import pytest
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import (
     Position,
+    caught_up,
     complete,
     local_date,
     next_in_cycle,
@@ -148,3 +149,8 @@ def test_swap_at_the_end_of_the_cycle_wraps() -> None:
 def test_swap_needs_two_sessions() -> None:
     with pytest.raises(ValueError, match="two sessions"):
         swap_with_next([5], Position(5))
+
+
+def test_catching_up_points_after_the_session_logged_and_drops_any_swap() -> None:
+    assert caught_up([1, 2, 3], 2) == Position(3)
+    assert caught_up([1, 2, 3], 3) == Position(1)

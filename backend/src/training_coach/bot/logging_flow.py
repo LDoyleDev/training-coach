@@ -176,7 +176,7 @@ class LogHandlers:
             if model_draft is not None and set(draft.entries) <= set(model_draft.entries):
                 draft, assisted = model_draft, True
         markup = None
-        if draft.entries:
+        if draft.entries or (draft.rest and not draft.problems):
             self._remember(draft)
             markup = keyboard(draft.token)
         log.info(
@@ -258,11 +258,12 @@ class LogHandlers:
                     exercises=len(draft.entries),
                     session=draft.session_name,
                     next_session=workout_log.next_session_name(session),
+                    on=draft.on if draft.backdated else None,
                 )
                 earned = _feedback(session, result.workout_id, self.settings.tz)
                 text = saved_reply(text, earned)
                 markup = progress_ui.keyboard(earned)
-                if stretching.offered(session, result.workout_id):  # #98
+                if not draft.backdated and stretching.offered(session, result.workout_id):
                     rows = [
                         *(markup.inline_keyboard if markup else ()),
                         *stretching_ui.rows(result.workout_id),

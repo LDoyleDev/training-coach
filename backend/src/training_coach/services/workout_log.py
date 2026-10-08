@@ -6,6 +6,7 @@ Every draft carries a random token stored on the workout, so saving the same dra
 The caller owns the transaction.
 """
 
+import re
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
@@ -13,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import (
     Event,
@@ -24,12 +25,17 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.domain.blocks import BlockKind
+from training_coach.domain.dates import DateLine, date_line
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
-from training_coach.domain.parser import Entry, Known, ParseResult, parse_log
-from training_coach.domain.queue import ADVANCING, complete
+from training_coach.domain.parser import Entry, Known, ParseResult, normalise_name, parse_log
+from training_coach.domain.queue import ADVANCING, Position, caught_up, complete
 from training_coach.services import blocks, users
 from training_coach.services.groq import Rewrite
 from training_coach.services.today import position
+
+EXTRA = "Extra session"
+REST_WORD = re.compile(r"\brest\b", re.IGNORECASE)
+REST_HAS_SETS = "A rest day has no sets: send the rest day and the sets separately."
 
 
 @dataclass(frozen=True)
@@ -46,6 +52,8 @@ class Draft:
     # at save time (blocks turned on or off meanwhile), the draft is stale: saving it would
     # file the sets at the wrong step and in the wrong block's history.
     strength: bool = False
+    backdated: bool = False  # a past day logged late (#104): no target check, own queue rule
+    rest: bool = False  # a past rest day: no sets
 
 
 @dataclass(frozen=True)
@@ -144,17 +152,81 @@ def _strength(session: Session, on: date, tz: ZoneInfo, template: SessionTemplat
 
 
 def draft(session: Session, text: str, on: date, tz: ZoneInfo) -> Draft:
-    """Parse a message into something to confirm. Never writes."""
+    """Parse a message into something to confirm. Never writes.
+
+    A date on the first line (``domain.dates``) makes it a log for that past day (#104)."""
+    first, _, body = text.partition("\n")
+    dated = date_line(first, on)
+    if isinstance(dated, str):
+        return Draft(secrets.token_hex(16), on, None, EXTRA, (), (dated,))
+    if dated is not None and dated.day < on:
+        return _draft_past(session, dated, body, tz)
+    if dated is not None:  # today's date on top: an ordinary log
+        text = body
     template = target(session, on, tz)
     parsed: ParseResult = parse_log(text, catalogue(session, template))
     return Draft(
         token=secrets.token_hex(16),
         on=on,
         template_id=template.id if template is not None else None,
-        session_name=template.name if template is not None else "Extra session",
+        session_name=template.name if template is not None else EXTRA,
         entries=parsed.entries,
         problems=parsed.problems,
         strength=_strength(session, on, tz, template),
+    )
+
+
+def _named(session: Session, words: str) -> SessionTemplate | None:
+    """The planned session the date line names ("Legs", "Day 3 Torso + neck"), if any: the
+    longest session name or slug found among its words."""
+    wanted = f" {normalise_name(words)} "
+    best: tuple[int, SessionTemplate] | None = None
+    for template in session.scalars(select(SessionTemplate).order_by(SessionTemplate.position)):
+        for name in (template.name, template.slug.replace("-", " ")):
+            normal = normalise_name(name)
+            if normal and f" {normal} " in wanted and (best is None or len(normal) > best[0]):
+                best = (len(normal), template)
+    return best[1] if best is not None else None
+
+
+def _inferred(session: Session, entries: tuple[Entry, ...]) -> SessionTemplate | None:
+    """The planned session sharing the most exercises with a log; ties go to the earlier one."""
+    logged = {entry.slug for entry in entries}
+    best: tuple[int, SessionTemplate] | None = None
+    templates = session.scalars(
+        select(SessionTemplate)
+        .order_by(SessionTemplate.position)
+        .options(selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise))
+    )
+    for template in templates:
+        shared = len(logged & {item.exercise.slug for item in template.items})
+        if shared and (best is None or shared > best[0]):
+            best = (shared, template)
+    return best[1] if best is not None else None
+
+
+def _draft_past(session: Session, dated: DateLine, body: str, tz: ZoneInfo) -> Draft:
+    rest = REST_WORD.search(dated.rest) is not None
+    template = _named(session, dated.rest)
+    if rest:
+        entries: tuple[Entry, ...] = ()
+        problems: tuple[str, ...] = (REST_HAS_SETS,) if body.strip() else ()
+    else:
+        parsed = parse_log(body, catalogue(session, template))
+        if template is None:  # name it from the exercises, then read again for its sides
+            template = _inferred(session, parsed.entries)
+            parsed = parse_log(body, catalogue(session, template)) if template else parsed
+        entries, problems = parsed.entries, parsed.problems
+    return Draft(
+        token=secrets.token_hex(16),
+        on=dated.day,
+        template_id=template.id if template is not None else None,
+        session_name=template.name if template is not None else EXTRA,
+        entries=entries,
+        problems=problems,
+        strength=_strength(session, dated.day, tz, template),
+        backdated=True,
+        rest=rest,
     )
 
 
@@ -173,41 +245,23 @@ def rewrite_text(rewrite: Rewrite) -> str:
     )
 
 
-def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | None:
-    """Write the workout, its sets at the current ladder steps and the queue move.
+def _exercises(session: Session, confirmed: Draft) -> dict[str, Exercise] | None:
+    """The draft's exercises by slug, or None if any of them is gone from the plan."""
+    slugs = {x.slug for x in confirmed.entries}
+    found = {e.slug: e for e in session.scalars(select(Exercise).where(Exercise.slug.in_(slugs)))}
+    return found if len(found) == len(slugs) else None
 
-    Nothing in the draft is trusted beyond what is re-checked here: a draft saved before
-    returns that workout with ``already_saved``; one whose target session or exercises no
-    longer fit returns ``Stale``; one with no entries returns None. None of them write.
-    """
-    if (before := _saved_before(session, confirmed.token)) is not None:
-        return before
-    if not confirmed.entries:
-        return None
-    now = target(session, confirmed.on, tz)
-    if (now.id if now is not None else None) != confirmed.template_id:
-        return Stale()
 
-    exercises = {
-        e.slug: e
-        for e in session.scalars(
-            select(Exercise).where(Exercise.slug.in_([x.slug for x in confirmed.entries]))
-        )
-    }
-    if len(exercises) != len({x.slug for x in confirmed.entries}):
-        return Stale()
-    workout = Workout(
-        local_date=confirmed.on,
-        template_id=confirmed.template_id,
-        status=WorkoutStatus.DONE,  # only done workouts carry sets (rest/skip have none)
-        log_token=confirmed.token,
-    )
-    # ADR-0028: a planned strength session in a strength block is trained, and filed, under the
-    # strength prescription (one step harder); everything else is ordinary history.
+def _file(
+    session: Session,
+    workout: Workout,
+    confirmed: Draft,
+    exercises: dict[str, Exercise],
+    strength: bool,
+    tz: ZoneInfo,
+) -> None:
+    """The workout's block (ADR-0028) and its sets at the current ladder steps."""
     block = blocks.current(session, confirmed.on, tz)
-    strength = _strength(session, confirmed.on, tz, now)
-    if strength != confirmed.strength:
-        return Stale()
     if strength:
         workout.block = BlockKind.STRENGTH
     elif block is not None and block.kind is BlockKind.HYPERTROPHY:
@@ -219,16 +273,17 @@ def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | No
             SetLog(exercise_id=exercise.id, ladder_step_id=step_id, set_no=n, side=side, value=v)
             for n, side, v in entry.sets
         )
+
+
+def _commit(session: Session, workout: Workout, confirmed: Draft, moved: Position | None) -> Saved:
+    """Add the workout and the queue move in one savepoint, then log the event."""
     plan = users.plan_state(session)
-    current = position(session)
-    order = list(session.scalars(select(SessionTemplate.id).order_by(SessionTemplate.position)))
     try:
-        # One savepoint for the workout and the queue move: a racing duplicate save (same
-        # token) rolls both back together, so the queue can never advance twice.
+        # A racing duplicate save (same token) rolls both back together, so the queue can
+        # never move twice.
         with session.begin_nested():
             session.add(workout)
-            if plan is not None and current is not None:
-                moved = complete(order, current, confirmed.template_id, WorkoutStatus.DONE)
+            if plan is not None and moved is not None:
                 plan.next_template_id = moved.pointer
                 plan.queued = list(moved.queued)
             session.flush()
@@ -246,7 +301,80 @@ def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | No
                 "template_id": confirmed.template_id,
                 "exercises": len(confirmed.entries),
                 "sets": len(workout.sets),
+                **({"day": confirmed.on.isoformat()} if confirmed.backdated else {}),
             },
         )
     )
     return Saved(workout.id, already_saved=False)
+
+
+def _order(session: Session) -> list[int]:
+    return list(session.scalars(select(SessionTemplate.id).order_by(SessionTemplate.position)))
+
+
+def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | None:
+    """Write the workout, its sets at the current ladder steps and the queue move.
+
+    Nothing in the draft is trusted beyond what is re-checked here: a draft saved before
+    returns that workout with ``already_saved``; one whose target session or exercises no
+    longer fit returns ``Stale``; one with no entries returns None. None of them write.
+    """
+    if (before := _saved_before(session, confirmed.token)) is not None:
+        return before
+    if confirmed.backdated:
+        return _save_past(session, confirmed, tz)
+    if not confirmed.entries:
+        return None
+    now = target(session, confirmed.on, tz)
+    if (now.id if now is not None else None) != confirmed.template_id:
+        return Stale()
+    exercises = _exercises(session, confirmed)
+    if exercises is None:
+        return Stale()
+    # ADR-0028: a planned strength session in a strength block is trained, and filed, under the
+    # strength prescription (one step harder); everything else is ordinary history.
+    strength = _strength(session, confirmed.on, tz, now)
+    if strength != confirmed.strength:
+        return Stale()
+    workout = Workout(
+        local_date=confirmed.on,
+        template_id=confirmed.template_id,
+        status=WorkoutStatus.DONE,  # only done workouts carry sets (rest/skip have none)
+        log_token=confirmed.token,
+    )
+    _file(session, workout, confirmed, exercises, strength, tz)
+    current = position(session)
+    moved = (
+        complete(_order(session), current, confirmed.template_id, WorkoutStatus.DONE)
+        if current is not None
+        else None
+    )
+    return _commit(session, workout, confirmed, moved)
+
+
+def _save_past(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | None:
+    """A past day logged late (#104, ADR-0033): filed under that day; the queue moves to the
+    session after it only when it's a planned session and nothing later is logged."""
+    if (not confirmed.entries and not confirmed.rest) or (confirmed.rest and confirmed.problems):
+        return None
+    template = (
+        session.get(SessionTemplate, confirmed.template_id)
+        if confirmed.template_id is not None
+        else None
+    )
+    exercises = _exercises(session, confirmed)
+    if (confirmed.template_id is not None and template is None) or exercises is None:
+        return Stale()
+    strength = _strength(session, confirmed.on, tz, template)
+    if strength != confirmed.strength:
+        return Stale()
+    workout = Workout(
+        local_date=confirmed.on,
+        template_id=confirmed.template_id,
+        status=WorkoutStatus.REST if confirmed.rest else WorkoutStatus.DONE,
+        log_token=confirmed.token,
+    )
+    _file(session, workout, confirmed, exercises, strength, tz)
+    later = session.scalar(select(Workout.id).where(Workout.local_date > confirmed.on).limit(1))
+    moved = caught_up(_order(session), template.id) if template and later is None else None
+    return _commit(session, workout, confirmed, moved)
