@@ -4,6 +4,20 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.11.0](https://github.com/LDoyleDev/training-coach/compare/v0.10.0...v0.11.0) (2026-10-08)
+
+
+### Features
+
+* **bot:** list sessions set by set in work order, in exercise pairs ([#99](https://github.com/LDoyleDev/training-coach/issues/99)) ([f5199ec](https://github.com/LDoyleDev/training-coach/commit/f5199eca3e672bac7ebd650e161c685fb4a543a3))
+* **bot:** offer stretching after a saved resistance log ([#102](https://github.com/LDoyleDev/training-coach/issues/102)) ([24840a9](https://github.com/LDoyleDev/training-coach/commit/24840a965948c03df7ac04e5e9177ae3581def00))
+* **domain:** choose a stretching routine for a session and a time ([#101](https://github.com/LDoyleDev/training-coach/issues/101)) ([fdbf93f](https://github.com/LDoyleDev/training-coach/commit/fdbf93f841b50007b7ea2e5f7a637e899644674a))
+
+
+### Documentation
+
+* Pi commands use docker compose; make isn't installed there ([#103](https://github.com/LDoyleDev/training-coach/issues/103)) ([5f9f7a9](https://github.com/LDoyleDev/training-coach/commit/5f9f7a947d47d7a0e92c6498433cda078b72c610))
+
 ## [0.10.0](https://github.com/LDoyleDev/training-coach/compare/v0.9.1...v0.10.0) (2026-10-07)
 
 
