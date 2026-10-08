@@ -7,6 +7,7 @@ from training_coach.domain.habits import WEEK_DAYS
 from training_coach.domain.parser import Entry
 from training_coach.domain.progression import Progress
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS
+from training_coach.domain.work_order import work_order
 from training_coach.services.progress import Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.review import Review
@@ -23,10 +24,31 @@ NUDGE = "Nothing logged today yet. {session} is still waiting: start it, rest or
 STALE = "That message is out of date. Send /today for the current session."
 
 
-def targets_text(item: ItemPlan) -> str:
-    unit = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: "s", ExerciseKind.DURATION_MIN: " min"}
-    text = " / ".join(f"{value}{unit[item.kind]}" for value in item.targets)
-    return f"{text} per side" if item.per_side else text
+UNIT = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: "s", ExerciseKind.DURATION_MIN: " min"}
+WORK_DOWN = "Work down the list, alternating the two exercises of each pair."
+FILL_IN = "Copy the list, put in what you did and send it back to log it."
+
+
+def work_list(items: tuple[ItemPlan, ...]) -> list[str]:
+    """One numbered line per set in the order they're done (#97), a gap between pairs. The
+    lines read back as a log once the numbers are what was done."""
+    groups = work_order([len(item.targets) for item in items], [item.pair for item in items])
+    lines: list[str] = []
+    number = 0
+    for group in groups:
+        if lines:
+            lines.append("")
+        for index, set_no in group:
+            item = items[index]
+            number += 1
+            target = f"{item.targets[set_no - 1]}{UNIT[item.kind]}"
+            side = " per side" if item.per_side else ""
+            lines.append(f"{number}. {item.exercise} ({item.step}): {target}{side}")
+    return lines
+
+
+def _paired(items: tuple[ItemPlan, ...]) -> bool:
+    return any(item.pair is not None for item in items)
 
 
 WARM_UP = "Warm up for about 10 minutes first."
@@ -39,9 +61,10 @@ def today_text(today: Today) -> str:
         lines.append(f"Week {today.block.week} of {WEEKS}, {today.block.kind} block.")
     if session.kind == "strength":
         lines.append(WARM_UP)
+    if _paired(session.items):
+        lines.append(WORK_DOWN)
     lines.append("")
-    for item in session.items:
-        lines.append(f"- {item.exercise} ({item.step}): {targets_text(item)}")
+    lines += work_list(session.items)
     if session.optional:
         lines += ["", "This one is optional: resting today is fine."]
     if today.logged_today:
@@ -56,13 +79,14 @@ def week_text(days: list[Day]) -> str:
 
 
 def session_detail_text(plan: SessionPlan) -> str:
-    """Everything needed to train: each exercise's ladder step, its cue and per-set targets."""
-    lines = [f"{plan.name}: {plan.focus}", ""]
-    for item in plan.items:
-        lines.append(f"- {item.exercise} ({item.step}): {targets_text(item)}")
-        if item.cue:
-            lines.append(f"  {item.cue}")
-    lines += ["", "Log it when you're done."]
+    """Everything needed to train: the cues, then every set in the order it's done (#97)."""
+    lines = [f"{plan.name}: {plan.focus}"]
+    cues = [f"- {item.exercise}: {item.cue}" for item in plan.items if item.cue]
+    if cues:
+        lines += ["", "How to do them:", *cues]
+    lines += ["", WORK_DOWN if _paired(plan.items) else "Work down the list.", ""]
+    lines += work_list(plan.items)
+    lines += ["", FILL_IN]
     return "\n".join(lines)
 
 

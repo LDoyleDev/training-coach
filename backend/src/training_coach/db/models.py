@@ -125,6 +125,8 @@ class TemplateItem(Base):
     rep_min: Mapped[int] = mapped_column(Integer)
     rep_max: Mapped[int] = mapped_column(Integer)
     per_side: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # Items sharing a number are done alternately, set by set (#97); empty means alone.
+    pair: Mapped[int | None] = mapped_column(Integer)
 
     template: Mapped[SessionTemplate] = relationship(back_populates="items")
     exercise: Mapped[Exercise] = relationship()

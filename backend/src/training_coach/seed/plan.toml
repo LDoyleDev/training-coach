@@ -10,6 +10,9 @@
 # 1 recovery day. Every major muscle gets direct and indirect work each week. Order within a
 # session: power -> strength -> hypertrophy -> small muscles (Galpin). Each resistance session
 # starts with a ~10 min warm-up and stays within ~60 min of work.
+# `pair = N` on two neighbouring items: they are done alternately, set by set, and should not
+# compete for the same muscles, so one rests while the other works. The order above applies to
+# each pair's first exercise; the second may be a small muscle filling that lift's rest (ADR-0031).
 
 # ------------------------------------------------------------------- legs
 
@@ -299,14 +302,14 @@ type = "strength"
 name = "Legs"
 focus = "Strength / hypertrophy: tibialis, power, quads, hamstrings, calves"
 items = [
-  { exercise = "tibialis-raise", sets = 3, rep_min = 15, rep_max = 25 },
-  { exercise = "jump-squat", sets = 3, rep_min = 5, rep_max = 8 },
-  { exercise = "kb-swing", sets = 3, rep_min = 15, rep_max = 20 },
-  { exercise = "bulgarian-split-squat", sets = 4, rep_min = 8, rep_max = 15, per_side = true },
-  { exercise = "pistol-squat", sets = 3, rep_min = 5, rep_max = 10, per_side = true },
-  { exercise = "single-leg-rdl", sets = 3, rep_min = 10, rep_max = 15, per_side = true },
-  { exercise = "hamstring-curl", sets = 3, rep_min = 6, rep_max = 15 },
-  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, per_side = true },
+  { exercise = "jump-squat", sets = 3, rep_min = 5, rep_max = 8, pair = 1 },
+  { exercise = "tibialis-raise", sets = 3, rep_min = 15, rep_max = 25, pair = 1 },
+  { exercise = "kb-swing", sets = 3, rep_min = 15, rep_max = 20, pair = 2 },
+  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, per_side = true, pair = 2 },
+  { exercise = "bulgarian-split-squat", sets = 4, rep_min = 8, rep_max = 15, per_side = true, pair = 3 },
+  { exercise = "hamstring-curl", sets = 3, rep_min = 6, rep_max = 15, pair = 3 },
+  { exercise = "pistol-squat", sets = 3, rep_min = 5, rep_max = 10, per_side = true, pair = 4 },
+  { exercise = "single-leg-rdl", sets = 3, rep_min = 10, rep_max = 15, per_side = true, pair = 4 },
 ]
 
 [[sessions]]
@@ -328,14 +331,14 @@ type = "strength"
 name = "Torso + neck"
 focus = "Strength / hypertrophy: back, chest, shoulders, neck"
 items = [
-  { exercise = "pull-up", sets = 4, rep_min = 5, rep_max = 12 },
-  { exercise = "dip", sets = 3, rep_min = 8, rep_max = 15 },
-  { exercise = "kb-row", sets = 3, rep_min = 10, rep_max = 20, per_side = true },
-  { exercise = "push-up", sets = 3, rep_min = 10, rep_max = 20 },
-  { exercise = "pike-push-up", sets = 3, rep_min = 6, rep_max = 12 },
-  { exercise = "reverse-fly", sets = 3, rep_min = 12, rep_max = 20 },
-  { exercise = "neck-flexion", sets = 2, rep_min = 10, rep_max = 15 },
-  { exercise = "neck-extension", sets = 2, rep_min = 10, rep_max = 15 },
+  { exercise = "pull-up", sets = 4, rep_min = 5, rep_max = 12, pair = 1 },
+  { exercise = "dip", sets = 3, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "kb-row", sets = 3, rep_min = 10, rep_max = 20, per_side = true, pair = 2 },
+  { exercise = "push-up", sets = 3, rep_min = 10, rep_max = 20, pair = 2 },
+  { exercise = "pike-push-up", sets = 3, rep_min = 6, rep_max = 12, pair = 3 },
+  { exercise = "reverse-fly", sets = 3, rep_min = 12, rep_max = 20, pair = 3 },
+  { exercise = "neck-flexion", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
+  { exercise = "neck-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
 ]
 
 [[sessions]]
@@ -358,14 +361,14 @@ type = "strength"
 name = "Arms, calves + neck"
 focus = "Hypertrophy: biceps, triceps, side delts, calves, neck, core, grip"
 items = [
-  { exercise = "chin-up", sets = 3, rep_min = 6, rep_max = 12 },
-  { exercise = "diamond-push-up", sets = 3, rep_min = 8, rep_max = 15 },
-  { exercise = "kb-curl", sets = 3, rep_min = 12, rep_max = 20 },
-  { exercise = "lateral-raise", sets = 4, rep_min = 12, rep_max = 20 },
-  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, per_side = true },
-  { exercise = "neck-lateral", sets = 2, rep_min = 10, rep_max = 15, per_side = true },
-  { exercise = "neck-extension", sets = 1, rep_min = 10, rep_max = 15 },
-  { exercise = "hanging-raise", sets = 3, rep_min = 8, rep_max = 15 },
+  { exercise = "chin-up", sets = 3, rep_min = 6, rep_max = 12, pair = 1 },
+  { exercise = "diamond-push-up", sets = 3, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "kb-curl", sets = 3, rep_min = 12, rep_max = 20, pair = 2 },
+  { exercise = "lateral-raise", sets = 4, rep_min = 12, rep_max = 20, pair = 2 },
+  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, per_side = true, pair = 3 },
+  { exercise = "hanging-raise", sets = 3, rep_min = 8, rep_max = 15, pair = 3 },
+  { exercise = "neck-lateral", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 4 },
+  { exercise = "neck-extension", sets = 1, rep_min = 10, rep_max = 15, pair = 4 },
   { exercise = "dead-hang", sets = 2, rep_min = 30, rep_max = 60 },
 ]
 
