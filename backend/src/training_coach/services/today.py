@@ -31,7 +31,8 @@ class ItemPlan:
     step: str
     cue: str | None
     per_side: bool
-    targets: tuple[int, ...]
+    targets: tuple[int, ...]  # one per set, in order
+    pair: int | None = None  # done alternately with the other item of this pair (#97)
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,7 @@ def _item_plan(session: Session, item: TemplateItem, strength: bool) -> ItemPlan
         cue=plan.cue,
         per_side=item.per_side,
         targets=targets(plan.prescription, history),
+        pair=item.pair,
     )
 
 

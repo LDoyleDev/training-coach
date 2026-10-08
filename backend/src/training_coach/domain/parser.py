@@ -60,6 +60,7 @@ SPLIT_ENTRIES = re.compile(r"[;\n]+|,(?!\s*\d)")
 # Copying the bot's own lines back ("- Tibialis raise (Back against wall): 20, 20, 20") is a
 # natural way to log, so those decorations are tidied away before reading.
 BULLET = re.compile(r"^[ \t]*[-\u2013\u2014\u2022*\u00b7][ \t]*", re.MULTILINE)
+NUMBERED = re.compile(r"^[ \t]*\d{1,2}[.)][ \t]+", re.MULTILINE)  # "1. Jump squat: 7" (#97)
 BRACKETS = re.compile(r"\([^()\n]*\)")
 NAME_COLON = re.compile(r"(?<!\d):")  # "Tibialis raise: 20", never a time like 1:30
 GLUED_SIDE = re.compile(r"(?<=\d)(?=(?:per|each)\b)", re.IGNORECASE)  # "7per side"
@@ -283,7 +284,7 @@ def _notes(line: str) -> str:
 def tidy(text: str) -> str:
     """Drop what isn't part of a log: list bullets, bracketed notes, the colon after a name,
     and the missing space in "7per side"."""
-    text = BULLET.sub("", text)
+    text = NUMBERED.sub("", BULLET.sub("", text))
     text = "\n".join(_notes(line) for line in text.split("\n"))
     text = NAME_COLON.sub(" ", text)
     return GLUED_SIDE.sub(" ", text)

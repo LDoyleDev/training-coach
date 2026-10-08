@@ -112,7 +112,7 @@ async def test_strangers_presses_do_nothing(application: App, seeded: Sessions, 
 async def test_start_shows_the_full_session(application: App, seeded: Sessions) -> None:
     calls = await run(application, press(f"q:start:{_pointer(seeded)}", OWNER))
     (text,) = texts(calls)
-    assert text.endswith("Log it when you're done.")
+    assert text.endswith("put in what you did and send it back to log it.")
     assert "editMessageReplyMarkup" not in calls  # Start keeps the buttons
 
 

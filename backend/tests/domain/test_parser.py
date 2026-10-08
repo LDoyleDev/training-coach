@@ -64,6 +64,11 @@ def each_side(*values: int) -> tuple[tuple[int, Side, int], ...]:
             [Entry("split-squat", each_side(10, 10))],
             id="bullet-weight-glued-per-side",
         ),
+        pytest.param(
+            "1. Pull-up (Strict): 8\n2. Dip (Bars): 10\n3. Pull-up (Strict): 7\n\n4) Plank: 30s",
+            [Entry("pull-up", both(8, 7)), Entry("dip", both(10)), Entry("plank", both(30))],
+            id="numbered-work-list",
+        ),
         pytest.param("pull-ups (8 8 7)", [Entry("pull-up", both(8, 8, 7))], id="sets-in-brackets"),
         pytest.param(
             "dips 10 (then 8 8)", [Entry("dip", both(10, 8, 8))], id="more-sets-in-brackets"

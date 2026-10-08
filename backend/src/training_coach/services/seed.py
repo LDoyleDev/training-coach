@@ -83,6 +83,8 @@ class ItemSeed(_Strict):
     rep_min: int = Field(ge=1)
     rep_max: int = Field(ge=1)
     per_side: bool = False
+    # Two neighbouring items with the same number are done alternately (#97).
+    pair: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def _range(self) -> Self:
@@ -98,6 +100,18 @@ class SessionSeed(_Strict):
     focus: str = Field(min_length=1, max_length=120)
     is_rest_optional: bool = False
     items: list[ItemSeed] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _pairs(self) -> Self:
+        """Each pair number marks exactly two items, next to each other."""
+        numbers = [item.pair for item in self.items]
+        for number in {n for n in numbers if n is not None}:
+            where = [i for i, n in enumerate(numbers) if n == number]
+            if len(where) != 2 or where[1] != where[0] + 1:
+                raise ValueError(
+                    f"session {self.slug}: pair {number} must be two neighbouring items"
+                )
+        return self
 
 
 class PlanSeed(_Strict):
@@ -317,6 +331,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 "rep_min": item_seed.rep_min,
                 "rep_max": item_seed.rep_max,
                 "per_side": item_seed.per_side,
+                "pair": item_seed.pair,
             }
             item = items.get(item_position)
             if item is None:

@@ -477,3 +477,41 @@ def test_seed_gives_every_user_their_own_starting_rows(engine: Engine) -> None:
             assert users.plan_state(session) is not None
             assert users.settings_row(session) is not None
             assert len(session.scalars(select(ExerciseState)).all()) == len(load_plan().exercises)
+
+
+def _upper_items(items: str) -> str:
+    one = 'items = [{ exercise = "pull-up", sets = 4, rep_min = 5, rep_max = 12 }]'
+    return MINI_PLAN.replace(one, f"items = [{items}]", 1)
+
+
+PULL = '{ exercise = "pull-up", sets = 4, rep_min = 5, rep_max = 12'
+DIP = '{ exercise = "dip", sets = 3, rep_min = 8, rep_max = 15'
+
+
+def test_a_pair_is_two_neighbouring_items_and_is_stored(session: Session) -> None:
+    plan = load_plan(_upper_items(f"{PULL}, pair = 1 }}, {DIP}, pair = 1 }}"))
+    apply_seed(session, plan)
+    session.flush()
+    upper = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "upper")).one()
+    assert [item.pair for item in upper.items] == [1, 1]
+
+
+@pytest.mark.parametrize(
+    "items",
+    [
+        f"{PULL}, pair = 1 }}",  # alone
+        f"{PULL}, pair = 1 }}, {DIP} }}, {PULL}, pair = 1 }}",  # not neighbours
+        f"{PULL}, pair = 1 }}, {DIP}, pair = 1 }}, {DIP}, pair = 1 }}",  # three
+    ],
+    ids=["alone", "apart", "three"],
+)
+def test_a_broken_pair_is_rejected(items: str) -> None:
+    with pytest.raises(ValidationError, match="pair 1 must be two neighbouring items"):
+        load_plan(_upper_items(items))
+
+
+def test_the_bundled_resistance_sessions_are_fully_paired() -> None:
+    sessions = {s.slug: s for s in load_plan().sessions}
+    for slug in ("legs", "torso"):
+        assert all(item.pair is not None for item in sessions[slug].items), slug
+    assert [item.pair is None for item in sessions["arms"].items].count(True) == 1  # dead hang
