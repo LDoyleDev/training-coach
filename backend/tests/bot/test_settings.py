@@ -409,3 +409,18 @@ async def test_a_protein_target_names_the_habit_button(seeded: Sessions) -> None
     labels = [b.text for row in kwargs["reply_markup"].inline_keyboard for b in row]
     assert "Protein target (165 g)" in labels
     assert "- Protein target (165 g): 165 g across the day" in kwargs["text"]
+
+
+async def test_a_protein_target_can_be_cleared(application: App, seeded: Sessions) -> None:
+    _set(seeded, protein_g=165)
+    await run(application, press("s:ask-protein", OWNER))
+    done = await run(application, text_message("0", OWNER))
+    assert "Protein target: not set" in texts(done)[0]
+    assert _prefs(seeded).protein_g is None
+
+
+async def test_strangers_cannot_set_the_protein_target(application: App, seeded: Sessions) -> None:
+    assert await run(application, press("s:ask-protein", STRANGER)) == {}
+    await run(application, press("s:ask-protein", OWNER))  # the owner is being asked...
+    assert await run(application, text_message("165", STRANGER)) == {}  # ...a stranger answers
+    assert _prefs(seeded).protein_g is None

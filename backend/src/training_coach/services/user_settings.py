@@ -53,6 +53,7 @@ def update(
     blocks: bool | None = None,
     habits_enabled: bool | None = None,
     protein_g: int | None = None,
+    clear_protein: bool = False,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
@@ -75,7 +76,7 @@ def update(
         paused=old.paused if paused is None else paused,
         blocks_started_on=started,
         habits_enabled=old.habits_enabled if habits_enabled is None else habits_enabled,
-        protein_g=old.protein_g if protein_g is None else protein_g,
+        protein_g=None if clear_protein else old.protein_g if protein_g is None else protein_g,
     )
     changes: dict[str, str | bool | int] = {}
     if morning_time is not None:
@@ -92,8 +93,8 @@ def update(
         changes["blocks"] = blocks
     if habits_enabled is not None:
         changes["habits_enabled"] = habits_enabled
-    if protein_g is not None:
-        changes["protein_g"] = protein_g
+    if protein_g is not None or clear_protein:
+        changes["protein_g"] = protein_g or 0  # 0: cleared
     row = users.settings_row(session)
     if row is None:
         row = UserSettings()

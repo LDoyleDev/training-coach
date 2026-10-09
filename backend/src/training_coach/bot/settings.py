@@ -35,7 +35,7 @@ AWAITING = "awaiting_time"  # key in context.user_data: one of ASKS
 BAD_TIME = "That isn't a time like 07:30. Send it again, or /settings to cancel."
 PROTEIN_ASK = (
     "Send your daily protein target in grams, like 165. A guide: 1.6-2.2 g per kg of "
-    "bodyweight (about 2 g per kg is the middle)."
+    "bodyweight (about 2 g per kg is the middle). Send 0 to clear it."
 )
 BAD_PROTEIN = (
     f"Send a whole number of grams between {PROTEIN_GRAMS[0]} and {PROTEIN_GRAMS[1]}, like 165, "
@@ -243,13 +243,15 @@ class SettingsHandlers:
         await message.reply_text(text(prefs), reply_markup=keyboard(prefs))
 
     async def _typed_protein(self, message: Message, context: ContextTypes.DEFAULT_TYPE) -> None:
+        # "0" clears it. A word like "clear" can't be used: text with letters is read as a log.
+        cleared = (message.text or "").strip() == "0"
         grams = protein_grams(message.text or "")
-        if grams is None:
+        if grams is None and not cleared:
             await message.reply_text(BAD_PROTEIN)
             return
         assert context.user_data is not None  # noqa: S101 - the caller read it
         context.user_data.pop(AWAITING, None)
         with session_scope(self.sessions) as session:
-            prefs = user_settings.update(session, protein_g=grams)
+            prefs = user_settings.update(session, protein_g=grams, clear_protein=cleared)
         log.info("bot.settings_changed", what="protein")
         await message.reply_text(text(prefs), reply_markup=keyboard(prefs))
