@@ -10,11 +10,11 @@ from sqlalchemy import Engine, select
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import SessionProgress, Workout
+from training_coach.db.models import SessionProgress, SessionTemplate, Workout
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import local_date
-from training_coach.services import auth
+from training_coach.services import auth, users
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -229,3 +229,20 @@ def test_progress_and_saving_need_a_signed_in_browser(engine: Engine) -> None:
         assert stranger.put("/api/session/progress", json=body).status_code == 401
         assert stranger.post("/api/session/save", json={}).status_code == 401
         assert stranger.get("/api/session/pending").status_code == 401
+
+
+def test_a_swap_kept_for_another_session_does_not_apply(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """Kept on Legs, then today's session changes: Torso's pairs stay in order (review)."""
+    template = signed_in.get("/api/session/today").json()["session"]["template_id"]
+    body = {"template_id": template, "position": 0, "first": [1], "sets": []}
+    assert signed_in.put("/api/session/progress", json=body).status_code == 204
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
+        torso = bound.scalars(select(SessionTemplate.id).where(SessionTemplate.slug == "torso"))
+        state = users.plan_state(bound)
+        assert state is not None
+        state.next_template_id = torso.one()
+    view = signed_in.get("/api/session/today").json()
+    assert view["progress"] is None
+    assert _first_slug(signed_in) == "pull-up"

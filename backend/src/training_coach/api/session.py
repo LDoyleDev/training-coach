@@ -136,12 +136,15 @@ def today(request: Request, user: Owner) -> TodayView:
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         kept = guided.kept(session, on)
-        swapped = set(kept.first) if kept is not None else set()
-        plan = guided.today(session, on, settings.tz, swapped)
+        plan = guided.today(session, on, settings.tz)
+        if plan is not None and kept is not None and kept.template_id != plan.template_id:
+            kept = None  # kept for a session that's no longer today's: its swaps don't apply
+        if plan is not None and kept is not None and kept.first:
+            plan = guided.today(session, on, settings.tz, set(kept.first))
     if plan is None:
         return TodayView(session=None)
     progress = None
-    if kept is not None and kept.template_id == plan.template_id:
+    if kept is not None:
         progress = ProgressView(
             template_id=kept.template_id,
             position=kept.position,
