@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
-import { fetchToday, keepProgress, saveSession, type Guided, type Saved } from '../api'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  fetchPending,
+  fetchToday,
+  keepProgress,
+  saveSession,
+  type Guided,
+  type Pending,
+  type Saved,
+} from '../api'
 import {
   fromKept,
   key,
@@ -14,7 +22,7 @@ import {
   type Values,
 } from './logic'
 
-type Stage = 'overview' | 'set' | 'check' | 'saved'
+type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
 
 type Loaded =
   | { status: 'loading' }
@@ -45,6 +53,43 @@ export default function SessionPage() {
   const [note, setNote] = useState<string | null>(null)
   const [saved, setSaved] = useState<Saved | null>(null)
   const [busy, setBusy] = useState(false)
+  const [first, setFirst] = useState<number[]>([]) // pairs started with their second exercise
+  const [restLeft, setRestLeft] = useState(0)
+  const [watch, setWatch] = useState<number | null>(null) // stopwatch seconds while running
+  const [pending, setPending] = useState<Pending[]>([])
+
+  // The rest countdown: one tick a second; at zero the phone buzzes and the next set shows.
+  const rest = useRef(0)
+  const startRest = (seconds: number) => {
+    rest.current = seconds
+    setRestLeft(seconds)
+  }
+  useEffect(() => {
+    if (stage !== 'rest') return
+    const timer = window.setInterval(() => {
+      rest.current = Math.max(0, rest.current - 1)
+      setRestLeft(rest.current)
+      if (rest.current === 0) {
+        navigator.vibrate?.(300)
+        setStage('set')
+      }
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [stage])
+
+  // The stopwatch for timed exercises, counting while it runs.
+  const running = watch !== null
+  useEffect(() => {
+    if (!running) return
+    const timer = window.setInterval(() => setWatch((s) => (s === null ? s : s + 1)), 1000)
+    return () => window.clearInterval(timer)
+  }, [running])
+
+  useEffect(() => {
+    fetchPending()
+      .then(setPending)
+      .catch(() => setPending([]))
+  }, [])
 
   const load = useCallback(() => {
     fetchToday()
@@ -58,6 +103,7 @@ export default function SessionPage() {
         setPosition(today.progress?.position ?? 0)
         setFurthest(today.progress?.position ?? 0)
         setRevision(today.progress?.revision ?? 0)
+        setFirst(today.progress?.first ?? [])
       })
       .catch(() => setLoaded({ status: 'error' }))
   }, [])
@@ -69,14 +115,18 @@ export default function SessionPage() {
   const total = session.order.length
 
   /** Keep the place and the sets; another device having moved on reloads its version. */
-  const keep = async (nextPosition: number, nextValues: Values): Promise<boolean> => {
+  const keep = async (
+    nextPosition: number,
+    nextValues: Values,
+    nextFirst: number[] = first,
+  ): Promise<boolean> => {
     setBusy(true)
     try {
       const result = await keepProgress({
         template_id: session.template_id,
         revision,
         position: nextPosition,
-        first: [],
+        first: nextFirst,
         sets: toDone(session, nextValues),
       })
       if (result === 'stale') {
@@ -107,8 +157,47 @@ export default function SessionPage() {
       setValues(nextValues)
       setPosition(next)
       setFurthest(next)
+      setWatch(null)
       if (next >= total) setStage('check')
+      else {
+        startRest(session.rest_seconds)
+        setStage('rest')
+      }
     }
+  }
+
+  /** "Do <partner> first": before a pair has started, swap its order for this session. */
+  const pairStarted =
+    item.pair !== null &&
+    session.order.some(
+      (s) => session.items[s.item].pair === item.pair && values[key(s.item, s.set_no)],
+    )
+  const partner = partnerOf(session, step.item)
+  const swap = async () => {
+    if (item.pair === null) return
+    const nextFirst = first.includes(item.pair)
+      ? first.filter((p) => p !== item.pair)
+      : [...first, item.pair]
+    if (await keep(position, values, nextFirst)) load()
+  }
+
+  const stopWatch = () => {
+    if (watch !== null) change({ ...value, left: watch, right: watch })
+    setWatch(null)
+  }
+
+  const saveEarlier = async (day: Pending) => {
+    try {
+      const result = await saveSession(day.day)
+      setNote(
+        result === 'stale'
+          ? `${day.session} couldn't be saved: that day changed.`
+          : `Saved ${day.session} for ${day.day}.`,
+      )
+    } catch {
+      setNote("Couldn't save. Check your connection and try again.")
+    }
+    setPending(pending.filter((p) => p.day !== day.day))
   }
 
   const save = async () => {
@@ -138,11 +227,21 @@ export default function SessionPage() {
       )}
 
       {stage === 'overview' && (
-        <Overview
-          session={session}
-          resumeAt={position > 0 && position < total ? position : null}
-          onStart={() => setStage(position >= total ? 'check' : 'set')}
-        />
+        <>
+          {pending.map((day) => (
+            <p key={day.day} className={card}>
+              {day.session} on {day.day} wasn't saved ({day.sets} sets).{' '}
+              <button type="button" className={secondary} onClick={() => saveEarlier(day)}>
+                Save it
+              </button>
+            </p>
+          ))}
+          <Overview
+            session={session}
+            resumeAt={position > 0 && position < total ? position : null}
+            onStart={() => setStage(position >= total ? 'check' : 'set')}
+          />
+        </>
       )}
 
       {stage === 'set' && (
@@ -190,7 +289,30 @@ export default function SessionPage() {
             </h1>
             <p className="text-[var(--slate)]">{item.step}</p>
           </div>
+          {partner && !pairStarted && (
+            <button
+              type="button"
+              className="min-h-11 rounded-xl border-2 border-dashed border-[var(--bell-ink)] font-bold text-[var(--bell-ink)]"
+              onClick={swap}
+            >
+              Do {partner.name} first
+            </button>
+          )}
           {item.summary && <p className={card}>{item.summary}</p>}
+          {item.unit === 'seconds' && (
+            <div className={card + ' flex flex-col items-center gap-2'}>
+              <span aria-live="polite" className="text-6xl font-extrabold">
+                {running ? watch : value.left} s
+              </span>
+              <button
+                type="button"
+                className={primary}
+                onClick={running ? stopWatch : () => setWatch(0)}
+              >
+                {running ? 'Stop' : 'Start clock'}
+              </button>
+            </div>
+          )}
           <div className="flex items-baseline justify-between">
             <span className="text-lg font-bold">
               Set {step.set_no} of {item.targets.length}
@@ -239,6 +361,31 @@ export default function SessionPage() {
           <button type="button" className={primary} disabled={busy} onClick={confirm}>
             Confirm set
           </button>
+        </section>
+      )}
+
+      {stage === 'rest' && (
+        <section aria-labelledby="rest" className="flex flex-col items-center gap-4 text-center">
+          <h1 id="rest" className="text-lg font-bold tracking-wide text-[var(--bell-ink)]">
+            REST
+          </h1>
+          <p aria-live="polite" className="text-8xl font-extrabold">
+            {Math.floor(restLeft / 60)}:{String(restLeft % 60).padStart(2, '0')}
+          </p>
+          <p className="text-[var(--slate)]">Your phone buzzes when it's time.</p>
+          <p className={card + ' w-full'}>
+            Next: <span className="font-bold">{item.name}</span>, set {step.set_no} of{' '}
+            {item.targets.length}, target {unitText(item, step.target)}
+            {item.per_side ? ' each side' : ''}
+          </p>
+          <div className="flex w-full gap-3">
+            <button type="button" className={secondary} onClick={() => startRest(restLeft + 15)}>
+              + 15 s
+            </button>
+            <button type="button" className={primary} onClick={() => setStage('set')}>
+              Skip rest
+            </button>
+          </div>
         </section>
       )}
 
