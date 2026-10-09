@@ -427,3 +427,12 @@ def test_an_old_days_retired_exercise_can_be_logged(session: Session) -> None:
     logged = session.scalars(select(SetLog.value).where(SetLog.exercise_id == goblet)).all()
     assert logged == [16, 16, 16]
     assert "Goblet squat" in workout_log.exercise_names(session)  # the voice vocabulary
+
+
+def test_cycling_is_logged_as_zone_2(session: Session) -> None:
+    """'Cycle: 60 min' wasn't understood; bike was the only cycling word (2026-10-09)."""
+    apply_seed(session, load_plan())
+    session.flush()
+    for word in ("Cycle", "Cycling", "cycled", "Bike"):
+        draft = workout_log.draft(session, f"{word}: 60 min", TODAY, BERLIN)
+        assert [(e.slug, e.sets) for e in draft.entries] == [("zone2", ((1, Side.BOTH, 60),))]
