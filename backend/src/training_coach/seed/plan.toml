@@ -290,7 +290,7 @@ slug = "zone2"
 name = "Zone 2 (conversational pace)"
 kind = "duration_min"
 muscle_groups = ["conditioning"]
-aliases = ["zone 2", "walk", "easy run", "bike", "hike", "long run"]
+aliases = ["zone 2", "walk", "easy run", "bike", "cycle", "cycling", "cycled", "hike", "long run"]
 start = 0
 ladder = ["Brisk walk / hike", "Easy jog / bike", "Easy jog with weight vest or backpack"]
 
