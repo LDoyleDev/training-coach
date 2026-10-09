@@ -203,6 +203,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/session/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Today
+         * @description Today's session in work order. ``first`` names pairs to start with their second
+         *     exercise ("Do this one first").
+         */
+        get: operations["today_api_session_today_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -233,6 +254,16 @@ export interface components {
             credential: {
                 [key: string]: unknown;
             };
+        };
+        /** BlockView */
+        BlockView: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "strength" | "hypertrophy";
+            /** Week */
+            week: number;
         };
         /** DeviceView */
         DeviceView: {
@@ -281,6 +312,33 @@ export interface components {
             /** Start Step */
             start_step: number;
         };
+        /** GuidedView */
+        GuidedView: {
+            block: components["schemas"]["BlockView"] | null;
+            /** Day */
+            day: string;
+            /** Focus */
+            focus: string;
+            /** Items */
+            items: components["schemas"]["ItemView"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "strength" | "conditioning" | "recovery";
+            /** Minutes */
+            minutes: number;
+            /** Name */
+            name: string;
+            /** Order */
+            order: components["schemas"]["SetView"][];
+            /** Rest Seconds */
+            rest_seconds: number;
+            /** Template Id */
+            template_id: number;
+            /** Warm Up */
+            warm_up: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -294,6 +352,30 @@ export interface components {
             status: string;
             /** Version */
             version: string;
+        };
+        /** ItemView */
+        ItemView: {
+            /** Cue */
+            cue: string | null;
+            /** Name */
+            name: string;
+            /** Pair */
+            pair: number | null;
+            /** Per Side */
+            per_side: boolean;
+            /** Slug */
+            slug: string;
+            /** Step */
+            step: string;
+            /** Summary */
+            summary: string | null;
+            /** Targets */
+            targets: number[];
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "reps" | "seconds" | "minutes";
         };
         /** Me */
         Me: {
@@ -352,12 +434,28 @@ export interface components {
              */
             type: "strength" | "conditioning" | "recovery";
         };
+        /** SetView */
+        SetView: {
+            /** Item */
+            item: number;
+            /** Set No */
+            set_no: number;
+            /** Target */
+            target: number;
+        };
         /** SignIns */
         SignIns: {
             /** Devices */
             devices: components["schemas"]["DeviceView"][];
             /** Passkeys */
             passkeys: components["schemas"]["PasskeyView"][];
+        };
+        /**
+         * TodayView
+         * @description ``session`` is empty when nothing planned is left today (done or rested).
+         */
+        TodayView: {
+            session: components["schemas"]["GuidedView"] | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -653,6 +751,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanView"];
+                };
+            };
+        };
+    };
+    today_api_session_today_get: {
+        parameters: {
+            query?: {
+                first?: number[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TodayView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

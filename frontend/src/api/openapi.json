@@ -17,6 +17,28 @@
         "title": "Answer",
         "type": "object"
       },
+      "BlockView": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "strength",
+              "hypertrophy"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "week": {
+            "title": "Week",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "week"
+        ],
+        "title": "BlockView",
+        "type": "object"
+      },
       "DeviceView": {
         "properties": {
           "created_at": {
@@ -125,6 +147,86 @@
         "title": "ExerciseView",
         "type": "object"
       },
+      "GuidedView": {
+        "properties": {
+          "block": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BlockView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "focus": {
+            "title": "Focus",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "strength",
+              "conditioning",
+              "recovery"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order": {
+            "items": {
+              "$ref": "#/components/schemas/SetView"
+            },
+            "title": "Order",
+            "type": "array"
+          },
+          "rest_seconds": {
+            "title": "Rest Seconds",
+            "type": "integer"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          },
+          "warm_up": {
+            "title": "Warm Up",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "day",
+          "template_id",
+          "name",
+          "focus",
+          "kind",
+          "warm_up",
+          "block",
+          "minutes",
+          "rest_seconds",
+          "items",
+          "order"
+        ],
+        "title": "GuidedView",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -159,6 +261,88 @@
           "bot_enabled"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "ItemView": {
+        "properties": {
+          "cue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cue"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pair": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "targets": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Targets",
+            "type": "array"
+          },
+          "unit": {
+            "enum": [
+              "reps",
+              "seconds",
+              "minutes"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "step",
+          "summary",
+          "cue",
+          "unit",
+          "per_side",
+          "pair",
+          "targets"
+        ],
+        "title": "ItemView",
         "type": "object"
       },
       "Me": {
@@ -316,6 +500,29 @@
         "title": "SessionView",
         "type": "object"
       },
+      "SetView": {
+        "properties": {
+          "item": {
+            "title": "Item",
+            "type": "integer"
+          },
+          "set_no": {
+            "title": "Set No",
+            "type": "integer"
+          },
+          "target": {
+            "title": "Target",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item",
+          "set_no",
+          "target"
+        ],
+        "title": "SetView",
+        "type": "object"
+      },
       "SignIns": {
         "properties": {
           "devices": {
@@ -338,6 +545,26 @@
           "devices"
         ],
         "title": "SignIns",
+        "type": "object"
+      },
+      "TodayView": {
+        "description": "``session`` is empty when nothing planned is left today (done or rested).",
+        "properties": {
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GuidedView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "session"
+        ],
+        "title": "TodayView",
         "type": "object"
       },
       "ValidationError": {
@@ -694,6 +921,54 @@
         "summary": "Get Plan",
         "tags": [
           "plan"
+        ]
+      }
+    },
+    "/api/session/today": {
+      "get": {
+        "description": "Today's session in work order. ``first`` names pairs to start with their second\nexercise (\"Do this one first\").",
+        "operationId": "today_api_session_today_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "first",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 10,
+              "title": "First",
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Today",
+        "tags": [
+          "session"
         ]
       }
     },

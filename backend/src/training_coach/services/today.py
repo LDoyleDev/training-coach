@@ -36,6 +36,7 @@ class ItemPlan:
     targets: tuple[int, ...]  # one per set, in order
     pair: int | None = None  # done alternately with the other item of this pair (#97)
     summary: str | None = None  # how to do the exercise (#116); cue: this step's detail
+    slug: str = ""  # the exercise, for logging what the guided session records (#117)
 
 
 @dataclass(frozen=True)
@@ -102,6 +103,7 @@ def _item_plan(session: Session, item: TemplateItem, strength: bool) -> ItemPlan
         step=plan.step.name,
         cue=plan.cue,
         summary=summary(item.exercise.slug),
+        slug=item.exercise.slug,
         per_side=item.per_side,
         targets=targets(plan.prescription, history),
         pair=item.pair,
