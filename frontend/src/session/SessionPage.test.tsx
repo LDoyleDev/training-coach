@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { Guided, Kept, Saved, TodayView } from '../api'
+import type { Guided, Kept, Pending, Saved, TodayView } from '../api'
 import SessionPage from './SessionPage'
 
 const SESSION: Guided = {
@@ -56,6 +56,8 @@ type Server = {
   today?: TodayView | null | 'error'
   keep?: number | 'stale'
   save?: Saved | 'stale'
+  pending?: Pending[]
+  saveEarlier?: 'fail'
 }
 
 /** A fake API; returns the bodies sent, by method and path. */
@@ -76,7 +78,10 @@ function serve(server: Server = {}) {
         ? new Response(null, { status: 409 })
         : Response.json({ revision: keep })
     }
+    if (path === '/api/session/pending') return Response.json(server.pending ?? [])
     if (path === '/api/session/save') {
+      if (server.saveEarlier === 'fail' && init?.body !== '{}')
+        return new Response(null, { status: 500 })
       const save = server.save ?? SAVED
       return save === 'stale' ? new Response(null, { status: 409 }) : Response.json(save)
     }
@@ -86,7 +91,10 @@ function serve(server: Server = {}) {
   return sent
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
 
 const click = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }))
 
@@ -102,10 +110,12 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
   click('1 more')
   expect(screen.getByText('1 over')).toBeInTheDocument()
   click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
 
   expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
   expect(screen.getByRole('group', { name: 'Each side' })).toBeInTheDocument()
   click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
   expect(await screen.findByText('Set 2 of 2')).toBeInTheDocument()
   click('Confirm set')
 
@@ -136,6 +146,7 @@ test('left and right can differ on a one-sided exercise', async () => {
   const right = screen.getByRole('group', { name: 'Right' })
   fireEvent.click(right.querySelector('button[aria-label="1 fewer"]')!)
   click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
   await waitFor(() => expect(screen.getByText('Set 3 of 3')).toBeInTheDocument())
   expect(sent['PUT /api/session/progress']?.[0]).toMatchObject({
     revision: 4,
@@ -236,8 +247,163 @@ test('fixing an earlier set returns to the furthest set, and the server keeps it
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument()
   click('1 fewer')
   click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
   expect(await screen.findByText('Set 3 of 3')).toBeInTheDocument()
   expect(sent['PUT /api/session/progress']?.[0]).toMatchObject({ position: 2 })
   click('Leave')
   expect(screen.getByRole('button', { name: 'Resume: set 3 of 3' })).toBeInTheDocument()
+})
+
+test('the rest counts down, can be lengthened, and buzzes into the next set', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const vibrate = vi.fn()
+  vi.stubGlobal('navigator', { ...navigator, vibrate })
+  serve()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Confirm set')
+  expect(await screen.findByText('1:00')).toBeInTheDocument()
+  expect(screen.getByText('Calf raise')).toBeInTheDocument() // next
+  click('+ 15 s')
+  expect(screen.getByText('1:15')).toBeInTheDocument()
+  act(() => vi.advanceTimersByTime(75_000))
+  expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
+  expect(vibrate).toHaveBeenCalledWith(300)
+})
+
+test('a timed set uses a stopwatch, then plus and minus by 5 seconds', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const hang: Guided = {
+    ...SESSION,
+    items: [
+      {
+        ...SESSION.items[0],
+        slug: 'dead-hang',
+        name: 'Dead hang',
+        unit: 'seconds',
+        pair: null,
+        targets: [30],
+      },
+    ],
+    order: [{ item: 0, set_no: 1, target: 30 }],
+  }
+  const sent = serve({ today: { session: hang, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Start clock')
+  act(() => vi.advanceTimersByTime(42_000))
+  click('Stop')
+  expect(screen.getByText('42 s')).toBeInTheDocument()
+  click('5 more')
+  click('Confirm set')
+  await screen.findByRole('heading', { name: 'Check and save' })
+  expect(sent['PUT /api/session/progress']?.[0]).toMatchObject({
+    sets: [{ item: 0, set_no: 1, left: 47, right: null }],
+  })
+})
+
+test('a pair can start with its second exercise before it has begun', async () => {
+  const sent = serve()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Do Calf raise first')
+  await waitFor(() => expect(sent['GET /api/session/today']).toHaveLength(2))
+  expect(sent['PUT /api/session/progress']?.[0]).toMatchObject({ first: [1], position: 0 })
+})
+
+test("an earlier day's unsaved session can be saved from the overview", async () => {
+  const sent = serve({ pending: [{ day: '2026-10-11', session: 'Torso + neck', sets: 5 }] })
+  render(<SessionPage />)
+  expect(
+    await screen.findByText(/Torso \+ neck on 2026-10-11 wasn't saved \(5 sets\)/),
+  ).toBeInTheDocument()
+  click('Save it')
+  expect(await screen.findByText('Saved Torso + neck for 2026-10-11.')).toBeInTheDocument()
+  expect(sent['POST /api/session/save']?.[0]).toEqual({ day: '2026-10-11' })
+  expect(screen.queryByRole('button', { name: 'Save it' })).not.toBeInTheDocument()
+})
+
+test('a failed save of an earlier day keeps it offered', async () => {
+  serve({ pending: [{ day: '2026-10-11', session: 'Torso + neck', sets: 5 }], saveEarlier: 'fail' })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Save it' }))
+  expect(await screen.findByText(/Check your connection/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save it' })).toBeInTheDocument()
+})
+
+test('leaving stops a running clock', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const hang: Guided = {
+    ...SESSION,
+    items: [{ ...SESSION.items[0], name: 'Dead hang', unit: 'seconds', pair: null, targets: [30] }],
+    order: [{ item: 0, set_no: 1, target: 30 }],
+  }
+  serve({ today: { session: hang, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Start clock')
+  act(() => vi.advanceTimersByTime(5_000))
+  click('Leave')
+  fireEvent.click(screen.getByRole('button', { name: 'Start session' }))
+  expect(screen.getByText('30 s')).toBeInTheDocument() // the target again, not a running clock
+  expect(screen.getByRole('button', { name: 'Start clock' })).toBeInTheDocument()
+})
+
+const HANG: Guided = {
+  ...SESSION,
+  items: [{ ...SESSION.items[0], name: 'Dead hang', unit: 'seconds', pair: null, targets: [30] }],
+  order: [{ item: 0, set_no: 1, target: 30 }],
+}
+
+test('the stopwatch keeps time while the screen is locked', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  serve({ today: { session: HANG, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Start clock')
+  // Locked: the clock moves on but no timer fires; unlocking reads the time again.
+  act(() => {
+    vi.setSystemTime(Date.now() + 50_000)
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  expect(screen.getByText('50 s')).toBeInTheDocument()
+})
+
+test('the rest ends on time after a locked screen', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  serve()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Confirm set')
+  expect(await screen.findByText('1:00')).toBeInTheDocument()
+  act(() => {
+    vi.setSystemTime(Date.now() + 61_000)
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
+})
+
+test('confirming with the clock running takes its reading', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const sent = serve({ today: { session: HANG, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Start clock')
+  act(() => vi.advanceTimersByTime(37_000))
+  click('Confirm set')
+  await screen.findByRole('heading', { name: 'Check and save' })
+  expect(sent['PUT /api/session/progress']?.[0]).toMatchObject({
+    sets: [{ item: 0, set_no: 1, left: 37, right: null }],
+  })
+})
+
+test('a double tap saves an earlier day once', async () => {
+  const sent = serve({ pending: [{ day: '2026-10-11', session: 'Torso + neck', sets: 5 }] })
+  render(<SessionPage />)
+  const button = await screen.findByRole('button', { name: 'Save it' })
+  fireEvent.click(button)
+  fireEvent.click(button)
+  expect(await screen.findByText(/Saved Torso \+ neck/)).toBeInTheDocument()
+  expect(sent['POST /api/session/save']).toHaveLength(1)
+  expect(screen.queryByRole('button', { name: 'Save it' })).not.toBeInTheDocument()
 })

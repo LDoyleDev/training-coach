@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchToday, keepProgress, saveSession, type Guided, type Saved } from '../api'
+import {
+  fetchPending,
+  fetchToday,
+  keepProgress,
+  saveSession,
+  type Guided,
+  type Pending,
+  type Saved,
+} from '../api'
 import {
   fromKept,
   key,
@@ -14,7 +22,7 @@ import {
   type Values,
 } from './logic'
 
-type Stage = 'overview' | 'set' | 'check' | 'saved'
+type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
 
 type Loaded =
   | { status: 'loading' }
@@ -45,6 +53,56 @@ export default function SessionPage() {
   const [note, setNote] = useState<string | null>(null)
   const [saved, setSaved] = useState<Saved | null>(null)
   const [busy, setBusy] = useState(false)
+  const [first, setFirst] = useState<number[]>([]) // pairs started with their second exercise
+  // Clocks keep wall-clock times, not tick counts: a phone throttles timers while the screen
+  // is locked, which is exactly when someone rests. Each tick just reads the time again.
+  const [now, setNow] = useState(() => Date.now())
+  const [restUntil, setRestUntil] = useState(0)
+  const [watchFrom, setWatchFrom] = useState<number | null>(null) // stopwatch start while running
+  const [pending, setPending] = useState<Pending[]>([])
+  const [saving, setSaving] = useState<string[]>([]) // earlier days being saved
+
+  const running = watchFrom !== null
+  const resting = stage === 'rest'
+  useEffect(() => {
+    if (!resting && !running) return
+    const tick = () => {
+      const at = Date.now()
+      setNow(at)
+      // The rest is over: the phone buzzes and the next set shows.
+      if (resting && at >= restUntil) {
+        navigator.vibrate?.(300)
+        setStage('set')
+      }
+    }
+    const timer = window.setInterval(tick, 250)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', tick)
+    }
+  }, [resting, running, restUntil])
+
+  const restLeft = Math.max(0, Math.ceil((restUntil - now) / 1000))
+  const startRest = (seconds: number) => {
+    const at = Date.now()
+    setNow(at)
+    setRestUntil(at + seconds * 1000)
+  }
+
+  // The stopwatch for timed exercises.
+  const watch = watchFrom === null ? null : Math.max(0, Math.floor((now - watchFrom) / 1000))
+  const startWatch = () => {
+    const at = Date.now()
+    setNow(at)
+    setWatchFrom(at)
+  }
+
+  useEffect(() => {
+    fetchPending()
+      .then(setPending)
+      .catch(() => setPending([]))
+  }, [])
 
   const load = useCallback(() => {
     fetchToday()
@@ -58,6 +116,7 @@ export default function SessionPage() {
         setPosition(today.progress?.position ?? 0)
         setFurthest(today.progress?.position ?? 0)
         setRevision(today.progress?.revision ?? 0)
+        setFirst(today.progress?.first ?? [])
       })
       .catch(() => setLoaded({ status: 'error' }))
   }, [])
@@ -69,14 +128,18 @@ export default function SessionPage() {
   const total = session.order.length
 
   /** Keep the place and the sets; another device having moved on reloads its version. */
-  const keep = async (nextPosition: number, nextValues: Values): Promise<boolean> => {
+  const keep = async (
+    nextPosition: number,
+    nextValues: Values,
+    nextFirst: number[] = first,
+  ): Promise<boolean> => {
     setBusy(true)
     try {
       const result = await keepProgress({
         template_id: session.template_id,
         revision,
         position: nextPosition,
-        first: [],
+        first: nextFirst,
         sets: toDone(session, nextValues),
       })
       if (result === 'stale') {
@@ -100,14 +163,68 @@ export default function SessionPage() {
   const change = (v: Value) => setValues({ ...values, [key(step.item, step.set_no)]: v })
 
   const confirm = async () => {
-    const nextValues = { ...values, [key(step.item, step.set_no)]: value }
+    // Confirming with the clock running takes its reading.
+    const done = watch === null ? value : { ...value, left: watch, right: watch }
+    const nextValues = { ...values, [key(step.item, step.set_no)]: done }
     const next = Math.max(position + 1, furthest) // a corrected set returns to where you were
     if (await keep(next, nextValues)) {
       setNote(null)
       setValues(nextValues)
       setPosition(next)
       setFurthest(next)
+      setWatchFrom(null)
       if (next >= total) setStage('check')
+      else {
+        startRest(session.rest_seconds)
+        setStage('rest')
+      }
+    }
+  }
+
+  /** "Do <partner> first": before a pair has started, swap its order for this session. */
+  const pairStarted =
+    item.pair !== null &&
+    session.order.some(
+      (s) => session.items[s.item].pair === item.pair && values[key(s.item, s.set_no)],
+    )
+  const partner = partnerOf(session, step.item)
+  const swap = async () => {
+    if (item.pair === null) return
+    const nextFirst = first.includes(item.pair)
+      ? first.filter((p) => p !== item.pair)
+      : [...first, item.pair]
+    if (await keep(position, values, nextFirst)) load()
+  }
+
+  /** Moving to another set or screen stops the clock: it belongs to the set it started on. */
+  const goTo = (nextStage: Stage, nextPosition: number = position) => {
+    setNote(null)
+    setWatchFrom(null)
+    setPosition(nextPosition)
+    setStage(nextStage)
+  }
+
+  const stopWatch = () => {
+    // Both sides get the time: a one-sided timed hold is timed per side, the same each side.
+    if (watch !== null) change({ ...value, left: watch, right: watch })
+    setWatchFrom(null)
+  }
+
+  const saveEarlier = async (day: Pending) => {
+    if (saving.includes(day.day)) return
+    setSaving((days) => [...days, day.day])
+    try {
+      const result = await saveSession(day.day)
+      setNote(
+        result === 'stale'
+          ? `${day.session} couldn't be saved: that day changed.`
+          : `Saved ${day.session} for ${day.day}.`,
+      )
+      setPending((days) => days.filter((p) => p.day !== day.day)) // settled either way
+    } catch {
+      setNote("Couldn't save. Check your connection and try again.") // still offered
+    } finally {
+      setSaving((days) => days.filter((d) => d !== day.day))
     }
   }
 
@@ -138,24 +255,32 @@ export default function SessionPage() {
       )}
 
       {stage === 'overview' && (
-        <Overview
-          session={session}
-          resumeAt={position > 0 && position < total ? position : null}
-          onStart={() => setStage(position >= total ? 'check' : 'set')}
-        />
+        <>
+          {pending.map((day) => (
+            <p key={day.day} className={card}>
+              {day.session} on {day.day} wasn't saved ({day.sets} sets).{' '}
+              <button
+                type="button"
+                className={secondary}
+                disabled={saving.includes(day.day)}
+                onClick={() => saveEarlier(day)}
+              >
+                Save it
+              </button>
+            </p>
+          ))}
+          <Overview
+            session={session}
+            resumeAt={position > 0 && position < total ? position : null}
+            onStart={() => setStage(position >= total ? 'check' : 'set')}
+          />
+        </>
       )}
 
       {stage === 'set' && (
         <section aria-labelledby="exercise" className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <button
-              type="button"
-              className={secondary}
-              onClick={() => {
-                setNote(null)
-                setStage('overview')
-              }}
-            >
+            <button type="button" className={secondary} onClick={() => goTo('overview')}>
               Leave
             </button>
             <span className="text-sm text-[var(--slate)]">
@@ -165,10 +290,7 @@ export default function SessionPage() {
               type="button"
               className={secondary}
               disabled={position === 0}
-              onClick={() => {
-                setNote(null)
-                setPosition(position - 1)
-              }}
+              onClick={() => goTo('set', position - 1)}
             >
               Back
             </button>
@@ -190,7 +312,26 @@ export default function SessionPage() {
             </h1>
             <p className="text-[var(--slate)]">{item.step}</p>
           </div>
+          {partner && !pairStarted && (
+            <button
+              type="button"
+              className="min-h-11 rounded-xl border-2 border-dashed border-[var(--bell-ink)] font-bold text-[var(--bell-ink)]"
+              onClick={swap}
+            >
+              Do {partner.name} first
+            </button>
+          )}
           {item.summary && <p className={card}>{item.summary}</p>}
+          {item.unit === 'seconds' && (
+            <div className={card + ' flex flex-col items-center gap-2'}>
+              <span aria-live="polite" className="text-6xl font-extrabold">
+                {running ? watch : value.left} s
+              </span>
+              <button type="button" className={primary} onClick={running ? stopWatch : startWatch}>
+                {running ? 'Stop' : 'Start clock'}
+              </button>
+            </div>
+          )}
           <div className="flex items-baseline justify-between">
             <span className="text-lg font-bold">
               Set {step.set_no} of {item.targets.length}
@@ -242,6 +383,31 @@ export default function SessionPage() {
         </section>
       )}
 
+      {stage === 'rest' && (
+        <section aria-labelledby="rest" className="flex flex-col items-center gap-4 text-center">
+          <h1 id="rest" className="text-lg font-bold tracking-wide text-[var(--bell-ink)]">
+            REST
+          </h1>
+          <p aria-live="polite" className="text-8xl font-extrabold">
+            {Math.floor(restLeft / 60)}:{String(restLeft % 60).padStart(2, '0')}
+          </p>
+          <p className="text-[var(--slate)]">Your phone buzzes when it's time.</p>
+          <p className={card + ' w-full'}>
+            Next: <span className="font-bold">{item.name}</span>, set {step.set_no} of{' '}
+            {item.targets.length}, target {unitText(item, step.target)}
+            {item.per_side ? ' each side' : ''}
+          </p>
+          <div className="flex w-full gap-3">
+            <button type="button" className={secondary} onClick={() => startRest(restLeft + 15)}>
+              + 15 s
+            </button>
+            <button type="button" className={primary} onClick={() => setStage('set')}>
+              Skip rest
+            </button>
+          </div>
+        </section>
+      )}
+
       {stage === 'check' && (
         <section aria-labelledby="check" className="flex flex-col gap-4">
           <h1 id="check" className="text-4xl font-extrabold">
@@ -264,15 +430,7 @@ export default function SessionPage() {
             ))}
           </ul>
           <div className="flex gap-3">
-            <button
-              type="button"
-              className={secondary}
-              onClick={() => {
-                setNote(null)
-                setPosition(total - 1)
-                setStage('set')
-              }}
-            >
+            <button type="button" className={secondary} onClick={() => goTo('set', total - 1)}>
               Back
             </button>
             <button type="button" className={primary} disabled={busy} onClick={save}>
