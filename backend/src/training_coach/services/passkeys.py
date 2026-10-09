@@ -258,3 +258,27 @@ def sign_in(
     passkey.sign_count = verified.new_sign_count
     passkey.last_used_at = now
     return auth.start_session(session, passkey.user_id, now, label)
+
+
+@dataclass(frozen=True)
+class Key:
+    id: int
+    name: str
+    created_at: datetime
+    last_used_at: datetime | None
+
+
+def keys(session: Session) -> list[Key]:
+    """The bound user's passkeys, newest first."""
+    rows = session.scalars(select(Passkey).order_by(Passkey.created_at.desc(), Passkey.id.desc()))
+    return [Key(row.id, row.name, row.created_at, row.last_used_at) for row in rows]
+
+
+def remove(session: Session, key_id: int) -> bool:
+    """Remove one of the bound user's passkeys; False if there is no such key of theirs. The
+    device keeps its copy, but it no longer signs in here."""
+    row = session.scalar(select(Passkey).where(Passkey.id == key_id))
+    if row is None:
+        return False
+    session.delete(row)
+    return True

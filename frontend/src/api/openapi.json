@@ -17,6 +17,41 @@
         "title": "Answer",
         "type": "object"
       },
+      "DeviceView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "created_at",
+          "last_seen_at",
+          "current"
+        ],
+        "title": "DeviceView",
+        "type": "object"
+      },
       "ExerciseKind": {
         "description": "How an exercise is measured.",
         "enum": [
@@ -139,6 +174,43 @@
         "title": "Me",
         "type": "object"
       },
+      "PasskeyView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "last_used_at"
+        ],
+        "title": "PasskeyView",
+        "type": "object"
+      },
       "PlanView": {
         "properties": {
           "sessions": {
@@ -244,6 +316,30 @@
         "title": "SessionView",
         "type": "object"
       },
+      "SignIns": {
+        "properties": {
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/DeviceView"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "passkeys": {
+            "items": {
+              "$ref": "#/components/schemas/PasskeyView"
+            },
+            "title": "Passkeys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "passkeys",
+          "devices"
+        ],
+        "title": "SignIns",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -310,6 +406,97 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/account/devices/{device_id}": {
+      "delete": {
+        "operationId": "sign_out_device_api_account_devices__device_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sign Out Device",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/passkeys/{key_id}": {
+      "delete": {
+        "operationId": "remove_passkey_api_account_passkeys__key_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "title": "Key Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Passkey",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/sign-ins": {
+      "get": {
+        "operationId": "sign_ins_api_account_sign_ins_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignIns"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sign Ins",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/auth/me": {
       "get": {
         "operationId": "me_api_auth_me_get",

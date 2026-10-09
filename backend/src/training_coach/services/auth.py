@@ -114,3 +114,37 @@ def end_session(session: Session, token: str, now: datetime) -> None:
     found = _live(session, token, now)
     if found is not None:
         found.ended_at = now
+
+
+@dataclass(frozen=True)
+class Device:
+    id: int
+    label: str
+    created_at: datetime
+    last_seen_at: datetime
+    current: bool  # the browser asking
+
+
+def devices(session: Session, current_token: str, now: datetime) -> list[Device]:
+    """The bound user's signed-in browsers, newest first; ended and expired ones are left out."""
+    mine = hash_token(current_token)
+    rows = session.scalars(
+        select(WebSession)
+        .where(WebSession.ended_at.is_(None), WebSession.expires_at > now)
+        .order_by(WebSession.last_seen_at.desc(), WebSession.id.desc())
+    )
+    return [
+        Device(row.id, row.label, row.created_at, row.last_seen_at, row.token_hash == mine)
+        for row in rows
+    ]
+
+
+def end_device(session: Session, device_id: int, now: datetime) -> bool:
+    """Sign a browser out by id; False if it isn't one of the bound user's live sessions."""
+    row = session.scalar(
+        select(WebSession).where(WebSession.id == device_id, WebSession.ended_at.is_(None))
+    )
+    if row is None:
+        return False
+    row.ended_at = now
+    return True

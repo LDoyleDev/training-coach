@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from telegram import Bot
 
 from training_coach import __version__
+from training_coach.api.account import router as account_router
 from training_coach.api.auth import router as auth_router
 from training_coach.api.passkeys import router as passkeys_router
 from training_coach.api.plan import router as plan_router
@@ -68,7 +69,7 @@ def _report_death(task: "asyncio.Task[None]") -> None:
 
 
 # Pages of the web app that are reached by URL, not only from within it (a link from the bot).
-SPA_PAGES = ("/signin",)
+SPA_PAGES = ("/signin", "/account")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -135,6 +136,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(plan_router)
     app.include_router(auth_router)
     app.include_router(passkeys_router)
+    app.include_router(account_router)
 
     # Mounted last so API routes always win over static files.
     dist = settings.web_dist_dir

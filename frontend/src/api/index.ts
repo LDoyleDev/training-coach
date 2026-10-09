@@ -86,3 +86,28 @@ export async function signInWithPasskey(): Promise<boolean> {
   const credential = await startAuthentication({ optionsJSON })
   return answer('/api/auth/passkeys/sign-in', credential)
 }
+
+export type SignIns = Schemas['SignIns']
+export type PasskeyView = Schemas['PasskeyView']
+export type DeviceView = Schemas['DeviceView']
+
+/** The signed-in person's passkeys and browsers; null when not signed in. */
+export async function fetchSignIns(signal?: AbortSignal): Promise<SignIns | null> {
+  const res = await fetch('/api/account/sign-ins', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as SignIns
+}
+
+async function remove(path: string): Promise<void> {
+  const res = await fetch(path, { method: 'DELETE', credentials: 'same-origin' })
+  if (res.status !== 204 && res.status !== 404)
+    throw new Error(`The server answered ${res.status}.`)
+}
+
+export const removePasskey = (id: number) => remove(`/api/account/passkeys/${id}`)
+export const signOutDevice = (id: number) => remove(`/api/account/devices/${id}`)
+
+export async function signOut(): Promise<void> {
+  await fetch('/api/auth/signout', { method: 'POST', credentials: 'same-origin' })
+}
