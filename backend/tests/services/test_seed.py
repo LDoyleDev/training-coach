@@ -565,3 +565,11 @@ def test_the_seed_marks_retired_exercises(session: Session) -> None:
     assert sorted(retired) == ["goblet-squat", "reverse-lunge"]
     lunge = session.scalars(select(Exercise).where(Exercise.slug == "reverse-lunge")).one()
     assert lunge.per_side
+
+
+def test_every_exercise_in_a_session_says_how_to_do_it() -> None:
+    """The guided session and the bot's Start message show each exercise's how-to (#116)."""
+    plan = load_plan()
+    used = {item.exercise for session in plan.sessions for item in session.items}
+    missing = sorted(e.slug for e in plan.exercises if e.slug in used and not e.summary)
+    assert missing == []
