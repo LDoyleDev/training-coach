@@ -6,9 +6,9 @@ Stack-specific rules live next to the code: `backend/CLAUDE.md` and `frontend/CL
 ## What this is
 
 Training Coach: a self-hosted training coach for one user (Liam), running on a Raspberry Pi 5.
-A Telegram bot sends the day's session each morning, takes workout logs by voice or text, and
-tracks progress. A dashboard (React) shows history and progress and can be shared read-only.
-Later, an MCP endpoint lets Claude read and log data.
+The web app (React) is the main surface: today's session, the guided session, progress and
+settings, signed in with passkeys (ADR-0035, ADR-0036). A Telegram bot sends reminders and takes
+quick logs by voice or text. Later, an MCP endpoint lets Claude read and log data.
 
 - Product spec: `docs/specs/product-spec.md`
 - Current phase spec: `docs/specs/phase-1-daily-loop.md` (its Status table says what is done and next)
@@ -89,8 +89,9 @@ formats every file you edit (ADR-0021).
   commits, logs or test fixtures. Use obviously fake values in tests (`123456:TEST-TOKEN`).
 - Share links: random 32-byte tokens, stored hashed, with expiry; read-only; exclude
   measurements and photos.
-- Dashboard auth: verify Telegram signatures (HMAC) with a freshness window; cookies are
-  HttpOnly, Secure, SameSite=Strict.
+- Web sign-in (ADR-0036): passkeys, a one-time bot link (hashed, single use, 10 minutes) to
+  start or recover; session cookies HttpOnly, Secure, SameSite=Strict; every route declared
+  public or owner-only, enforced by a test.
 - No raw SQL built from strings; use the ORM or bound parameters.
 - New dependencies need a reason in the PR description; prefer the standard library.
 

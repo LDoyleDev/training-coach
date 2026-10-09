@@ -16,7 +16,7 @@ Code). Template: [template.md](template.md).
 | [0009](0009-telegram-long-polling-owner-only.md) | Telegram via long polling, owner-only | Accepted |
 | [0010](0010-sqlite-on-sd-card.md) | SQLite on the SD card, with nightly backups | Accepted |
 | [0011](0011-claude-github-action-subscription.md) | Claude GitHub Action on the owner's subscription | Accepted |
-| [0012](0012-dashboard-auth-and-share-links.md) | Dashboard auth via Telegram, read-only share links | Accepted |
+| [0012](0012-dashboard-auth-and-share-links.md) | Dashboard auth via Telegram, read-only share links | Accepted; sign-in superseded by 0036 |
 | [0013](0013-uv-for-python-dependencies.md) | uv and pyproject.toml for Python dependencies | Accepted |
 | [0014](0014-multiple-workouts-per-day.md) | Several workouts per day | Accepted |
 | [0015](0015-seed-failure-does-not-block-startup.md) | A failed plan seed does not block startup | Accepted |
@@ -39,3 +39,5 @@ Code). Template: [template.md](template.md).
 | [0032](0032-stretching-after-resistance.md) | Stretching after a resistance session is chosen for the muscles worked | Accepted |
 | [0033](0033-logging-a-past-day.md) | A past day is logged with a date line, and catching up moves the queue | Accepted |
 | [0034](0034-plan-changes-keep-history-per-exercise.md) | Plan changes keep history per exercise | Accepted |
+| [0035](0035-web-app-first-telegram-for-reminders.md) | The web app is the main surface; Telegram is for reminders | Accepted |
+| [0036](0036-sign-in-with-passkeys-and-a-telegram-link.md) | Sign in with passkeys, started and recovered with a Telegram link | Accepted |
