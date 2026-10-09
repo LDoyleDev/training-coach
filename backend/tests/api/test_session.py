@@ -131,6 +131,15 @@ def test_a_swapped_pair_is_kept(signed_in: TestClient) -> None:
         ({"position": 999}, 422),  # the request schema
         ({"position": 100}, 422),  # the plan: Legs has 25 sets
         ({"sets": [{"item": 0, "set_no": 1, "left": 500}]}, 422),  # over 200 reps
+        (
+            {
+                "sets": [
+                    {"item": 0, "set_no": 1, "left": 5},
+                    {"item": 0, "set_no": 1, "left": 5},
+                ]
+            },
+            422,
+        ),  # the same set twice
         ({"template_id": 999999}, 409),
     ],
 )

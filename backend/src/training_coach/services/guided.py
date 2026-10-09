@@ -146,15 +146,19 @@ def kept(session: Session, day: date) -> Kept | None:
     return _kept(row) if row is not None else None
 
 
-def _problem(plan: Guided, position: int, sets: Sequence[Done]) -> str | None:
-    if not 0 <= position <= len(plan.order):
-        return "position out of range"
+def _sets_problem(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> str | None:
+    """What's wrong with ``sets`` against the plan's items, or None: each set is one the plan
+    has, recorded once, with values in range and sides only where the exercise has them."""
+    seen: set[tuple[int, int]] = set()
     for done in sets:
-        if not 0 <= done.item < len(plan.items):
+        if not 0 <= done.item < len(items):
             return "unknown exercise"
-        item = plan.items[done.item]
+        item = items[done.item]
         if not 1 <= done.set_no <= len(item.targets):
             return f"{item.exercise} has no set {done.set_no}"
+        if (done.item, done.set_no) in seen:  # a repeat would log a set the plan doesn't have
+            return f"{item.exercise} set {done.set_no} is recorded twice"
+        seen.add((done.item, done.set_no))
         limit = LIMITS[item.kind]
         values = [done.left] if done.right is None else [done.left, done.right]
         if any(not 0 <= v <= limit for v in values):
@@ -162,6 +166,12 @@ def _problem(plan: Guided, position: int, sets: Sequence[Done]) -> str | None:
         if done.right is not None and not item.per_side:
             return f"{item.exercise} isn't done one side at a time"
     return None
+
+
+def _problem(plan: Guided, position: int, sets: Sequence[Done]) -> str | None:
+    if not 0 <= position <= len(plan.order):
+        return "position out of range"
+    return _sets_problem(plan.items, sets)
 
 
 def keep(
@@ -222,7 +232,7 @@ def save(
     plan = session_plan(session, template.id, blocks.current(session, day, tz))
     assert plan is not None  # noqa: S101 - the template exists
     sets = tuple(Done(**s) for s in row.sets)
-    if _problem_items(plan.items, sets):
+    if _sets_problem(plan.items, sets) is not None:  # checked again: the plan may have changed
         return "the plan changed since these sets were recorded"
     draft = workout_log.Draft(
         token=row.token,
@@ -238,10 +248,6 @@ def save(
     if isinstance(result, workout_log.Saved):
         row.saved_workout_id = result.workout_id
     return result if result is not None else "no sets recorded"
-
-
-def _problem_items(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> bool:
-    return any(not 0 <= d.item < len(items) or d.set_no > len(items[d.item].targets) for d in sets)
 
 
 def pending(session: Session, today: date) -> list[Pending]:
