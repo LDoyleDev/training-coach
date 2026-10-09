@@ -180,3 +180,24 @@ def test_two_devices_starting_at_once_do_not_fail(engine: Engine) -> None:
             assert guided.keep(laptop, plan, 0, 0, [], []) == guided.STALE
         finally:
             guided._row = original
+
+
+def test_a_stale_browser_on_an_old_session_deletes_nothing(session: Session) -> None:
+    seeded = _seeded(session)
+    assert guided.keep(seeded, _plan(seeded), 0, 1, [], [guided.Done(0, 1, 5)]) == 1
+    torso = seeded.scalars(select(SessionTemplate).where(SessionTemplate.slug == "torso")).one()
+    state = users.plan_state(seeded)
+    assert state is not None
+    state.next_template_id = torso.id
+    seeded.flush()
+    assert guided.keep(seeded, _plan(seeded), 1, 0, [], []) == guided.STALE
+    assert seeded.scalars(select(SessionProgress)).one().sets  # Legs' sets are still kept
+
+
+def test_a_day_logged_another_way_is_not_pending(session: Session) -> None:
+    seeded = _seeded(session)
+    plan = _plan(seeded)
+    guided.keep(seeded, plan, 0, 1, [], [guided.Done(0, 1, 5)])
+    seeded.add(Workout(local_date=DAY, template_id=plan.template_id, status=WorkoutStatus.DONE))
+    seeded.flush()
+    assert guided.pending(seeded, DAY.replace(day=DAY.day + 1)) == []

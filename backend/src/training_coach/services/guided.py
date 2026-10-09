@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import SessionProgress, SessionTemplate
+from training_coach.db.models import SessionProgress, SessionTemplate, Workout
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind, Side
 from training_coach.domain.parser import LIMITS, Entry
@@ -203,6 +203,8 @@ def keep(
     if row is not None and row.saved_workout_id is not None:
         return "this session is saved already"
     if row is not None and row.template_id != plan.template_id:
+        if revision != 0:  # this browser still shows the old session: nothing is deleted
+            return STALE
         session.delete(row)  # the day's session changed (a pick or swap): start afresh
         session.flush()
         row = None
@@ -291,6 +293,11 @@ def pending(session: Session, today: date) -> list[Pending]:
     out = []
     for row in rows:
         template = session.get(SessionTemplate, row.template_id)
-        if row.sets and template is not None:
+        logged = session.scalar(  # logged another way that day (text or voice): not pending
+            select(Workout.id).where(
+                Workout.local_date == row.local_date, Workout.template_id == row.template_id
+            )
+        )
+        if row.sets and template is not None and logged is None:
             out.append(Pending(row.local_date, template.name, len(row.sets)))
     return out
