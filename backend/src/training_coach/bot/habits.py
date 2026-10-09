@@ -58,10 +58,20 @@ def rows(day: date, done: frozenset[Habit]) -> list[list[InlineKeyboardButton]]:
     ]
 
 
+def what_counts() -> list[str]:
+    """One line per habit saying what counts as done."""
+    return [f"- {LABELS[habit]}: {HINTS[habit]}" for habit in Habit]
+
+
+def evening() -> str:
+    """The habit part of the evening message: what to tick, and what counts."""
+    return "\n".join([EVENING, "", *what_counts()])
+
+
 def text(day: date) -> str:
     """/habits: today's check-offs with what each one means."""
     lines = [f"Habits for {day:%a %d %b}: tap each one you did.", ""]
-    lines += [f"- {LABELS[habit]}: {HINTS[habit]}" for habit in Habit]
+    lines += what_counts()
     return "\n".join(lines)
 
 

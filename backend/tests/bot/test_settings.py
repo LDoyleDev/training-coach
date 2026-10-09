@@ -217,7 +217,7 @@ async def test_nudge_when_nothing_is_logged(seeded: Sessions) -> None:
     assert kwargs["chat_id"] == OWNER
     assert kwargs["text"].startswith("Nothing logged today yet.")
     assert NUDGE.split("{")[0] in kwargs["text"]
-    assert kwargs["text"].endswith(habits_ui.EVENING)
+    assert kwargs["text"].endswith(habits_ui.evening())
     data = [b.callback_data for row in kwargs["reply_markup"].inline_keyboard for b in row]
     assert [d.split(":")[0] for d in data] == ["q"] * 3 + ["h"] * 3
 
@@ -268,7 +268,8 @@ async def test_habits_alone_when_no_nudge_is_due(seeded: Sessions) -> None:
     context = _context()
     await Handlers(SETTINGS, seeded).nudge(context)  # type: ignore[arg-type]
     kwargs = context.bot.send_message.await_args.kwargs  # type: ignore[attr-defined]
-    assert kwargs["text"] == habits_ui.EVENING
+    assert kwargs["text"] == habits_ui.evening()
+    assert "not through a window" in kwargs["text"]  # what counts, every evening
     data = [b.callback_data for row in kwargs["reply_markup"].inline_keyboard for b in row]
     assert [d.split(":")[0] for d in data] == ["h"] * 3
 
