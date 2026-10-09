@@ -21,6 +21,7 @@ import {
   type Value,
   type Values,
 } from './logic'
+import Stretching from './Stretching'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
 
@@ -463,6 +464,7 @@ export default function SessionPage() {
               ))}
             </ul>
           )}
+          {saved.stretching && <Stretching workoutId={saved.workout_id} />}
           <a href="/" className={secondary + ' flex items-center justify-center'}>
             Done
           </a>

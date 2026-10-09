@@ -674,6 +674,37 @@
         "title": "Redeem",
         "type": "object"
       },
+      "RoutineView": {
+        "properties": {
+          "hold_seconds": {
+            "title": "Hold Seconds",
+            "type": "integer"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "session": {
+            "title": "Session",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/StretchView"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "session",
+          "minutes",
+          "hold_seconds",
+          "steps"
+        ],
+        "title": "RoutineView",
+        "type": "object"
+      },
       "SaveBody": {
         "properties": {
           "day": {
@@ -836,6 +867,60 @@
           "devices"
         ],
         "title": "SignIns",
+        "type": "object"
+      },
+      "StretchBody": {
+        "properties": {
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "minutes"
+        ],
+        "title": "StretchBody",
+        "type": "object"
+      },
+      "StretchView": {
+        "properties": {
+          "cue": {
+            "title": "Cue",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "rounds": {
+            "title": "Rounds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "rounds",
+          "per_side",
+          "cue"
+        ],
+        "title": "StretchView",
+        "type": "object"
+      },
+      "StretchedView": {
+        "properties": {
+          "logged": {
+            "title": "Logged",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "logged"
+        ],
+        "title": "StretchedView",
         "type": "object"
       },
       "TodayView": {
@@ -1330,6 +1415,109 @@
           }
         },
         "summary": "Save",
+        "tags": [
+          "session"
+        ]
+      }
+    },
+    "/api/session/stretching/{workout_id}": {
+      "get": {
+        "description": "The stretches after a saved resistance workout, filling ``minutes`` (ADR-0032).",
+        "operationId": "stretching_routine_api_session_stretching__workout_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workout_id",
+            "required": true,
+            "schema": {
+              "title": "Workout Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "minutes",
+            "required": true,
+            "schema": {
+              "title": "Minutes",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stretching Routine",
+        "tags": [
+          "session"
+        ]
+      },
+      "post": {
+        "description": "Log the stretching minutes on the workout, once.",
+        "operationId": "stretching_done_api_session_stretching__workout_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workout_id",
+            "required": true,
+            "schema": {
+              "title": "Workout Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StretchBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StretchedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stretching Done",
         "tags": [
           "session"
         ]
