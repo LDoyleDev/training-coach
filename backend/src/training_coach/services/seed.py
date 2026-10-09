@@ -58,6 +58,9 @@ class ExerciseSeed(_Strict):
     slug: str = Field(pattern=SLUG, max_length=64)
     name: str = Field(min_length=1, max_length=120)
     kind: ExerciseKind
+    # How to do it, in a sentence or two (#116): the guided session and the bot show it.
+    # Read from the bundled plan, like the stretches: nothing logged refers to it.
+    summary: str | None = Field(default=None, max_length=300)
     muscle_groups: list[str] = Field(default_factory=list)
     aliases: list[str] = Field(default_factory=list)
     start: int = Field(ge=0)

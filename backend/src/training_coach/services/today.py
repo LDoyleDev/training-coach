@@ -6,6 +6,7 @@ example a failed seed on a fresh install, ADR-0015), which callers must tell the
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from functools import lru_cache
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -22,6 +23,7 @@ from training_coach.domain.queue import ADVANCING, Position, upcoming
 from training_coach.domain.targets import targets
 from training_coach.services import blocks, users
 from training_coach.services.progress import sessions_at_step
+from training_coach.services.seed import bundled_plan
 
 
 @dataclass(frozen=True)
@@ -33,6 +35,7 @@ class ItemPlan:
     per_side: bool
     targets: tuple[int, ...]  # one per set, in order
     pair: int | None = None  # done alternately with the other item of this pair (#97)
+    summary: str | None = None  # how to do the exercise (#116); cue: this step's detail
 
 
 @dataclass(frozen=True)
@@ -73,6 +76,16 @@ def position(session: Session) -> Position | None:
     return Position(state.next_template_id, tuple(t for t in state.queued if t in known))
 
 
+def summary(slug: str) -> str | None:
+    """An exercise's how-to from the bundled plan (#116), or None for one it doesn't know."""
+    return _summaries().get(slug)
+
+
+@lru_cache(maxsize=1)
+def _summaries() -> dict[str, str]:
+    return {e.slug: e.summary for e in bundled_plan().exercises if e.summary}
+
+
 def _item_plan(session: Session, item: TemplateItem, strength: bool) -> ItemPlan:
     """One exercise: its step, cue and targets, under the strength prescription if it applies
     (ADR-0028), with targets from the matching block's history (ADR-0027)."""
@@ -88,6 +101,7 @@ def _item_plan(session: Session, item: TemplateItem, strength: bool) -> ItemPlan
         kind=ExerciseKind(item.exercise.kind),
         step=plan.step.name,
         cue=plan.cue,
+        summary=summary(item.exercise.slug),
         per_side=item.per_side,
         targets=targets(plan.prescription, history),
         pair=item.pair,
