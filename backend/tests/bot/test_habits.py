@@ -13,6 +13,7 @@ from training_coach.bot import habits as habits_ui
 from training_coach.db.models import HabitCheck
 from training_coach.domain.habits import Habit
 from training_coach.domain.queue import local_date
+from training_coach.services import user_settings
 
 App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
@@ -113,3 +114,30 @@ async def test_strangers_taps_do_nothing(application: App, seeded: Sessions, dat
 async def test_a_malformed_tap_is_only_acknowledged(application: App, seeded: Sessions) -> None:
     calls = await run(application, press("h:junk", OWNER))
     assert set(calls) == {"answerCallbackQuery"}
+
+
+def _target(sessions: Sessions, grams: int) -> None:
+    with sessions() as session:
+        user_settings.update(session, protein_g=grams)
+        session.commit()
+
+
+async def test_habits_command_names_the_protein_target(application: App, seeded: Sessions) -> None:
+    _target(seeded, 165)
+    calls = await run(application, command("/habits", OWNER))
+    (reply,) = texts(calls)
+    assert "- Protein target (165 g): 165 g across the day" in reply
+    assert "Protein target (165 g)" in calls["sendMessage"][0]["reply_markup"]
+
+
+async def test_a_tap_keeps_the_protein_target_on_the_button(
+    application: App, seeded: Sessions
+) -> None:
+    _target(seeded, 165)
+    calls = await run(application, press(_data(_today(), "protein"), OWNER))
+    labels = [
+        b["text"]
+        for row in json.loads(calls["editMessageReplyMarkup"][0]["reply_markup"])["inline_keyboard"]
+        for b in row
+    ]
+    assert chr(0x2713) + " Protein target (165 g)" in labels

@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from enum import StrEnum
 
 WEEK_DAYS = 7
+PROTEIN_GRAMS = (40, 400)  # a daily target outside this is a typo
 # A check-off can be changed for today and the two days before: Wind-down is often ticked the
 # next morning, and an evening message is still answerable after a missed day.
 LATE_DAYS = 2
@@ -44,6 +45,32 @@ HINTS = {
         "Keep the room cool and dark, and go to bed at about the same time each night."
     ),
 }
+
+
+def label(habit: Habit, protein_g: int | None = None) -> str:
+    """The button text: the protein target names its number once it's set."""
+    if habit is Habit.PROTEIN and protein_g is not None:
+        return f"{LABELS[habit]} ({protein_g} g)"
+    return LABELS[habit]
+
+
+def hint(habit: Habit, protein_g: int | None = None) -> str:
+    """What counts as done; the protein one uses the person's own number once it's set."""
+    if habit is Habit.PROTEIN and protein_g is not None:
+        return (
+            f"{protein_g} g across the day, spread over 3-4 meals with 30-50 g each, one of "
+            "them soon after training."
+        )
+    return HINTS[habit]
+
+
+def protein_grams(text: str) -> int | None:
+    """A daily protein target typed as a whole number of grams ("165"), or None."""
+    words = text.strip().lower().removesuffix("g").strip()
+    if not (words.isascii() and words.isdecimal()):
+        return None
+    grams = int(words)
+    return grams if PROTEIN_GRAMS[0] <= grams <= PROTEIN_GRAMS[1] else None
 
 
 @dataclass(frozen=True)

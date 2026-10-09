@@ -282,7 +282,9 @@ class Handlers:
             return
         nudge = not prefs.paused and prefs.nudges_enabled and not logged and plan is not None
         habit_rows = (
-            habits_ui.rows(today, ticked) if prefs.habits_enabled and not prefs.paused else []
+            habits_ui.rows(today, ticked, prefs.protein_g)
+            if prefs.habits_enabled and not prefs.paused
+            else []
         )
         if not nudge and not habit_rows:
             log.info(
@@ -299,7 +301,7 @@ class Handlers:
             parts.append(NUDGE.format(session=plan.session.name))
             rows += buttons.morning(plan.session.template_id).inline_keyboard
         if habit_rows:
-            parts.append(habits_ui.evening())
+            parts.append(habits_ui.evening(prefs.protein_g))
             rows += habit_rows
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
         if await send_with_retry(
