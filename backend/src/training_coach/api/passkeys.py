@@ -6,7 +6,7 @@ browser's `navigator.credentials` (via @simplewebauthn/browser).
 """
 
 from datetime import UTC, datetime
-from ipaddress import ip_address
+from ipaddress import ip_address, ip_network
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
@@ -30,10 +30,14 @@ class Answer(BaseModel):
 
 
 def _party(request: Request) -> passkeys.Party:
+    """The relying party, or 503 when TC_PUBLIC_URL is missing or unusable."""
     settings: Settings = request.app.state.settings
-    if settings.public_url is None:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "sign-in isn't set up")
-    return passkeys.Party.from_url(settings.public_url)
+    if settings.public_url is not None:
+        try:
+            return passkeys.Party.from_url(settings.public_url)
+        except ValueError:
+            pass
+    raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "sign-in isn't set up")
 
 
 def _bound(request: Request, user: int) -> sessionmaker[Session]:
@@ -59,14 +63,15 @@ def _options(ceremony: passkeys.Ceremony) -> Response:
     return response
 
 
-def _trusted_peer(host: str) -> bool:
-    """Whether the connection comes from the tunnel's side: loopback, or a private address
-    (inside Docker the tunnel arrives from the bridge). Anyone else is the client itself."""
+def _trusted_peer(request: Request, host: str) -> bool:
+    """Whether the connection comes from the tunnel's side (TC_TRUSTED_PROXIES: loopback and
+    Docker's bridge by default). Anyone else is the client itself."""
     try:
         address = ip_address(host)
     except ValueError:
         return False
-    return address.is_loopback or address.is_private
+    settings: Settings = request.app.state.settings
+    return any(address in ip_network(cidr) for cidr in settings.trusted_proxies)
 
 
 def _client(request: Request) -> str:
@@ -75,7 +80,7 @@ def _client(request: Request) -> str:
     can't invent a new address per request (review of #123)."""
     peer = request.client.host if request.client is not None else "unknown"
     forwarded = request.headers.get("cf-connecting-ip")
-    if forwarded and _trusted_peer(peer):
+    if forwarded and _trusted_peer(request, peer):
         return forwarded
     return peer
 

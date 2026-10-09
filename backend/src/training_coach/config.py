@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # The web app's public address (https://coach.example.com). Sign-in links and the
     # passkey domain come from it (ADR-0036); web sign-in is off until it is set.
     public_url: str | None = None
+    # Peers whose CF-Connecting-IP is believed (the Cloudflare tunnel's side): loopback and
+    # Docker's bridge range. Not home networks (192.168.x), so a LAN host can't forge it.
+    trusted_proxies: list[str] = ["127.0.0.0/8", "::1/128", "172.16.0.0/12"]
 
     @field_validator("timezone")
     @classmethod

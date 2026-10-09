@@ -254,8 +254,8 @@ def test_a_refusal_also_clears_the_challenge_cookie(client: TestClient) -> None:
 def test_a_forwarded_address_counts_only_from_the_tunnel(engine: Engine) -> None:
     """A caller reaching the app directly can't dodge the cap with a new header each time."""
     settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
-    # 8.8.8.8: a public peer (documentation ranges count as private in Python's ipaddress).
-    for peer in ("8.8.8.8", "testclient"):
+    # A public peer, a home-network peer (not the tunnel's side) and a non-IP peer.
+    for peer in ("8.8.8.8", "192.168.1.20", "testclient"):
         with TestClient(create_app(settings), base_url=ORIGIN, client=(peer, 50000)) as direct:
             for n in range(passkeys.MAX_OPEN_PER_CLIENT):
                 assert _open(direct, f"198.51.100.{n}") == 200
@@ -263,3 +263,10 @@ def test_a_forwarded_address_counts_only_from_the_tunnel(engine: Engine) -> None
         with make_session_factory(engine)() as shared:
             shared.execute(delete(PasskeyChallenge))
             shared.commit()
+
+
+def test_an_unusable_public_url_is_not_set_up_not_an_error(engine: Engine) -> None:
+    settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+    settings.public_url = "http://coach.example.com"  # bypassing the settings check
+    with TestClient(create_app(settings), base_url=ORIGIN) as client:
+        assert client.post("/api/auth/passkeys/sign-in/options").status_code == 503
