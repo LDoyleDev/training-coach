@@ -4,6 +4,13 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.15.0](https://github.com/LDoyleDev/training-coach/compare/v0.14.0...v0.15.0) (2026-10-09)
+
+
+### Features
+
+* **bot:** a daily protein target for the protein habit ([#113](https://github.com/LDoyleDev/training-coach/issues/113)) ([9a8f52d](https://github.com/LDoyleDev/training-coach/commit/9a8f52d70b21e180051eb88b35834bab163967c7))
+
 ## [0.14.0](https://github.com/LDoyleDev/training-coach/compare/v0.13.0...v0.14.0) (2026-10-09)
 
 
