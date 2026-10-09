@@ -4,6 +4,13 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.12.0](https://github.com/LDoyleDev/training-coach/compare/v0.11.0...v0.12.0) (2026-10-08)
+
+
+### Features
+
+* **bot:** log a past day with a date on the first line ([#105](https://github.com/LDoyleDev/training-coach/issues/105)) ([b4acc33](https://github.com/LDoyleDev/training-coach/commit/b4acc33b1a482b9820708335bdd1f66b06190656))
+
 ## [0.11.0](https://github.com/LDoyleDev/training-coach/compare/v0.10.0...v0.11.0) (2026-10-08)
 
 

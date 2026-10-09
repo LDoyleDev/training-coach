@@ -1,6 +1,6 @@
 [project]
 name = "training-coach"
-version = "0.11.0"
+version = "0.12.0"
 description = "Self-hosted training coach: Telegram bot, logging and dashboard API"
 authors = [{ name = "Liam Doyle" }]
 requires-python = ">=3.12"
