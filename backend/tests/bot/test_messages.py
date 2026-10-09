@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 
 from training_coach.bot.messages import (
+    log_saved_text,
     rest_text,
     session_detail_text,
     today_text,
@@ -123,3 +124,10 @@ def test_session_detail_without_pairs_or_cues() -> None:
 )
 def test_rest_text(advanced: bool, text: str) -> None:
     assert rest_text(RestOutcome("Arms", advanced)) == text
+
+
+def test_saved_text_says_one_set_not_one_sets() -> None:
+    assert log_saved_text(1, 1, "Long zone 2", None) == "Saved Long zone 2: 1 exercise, 1 set."
+    assert (
+        log_saved_text(2, 1, "Torso", "Arms") == "Saved Torso: 1 exercise, 2 sets. Next up: Arms."
+    )

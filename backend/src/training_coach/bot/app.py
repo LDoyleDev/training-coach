@@ -299,7 +299,7 @@ class Handlers:
             parts.append(NUDGE.format(session=plan.session.name))
             rows += buttons.morning(plan.session.template_id).inline_keyboard
         if habit_rows:
-            parts.append(habits_ui.EVENING)
+            parts.append(habits_ui.evening())
             rows += habit_rows
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
         if await send_with_retry(

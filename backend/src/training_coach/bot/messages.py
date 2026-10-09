@@ -194,7 +194,10 @@ def log_saved_text(
     if not exercises:  # a past rest day
         saved = f"Saved a rest day{when}."
     else:
-        saved = f"Saved {session}{when}: {exercises} exercise{'s' * (exercises != 1)}, {sets} sets."
+        saved = (
+            f"Saved {session}{when}: {exercises} exercise{'s' * (exercises != 1)}, "
+            f"{sets} set{'s' * (sets != 1)}."
+        )
     return f"{saved} Next up: {next_session}." if next_session else saved
 
 

@@ -26,11 +26,23 @@ LABELS = {
     Habit.PROTEIN: "Protein target",
     Habit.WIND_DOWN: "Wind-down",
 }
+# What counts as done (Huberman Lab: light, sleep and nutrition episodes). Shown under the
+# buttons in the evening message and in /habits, so a tick means the same thing every day.
 HINTS = {
-    Habit.MORNING_LIGHT: "outside within an hour of waking: about 10 minutes when clear, "
-    "20-30 when cloudy",
-    Habit.PROTEIN: "your daily protein goal reached",
-    Habit.WIND_DOWN: "no screens or bright light in the last hour before bed",
+    Habit.MORNING_LIGHT: (
+        "outside within an hour of waking, not through a window: about 5-10 minutes on a "
+        "clear morning, 15-20 when cloudy, up to 30 when very overcast. No sunglasses, and "
+        "never look straight at the sun. Before sunrise, put bright lights on and go out "
+        "once it's up."
+    ),
+    Habit.PROTEIN: (
+        "about 1.6-2.2 g per kg of bodyweight across the day (roughly 130-175 g at 80 kg), "
+        "spread over 3-4 meals with 30-50 g each, one of them soon after training."
+    ),
+    Habit.WIND_DOWN: (
+        "the last hour before bed with no phone, laptop or TV, and only dim, low lights. "
+        "Keep the room cool and dark, and go to bed at about the same time each night."
+    ),
 }
 
 
