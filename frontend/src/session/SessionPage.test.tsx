@@ -215,3 +215,29 @@ test.each([
   render(<SessionPage />)
   expect(await screen.findByText(text)).toBeInTheDocument()
 })
+
+test('fixing an earlier set returns to the furthest set, and the server keeps it', async () => {
+  const progress: Kept = {
+    template_id: 3,
+    position: 2,
+    first: [],
+    sets: [
+      { item: 0, set_no: 1, left: 6, right: null },
+      { item: 1, set_no: 1, left: 15, right: null },
+    ],
+    saved: false,
+    revision: 5,
+  }
+  const sent = serve({ today: { session: SESSION, progress } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Resume: set 3 of 3' }))
+  click('Back')
+  click('Back')
+  expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument()
+  click('1 fewer')
+  click('Confirm set')
+  expect(await screen.findByText('Set 3 of 3')).toBeInTheDocument()
+  expect(sent['PUT /api/session/progress']?.[0]).toMatchObject({ position: 2 })
+  click('Leave')
+  expect(screen.getByRole('button', { name: 'Resume: set 3 of 3' })).toBeInTheDocument()
+})

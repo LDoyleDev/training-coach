@@ -38,6 +38,8 @@ export default function SessionPage() {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
   const [stage, setStage] = useState<Stage>('overview')
   const [position, setPosition] = useState(0)
+  // The furthest set reached: Back fixes an earlier set, then Confirm returns here.
+  const [furthest, setFurthest] = useState(0)
   const [values, setValues] = useState<Values>({})
   const [revision, setRevision] = useState(0)
   const [note, setNote] = useState<string | null>(null)
@@ -54,6 +56,7 @@ export default function SessionPage() {
         setLoaded({ status: 'ready', session: today.session })
         setValues(fromKept(today.progress))
         setPosition(today.progress?.position ?? 0)
+        setFurthest(today.progress?.position ?? 0)
         setRevision(today.progress?.revision ?? 0)
       })
       .catch(() => setLoaded({ status: 'error' }))
@@ -98,11 +101,12 @@ export default function SessionPage() {
 
   const confirm = async () => {
     const nextValues = { ...values, [key(step.item, step.set_no)]: value }
-    const next = position + 1
+    const next = Math.max(position + 1, furthest) // a corrected set returns to where you were
     if (await keep(next, nextValues)) {
       setNote(null)
       setValues(nextValues)
       setPosition(next)
+      setFurthest(next)
       if (next >= total) setStage('check')
     }
   }
