@@ -4,6 +4,13 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.14.0](https://github.com/LDoyleDev/training-coach/compare/v0.13.0...v0.14.0) (2026-10-09)
+
+
+### Features
+
+* **bot:** say what counts for each habit in the evening message ([#111](https://github.com/LDoyleDev/training-coach/issues/111)) ([c05bdfe](https://github.com/LDoyleDev/training-coach/commit/c05bdfe85bc92f7397c8e5fd473df3f708fc69b2))
+
 ## [0.13.0](https://github.com/LDoyleDev/training-coach/compare/v0.12.0...v0.13.0) (2026-10-09)
 
 
