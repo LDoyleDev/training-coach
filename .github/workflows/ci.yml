@@ -95,4 +95,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: docker build -t training-coach:ci .
+      # Base images and the Dockerfile frontend through Google's Docker Hub mirror: shared
+      # runners hit Docker Hub's anonymous pull limit (429) often enough to block merges.
+      - run: >-
+          docker build -t training-coach:ci
+          --build-arg REGISTRY=mirror.gcr.io/library
+          --build-arg BUILDKIT_SYNTAX=mirror.gcr.io/docker/dockerfile:1.7
+          .
