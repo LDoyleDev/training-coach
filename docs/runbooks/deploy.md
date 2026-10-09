@@ -32,7 +32,8 @@ interface, `unattended-upgrades` enabled.
 | Checkout | `~/training-coach` on vybe-pi |
 | App port on the host | `127.0.0.1:8095` (Alliona's web server already holds 8080 on this Pi) |
 | Public address | `https://coach.vybe-dev.com`, via the existing Cloudflare tunnel (`/etc/cloudflared/config.yml`) to `http://localhost:8095` |
-| Public surface | The plan page, `GET /api/plan` and `/healthz` only (ADR-0019); no personal data |
+| Public surface | The plan page, `GET /api/plan`, `/healthz`, `/signin` and `/api/auth/redeem` + `/signout` (ADR-0019, ADR-0036); everything personal needs a signed-in session |
+| Web sign-in | `TC_PUBLIC_URL=https://coach.vybe-dev.com` in `.env` (needed for `/login` links). Cloudflare: a rate-limit rule on `/api/auth/*`, e.g. 10 requests a minute per IP |
 | Bot | Off until `TC_TELEGRAM_BOT_TOKEN` and `TC_TELEGRAM_ALLOWED_USER_ID` are set in `.env` |
 | Deploys | Automatic since 2026-10-08: the `training-coach-deploy` timer is installed (0.3.0 -> 0.10.0 was the last deploy by hand) |
 
