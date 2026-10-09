@@ -111,3 +111,58 @@ export const signOutDevice = (id: number) => remove(`/api/account/devices/${id}`
 export async function signOut(): Promise<void> {
   await fetch('/api/auth/signout', { method: 'POST', credentials: 'same-origin' })
 }
+
+// ---------------------------------------------------------------- the guided session (#117)
+
+export type TodayView = Schemas['TodayView']
+export type Guided = Schemas['GuidedView']
+export type GuidedItem = Schemas['ItemView']
+export type GuidedSet = Schemas['SetView']
+export type Done = Schemas['DoneView']
+export type Kept = Schemas['ProgressView']
+export type Saved = Schemas['SavedView']
+export type Pending = Schemas['PendingView']
+export type KeepBody = Schemas['KeepBody']
+
+const json = { 'Content-Type': 'application/json' }
+
+/** Today's guided session; null when not signed in. */
+export async function fetchToday(signal?: AbortSignal): Promise<TodayView | null> {
+  const res = await fetch('/api/session/today', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as TodayView
+}
+
+/** Keep where the person is. 'stale': another device moved on (reload). */
+export async function keepProgress(body: KeepBody): Promise<number | 'stale'> {
+  const res = await fetch('/api/session/progress', {
+    method: 'PUT',
+    headers: json,
+    body: JSON.stringify(body),
+    credentials: 'same-origin',
+  })
+  if (res.status === 409) return 'stale'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return ((await res.json()) as { revision: number }).revision
+}
+
+/** Save the session as a workout: today's, or an earlier day's. 'stale': today changed. */
+export async function saveSession(day?: string): Promise<Saved | 'stale'> {
+  const res = await fetch('/api/session/save', {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify(day ? { day } : {}),
+    credentials: 'same-origin',
+  })
+  if (res.status === 409) return 'stale'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Saved
+}
+
+/** Earlier days' guided sessions never saved. */
+export async function fetchPending(signal?: AbortSignal): Promise<Pending[]> {
+  const res = await fetch('/api/session/pending', { signal, credentials: 'same-origin' })
+  if (!res.ok) return []
+  return (await res.json()) as Pending[]
+}

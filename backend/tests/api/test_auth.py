@@ -87,9 +87,10 @@ def test_the_signin_page_serves_the_web_app(engine: Engine, tmp_path: Path) -> N
     (tmp_path / "index.html").write_text("<!doctype html><title>Training Coach</title>")
     settings = Settings(environment="test", database_url=str(engine.url), web_dist_dir=tmp_path)
     with TestClient(create_app(settings), base_url="https://testserver") as client:
-        page = client.get("/signin")
-    assert page.status_code == 200
-    assert "<title>Training Coach</title>" in page.text
+        for path in ("/signin", "/account", "/session"):
+            page = client.get(path)
+            assert page.status_code == 200, path
+            assert "<title>Training Coach</title>" in page.text
 
 
 def test_a_renewed_session_sends_its_cookie_again(app_client: TestClient, engine: Engine) -> None:
