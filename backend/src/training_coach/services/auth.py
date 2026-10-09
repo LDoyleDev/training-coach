@@ -7,9 +7,11 @@ token belongs to is the question being asked, so those lookups run in an unbound
 
 import hashlib
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import CursorResult, select, update
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import LoginLink, WebSession
@@ -37,16 +39,30 @@ def create_link(session: Session, now: datetime) -> str:
 def redeem_link(session: Session, token: str, now: datetime, label: str) -> str | None:
     """Exchange a link token for a session token, or None if it's unknown, used or expired.
     ``session`` is unbound: the link says whose it is."""
-    link = session.scalar(
-        select(LoginLink).where(LoginLink.token_hash == _hash(token)), execution_options=EVERYONE
+    digest = _hash(token)
+    # Claimed in one conditional statement: of two racing redeems, only one changes the row.
+    claimed = cast(
+        "CursorResult[object]",
+        session.execute(
+            update(LoginLink)
+            .where(
+                LoginLink.token_hash == digest,
+                LoginLink.used_at.is_(None),
+                LoginLink.expires_at > now,
+            )
+            .values(used_at=now),
+            execution_options=EVERYONE,
+        ),
     )
-    if link is None or link.used_at is not None or link.expires_at <= now:
+    if claimed.rowcount != 1:
         return None
-    link.used_at = now
+    user = session.scalar(
+        select(LoginLink.user_id).where(LoginLink.token_hash == digest), execution_options=EVERYONE
+    )
     cookie = secrets.token_urlsafe(32)
     session.add(
         WebSession(
-            user_id=link.user_id,
+            user_id=user,
             token_hash=_hash(cookie),
             label=label[:LABEL_LENGTH] or "Unknown browser",
             created_at=now,
@@ -68,16 +84,23 @@ def _live(session: Session, token: str, now: datetime) -> WebSession | None:
     return found
 
 
-def session_user(session: Session, token: str, now: datetime) -> int | None:
-    """The user a session token belongs to, or None. A session in use stays signed in: it is
-    renewed for another 30 days, at most once a day. ``session`` is unbound."""
+@dataclass(frozen=True)
+class Seen:
+    user_id: int
+    renewed: bool  # the session got another 30 days: the cookie must be sent again too
+
+
+def session_user(session: Session, token: str, now: datetime) -> Seen | None:
+    """Whose session a token is, or None. A session in use stays signed in: it is renewed for
+    another 30 days, at most once a day. ``session`` is unbound."""
     found = _live(session, token, now)
     if found is None:
         return None
-    if now - found.last_seen_at >= RENEW_AFTER:
+    renewed = now - found.last_seen_at >= RENEW_AFTER
+    if renewed:
         found.last_seen_at = now
         found.expires_at = now + SESSION_TTL
-    return found.user_id
+    return Seen(found.user_id, renewed)
 
 
 def end_session(session: Session, token: str, now: datetime) -> None:

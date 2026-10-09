@@ -30,7 +30,7 @@ def test_a_link_signs_in_once_and_the_session_names_its_user(engine: Engine) -> 
         cookie = auth.redeem_link(shared, token, NOW + timedelta(minutes=9), "Firefox")
         assert cookie is not None
         assert auth.redeem_link(shared, token, NOW + timedelta(minutes=9), "Firefox") is None
-        assert auth.session_user(shared, cookie, NOW) == OWNER
+        assert auth.session_user(shared, cookie, NOW) == auth.Seen(OWNER, renewed=False)
 
 
 def test_a_link_expires_after_ten_minutes(engine: Engine) -> None:
@@ -68,8 +68,9 @@ def test_a_session_lasts_thirty_days_and_is_renewed_by_use(engine: Engine) -> No
         cookie = auth.redeem_link(shared, _link(engine), NOW, "x")
         assert cookie is not None
         day_29 = NOW + timedelta(days=29)
-        assert auth.session_user(shared, cookie, day_29) == OWNER  # renewed from here
-        assert auth.session_user(shared, cookie, day_29 + timedelta(days=29)) == OWNER
+        assert auth.session_user(shared, cookie, day_29) == auth.Seen(OWNER, renewed=True)
+        assert auth.session_user(shared, cookie, day_29) == auth.Seen(OWNER, renewed=False)
+        assert auth.session_user(shared, cookie, day_29 + timedelta(days=29)) is not None
         assert auth.session_user(shared, cookie, day_29 + timedelta(days=60)) is None
 
 
@@ -79,3 +80,16 @@ def test_signing_out_ends_the_session_at_once(engine: Engine) -> None:
         assert cookie is not None
         auth.end_session(shared, cookie, NOW)
         assert auth.session_user(shared, cookie, NOW) is None
+
+
+def test_a_link_redeemed_from_two_sessions_signs_in_once(engine: Engine) -> None:
+    """The claim is one conditional update: a second redeem, on its own connection, gets
+    nothing (from the review of #122)."""
+    token = _link(engine)
+    with _shared(engine) as first:
+        assert auth.redeem_link(first, token, NOW, "phone") is not None
+        first.commit()
+    with _shared(engine) as second:
+        assert auth.redeem_link(second, token, NOW, "laptop") is None
+        everyone = {ALL_USERS: True}
+        assert len(second.scalars(select(WebSession.id), execution_options=everyone).all()) == 1

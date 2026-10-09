@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+import time_machine
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
@@ -82,3 +83,16 @@ def test_the_signin_page_serves_the_web_app(engine: Engine, tmp_path: Path) -> N
         page = client.get("/signin")
     assert page.status_code == 200
     assert "<title>Training Coach</title>" in page.text
+
+
+def test_a_renewed_session_sends_its_cookie_again(app_client: TestClient, engine: Engine) -> None:
+    """The browser keeps the cookie as long as the server keeps the session (review of #122)."""
+    with time_machine.travel(datetime(2026, 10, 9, 12, tzinfo=UTC), tick=False):
+        app_client.post("/api/auth/redeem", json={"token": _link(engine)})
+        assert "set-cookie" not in app_client.get("/api/auth/me").headers  # same day
+    with time_machine.travel(datetime(2026, 11, 7, 12, tzinfo=UTC), tick=False):  # day 29
+        renewed = app_client.get("/api/auth/me")
+    assert renewed.status_code == 200
+    assert "max-age=2592000" in renewed.headers["set-cookie"].lower()
+    with time_machine.travel(datetime(2026, 12, 6, 12, tzinfo=UTC), tick=False):  # day 58
+        assert app_client.get("/api/auth/me").status_code == 200

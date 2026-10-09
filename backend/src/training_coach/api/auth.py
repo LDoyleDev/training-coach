@@ -33,14 +33,17 @@ def _shared(request: Request) -> sessionmaker[Session]:
     return sessions
 
 
-def owner(request: Request) -> int:
-    """The signed-in user's id; 401 without a live session."""
+def owner(request: Request, response: Response) -> int:
+    """The signed-in user's id; 401 without a live session. When the session is renewed, the
+    cookie is sent again so the browser keeps it for the same 30 days as the server."""
     token = request.cookies.get(COOKIE)
     if token:
         with session_scope(_shared(request)) as session:
-            user = auth.session_user(session, token, datetime.now(UTC))
-        if user is not None:
-            return user
+            seen = auth.session_user(session, token, datetime.now(UTC))
+        if seen is not None:
+            if seen.renewed:
+                _set_cookie(response, token)
+            return seen.user_id
     raise HTTPException(status.HTTP_401_UNAUTHORIZED, "sign in first")
 
 
