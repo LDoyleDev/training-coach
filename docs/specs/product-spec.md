@@ -68,7 +68,7 @@ same conditions.
 
 ## Non-functional
 
-- Phone-first; everything doable from Telegram.
+- Phone-first; the web app is the main surface and Telegram handles reminders and quick logs (ADR-0035).
 - Private by default; dashboard shareable read-only (ADR-0012).
 - Zero running cost (Groq free tier, self-hosted).
 - Runs on a Raspberry Pi 5 from an SD card; max one day of data loss (ADR-0010).
