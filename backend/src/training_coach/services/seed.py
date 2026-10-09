@@ -8,7 +8,7 @@ plan file has been edited:
 - new ones are added; nothing is deleted (removing things is a deliberate migration);
 - progress is never reset: existing exercise state, queue pointer and settings are kept;
 - plan versions are matched by date; one that workouts record can't be removed or re-dated,
-  and workouts without a version get the one in force on their date (ADR-0034).
+  and every workout gets the one in force on its date (ADR-0034).
 """
 
 import tomllib
@@ -306,11 +306,12 @@ def _apply_versions(session: Session, plan: PlanSeed, result: SeedResult) -> Non
         session.delete(version)
         result.deleted += 1
     session.flush()
-    # Workouts saved before their version existed get the one in force on their date.
+    # Every workout carries the version in force on its date: one saved before its version
+    # existed, or one a version added between two others now covers, is brought up to date.
     on_date = version_on(Workout.local_date)
     filled = session.execute(
         update(Workout)
-        .where(Workout.plan_version_id.is_(None), on_date.is_not(None))
+        .where(Workout.plan_version_id.is_distinct_from(on_date))
         .values(plan_version_id=on_date),
         execution_options={ALL_USERS: True},
     )

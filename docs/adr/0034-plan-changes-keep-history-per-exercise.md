@@ -37,8 +37,9 @@ way to leave `/progress`, and nothing marks when the plan changed.
   rebuild (ADR-0017) from 1 Oct. The seed stores them in `plan_versions`, matched by date.
   Every workout stores the version in force on its own date (`workouts.plan_version_id`), so a
   past day logged late (ADR-0033) gets the version of that day. It is set in the INSERT by one
-  ORM hook, so no way of saving a workout can forget it; the seed fills in workouts saved
-  before their version existed. A version that workouts record keeps its date (its name can
+  ORM hook, so no way of saving a workout can forget it; the seed brings every workout to the
+  version in force on its date (one saved before its version existed, or one a version added
+  in between now covers). A version that workouts record keeps its date (its name can
   change); one nothing records can be removed. Nothing reads the version yet: it is there for
   the dashboard's plan-change markers and the weekly review.
 

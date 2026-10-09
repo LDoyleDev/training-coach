@@ -656,3 +656,20 @@ def test_versions_must_be_in_date_order() -> None:
     swapped = VERSIONS.replace("2026-09-29", "2026-10-02")
     with pytest.raises(ValidationError, match="in date order"):
         load_plan(swapped + MINI_PLAN)
+
+
+def test_a_version_added_between_two_others_takes_over_its_workouts(session: Session) -> None:
+    apply_seed(session, load_plan(VERSIONS + MINI_PLAN))
+    before, after = _workout(session, date(2026, 10, 3)), _workout(session, date(2026, 10, 6))
+    between = (
+        VERSIONS
+        + """
+[[versions]]
+since = 2026-10-05
+name = "Heavier bell"
+"""
+    )
+    assert apply_seed(session, load_plan(between + MINI_PLAN)).updated == 1
+    for workout in (before, after):
+        session.refresh(workout)
+    assert (_version(session, before), _version(session, after)) == ("Rebuild", "Heavier bell")
