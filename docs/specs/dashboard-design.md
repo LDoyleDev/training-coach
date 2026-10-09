@@ -39,7 +39,9 @@ Starting a session from Today walks through it one set at a time. Agreed on a cl
 4. **Leave keeps the place:** progress is kept on the server, so the session resumes on any
    device. One not saved by the end of the day is offered for saving the next morning.
 5. **Check and save:** every exercise's sets against targets; nothing is saved until Save
-   session. It saves through the same rules as a typed log (ADR-0007).
+   session. The save goes through the same service as a typed log (`workout_log`, step 1-E):
+   the server re-checks the target session, block, queue and every set's value and bounds, so
+   nothing from the browser is trusted. The session API is owner-only behind 2-F login (#115).
 6. **Saved:** new bests, the next session, and stretching 10/20/30 (ADR-0032).
 
 Issues: 2-F login #115 (first), exercise summaries #116, the API #117, the screens #118.
