@@ -168,9 +168,12 @@ def _sets_problem(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> str | No
     return None
 
 
-def _problem(plan: Guided, position: int, sets: Sequence[Done]) -> str | None:
+def _problem(plan: Guided, position: int, first: Sequence[int], sets: Sequence[Done]) -> str | None:
     if not 0 <= position <= len(plan.order):
         return "position out of range"
+    pairs = {item.pair for item in plan.items if item.pair is not None}
+    if any(number not in pairs for number in first):
+        return "no such pair"
     return _sets_problem(plan.items, sets)
 
 
@@ -179,7 +182,7 @@ def keep(
 ) -> str | None:
     """Keep where the person is in today's guided session. A problem message, or None when
     kept. Every value is checked against the plan: nothing from the browser is trusted."""
-    problem = _problem(plan, position, sets)
+    problem = _problem(plan, position, first, sets)
     if problem is not None:
         return problem
     row = _row(session, plan.day)

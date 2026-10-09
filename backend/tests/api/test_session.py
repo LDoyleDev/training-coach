@@ -140,6 +140,8 @@ def test_a_swapped_pair_is_kept(signed_in: TestClient) -> None:
             },
             422,
         ),  # the same set twice
+        ({"first": [9]}, 422),  # Legs has pairs 1-4
+        ({"first": [-1]}, 422),
         ({"template_id": 999999}, 409),
     ],
 )
