@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.13.0](https://github.com/LDoyleDev/training-coach/compare/v0.12.0...v0.13.0) (2026-10-09)
+
+
+### Features
+
+* **db:** retire exercises instead of losing them ([#108](https://github.com/LDoyleDev/training-coach/issues/108)) ([f6f6343](https://github.com/LDoyleDev/training-coach/commit/f6f634328a872025192ef445746ffb9055748567))
+
+
+### Bug Fixes
+
+* **parser:** cycle, cycling and cycled log as zone 2 ([#110](https://github.com/LDoyleDev/training-coach/issues/110)) ([465477b](https://github.com/LDoyleDev/training-coach/commit/465477be5b492598f169a5be693451191a0213aa))
+
 ## [0.12.0](https://github.com/LDoyleDev/training-coach/compare/v0.11.0...v0.12.0) (2026-10-08)
 
 
