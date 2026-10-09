@@ -254,7 +254,8 @@ def progress_text(standings: list[Standing]) -> str:
         return PROGRESS_EMPTY
     lines = ["Progress: current step, last session, best set at this step", ""]
     for s in standings:
-        line = f"- {s.exercise}: {s.step} ({s.step_number}/{s.steps})"
+        retired = " (retired)" if s.retired else ""
+        line = f"- {s.exercise}{retired}: {s.step} ({s.step_number}/{s.steps})"
         if s.last:
             line += f", last {_values(s.last, s.kind)}"
             if s.best_set is not None:

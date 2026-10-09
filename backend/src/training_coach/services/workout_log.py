@@ -119,11 +119,12 @@ def catalogue(session: Session, template: SessionTemplate | None) -> list[Known]
     for e, flag, _ in rows:
         anywhere[e] = anywhere.get(e, False) or flag
 
-    def one_sided(exercise_id: int) -> bool:
-        return in_target.get(exercise_id, anywhere.get(exercise_id, False))
+    def one_sided(exercise: Exercise) -> bool:
+        # A retired exercise is in no session: its own flag says (#107).
+        return in_target.get(exercise.id, anywhere.get(exercise.id, exercise.per_side))
 
     return [
-        Known(e.slug, (e.name, *e.aliases), ExerciseKind(e.kind), one_sided(e.id))
+        Known(e.slug, (e.name, *e.aliases), ExerciseKind(e.kind), one_sided(e))
         for e in session.scalars(select(Exercise).order_by(Exercise.id))
     ]
 

@@ -64,6 +64,11 @@ class ExerciseSeed(_Strict):
     ladder: list[str] = Field(min_length=1)
     # old name -> new name: renames a step in place, keeping its history (see _preflight)
     renames: dict[str, str] = Field(default_factory=dict)
+    # No longer in the plan, but its history stays and old days can still be logged
+    # (#107, ADR-0034). Retired exercises are never deleted and can't be in a session.
+    retired: bool = False
+    # One side at a time, for logs of an exercise no session uses (a retired one).
+    per_side: bool = False
 
     @model_validator(mode="after")
     def _start_within_ladder(self) -> Self:
@@ -159,10 +164,16 @@ class PlanSeed(_Strict):
             if unknown:  # a typo would quietly never match a session's muscles
                 raise ValueError(f"stretch {stretch.slug}: no exercise works {unknown}")
         known = set(slugs)
+        retired = {e.slug for e in self.exercises if e.retired}
         for session in self.sessions:
             for item in session.items:
                 if item.exercise not in known:
                     raise ValueError(f"session {session.slug}: unknown exercise {item.exercise}")
+                if item.exercise in retired:
+                    raise ValueError(
+                        f"session {session.slug} uses {item.exercise}, which is retired; "
+                        "un-retire it or take it out of the session"
+                    )
         return self
 
 
@@ -277,6 +288,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
             result.created += 1
             exercise.name, exercise.kind = seed.name, seed.kind.value
             exercise.muscle_groups, exercise.aliases = list(seed.muscle_groups), list(seed.aliases)
+            exercise.retired, exercise.per_side = seed.retired, seed.per_side
         else:
             _set(
                 exercise,
@@ -285,6 +297,8 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 kind=seed.kind.value,
                 muscle_groups=list(seed.muscle_groups),
                 aliases=list(seed.aliases),
+                retired=seed.retired,
+                per_side=seed.per_side,
             )
         steps = {step.position: step for step in exercise.ladder}
         for position, name in enumerate(seed.ladder):

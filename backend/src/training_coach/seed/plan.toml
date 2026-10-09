@@ -379,6 +379,32 @@ name = "Long zone 2"
 focus = "60-75 min at conversational pace (30 min minimum)"
 items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
 
+# ---------------------------------------------------------- retired (#107, ADR-0034)
+# No longer in any session. Kept so their history stays and old days can still be logged;
+# never deleted. "squat"/"squats" were aliases of the goblet squat in the first plan; they are
+# dropped here so a casual "squats 10" can't land on an exercise that is no longer trained.
+
+[[exercises]]
+slug = "goblet-squat"
+name = "Goblet squat"
+kind = "reps"
+muscle_groups = ["quads", "glutes"]
+aliases = ["goblet", "goblet squats"]
+start = 0
+ladder = ["8 kg, 3 s lowering", "1.5-rep squats, 8 kg", "Heavier kettlebell"]
+retired = true
+
+[[exercises]]
+slug = "reverse-lunge"
+name = "Reverse lunge"
+kind = "reps"
+muscle_groups = ["quads", "glutes"]
+aliases = ["lunge", "lunges", "reverse lunges"]
+start = 0
+ladder = ["Bodyweight", "Holding 8 kg", "Deficit, holding 8 kg"]
+retired = true
+per_side = true
+
 # ---------------------------------------------------------------- stretches (#98, ADR-0032)
 # Offered after a resistance session (10, 20 or 30 min). Static holds of about 30 s at a gentle
 # effort, 3-4 out of 10: a stretch, never pain. `muscles` use the exercises' muscle groups, so

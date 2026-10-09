@@ -339,3 +339,20 @@ async def test_progress_holds_move_up_in_a_strength_block(
     pressed = await run(application, press(f"p:up:{exercise_id}:{step_id}", OWNER))
     assert texts(pressed) == ["Pull-up waits for the hypertrophy block: this is a strength block."]
     assert _step_name(seeded) == "Strict pull-up"
+
+
+def test_progress_text_labels_a_retired_exercise() -> None:
+    goblet = Standing(
+        1,
+        "Goblet squat",
+        ExerciseKind.REPS,
+        1,
+        "8 kg",
+        1,
+        3,
+        (16,),
+        16,
+        Progress.HOLD,
+        retired=True,
+    )
+    assert progress_text([goblet]).splitlines()[2].startswith("- Goblet squat (retired): 8 kg")
