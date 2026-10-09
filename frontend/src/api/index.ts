@@ -31,3 +31,16 @@ export function sessionSize(s: Session): string {
   if (s.type === 'conditioning') return `${s.exercises[0]?.rep_min ?? 0}+ rounds`
   return `${s.total_sets} sets`
 }
+
+/** Exchange a one-time sign-in link for a session cookie (ADR-0036). False when refused. */
+export async function redeemLink(token: string): Promise<boolean> {
+  const res = await fetch('/api/auth/redeem', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+    credentials: 'same-origin',
+  })
+  if (res.status === 204) return true
+  if (res.status === 401 || res.status === 422) return false
+  throw new Error(`The server answered ${res.status}.`)
+}

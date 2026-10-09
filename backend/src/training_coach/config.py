@@ -7,6 +7,7 @@ See ``.env.example`` for every variable and ``docs/runbooks/rotate-secrets.md``.
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, SecretStr, field_validator
@@ -46,6 +47,10 @@ class Settings(BaseSettings):
     # Scheduling
     timezone: str = "Europe/Berlin"
 
+    # The web app's public address (https://coach.example.com). Sign-in links and the
+    # passkey domain come from it (ADR-0036); web sign-in is off until it is set.
+    public_url: str | None = None
+
     @field_validator("timezone")
     @classmethod
     def _valid_timezone(cls, value: str) -> str:
@@ -54,6 +59,20 @@ class Settings(BaseSettings):
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError(f"unknown timezone: {value}") from exc
         return value
+
+    @field_validator("public_url")
+    @classmethod
+    def _https(cls, value: str | None) -> str | None:
+        """An origin only (links append /signin#token), and https unless it is this machine."""
+        if value is None:
+            return None
+        url = urlsplit(value.rstrip("/"))
+        local = url.scheme == "http" and url.hostname in {"localhost", "127.0.0.1"}
+        if not (url.scheme == "https" or local) or not url.hostname:
+            raise ValueError("public_url must be https (or http://localhost for development)")
+        if url.path or url.query or url.fragment or url.username or url.password:
+            raise ValueError("public_url is an origin only, like https://coach.example.com")
+        return f"{url.scheme}://{url.netloc}"
 
     @property
     def tz(self) -> ZoneInfo:

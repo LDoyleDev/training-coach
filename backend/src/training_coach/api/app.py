@@ -8,11 +8,13 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from telegram import Bot
 
 from training_coach import __version__
+from training_coach.api.auth import router as auth_router
 from training_coach.api.plan import router as plan_router
 from training_coach.api.security import security_headers_middleware
 from training_coach.bot.app import build_bot, send_with_retry
@@ -64,15 +66,21 @@ def _report_death(task: "asyncio.Task[None]") -> None:
     log.error("backup.loop_died", error=type(error).__name__ if error else "returned")
 
 
+# Pages of the web app that are reached by URL, not only from within it (a link from the bot).
+SPA_PAGES = ("/signin",)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings)
+    # One engine for the web routes and the bot. Sign-in reads through unbound sessions
+    # (services.auth); everything personal goes through sessions bound to the signed-in user.
+    engine = make_engine(settings.database_url)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        engine = make_engine(settings.database_url) if settings.bot_enabled else None
         bot = None
-        if engine is not None:
+        if settings.bot_enabled:
             # bot_enabled means the token and the allowed account are both set.
             allowed = settings.telegram_allowed_user_id
             assert allowed is not None  # noqa: S101 - guaranteed by bot_enabled
@@ -104,8 +112,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await bot.stop()
                 await bot.shutdown()
                 log.info("bot.stopped")
-            if engine is not None:
-                engine.dispose()
+            engine.dispose()
 
     app = FastAPI(
         title="Training Coach",
@@ -116,15 +123,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/api/openapi.json" if settings.environment != "production" else None,
     )
     app.middleware("http")(security_headers_middleware)
+    app.state.shared_sessions = make_session_factory(engine)
 
     @app.get("/healthz", response_model=Health, tags=["ops"])
     async def healthz() -> Health:
         return Health(status="ok", version=__version__, bot_enabled=settings.bot_enabled)
 
     app.include_router(plan_router)
+    app.include_router(auth_router)
 
     # Mounted last so API routes always win over static files.
-    if settings.web_dist_dir is not None and settings.web_dist_dir.is_dir():
-        app.mount("/", StaticFiles(directory=settings.web_dist_dir, html=True), name="web")
+    dist = settings.web_dist_dir
+    if dist is not None and dist.is_dir():
+        index = dist / "index.html"
+
+        async def page() -> FileResponse:
+            return FileResponse(index)
+
+        for path in SPA_PAGES:  # the app's own router shows the page
+            app.add_api_route(path, page, include_in_schema=False)
+        app.mount("/", StaticFiles(directory=dist, html=True), name="web")
 
     return app
