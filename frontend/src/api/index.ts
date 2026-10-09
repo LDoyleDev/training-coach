@@ -1,3 +1,8 @@
+import {
+  browserSupportsWebAuthn,
+  startAuthentication,
+  startRegistration,
+} from '@simplewebauthn/browser'
 import type { components } from './schema'
 
 // API types come from the backend's OpenAPI schema (ADR-0020); never redeclare them here.
@@ -43,4 +48,41 @@ export async function redeemLink(token: string): Promise<boolean> {
   if (res.status === 204) return true
   if (res.status === 401 || res.status === 422) return false
   throw new Error(`The server answered ${res.status}.`)
+}
+
+/** Whether this browser can use passkeys (fingerprint or face sign-in). */
+export function passkeysSupported(): boolean {
+  return browserSupportsWebAuthn()
+}
+
+async function ceremonyOptions(path: string) {
+  const res = await fetch(path, { method: 'POST', credentials: 'same-origin' })
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return res.json()
+}
+
+async function answer(path: string, credential: unknown): Promise<boolean> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential }),
+    credentials: 'same-origin',
+  })
+  if (res.status === 204) return true
+  if (res.status === 400 || res.status === 401) return false
+  throw new Error(`The server answered ${res.status}.`)
+}
+
+/** Add a passkey for the signed-in person (ADR-0036). Throws if the user cancels. */
+export async function addPasskey(): Promise<boolean> {
+  const optionsJSON = await ceremonyOptions('/api/auth/passkeys/register/options')
+  const credential = await startRegistration({ optionsJSON })
+  return answer('/api/auth/passkeys/register', credential)
+}
+
+/** Sign in with a passkey on this device (ADR-0036). Throws if the user cancels. */
+export async function signInWithPasskey(): Promise<boolean> {
+  const optionsJSON = await ceremonyOptions('/api/auth/passkeys/sign-in/options')
+  const credential = await startAuthentication({ optionsJSON })
+  return answer('/api/auth/passkeys/sign-in', credential)
 }

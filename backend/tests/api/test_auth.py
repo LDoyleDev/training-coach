@@ -17,7 +17,14 @@ from training_coach.db.session import make_session_factory
 from training_coach.services import auth
 from training_coach.services.users import OWNER
 
-PUBLIC = {"/healthz", "/api/plan", "/api/auth/redeem", "/api/auth/signout"}
+PUBLIC = {
+    "/healthz",
+    "/api/plan",
+    "/api/auth/redeem",
+    "/api/auth/signout",
+    "/api/auth/passkeys/sign-in/options",
+    "/api/auth/passkeys/sign-in",
+}
 
 
 @pytest.fixture
