@@ -38,3 +38,11 @@ def test_no_sets_no_group_and_mismatched_lengths_raise() -> None:
     assert work_order([], []) == []
     with pytest.raises(ValueError, match="same items"):
         work_order([1], [])
+
+
+def test_a_pair_can_start_with_its_second_exercise() -> None:
+    assert work_order([2, 3], [1, 1], first={1}) == [[(1, 1), (0, 1), (1, 2), (0, 2), (1, 3)]]
+    assert work_order([1, 1, 1, 1], [1, 1, 2, 2], first={2}) == [
+        [(0, 1), (1, 1)],
+        [(3, 1), (2, 1)],
+    ]

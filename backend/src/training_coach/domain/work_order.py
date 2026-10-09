@@ -5,17 +5,20 @@ more sets, its extra sets follow on their own. An item without a pair is done st
 through. The result is grouped by pair, so a list can leave a gap between groups.
 """
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 
 SetRef = tuple[int, int]  # (item index, set number from 1)
 
 
-def work_order(sets: Sequence[int], pairs: Sequence[int | None]) -> list[list[SetRef]]:
+def work_order(
+    sets: Sequence[int], pairs: Sequence[int | None], first: Collection[int] = ()
+) -> list[list[SetRef]]:
     """Groups of (item index, set number) in the order they are done.
 
     ``sets[i]`` is how many sets item ``i`` has today and ``pairs[i]`` its pair number. A pair
     number that doesn't sit on exactly two neighbouring items is ignored (the seed refuses
-    such plans; this keeps a bad row from hiding exercises)."""
+    such plans; this keeps a bad row from hiding exercises). A pair number in ``first`` starts
+    with its second item ("Do this one first", #117)."""
     if len(sets) != len(pairs):
         raise ValueError("sets and pairs must describe the same items")
     groups: list[list[SetRef]] = []
@@ -30,13 +33,9 @@ def work_order(sets: Sequence[int], pairs: Sequence[int | None]) -> list[list[Se
         )
         if paired:
             rounds = max(sets[i], sets[partner])
+            both = (partner, i) if pairs[i] in first else (i, partner)
             groups.append(
-                [
-                    (item, n)
-                    for n in range(1, rounds + 1)
-                    for item in (i, partner)
-                    if n <= sets[item]
-                ]
+                [(item, n) for n in range(1, rounds + 1) for item in both if n <= sets[item]]
             )
             i += 2
         else:
