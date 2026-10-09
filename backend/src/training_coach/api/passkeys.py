@@ -91,8 +91,13 @@ def register(answer: Answer, request: Request, response: Response, user: Owner) 
 def sign_in_options(request: Request) -> Response:
     """Options for signing in with a passkey; anyone may ask, only a registered key passes."""
     party = _party(request)
-    with session_scope(_shared(request)) as session:
-        ceremony = passkeys.sign_in_options(session, party, datetime.now(UTC))
+    try:
+        with session_scope(_shared(request)) as session:
+            ceremony = passkeys.sign_in_options(session, party, datetime.now(UTC))
+    except passkeys.TooManySignInsError:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS, "try again in a few minutes"
+        ) from None
     return _options(ceremony)
 
 

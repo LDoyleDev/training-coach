@@ -187,3 +187,34 @@ def test_the_party_comes_from_the_public_url() -> None:
 def test_registering_needs_a_session_bound_to_someone(engine: Engine) -> None:
     with make_session_factory(engine)() as unbound, pytest.raises(PermissionError):
         passkeys.registration(unbound, passkeys.Party(ORIGIN, RP_ID), datetime.now(UTC))
+
+
+def test_a_key_registered_already_is_refused_not_an_error(
+    client: TestClient, engine: Engine
+) -> None:
+    """Browsers exclude known keys, but a re-submitted one must be a 400 (review of #123)."""
+    _signed_in(client, engine)
+    device = Device(ORIGIN, RP_ID)
+    assert _register(client, device) == 204
+    assert _register(client, device) == 400
+    assert len(_passkeys(engine)) == 1
+
+
+@pytest.mark.parametrize("field", ["clientDataJSON", "authenticatorData", "signature"])
+def test_malformed_fields_are_a_refusal_not_an_error(
+    client: TestClient, engine: Engine, field: str
+) -> None:
+    _signed_in(client, engine)
+    device = Device(ORIGIN, RP_ID)
+    assert _register(client, device) == 204
+    client.cookies.delete("tc_session")
+    options = _options(client, "/api/auth/passkeys/sign-in/options")
+    answer = device.sign_in(options)
+    answer["response"][field] = "%%% not base64 %%%"
+    assert client.post("/api/auth/passkeys/sign-in", json={"credential": answer}).status_code == 401
+
+
+def test_open_sign_ins_are_capped(client: TestClient) -> None:
+    for _ in range(passkeys.MAX_OPEN_SIGN_INS):
+        assert client.post("/api/auth/passkeys/sign-in/options").status_code == 200
+    assert client.post("/api/auth/passkeys/sign-in/options").status_code == 429

@@ -12,7 +12,8 @@ from datetime import datetime, timedelta
 from typing import Any, cast
 from urllib.parse import urlsplit
 
-from sqlalchemy import CursorResult, delete, select
+import structlog
+from sqlalchemy import CursorResult, delete, func, select
 from sqlalchemy.orm import Session
 from webauthn import (
     generate_authentication_options,
@@ -27,7 +28,6 @@ from webauthn.helpers import (
     parse_authentication_credential_json,
 )
 from webauthn.helpers.exceptions import (
-    InvalidAuthenticationResponse,
     InvalidJSONStructure,
     InvalidRegistrationResponse,
 )
@@ -42,10 +42,19 @@ from training_coach.db.models import Passkey, PasskeyChallenge
 from training_coach.db.session import ALL_USERS, bound_user
 from training_coach.services import auth
 
+log = structlog.get_logger(__name__)
+
 RP_NAME = "Training Coach"
 CHALLENGE_TTL = timedelta(minutes=5)
 EVERYONE = {ALL_USERS: True}
 REGISTER, SIGN_IN = "register", "sign_in"
+# Sign-in options are public and each one is a row: cap the open ones so nobody can flood
+# the SD card or hold write locks (review of #123). One person needs one or two at a time.
+MAX_OPEN_SIGN_INS = 20
+
+
+class TooManySignInsError(Exception):
+    """Too many sign-in ceremonies are open; try again in a few minutes."""
 
 
 @dataclass(frozen=True)
@@ -158,9 +167,16 @@ def register(
         )
     except (InvalidRegistrationResponse, InvalidJSONStructure):
         return False
+    credential_id = bytes_to_base64url(verified.credential_id)
+    taken = session.scalar(
+        select(Passkey.id).where(Passkey.credential_id == credential_id),
+        execution_options=EVERYONE,
+    )
+    if taken is not None:  # registered already, by this person or anyone
+        return False
     session.add(
         Passkey(
-            credential_id=bytes_to_base64url(verified.credential_id),
+            credential_id=credential_id,
             public_key=verified.credential_public_key,
             sign_count=verified.sign_count,
             name=name[: auth.LABEL_LENGTH] or "Passkey",
@@ -172,7 +188,17 @@ def register(
 
 
 def sign_in_options(session: Session, party: Party, now: datetime) -> Ceremony:
-    """Options for signing in with any passkey on the device (no username: discoverable)."""
+    """Options for signing in with any passkey on the device (no username: discoverable).
+    Raises ``TooManySignInsError`` when too many are open at once."""
+    session.execute(delete(PasskeyChallenge).where(PasskeyChallenge.expires_at <= now))
+    open_now = session.scalar(
+        select(func.count())
+        .select_from(PasskeyChallenge)
+        .where(PasskeyChallenge.purpose == SIGN_IN)
+    )
+    if (open_now or 0) >= MAX_OPEN_SIGN_INS:
+        log.warning("auth.passkey_sign_ins_capped", open=open_now)
+        raise TooManySignInsError
     options = generate_authentication_options(
         rp_id=party.rp_id, user_verification=UserVerificationRequirement.REQUIRED
     )
@@ -195,7 +221,9 @@ def sign_in(
         return None
     try:
         parsed = parse_authentication_credential_json(credential)
-    except (InvalidAuthenticationResponse, InvalidJSONStructure, ValueError, TypeError):
+    # Anyone can call this: whatever a malformed answer makes the library raise is a refusal,
+    # never a 500 (review of #123).
+    except Exception:
         return None
     passkey = session.scalar(
         select(Passkey).where(Passkey.credential_id == bytes_to_base64url(parsed.raw_id)),
@@ -213,7 +241,7 @@ def sign_in(
             credential_current_sign_count=passkey.sign_count,
             require_user_verification=True,
         )
-    except (InvalidAuthenticationResponse, InvalidJSONStructure):
+    except Exception:  # as above: a bad answer is a refusal
         return None
     passkey.sign_count = verified.new_sign_count
     passkey.last_used_at = now
