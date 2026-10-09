@@ -71,3 +71,11 @@ def test_every_sessions_list_reads_back_as_its_log(session: Session, slug: str) 
     draft = workout_log.draft(session, NL.join(work_list(plan.items)), date(2026, 10, 8), BERLIN)
     assert draft.problems == ()
     assert len(draft.entries) == len({item.exercise for item in plan.items})
+
+
+def test_start_says_how_to_do_each_exercise(session: Session) -> None:
+    plan = session_plan(session, _legs(session))
+    assert plan is not None
+    text = session_detail_text(plan)
+    assert "How to do them:" in text
+    assert "- Jump squat: Squat to about parallel" in text

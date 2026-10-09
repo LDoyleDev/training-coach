@@ -83,7 +83,11 @@ def week_text(days: list[Day]) -> str:
 def session_detail_text(plan: SessionPlan) -> str:
     """Everything needed to train: the cues, then every set in the order it's done (#97)."""
     lines = [f"{plan.name}: {plan.focus}"]
-    cues = [f"- {item.exercise}: {item.cue}" for item in plan.items if item.cue]
+    cues = [
+        f"- {item.exercise}: {' '.join(part for part in (item.summary, item.cue) if part)}"
+        for item in plan.items
+        if item.summary or item.cue
+    ]
     if cues:
         lines += ["", "How to do them:", *cues]
     lines += ["", WORK_DOWN if _paired(plan.items) else "Work down the list.", ""]
