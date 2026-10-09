@@ -242,6 +242,7 @@ def test_every_per_person_table_is_covered() -> None:
         "events",
         "habit_checks",
         "login_links",
+        "passkeys",
         "web_sessions",
     }
 

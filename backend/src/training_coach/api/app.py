@@ -15,6 +15,7 @@ from telegram import Bot
 
 from training_coach import __version__
 from training_coach.api.auth import router as auth_router
+from training_coach.api.passkeys import router as passkeys_router
 from training_coach.api.plan import router as plan_router
 from training_coach.api.security import security_headers_middleware
 from training_coach.bot.app import build_bot, send_with_retry
@@ -124,6 +125,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.middleware("http")(security_headers_middleware)
     app.state.shared_sessions = make_session_factory(engine)
+    app.state.engine = engine
+    app.state.settings = settings
 
     @app.get("/healthz", response_model=Health, tags=["ops"])
     async def healthz() -> Health:
@@ -131,6 +134,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(plan_router)
     app.include_router(auth_router)
+    app.include_router(passkeys_router)
 
     # Mounted last so API routes always win over static files.
     dist = settings.web_dist_dir

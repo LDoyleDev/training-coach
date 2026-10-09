@@ -1,6 +1,22 @@
 {
   "components": {
     "schemas": {
+      "Answer": {
+        "description": "The browser's answer to a ceremony: WebAuthn JSON, checked by the library.",
+        "properties": {
+          "credential": {
+            "additionalProperties": true,
+            "maxProperties": 20,
+            "title": "Credential",
+            "type": "object"
+          }
+        },
+        "required": [
+          "credential"
+        ],
+        "title": "Answer",
+        "type": "object"
+      },
       "ExerciseKind": {
         "description": "How an exercise is measured.",
         "enum": [
@@ -310,6 +326,114 @@
           }
         },
         "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/passkeys/register": {
+      "post": {
+        "operationId": "register_api_auth_passkeys_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Answer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/passkeys/register/options": {
+      "post": {
+        "description": "Options for adding a passkey to the signed-in person.",
+        "operationId": "registration_options_api_auth_passkeys_register_options_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Registration Options",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/passkeys/sign-in": {
+      "post": {
+        "operationId": "sign_in_api_auth_passkeys_sign_in_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Answer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sign In",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/passkeys/sign-in/options": {
+      "post": {
+        "description": "Options for signing in with a passkey; anyone may ask, only a registered key passes.",
+        "operationId": "sign_in_options_api_auth_passkeys_sign_in_options_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sign In Options",
         "tags": [
           "auth"
         ]
