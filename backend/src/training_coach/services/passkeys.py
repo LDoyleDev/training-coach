@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 
 import structlog
 from sqlalchemy import CursorResult, delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from webauthn import (
     generate_authentication_options,
@@ -26,10 +27,6 @@ from webauthn.helpers import (
     base64url_to_bytes,
     bytes_to_base64url,
     parse_authentication_credential_json,
-)
-from webauthn.helpers.exceptions import (
-    InvalidJSONStructure,
-    InvalidRegistrationResponse,
 )
 from webauthn.helpers.structs import (
     AuthenticatorSelectionCriteria,
@@ -177,25 +174,23 @@ def register(
             expected_origin=party.origin,
             require_user_verification=True,
         )
-    except (InvalidRegistrationResponse, InvalidJSONStructure):
+    except Exception:  # a malformed answer is a refusal, never a 500 (review of #123)
         return False
     credential_id = bytes_to_base64url(verified.credential_id)
-    taken = session.scalar(
-        select(Passkey.id).where(Passkey.credential_id == credential_id),
-        execution_options=EVERYONE,
-    )
-    if taken is not None:  # registered already, by this person or anyone
+    try:  # a key registered already, by anyone or at the same moment, loses on the unique id
+        with session.begin_nested():
+            session.add(
+                Passkey(
+                    credential_id=credential_id,
+                    public_key=verified.credential_public_key,
+                    sign_count=verified.sign_count,
+                    name=name[: auth.LABEL_LENGTH] or "Passkey",
+                    created_at=now,
+                )
+            )
+            session.flush()
+    except IntegrityError:
         return False
-    session.add(
-        Passkey(
-            credential_id=credential_id,
-            public_key=verified.credential_public_key,
-            sign_count=verified.sign_count,
-            name=name[: auth.LABEL_LENGTH] or "Passkey",
-            created_at=now,
-        )
-    )
-    session.flush()
     return True
 
 

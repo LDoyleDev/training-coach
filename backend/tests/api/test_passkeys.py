@@ -270,3 +270,31 @@ def test_an_unusable_public_url_is_not_set_up_not_an_error(engine: Engine) -> No
     settings.public_url = "http://coach.example.com"  # bypassing the settings check
     with TestClient(create_app(settings), base_url=ORIGIN) as client:
         assert client.post("/api/auth/passkeys/sign-in/options").status_code == 503
+
+
+def test_a_garbled_registration_is_refused_not_an_error(client: TestClient, engine: Engine) -> None:
+    _signed_in(client, engine)
+    options = _options(client, "/api/auth/passkeys/register/options")
+    answer = Device(ORIGIN, RP_ID).register(options)
+    answer["response"]["attestationObject"] = "%%% not cbor %%%"
+    refused = client.post("/api/auth/passkeys/register", json={"credential": answer})
+    assert refused.status_code == 400
+    assert 'tc_passkey=""' in refused.headers["set-cookie"]
+
+
+def test_the_same_key_saved_twice_at_once_is_refused(engine: Engine) -> None:
+    """Two registrations racing past the duplicate check: the unique id decides (review)."""
+    party = passkeys.Party(ORIGIN, RP_ID)
+    device = Device(ORIGIN, RP_ID)
+    now = datetime.now(UTC)
+    with make_session_factory(engine, user_id=OWNER)() as first:
+        ceremony = passkeys.registration(first, party, now)
+        answer = device.register(json.loads(ceremony.options))
+        first.commit()
+    with make_session_factory(engine, user_id=OWNER)() as racing:
+        racing.add(
+            Passkey(credential_id=answer["id"], public_key=b"x", sign_count=0, name="other tab")
+        )
+        racing.commit()
+    with make_session_factory(engine, user_id=OWNER)() as second:
+        assert not passkeys.register(second, party, ceremony.handle, answer, "phone", now)
