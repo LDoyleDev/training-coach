@@ -51,6 +51,18 @@ def test_public_url_must_be_https(given: str, kept: str) -> None:
     assert Settings(public_url=given).public_url == kept
 
 
-def test_plain_http_is_refused() -> None:
-    with pytest.raises(ValueError, match="https"):
-        Settings(public_url="http://coach.example.com")
+@pytest.mark.parametrize(
+    ("given", "problem"),
+    [
+        ("http://coach.example.com", "https"),
+        ("http://localhost.evil.com", "https"),  # review of #122
+        ("http://127.0.0.1.evil.com", "https"),
+        ("https://", "https"),
+        ("https://coach.example.com/app", "origin only"),
+        ("https://coach.example.com/?next=x", "origin only"),
+        ("https://user:pw@coach.example.com", "origin only"),
+    ],
+)
+def test_anything_but_an_https_origin_is_refused(given: str, problem: str) -> None:
+    with pytest.raises(ValueError, match=problem):
+        Settings(public_url=given)
