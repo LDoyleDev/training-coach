@@ -17,6 +17,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
+    LargeBinary,
     String,
     Text,
     Time,
@@ -352,6 +353,38 @@ class WebSession(Owned, Base):
     ended_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
+class Passkey(Owned, Base):
+    """A fingerprint or face key registered for sign-in (WebAuthn, ADR-0036). The private key
+    never leaves the device; this is its public half."""
+
+    __tablename__ = "passkeys"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    credential_id: Mapped[str] = mapped_column(String(1400), unique=True)  # base64url
+    public_key: Mapped[bytes] = mapped_column(LargeBinary)  # COSE
+    sign_count: Mapped[int] = mapped_column(Integer, default=0)
+    name: Mapped[str] = mapped_column(String(120))  # the browser it was made in
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class PasskeyChallenge(Base):
+    """A one-time WebAuthn challenge, 5 minutes (ADR-0036). Shared, not per person: a sign-in
+    challenge belongs to nobody yet. A registration challenge names who asked for it. The
+    browser holds a random handle in a cookie; only its SHA-256 is kept here."""
+
+    __tablename__ = "passkey_challenges"
+    __table_args__ = (CheckConstraint("purpose IN ('register', 'sign_in')", name="purpose_valid"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    handle_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    challenge: Mapped[bytes] = mapped_column(LargeBinary)
+    purpose: Mapped[str] = mapped_column(String(16))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
 class Event(Owned, Base):
     """Audit log. Payloads must never contain secrets, transcripts or measurements.
     ``user_id`` is empty for system events such as ``seed.applied``."""
@@ -376,6 +409,8 @@ __all__ = [
     "LadderStep",
     "LoginLink",
     "Owned",
+    "Passkey",
+    "PasskeyChallenge",
     "PlanState",
     "SessionTemplate",
     "SetLog",

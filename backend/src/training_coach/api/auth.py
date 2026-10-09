@@ -42,7 +42,7 @@ def owner(request: Request, response: Response) -> int:
             seen = auth.session_user(session, token, datetime.now(UTC))
         if seen is not None:
             if seen.renewed:
-                _set_cookie(response, token)
+                set_session_cookie(response, token)
             return seen.user_id
     raise HTTPException(status.HTTP_401_UNAUTHORIZED, "sign in first")
 
@@ -50,7 +50,7 @@ def owner(request: Request, response: Response) -> int:
 Owner = Annotated[int, Depends(owner)]
 
 
-def _set_cookie(response: Response, token: str) -> None:
+def set_session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         COOKIE,
         token,
@@ -70,7 +70,7 @@ def redeem(body: Redeem, request: Request, response: Response) -> None:
         cookie = auth.redeem_link(session, body.token, datetime.now(UTC), label)
     if cookie is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "this link has expired or was used")
-    _set_cookie(response, cookie)
+    set_session_cookie(response, cookie)
 
 
 @router.get("/me", response_model=Me)

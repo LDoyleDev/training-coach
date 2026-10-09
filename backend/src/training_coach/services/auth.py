@@ -24,14 +24,14 @@ LABEL_LENGTH = 120
 EVERYONE = {ALL_USERS: True}
 
 
-def _hash(token: str) -> str:
+def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
 def create_link(session: Session, now: datetime) -> str:
     """A sign-in link token for the user ``session`` is bound to; valid once, for 10 minutes."""
     token = secrets.token_urlsafe(32)
-    session.add(LoginLink(token_hash=_hash(token), expires_at=now + LINK_TTL))
+    session.add(LoginLink(token_hash=hash_token(token), expires_at=now + LINK_TTL))
     session.flush()
     return token
 
@@ -39,7 +39,7 @@ def create_link(session: Session, now: datetime) -> str:
 def redeem_link(session: Session, token: str, now: datetime, label: str) -> str | None:
     """Exchange a link token for a session token, or None if it's unknown, used or expired.
     ``session`` is unbound: the link says whose it is."""
-    digest = _hash(token)
+    digest = hash_token(token)
     # Claimed in one conditional statement: of two racing redeems, only one changes the row.
     claimed = cast(
         "CursorResult[object]",
@@ -56,14 +56,20 @@ def redeem_link(session: Session, token: str, now: datetime, label: str) -> str 
     )
     if claimed.rowcount != 1:
         return None
-    user = session.scalar(
+    user = session.scalars(  # the row this statement just claimed
         select(LoginLink.user_id).where(LoginLink.token_hash == digest), execution_options=EVERYONE
-    )
+    ).one()
+    return start_session(session, user, now, label)
+
+
+def start_session(session: Session, user_id: int, now: datetime, label: str) -> str:
+    """A new signed-in browser for ``user_id``: the cookie token, which is stored only hashed.
+    Called once a link or a passkey has proved who it is."""
     cookie = secrets.token_urlsafe(32)
     session.add(
         WebSession(
-            user_id=user,
-            token_hash=_hash(cookie),
+            user_id=user_id,
+            token_hash=hash_token(cookie),
             label=label[:LABEL_LENGTH] or "Unknown browser",
             created_at=now,
             last_seen_at=now,
@@ -76,7 +82,7 @@ def redeem_link(session: Session, token: str, now: datetime, label: str) -> str 
 
 def _live(session: Session, token: str, now: datetime) -> WebSession | None:
     found = session.scalar(
-        select(WebSession).where(WebSession.token_hash == _hash(token)),
+        select(WebSession).where(WebSession.token_hash == hash_token(token)),
         execution_options=EVERYONE,
     )
     if found is None or found.ended_at is not None or found.expires_at <= now:
