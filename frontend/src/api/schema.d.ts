@@ -233,7 +233,8 @@ export interface paths {
         get?: never;
         /**
          * Keep
-         * @description Keep where the person is in today's session, so it resumes on any device.
+         * @description Keep where the person is in today's session, so it resumes on any device. 409 when
+         *     another device moved on since this browser's ``revision`` (reload and carry on).
          */
         put: operations["keep_api_session_progress_put"];
         post?: never;
@@ -273,7 +274,7 @@ export interface paths {
         /**
          * Today
          * @description Today's session in work order, with any pairs swapped as kept in the progress: a swap
-         *     or un-swap is a PUT to /progress, so the server is the one place it lives (review of #129).
+         *     or un-swap is a PUT to /progress, so the server is the one place it lives.
          */
         get: operations["today_api_session_today_get"];
         put?: never;
@@ -473,10 +474,20 @@ export interface components {
             first?: number[];
             /** Position */
             position: number;
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
             /** Sets */
             sets?: components["schemas"]["DoneView"][];
             /** Template Id */
             template_id: number;
+        };
+        /** KeptView */
+        KeptView: {
+            /** Revision */
+            revision: number;
         };
         /** Me */
         Me: {
@@ -526,6 +537,8 @@ export interface components {
             first: number[];
             /** Position */
             position: number;
+            /** Revision */
+            revision: number;
             /** Saved */
             saved: boolean;
             /** Sets */
@@ -935,11 +948,13 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["KeptView"];
+                };
             };
             /** @description Validation Error */
             422: {

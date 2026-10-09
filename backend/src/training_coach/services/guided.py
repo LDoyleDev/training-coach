@@ -13,6 +13,7 @@ from datetime import date
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import SessionProgress, SessionTemplate
@@ -116,6 +117,7 @@ class Kept:
     first: tuple[int, ...]
     sets: tuple[Done, ...]
     saved: bool
+    revision: int = 0
 
 
 @dataclass(frozen=True)
@@ -137,6 +139,7 @@ def _kept(row: SessionProgress) -> Kept:
         first=tuple(row.first),
         sets=tuple(Done(**s) for s in row.sets),
         saved=row.saved_workout_id is not None,
+        revision=row.revision,
     )
 
 
@@ -177,34 +180,59 @@ def _problem(plan: Guided, position: int, first: Sequence[int], sets: Sequence[D
     return _sets_problem(plan.items, sets)
 
 
+STALE = "this session changed on another device; reload it"
+
+
 def keep(
-    session: Session, plan: Guided, position: int, first: Sequence[int], sets: Sequence[Done]
-) -> str | None:
-    """Keep where the person is in today's guided session. A problem message, or None when
-    kept. Every value is checked against the plan: nothing from the browser is trusted."""
+    session: Session,
+    plan: Guided,
+    revision: int,
+    position: int,
+    first: Sequence[int],
+    sets: Sequence[Done],
+) -> int | str:
+    """Keep where the person is in today's guided session: the new revision, or a problem.
+
+    Every value is checked against the plan: nothing from the browser is trusted. The browser
+    names the ``revision`` it last saw (0 before any); if the kept one is newer (another device
+    moved on), nothing is written and ``STALE`` is returned."""
     problem = _problem(plan, position, first, sets)
     if problem is not None:
         return problem
     row = _row(session, plan.day)
     if row is not None and row.saved_workout_id is not None:
         return "this session is saved already"
-    if row is None or row.template_id != plan.template_id:
-        if row is not None:  # the day's session changed (a pick or swap): start afresh
-            session.delete(row)
+    if row is not None and row.template_id != plan.template_id:
+        session.delete(row)  # the day's session changed (a pick or swap): start afresh
+        session.flush()
+        row = None
+    if row is not None and row.revision != revision:
+        return STALE
+    try:
+        with session.begin_nested():  # two devices starting at once: one wins, one is stale
+            if row is None:
+                if revision != 0:
+                    return STALE
+                row = SessionProgress(
+                    local_date=plan.day,
+                    template_id=plan.template_id,
+                    token=secrets.token_hex(16),
+                    revision=0,
+                )
+                session.add(row)
+            row.revision += 1
+            row.position = position
+            row.first = sorted(set(first))
+            row.sets = [vars(done) for done in sets]
             session.flush()
-        row = SessionProgress(
-            local_date=plan.day, template_id=plan.template_id, token=secrets.token_hex(16)
-        )
-        session.add(row)
-    row.position = position
-    row.first = sorted(set(first))
-    row.sets = [vars(done) for done in sets]
-    session.flush()
-    return None
+    except IntegrityError:
+        return STALE
+    return row.revision
 
 
 def _entries(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> tuple[Entry, ...]:
-    """The confirmed sets as log entries, per exercise, numbered in the order they were done."""
+    """The confirmed sets as log entries, per exercise in set order and numbered from 1. A
+    skipped set isn't logged, so sets 1 and 3 done become sets 1 and 2 of the log."""
     by_item: dict[int, list[Done]] = {}
     for done in sorted(sets, key=lambda d: (d.item, d.set_no)):
         by_item.setdefault(done.item, []).append(done)

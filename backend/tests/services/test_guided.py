@@ -3,13 +3,15 @@
 from datetime import date
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import SessionProgress, SessionTemplate, Workout
+from training_coach.db.session import make_session_factory
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.services import guided, users, workout_log
 from training_coach.services.seed import apply_seed, load_plan
+from training_coach.services.users import OWNER
 
 BERLIN = ZoneInfo("Europe/Berlin")
 DAY = date(2026, 10, 12)
@@ -86,13 +88,13 @@ def _plan(session: Session) -> guided.Guided:
 def test_progress_restarts_when_the_days_session_changes(session: Session) -> None:
     seeded = _seeded(session)
     legs = _plan(seeded)
-    assert guided.keep(seeded, legs, 1, [], [guided.Done(0, 1, 5)]) is None
+    assert guided.keep(seeded, legs, 0, 1, [], [guided.Done(0, 1, 5)]) == 1
     torso = seeded.scalars(select(SessionTemplate).where(SessionTemplate.slug == "torso")).one()
     state = users.plan_state(seeded)
     assert state is not None
     state.next_template_id = torso.id  # as if swapped
     seeded.flush()
-    assert guided.keep(seeded, _plan(seeded), 0, [], []) is None
+    assert guided.keep(seeded, _plan(seeded), 0, 0, [], []) == 1  # a fresh start
     kept = guided.kept(seeded, DAY)
     assert kept is not None
     assert (kept.template_id, kept.sets) == (torso.id, ())
@@ -101,14 +103,14 @@ def test_progress_restarts_when_the_days_session_changes(session: Session) -> No
 def test_a_saved_session_is_not_kept_again(session: Session) -> None:
     seeded = _seeded(session)
     plan = _plan(seeded)
-    guided.keep(seeded, plan, 1, [], [guided.Done(0, 1, 5)])
+    guided.keep(seeded, plan, 0, 1, [], [guided.Done(0, 1, 5)])
     assert isinstance(guided.save(seeded, DAY, DAY, BERLIN), workout_log.Saved)
-    assert guided.keep(seeded, plan, 2, [], []) == "this session is saved already"
+    assert guided.keep(seeded, plan, 1, 2, [], []) == "this session is saved already"
 
 
 def test_sets_the_plan_no_longer_has_are_not_saved(session: Session) -> None:
     seeded = _seeded(session)
-    guided.keep(seeded, _plan(seeded), 1, [], [guided.Done(0, 1, 5)])
+    guided.keep(seeded, _plan(seeded), 0, 1, [], [guided.Done(0, 1, 5)])
     row = seeded.scalars(select(SessionProgress)).one()
     row.sets = [{"item": 0, "set_no": 9, "left": 5, "right": None}]  # the plan changed since
     seeded.flush()
@@ -119,16 +121,62 @@ def test_sets_the_plan_no_longer_has_are_not_saved(session: Session) -> None:
 
 def test_an_earlier_day_with_no_sets_is_not_pending(session: Session) -> None:
     seeded = _seeded(session)
-    guided.keep(seeded, _plan(seeded), 0, [], [])
+    guided.keep(seeded, _plan(seeded), 0, 0, [], [])
     assert guided.pending(seeded, DAY.replace(day=DAY.day + 1)) == []
 
 
 def test_keeping_again_updates_the_same_progress(session: Session) -> None:
     seeded = _seeded(session)
     plan = _plan(seeded)
-    guided.keep(seeded, plan, 1, [], [guided.Done(0, 1, 5)])
-    guided.keep(seeded, plan, 2, [1], [guided.Done(0, 1, 5), guided.Done(1, 1, 20)])
+    assert guided.keep(seeded, plan, 0, 1, [], [guided.Done(0, 1, 5)]) == 1
+    done = [guided.Done(0, 1, 5), guided.Done(1, 1, 20)]
+    assert guided.keep(seeded, plan, 1, 2, [1], done) == 2
     kept = guided.kept(seeded, DAY)
     assert kept is not None
     assert (kept.position, kept.first, len(kept.sets)) == (2, (1,), 2)
     assert len(seeded.scalars(select(SessionProgress)).all()) == 1
+
+
+def test_a_stale_device_cannot_overwrite_newer_sets(session: Session) -> None:
+    seeded = _seeded(session)
+    plan = _plan(seeded)
+    assert guided.keep(seeded, plan, 0, 1, [], [guided.Done(0, 1, 5)]) == 1  # the phone
+    assert guided.keep(seeded, plan, 0, 1, [], []) == guided.STALE  # a tab that saw nothing
+    assert guided.keep(seeded, plan, 1, 2, [], [guided.Done(0, 1, 5), guided.Done(1, 1, 20)]) == 2
+    kept = guided.kept(seeded, DAY)
+    assert kept is not None
+    assert len(kept.sets) == 2
+
+
+def test_a_first_save_naming_a_revision_is_stale(session: Session) -> None:
+    seeded = _seeded(session)
+    assert guided.keep(seeded, _plan(seeded), 3, 0, [], []) == guided.STALE
+
+
+def test_a_skipped_set_is_not_logged_and_the_rest_are_numbered_from_one(session: Session) -> None:
+    seeded = _seeded(session)
+    plan = _plan(seeded)
+    done = [guided.Done(0, 1, 6), guided.Done(0, 3, 4)]  # set 2 skipped
+    guided.keep(seeded, plan, 0, 2, [], done)
+    saved = guided.save(seeded, DAY, DAY, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    sets = seeded.get_one(Workout, saved.workout_id).sets
+    assert sorted((s.set_no, s.value) for s in sets) == [(1, 6), (2, 4)]
+
+
+def test_two_devices_starting_at_once_do_not_fail(engine: Engine) -> None:
+    """Both see no progress yet; the unique day decides, and the loser is told it's stale."""
+    with make_session_factory(engine, user_id=OWNER)() as setup:
+        _seeded(setup)
+        setup.commit()
+    with make_session_factory(engine, user_id=OWNER)() as phone:
+        plan = _plan(phone)
+        assert guided.keep(phone, plan, 0, 0, [], []) == 1
+        phone.commit()
+    with make_session_factory(engine, user_id=OWNER)() as laptop:
+        original = guided._row
+        guided._row = lambda *_: None  # the laptop read "no progress" a moment earlier
+        try:
+            assert guided.keep(laptop, plan, 0, 0, [], []) == guided.STALE
+        finally:
+            guided._row = original

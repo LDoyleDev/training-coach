@@ -86,6 +86,7 @@ class ProgressView(BaseModel):
     first: list[int]
     sets: list[DoneView]
     saved: bool
+    revision: int  # send it back with the next PUT
 
 
 class TodayView(BaseModel):
@@ -98,6 +99,7 @@ class TodayView(BaseModel):
 
 class KeepBody(BaseModel):
     template_id: int  # the session the browser shows: a different one now is a conflict
+    revision: int = Field(default=0, ge=0)  # the kept revision this browser saw; 0: none
     position: int = Field(ge=0, le=500)
     first: list[int] = Field(default_factory=list, max_length=10)
     sets: list[DoneView] = Field(default_factory=list, max_length=200)
@@ -132,7 +134,7 @@ class PendingView(BaseModel):
 @router.get("/today", response_model=TodayView)
 def today(request: Request, user: Owner) -> TodayView:
     """Today's session in work order, with any pairs swapped as kept in the progress: a swap
-    or un-swap is a PUT to /progress, so the server is the one place it lives (review of #129)."""
+    or un-swap is a PUT to /progress, so the server is the one place it lives."""
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         kept = guided.kept(session, on)
@@ -151,6 +153,7 @@ def today(request: Request, user: Owner) -> TodayView:
             first=list(kept.first),
             sets=[DoneView(**vars(d)) for d in kept.sets],
             saved=kept.saved,
+            revision=kept.revision,
         )
     return TodayView(
         progress=progress,
@@ -185,18 +188,26 @@ def today(request: Request, user: Owner) -> TodayView:
     )
 
 
-@router.put("/progress", status_code=status.HTTP_204_NO_CONTENT)
-def keep(body: KeepBody, request: Request, user: Owner) -> None:
-    """Keep where the person is in today's session, so it resumes on any device."""
+class KeptView(BaseModel):
+    revision: int
+
+
+@router.put("/progress", response_model=KeptView)
+def keep(body: KeepBody, request: Request, user: Owner) -> KeptView:
+    """Keep where the person is in today's session, so it resumes on any device. 409 when
+    another device moved on since this browser's ``revision`` (reload and carry on)."""
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         plan = guided.today(session, on, settings.tz, set(body.first))
         if plan is None or plan.template_id != body.template_id:
             raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
         sets = [guided.Done(**d.model_dump()) for d in body.sets]
-        problem = guided.keep(session, plan, body.position, body.first, sets)
-    if problem is not None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, problem)
+        result = guided.keep(session, plan, body.revision, body.position, body.first, sets)
+    if result == guided.STALE:
+        raise HTTPException(status.HTTP_409_CONFLICT, result)
+    if isinstance(result, str):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result)
+    return KeptView(revision=result)
 
 
 @router.post("/save", response_model=SavedView)

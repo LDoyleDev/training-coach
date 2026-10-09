@@ -52,12 +52,17 @@ def _first_slug(client: TestClient) -> str:
 
 
 def test_a_pair_can_be_swapped_and_swapped_back(signed_in: TestClient) -> None:
-    """The swap lives in the kept progress, so an un-swap sticks too (review of #129)."""
+    """The swap lives in the kept progress, so an un-swap sticks too."""
     template = signed_in.get("/api/session/today").json()["session"]["template_id"]
 
+    revision = 0
+
     def swap(first: list[int]) -> None:
-        body = {"template_id": template, "position": 0, "first": first, "sets": []}
-        assert signed_in.put("/api/session/progress", json=body).status_code == 204
+        nonlocal revision
+        body = {"template_id": template, "revision": revision, "first": first, "position": 0}
+        kept = signed_in.put("/api/session/progress", json=body)
+        assert kept.status_code == 200
+        revision = kept.json()["revision"]
 
     assert _first_slug(signed_in) == "jump-squat"
     swap([1])
@@ -99,7 +104,7 @@ def _do_first_sets(client: TestClient, count: int) -> dict[str, Any]:
         "/api/session/progress",
         json={"template_id": session["template_id"], "position": count, "sets": sets},
     )
-    assert kept.status_code == 204
+    assert kept.status_code == 200
     return session
 
 
@@ -114,7 +119,7 @@ def test_progress_is_kept_and_resumed(signed_in: TestClient) -> None:
 def test_a_swapped_pair_is_kept(signed_in: TestClient) -> None:
     session = _today_view(signed_in)["session"]
     body = {"template_id": session["template_id"], "position": 0, "first": [1], "sets": []}
-    assert signed_in.put("/api/session/progress", json=body).status_code == 204
+    assert signed_in.put("/api/session/progress", json=body).status_code == 200
     view = _today_view(signed_in)
     assert view["progress"]["first"] == [1]
     first_item = view["session"]["items"][view["session"]["order"][0]["item"]]
@@ -180,7 +185,7 @@ def test_one_sided_sets_log_both_sides(signed_in: TestClient, engine: Engine) ->
     calf = next(i for i, item in enumerate(session["items"]) if item["slug"] == "calf-raise")
     sets = [{"item": calf, "set_no": 1, "left": 15, "right": 12}]
     body = {"template_id": session["template_id"], "position": 1, "sets": sets}
-    assert signed_in.put("/api/session/progress", json=body).status_code == 204
+    assert signed_in.put("/api/session/progress", json=body).status_code == 200
     workout_id = signed_in.post("/api/session/save", json={}).json()["workout_id"]
     with make_session_factory(engine, user_id=OWNER)() as bound:
         values = sorted((s.side, s.value) for s in bound.get_one(Workout, workout_id).sets)
@@ -236,10 +241,10 @@ def test_progress_and_saving_need_a_signed_in_browser(engine: Engine) -> None:
 def test_a_swap_kept_for_another_session_does_not_apply(
     signed_in: TestClient, engine: Engine
 ) -> None:
-    """Kept on Legs, then today's session changes: Torso's pairs stay in order (review)."""
+    """Kept on Legs, then today's session changes: Torso's pairs stay in order."""
     template = signed_in.get("/api/session/today").json()["session"]["template_id"]
     body = {"template_id": template, "position": 0, "first": [1], "sets": []}
-    assert signed_in.put("/api/session/progress", json=body).status_code == 204
+    assert signed_in.put("/api/session/progress", json=body).status_code == 200
     with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
         torso = bound.scalars(select(SessionTemplate.id).where(SessionTemplate.slug == "torso"))
         state = users.plan_state(bound)
@@ -248,3 +253,12 @@ def test_a_swap_kept_for_another_session_does_not_apply(
     view = signed_in.get("/api/session/today").json()
     assert view["progress"] is None
     assert _first_slug(signed_in) == "pull-up"
+
+
+def test_a_stale_tab_gets_a_conflict_not_an_overwrite(signed_in: TestClient) -> None:
+    _do_first_sets(signed_in, 3)  # the phone: revision 1
+    view = signed_in.get("/api/session/today").json()
+    assert view["progress"]["revision"] == 1
+    stale = {"template_id": view["session"]["template_id"], "revision": 0, "position": 0}
+    assert signed_in.put("/api/session/progress", json=stale).status_code == 409
+    assert len(signed_in.get("/api/session/today").json()["progress"]["sets"]) == 3

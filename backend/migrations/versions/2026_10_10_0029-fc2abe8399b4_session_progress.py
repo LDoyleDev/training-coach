@@ -1,12 +1,12 @@
 """session progress
 
-Revision ID: 50c3a8084265
+Revision ID: fc2abe8399b4
 Revises: 00649163c95b
-Create Date: 2026-10-09 23:52:13.748183
+Create Date: 2026-10-10 00:29:30.495367
 
 Guided-session progress (D1, #117): one row per person per day with the position, swapped
-pairs and confirmed sets, so a session resumes on any device. New table only; downgrade drops
-it and any unsaved progress.
+pairs, confirmed sets and a revision (so a stale tab can't overwrite newer sets); a session
+resumes on any device. New table only; downgrade drops it and any unsaved progress.
 """
 
 from collections.abc import Sequence
@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "50c3a8084265"
+revision: str = "fc2abe8399b4"
 down_revision: str | Sequence[str] | None = "00649163c95b"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -33,6 +33,7 @@ def upgrade() -> None:
         sa.Column("first", sa.JSON(), nullable=False),
         sa.Column("sets", sa.JSON(), nullable=False),
         sa.Column("token", sa.String(length=32), nullable=False),
+        sa.Column("revision", sa.Integer(), nullable=False),
         sa.Column("saved_workout_id", sa.Integer(), nullable=True),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(

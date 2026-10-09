@@ -339,6 +339,9 @@ class SessionProgress(Owned, Base):
     # [{"item": 0, "set_no": 1, "left": 8, "right": null}], in the order confirmed
     sets: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     token: Mapped[str] = mapped_column(String(32))
+    # Bumped on every change: a browser must name the revision it saw, so a stale tab
+    # on another device can't overwrite newer sets.
+    revision: Mapped[int] = mapped_column(Integer, default=1)
     saved_workout_id: Mapped[int | None] = mapped_column(
         ForeignKey("workouts.id", ondelete="SET NULL")
     )

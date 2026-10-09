@@ -463,6 +463,12 @@
             "title": "Position",
             "type": "integer"
           },
+          "revision": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
           "sets": {
             "items": {
               "$ref": "#/components/schemas/DoneView"
@@ -481,6 +487,19 @@
           "position"
         ],
         "title": "KeepBody",
+        "type": "object"
+      },
+      "KeptView": {
+        "properties": {
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "KeptView",
         "type": "object"
       },
       "Me": {
@@ -604,6 +623,10 @@
             "title": "Position",
             "type": "integer"
           },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
           "saved": {
             "title": "Saved",
             "type": "boolean"
@@ -625,7 +648,8 @@
           "position",
           "first",
           "sets",
-          "saved"
+          "saved",
+          "revision"
         ],
         "title": "ProgressView",
         "type": "object"
@@ -1224,7 +1248,7 @@
     },
     "/api/session/progress": {
       "put": {
-        "description": "Keep where the person is in today's session, so it resumes on any device.",
+        "description": "Keep where the person is in today's session, so it resumes on any device. 409 when\nanother device moved on since this browser's ``revision`` (reload and carry on).",
         "operationId": "keep_api_session_progress_put",
         "requestBody": {
           "content": {
@@ -1237,7 +1261,14 @@
           "required": true
         },
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeptView"
+                }
+              }
+            },
             "description": "Successful Response"
           },
           "422": {
@@ -1301,7 +1332,7 @@
     },
     "/api/session/today": {
       "get": {
-        "description": "Today's session in work order, with any pairs swapped as kept in the progress: a swap\nor un-swap is a PUT to /progress, so the server is the one place it lives (review of #129).",
+        "description": "Today's session in work order, with any pairs swapped as kept in the progress: a swap\nor un-swap is a PUT to /progress, so the server is the one place it lives.",
         "operationId": "today_api_session_today_get",
         "responses": {
           "200": {
