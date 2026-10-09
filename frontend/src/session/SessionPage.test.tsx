@@ -202,11 +202,13 @@ test('a save refused because today changed says so', async () => {
   expect(await screen.findByText(/Today's session changed/)).toBeInTheDocument()
   click('Back')
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument()
+  expect(screen.queryByText(/Today's session changed/)).not.toBeInTheDocument()
 })
 
 test.each([
   [null, /Sign in to start today's session/],
   [{ session: null, progress: null }, /Nothing left to train today/],
+  [{ session: { ...SESSION, order: [] }, progress: null }, /Nothing left to train today/],
   ['error' as const, /Couldn't load today's session/],
 ])('states without a session: %s', async (today, text) => {
   serve({ today })

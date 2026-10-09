@@ -48,7 +48,9 @@ export default function SessionPage() {
     fetchToday()
       .then((today) => {
         if (today === null) return setLoaded({ status: 'signed-out' })
-        if (today.session === null) return setLoaded({ status: 'none' })
+        // An empty order can't be guided; treat it like nothing planned.
+        if (today.session === null || today.session.order.length === 0)
+          return setLoaded({ status: 'none' })
         setLoaded({ status: 'ready', session: today.session })
         setValues(fromKept(today.progress))
         setPosition(today.progress?.position ?? 0)
@@ -106,6 +108,7 @@ export default function SessionPage() {
   }
 
   const save = async () => {
+    setNote(null)
     setBusy(true)
     try {
       const result = await saveSession()
@@ -141,7 +144,14 @@ export default function SessionPage() {
       {stage === 'set' && (
         <section aria-labelledby="exercise" className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <button type="button" className={secondary} onClick={() => setStage('overview')}>
+            <button
+              type="button"
+              className={secondary}
+              onClick={() => {
+                setNote(null)
+                setStage('overview')
+              }}
+            >
               Leave
             </button>
             <span className="text-sm text-[var(--slate)]">
@@ -151,7 +161,10 @@ export default function SessionPage() {
               type="button"
               className={secondary}
               disabled={position === 0}
-              onClick={() => setPosition(position - 1)}
+              onClick={() => {
+                setNote(null)
+                setPosition(position - 1)
+              }}
             >
               Back
             </button>
@@ -251,6 +264,7 @@ export default function SessionPage() {
               type="button"
               className={secondary}
               onClick={() => {
+                setNote(null)
                 setPosition(total - 1)
                 setStage('set')
               }}
