@@ -57,6 +57,7 @@ type Server = {
   keep?: number | 'stale'
   save?: Saved | 'stale'
   pending?: Pending[]
+  saveEarlier?: 'fail'
 }
 
 /** A fake API; returns the bodies sent, by method and path. */
@@ -79,6 +80,8 @@ function serve(server: Server = {}) {
     }
     if (path === '/api/session/pending') return Response.json(server.pending ?? [])
     if (path === '/api/session/save') {
+      if (server.saveEarlier === 'fail' && init?.body !== '{}')
+        return new Response(null, { status: 500 })
       const save = server.save ?? SAVED
       return save === 'stale' ? new Response(null, { status: 409 }) : Response.json(save)
     }
@@ -318,4 +321,30 @@ test("an earlier day's unsaved session can be saved from the overview", async ()
   expect(await screen.findByText('Saved Torso + neck for 2026-10-11.')).toBeInTheDocument()
   expect(sent['POST /api/session/save']?.[0]).toEqual({ day: '2026-10-11' })
   expect(screen.queryByRole('button', { name: 'Save it' })).not.toBeInTheDocument()
+})
+
+test('a failed save of an earlier day keeps it offered', async () => {
+  serve({ pending: [{ day: '2026-10-11', session: 'Torso + neck', sets: 5 }], saveEarlier: 'fail' })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Save it' }))
+  expect(await screen.findByText(/Check your connection/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save it' })).toBeInTheDocument()
+})
+
+test('leaving stops a running clock', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const hang: Guided = {
+    ...SESSION,
+    items: [{ ...SESSION.items[0], name: 'Dead hang', unit: 'seconds', pair: null, targets: [30] }],
+    order: [{ item: 0, set_no: 1, target: 30 }],
+  }
+  serve({ today: { session: hang, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Start clock')
+  act(() => vi.advanceTimersByTime(5_000))
+  click('Leave')
+  fireEvent.click(screen.getByRole('button', { name: 'Start session' }))
+  expect(screen.getByText('30 s')).toBeInTheDocument() // the target again, not a running clock
+  expect(screen.getByRole('button', { name: 'Start clock' })).toBeInTheDocument()
 })

@@ -181,7 +181,16 @@ export default function SessionPage() {
     if (await keep(position, values, nextFirst)) load()
   }
 
+  /** Moving to another set or screen stops the clock: it belongs to the set it started on. */
+  const goTo = (nextStage: Stage, nextPosition: number = position) => {
+    setNote(null)
+    setWatch(null)
+    setPosition(nextPosition)
+    setStage(nextStage)
+  }
+
   const stopWatch = () => {
+    // Both sides get the time: a one-sided timed hold is timed per side, the same each side.
     if (watch !== null) change({ ...value, left: watch, right: watch })
     setWatch(null)
   }
@@ -194,10 +203,10 @@ export default function SessionPage() {
           ? `${day.session} couldn't be saved: that day changed.`
           : `Saved ${day.session} for ${day.day}.`,
       )
+      setPending(pending.filter((p) => p.day !== day.day)) // settled either way
     } catch {
-      setNote("Couldn't save. Check your connection and try again.")
+      setNote("Couldn't save. Check your connection and try again.") // still offered
     }
-    setPending(pending.filter((p) => p.day !== day.day))
   }
 
   const save = async () => {
@@ -247,14 +256,7 @@ export default function SessionPage() {
       {stage === 'set' && (
         <section aria-labelledby="exercise" className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <button
-              type="button"
-              className={secondary}
-              onClick={() => {
-                setNote(null)
-                setStage('overview')
-              }}
-            >
+            <button type="button" className={secondary} onClick={() => goTo('overview')}>
               Leave
             </button>
             <span className="text-sm text-[var(--slate)]">
@@ -264,10 +266,7 @@ export default function SessionPage() {
               type="button"
               className={secondary}
               disabled={position === 0}
-              onClick={() => {
-                setNote(null)
-                setPosition(position - 1)
-              }}
+              onClick={() => goTo('set', position - 1)}
             >
               Back
             </button>
@@ -411,15 +410,7 @@ export default function SessionPage() {
             ))}
           </ul>
           <div className="flex gap-3">
-            <button
-              type="button"
-              className={secondary}
-              onClick={() => {
-                setNote(null)
-                setPosition(total - 1)
-                setStage('set')
-              }}
-            >
+            <button type="button" className={secondary} onClick={() => goTo('set', total - 1)}>
               Back
             </button>
             <button type="button" className={primary} disabled={busy} onClick={save}>
