@@ -2,7 +2,7 @@
 
 Status: **all decided by Liam on 2026-10-07**, including the overload step size (section 1),
 photo storage (D3) and habits (D5). The table of decisions stays in `phase-2-overview.md`; only
-D1 (dashboard design) is still open there.
+D1 (dashboard design) is recorded in `dashboard-design.md`.
 
 ## 1. Progressive overload: how big a step (decided, ADR-0027)
 
@@ -96,4 +96,5 @@ table-driven tests (pure code, 100% covered).
 ## Next
 
 ADR-0028 records the blocks; the phase 2 issues are open in milestone "Phase 2 - Overview".
-D1 (the dashboard) is being decided with a clickable mockup.
+D1 was decided on a clickable mockup on 2026-10-09; the guided session is specified in
+`dashboard-design.md`.

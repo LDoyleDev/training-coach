@@ -17,7 +17,7 @@ The web app, multi-user and wearable data direction: `platform-and-health-data-p
 
 | # | Decision | Why it matters |
 | --- | --- | --- |
-| D1 | Dashboard visual design and screen list (`dashboard-design.md` says it is agreed first); a clickable mockup is being prepared to decide it | Every web step depends on it |
+| D1 | Dashboard visual design and screen list | Decided 2026-10-09 for the guided session; the other screens stand as mocked (`dashboard-design.md`) |
 | D2 | ~~Monthly strength/hypertrophy blocks (#26)~~ Decided: optional 4-week blocks | `phase-2-decisions.md` |
 | D3 | ~~Where progress photos are stored~~ Decided: on the Pi for now | `phase-2-decisions.md` |
 | D4 | ~~Retest cadence~~ Decided: start of each block, else every 4 weeks | `phase-2-decisions.md` |
@@ -29,7 +29,7 @@ The web app, multi-user and wearable data direction: `platform-and-health-data-p
 Order: data first, then Telegram features, then the dashboard that shows them.
 
 Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74, 2-C #73 (done),
-2-D #90 and #91 (done), 2-E #26 (done). 2-B (D3 decided) has no issue yet; the dashboard waits on D1.
+2-D #90 and #91 (done), 2-E #26 (done). 2-B (D3 decided) has no issue yet. Web: 2-F #115, then 2-H #117 and #118; summaries #116.
 
 ### 2-0 Multi-user-ready schema (#72, done)
 - ADR-0026: a `users` table with Liam as the only row, `user_id` on every per-person table,
@@ -75,8 +75,9 @@ Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74, 2-C #73 (done)
 - Built to the agreed design (D1): Today, Plan with live position and ladder progress,
   Progress charts, Baseline vs retests, Measurements, Share view. Works as a Telegram Mini App.
 
-### 2-H Guided session mode
-- One exercise at a time with a rest timer, in Telegram or the Mini App.
+### 2-H Guided session mode (#117 API, #118 screens; needs 2-F #115)
+- One set at a time in work order, with + and − from the target, a rest timer, a pair switch,
+  and resume; as decided in `dashboard-design.md` (Guided session).
 
 ## Definition of done (phase)
 - All steps merged; release 1.0.0; in daily use for at least two weeks.
