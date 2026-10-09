@@ -51,7 +51,9 @@ class Settings(BaseSettings):
     # passkey domain come from it (ADR-0036); web sign-in is off until it is set.
     public_url: str | None = None
     # Peers whose CF-Connecting-IP is believed (the Cloudflare tunnel's side): loopback and
-    # Docker's bridge range. Not home networks (192.168.x), so a LAN host can't forge it.
+    # Docker's bridge range. Every connection to the container arrives from the bridge, so this
+    # is safe only because the port is published on 127.0.0.1 alone: only processes on the Pi
+    # (the tunnel) can connect. test_the_app_port_is_published_on_loopback_only enforces it.
     trusted_proxies: list[str] = ["127.0.0.0/8", "::1/128", "172.16.0.0/12"]
 
     @field_validator("timezone")
