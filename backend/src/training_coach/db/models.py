@@ -321,6 +321,37 @@ class HabitCheck(Owned, Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
+# ----------------------------------------------------------------- web sign-in
+
+
+class LoginLink(Owned, Base):
+    """A one-time sign-in link sent by the bot (ADR-0036). Only the token's SHA-256 is kept."""
+
+    __tablename__ = "login_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class WebSession(Owned, Base):
+    """A signed-in browser (ADR-0036). Only the cookie token's SHA-256 is kept."""
+
+    __tablename__ = "web_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    label: Mapped[str] = mapped_column(String(120))  # the browser, so a device can be recognised
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    ended_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
 class Event(Owned, Base):
     """Audit log. Payloads must never contain secrets, transcripts or measurements.
     ``user_id`` is empty for system events such as ``seed.applied``."""
@@ -343,6 +374,7 @@ __all__ = [
     "ExerciseState",
     "HabitCheck",
     "LadderStep",
+    "LoginLink",
     "Owned",
     "PlanState",
     "SessionTemplate",
@@ -350,5 +382,6 @@ __all__ = [
     "TemplateItem",
     "User",
     "UserSettings",
+    "WebSession",
     "Workout",
 ]

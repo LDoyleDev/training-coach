@@ -15,7 +15,14 @@ from zoneinfo import ZoneInfo
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
+from telegram import (
+    Bot,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    LinkPreviewOptions,
+    Message,
+    Update,
+)
 from telegram.error import NetworkError, RetryAfter, TelegramError
 from telegram.ext import (
     Application,
@@ -50,7 +57,7 @@ from training_coach.bot.messages import (
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import blocks, habits, queue_actions, review, user_settings
+from training_coach.services import auth, blocks, habits, queue_actions, review, user_settings
 from training_coach.services.groq import GroqClient
 from training_coach.services.today import session_plan
 from training_coach.services.today import today as todays_session
@@ -67,6 +74,7 @@ HELP_TEXT = (
     "/review - this week so far: sessions, sets per muscle, bests\n"
     "/habits - tick today's habits: morning light, protein, wind-down\n"
     "/settings - message times, nudges, habits, pause\n"
+    "/login - a link to sign in to the web app\n"
     "/help - this message\n\n"
     "Log a workout by sending it as a message, like: pull-ups 8 8 7, dips 12 11 10. "
     "A voice note works too. I'll show what I understood before saving anything.\n\n"
@@ -75,6 +83,8 @@ HELP_TEXT = (
     "The session for the day also arrives every morning, with buttons to start it, "
     "take a rest day or swap it."
 )
+LOGIN_TEXT = "Sign in to Training Coach. The link works once, for 10 minutes:"
+LOGIN_OFF = "Web sign-in isn't set up yet: TC_PUBLIC_URL is missing on the server."
 MORNING_JOB = "morning"
 NUDGE_JOB = "nudge"
 REVIEW_JOB = "weekly-review"
@@ -152,6 +162,22 @@ class Handlers:
         if update.effective_message is not None:
             text, markup = self._today()
             await update.effective_message.reply_text(text, reply_markup=markup)
+
+    async def login(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+        """A one-time sign-in link for the web app (ADR-0036): works once, for 10 minutes."""
+        message = update.effective_message
+        if message is None:
+            return
+        if self.settings.public_url is None:
+            await message.reply_text(LOGIN_OFF)
+            return
+        with session_scope(self.sessions) as session:
+            token = auth.create_link(session, datetime.now(UTC))
+        await message.reply_text(
+            f"{LOGIN_TEXT}\n{self.settings.public_url}/signin#{token}",
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
+        )
+        log.info("bot.login_link_sent")
 
     async def week(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         with session_scope(self.sessions) as session:
@@ -375,6 +401,7 @@ def build_bot(
     application.add_handler(CommandHandler(["start", "help"], handlers.help, filters=allowed))
     application.add_handler(CommandHandler("today", handlers.today, filters=allowed))
     application.add_handler(CommandHandler("week", handlers.week, filters=allowed))
+    application.add_handler(CommandHandler("login", handlers.login, filters=allowed))
     progress_handlers = progress_ui.ProgressHandlers(settings, sessions)
     application.add_handler(CommandHandler("progress", progress_handlers.command, filters=allowed))
     application.add_handler(CommandHandler("review", progress_handlers.review, filters=allowed))

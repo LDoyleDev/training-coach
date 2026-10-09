@@ -74,6 +74,19 @@
         "title": "ExerciseView",
         "type": "object"
       },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
       "Health": {
         "properties": {
           "bot_enabled": {
@@ -95,6 +108,19 @@
           "bot_enabled"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "Me": {
+        "properties": {
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "Me",
         "type": "object"
       },
       "PlanView": {
@@ -129,6 +155,21 @@
           "volume_target_max"
         ],
         "title": "PlanView",
+        "type": "object"
+      },
+      "Redeem": {
+        "properties": {
+          "token": {
+            "maxLength": 100,
+            "minLength": 20,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "Redeem",
         "type": "object"
       },
       "SessionView": {
@@ -187,6 +228,46 @@
         "title": "SessionView",
         "type": "object"
       },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
       "VolumeView": {
         "properties": {
           "group": {
@@ -213,6 +294,77 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/auth/me": {
+      "get": {
+        "operationId": "me_api_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/redeem": {
+      "post": {
+        "description": "Exchange a one-time link from the bot for a session cookie.",
+        "operationId": "redeem_api_auth_redeem_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Redeem"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redeem",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/signout": {
+      "post": {
+        "description": "End this browser's session. Harmless without one.",
+        "operationId": "signout_api_auth_signout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Signout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/plan": {
       "get": {
         "operationId": "get_plan_api_plan_get",

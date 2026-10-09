@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     # Scheduling
     timezone: str = "Europe/Berlin"
 
+    # The web app's public address (https://coach.example.com). Sign-in links and the
+    # passkey domain come from it (ADR-0036); web sign-in is off until it is set.
+    public_url: str | None = None
+
     @field_validator("timezone")
     @classmethod
     def _valid_timezone(cls, value: str) -> str:
@@ -54,6 +58,16 @@ class Settings(BaseSettings):
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError(f"unknown timezone: {value}") from exc
         return value
+
+    @field_validator("public_url")
+    @classmethod
+    def _https(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        local = value.startswith(("http://localhost", "http://127.0.0.1"))
+        if not (value.startswith("https://") or local):
+            raise ValueError("public_url must be https (or http://localhost for development)")
+        return value.rstrip("/")
 
     @property
     def tz(self) -> ZoneInfo:
