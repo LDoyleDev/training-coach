@@ -272,8 +272,8 @@ export interface paths {
         };
         /**
          * Today
-         * @description Today's session in work order. ``first`` names pairs to start with their second
-         *     exercise ("Do this one first").
+         * @description Today's session in work order, with any pairs swapped as kept in the progress: a swap
+         *     or un-swap is a PUT to /progress, so the server is the one place it lives (review of #129).
          */
         get: operations["today_api_session_today_get"];
         put?: never;
@@ -987,9 +987,7 @@ export interface operations {
     };
     today_api_session_today_get: {
         parameters: {
-            query?: {
-                first?: number[];
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -1003,15 +1001,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TodayView"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

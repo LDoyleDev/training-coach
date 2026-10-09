@@ -1301,24 +1301,8 @@
     },
     "/api/session/today": {
       "get": {
-        "description": "Today's session in work order. ``first`` names pairs to start with their second\nexercise (\"Do this one first\").",
+        "description": "Today's session in work order, with any pairs swapped as kept in the progress: a swap\nor un-swap is a PUT to /progress, so the server is the one place it lives (review of #129).",
         "operationId": "today_api_session_today_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "first",
-            "required": false,
-            "schema": {
-              "default": [],
-              "items": {
-                "type": "integer"
-              },
-              "maxItems": 10,
-              "title": "First",
-              "type": "array"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -1329,16 +1313,6 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
         "summary": "Today",

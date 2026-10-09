@@ -45,10 +45,25 @@ def test_today_comes_in_work_order(signed_in: TestClient) -> None:
     assert calf["summary"].startswith("Ball of one foot")
 
 
-def test_a_pair_can_be_swapped(signed_in: TestClient) -> None:
-    body = signed_in.get("/api/session/today", params={"first": [1]}).json()["session"]
-    items = body["items"]
-    assert items[body["order"][0]["item"]]["slug"] == "tibialis-raise"
+def _first_slug(client: TestClient) -> str:
+    session = client.get("/api/session/today").json()["session"]
+    slug: str = session["items"][session["order"][0]["item"]]["slug"]
+    return slug
+
+
+def test_a_pair_can_be_swapped_and_swapped_back(signed_in: TestClient) -> None:
+    """The swap lives in the kept progress, so an un-swap sticks too (review of #129)."""
+    template = signed_in.get("/api/session/today").json()["session"]["template_id"]
+
+    def swap(first: list[int]) -> None:
+        body = {"template_id": template, "position": 0, "first": first, "sets": []}
+        assert signed_in.put("/api/session/progress", json=body).status_code == 204
+
+    assert _first_slug(signed_in) == "jump-squat"
+    swap([1])
+    assert _first_slug(signed_in) == "tibialis-raise"
+    swap([])
+    assert _first_slug(signed_in) == "jump-squat"
 
 
 def test_today_needs_a_signed_in_browser(engine: Engine) -> None:

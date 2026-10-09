@@ -1,9 +1,9 @@
 """Today's guided session for the web app (D1, #117). Owner-only."""
 
 from datetime import UTC, date, datetime
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -130,17 +130,13 @@ class PendingView(BaseModel):
 
 
 @router.get("/today", response_model=TodayView)
-def today(
-    request: Request,
-    user: Owner,
-    first: Annotated[list[int], Query(max_length=10)] = [],  # noqa: B006 - FastAPI query default
-) -> TodayView:
-    """Today's session in work order. ``first`` names pairs to start with their second
-    exercise ("Do this one first")."""
+def today(request: Request, user: Owner) -> TodayView:
+    """Today's session in work order, with any pairs swapped as kept in the progress: a swap
+    or un-swap is a PUT to /progress, so the server is the one place it lives (review of #129)."""
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         kept = guided.kept(session, on)
-        swapped = set(first) if first else set(kept.first if kept is not None else ())
+        swapped = set(kept.first) if kept is not None else set()
         plan = guided.today(session, on, settings.tz, swapped)
     if plan is None:
         return TodayView(session=None)
