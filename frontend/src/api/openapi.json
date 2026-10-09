@@ -74,6 +74,108 @@
         "title": "DeviceView",
         "type": "object"
       },
+      "DoneView": {
+        "description": "A confirmed set; ``right`` only for one-sided exercises (empty: same as left).",
+        "properties": {
+          "item": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Item",
+            "type": "integer"
+          },
+          "left": {
+            "maximum": 3600.0,
+            "minimum": 0.0,
+            "title": "Left",
+            "type": "integer"
+          },
+          "right": {
+            "anyOf": [
+              {
+                "maximum": 3600.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Right"
+          },
+          "set_no": {
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Set No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item",
+          "set_no",
+          "left"
+        ],
+        "title": "DoneView",
+        "type": "object"
+      },
+      "EarnedView": {
+        "properties": {
+          "best_set": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Set"
+          },
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "next_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Step"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          },
+          "unit": {
+            "enum": [
+              "reps",
+              "seconds",
+              "minutes"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exercise",
+          "unit",
+          "best_set",
+          "total",
+          "next_step"
+        ],
+        "title": "EarnedView",
+        "type": "object"
+      },
       "ExerciseKind": {
         "description": "How an exercise is measured.",
         "enum": [
@@ -345,6 +447,61 @@
         "title": "ItemView",
         "type": "object"
       },
+      "KeepBody": {
+        "properties": {
+          "first": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 10,
+            "title": "First",
+            "type": "array"
+          },
+          "position": {
+            "maximum": 500.0,
+            "minimum": 0.0,
+            "title": "Position",
+            "type": "integer"
+          },
+          "revision": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/DoneView"
+            },
+            "maxItems": 200,
+            "title": "Sets",
+            "type": "array"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "position"
+        ],
+        "title": "KeepBody",
+        "type": "object"
+      },
+      "KeptView": {
+        "properties": {
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "KeptView",
+        "type": "object"
+      },
       "Me": {
         "properties": {
           "user_id": {
@@ -395,6 +552,30 @@
         "title": "PasskeyView",
         "type": "object"
       },
+      "PendingView": {
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "session": {
+            "title": "Session",
+            "type": "string"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "session",
+          "sets"
+        ],
+        "title": "PendingView",
+        "type": "object"
+      },
       "PlanView": {
         "properties": {
           "sessions": {
@@ -429,6 +610,50 @@
         "title": "PlanView",
         "type": "object"
       },
+      "ProgressView": {
+        "properties": {
+          "first": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "First",
+            "type": "array"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "saved": {
+            "title": "Saved",
+            "type": "boolean"
+          },
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/DoneView"
+            },
+            "title": "Sets",
+            "type": "array"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "position",
+          "first",
+          "sets",
+          "saved",
+          "revision"
+        ],
+        "title": "ProgressView",
+        "type": "object"
+      },
       "Redeem": {
         "properties": {
           "token": {
@@ -442,6 +667,67 @@
           "token"
         ],
         "title": "Redeem",
+        "type": "object"
+      },
+      "SaveBody": {
+        "properties": {
+          "day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          }
+        },
+        "title": "SaveBody",
+        "type": "object"
+      },
+      "SavedView": {
+        "properties": {
+          "already_saved": {
+            "title": "Already Saved",
+            "type": "boolean"
+          },
+          "earned": {
+            "items": {
+              "$ref": "#/components/schemas/EarnedView"
+            },
+            "title": "Earned",
+            "type": "array"
+          },
+          "next_session": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Session"
+          },
+          "stretching": {
+            "title": "Stretching",
+            "type": "boolean"
+          },
+          "workout_id": {
+            "title": "Workout Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "workout_id",
+          "already_saved",
+          "next_session",
+          "earned",
+          "stretching"
+        ],
+        "title": "SavedView",
         "type": "object"
       },
       "SessionView": {
@@ -548,8 +834,18 @@
         "type": "object"
       },
       "TodayView": {
-        "description": "``session`` is empty when nothing planned is left today (done or rested).",
+        "description": "``session`` is empty when nothing planned is left today (done or rested); ``progress``\nis where the person left off, to resume.",
         "properties": {
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProgressView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "session": {
             "anyOf": [
               {
@@ -924,32 +1220,52 @@
         ]
       }
     },
-    "/api/session/today": {
+    "/api/session/pending": {
       "get": {
-        "description": "Today's session in work order. ``first`` names pairs to start with their second\nexercise (\"Do this one first\").",
-        "operationId": "today_api_session_today_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "first",
-            "required": false,
-            "schema": {
-              "default": [],
-              "items": {
-                "type": "integer"
-              },
-              "maxItems": 10,
-              "title": "First",
-              "type": "array"
-            }
-          }
-        ],
+        "description": "Earlier days' guided sessions with sets but never saved, to offer saving them.",
+        "operationId": "pending_api_session_pending_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TodayView"
+                  "items": {
+                    "$ref": "#/components/schemas/PendingView"
+                  },
+                  "title": "Response Pending Api Session Pending Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pending",
+        "tags": [
+          "session"
+        ]
+      }
+    },
+    "/api/session/progress": {
+      "put": {
+        "description": "Keep where the person is in today's session, so it resumes on any device. 409 when\nanother device moved on since this browser's ``revision`` (reload and carry on).",
+        "operationId": "keep_api_session_progress_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeepBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeptView"
                 }
               }
             },
@@ -964,6 +1280,70 @@
               }
             },
             "description": "Validation Error"
+          }
+        },
+        "summary": "Keep",
+        "tags": [
+          "session"
+        ]
+      }
+    },
+    "/api/session/save": {
+      "post": {
+        "description": "Save the guided session as a workout: today's, or an earlier day's left unsaved.",
+        "operationId": "save_api_session_save_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save",
+        "tags": [
+          "session"
+        ]
+      }
+    },
+    "/api/session/today": {
+      "get": {
+        "description": "Today's session in work order, with any pairs swapped as kept in the progress: a swap\nor un-swap is a PUT to /progress, so the server is the one place it lives.",
+        "operationId": "today_api_session_today_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayView"
+                }
+              }
+            },
+            "description": "Successful Response"
           }
         },
         "summary": "Today",

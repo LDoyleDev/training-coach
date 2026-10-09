@@ -379,3 +379,9 @@ def _save_past(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stal
     later = session.scalar(select(Workout.id).where(Workout.local_date > confirmed.on).limit(1))
     moved = caught_up(_order(session), template.id) if template and later is None else None
     return _commit(session, workout, confirmed, moved)
+
+
+def strength_on(session: Session, on: date, tz: ZoneInfo, template: SessionTemplate | None) -> bool:
+    """Whether a log on ``on`` for ``template`` is filed under the strength prescription
+    (ADR-0028): what a draft must carry, for drafts built elsewhere (the guided session)."""
+    return _strength(session, on, tz, template)
