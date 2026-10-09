@@ -1,6 +1,6 @@
 # ADR-0034: Plan changes keep history per exercise
 
-- Status: Accepted (retired exercises, baseline label; plan versions follow in #107)
+- Status: Accepted
 - Date: 2026-10-09
 - Deciders: Liam (#107)
 
@@ -32,7 +32,15 @@ way to leave `/progress`, and nothing marks when the plan changed.
   from. The morning message and session detail name the baseline exercises in one line above
   the list (the list stays as it is, so it still reads back as a log); the web session marks
   them. A new ladder step is a baseline too, since history is per step.
-- Still to come in #107: a plan version on every workout.
+- **Plan versions.** `plan.toml` lists `[[versions]]` (a date and a name), oldest first; each is
+  in force from its date until the next. The first plan is "Original plan" from 29 Sep 2026, the
+  rebuild (ADR-0017) from 1 Oct. The seed stores them in `plan_versions`, matched by date.
+  Every workout stores the version in force on its own date (`workouts.plan_version_id`), so a
+  past day logged late (ADR-0033) gets the version of that day. It is set in the INSERT by one
+  ORM hook, so no way of saving a workout can forget it; the seed fills in workouts saved
+  before their version existed. A version that workouts record keeps its date (its name can
+  change); one nothing records can be removed. Nothing reads the version yet: it is there for
+  the dashboard's plan-change markers and the weekly review.
 
 ## Options considered
 

@@ -14,6 +14,18 @@
 # compete for the same muscles, so one rests while the other works. The order above applies to
 # each pair's first exercise; the second may be a small muscle filling that lift's rest (ADR-0031).
 
+# Plan versions, oldest first: each is in force from `since` until the next (ADR-0034). Every
+# workout records the version in force on its date. Add a version when the plan changes; a
+# version's date can't change once workouts record it, its name can.
+
+[[versions]]
+since = 2026-09-29
+name = "Original plan"
+
+[[versions]]
+since = 2026-10-01
+name = "Huberman rebuild (ADR-0017)"
+
 # ------------------------------------------------------------------- legs
 
 [[exercises]]

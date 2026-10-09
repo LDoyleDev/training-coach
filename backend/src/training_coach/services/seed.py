@@ -6,18 +6,21 @@ plan file has been edited:
 - exercises, ladder steps and sessions are matched by slug / position and updated in place;
   a ladder step that history uses keeps its name unless the exercise lists a rename;
 - new ones are added; nothing is deleted (removing things is a deliberate migration);
-- progress is never reset: existing exercise state, queue pointer and settings are kept.
+- progress is never reset: existing exercise state, queue pointer and settings are kept;
+- plan versions are matched by date; one that workouts record can't be removed or re-dated,
+  and workouts without a version get the one in force on their date (ADR-0034).
 """
 
 import tomllib
 from dataclasses import dataclass
+from datetime import date
 from functools import lru_cache
 from importlib.resources import files
 from typing import Literal, Self
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import (
@@ -26,11 +29,14 @@ from training_coach.db.models import (
     ExerciseState,
     LadderStep,
     PlanState,
+    PlanVersion,
     SessionTemplate,
     SetLog,
     TemplateItem,
     User,
     UserSettings,
+    Workout,
+    version_on,
 )
 from training_coach.db.session import ALL_USERS
 from training_coach.domain.enums import ExerciseKind
@@ -137,13 +143,24 @@ class StretchSeed(_Strict):
         return Stretch(self.slug, self.name, frozenset(self.muscles), self.per_side, self.cue)
 
 
+class VersionSeed(_Strict):
+    """A version of the plan and the day it took over (#107, ADR-0034)."""
+
+    since: date
+    name: str = Field(min_length=1, max_length=120)
+
+
 class PlanSeed(_Strict):
     exercises: list[ExerciseSeed] = Field(min_length=1)
     sessions: list[SessionSeed] = Field(min_length=1)
     stretches: list[StretchSeed] = Field(default_factory=list)
+    versions: list[VersionSeed] = Field(default_factory=list)  # oldest first
 
     @model_validator(mode="after")
     def _references(self) -> Self:
+        days = [v.since for v in self.versions]
+        if days != sorted(set(days)):
+            raise ValueError("plan versions must be in date order, one per day")
         slugs = [e.slug for e in self.exercises]
         if len(slugs) != len(set(slugs)):
             raise ValueError("duplicate exercise slug")
@@ -259,6 +276,47 @@ def _preflight(session: Session, plan: PlanSeed, exercises: dict[str, Exercise])
                 )
 
 
+def _versions_preflight(session: Session, plan: PlanSeed) -> None:
+    """A version workouts record stays: removing or re-dating it would rewrite their history."""
+    kept = {v.since for v in plan.versions}
+    recorded = session.execute(
+        select(PlanVersion.since, PlanVersion.name)
+        .join(Workout, Workout.plan_version_id == PlanVersion.id)
+        .distinct(),
+        execution_options={ALL_USERS: True},
+    )
+    for since, name in recorded:
+        if since not in kept:
+            raise SeedError(
+                f"plan version {name!r} (since {since}) is recorded on workouts but not in "
+                "plan.toml; keep it there (its name can change, its date can't)"
+            )
+
+
+def _apply_versions(session: Session, plan: PlanSeed, result: SeedResult) -> None:
+    existing = {v.since: v for v in session.scalars(select(PlanVersion))}
+    for seed in plan.versions:
+        version = existing.pop(seed.since, None)
+        if version is None:
+            session.add(PlanVersion(since=seed.since, name=seed.name))
+            result.created += 1
+        else:
+            _set(version, result, name=seed.name)
+    for version in existing.values():  # unrecorded (the preflight checked)
+        session.delete(version)
+        result.deleted += 1
+    session.flush()
+    # Workouts saved before their version existed get the one in force on their date.
+    on_date = version_on(Workout.local_date)
+    filled = session.execute(
+        update(Workout)
+        .where(Workout.plan_version_id.is_(None), on_date.is_not(None))
+        .values(plan_version_id=on_date),
+        execution_options={ALL_USERS: True},
+    )
+    result.updated += getattr(filled, "rowcount", 0)  # an UPDATE gives a CursorResult
+
+
 def _set(obj: object, result: SeedResult, **values: object) -> None:
     """Assign attributes, counting an update only when something actually changes."""
     dirty = False
@@ -282,6 +340,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
 
     exercises = {e.slug: e for e in session.scalars(select(Exercise))}
     _preflight(session, plan, exercises)
+    _versions_preflight(session, plan)
     for seed in plan.exercises:
         exercise = exercises.get(seed.slug)
         if exercise is None:
@@ -385,6 +444,8 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 template.items.remove(item)  # delete-orphan: removed from the plan
                 result.deleted += 1
     session.flush()
+
+    _apply_versions(session, plan, result)
 
     first = templates[plan.sessions[0].slug]
     for user_id in people:

@@ -14,6 +14,7 @@ from training_coach.db.models import (
     ExerciseState,
     LadderStep,
     PlanState,
+    PlanVersion,
     SessionTemplate,
     SetLog,
     TemplateItem,
@@ -573,3 +574,85 @@ def test_every_exercise_in_a_session_says_how_to_do_it() -> None:
     used = {item.exercise for session in plan.sessions for item in session.items}
     missing = sorted(e.slug for e in plan.exercises if e.slug in used and not e.summary)
     assert missing == []
+
+
+# ------------------------------------------------------------------ plan versions (ADR-0034)
+
+VERSIONS = """
+[[versions]]
+since = 2026-09-29
+name = "Original plan"
+
+[[versions]]
+since = 2026-10-01
+name = "Rebuild"
+"""
+
+
+def _workout(session: Session, on: date) -> Workout:
+    workout = Workout(local_date=on, template_id=None, status=WorkoutStatus.DONE)
+    session.add(workout)
+    session.flush()
+    session.refresh(workout)
+    return workout
+
+
+def _version(session: Session, workout: Workout) -> str | None:
+    if workout.plan_version_id is None:
+        return None
+    return session.get_one(PlanVersion, workout.plan_version_id).name
+
+
+def test_the_bundled_plan_starts_with_the_original_and_the_rebuild() -> None:
+    versions = [(v.since, v.name) for v in load_plan().versions][:2]
+    assert versions == [
+        (date(2026, 9, 29), "Original plan"),
+        (date(2026, 10, 1), "Huberman rebuild (ADR-0017)"),
+    ]
+
+
+def test_a_workout_records_the_version_in_force_on_its_date(session: Session) -> None:
+    apply_seed(session, load_plan(VERSIONS + MINI_PLAN))
+    # A past day logged late gets the version of its own date, not today's.
+    assert _version(session, _workout(session, date(2026, 9, 30))) == "Original plan"
+    assert _version(session, _workout(session, date(2026, 10, 1))) == "Rebuild"
+    assert _version(session, _workout(session, date(2026, 10, 9))) == "Rebuild"
+    assert _version(session, _workout(session, date(2026, 9, 1))) is None  # before any
+
+
+def test_the_seed_fills_in_workouts_saved_before_their_version(session: Session) -> None:
+    apply_seed(session, load_plan(MINI_PLAN))
+    early, late = _workout(session, date(2026, 9, 30)), _workout(session, date(2026, 10, 2))
+    before = _workout(session, date(2026, 9, 1))
+    assert _version(session, early) is None
+    result = apply_seed(session, load_plan(VERSIONS + MINI_PLAN))
+    assert result.updated == 2
+    for workout in (early, late, before):
+        session.refresh(workout)
+    assert (_version(session, early), _version(session, late)) == ("Original plan", "Rebuild")
+    assert _version(session, before) is None
+    assert not apply_seed(session, load_plan(VERSIONS + MINI_PLAN)).changed
+
+
+def test_a_recorded_version_keeps_its_date_but_can_be_renamed(session: Session) -> None:
+    apply_seed(session, load_plan(VERSIONS + MINI_PLAN))
+    _workout(session, date(2026, 9, 30))
+    renamed = VERSIONS.replace("Original plan", "First plan")
+    assert apply_seed(session, load_plan(renamed + MINI_PLAN)).updated == 1
+    redated = renamed.replace("2026-09-29", "2026-09-28")
+    with pytest.raises(SeedError, match=re.escape("'First plan' (since 2026-09-29) is recorded")):
+        apply_seed(session, load_plan(redated + MINI_PLAN))
+
+
+def test_an_unrecorded_version_can_be_removed(session: Session) -> None:
+    apply_seed(session, load_plan(VERSIONS + MINI_PLAN))
+    only_original = VERSIONS.split("[[versions]]")[1]
+    result = apply_seed(session, load_plan("[[versions]]" + only_original + MINI_PLAN))
+    assert result.deleted == 1
+    assert session.scalars(select(PlanVersion.name)).all() == ["Original plan"]
+
+
+def test_versions_must_be_in_date_order() -> None:
+    swapped = VERSIONS.replace("2026-09-29", "2026-10-02")
+    with pytest.raises(ValidationError, match="in date order"):
+        load_plan(swapped + MINI_PLAN)
