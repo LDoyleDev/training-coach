@@ -1,8 +1,10 @@
 from dataclasses import replace
-from datetime import UTC, date, datetime, timedelta
+from collections.abc import Iterator
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
+import time_machine
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -24,6 +26,14 @@ from training_coach.services.seed import apply_seed, load_plan
 BERLIN = ZoneInfo("Europe/Berlin")
 NL = chr(10)
 TODAY = local_date(datetime.now(UTC), BERLIN)  # events are stamped with the real clock
+
+
+@pytest.fixture(autouse=True)
+def _midday() -> Iterator[None]:
+    """Events are stamped with the clock: keep it at noon on TODAY, so a run that crosses
+    midnight can't stamp them on the next day (it did, 2026-10-10)."""
+    with time_machine.travel(datetime.combine(TODAY, time(12), BERLIN), tick=True):
+        yield
 
 
 @pytest.fixture
