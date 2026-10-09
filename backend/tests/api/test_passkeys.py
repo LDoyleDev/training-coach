@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 import time_machine
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, delete, select
 
 from tests.passkey_device import Device
 from training_coach.api.app import create_app
@@ -26,7 +26,10 @@ RP_ID = "coach.example.com"
 @pytest.fixture
 def client(engine: Engine) -> Iterator[TestClient]:
     settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
-    with TestClient(create_app(settings), base_url=ORIGIN) as test_client:
+    # The tunnel reaches the app from a private address (the Docker bridge).
+    with TestClient(
+        create_app(settings), base_url=ORIGIN, client=("172.17.0.1", 50000)
+    ) as test_client:
         yield test_client
 
 
@@ -246,3 +249,17 @@ def test_a_refusal_also_clears_the_challenge_cookie(client: TestClient) -> None:
     refused = client.post("/api/auth/passkeys/sign-in", json={"credential": {"id": "x"}})
     assert refused.status_code == 401
     assert 'tc_passkey=""' in refused.headers["set-cookie"]
+
+
+def test_a_forwarded_address_counts_only_from_the_tunnel(engine: Engine) -> None:
+    """A caller reaching the app directly can't dodge the cap with a new header each time."""
+    settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+    # 8.8.8.8: a public peer (documentation ranges count as private in Python's ipaddress).
+    for peer in ("8.8.8.8", "testclient"):
+        with TestClient(create_app(settings), base_url=ORIGIN, client=(peer, 50000)) as direct:
+            for n in range(passkeys.MAX_OPEN_PER_CLIENT):
+                assert _open(direct, f"198.51.100.{n}") == 200
+            assert _open(direct, "198.51.100.99") == 429, peer  # all counted as the peer
+        with make_session_factory(engine)() as shared:
+            shared.execute(delete(PasskeyChallenge))
+            shared.commit()

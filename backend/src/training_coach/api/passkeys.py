@@ -6,6 +6,7 @@ browser's `navigator.credentials` (via @simplewebauthn/browser).
 """
 
 from datetime import UTC, datetime
+from ipaddress import ip_address
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
@@ -58,13 +59,25 @@ def _options(ceremony: passkeys.Ceremony) -> Response:
     return response
 
 
+def _trusted_peer(host: str) -> bool:
+    """Whether the connection comes from the tunnel's side: loopback, or a private address
+    (inside Docker the tunnel arrives from the bridge). Anyone else is the client itself."""
+    try:
+        address = ip_address(host)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_private
+
+
 def _client(request: Request) -> str:
-    """The caller's address. The app listens on the Pi only (127.0.0.1), so every request
-    comes through the Cloudflare tunnel, which sets CF-Connecting-IP to the real client."""
+    """The caller's address. Behind the Cloudflare tunnel, CF-Connecting-IP names the real
+    client; it is believed only from a trusted peer, so a caller reaching the app another way
+    can't invent a new address per request (review of #123)."""
+    peer = request.client.host if request.client is not None else "unknown"
     forwarded = request.headers.get("cf-connecting-ip")
-    if forwarded:
+    if forwarded and _trusted_peer(peer):
         return forwarded
-    return request.client.host if request.client is not None else "unknown"
+    return peer
 
 
 def _cleared() -> dict[str, str]:
