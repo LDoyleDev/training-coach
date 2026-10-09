@@ -22,7 +22,9 @@ from sqlalchemy import (
     Text,
     Time,
     UniqueConstraint,
+    event,
     false,
+    select,
     true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -82,6 +84,28 @@ class LadderStep(Base):
     cue: Mapped[str | None] = mapped_column(Text)
 
     exercise: Mapped[Exercise] = relationship(back_populates="ladder")
+
+
+class PlanVersion(Base):
+    """A version of the plan, in force from ``since`` until the next one (#107, ADR-0034).
+    Set by the seed from plan.toml; a workout records the version in force on its date."""
+
+    __tablename__ = "plan_versions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    since: Mapped[date] = mapped_column(Date, unique=True)
+    name: Mapped[str] = mapped_column(String(120))
+
+
+def version_on(day: Any) -> Any:
+    """SQL for the id of the plan version in force on ``day`` (a date or a date column)."""
+    return (
+        select(PlanVersion.id)
+        .where(PlanVersion.since <= day)
+        .order_by(PlanVersion.since.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
 
 
 class SessionTemplate(Base):
@@ -260,6 +284,11 @@ class Workout(Owned, Base):
     # Set when a confirmed text/voice log is saved: one token per draft, so a repeated Save
     # can never create a second workout or advance the queue twice (step 1-E).
     log_token: Mapped[str | None] = mapped_column(String(32), unique=True)
+    # The plan version in force on local_date (ADR-0034), set on insert; empty only when
+    # the plan has no versions yet (the seed fills those in once it has).
+    plan_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey("plan_versions.id", ondelete="RESTRICT"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     sets: Mapped[list["SetLog"]] = relationship(
@@ -268,6 +297,14 @@ class Workout(Owned, Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+
+
+@event.listens_for(Workout, "before_insert")
+def _plan_version(_mapper: object, _connection: object, workout: Workout) -> None:
+    """Every way a workout is saved (today, a past day, the guided session, a rest) gets the
+    plan version in force on its date, computed in the INSERT itself."""
+    if workout.plan_version_id is None:
+        workout.plan_version_id = version_on(workout.local_date)
 
 
 class SetLog(Owned, Base):
