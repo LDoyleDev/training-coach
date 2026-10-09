@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   fetchPending,
   fetchToday,
@@ -54,36 +54,49 @@ export default function SessionPage() {
   const [saved, setSaved] = useState<Saved | null>(null)
   const [busy, setBusy] = useState(false)
   const [first, setFirst] = useState<number[]>([]) // pairs started with their second exercise
-  const [restLeft, setRestLeft] = useState(0)
-  const [watch, setWatch] = useState<number | null>(null) // stopwatch seconds while running
+  // Clocks keep wall-clock times, not tick counts: a phone throttles timers while the screen
+  // is locked, which is exactly when someone rests. Each tick just reads the time again.
+  const [now, setNow] = useState(() => Date.now())
+  const [restUntil, setRestUntil] = useState(0)
+  const [watchFrom, setWatchFrom] = useState<number | null>(null) // stopwatch start while running
   const [pending, setPending] = useState<Pending[]>([])
+  const [saving, setSaving] = useState<string[]>([]) // earlier days being saved
 
-  // The rest countdown: one tick a second; at zero the phone buzzes and the next set shows.
-  const rest = useRef(0)
-  const startRest = (seconds: number) => {
-    rest.current = seconds
-    setRestLeft(seconds)
-  }
+  const running = watchFrom !== null
+  const resting = stage === 'rest'
   useEffect(() => {
-    if (stage !== 'rest') return
-    const timer = window.setInterval(() => {
-      rest.current = Math.max(0, rest.current - 1)
-      setRestLeft(rest.current)
-      if (rest.current === 0) {
+    if (!resting && !running) return
+    const tick = () => {
+      const at = Date.now()
+      setNow(at)
+      // The rest is over: the phone buzzes and the next set shows.
+      if (resting && at >= restUntil) {
         navigator.vibrate?.(300)
         setStage('set')
       }
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [stage])
+    }
+    const timer = window.setInterval(tick, 250)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', tick)
+    }
+  }, [resting, running, restUntil])
 
-  // The stopwatch for timed exercises, counting while it runs.
-  const running = watch !== null
-  useEffect(() => {
-    if (!running) return
-    const timer = window.setInterval(() => setWatch((s) => (s === null ? s : s + 1)), 1000)
-    return () => window.clearInterval(timer)
-  }, [running])
+  const restLeft = Math.max(0, Math.ceil((restUntil - now) / 1000))
+  const startRest = (seconds: number) => {
+    const at = Date.now()
+    setNow(at)
+    setRestUntil(at + seconds * 1000)
+  }
+
+  // The stopwatch for timed exercises.
+  const watch = watchFrom === null ? null : Math.max(0, Math.floor((now - watchFrom) / 1000))
+  const startWatch = () => {
+    const at = Date.now()
+    setNow(at)
+    setWatchFrom(at)
+  }
 
   useEffect(() => {
     fetchPending()
@@ -150,14 +163,16 @@ export default function SessionPage() {
   const change = (v: Value) => setValues({ ...values, [key(step.item, step.set_no)]: v })
 
   const confirm = async () => {
-    const nextValues = { ...values, [key(step.item, step.set_no)]: value }
+    // Confirming with the clock running takes its reading.
+    const done = watch === null ? value : { ...value, left: watch, right: watch }
+    const nextValues = { ...values, [key(step.item, step.set_no)]: done }
     const next = Math.max(position + 1, furthest) // a corrected set returns to where you were
     if (await keep(next, nextValues)) {
       setNote(null)
       setValues(nextValues)
       setPosition(next)
       setFurthest(next)
-      setWatch(null)
+      setWatchFrom(null)
       if (next >= total) setStage('check')
       else {
         startRest(session.rest_seconds)
@@ -184,7 +199,7 @@ export default function SessionPage() {
   /** Moving to another set or screen stops the clock: it belongs to the set it started on. */
   const goTo = (nextStage: Stage, nextPosition: number = position) => {
     setNote(null)
-    setWatch(null)
+    setWatchFrom(null)
     setPosition(nextPosition)
     setStage(nextStage)
   }
@@ -192,10 +207,12 @@ export default function SessionPage() {
   const stopWatch = () => {
     // Both sides get the time: a one-sided timed hold is timed per side, the same each side.
     if (watch !== null) change({ ...value, left: watch, right: watch })
-    setWatch(null)
+    setWatchFrom(null)
   }
 
   const saveEarlier = async (day: Pending) => {
+    if (saving.includes(day.day)) return
+    setSaving((days) => [...days, day.day])
     try {
       const result = await saveSession(day.day)
       setNote(
@@ -203,9 +220,11 @@ export default function SessionPage() {
           ? `${day.session} couldn't be saved: that day changed.`
           : `Saved ${day.session} for ${day.day}.`,
       )
-      setPending(pending.filter((p) => p.day !== day.day)) // settled either way
+      setPending((days) => days.filter((p) => p.day !== day.day)) // settled either way
     } catch {
       setNote("Couldn't save. Check your connection and try again.") // still offered
+    } finally {
+      setSaving((days) => days.filter((d) => d !== day.day))
     }
   }
 
@@ -240,7 +259,12 @@ export default function SessionPage() {
           {pending.map((day) => (
             <p key={day.day} className={card}>
               {day.session} on {day.day} wasn't saved ({day.sets} sets).{' '}
-              <button type="button" className={secondary} onClick={() => saveEarlier(day)}>
+              <button
+                type="button"
+                className={secondary}
+                disabled={saving.includes(day.day)}
+                onClick={() => saveEarlier(day)}
+              >
                 Save it
               </button>
             </p>
@@ -303,11 +327,7 @@ export default function SessionPage() {
               <span aria-live="polite" className="text-6xl font-extrabold">
                 {running ? watch : value.left} s
               </span>
-              <button
-                type="button"
-                className={primary}
-                onClick={running ? stopWatch : () => setWatch(0)}
-              >
+              <button type="button" className={primary} onClick={running ? stopWatch : startWatch}>
                 {running ? 'Stop' : 'Start clock'}
               </button>
             </div>

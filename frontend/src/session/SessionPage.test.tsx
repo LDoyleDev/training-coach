@@ -348,3 +348,62 @@ test('leaving stops a running clock', async () => {
   expect(screen.getByText('30 s')).toBeInTheDocument() // the target again, not a running clock
   expect(screen.getByRole('button', { name: 'Start clock' })).toBeInTheDocument()
 })
+
+const HANG: Guided = {
+  ...SESSION,
+  items: [{ ...SESSION.items[0], name: 'Dead hang', unit: 'seconds', pair: null, targets: [30] }],
+  order: [{ item: 0, set_no: 1, target: 30 }],
+}
+
+test('the stopwatch keeps time while the screen is locked', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  serve({ today: { session: HANG, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Start clock')
+  // Locked: the clock moves on but no timer fires; unlocking reads the time again.
+  act(() => {
+    vi.setSystemTime(Date.now() + 50_000)
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  expect(screen.getByText('50 s')).toBeInTheDocument()
+})
+
+test('the rest ends on time after a locked screen', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  serve()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Confirm set')
+  expect(await screen.findByText('1:00')).toBeInTheDocument()
+  act(() => {
+    vi.setSystemTime(Date.now() + 61_000)
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
+})
+
+test('confirming with the clock running takes its reading', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const sent = serve({ today: { session: HANG, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Start clock')
+  act(() => vi.advanceTimersByTime(37_000))
+  click('Confirm set')
+  await screen.findByRole('heading', { name: 'Check and save' })
+  expect(sent['PUT /api/session/progress']?.[0]).toMatchObject({
+    sets: [{ item: 0, set_no: 1, left: 37, right: null }],
+  })
+})
+
+test('a double tap saves an earlier day once', async () => {
+  const sent = serve({ pending: [{ day: '2026-10-11', session: 'Torso + neck', sets: 5 }] })
+  render(<SessionPage />)
+  const button = await screen.findByRole('button', { name: 'Save it' })
+  fireEvent.click(button)
+  fireEvent.click(button)
+  expect(await screen.findByText(/Saved Torso \+ neck/)).toBeInTheDocument()
+  expect(sent['POST /api/session/save']).toHaveLength(1)
+  expect(screen.queryByRole('button', { name: 'Save it' })).not.toBeInTheDocument()
+})
