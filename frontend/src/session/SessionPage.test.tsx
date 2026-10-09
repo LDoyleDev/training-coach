@@ -24,6 +24,7 @@ const SESSION: Guided = {
       per_side: false,
       pair: 1,
       targets: [6, 6],
+      baseline: true,
     },
     {
       slug: 'calf-raise',
@@ -35,6 +36,7 @@ const SESSION: Guided = {
       per_side: true,
       pair: 1,
       targets: [15],
+      baseline: false,
     },
   ],
   order: [
@@ -406,4 +408,13 @@ test('a double tap saves an earlier day once', async () => {
   expect(await screen.findByText(/Saved Torso \+ neck/)).toBeInTheDocument()
   expect(sent['POST /api/session/save']).toHaveLength(1)
   expect(screen.queryByRole('button', { name: 'Save it' })).not.toBeInTheDocument()
+})
+
+test('a baseline exercise says so on the overview and its set', async () => {
+  serve()
+  render(<SessionPage />)
+  expect(await screen.findByText(/Bodyweight · baseline/)).toBeInTheDocument()
+  expect(screen.queryByText(/On a step · baseline/)).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Start session' }))
+  expect(screen.getByText(/Baseline: first time at this step/)).toBeInTheDocument()
 })

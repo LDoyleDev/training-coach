@@ -44,6 +44,7 @@ class ItemView(BaseModel):
     per_side: bool
     pair: int | None
     targets: list[int]
+    baseline: bool  # first session at this step (ADR-0034)
 
 
 class SetView(BaseModel):
@@ -180,6 +181,7 @@ def today(request: Request, user: Owner) -> TodayView:
                     per_side=i.per_side,
                     pair=i.pair,
                     targets=list(i.targets),
+                    baseline=i.baseline,
                 )
                 for i in plan.items
             ],

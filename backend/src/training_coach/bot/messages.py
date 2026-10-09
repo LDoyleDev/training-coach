@@ -54,6 +54,19 @@ def _paired(items: tuple[ItemPlan, ...]) -> bool:
 
 
 WARM_UP = "Warm up for about 10 minutes first."
+BASELINE = (
+    "Baseline for {names}: the first session at this step. Aim for the targets and log what "
+    "you manage; the next targets grow from it."
+)
+
+
+def _baseline(items: tuple[ItemPlan, ...]) -> list[str]:
+    """A line naming the exercises whose targets this session sets (ADR-0034)."""
+    names = [item.exercise for item in items if item.baseline]
+    if not names:
+        return []
+    joined = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+    return [BASELINE.format(names=joined)]
 
 
 def today_text(today: Today) -> str:
@@ -65,6 +78,7 @@ def today_text(today: Today) -> str:
         lines.append(WARM_UP)
     if _paired(session.items):
         lines.append(WORK_DOWN)
+    lines += _baseline(session.items)
     lines.append("")
     lines += work_list(session.items)
     if session.optional:
@@ -90,7 +104,8 @@ def session_detail_text(plan: SessionPlan) -> str:
     ]
     if cues:
         lines += ["", "How to do them:", *cues]
-    lines += ["", WORK_DOWN if _paired(plan.items) else "Work down the list.", ""]
+    lines += ["", WORK_DOWN if _paired(plan.items) else "Work down the list."]
+    lines += [*_baseline(plan.items), ""]
     lines += work_list(plan.items)
     lines += ["", FILL_IN]
     return "\n".join(lines)

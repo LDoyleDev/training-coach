@@ -446,6 +446,8 @@ export interface components {
         };
         /** ItemView */
         ItemView: {
+            /** Baseline */
+            baseline: boolean;
             /** Cue */
             cue: string | null;
             /** Name */

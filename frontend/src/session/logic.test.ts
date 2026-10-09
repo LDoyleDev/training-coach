@@ -12,6 +12,7 @@ const item = (over: Partial<GuidedItem>): GuidedItem => ({
   per_side: false,
   pair: null,
   targets: [5],
+  baseline: false,
   ...over,
 })
 
