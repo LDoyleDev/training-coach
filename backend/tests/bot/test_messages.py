@@ -23,8 +23,9 @@ def _item(
     *,
     name: str = "Plank",
     pair: int | None = None,
+    baseline: bool = False,
 ) -> ItemPlan:
-    return ItemPlan(name, kind, "Knees", None, per_side, targets, pair)
+    return ItemPlan(name, kind, "Knees", None, per_side, targets, pair, baseline=baseline)
 
 
 @pytest.mark.parametrize(
@@ -131,3 +132,24 @@ def test_saved_text_says_one_set_not_one_sets() -> None:
     assert (
         log_saved_text(2, 1, "Torso", "Arms") == "Saved Torso: 1 exercise, 2 sets. Next up: Arms."
     )
+
+
+def test_baseline_exercises_are_named_once_above_the_list() -> None:
+    items = (
+        _item(ExerciseKind.REPS, (5,), name="Pull-up", baseline=True),
+        _item(ExerciseKind.REPS, (8,), name="Dip"),
+        _item(ExerciseKind.SECONDS, (30,), name="Hang", baseline=True),
+    )
+    plan = SessionPlan(1, "Torso", "Pull", False, items)
+    text = today_text(Today(plan, ()))
+    assert "Baseline for Pull-up and Hang: the first session at this step." in text
+    assert text.index("Baseline") < text.index("1. Pull-up")
+    assert "Baseline for Pull-up and Hang" in session_detail_text(plan)
+    # The list itself is untouched, so it still reads back as a log.
+    assert "1. Pull-up (Knees): 5" in text
+
+
+def test_no_baseline_line_once_every_exercise_has_history() -> None:
+    plan = SessionPlan(1, "Torso", "Pull", False, (_item(ExerciseKind.REPS, (5,)),))
+    assert "Baseline" not in today_text(Today(plan, ()))
+    assert "Baseline" not in session_detail_text(plan)

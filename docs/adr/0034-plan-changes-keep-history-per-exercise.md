@@ -1,6 +1,6 @@
 # ADR-0034: Plan changes keep history per exercise
 
-- Status: Accepted (retired exercises; plan versions and the baseline label follow in #107)
+- Status: Accepted (retired exercises, baseline label; plan versions follow in #107)
 - Date: 2026-10-09
 - Deciders: Liam (#107)
 
@@ -27,8 +27,12 @@ way to leave `/progress`, and nothing marks when the plan changed.
   - Weekly volume and bests: yes. Volume counts by muscle group, as for any exercise.
 - **No conversion between exercises.** Goblet squat reps say nothing reliable about jump squats
   or split squats. A new exercise starts from its own baseline, which takes one session.
-- Still to come in #107: a plan version on every workout, and a "baseline" label on a new
-  exercise's first prescription.
+- **Baseline label.** An exercise with no history at its current ladder step is a baseline:
+  its targets are the bottom of the range (ADR-0027) and this session sets where they grow
+  from. The morning message and session detail name the baseline exercises in one line above
+  the list (the list stays as it is, so it still reads back as a log); the web session marks
+  them. A new ladder step is a baseline too, since history is per step.
+- Still to come in #107: a plan version on every workout.
 
 ## Options considered
 

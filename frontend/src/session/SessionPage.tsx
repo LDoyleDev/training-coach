@@ -311,6 +311,11 @@ export default function SessionPage() {
               {item.name}
             </h1>
             <p className="text-[var(--slate)]">{item.step}</p>
+            {item.baseline && (
+              <p className="font-bold text-[var(--bell-ink)]">
+                Baseline: first time at this step. Do what you can; targets grow from it.
+              </p>
+            )}
           </div>
           {partner && !pairStarted && (
             <button
@@ -526,6 +531,7 @@ function Overview({
               <span className="text-sm text-[var(--slate)]">
                 {item.pair !== null ? `Pair ${item.pair} · ` : ''}
                 {item.step}
+                {item.baseline ? ' · baseline' : ''}
               </span>
             </span>
             <span className="font-bold whitespace-nowrap">

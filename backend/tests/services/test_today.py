@@ -121,6 +121,7 @@ def test_first_session_without_history_aims_for_the_bottom(seeded: Session) -> N
     assert pull_up.targets == (5, 5, 5)
     assert split_squat.per_side
     assert split_squat.targets == (8, 8)
+    assert (pull_up.baseline, split_squat.baseline) == (True, True)
     assert plan.logged_today == ()
 
 
@@ -137,6 +138,7 @@ def test_targets_step_up_from_the_last_session_at_the_same_step(seeded: Session)
     pull_up, split_squat = plan.session.items
     assert pull_up.targets == (9, 8, 7)
     assert split_squat.targets == (11, 11)  # weaker side counts: 9/9 -> +2 each
+    assert (pull_up.baseline, split_squat.baseline) == (False, False)
 
 
 def test_latest_session_wins(seeded: Session) -> None:

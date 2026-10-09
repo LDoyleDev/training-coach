@@ -367,6 +367,10 @@
       },
       "ItemView": {
         "properties": {
+          "baseline": {
+            "title": "Baseline",
+            "type": "boolean"
+          },
           "cue": {
             "anyOf": [
               {
@@ -442,7 +446,8 @@
           "unit",
           "per_side",
           "pair",
-          "targets"
+          "targets",
+          "baseline"
         ],
         "title": "ItemView",
         "type": "object"
