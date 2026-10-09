@@ -322,6 +322,29 @@ class HabitCheck(Owned, Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
+class SessionProgress(Owned, Base):
+    """A guided session in progress (D1, #117): where the person is and the sets confirmed so
+    far, kept on the server so it resumes on any device. ``token`` makes saving it idempotent
+    (it becomes the workout's ``log_token``)."""
+
+    __tablename__ = "session_progress"
+    __table_args__ = (UniqueConstraint("user_id", "local_date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    local_date: Mapped[date] = mapped_column(Date)
+    template_id: Mapped[int] = mapped_column(ForeignKey("session_templates.id", ondelete="CASCADE"))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    first: Mapped[list[int]] = mapped_column(JSON, default=list)  # pairs started second-first
+    # [{"item": 0, "set_no": 1, "left": 8, "right": null}], in the order confirmed
+    sets: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    token: Mapped[str] = mapped_column(String(32))
+    saved_workout_id: Mapped[int | None] = mapped_column(
+        ForeignKey("workouts.id", ondelete="SET NULL")
+    )
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
+
+
 # ----------------------------------------------------------------- web sign-in
 
 
@@ -414,6 +437,7 @@ __all__ = [
     "Passkey",
     "PasskeyChallenge",
     "PlanState",
+    "SessionProgress",
     "SessionTemplate",
     "SetLog",
     "TemplateItem",

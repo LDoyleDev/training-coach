@@ -203,6 +203,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/session/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pending
+         * @description Earlier days' guided sessions with sets but never saved, to offer saving them.
+         */
+        get: operations["pending_api_session_pending_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/session/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Keep
+         * @description Keep where the person is in today's session, so it resumes on any device.
+         */
+        put: operations["keep_api_session_progress_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/session/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save
+         * @description Save the guided session as a workout: today's, or an earlier day's left unsaved.
+         */
+        post: operations["save_api_session_save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session/today": {
         parameters: {
             query?: never;
@@ -283,6 +343,36 @@ export interface components {
              * Format: date-time
              */
             last_seen_at: string;
+        };
+        /**
+         * DoneView
+         * @description A confirmed set; ``right`` only for one-sided exercises (empty: same as left).
+         */
+        DoneView: {
+            /** Item */
+            item: number;
+            /** Left */
+            left: number;
+            /** Right */
+            right?: number | null;
+            /** Set No */
+            set_no: number;
+        };
+        /** EarnedView */
+        EarnedView: {
+            /** Best Set */
+            best_set: number | null;
+            /** Exercise */
+            exercise: string;
+            /** Next Step */
+            next_step: string | null;
+            /** Total */
+            total: number | null;
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "reps" | "seconds" | "minutes";
         };
         /**
          * ExerciseKind
@@ -377,6 +467,17 @@ export interface components {
              */
             unit: "reps" | "seconds" | "minutes";
         };
+        /** KeepBody */
+        KeepBody: {
+            /** First */
+            first?: number[];
+            /** Position */
+            position: number;
+            /** Sets */
+            sets?: components["schemas"]["DoneView"][];
+            /** Template Id */
+            template_id: number;
+        };
         /** Me */
         Me: {
             /** User Id */
@@ -396,6 +497,18 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** PendingView */
+        PendingView: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Session */
+            session: string;
+            /** Sets */
+            sets: number;
+        };
         /** PlanView */
         PlanView: {
             /** Sessions */
@@ -407,10 +520,41 @@ export interface components {
             /** Volume Target Min */
             volume_target_min: number;
         };
+        /** ProgressView */
+        ProgressView: {
+            /** First */
+            first: number[];
+            /** Position */
+            position: number;
+            /** Saved */
+            saved: boolean;
+            /** Sets */
+            sets: components["schemas"]["DoneView"][];
+            /** Template Id */
+            template_id: number;
+        };
         /** Redeem */
         Redeem: {
             /** Token */
             token: string;
+        };
+        /** SaveBody */
+        SaveBody: {
+            /** Day */
+            day?: string | null;
+        };
+        /** SavedView */
+        SavedView: {
+            /** Already Saved */
+            already_saved: boolean;
+            /** Earned */
+            earned: components["schemas"]["EarnedView"][];
+            /** Next Session */
+            next_session: string | null;
+            /** Stretching */
+            stretching: boolean;
+            /** Workout Id */
+            workout_id: number;
         };
         /** SessionView */
         SessionView: {
@@ -452,9 +596,11 @@ export interface components {
         };
         /**
          * TodayView
-         * @description ``session`` is empty when nothing planned is left today (done or rested).
+         * @description ``session`` is empty when nothing planned is left today (done or rested); ``progress``
+         *     is where the person left off, to resume.
          */
         TodayView: {
+            progress?: components["schemas"]["ProgressView"] | null;
             session: components["schemas"]["GuidedView"] | null;
         };
         /** ValidationError */
@@ -751,6 +897,90 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanView"];
+                };
+            };
+        };
+    };
+    pending_api_session_pending_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingView"][];
+                };
+            };
+        };
+    };
+    keep_api_session_progress_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeepBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_api_session_save_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
