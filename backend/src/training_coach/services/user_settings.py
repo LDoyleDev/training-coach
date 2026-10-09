@@ -23,6 +23,7 @@ class Prefs:
     review_time: time = DEFAULT_REVIEW
     blocks_started_on: date | None = None  # training blocks on since then (ADR-0028)
     habits_enabled: bool = True  # habit buttons in the evening message (D5)
+    protein_g: int | None = None  # daily protein target for the habit
 
 
 def load(session: Session) -> Prefs:
@@ -37,6 +38,7 @@ def load(session: Session) -> Prefs:
         row.review_time,
         row.blocks_started_on,
         row.habits_enabled,
+        row.protein_g,
     )
 
 
@@ -50,6 +52,7 @@ def update(
     paused: bool | None = None,
     blocks: bool | None = None,
     habits_enabled: bool | None = None,
+    protein_g: int | None = None,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
@@ -72,8 +75,9 @@ def update(
         paused=old.paused if paused is None else paused,
         blocks_started_on=started,
         habits_enabled=old.habits_enabled if habits_enabled is None else habits_enabled,
+        protein_g=old.protein_g if protein_g is None else protein_g,
     )
-    changes: dict[str, str | bool] = {}
+    changes: dict[str, str | bool | int] = {}
     if morning_time is not None:
         changes["morning_time"] = morning_time.isoformat()
     if nudge_time is not None:
@@ -88,6 +92,8 @@ def update(
         changes["blocks"] = blocks
     if habits_enabled is not None:
         changes["habits_enabled"] = habits_enabled
+    if protein_g is not None:
+        changes["protein_g"] = protein_g
     row = users.settings_row(session)
     if row is None:
         row = UserSettings()
@@ -99,6 +105,7 @@ def update(
     row.paused = prefs.paused
     row.blocks_started_on = prefs.blocks_started_on
     row.habits_enabled = prefs.habits_enabled
+    row.protein_g = prefs.protein_g
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

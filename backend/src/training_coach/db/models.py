@@ -206,6 +206,11 @@ class UserSettings(Owned, Base):
     """One row of settings per person. Times are local (Europe/Berlin) wall-clock times."""
 
     __tablename__ = "settings"
+    __table_args__ = (
+        CheckConstraint(
+            "protein_g IS NULL OR protein_g BETWEEN 40 AND 400", name="protein_g_range"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
@@ -220,6 +225,8 @@ class UserSettings(Owned, Base):
     nudges_enabled: Mapped[bool] = mapped_column(Boolean, server_default=true())
     # Habit check-off buttons in the evening message (D5, #91).
     habits_enabled: Mapped[bool] = mapped_column(Boolean, server_default=true())
+    # Daily protein target in grams for the protein habit; empty shows the per-kg guide.
+    protein_g: Mapped[int | None] = mapped_column(Integer)
     paused: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 

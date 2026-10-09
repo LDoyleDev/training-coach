@@ -17,6 +17,7 @@ from training_coach.bot.buttons import edit_quietly
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.clock import parse_hhmm
+from training_coach.domain.habits import PROTEIN_GRAMS, protein_grams
 from training_coach.domain.queue import local_date
 from training_coach.services import user_settings
 from training_coach.services.user_settings import Prefs
@@ -28,9 +29,18 @@ MORNING_PRESETS = (time(6, 30), time(7, 0), time(7, 30), time(8, 0))
 NUDGE_PRESETS = (time(19, 0), time(20, 0), time(21, 0))
 REVIEW_PRESETS = (time(18, 0), time(19, 0), time(20, 0))  # Sundays
 TIMES = ("morning", "nudge", "review")
+ASKS = (*TIMES, "protein")  # settings answered by typing
 TOGGLES = frozenset({"nudges", "habits", "blocks", "pause"})
-AWAITING = "awaiting_time"  # key in context.user_data: one of TIMES
+AWAITING = "awaiting_time"  # key in context.user_data: one of ASKS
 BAD_TIME = "That isn't a time like 07:30. Send it again, or /settings to cancel."
+PROTEIN_ASK = (
+    "Send your daily protein target in grams, like 165. A guide: 1.6-2.2 g per kg of "
+    "bodyweight (about 2 g per kg is the middle)."
+)
+BAD_PROTEIN = (
+    f"Send a whole number of grams between {PROTEIN_GRAMS[0]} and {PROTEIN_GRAMS[1]}, like 165, "
+    "or /settings to cancel."
+)
 
 Reschedule = Callable[[ContextTypes.DEFAULT_TYPE, Prefs], None]
 
@@ -57,7 +67,7 @@ def _toggle(what: str, on: bool) -> str:
 
 def parse(data: str | None) -> Press | None:
     parts = (data or "").split(":")
-    if len(parts) == 2 and parts[0] == PREFIX and parts[1] in {f"ask-{t}" for t in TIMES}:
+    if len(parts) == 2 and parts[0] == PREFIX and parts[1] in {f"ask-{t}" for t in ASKS}:
         return Press(parts[1])
     if len(parts) == 3 and parts[0] == PREFIX and parts[1] in TOGGLES:
         # Toggles carry their target, so a button on an old message sets what it says.
@@ -78,6 +88,8 @@ def text(prefs: Prefs) -> str:
             f"Evening nudge: {_hhmm(prefs.nudge_time)} ({nudge})",
             f"Weekly review: Sundays {_hhmm(prefs.review_time)}",
             f"Habit buttons in the evening: {'on' if prefs.habits_enabled else 'off'}",
+            "Protein target: "
+            + (f"{prefs.protein_g} g a day" if prefs.protein_g else "not set (1.6-2.2 g per kg)"),
             *_blocks_line(prefs),
             f"Paused: {'yes, no messages until you resume' if prefs.paused else 'no'}",
         ]
@@ -124,6 +136,7 @@ def keyboard(prefs: Prefs) -> InlineKeyboardMarkup:
                 for t in REVIEW_PRESETS
             ],
             [button("Review: other time…", callback_data=_data("ask-review"))],
+            [button("Protein target…", callback_data=_data("ask-protein"))],
             [
                 button(
                     "Turn habits off" if prefs.habits_enabled else "Turn habits on",
@@ -180,7 +193,11 @@ class SettingsHandlers:
             which = press.what.removeprefix("ask-")
             if context.user_data is not None:
                 context.user_data[AWAITING] = which
-            await query.message.reply_text(f"Send the {which} time as HH:MM, for example 07:15.")
+            await query.message.reply_text(
+                PROTEIN_ASK
+                if which == "protein"
+                else f"Send the {which} time as HH:MM, for example 07:15."
+            )
             return
         with session_scope(self.sessions) as session:
             prefs = user_settings.update(
@@ -203,7 +220,10 @@ class SettingsHandlers:
         """Plain text from the owner: a time, if one was asked for."""
         message = update.effective_message
         which = context.user_data.get(AWAITING) if context.user_data is not None else None
-        if message is None or which not in TIMES:
+        if message is None or which not in ASKS:
+            return
+        if which == "protein":
+            await self._typed_protein(message, context)
             return
         at = parse_hhmm(message.text or "")
         if at is None:
@@ -220,4 +240,16 @@ class SettingsHandlers:
             )
         self.reschedule(context, prefs)
         log.info("bot.settings_changed", what=which)
+        await message.reply_text(text(prefs), reply_markup=keyboard(prefs))
+
+    async def _typed_protein(self, message: Message, context: ContextTypes.DEFAULT_TYPE) -> None:
+        grams = protein_grams(message.text or "")
+        if grams is None:
+            await message.reply_text(BAD_PROTEIN)
+            return
+        assert context.user_data is not None  # noqa: S101 - the caller read it
+        context.user_data.pop(AWAITING, None)
+        with session_scope(self.sessions) as session:
+            prefs = user_settings.update(session, protein_g=grams)
+        log.info("bot.settings_changed", what="protein")
         await message.reply_text(text(prefs), reply_markup=keyboard(prefs))

@@ -85,6 +85,7 @@ def test_text_and_keyboard_show_the_current_values() -> None:
         "Evening nudge: 20:00 (off)",
         "Weekly review: Sundays 19:00",
         "Habit buttons in the evening: on",
+        "Protein target: not set (1.6-2.2 g per kg)",
         "Training blocks: off",
         "Paused: yes, no messages until you resume",
     ]
@@ -385,3 +386,26 @@ async def test_training_blocks_turn_on_from_today_and_off(
 async def test_strangers_cannot_turn_blocks_on(application: App, seeded: Sessions) -> None:
     assert await run(application, press("s:blocks:on", STRANGER)) == {}
     assert _prefs(seeded).blocks_started_on is None
+
+
+# ------------------------------------------------------------------ protein target
+
+
+async def test_protein_target_is_asked_for_and_typed(application: App, seeded: Sessions) -> None:
+    asked = await run(application, press("s:ask-protein", OWNER))
+    assert texts(asked) == [settings_ui.PROTEIN_ASK]
+    wrong = await run(application, text_message("9000", OWNER))
+    assert texts(wrong) == [settings_ui.BAD_PROTEIN]
+    done = await run(application, text_message("165", OWNER))
+    assert "Protein target: 165 g a day" in texts(done)[0]
+    assert _prefs(seeded).protein_g == 165
+
+
+async def test_a_protein_target_names_the_habit_button(seeded: Sessions) -> None:
+    _set(seeded, protein_g=165, nudges_enabled=False)
+    context = _context()
+    await Handlers(SETTINGS, seeded).nudge(context)  # type: ignore[arg-type]
+    kwargs = context.bot.send_message.await_args.kwargs  # type: ignore[attr-defined]
+    labels = [b.text for row in kwargs["reply_markup"].inline_keyboard for b in row]
+    assert "Protein target (165 g)" in labels
+    assert "- Protein target (165 g): 165 g across the day" in kwargs["text"]

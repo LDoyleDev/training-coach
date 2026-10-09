@@ -2,7 +2,17 @@ from datetime import date, timedelta
 
 import pytest
 
-from training_coach.domain.habits import HINTS, LABELS, Habit, HabitWeek, can_change, tally
+from training_coach.domain.habits import (
+    HINTS,
+    LABELS,
+    Habit,
+    HabitWeek,
+    can_change,
+    hint,
+    label,
+    protein_grams,
+    tally,
+)
 
 MONDAY = date(2026, 10, 5)
 M, P, W = Habit.MORNING_LIGHT, Habit.PROTEIN, Habit.WIND_DOWN
@@ -44,3 +54,30 @@ def test_days_outside_the_week_and_repeats_are_ignored() -> None:
 
 def test_a_later_day_still_counts_a_week_of_seven() -> None:
     assert tally([], MONDAY, day(20))[0].days == 7
+
+
+@pytest.mark.parametrize(
+    ("typed", "grams"),
+    [
+        ("165", 165),
+        (" 165g ", 165),
+        ("165 G", 165),
+        ("40", 40),
+        ("400", 400),
+        ("39", None),
+        ("401", None),
+        ("165.5", None),
+        ("lots", None),
+        ("", None),
+    ],
+)
+def test_protein_grams(typed: str, grams: int | None) -> None:
+    assert protein_grams(typed) == grams
+
+
+def test_the_protein_habit_names_its_number_once_set() -> None:
+    assert label(P) == "Protein target"
+    assert label(P, 165) == "Protein target (165 g)"
+    assert label(M, 165) == "Morning light"
+    assert hint(P) == HINTS[P]
+    assert hint(P, 165).startswith("165 g across the day")
