@@ -51,6 +51,10 @@ class Exercise(Base):
     kind: Mapped[str] = mapped_column(String(16))
     muscle_groups: Mapped[list[str]] = mapped_column(JSON, default=list)
     aliases: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # Out of the plan but kept with its history; still loggable (#107, ADR-0034).
+    retired: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # One side at a time when no session says (a retired exercise's logs).
+    per_side: Mapped[bool] = mapped_column(Boolean, server_default=false())
 
     ladder: Mapped[list["LadderStep"]] = relationship(
         back_populates="exercise",

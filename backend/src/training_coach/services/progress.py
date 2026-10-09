@@ -180,8 +180,12 @@ def workout_history(workout: Workout, exercise: Exercise) -> BlockKind | None:
 
 
 def per_side_for(session: Session, exercise_id: int, template_id: int | None) -> bool:
+    """One side at a time: as the session's item says, else as the exercise does (#107)."""
     item = _item(session, exercise_id, template_id)
-    return item.per_side if item is not None else False
+    if item is not None:
+        return item.per_side
+    exercise = session.get(Exercise, exercise_id)
+    return exercise.per_side if exercise is not None else False
 
 
 def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> list[Feedback]:
@@ -211,7 +215,8 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
         if exercise is None or step is None:
             continue
         item = _item(session, exercise_id, workout.template_id)
-        per_side = item.per_side if item is not None else False
+        # A retired exercise has no item, so it is never ready (#107); bests still count.
+        per_side = item.per_side if item is not None else exercise.per_side
         bests = bests_in(
             session, workout_id, exercise_id, step_id, per_side, workout_history(workout, exercise)
         )
@@ -308,6 +313,7 @@ class Standing:
     last: tuple[int, ...]  # the latest session at this step; empty if none yet
     best_set: int | None
     status: Progress
+    retired: bool = False  # out of the plan (#107): shown for its history, never ready
 
 
 def overview(session: Session) -> list[Standing]:
@@ -333,9 +339,11 @@ def overview(session: Session) -> list[Standing]:
         items = _items(session, exercise_id)
         # Display only: "last" and "best" use the first prescription's sides. Readiness is
         # judged per prescription below, exactly as Move up re-checks it.
-        per_side = items[0].per_side if items else False
+        per_side = items[0].per_side if items else exercise.per_side
         block = history_kind(ExerciseKind(exercise.kind), BlockKind.HYPERTROPHY)
         history = [v for _, v in sessions_at_step(session, exercise_id, step.id, per_side, block)]
+        if exercise.retired and not history:
+            continue  # nothing to show for an exercise no longer trained (#107)
         statuses = {_status(session, item, step) for item in items}
         status = next(
             (s for s in (Progress.READY, Progress.TOP_OF_LADDER) if s in statuses), Progress.HOLD
@@ -352,6 +360,7 @@ def overview(session: Session) -> list[Standing]:
                 last=tuple(history[0]) if history else (),
                 best_set=max((max(v, default=0) for v in history), default=None),
                 status=status,
+                retired=exercise.retired,
             )
         )
     return result

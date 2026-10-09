@@ -22,6 +22,7 @@ from training_coach.services import queue_actions, user_settings, users, workout
 from training_coach.services.seed import apply_seed, load_plan
 
 BERLIN = ZoneInfo("Europe/Berlin")
+NL = chr(10)
 TODAY = local_date(datetime.now(UTC), BERLIN)  # events are stamped with the real clock
 
 
@@ -401,3 +402,28 @@ def test_a_past_draft_goes_stale_when_blocks_change_its_filing(seeded: Session) 
     draft = _past(seeded, 2, "Upper\nsplit squat 10")
     user_settings.update(seeded, blocks=True, today=_ago(10))  # that day is now in a block
     assert isinstance(workout_log.save(seeded, draft, BERLIN), workout_log.Stale)
+
+
+def test_an_old_days_retired_exercise_can_be_logged(session: Session) -> None:
+    """The first Legs day was on the original plan, with goblet squats (#107)."""
+    apply_seed(session, load_plan())
+    session.flush()
+    text = NL.join(
+        [
+            f"{_ago(9):%Y-%m-%d}",
+            "Bulgarian split squat: 4 x 11 per side",
+            "Goblet squat: 3 x 16",
+            "Reverse lunge: 2 x 10",
+        ]
+    )
+    draft = workout_log.draft(session, text, TODAY, BERLIN)
+    assert draft.problems == ()
+    assert draft.session_name == "Legs"  # from the exercises it still shares
+    lunge = next(e for e in draft.entries if e.slug == "reverse-lunge")
+    assert {side for _, side, _ in lunge.sets} == {Side.LEFT, Side.RIGHT}
+    saved = workout_log.save(session, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    goblet = session.scalars(select(Exercise.id).where(Exercise.slug == "goblet-squat")).one()
+    logged = session.scalars(select(SetLog.value).where(SetLog.exercise_id == goblet)).all()
+    assert logged == [16, 16, 16]
+    assert "Goblet squat" in workout_log.exercise_names(session)  # the voice vocabulary

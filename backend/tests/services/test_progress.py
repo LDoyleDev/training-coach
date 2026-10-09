@@ -17,7 +17,7 @@ from training_coach.db.models import (
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
-from training_coach.services import users
+from training_coach.services import progress, users
 from training_coach.services.progress import MoveOutcome, feedback, move_up, not_yet, overview
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -234,7 +234,8 @@ def test_a_backdated_log_is_compared_with_earlier_sessions_only(plan: Session) -
 
 def test_overview_lists_every_exercise_in_plan_order(plan: Session) -> None:
     standings = overview(plan)
-    assert len(standings) == len(plan.scalars(select(Exercise.id)).all())
+    active = plan.scalars(select(Exercise.id).where(Exercise.retired.is_(False))).all()
+    assert len(standings) == len(active)  # retired ones only once they have history (#107)
     names = [s.exercise for s in standings]
     assert names.index("Pull-up") < names.index("Dip (chairs)")  # Torso lists pull-ups first
     pull = standings[names.index("Pull-up")]
@@ -263,3 +264,28 @@ def test_overview_reports_the_top_of_the_ladder(plan: Session) -> None:
     _log(plan, "pull-up", TOP, 2)
     by_name = {s.exercise: s for s in overview(plan)}
     assert by_name["Pull-up"].status is Progress.TOP_OF_LADDER
+
+
+# ------------------------------------------------------------------ retired exercises (#107)
+
+
+def test_a_retired_exercise_shows_its_history_but_is_never_ready(plan: Session) -> None:
+    for days in (0, 2):  # the top of the old 12-20 range twice: ready, were it still planned
+        _log(plan, "goblet-squat", [20, 20, 20], days, template="legs")
+    by_name = {s.exercise: s for s in overview(plan)}
+    goblet = by_name["Goblet squat"]
+    assert (goblet.retired, goblet.status, goblet.last) == (True, Progress.HOLD, (20, 20, 20))
+    assert "Reverse lunge" not in by_name  # retired with no history: nothing to show
+    workout_id = _log(plan, "goblet-squat", [20, 20, 20], 4, template="legs")
+    (said,) = feedback(plan, workout_id)
+    assert said.status is Progress.HOLD
+    step = _step(plan, "goblet-squat")
+    move = move_up(plan, step.exercise_id, step.id)
+    assert move is not None
+    assert move.outcome is MoveOutcome.NOT_READY
+
+
+def test_a_one_sided_retired_exercise_keeps_its_sides(plan: Session) -> None:
+    lunge = _exercise(plan, "reverse-lunge")
+    assert progress.per_side_for(plan, lunge.id, None)
+    assert not progress.per_side_for(plan, _exercise(plan, "goblet-squat").id, None)

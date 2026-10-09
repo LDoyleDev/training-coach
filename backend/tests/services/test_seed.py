@@ -548,3 +548,20 @@ def test_the_bundled_plan_has_a_stretch_for_every_resistance_muscle() -> None:
         for group in exercises[item.exercise].muscle_groups
     }
     assert worked - stretched == {"power", "posture"}  # qualities, not muscles
+
+
+def test_a_retired_exercise_cannot_be_in_a_session() -> None:
+    retired = MINI_PLAN.replace(
+        'ladder = ["Feet down", "Feet up"]', 'ladder = ["Feet down", "Feet up"]\nretired = true'
+    )
+    with pytest.raises(ValidationError, match="uses dip, which is retired"):
+        load_plan(retired)
+
+
+def test_the_seed_marks_retired_exercises(session: Session) -> None:
+    apply_seed(session, load_plan())
+    session.flush()
+    retired = session.scalars(select(Exercise.slug).where(Exercise.retired.is_(True))).all()
+    assert sorted(retired) == ["goblet-squat", "reverse-lunge"]
+    lunge = session.scalars(select(Exercise).where(Exercise.slug == "reverse-lunge")).one()
+    assert lunge.per_side
