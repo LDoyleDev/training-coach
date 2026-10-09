@@ -178,10 +178,15 @@ def test_a_garbled_answer_is_refused(client: TestClient, engine: Engine) -> None
     assert client.post("/api/auth/passkeys/sign-in", json={"credential": junk}).status_code == 401
 
 
-def test_the_party_comes_from_the_public_url() -> None:
+def test_the_party_comes_from_the_parsed_public_url() -> None:
     assert passkeys.Party.from_url(ORIGIN) == passkeys.Party(ORIGIN, RP_ID)
+    assert passkeys.Party.from_url(ORIGIN + "/") == passkeys.Party(ORIGIN, RP_ID)
+    local = passkeys.Party.from_url("http://localhost:5173/app")
+    assert local == passkeys.Party("http://localhost:5173", "localhost")
     with pytest.raises(ValueError, match="no host"):
         passkeys.Party.from_url("https://")
+    with pytest.raises(ValueError, match="https"):
+        passkeys.Party.from_url("http://coach.example.com")
 
 
 def test_registering_needs_a_session_bound_to_someone(engine: Engine) -> None:
@@ -214,7 +219,30 @@ def test_malformed_fields_are_a_refusal_not_an_error(
     assert client.post("/api/auth/passkeys/sign-in", json={"credential": answer}).status_code == 401
 
 
-def test_open_sign_ins_are_capped(client: TestClient) -> None:
-    for _ in range(passkeys.MAX_OPEN_SIGN_INS):
-        assert client.post("/api/auth/passkeys/sign-in/options").status_code == 200
-    assert client.post("/api/auth/passkeys/sign-in/options").status_code == 429
+def _open(client: TestClient, ip: str) -> int:
+    path = "/api/auth/passkeys/sign-in/options"
+    return client.post(path, headers={"CF-Connecting-IP": ip}).status_code
+
+
+def test_a_stranger_cannot_use_up_the_owners_sign_ins(client: TestClient) -> None:
+    """Capped per client (review of #123): one address filling its quota leaves others free."""
+    for _ in range(passkeys.MAX_OPEN_PER_CLIENT):
+        assert _open(client, "203.0.113.9") == 200
+    assert _open(client, "203.0.113.9") == 429
+    assert _open(client, "198.51.100.7") == 200  # the owner, elsewhere
+
+
+def test_open_sign_ins_are_capped_overall(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(passkeys, "MAX_OPEN_SIGN_INS", 3)
+    for n in range(3):
+        assert _open(client, f"203.0.113.{n}") == 200
+    assert _open(client, "198.51.100.7") == 429
+
+
+def test_a_refusal_also_clears_the_challenge_cookie(client: TestClient) -> None:
+    _options(client, "/api/auth/passkeys/sign-in/options")
+    refused = client.post("/api/auth/passkeys/sign-in", json={"credential": {"id": "x"}})
+    assert refused.status_code == 401
+    assert 'tc_passkey=""' in refused.headers["set-cookie"]

@@ -48,9 +48,11 @@ RP_NAME = "Training Coach"
 CHALLENGE_TTL = timedelta(minutes=5)
 EVERYONE = {ALL_USERS: True}
 REGISTER, SIGN_IN = "register", "sign_in"
-# Sign-in options are public and each one is a row: cap the open ones so nobody can flood
-# the SD card or hold write locks (review of #123). One person needs one or two at a time.
-MAX_OPEN_SIGN_INS = 20
+# Sign-in options are public and each one is a row (review of #123). Capped per client, so a
+# stranger can't use up everyone's sign-ins and lock the owner out, and overall, so nobody can
+# flood the SD card. One person needs one or two at a time; /login always works regardless.
+MAX_OPEN_PER_CLIENT = 5
+MAX_OPEN_SIGN_INS = 200
 
 
 class TooManySignInsError(Exception):
@@ -66,10 +68,14 @@ class Party:
 
     @classmethod
     def from_url(cls, public_url: str) -> "Party":
-        host = urlsplit(public_url).hostname
-        if not host:
+        """From the parsed URL, never the text as written: the browser reports its origin as
+        scheme://host[:port], and a stray slash or path would fail every ceremony."""
+        url = urlsplit(public_url)
+        if not url.hostname:
             raise ValueError("public_url has no host")
-        return cls(origin=public_url, rp_id=host)
+        if url.scheme != "https" and url.hostname not in {"localhost", "127.0.0.1"}:
+            raise ValueError("passkeys need https")
+        return cls(origin=f"{url.scheme}://{url.netloc}", rp_id=url.hostname)
 
 
 @dataclass(frozen=True)
@@ -79,7 +85,12 @@ class Ceremony:
 
 
 def _challenge(
-    session: Session, challenge: bytes, purpose: str, user_id: int | None, now: datetime
+    session: Session,
+    challenge: bytes,
+    purpose: str,
+    user_id: int | None,
+    now: datetime,
+    client: str | None = None,
 ) -> str:
     # Clear challenges nobody answered; they would only pile up.
     session.execute(delete(PasskeyChallenge).where(PasskeyChallenge.expires_at <= now))
@@ -90,6 +101,7 @@ def _challenge(
             challenge=challenge,
             purpose=purpose,
             user_id=user_id,
+            client_hash=auth.hash_token(client) if client else None,
             expires_at=now + CHALLENGE_TTL,
         )
     )
@@ -187,22 +199,27 @@ def register(
     return True
 
 
-def sign_in_options(session: Session, party: Party, now: datetime) -> Ceremony:
+def sign_in_options(session: Session, party: Party, now: datetime, client: str) -> Ceremony:
     """Options for signing in with any passkey on the device (no username: discoverable).
-    Raises ``TooManySignInsError`` when too many are open at once."""
+    ``client`` is the caller's address (stored hashed). Raises ``TooManySignInsError`` when
+    that client, or everyone together, has too many open."""
     session.execute(delete(PasskeyChallenge).where(PasskeyChallenge.expires_at <= now))
-    open_now = session.scalar(
+    open_sign_ins = (
         select(func.count())
         .select_from(PasskeyChallenge)
         .where(PasskeyChallenge.purpose == SIGN_IN)
     )
-    if (open_now or 0) >= MAX_OPEN_SIGN_INS:
-        log.warning("auth.passkey_sign_ins_capped", open=open_now)
+    mine = session.scalar(
+        open_sign_ins.where(PasskeyChallenge.client_hash == auth.hash_token(client))
+    )
+    everyone = session.scalar(open_sign_ins)
+    if (mine or 0) >= MAX_OPEN_PER_CLIENT or (everyone or 0) >= MAX_OPEN_SIGN_INS:
+        log.warning("auth.passkey_sign_ins_capped", mine=mine, everyone=everyone)
         raise TooManySignInsError
     options = generate_authentication_options(
         rp_id=party.rp_id, user_verification=UserVerificationRequirement.REQUIRED
     )
-    handle = _challenge(session, options.challenge, SIGN_IN, None, now)
+    handle = _challenge(session, options.challenge, SIGN_IN, None, now, client)
     return Ceremony(options_to_json(options), handle)
 
 

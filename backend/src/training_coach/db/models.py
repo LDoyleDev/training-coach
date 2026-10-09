@@ -382,6 +382,8 @@ class PasskeyChallenge(Base):
     challenge: Mapped[bytes] = mapped_column(LargeBinary)
     purpose: Mapped[str] = mapped_column(String(16))
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # SHA-256 of the caller's address, so open sign-ins can be capped per client.
+    client_hash: Mapped[str | None] = mapped_column(String(64), index=True)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 

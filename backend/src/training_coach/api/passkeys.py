@@ -58,6 +58,23 @@ def _options(ceremony: passkeys.Ceremony) -> Response:
     return response
 
 
+def _client(request: Request) -> str:
+    """The caller's address. The app listens on the Pi only (127.0.0.1), so every request
+    comes through the Cloudflare tunnel, which sets CF-Connecting-IP to the real client."""
+    forwarded = request.headers.get("cf-connecting-ip")
+    if forwarded:
+        return forwarded
+    return request.client.host if request.client is not None else "unknown"
+
+
+def _cleared() -> dict[str, str]:
+    """A Set-Cookie header removing the challenge cookie, for error responses too (FastAPI
+    builds a fresh response for an HTTPException, dropping cookies set on the original)."""
+    response = Response()
+    response.delete_cookie(CHALLENGE_COOKIE, path=CHALLENGE_PATH, secure=True, httponly=True)
+    return {"set-cookie": response.headers["set-cookie"]}
+
+
 def _handle(request: Request) -> str:
     handle = request.cookies.get(CHALLENGE_COOKIE)
     if not handle:
@@ -82,9 +99,11 @@ def register(answer: Answer, request: Request, response: Response, user: Owner) 
         added = passkeys.register(
             session, party, handle, answer.credential, name, datetime.now(UTC)
         )
-    response.delete_cookie(CHALLENGE_COOKIE, path=CHALLENGE_PATH, secure=True, httponly=True)
     if not added:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "that passkey couldn't be added")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "that passkey couldn't be added", headers=_cleared()
+        )
+    response.headers.update(_cleared())
 
 
 @router.post("/sign-in/options")
@@ -93,7 +112,7 @@ def sign_in_options(request: Request) -> Response:
     party = _party(request)
     try:
         with session_scope(_shared(request)) as session:
-            ceremony = passkeys.sign_in_options(session, party, datetime.now(UTC))
+            ceremony = passkeys.sign_in_options(session, party, datetime.now(UTC), _client(request))
     except passkeys.TooManySignInsError:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS, "try again in a few minutes"
@@ -109,7 +128,9 @@ def sign_in(answer: Answer, request: Request, response: Response) -> None:
         cookie = passkeys.sign_in(
             session, party, handle, answer.credential, datetime.now(UTC), label
         )
-    response.delete_cookie(CHALLENGE_COOKIE, path=CHALLENGE_PATH, secure=True, httponly=True)
     if cookie is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "that passkey wasn't accepted")
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, "that passkey wasn't accepted", headers=_cleared()
+        )
+    response.headers.update(_cleared())
     set_session_cookie(response, cookie)

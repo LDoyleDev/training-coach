@@ -1,12 +1,13 @@
 """passkeys
 
-Revision ID: ce6cab8be348
+Revision ID: 00649163c95b
 Revises: 391597c72151
-Create Date: 2026-10-09 22:15:21.823000
+Create Date: 2026-10-09 22:37:37.687828
 
 Passkeys (ADR-0036, #115): each person's registered fingerprint/face keys (public halves
-only), and one-time WebAuthn challenges. New tables only; downgrade drops them, and passkeys
-must then be registered again.
+only), and one-time WebAuthn challenges (with a hashed client address, so open sign-ins can be
+capped per client). New tables only; downgrade drops them, and passkeys must then be
+registered again.
 """
 
 from collections.abc import Sequence
@@ -15,7 +16,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "ce6cab8be348"
+revision: str = "00649163c95b"
 down_revision: str | Sequence[str] | None = "391597c72151"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -30,6 +31,7 @@ def upgrade() -> None:
         sa.Column("challenge", sa.LargeBinary(), nullable=False),
         sa.Column("purpose", sa.String(length=16), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=True),
+        sa.Column("client_hash", sa.String(length=64), nullable=True),
         sa.Column("expires_at", sa.DateTime(), nullable=False),
         sa.CheckConstraint(
             "purpose IN ('register', 'sign_in')", name=op.f("ck_passkey_challenges_purpose_valid")
@@ -43,6 +45,11 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_passkey_challenges")),
         sa.UniqueConstraint("handle_hash", name=op.f("uq_passkey_challenges_handle_hash")),
     )
+    with op.batch_alter_table("passkey_challenges", schema=None) as batch_op:
+        batch_op.create_index(
+            batch_op.f("ix_passkey_challenges_client_hash"), ["client_hash"], unique=False
+        )
+
     op.create_table(
         "passkeys",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -71,5 +78,8 @@ def downgrade() -> None:
         batch_op.drop_index(batch_op.f("ix_passkeys_user_id"))
 
     op.drop_table("passkeys")
+    with op.batch_alter_table("passkey_challenges", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_passkey_challenges_client_hash"))
+
     op.drop_table("passkey_challenges")
     # ### end Alembic commands ###
