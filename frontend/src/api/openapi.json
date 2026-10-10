@@ -2112,6 +2112,61 @@
         ]
       }
     },
+    "/api/auth/passkeys/confirm": {
+      "post": {
+        "description": "Confirm it's you: this browser's session counts as a fresh sign-in for 10 minutes, so\na change that needs one goes through without signing out and in again.",
+        "operationId": "confirm_api_auth_passkeys_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Answer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/passkeys/confirm/options": {
+      "post": {
+        "description": "Options to confirm it's still you with your fingerprint (ADR-0049); 409 without a\npasskey (then only signing in again with a link makes the session fresh).",
+        "operationId": "confirm_options_api_auth_passkeys_confirm_options_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Confirm Options",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/auth/passkeys/register": {
       "post": {
         "operationId": "register_api_auth_passkeys_register_post",

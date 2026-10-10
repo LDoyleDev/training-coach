@@ -9,18 +9,20 @@ from datetime import UTC, datetime
 from ipaddress import ip_address, ip_network
 from typing import Any
 
+import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.alerts import alert, device
-from training_coach.api.auth import Fresh, Owner, set_session_cookie
+from training_coach.api.auth import COOKIE, Fresh, Owner, set_session_cookie
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import passkeys
 
 CHALLENGE_COOKIE = "tc_passkey"
 CHALLENGE_PATH = "/api/auth/passkeys"
+log = structlog.get_logger(__name__)
 router = APIRouter(prefix=CHALLENGE_PATH, tags=["auth"])
 
 
@@ -175,3 +177,33 @@ def sign_in(
         "passkey_sign_in",
         f"New sign-in to Training Coach with your passkey, on {device(request)}.",
     )
+
+
+@router.post("/confirm/options")
+def confirm_options(request: Request, user: Owner) -> Response:
+    """Options to confirm it's still you with your fingerprint (ADR-0049); 409 without a
+    passkey (then only signing in again with a link makes the session fresh)."""
+    party = _party(request)
+    with session_scope(_bound(request, user)) as session:
+        ceremony = passkeys.confirmation(session, party, datetime.now(UTC))
+    if ceremony is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "no passkey to confirm with")
+    return _options(ceremony)
+
+
+@router.post("/confirm", status_code=status.HTTP_204_NO_CONTENT)
+def confirm(answer: Answer, request: Request, response: Response, user: Owner) -> None:
+    """Confirm it's you: this browser's session counts as a fresh sign-in for 10 minutes, so
+    a change that needs one goes through without signing out and in again."""
+    party, handle = _party(request), _handle(request)
+    token = request.cookies.get(COOKIE, "")
+    with session_scope(_bound(request, user)) as session:
+        confirmed = passkeys.confirm(
+            session, party, handle, answer.credential, datetime.now(UTC), token
+        )
+    if not confirmed:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, "that passkey wasn't accepted", headers=_cleared()
+        )
+    response.headers.update(_cleared())
+    log.info("auth.confirmed")
