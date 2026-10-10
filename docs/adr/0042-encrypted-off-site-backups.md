@@ -13,9 +13,10 @@ never left the backups. The project spends nothing (cost discipline).
 
 ## Decision
 
-- **Encrypt with age to the desktop's public key** on the Pi, so the Pi can't read its own
-  off-site copies and a leaked bucket token exposes nothing readable. The private key stays on
-  the desktop with an offline copy.
+- **Encrypt with age to a dedicated backup key** on the Pi, so the Pi can't read its own
+  off-site copies and a leaked bucket token exposes nothing readable. The private key's master
+  copy is in Liam's password manager, with a working copy on Windows. Not the Linux desktop's
+  sops key: the desktop dual-boots, so a key on one side is out of reach from the other.
 - **Off-site on Cloudflare R2** (free tier: 10 GB, no egress fees; already the DNS provider), in a
   bucket with a token limited to it, uploaded by `rclone` from a nightly systemd timer
   (`scripts/offsite-backup.sh`) after the app's 03:30 backup. The token lives in a mode-600 file
@@ -36,5 +37,5 @@ never left the backups. The project spends nothing (cost discipline).
 
 ## Consequences
 
-- Restoring from off-site needs the desktop's age private key: losing it loses those copies.
+- Restoring from off-site needs the backup key's private half: losing it loses those copies.
 - An alert on a failed run (an `OnFailure=` unit) is part of the alerting follow-up.

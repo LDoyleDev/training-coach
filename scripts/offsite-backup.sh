@@ -7,7 +7,9 @@
 # TC_OFFSITE_KEEP_DAYS are deleted, so deleted data really leaves backups within that time.
 #
 # Settings come from $TC_OFFSITE_ENV (default ~/.config/training-coach/offsite.env, mode 600):
-#   TC_BACKUP_AGE_RECIPIENT   the desktop's age public key (age1...)
+#   TC_BACKUP_AGE_RECIPIENT   the backup keys' public halves (age1...), separated by spaces:
+#                             any one of their private keys can decrypt, so a lost key
+#                             doesn't lose the backups
 #   TC_OFFSITE_BUCKET         the R2 bucket name
 #   RCLONE_CONFIG_R2_TYPE=s3, RCLONE_CONFIG_R2_PROVIDER=Cloudflare,
 #   RCLONE_CONFIG_R2_ACCESS_KEY_ID, RCLONE_CONFIG_R2_SECRET_ACCESS_KEY,
@@ -31,7 +33,13 @@ set -a
 set +a
 : "${TC_BACKUP_AGE_RECIPIENT:?set in $ENV_FILE}"
 : "${TC_OFFSITE_BUCKET:?set in $ENV_FILE}"
-case "$TC_BACKUP_AGE_RECIPIENT" in age1*) ;; *) fail "TC_BACKUP_AGE_RECIPIENT isn't an age public key" ;; esac
+recipients=()
+set -f # split on spaces only: a stray * must not match files
+for key in $TC_BACKUP_AGE_RECIPIENT; do
+  case "$key" in age1*) recipients+=(-r "$key") ;; *) fail "TC_BACKUP_AGE_RECIPIENT has something that isn't an age public key" ;; esac
+done
+set +f
+[ "${#recipients[@]}" -gt 0 ] || fail "TC_BACKUP_AGE_RECIPIENT lists no age public key"
 command -v age >/dev/null || fail "age isn't installed (sudo apt install age)"
 command -v rclone >/dev/null || fail "rclone isn't installed (sudo apt install rclone)"
 
@@ -46,7 +54,7 @@ if rclone lsf "$remote/" --include "$name" | grep -qx "$name"; then
 else
   work=$(mktemp -d)
   trap 'rm -rf "$work"' EXIT
-  age -r "$TC_BACKUP_AGE_RECIPIENT" -o "$work/$name" "$newest"
+  age "${recipients[@]}" -o "$work/$name" "$newest"
   rclone copyto --s3-no-check-bucket "$work/$name" "$remote/$name"
   rclone lsf "$remote/" --include "$name" | grep -qx "$name" || fail "upload of $name not found afterwards"
   log "uploaded $name"
