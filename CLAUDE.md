@@ -102,6 +102,7 @@ backend/     API, bot, domain, services, db, migrations, tests   (see backend/CL
 frontend/    dashboard                                            (see frontend/CLAUDE.md)
 docs/adr/    decisions (NNNN-title.md)       docs/specs/     product + phase specs
 docs/security/  threat model                 docs/runbooks/  deploy, backup/restore, secrets
+docs/legal/  privacy notice, Impressum (drafts, unpublished)
 scripts/     repo and ops scripts            .claude/        commands, subagents, hooks
 ```
 
