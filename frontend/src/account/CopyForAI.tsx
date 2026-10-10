@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { fetchAiSummary, SignedOutError, type SummaryPeriod } from '../api'
+import { card, primaryInline } from '../ui'
 
 export const QUESTION =
   'Review my training over this period: what is working, what is stalling, and what would you ' +
@@ -46,8 +47,10 @@ export default function CopyForAI() {
   }
 
   return (
-    <section aria-labelledby="your-ai">
-      <h2 id="your-ai">Your AI</h2>
+    <section aria-labelledby="your-ai" className={card}>
+      <h2 id="your-ai" className="mb-2 text-xl">
+        Your AI
+      </h2>
       <p>
         Ask the AI you already use about your training. This copies a question and a summary of your
         training, with a link that explains the numbers to it. What you paste is stored by that AI's
@@ -80,7 +83,7 @@ export default function CopyForAI() {
         Include readiness answers (health data)
       </label>
       <p>
-        <button type="button" onClick={() => void copy()}>
+        <button type="button" onClick={() => void copy()} className={primaryInline}>
           Copy for my AI
         </button>
       </p>

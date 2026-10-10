@@ -69,6 +69,12 @@ body {
   padding: 1.25rem 1rem 3rem;
 }
 
+@media (max-width: 39.99rem) {
+  .page {
+    padding-bottom: 6rem; /* room above the bottom tab bar */
+  }
+}
+
 @media (min-width: 48rem) {
   .page {
     padding: 2rem 2rem 4rem;
@@ -87,38 +93,90 @@ body {
   letter-spacing: 0.01em;
 }
 
-.status {
-  margin: 4rem 0;
-  color: var(--slate);
-}
+/*
+ * Base styles live in the base layer, so a Tailwind class on an element always wins over them
+ * (unlayered rules used to beat the utilities: every card title came out at h2 size).
+ */
+@layer base {
+  .status {
+    margin: 1rem 0;
+    color: var(--slate);
+  }
 
-.status-error {
-  color: var(--bell-ink);
-  max-width: 40rem;
-}
+  .status-error {
+    color: var(--bell-ink);
+    max-width: 40rem;
+  }
 
-h1,
-h2,
-h3 {
-  font-stretch: 68%;
-  font-weight: 800;
-  line-height: 0.95;
-  margin: 0;
-  text-wrap: balance;
-}
+  h1,
+  h2,
+  h3 {
+    font-stretch: 68%;
+    font-weight: 800;
+    line-height: 1;
+    margin: 0;
+    text-wrap: balance;
+  }
 
-h1 {
-  font-size: clamp(3rem, 11vw, 6.5rem);
-  letter-spacing: -0.01em;
-}
+  h1 {
+    font-size: clamp(2.25rem, 8vw, 4.5rem);
+    letter-spacing: -0.01em;
+  }
 
-h2 {
-  font-size: clamp(2rem, 6vw, 3.25rem);
-}
+  h2 {
+    font-size: clamp(1.5rem, 4.5vw, 2.25rem);
+  }
 
-h3 {
-  font-size: 1.5rem;
-  font-stretch: 75%;
+  h3 {
+    font-size: 1.25rem;
+    font-stretch: 75%;
+  }
+
+  /* Every action looks like a button: outlined by default; ui.ts has the filled ones. */
+  button {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border: 2px solid var(--ink);
+    border-radius: 0.75rem;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Fields you can see: a border, room to tap, the page's text size. */
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']),
+  select,
+  textarea {
+    min-height: 2.75rem;
+    width: 100%;
+    max-width: 32rem;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    border-color: var(--ink);
+  }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: var(--bell-ink);
+  }
 }
 
 /* ----------------------------------------------------------------- hero */
