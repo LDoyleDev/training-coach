@@ -14,5 +14,8 @@ export default function Pages() {
   if (window.location.pathname === '/tests') return <TestsPage />
   if (window.location.pathname === '/body') return <BodyPage />
   if (window.location.pathname === '/progress') return <ProgressPage />
-  return <App />
+  if (window.location.pathname === '/plan') return <App />
+  // The site is private (ADR-0041): the front door is today's session, or its sign-in.
+  window.location.replace('/session')
+  return null
 }

@@ -608,7 +608,7 @@ def test_the_bundled_plan_starts_with_the_original_and_the_rebuild() -> None:
     versions = [(v.since, v.name) for v in load_plan().versions][:2]
     assert versions == [
         (date(2026, 9, 29), "Original plan"),
-        (date(2026, 10, 1), "Huberman rebuild (ADR-0017)"),
+        (date(2026, 10, 1), "Rebuild (Oct 2026, ADR-0017)"),
     ]
 
 

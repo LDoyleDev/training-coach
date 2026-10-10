@@ -10,6 +10,7 @@ from typing import Literal
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from training_coach.api.auth import Owner
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, weekly_sets
 from training_coach.services.seed import bundled_plan
@@ -101,5 +102,6 @@ def build_plan_view() -> PlanView:
 
 
 @router.get("/plan", response_model=PlanView)
-async def get_plan() -> PlanView:
+async def get_plan(user: Owner) -> PlanView:
+    """The training plan, for the signed-in owner: the site is private (no public pages)."""
     return build_plan_view()

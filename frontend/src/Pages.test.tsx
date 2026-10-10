@@ -12,7 +12,7 @@ vi.mock('./progress/ProgressPage', () => ({ default: () => <p>progress</p> }))
 afterEach(() => window.history.replaceState(null, '', '/'))
 
 test.each([
-  ['/', 'the plan'],
+  ['/plan', 'the plan'],
   ['/signin', 'sign in'],
   ['/account', 'account'],
   ['/tests', 'tests'],
@@ -22,4 +22,13 @@ test.each([
   window.history.replaceState(null, '', path)
   render(<Pages />)
   expect(screen.getByText(text)).toBeInTheDocument()
+})
+
+test('the front door goes to the session page', () => {
+  const replace = vi.fn()
+  vi.stubGlobal('location', { ...window.location, pathname: '/', replace })
+  const { container } = render(<Pages />)
+  expect(replace).toHaveBeenCalledWith('/session')
+  expect(container).toBeEmptyDOMElement()
+  vi.unstubAllGlobals()
 })
