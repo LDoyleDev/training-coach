@@ -210,8 +210,8 @@ export async function fetchTests(
   return { tests: (await tests.json()) as FitnessTest[], days: (await days.json()) as TestDay[] }
 }
 
-/** Save a test day; a string says why the server refused it. */
-export async function saveTestDay(body: TestDayBody): Promise<true | string> {
+/** Save a test day: its id, or a string saying why the server refused it. */
+export async function saveTestDay(body: TestDayBody): Promise<number | string> {
   const res = await fetch('/api/tests', {
     method: 'POST',
     headers: json,
@@ -223,5 +223,5 @@ export async function saveTestDay(body: TestDayBody): Promise<true | string> {
     return typeof detail === 'string' ? detail : 'Those results could not be saved.'
   }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
-  return true
+  return ((await res.json()) as Schemas['TestDaySaved']).id
 }

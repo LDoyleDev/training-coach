@@ -46,11 +46,17 @@ const DONE: TestDay = {
   results: [{ test: 'max-pull-ups', side: 'both', value: 7 }],
 }
 
-type Server = { days?: TestDay[]; signedIn?: boolean; save?: 'refuse' | 'fail' }
+type Server = {
+  days?: TestDay[]
+  after?: TestDay[] // the days listed once a save went through
+  signedIn?: boolean
+  save?: 'refuse' | 'fail'
+}
 
 /** A fake API; returns the bodies of the saves sent. */
 function serve(server: Server = {}) {
   const sent: unknown[] = []
+  let saved = false
   vi.stubGlobal(
     'fetch',
     vi.fn(async (path: string, init?: RequestInit) => {
@@ -60,10 +66,11 @@ function serve(server: Server = {}) {
         if (server.save === 'refuse')
           return Response.json({ detail: 'max-pull-ups is in twice' }, { status: 422 })
         if (server.save === 'fail') return new Response(null, { status: 500 })
+        saved = true
         return Response.json({ id: 2, already_saved: false })
       }
       if (path === '/api/tests') return Response.json(TESTS)
-      return Response.json(server.days ?? [])
+      return Response.json(saved && server.after ? server.after : (server.days ?? []))
     }),
   )
   return sent
@@ -200,4 +207,34 @@ test('signed out, or the server down', async () => {
   )
   render(<TestsPage />)
   expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the tests.")
+})
+
+test('after saving, each result shows against the baseline and last time', async () => {
+  const first = {
+    ...DONE,
+    id: 1,
+    on: '2026-09-29',
+    results: [{ test: 'max-pull-ups', side: 'both' as const, value: 6 }],
+  }
+  const second = { ...DONE, id: 3, on: '2026-10-05' }
+  const now: TestDay = {
+    ...DONE,
+    id: 2,
+    on: '2026-10-10',
+    fed: true,
+    results: [{ test: 'max-pull-ups', side: 'both', value: 9 }],
+  }
+  serve({ days: [second, first], after: [now, second, first] })
+  render(<TestsPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start day 1 tests' }))
+  click('Fed')
+  click('Start the tests')
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '9' } })
+  click('Next')
+  click('Skip')
+  click('Save')
+  expect(
+    await screen.findByText('Max pull-ups: 9 · baseline 6 (+3) · last 7 (+2)'),
+  ).toBeInTheDocument()
+  expect(screen.getByText('Not quite comparable: fed, last time fasted.')).toBeInTheDocument()
 })
