@@ -23,9 +23,12 @@ pytestmark = pytest.mark.skipif(
 
 RECIPIENT = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
 AGE = """#!/usr/bin/env bash
-# age -r RECIPIENT -o OUT IN
-out="$4"; { printf 'ENCRYPTED(%s):' "$2"; cat "$5"; } > "$out"
+# age -r R1 [-r R2 ...] -o OUT IN
+keys=""
+while [ "$1" = "-r" ]; do keys="$keys$2,"; shift 2; done
+out="$2"; { printf 'ENCRYPTED(%s):' "$keys"; cat "$3"; } > "$out"
 """
+SECOND = "age1zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
 RCLONE = """#!/usr/bin/env bash
 echo "$*" >> "$STUB_DIR/rclone.log"
 bucket="$STUB_DIR/bucket"; mkdir -p "$bucket"
@@ -80,7 +83,7 @@ def test_the_newest_backup_goes_off_site_encrypted_once(pi: Path) -> None:
     assert done.returncode == 0, done.stderr
     (stored,) = (pi / "bucket").iterdir()
     assert stored.name == "training_coach-2026-10-10.db.age"
-    assert stored.read_bytes().startswith(f"ENCRYPTED({RECIPIENT}):".encode())
+    assert stored.read_bytes().startswith(f"ENCRYPTED({RECIPIENT},):".encode())
     again = _run(pi)
     assert again.returncode == 0
     assert "already off-site" in again.stdout
@@ -133,3 +136,15 @@ def test_the_script_is_executable_in_git() -> None:
         check=True,
     ).stdout
     assert listed.startswith("100755"), listed
+
+
+def test_every_listed_key_can_read_the_copy(pi: Path) -> None:
+    """Two recipients: either private key decrypts, so losing one loses nothing."""
+    _backup(pi, "2026-10-10")
+    (pi / "offsite.env").write_text(
+        f'TC_BACKUP_AGE_RECIPIENT="{RECIPIENT} {SECOND}"\nTC_OFFSITE_BUCKET=b\n'
+    )
+    (pi / "offsite.env").chmod(0o600)
+    assert _run(pi).returncode == 0
+    (stored,) = (pi / "bucket").iterdir()
+    assert stored.read_bytes().startswith(f"ENCRYPTED({RECIPIENT},{SECOND},):".encode())
