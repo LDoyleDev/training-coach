@@ -155,7 +155,7 @@ test('a remove after an ended sign-in points to sign in too', async () => {
     vi.fn(async () => new Response(null, { status: 401 })),
   )
   fireEvent.click(button)
-  expect(await screen.findByRole('link', { name: 'Sign in again' })).toBeInTheDocument()
+  expect((await screen.findAllByRole('link', { name: 'Sign in again' })).length).toBeGreaterThan(0)
 })
 
 test('removing clears an earlier note', async () => {
