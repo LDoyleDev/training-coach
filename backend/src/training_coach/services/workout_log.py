@@ -29,7 +29,7 @@ from training_coach.domain.dates import DateLine, date_line
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.parser import Entry, Known, ParseResult, normalise_name, parse_log
 from training_coach.domain.queue import ADVANCING, Position, caught_up, complete
-from training_coach.services import blocks, users
+from training_coach.services import blocks, undo, users
 from training_coach.services.groq import Rewrite
 from training_coach.services.today import position
 
@@ -279,6 +279,7 @@ def _file(
 def _commit(session: Session, workout: Workout, confirmed: Draft, moved: Position | None) -> Saved:
     """Add the workout and the queue move in one savepoint, then log the event."""
     plan = users.plan_state(session)
+    queue_before = undo.snapshot(session)
     try:
         # A racing duplicate save (same token) rolls both back together, so the queue can
         # never move twice.
@@ -303,6 +304,7 @@ def _commit(session: Session, workout: Workout, confirmed: Draft, moved: Positio
                 "exercises": len(confirmed.entries),
                 "sets": len(workout.sets),
                 **({"day": confirmed.on.isoformat()} if confirmed.backdated else {}),
+                "undo": undo.record(queue_before, undo.snapshot(session), workout),
             },
         )
     )
