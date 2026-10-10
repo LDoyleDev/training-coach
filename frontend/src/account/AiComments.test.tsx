@@ -74,7 +74,11 @@ test.each([
 
 test('choices, test and remove', async () => {
   const asked = serve({
-    'GET /api/account/ai': [{ status: 200, body: STORED }],
+    'GET /api/account/ai': [
+      { status: 200, body: STORED },
+      { status: 200, body: { ...STORED, body: true } },
+      { status: 200, body: { ...STORED, body: true, failed: true } },
+    ],
     'PUT /api/account/ai': [{ status: 200, body: { ...STORED, body: true } }],
     'POST /api/account/ai/test': [{ status: 204 }, { status: 400 }],
     'DELETE /api/account/ai/key': [{ status: 204 }],
@@ -89,6 +93,7 @@ test('choices, test and remove', async () => {
   expect(await screen.findByText('The key works.')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Test the key' }))
   expect(await screen.findByText(/didn't accept that key/)).toBeInTheDocument()
+  expect(await screen.findByText(/stopped working/)).toBeInTheDocument() // the status follows
   fireEvent.click(screen.getByRole('button', { name: 'Remove the key' }))
   expect(await screen.findByText(/^Removed\./)).toBeInTheDocument()
   expect(screen.queryByText('…4f2a')).not.toBeInTheDocument()

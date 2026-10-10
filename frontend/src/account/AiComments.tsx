@@ -79,6 +79,7 @@ export default function AiComments() {
     setNote(null)
     try {
       setNote(CHECKS[await testAiKey()])
+      setAi((await fetchAiStatus()) ?? ai) // a refused key is now marked, a working one cleared
     } catch (error) {
       setNote(failure(error))
     }
