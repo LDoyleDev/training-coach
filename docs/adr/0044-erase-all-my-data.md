@@ -27,8 +27,8 @@ types the word.
 - **Guarded like a passkey change:** a sign-in from the last 10 minutes (ADR-0040), the typed
   word, an alert on Telegram. This browser is signed out.
 - **Backups** aren't edited: they age out. Nightly backups on the Pi and off-site copies are
-  gone within 5 weeks. Pre-deploy backups and their desktop copies are kept until deleted by
-  hand today; they get the same limit in a follow-up, before this is relied on.
+  gone within 5 weeks, and so are manual and pre-deploy backups and their desktop copies,
+  deleted 35 days after they were taken (#177).
 
 ## Options considered
 
