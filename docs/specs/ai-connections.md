@@ -1,7 +1,7 @@
 # AI connections: bring your own intelligence
 
 Status: **agreed 2026-10-10** (ADR-0047): the order below, Groq only for B, and an editable
-prompt in A.
+prompt in A. Built: A (#187); B with the weekly comment (morning comments not yet).
 
 This widens phase 3's "MCP endpoint for Claude": each person connects **their own** AI, so
 nobody runs on Liam's Claude subscription or Groq quota.
@@ -65,10 +65,11 @@ AI's history (their choice, said on the button).
   remove the old one. Steps go in `docs/runbooks/rotate-secrets.md` with the feature.
 - **Lost key:** stored Groq keys can't be read. Comments stop, each person is told once and
   asked to enter their key again; nothing else is affected.
-- The Pi calls Groq with the person's key, a fixed system prompt (`prompts/weekly-comment.md`,
+- The Pi calls Groq with the person's key, a fixed system prompt (`backend/src/training_coach/prompts/weekly_comment.md`,
   versioned) that includes the guide's rules, and the same compact summary as A.
 - Output is untrusted text: length-capped, shown as "AI comment (from your Groq key)", never
-  acted on, never stored as data. One call per weekly review and at most one per morning.
+  acted on, never stored as data, links removed. One call per weekly review (the last 4
+  weeks); at most one per morning if morning comments are added.
 - If the key fails (revoked, quota), the comment is skipped and the person told once.
 
 Pros: automatic; free for the person on Groq's free tier; small change on our side.

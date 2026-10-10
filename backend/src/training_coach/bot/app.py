@@ -61,6 +61,7 @@ from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
 from training_coach.services import (
+    ai_comment,
     auth,
     blocks,
     habits,
@@ -274,6 +275,10 @@ class Handlers:
             log.info("bot.review_sent")
         else:
             log.error("bot.review_failed")
+            return
+        comment = await ai_comment.weekly(self.sessions, self.settings, self._local_today())
+        if comment is not None:
+            await send_with_retry(context.bot, self.settings.telegram_allowed_user_id, comment)
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """A morning-message button. Strangers get nothing, not even an answer (T1)."""

@@ -3,6 +3,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+import respx
+from cryptography.fernet import Fernet
+from pydantic import SecretStr
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
@@ -23,9 +26,10 @@ from training_coach.bot import settings as settings_ui
 from training_coach.bot.app import MORNING_JOB, NUDGE_JOB, REVIEW_JOB, Handlers
 from training_coach.bot.messages import NUDGE, SOMETHING_WENT_WRONG
 from training_coach.db.models import Workout
-from training_coach.db.session import make_session_factory
+from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
-from training_coach.services import user_settings
+from training_coach.services import ai_comment, ai_key, user_settings
+from training_coach.services.secret_box import SecretBox
 from training_coach.services.user_settings import Prefs
 
 App = Application  # type: ignore[type-arg]  # see build_bot
@@ -352,6 +356,23 @@ async def test_the_review_is_sent_to_the_owner(seeded: Sessions) -> None:
     kwargs = context.bot.send_message.await_args.kwargs
     assert kwargs["chat_id"] == OWNER
     assert kwargs["text"].startswith("Week of ")
+
+
+@respx.mock
+async def test_the_ai_comment_follows_the_review(seeded: Sessions) -> None:
+    """ADR-0047 B: with the person's own key stored, a labelled comment comes after the review."""
+    secrets = Fernet.generate_key().decode()
+    settings = SETTINGS.model_copy(update={"secrets_key": SecretStr(secrets)})
+    with session_scope(seeded) as session:
+        ai_key.store(session, SecretBox(SecretStr(secrets)), SecretStr("gsk_" + "a" * 40))
+    reply = {"choices": [{"message": {"content": "Solid week."}}]}
+    respx.post("https://api.groq.com/openai/v1/chat/completions").respond(json=reply)
+    context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
+    await Handlers(settings, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    sent = [call.kwargs["text"] for call in context.bot.send_message.await_args_list]
+    assert len(sent) == 2
+    assert sent[0].startswith("Week of ")
+    assert sent[1] == f"{ai_comment.LABEL}\n\nSolid week."
 
 
 async def test_the_review_is_skipped_while_paused(seeded: Sessions) -> None:
