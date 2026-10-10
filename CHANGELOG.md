@@ -4,6 +4,20 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.22.0](https://github.com/LDoyleDev/training-coach/compare/v0.21.0...v0.22.0) (2026-10-10)
+
+
+### Features
+
+* **api:** readiness questions, and a note on hard days ([#182](https://github.com/LDoyleDev/training-coach/issues/182)) ([fe913ab](https://github.com/LDoyleDev/training-coach/commit/fe913ab8f30879d1b86bf22433e5e95efe90cbba))
+* **infra:** a heartbeat to Healthchecks.io every 5 minutes ([#179](https://github.com/LDoyleDev/training-coach/issues/179)) ([9e3319b](https://github.com/LDoyleDev/training-coach/commit/9e3319b61ca69554d54df6aa0df037c32731cc6e))
+* **web:** the readiness page, and its advice on hard days ([#183](https://github.com/LDoyleDev/training-coach/issues/183)) ([53bc91e](https://github.com/LDoyleDev/training-coach/commit/53bc91e7971dc9627fccd2cbed0c73ea2370f845))
+
+
+### Documentation
+
+* draft privacy notice and Impressum, unpublished ([#180](https://github.com/LDoyleDev/training-coach/issues/180)) ([b2f11e5](https://github.com/LDoyleDev/training-coach/commit/b2f11e5a55953b459d8887b91d80ddc8d85033f2))
+
 ## [0.21.0](https://github.com/LDoyleDev/training-coach/compare/v0.20.0...v0.21.0) (2026-10-10)
 
 
