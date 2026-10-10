@@ -1,6 +1,6 @@
-# AI connections: bring your own intelligence (proposal)
+# AI connections: bring your own intelligence
 
-Status: **proposal, not agreed** (ADR-0047). Phase 3 ("MCP endpoint for Claude") widened: every
+Status: **agreed 2026-10-10** (ADR-0047): the order below, Groq only for B, and an editable prompt in A. Phase 3 ("MCP endpoint for Claude") widened: every
 person connects **their own** AI, so nobody runs on Liam's Claude subscription or Groq quota.
 
 ## Goal
@@ -37,7 +37,8 @@ No personal data, ever. A test fails if the guide's version and the export forma
 
 - Account page: "Copy for my AI" with a period (last 4 weeks / 12 weeks / everything) and two
   ticks, both off: "include body measurements", "include readiness answers" (health data).
-- Copies compact Markdown: a header line with the guide link and version, then the plan
+- An editable question at the top (default: review the period, what's working, what to
+  change), then compact Markdown: a header line with the guide link and version, then the plan
   position, each exercise's step and recent sessions, test days, habits. Typically 2-6k tokens.
 - Built in the browser from the existing API; nothing new on the server. Photos never.
 
@@ -128,9 +129,11 @@ make it call `propose_log`, which is why proposals never save on their own.
 Each is its own PR with tests; C gets a threat-model section and a security review before it's
 reachable.
 
-## Open questions
+## Decided (2026-10-10)
 
-- Should B also allow an Anthropic or OpenAI key? (Their APIs are paid; Groq's free tier is the
-  zero-spend default.)
-- Should the copy in A include a short "questions to ask" prompt, or leave asking to the person?
-- Does C need ChatGPT and Claude both tested before release, or is Claude enough at first?
+- Order as above.
+- B is Groq only for now; other providers can come later through the same field.
+- A starts with a short, editable question ("Review my last 4 weeks: what's working, what
+  should I change?") above the data.
+
+Still open: whether C is tested with ChatGPT as well as Claude before it's released.

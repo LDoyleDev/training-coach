@@ -51,4 +51,4 @@ Code). Template: [template.md](template.md).
 | [0044](0044-erase-all-my-data.md) | Erasing all my data: delete the person, cascade, start fresh | Accepted |
 | [0045](0045-uptime-by-heartbeat.md) | Uptime monitoring by a heartbeat to Healthchecks.io | Accepted |
 | [0046](0046-readiness-questions.md) | Readiness questions that advise, not block | Accepted |
-| [0047](0047-bring-your-own-ai.md) | Bring your own AI | Proposed |
+| [0047](0047-bring-your-own-ai.md) | Bring your own AI | Accepted |

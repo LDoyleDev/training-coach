@@ -1,6 +1,6 @@
 # ADR-0047: Bring your own AI
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-10
 - Deciders: Liam
 
@@ -10,7 +10,7 @@ Liam wants an AI's view of the training: Groq comments, pasting into an AI, and 
 connection (MCP). Once others use the app, nobody should run on Liam's Claude subscription or
 Groq quota, and each person should be able to use the AI they already have.
 
-## Decision (proposed)
+## Decision
 
 Every AI feature uses the person's own AI or key; the app runs no shared AI for commentary.
 Three optional ways, all off by default, detailed in `docs/specs/ai-connections.md`:
