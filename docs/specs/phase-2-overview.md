@@ -28,23 +28,29 @@ The web app, multi-user and wearable data direction: `platform-and-health-data-p
 
 Order: data first, then Telegram features, then the dashboard that shows them.
 
-Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74, 2-C #73 (done),
-2-D #90 and #91 (done), 2-E #26 (done). 2-B (D3 decided) has no issue yet. Web: 2-F #115, then 2-H #117 and #118; summaries #116.
+Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74 (#94-#96, built), 2-B #142
+(measurements, built) and #143 (photos, open), 2-C #73 and #124 (done), 2-D #90 and #91 (done),
+2-E #26 (done). Web: 2-F sign-in #115 (done; share links still open), 2-H #117 and #118 (done),
+summaries #116 (done). Plan changes keep history: #107 (done).
 
 ### 2-0 Multi-user-ready schema (#72, done)
 - ADR-0026: a `users` table with Liam as the only row, `user_id` on every per-person table,
   every query scoped by it and a test that enforces it. Behaviour unchanged (still one user).
 
-### 2-A Baseline tests and retests (#74)
-- Model for test definitions (from the product spec list) and results with date and conditions.
+### 2-A Baseline tests and retests (#74; built in #94-#96)
+- Test definitions in `plan.toml`, and test days with their conditions and results (ADR-0037).
 - The web app walks through day 1 and day 2 tests one test at a time, with the same
   confirm-before-save rule as workout logs (ADR-0007). Not in Telegram (ADR-0035, ADR-0037).
 - Retests at the start of each block, or every 4 weeks without blocks (D4); results comparable
   test by test. A due test day stands in front of the queue, which waits (ADR-0038); the
   baseline is started by hand from the tests page.
+- Each result is shown against the first baseline and the previous test, with a note when the
+  conditions differ (#96).
 
 ### 2-B Body measurements and progress photos
-- Measurements (bodyweight, waist, chest, upper arm, thigh, resting heart rate) logged by text.
+- Measurements (bodyweight, waist, chest, upper arm, thigh, resting heart rate) entered in the
+  web app at `/body` (#142, web-first per ADR-0035), with the change since the first and the
+  last; never logged.
 - Photos stored on the Pi (D3); never in logs, never in share views (ADR-0012), excluded from
   any public endpoint (ADR-0019); the nightly backup and the desktop pull include them.
 
@@ -52,7 +58,8 @@ Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74, 2-C #73 (done)
 - Built: `/review` shows the week so far, and the review is sent every Sunday at 19:00 (local,
   DST-safe, skipped while paused), adjustable in `/settings` (D6).
 - Contents: sessions done vs planned, hard sets per muscle group vs Galpin's 10-20,
-  personal bests, exercises ready to progress.
+  zone 2 and moderate cardio minutes vs the 180-200 zone 2 target (#124), personal bests,
+  exercises ready to progress, habits.
 
 ### 2-D Habit check-offs (#90, #91, done)
 - Per D5: three one-tap check-offs in one evening message; the week's tally in the weekly
@@ -68,9 +75,11 @@ Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74, 2-C #73 (done)
   naming the block and prompting the warm-up before strength sessions.
 
 ### 2-F Dashboard login and share links
-- Owner sign-in and read-only share links exactly as ADR-0012 (Telegram HMAC, hashed expiring
-  tokens, `/share` and `/unshare`). Every route declares owner-only or share-visible; tests
-  enforce it. Cloudflare WAF and rate limit on `/api/auth/*`.
+- Sign-in, built (#115): passkeys, started and recovered with a one-time Telegram link
+  (ADR-0036, superseding ADR-0012's Telegram login). Every route declares public or
+  owner-only; a test enforces it. Cloudflare rate limit on `/api/auth/*` (a manual step).
+- Still to do: read-only share links as ADR-0012 (hashed expiring tokens, `/share` and
+  `/unshare`), never showing measurements or photos.
 
 ### 2-G Dashboard screens
 - Built to the agreed design (D1): Today, Plan with live position and ladder progress,
