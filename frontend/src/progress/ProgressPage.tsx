@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { fetchProgress, type Standing } from '../api'
 import AppShell from '../components/AppShell'
-import { amount, trend } from './logic'
+import Sparkline from '../components/Sparkline'
+import { amount } from './logic'
 
 type Loaded =
   | { status: 'loading' }
@@ -65,7 +66,6 @@ export default function ProgressPage() {
       </p>
       <ul className="flex flex-col gap-3">
         {loaded.standings.map((s) => {
-          const points = trend(s.recent)
           const status = STATUS[s.status]
           return (
             <li key={s.exercise} className={card + ' flex items-center justify-between gap-3'}>
@@ -85,24 +85,7 @@ export default function ProgressPage() {
                 </span>
                 {status && <span className="font-bold text-[var(--bell-ink)]">{status}</span>}
               </div>
-              {points && (
-                <svg
-                  width="120"
-                  height="32"
-                  viewBox="0 0 120 32"
-                  role="img"
-                  aria-label={`Best set, last ${s.recent.length} sessions`}
-                  className="shrink-0"
-                >
-                  <polyline
-                    points={points}
-                    fill="none"
-                    stroke="var(--bell-ink)"
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
+              <Sparkline values={s.recent} label={`Best set, last ${s.recent.length} sessions`} />
             </li>
           )
         })}

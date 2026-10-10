@@ -57,6 +57,7 @@ test('the latest values compare with the first and the last', async () => {
   expect(
     await screen.findByText(/83.1 kg · since first -1.1 · since last -0.5/),
   ).toBeInTheDocument()
+  expect(screen.getByRole('img', { name: /^Bodyweight, \d+ entries$/ })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'History' })).toBeInTheDocument()
 })
 

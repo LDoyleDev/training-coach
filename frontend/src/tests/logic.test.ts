@@ -95,12 +95,12 @@ test('each result is set against the first baseline and the previous test', () =
     day(1, {}, [pull(6)]),
   ]
   expect(compare(days, 0)).toEqual([
-    { test: 'pull', side: 'both', value: 9, baseline: 6, last: 8 },
-    { test: 'hang', side: 'both', value: 40, baseline: null, last: null }, // first time
+    { test: 'pull', side: 'both', value: 9, baseline: 6, last: 8, history: [9, 8, 6] },
+    { test: 'hang', side: 'both', value: 40, baseline: null, last: null, history: [40] }, // first
   ])
   // With one earlier test, it is the baseline; there's no separate "last".
   expect(compare(days, 1)).toEqual([
-    { test: 'pull', side: 'both', value: 8, baseline: 6, last: null },
+    { test: 'pull', side: 'both', value: 8, baseline: 6, last: null, history: [8, 6] }, // not 9: later
   ])
   expect(compare(days, 2)[0]).toMatchObject({ baseline: null, last: null })
 })

@@ -241,6 +241,9 @@ test('after saving, each result shows against the baseline and last time', async
     await screen.findByText('Max pull-ups: 9 · baseline 6 (+3) · last 7 (+2)'),
   ).toBeInTheDocument()
   expect(screen.getByText('Not quite comparable: fed, last time fasted.')).toBeInTheDocument()
+  expect(screen.getAllByRole('img', { name: 'Max pull-ups, 3 test days' }).length).toBeGreaterThan(
+    0,
+  )
 })
 
 test('a test day due today is offered first', async () => {

@@ -72,6 +72,7 @@ export type Compared = {
   value: number
   baseline: number | null // the first test day with this result, when it isn't this one
   last: number | null // the test day before this one with it, when it isn't the baseline
+  history: number[] // this result and every earlier one, newest first, for a trend line
 }
 
 /** Each result of `days[index]` next to the first baseline and the previous test (#96).
@@ -92,6 +93,7 @@ export function compare(days: TestDay[], index: number): Compared[] {
       value: r.value,
       baseline: valueOn(first),
       last: last === first ? null : valueOn(last),
+      history: [r.value, ...before.map(valueOn).filter((v): v is number => v !== null)],
     }
   })
 }
