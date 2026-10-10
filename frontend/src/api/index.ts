@@ -370,6 +370,24 @@ export async function fetchProgress(signal?: AbortSignal): Promise<Standing[] | 
   return (await res.json()) as Standing[]
 }
 
+// ---------------------------------------------------------------- your own AI (ADR-0047)
+
+export type SummaryPeriod = '4w' | '12w' | 'all'
+
+/** My training as Markdown for my own AI; health data only when asked for. */
+export async function fetchAiSummary(
+  period: SummaryPeriod,
+  body: boolean,
+  readiness: boolean,
+): Promise<string> {
+  const query = new URLSearchParams({ period, body: String(body), readiness: String(readiness) })
+  const res = signedIn(
+    await fetch(`/api/account/ai-summary?${query}`, { credentials: 'same-origin' }),
+  )
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return res.text()
+}
+
 // ---------------------------------------------------------------- readiness (ADR-0046)
 
 export type Readiness = Schemas['ReadinessView']

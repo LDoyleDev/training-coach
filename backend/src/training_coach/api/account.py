@@ -12,7 +12,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from training_coach.api.alerts import alert
 from training_coach.api.auth import COOKIE, Fresh, Owner
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.queue import local_date
 from training_coach.services import auth, passkeys
+from training_coach.services.ai_summary import Options, summary
 from training_coach.services.erase import erase
 from training_coach.services.export import archive, record
 from training_coach.services.seed import load_plan
@@ -108,6 +110,33 @@ def export(request: Request, background: BackgroundTasks, user: Owner, _fresh: F
             "Content-Disposition": f'attachment; filename="{name}"',
             "Cache-Control": "private, no-store",
         },
+    )
+
+
+@router.get(
+    "/ai-summary",
+    response_class=Response,
+    responses={200: {"content": {"text/markdown": {}}}},
+)
+def ai_summary(
+    request: Request,
+    user: Owner,
+    period: Literal["4w", "12w", "all"] = "4w",
+    body: bool = False,
+    readiness: bool = False,
+) -> Response:
+    """My training as compact Markdown for my own AI (ADR-0047): the last 4 or 12 weeks, or
+    everything. Measurements and readiness answers (health data) only when asked for; photos
+    never."""
+    weeks = {"4w": 4, "12w": 12, "all": None}[period]
+    settings = request.app.state.settings
+    today = local_date(datetime.now(UTC), settings.tz)
+    with session_scope(_bound(request, user)) as session:
+        text = summary(session, today, Options(weeks=weeks, body=body, readiness=readiness))
+    return Response(
+        text,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Cache-Control": "private, no-store"},
     )
 
 

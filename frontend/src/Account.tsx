@@ -1,4 +1,5 @@
 import AppShell from './components/AppShell'
+import CopyForAI from './account/CopyForAI'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import {
   addPasskey,
@@ -200,6 +201,8 @@ export default function Account() {
               </button>
             </p>
           </section>
+
+          <CopyForAI />
 
           <section aria-labelledby="erase">
             <h2 id="erase">Erase all my data</h2>
