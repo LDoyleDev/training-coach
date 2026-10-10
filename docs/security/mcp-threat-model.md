@@ -70,8 +70,8 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
 
 | Threat | Entry point | Controls | Tests / checks |
 | --- | --- | --- | --- |
-| M1: Token theft or replay | Leaked tokens from the AI vendor, logs or a backup | Opaque 32-byte tokens stored only hashed. Access 1 h, refresh 30 d rotating; reusing a refresh token revokes the whole connection and alerts. Bearer tokens are accepted only in the `Authorization` header, never in a query string, and never logged. Export leaves `*_hash` columns out by rule. Revoke on the Account page | `tests/services/test_mcp_tokens.py`: expiry, hashing, rotation, reuse revokes, query-string token refused, captured logs |
-| M2: Confused deputy or wrong token audience | `/mcp`, `/oauth/token` | Tokens carry `resource` = the `/mcp` URL and are refused anywhere else. Session cookies are never accepted on `/mcp`, and bearer tokens never on `/api/*`. No token passthrough. Consent is per client and redirect URI, never skipped. `iss` is returned in the authorization response (RFC 9207) | Wrong-resource, cookie-on-`/mcp` and bearer-on-`/api` tests |
+| M1: Token theft or replay | Leaked tokens from the AI vendor, logs or a backup | Opaque 32-byte tokens stored only hashed. Access 1 h, refresh 30 d rotating; reusing a refresh token revokes the whole connection and alerts, except within 30 s of its first use, when the same new pair is returned again (a retry after a lost response). Bearer tokens are accepted only in the `Authorization` header, never in a query string, and never logged. Export leaves `*_hash` columns out by rule. Revoke on the Account page | `tests/services/test_mcp_tokens.py`: expiry, hashing, rotation, reuse revokes, query-string token refused, captured logs |
+| M2: Confused deputy or wrong token audience; DNS rebinding | `/mcp`, `/oauth/token` | `/mcp` validates `Origin` as the MCP Streamable HTTP spec requires: a request with a browser `Origin` that isn't this site's is refused with 403 (AI clients send none). Tokens carry `resource` = the `/mcp` URL and are refused anywhere else. Session cookies are never accepted on `/mcp`, and bearer tokens never on `/api/*`. No token passthrough. Consent is per client and redirect URI, never skipped. `iss` is returned in the authorization response (RFC 9207) | Wrong-resource, cookie-on-`/mcp` and bearer-on-`/api` tests |
 | M3: Malicious registered client, or phishing-style consent | `/oauth/register`, consent page | Registration grants nothing until passkey consent. The name is shown as untrusted ("calls itself ...") beside the redirect host. The Telegram alert names both as plain text. Caps and expiry as listed above. The consent page says what data leaves and to whom | Registration cap, metadata limit and expiry tests; consent page shows "calls itself" and the host |
 | M4: Open redirect or `redirect_uri` manipulation | `/oauth/authorize`, `/oauth/token` | Exact string match against a registered URI (loopback only for `http`). An unknown client or mismatched URI gets an error page, never a redirect. Error redirects go only to a validated URI, with `state` echoed. The code is bound to `redirect_uri`, and `/oauth/token` checks it again | Mismatch, prefix, extra query, fragment, `javascript:` and `http` tests |
 | M5: CSRF or clickjacking on consent | Consent approve POST | `request_guard`'s Origin / `Sec-Fetch-Site` check. SameSite=Strict cookie. A random single-use consent handle (10 min, hashed). `/oauth/authorize` runs signed out (the SameSite=Strict cookie isn't sent on the cross-site arrival), so the handle is created bound to the request (`client_id`, `redirect_uri`, scopes, PKCE challenge, `resource`); the consent page then asks for the passkey, and that same-site step binds the handle to the resulting session. Approve rechecks both bindings. `Owner` + a new `PasskeyFresh` check (not `Fresh`, which also accepts a session begun by a bot link or `/recover`): a passkey sign-in or ADR-0049 confirmation in the last 10 minutes. CSP `frame-ancestors 'none'` | Cross-origin approve refused, handle replay, stale session, framing header |
@@ -91,11 +91,15 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
 3. Token lifetimes:
    - access tokens expire after 1 hour, refresh tokens after 30 days;
    - each refresh issues a new pair and invalidates the old refresh token;
-   - presenting a used refresh token revokes the connection and sends a Telegram alert.
+   - presenting a used refresh token revokes the connection and sends a Telegram alert, except
+     within 30 s of its first use, when the same new pair is returned (a retry after a lost
+     response); tests for both.
 4. `/mcp` must reject the following with `401` and a `WWW-Authenticate` header naming the resource metadata. `/api/*` must ignore bearer tokens.
    - a token whose resource is not the `/mcp` URL;
    - a token in a query string;
    - a request carrying only a session cookie.
+   `/mcp` also refuses, with 403, a request whose `Origin` header names another site (DNS
+   rebinding, browser-initiated calls), with a test.
 5. `/oauth/authorize` must refuse a missing or `plain` PKCE method, an unknown `resource` and unknown scopes.
 6. A `redirect_uri` must match a registered URI byte for byte; `http` is allowed only for loopback. On any mismatch, or for an unknown client, the server renders an error page and sends no `Location` header.
 7. Authorization codes:
