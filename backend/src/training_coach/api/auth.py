@@ -103,7 +103,7 @@ def fresh_sign_in(request: Request) -> None:
     with session_scope(_shared(request)) as session:
         recent = auth.fresh(session, token, datetime.now(UTC))
     if not recent:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "sign in again to change passkeys")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "confirm it's you (a recent sign-in)")
 
 
 Fresh = Annotated[None, Depends(fresh_sign_in)]
