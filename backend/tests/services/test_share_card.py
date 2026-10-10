@@ -59,3 +59,21 @@ def test_render_draws_a_phone_sized_png() -> None:
 def test_render_with_nothing_logged() -> None:
     empty = share_card.Card(date(2026, 9, 14), TODAY, 0, 0, 0, 0, [])
     assert _png(empty).size == share_card.SIZE
+
+
+def test_the_most_rows_end_above_the_footer() -> None:
+    last_row_bottom = share_card.ROWS_TOP + share_card.MAX_EXERCISES * share_card.ROW
+    assert last_row_bottom <= share_card.FOOTER_Y - 20
+    full = share_card.Card(
+        date(2026, 9, 14),
+        TODAY,
+        1,
+        0,
+        0,
+        0,
+        [share_card.Rung(f"Exercise {n}", "Step", 1, 4) for n in range(share_card.MAX_EXERCISES)],
+    )
+    image = _png(full).convert("RGB")
+    # The strip between the last row and the footer is only background.
+    band = image.crop((0, last_row_bottom, share_card.SIZE[0], share_card.FOOTER_Y - 5))
+    assert band.getcolors() == [(band.width * band.height, (0x1B, 0x20, 0x24))]

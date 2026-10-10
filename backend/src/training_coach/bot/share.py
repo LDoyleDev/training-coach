@@ -1,6 +1,7 @@
 """/share (ADR-0050): the last 4 weeks as a picture, to forward to anyone. No link, nothing
 public: the image is all that leaves, and it holds no body data, readiness answers or photos."""
 
+import asyncio
 from datetime import UTC, datetime
 
 import structlog
@@ -32,6 +33,7 @@ class ShareHandlers:
         today = local_date(datetime.now(UTC), self.settings.tz)
         with session_scope(self.sessions) as session:
             card = share_card.facts(session, today)
-        image = share_card.render(card)
+        # Drawing is CPU work: off the event loop the API and bot share.
+        image = await asyncio.to_thread(share_card.render, card)
         await update.effective_message.reply_photo(image, caption=CAPTION)
         log.info("bot.share_sent", bytes=len(image))

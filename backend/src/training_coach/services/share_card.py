@@ -18,8 +18,10 @@ from training_coach.domain.enums import WorkoutStatus
 from training_coach.services import progress, review
 
 DAYS = 28
-MAX_EXERCISES = 8
+MAX_EXERCISES = 6
 SIZE = (1080, 1350)  # 4:5, what phones show full size in a chat
+ROWS_TOP, ROW = 660, 84  # the ladder rows
+FOOTER_Y = SIZE[1] - 100
 
 # The app's colours (frontend/src/index.css), dark version.
 BACKGROUND = "#1b2024"
@@ -119,7 +121,7 @@ def render(card: Card) -> bytes:
         draw.text((x + 36, 470), _fit(draw, label, 32, box - 72), font=_font(32), fill=MUTED)
 
     draw.text((left, 580), "Where I am on each ladder", font=_font(44), fill=TEXT)
-    y = 660
+    y = ROWS_TOP
     for rung in card.rungs:
         name = _fit(draw, rung.exercise, 36, width // 2 - 20)
         draw.text((left, y), name, font=_font(36), fill=TEXT)
@@ -132,12 +134,12 @@ def render(card: Card) -> bytes:
             bx = x0 + n * (block + gap)
             fill = ACCENT if n < rung.number else LINE
             draw.rounded_rectangle((bx, y + 10, bx + block, y + 46), radius=8, fill=fill)
-        y += 84
+        y += ROW
     if not card.rungs:
         draw.text((left, y), "Nothing logged yet.", font=_font(36), fill=MUTED)
 
     footer = "Shared from Training Coach. No body data or photos."
-    draw.text((left, SIZE[1] - 100), footer, font=_font(28), fill=MUTED)
+    draw.text((left, FOOTER_Y), footer, font=_font(28), fill=MUTED)
 
     out = io.BytesIO()
     image.save(out, format="PNG", optimize=True)

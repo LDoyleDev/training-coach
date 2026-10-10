@@ -19,7 +19,7 @@ person forwards it wherever they like.
 - **In it:**
   - planned sessions done, plus any extras;
   - zone 2 and moderate cardio minutes;
-  - up to 8 exercises with their step on each ladder.
+  - up to 6 exercises with their step on each ladder.
 - **Never in it:** body measurements, readiness answers, photos, notes or habits.
 - No link, no token, no public route: the image is all that leaves, and only because the
   person sends it on.
