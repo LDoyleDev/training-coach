@@ -197,7 +197,9 @@ def test_rotate_secrets_reseals_with_the_newest_key(
     get_settings.cache_clear()
     with pytest.raises(SystemExit, match="1 stored key"):
         main(["rotate-secrets"])
-    assert "0 unreadable" not in capsys.readouterr().out
+    assert (
+        "Re-sealed 0 key(s) with the newest secrets key; 1 unreadable." in capsys.readouterr().out
+    )
     engine.dispose()
     monkeypatch.delenv("TC_SECRETS_KEY")
     get_settings.cache_clear()
