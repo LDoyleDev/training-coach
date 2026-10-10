@@ -4,6 +4,22 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.21.0](https://github.com/LDoyleDev/training-coach/compare/v0.20.0...v0.21.0) (2026-10-10)
+
+
+### Features
+
+* **api:** erase all my data ([#176](https://github.com/LDoyleDev/training-coach/issues/176)) ([e8908f5](https://github.com/LDoyleDev/training-coach/commit/e8908f5482977f7ddc5aa73e8e31b456534ea24c))
+* **infra:** manual and pre-deploy backups go after 35 days ([#177](https://github.com/LDoyleDev/training-coach/issues/177)) ([b988bac](https://github.com/LDoyleDev/training-coach/commit/b988bac561ca63225af4031149bdc97c5237a266))
+* **infra:** the Pi deploys only releases GitHub signed ([#172](https://github.com/LDoyleDev/training-coach/issues/172)) ([418659f](https://github.com/LDoyleDev/training-coach/commit/418659f69aeff89758b72e37e46e85b1f8130de7))
+
+
+### Documentation
+
+* ADR-0044 records the 35-day limit on manual backups ([#178](https://github.com/LDoyleDev/training-coach/issues/178)) ([e1ee591](https://github.com/LDoyleDev/training-coach/commit/e1ee591674884ec9236d2591cba833439908dd5a))
+* security policy for the public repo ([#173](https://github.com/LDoyleDev/training-coach/issues/173)) ([94f0030](https://github.com/LDoyleDev/training-coach/commit/94f0030dfff182325e1073463ae8863d21351eeb))
+* threat model and specs record export and failure alerts ([#170](https://github.com/LDoyleDev/training-coach/issues/170)) ([8d5bc7e](https://github.com/LDoyleDev/training-coach/commit/8d5bc7e3a05fb225915bae3eda7fa028338d1981))
+
 ## [0.20.0](https://github.com/LDoyleDev/training-coach/compare/v0.19.0...v0.20.0) (2026-10-10)
 
 
