@@ -52,3 +52,4 @@ Code). Template: [template.md](template.md).
 | [0045](0045-uptime-by-heartbeat.md) | Uptime monitoring by a heartbeat to Healthchecks.io | Accepted |
 | [0046](0046-readiness-questions.md) | Readiness questions that advise, not block | Accepted |
 | [0047](0047-bring-your-own-ai.md) | Bring your own AI | Accepted |
+| [0048](0048-undo-the-last-change.md) | Undo the last change to the plan | Accepted |
