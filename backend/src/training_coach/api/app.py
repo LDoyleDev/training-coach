@@ -22,7 +22,7 @@ from training_coach.api.passkeys import router as passkeys_router
 from training_coach.api.photos import router as photos_router
 from training_coach.api.plan import router as plan_router
 from training_coach.api.progress import router as progress_router
-from training_coach.api.security import security_headers_middleware
+from training_coach.api.security import request_guard, security_headers_middleware
 from training_coach.api.session import router as session_router
 from training_coach.bot.app import build_bot, send_with_retry
 from training_coach.config import Settings, get_settings
@@ -131,7 +131,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
         openapi_url="/api/openapi.json" if settings.environment != "production" else None,
     )
-    app.middleware("http")(security_headers_middleware)
+    app.middleware("http")(request_guard(settings.public_url))
+    app.middleware("http")(security_headers_middleware)  # outermost: headers on refusals too
     app.state.shared_sessions = make_session_factory(engine)
     app.state.engine = engine
     app.state.settings = settings

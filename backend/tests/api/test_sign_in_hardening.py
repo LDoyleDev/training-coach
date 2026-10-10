@@ -77,7 +77,7 @@ def test_recovery_signs_out_everyone_else_and_removes_every_passkey(
     client: TestClient, engine: Engine, sent: list[str]
 ) -> None:
     _with_passkey(client, engine)
-    other = client.cookies.get("tc_session")
+    other = client.cookies.get("__Host-tc_session")
     client.cookies.clear()
     assert _redeem(client, _link(engine, auth.RECOVER)) == 204
     assert client.get("/api/auth/me").json() == {"user_id": OWNER}
@@ -87,7 +87,7 @@ def test_recovery_signs_out_everyone_else_and_removes_every_passkey(
             select(WebSession.token_hash).where(WebSession.ended_at.is_(None)),
             execution_options={ALL_USERS: True},
         ).all()
-    assert live == [auth.hash_token(client.cookies.get("tc_session") or "")]
+    assert live == [auth.hash_token(client.cookies.get("__Host-tc_session") or "")]
     assert auth.hash_token(other or "") not in live
     assert "Recovery sign-in" in sent[-1]
     assert "every passkey removed" in sent[-1]

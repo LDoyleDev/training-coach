@@ -25,7 +25,9 @@ ALL_USERS = "all_users"
 
 
 def make_engine(database_url: str) -> Engine:
-    engine = create_engine(database_url, future=True)
+    # hide_parameters: an error message never carries values (measurements, token hashes) into
+    # the logs (security review, 2026-10-10).
+    engine = create_engine(database_url, future=True, hide_parameters=True)
     if database_url.startswith("sqlite"):
 
         @event.listens_for(engine, "connect")

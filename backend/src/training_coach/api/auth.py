@@ -16,7 +16,9 @@ from training_coach.api.alerts import alert, device
 from training_coach.db.session import session_scope
 from training_coach.services import auth
 
-COOKIE = "tc_session"
+# __Host-: only this exact host may set it, with Path=/ and Secure, so a sibling site on the
+# same domain can't plant or shadow it (security review, 2026-10-10).
+COOKIE = "__Host-tc_session"
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
