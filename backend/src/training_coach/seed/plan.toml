@@ -54,7 +54,7 @@ slug = "max-dips"
 name = "Max dips"
 day = 1
 unit = "reps"
-cue = "Upper arms to parallel, then lock out. Stop at the first rep that isn't full."
+cue = "On chairs that can't tip or slide. Upper arms to parallel, then lock out. Stop at the first rep that isn't full."
 
 [[tests]]
 slug = "dead-hang"
@@ -91,7 +91,7 @@ slug = "run-12-min"
 name = "12-minute run"
 day = 2
 unit = "metres"
-cue = "As far as you can in 12 minutes, on the same route each time. The distance in metres."
+cue = "Only once you can run 20 minutes easily. As far as you can in 12 minutes, on the same route each time; stop if you feel dizzy or your chest feels tight. The distance in metres."
 
 [[tests]]
 slug = "deep-squat-hold"
@@ -194,7 +194,7 @@ ladder = ["Bodyweight on a step", "Holding 8 kg", "8 kg, 2 s pause at top"]
 [[exercises]]
 slug = "pull-up"
 name = "Pull-up"
-summary = "Hang with an overhand grip a little wider than your shoulders. Pull until your chin clears the bar, then lower slowly to a full hang."
+summary = "Hang with an overhand grip a little wider than your shoulders. Pull until your chin clears the bar, then lower slowly to a full hang. Check the bar is fixed firmly first."
 kind = "reps"
 muscle_groups = ["lats", "upper back", "biceps"]
 aliases = ["pullups", "pull ups", "pull-ups"]
@@ -204,7 +204,7 @@ ladder = ["Slow negatives", "Strict pull-up", "Pause at top", "Weighted backpack
 [[exercises]]
 slug = "dip"
 name = "Dip (chairs)"
-summary = "Hands on two steady chairs behind or beside you. Lower until your upper arms are level with the seats, then press back up without shrugging."
+summary = "Hands on two sturdy chairs that can't tip or slide (back them against a wall), behind or beside you. Lower until your upper arms are level with the seats, then press back up without shrugging."
 kind = "reps"
 muscle_groups = ["chest", "triceps", "front delts"]
 aliases = ["dips"]
@@ -254,7 +254,7 @@ ladder = ["Chest on bench/bed, water bottles", "Chest on bench/bed, 8 kg one arm
 [[exercises]]
 slug = "neck-flexion"
 name = "Neck flexion (lying on back, head off edge)"
-summary = "Lie on your back with your head off the edge of a bed or bench. Tuck your chin and lift your head slowly, then lower just as slowly."
+summary = "Lie on your back with your head off the edge of a bed or bench. Tuck your chin and lift your head slowly, then lower just as slowly. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
 muscle_groups = ["neck"]
 aliases = ["neck flexion", "neck curl", "neck curls", "neck front"]
@@ -264,7 +264,7 @@ ladder = ["Bodyweight, slow", "Hand resistance on forehead", "Folded towel + lig
 [[exercises]]
 slug = "neck-extension"
 name = "Neck extension (lying face down, head off edge)"
-summary = "Lie face down with your head off the edge. Lift your head to neutral and a little beyond, slowly, then lower."
+summary = "Lie face down with your head off the edge. Lift your head to neutral and a little beyond, slowly, then lower. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
 muscle_groups = ["neck", "posture"]
 aliases = ["neck extension", "neck back", "neck extensions"]
@@ -316,7 +316,7 @@ ladder = ["8 kg or water bottles", "Lean-away single-arm"]
 [[exercises]]
 slug = "neck-lateral"
 name = "Neck side bend (lying on side, head off edge)"
-summary = "Lie on your side with your head off the edge. Lift your ear towards your shoulder slowly, then lower; do both sides."
+summary = "Lie on your side with your head off the edge. Lift your ear towards your shoulder slowly, then lower; do both sides. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
 muscle_groups = ["neck"]
 aliases = ["neck side", "neck lateral", "side neck"]
@@ -400,7 +400,7 @@ ladder = ["Run, bike, stairs, jump rope or KB circuit"]
 [[exercises]]
 slug = "hiit"
 name = "High-intensity intervals (20 s all-out / 10 s easy)"
-summary = "20 seconds as hard as you can, 10 seconds easy, repeated. Bike, hill sprints, swings or burpees all work."
+summary = "20 seconds as hard as you can, 10 seconds easy, repeated. Bike, hill sprints, swings or burpees all work. Only once you have a base of easier cardio; stop if you feel dizzy or your chest feels tight."
 kind = "reps"
 muscle_groups = ["conditioning"]
 aliases = ["hiit", "intervals", "sprints", "tabata"]
@@ -439,7 +439,7 @@ items = [
 slug = "recovery"
 type = "recovery"
 name = "Recovery + posture"
-focus = "Posture, mobility; optional sauna / cold"
+focus = "Posture, mobility; optional sauna / cold if you're healthy and used to it"
 is_rest_optional = true
 items = [
   { exercise = "prone-ytw", sets = 2, rep_min = 8, rep_max = 12 },

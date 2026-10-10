@@ -38,7 +38,8 @@ HINTS = {
     ),
     Habit.PROTEIN: (
         "about 1.6-2.2 g per kg of bodyweight across the day (roughly 130-175 g at 80 kg), "
-        "spread over 3-4 meals with 30-50 g each, one of them soon after training."
+        "spread over 3-4 meals with 30-50 g each, one of them soon after training. "
+        "General guidance for healthy adults: with kidney disease, or if pregnant, ask a doctor."
     ),
     Habit.WIND_DOWN: (
         "the last hour before bed with no phone, laptop or TV, and only dim, low lights. "
@@ -59,7 +60,8 @@ def hint(habit: Habit, protein_g: int | None = None) -> str:
     if habit is Habit.PROTEIN and protein_g is not None:
         return (
             f"{protein_g} g across the day, spread over 3-4 meals with 30-50 g each, one of "
-            "them soon after training."
+            "them soon after training. General guidance for healthy adults: with kidney "
+            "disease, or if pregnant, ask a doctor."
         )
     return HINTS[habit]
 
