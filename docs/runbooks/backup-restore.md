@@ -8,8 +8,8 @@ checked with `PRAGMA integrity_check`, and only then renamed into place.
 | What | Where | Kept |
 | --- | --- | --- |
 | Nightly | `data/backups/training_coach-YYYY-MM-DD.db` | newest 7, plus the newest of each of the 4 weeks before them |
-| Manual | `data/backups/training_coach-manual-<UTC time>.db` | until you delete it |
-| Desktop copy | `~/backups/training-coach/` via `scripts/pull-backup.sh` | 35 days (manual backups until you delete them) |
+| Manual (and before every deploy) | `data/backups/training_coach-manual-<UTC time>.db` | 35 days (ADR-0044) |
+| Desktop copy | `~/backups/training-coach/` via `scripts/pull-backup.sh` | 35 days |
 | Off-site | Cloudflare R2 bucket, encrypted with age, via `scripts/offsite-backup.sh` | 35 days |
 
 A failed backup logs `backup.failed` and, when the bot is on, sends you a Telegram message.
@@ -25,6 +25,10 @@ desktop copy as private for the same reason.
 ```bash
 docker compose exec app training-coach backup    # logs backup.created with the file name
 ```
+
+It's deleted after 35 days, like every copy, so erased data doesn't linger (ADR-0044). If a
+backup has to outlive that (evidence of a problem, say), copy it out of `data/backups/` under
+another name and delete it yourself when done.
 
 ## Pulling backups to the desktop
 
