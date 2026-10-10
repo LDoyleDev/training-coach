@@ -394,29 +394,6 @@ export interface components {
             /** Week */
             week: number;
         };
-        /** DayView */
-        DayView: {
-            /** Day */
-            day: number;
-            /** Fed */
-            fed: boolean;
-            /** Id */
-            id: number;
-            /**
-             * On
-             * Format: date
-             */
-            on: string;
-            /** Results */
-            results: components["schemas"]["ResultView"][];
-            /** Slept Well */
-            slept_well: boolean;
-            /**
-             * Time Of Day
-             * @enum {string}
-             */
-            time_of_day: "morning" | "midday" | "afternoon" | "evening";
-        };
         /** DeviceView */
         DeviceView: {
             /**
@@ -644,18 +621,6 @@ export interface components {
             /** Token */
             token: string;
         };
-        /** ResultView */
-        ResultView: {
-            /**
-             * Side
-             * @enum {string}
-             */
-            side: "both" | "left" | "right";
-            /** Test */
-            test: string;
-            /** Value */
-            value: number;
-        };
         /** RoutineView */
         RoutineView: {
             /** Hold Seconds */
@@ -671,6 +636,19 @@ export interface components {
         SaveBody: {
             /** Day */
             day?: string | null;
+        };
+        /** SavedView */
+        SavedView: {
+            /** Already Saved */
+            already_saved: boolean;
+            /** Earned */
+            earned: components["schemas"]["EarnedView"][];
+            /** Next Session */
+            next_session: string | null;
+            /** Stretching */
+            stretching: boolean;
+            /** Workout Id */
+            workout_id: number;
         };
         /** SessionView */
         SessionView: {
@@ -740,7 +718,7 @@ export interface components {
             /** On */
             on?: string | null;
             /** Results */
-            results: components["schemas"]["ResultView"][];
+            results: components["schemas"]["TestResultView"][];
             /** Slept Well */
             slept_well: boolean;
             /**
@@ -750,6 +728,48 @@ export interface components {
             time_of_day: "morning" | "midday" | "afternoon" | "evening";
             /** Token */
             token: string;
+        };
+        /** TestDaySaved */
+        TestDaySaved: {
+            /** Already Saved */
+            already_saved: boolean;
+            /** Id */
+            id: number;
+        };
+        /** TestDayView */
+        TestDayView: {
+            /** Day */
+            day: number;
+            /** Fed */
+            fed: boolean;
+            /** Id */
+            id: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Results */
+            results: components["schemas"]["TestResultView"][];
+            /** Slept Well */
+            slept_well: boolean;
+            /**
+             * Time Of Day
+             * @enum {string}
+             */
+            time_of_day: "morning" | "midday" | "afternoon" | "evening";
+        };
+        /** TestResultView */
+        TestResultView: {
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "both" | "left" | "right";
+            /** Test */
+            test: string;
+            /** Value */
+            value: number;
         };
         /** TestView */
         TestView: {
@@ -801,26 +821,6 @@ export interface components {
             group: string;
             /** Sets */
             sets: number;
-        };
-        /** SavedView */
-        training_coach__api__fitness__SavedView: {
-            /** Already Saved */
-            already_saved: boolean;
-            /** Id */
-            id: number;
-        };
-        /** SavedView */
-        training_coach__api__session__SavedView: {
-            /** Already Saved */
-            already_saved: boolean;
-            /** Earned */
-            earned: components["schemas"]["EarnedView"][];
-            /** Next Session */
-            next_session: string | null;
-            /** Stretching */
-            stretching: boolean;
-            /** Workout Id */
-            workout_id: number;
         };
     };
     responses: never;
@@ -1172,7 +1172,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["training_coach__api__session__SavedView"];
+                    "application/json": components["schemas"]["SavedView"];
                 };
             };
             /** @description Validation Error */
@@ -1313,7 +1313,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["training_coach__api__fitness__SavedView"];
+                    "application/json": components["schemas"]["TestDaySaved"];
                 };
             };
             /** @description Validation Error */
@@ -1342,7 +1342,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DayView"][];
+                    "application/json": components["schemas"]["TestDayView"][];
                 };
             };
         };

@@ -60,7 +60,7 @@ def definitions(user: Owner) -> list[TestView]:
     ]
 
 
-class ResultView(BaseModel):
+class TestResultView(BaseModel):
     test: str = Field(max_length=64)
     side: SideName
     value: int
@@ -72,17 +72,17 @@ class TestDayBody(BaseModel):
     time_of_day: When
     fed: bool
     slept_well: bool
-    results: list[ResultView] = Field(max_length=40)
+    results: list[TestResultView] = Field(max_length=40)
     token: str = Field(min_length=16, max_length=32, pattern=r"^[A-Za-z0-9_-]+$")
 
 
-class SavedView(BaseModel):
+class TestDaySaved(BaseModel):
     id: int
     already_saved: bool
 
 
-@router.post("", response_model=SavedView)
-def save(body: TestDayBody, request: Request, user: Owner) -> SavedView:
+@router.post("", response_model=TestDaySaved)
+def save(body: TestDayBody, request: Request, user: Owner) -> TestDaySaved:
     """Save a test day once (a repeated Save with the same token returns it)."""
     today = _today(request)
     conditions = fitness_tests.Conditions(TimeOfDay(body.time_of_day), body.fed, body.slept_well)
@@ -93,33 +93,35 @@ def save(body: TestDayBody, request: Request, user: Owner) -> SavedView:
         )
     if isinstance(saved, str):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, saved)
-    return SavedView(id=saved.id, already_saved=saved.already_saved)
+    return TestDaySaved(id=saved.id, already_saved=saved.already_saved)
 
 
-class DayView(BaseModel):
+class TestDayView(BaseModel):
     id: int
     on: date
     day: int
     time_of_day: When
     fed: bool
     slept_well: bool
-    results: list[ResultView]
+    results: list[TestResultView]
 
 
-@router.get("/results", response_model=list[DayView])
-def results(request: Request, user: Owner) -> list[DayView]:
+@router.get("/results", response_model=list[TestDayView])
+def results(request: Request, user: Owner) -> list[TestDayView]:
     """Every test day, newest first."""
     with session_scope(_bound(request, user)) as session:
         days = fitness_tests.history(session)
     return [
-        DayView(
+        TestDayView(
             id=d.id,
             on=d.on,
             day=d.day,
             time_of_day=d.conditions.time_of_day.value,
             fed=d.conditions.fed,
             slept_well=d.conditions.slept_well,
-            results=[ResultView(test=r.test, side=r.side.value, value=r.value) for r in d.results],
+            results=[
+                TestResultView(test=r.test, side=r.side.value, value=r.value) for r in d.results
+            ],
         )
         for d in days
     ]

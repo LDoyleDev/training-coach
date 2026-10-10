@@ -39,59 +39,6 @@
         "title": "BlockView",
         "type": "object"
       },
-      "DayView": {
-        "properties": {
-          "day": {
-            "title": "Day",
-            "type": "integer"
-          },
-          "fed": {
-            "title": "Fed",
-            "type": "boolean"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "on": {
-            "format": "date",
-            "title": "On",
-            "type": "string"
-          },
-          "results": {
-            "items": {
-              "$ref": "#/components/schemas/ResultView"
-            },
-            "title": "Results",
-            "type": "array"
-          },
-          "slept_well": {
-            "title": "Slept Well",
-            "type": "boolean"
-          },
-          "time_of_day": {
-            "enum": [
-              "morning",
-              "midday",
-              "afternoon",
-              "evening"
-            ],
-            "title": "Time Of Day",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "on",
-          "day",
-          "time_of_day",
-          "fed",
-          "slept_well",
-          "results"
-        ],
-        "title": "DayView",
-        "type": "object"
-      },
       "DeviceView": {
         "properties": {
           "created_at": {
@@ -727,35 +674,6 @@
         "title": "Redeem",
         "type": "object"
       },
-      "ResultView": {
-        "properties": {
-          "side": {
-            "enum": [
-              "both",
-              "left",
-              "right"
-            ],
-            "title": "Side",
-            "type": "string"
-          },
-          "test": {
-            "maxLength": 64,
-            "title": "Test",
-            "type": "string"
-          },
-          "value": {
-            "title": "Value",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "test",
-          "side",
-          "value"
-        ],
-        "title": "ResultView",
-        "type": "object"
-      },
       "RoutineView": {
         "properties": {
           "hold_seconds": {
@@ -803,6 +721,49 @@
           }
         },
         "title": "SaveBody",
+        "type": "object"
+      },
+      "SavedView": {
+        "properties": {
+          "already_saved": {
+            "title": "Already Saved",
+            "type": "boolean"
+          },
+          "earned": {
+            "items": {
+              "$ref": "#/components/schemas/EarnedView"
+            },
+            "title": "Earned",
+            "type": "array"
+          },
+          "next_session": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Session"
+          },
+          "stretching": {
+            "title": "Stretching",
+            "type": "boolean"
+          },
+          "workout_id": {
+            "title": "Workout Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "workout_id",
+          "already_saved",
+          "next_session",
+          "earned",
+          "stretching"
+        ],
+        "title": "SavedView",
         "type": "object"
       },
       "SessionView": {
@@ -986,7 +947,7 @@
           },
           "results": {
             "items": {
-              "$ref": "#/components/schemas/ResultView"
+              "$ref": "#/components/schemas/TestResultView"
             },
             "maxItems": 40,
             "title": "Results",
@@ -1023,6 +984,106 @@
           "token"
         ],
         "title": "TestDayBody",
+        "type": "object"
+      },
+      "TestDaySaved": {
+        "properties": {
+          "already_saved": {
+            "title": "Already Saved",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "already_saved"
+        ],
+        "title": "TestDaySaved",
+        "type": "object"
+      },
+      "TestDayView": {
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "integer"
+          },
+          "fed": {
+            "title": "Fed",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/TestResultView"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "slept_well": {
+            "title": "Slept Well",
+            "type": "boolean"
+          },
+          "time_of_day": {
+            "enum": [
+              "morning",
+              "midday",
+              "afternoon",
+              "evening"
+            ],
+            "title": "Time Of Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "on",
+          "day",
+          "time_of_day",
+          "fed",
+          "slept_well",
+          "results"
+        ],
+        "title": "TestDayView",
+        "type": "object"
+      },
+      "TestResultView": {
+        "properties": {
+          "side": {
+            "enum": [
+              "both",
+              "left",
+              "right"
+            ],
+            "title": "Side",
+            "type": "string"
+          },
+          "test": {
+            "maxLength": 64,
+            "title": "Test",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "test",
+          "side",
+          "value"
+        ],
+        "title": "TestResultView",
         "type": "object"
       },
       "TestView": {
@@ -1165,67 +1226,6 @@
           "sets"
         ],
         "title": "VolumeView",
-        "type": "object"
-      },
-      "training_coach__api__fitness__SavedView": {
-        "properties": {
-          "already_saved": {
-            "title": "Already Saved",
-            "type": "boolean"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "already_saved"
-        ],
-        "title": "SavedView",
-        "type": "object"
-      },
-      "training_coach__api__session__SavedView": {
-        "properties": {
-          "already_saved": {
-            "title": "Already Saved",
-            "type": "boolean"
-          },
-          "earned": {
-            "items": {
-              "$ref": "#/components/schemas/EarnedView"
-            },
-            "title": "Earned",
-            "type": "array"
-          },
-          "next_session": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Session"
-          },
-          "stretching": {
-            "title": "Stretching",
-            "type": "boolean"
-          },
-          "workout_id": {
-            "title": "Workout Id",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "workout_id",
-          "already_saved",
-          "next_session",
-          "earned",
-          "stretching"
-        ],
-        "title": "SavedView",
         "type": "object"
       }
     }
@@ -1614,7 +1614,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/training_coach__api__session__SavedView"
+                  "$ref": "#/components/schemas/SavedView"
                 }
               }
             },
@@ -1805,7 +1805,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/training_coach__api__fitness__SavedView"
+                  "$ref": "#/components/schemas/TestDaySaved"
                 }
               }
             },
@@ -1838,7 +1838,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/DayView"
+                    "$ref": "#/components/schemas/TestDayView"
                   },
                   "title": "Response Results Api Tests Results Get",
                   "type": "array"
