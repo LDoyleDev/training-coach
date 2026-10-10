@@ -13,8 +13,10 @@ export type Exercise = Schemas['ExerciseView']
 export type Session = Schemas['SessionView']
 export type Plan = Schemas['PlanView']
 
-export async function fetchPlan(signal?: AbortSignal): Promise<Plan> {
-  const res = await fetch('/api/plan', { signal })
+/** The training plan; null when not signed in (the site is private, ADR-0041). */
+export async function fetchPlan(signal?: AbortSignal): Promise<Plan | null> {
+  const res = await fetch('/api/plan', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Plan
 }

@@ -16,6 +16,7 @@ test('the nav links every signed-in page and marks the one shown', () => {
   expect(links).toEqual([
     ['Today', '/session'],
     ['Progress', '/progress'],
+    ['Plan', '/plan'],
     ['Tests', '/tests'],
     ['Body', '/body'],
     ['Account', '/account'],

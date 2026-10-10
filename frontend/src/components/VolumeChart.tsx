@@ -39,8 +39,8 @@ export function VolumeChart({ volume, min, max }: Props) {
         })}
       </ul>
       <figcaption>
-        Shaded: Galpin's {min}–{max} hard sets a week. Small muscles like the neck, calves and shins
-        sit below it on purpose.
+        Shaded: the common {min}–{max} hard sets a week guideline. Small muscles like the neck,
+        calves and shins sit below it on purpose.
       </figcaption>
     </figure>
   )

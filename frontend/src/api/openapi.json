@@ -2084,6 +2084,7 @@
     },
     "/api/plan": {
       "get": {
+        "description": "The training plan, for the signed-in owner: the site is private (no public pages).",
         "operationId": "get_plan_api_plan_get",
         "responses": {
           "200": {

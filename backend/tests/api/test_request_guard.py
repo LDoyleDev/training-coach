@@ -89,9 +89,9 @@ def test_photos_keep_their_own_larger_limit(client: TestClient) -> None:
     assert upload.status_code == 401  # reached the route: not signed in, not "too large"
 
 
-def test_personal_answers_are_never_cached_but_the_plan_may_be(client: TestClient) -> None:
-    assert client.get("/api/auth/me").headers["cache-control"] == "no-store"
-    assert client.get("/api/plan").headers.get("cache-control") != "no-store"
+def test_api_answers_are_never_cached(client: TestClient) -> None:
+    for path in ("/api/auth/me", "/api/plan"):  # all personal: the site is private (ADR-0041)
+        assert client.get(path).headers["cache-control"] == "no-store"
 
 
 def test_the_session_cookie_is_locked_to_this_host() -> None:

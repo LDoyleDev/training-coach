@@ -1,6 +1,34 @@
-from fastapi.testclient import TestClient
+from collections.abc import Iterator
+from datetime import UTC, datetime
 
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import Engine
+
+from training_coach.api.app import create_app
+from training_coach.config import Settings
+from training_coach.db.session import make_session_factory
+from training_coach.services import auth
 from training_coach.services.seed import load_plan
+from training_coach.services.users import OWNER
+
+
+@pytest.fixture
+def client(engine: Engine) -> Iterator[TestClient]:
+    """Signed in: the plan is private like every page (ADR-0041)."""
+    settings = Settings(environment="test", database_url=str(engine.url))
+    with TestClient(create_app(settings), base_url="https://testserver") as signed_in:
+        with make_session_factory(engine, user_id=OWNER)() as bound:
+            token = auth.create_link(bound, datetime.now(UTC))
+            bound.commit()
+        assert signed_in.post("/api/auth/redeem", json={"token": token}).status_code == 204
+        yield signed_in
+
+
+def test_the_plan_needs_a_signed_in_browser(engine: Engine) -> None:
+    settings = Settings(environment="test", database_url=str(engine.url))
+    with TestClient(create_app(settings), base_url="https://testserver") as stranger:
+        assert stranger.get("/api/plan").status_code == 401
 
 
 def test_plan_endpoint_returns_the_week_in_queue_order(client: TestClient) -> None:
@@ -33,7 +61,8 @@ def test_plan_endpoint_has_security_headers(client: TestClient) -> None:
 
 
 def test_plan_endpoint_exposes_only_static_plan_fields(client: TestClient) -> None:
-    """ADR-0019: /api/plan is public, so its shape is locked. Adding a field (above all any
+    """ADR-0019: /api/plan was public, so its shape is locked (owner-only since ADR-0041).
+    Adding a field (above all any
     per-user progress, log or measurement) must be a deliberate change to this test and the ADR.
     """
     body = client.get("/api/plan").json()

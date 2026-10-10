@@ -15,7 +15,10 @@ const LADDER_PICKS = [
 ]
 
 type State =
-  { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; plan: Plan }
+  | { status: 'loading' }
+  | { status: 'signed-out' }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; plan: Plan }
 
 export default function App() {
   const [state, setState] = useState<State>({ status: 'loading' })
@@ -24,7 +27,7 @@ export default function App() {
   useEffect(() => {
     const ctrl = new AbortController()
     fetchPlan(ctrl.signal)
-      .then((plan) => setState({ status: 'ready', plan }))
+      .then((plan) => setState(plan ? { status: 'ready', plan } : { status: 'signed-out' }))
       .catch((err: unknown) => {
         if (ctrl.signal.aborted) return
         setState({ status: 'error', message: err instanceof Error ? err.message : String(err) })
@@ -43,11 +46,16 @@ export default function App() {
       <header className="masthead flex items-baseline justify-between gap-4">
         <span className="wordmark">Training Coach</span>
         <a href="/session" className="font-bold text-[var(--bell-ink)] no-underline">
-          Open the app
+          Today
         </a>
       </header>
 
       {state.status === 'loading' && <p className="status">Loading the plan…</p>}
+      {state.status === 'signed-out' && (
+        <p className="status">
+          Sign in to see your plan. <a href="/signin">Sign in</a>
+        </p>
+      )}
       {state.status === 'error' && (
         <p className="status status-error" role="alert">
           Couldn't load the plan. {state.message} Check that the server is running, then reload the
@@ -61,8 +69,8 @@ export default function App() {
             <div className="hero-text">
               <h1>Seven sessions, one fixed order</h1>
               <p className="lede">
-                Strength, conditioning and recovery from Huberman's foundational fitness protocol,
-                adapted for training at home with a pull-up bar, two chairs and an 8 kg kettlebell.
+                Strength, conditioning and recovery, built for training at home with a pull-up bar,
+                two chairs and an 8 kg kettlebell.
               </p>
               <p className="lede">
                 Miss a day and the whole week moves back one day. Nothing gets skipped.
@@ -117,7 +125,7 @@ export default function App() {
                 Everything happens in Telegram. The day's session arrives at 07:30, the workout is
                 logged with one voice note, and nothing is saved until it's confirmed.
               </p>
-              <p className="aside">Planned flow. The Telegram bot is being built now.</p>
+              <p className="aside">How a day with the bot looks.</p>
             </div>
             <ChatPreview />
           </section>
@@ -126,8 +134,9 @@ export default function App() {
 
       <footer className="footer">
         <p>
-          Built by Liam Doyle. Runs on a Raspberry Pi at home. Programme based on Huberman Lab
-          episode 94, with Andy Galpin.
+          Training principles informed by publicly available material, including Huberman Lab
+          episode 94 with Andy Galpin. Not affiliated with or endorsed by Huberman Lab, Andrew
+          Huberman or Andy Galpin.
         </p>
       </footer>
     </div>

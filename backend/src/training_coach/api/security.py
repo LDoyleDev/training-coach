@@ -15,6 +15,8 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     "Cross-Origin-Opener-Policy": "same-origin",
+    # A private, personal site: keep every page out of search engines.
+    "X-Robots-Tag": "noindex, nofollow",
 }
 
 
@@ -30,7 +32,7 @@ async def security_headers_middleware(
 UNSAFE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 MAX_BODY = 64 * 1024  # every JSON body is far smaller; photos have their own limit
 LARGE_BODIES = ("/api/photos/",)
-CACHEABLE = ("/api/plan",)  # the public plan; everything else under /api is personal
+CACHEABLE: tuple[str, ...] = ()  # everything under /api is personal now
 
 
 def request_guard(

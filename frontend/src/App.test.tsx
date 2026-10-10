@@ -76,10 +76,7 @@ describe('App', () => {
   it('links to the signed-in app', async () => {
     mockFetch({ ok: true, json: () => Promise.resolve(plan) })
     render(<App />)
-    expect(await screen.findByRole('link', { name: 'Open the app' })).toHaveAttribute(
-      'href',
-      '/session',
-    )
+    expect(await screen.findByRole('link', { name: 'Today' })).toHaveAttribute('href', '/session')
   })
 
   it('opens a session to show its exercises', async () => {
@@ -98,6 +95,12 @@ describe('App', () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '2. Long zone 2' }))
     expect(screen.getByRole('button', { name: /Long zone 2/, expanded: true })).toBeInTheDocument()
+  })
+
+  it('asks to sign in when signed out', async () => {
+    mockFetch({ ok: false, status: 401, json: () => Promise.resolve({}) })
+    render(<App />)
+    expect(await screen.findByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/signin')
   })
 
   it('explains a failed load', async () => {
