@@ -51,6 +51,7 @@ def test_every_command_is_restricted_to_owner(application: Application) -> None:
         "habits",
         "settings",
         "undo",
+        "share",
     }
     for handler in commands:
         # The owner, and only in the private chat with the bot (ADR-0040).
