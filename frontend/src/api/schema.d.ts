@@ -325,6 +325,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Standings
+         * @description Every exercise in plan order: its step, last session, best set and whether it's ready.
+         */
+        get: operations["standings_api_progress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session/pending": {
         parameters: {
             query?: never;
@@ -893,6 +913,35 @@ export interface components {
             devices: components["schemas"]["DeviceView"][];
             /** Passkeys */
             passkeys: components["schemas"]["PasskeyView"][];
+        };
+        /** StandingView */
+        StandingView: {
+            /** Best Set */
+            best_set: number | null;
+            /** Exercise */
+            exercise: string;
+            /** Last */
+            last: number[];
+            /** Recent */
+            recent: number[];
+            /** Retired */
+            retired: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "hold" | "ready" | "top_of_ladder";
+            /** Step */
+            step: string;
+            /** Step Number */
+            step_number: number;
+            /** Steps */
+            steps: number;
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "reps" | "seconds" | "minutes";
         };
         /** StretchBody */
         StretchBody: {
@@ -1525,6 +1574,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanView"];
+                };
+            };
+        };
+    };
+    standings_api_progress_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandingView"][];
                 };
             };
         };

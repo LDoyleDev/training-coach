@@ -252,6 +252,7 @@ def test_overview_shows_last_session_best_and_readiness(plan: Session) -> None:
     assert by_name["Pull-up"].status is Progress.READY
     dip = by_name["Dip (chairs)"]
     assert (dip.last, dip.best_set, dip.status) == ((10, 10, 10), 15, Progress.HOLD)
+    assert dip.recent == (10, 15)  # best set per session, newest first
 
 
 def test_overview_reports_the_top_of_the_ladder(plan: Session) -> None:

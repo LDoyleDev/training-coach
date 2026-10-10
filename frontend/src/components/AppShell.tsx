@@ -1,6 +1,7 @@
 /** The signed-in pages, in the order the nav shows them. */
 const PAGES = [
   { path: '/session', label: 'Today' },
+  { path: '/progress', label: 'Progress' },
   { path: '/tests', label: 'Tests' },
   { path: '/body', label: 'Body' },
   { path: '/account', label: 'Account' },
