@@ -149,6 +149,11 @@ test('a remove after an ended sign-in points to sign in too', async () => {
   serve({ entries: [{ on: '2026-10-10', kind: 'waist', value: 85 }] })
   render(<BodyPage />)
   const button = await screen.findByRole('button', { name: 'Remove Waist on 2026-10-10' })
+  // The photos section loads its list once the page is ready: let it, so only the remove meets
+  // the ended sign-in (otherwise the photos would rightly show their own notice too).
+  await waitFor(() =>
+    expect(vi.mocked(fetch).mock.calls.some(([path]) => path === '/api/photos')).toBe(true),
+  )
   vi.unstubAllGlobals()
   vi.stubGlobal(
     'fetch',
