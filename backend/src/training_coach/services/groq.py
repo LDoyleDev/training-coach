@@ -20,6 +20,7 @@ log = structlog.get_logger(__name__)
 
 BASE_URL = "https://api.groq.com/openai/v1"
 LOG_TAG = re.compile(r"<\s*/?\s*log\s*>", re.IGNORECASE)
+SUMMARY_TAG = re.compile(r"<\s*/?\s*summary\s*>", re.IGNORECASE)
 PROMPT_CHARS = 800  # Whisper takes up to 224 tokens of prompt; stay well under
 
 
@@ -69,6 +70,10 @@ def _rewrite_schema(names: list[str]) -> dict[str, Any]:
     }
 
 
+def comment_prompt() -> str:
+    return package_files("training_coach.prompts").joinpath("weekly_comment.md").read_text("utf-8")
+
+
 def rewrite_prompt() -> str:
     return package_files("training_coach.prompts").joinpath("log_rewrite.md").read_text("utf-8")
 
@@ -80,6 +85,7 @@ class GroqClient:
         *,
         transcribe_model: str = "whisper-large-v3-turbo",
         parse_model: str = "openai/gpt-oss-20b",
+        comment_model: str = "openai/gpt-oss-120b",
         timeout: float = 20.0,
         attempts: int = 3,
         backoff: float = 1.0,
@@ -89,6 +95,7 @@ class GroqClient:
         self._key = api_key
         self._model = transcribe_model
         self._parse_model = parse_model
+        self._comment_model = comment_model
         self._timeout = timeout
         self._attempts = attempts
         self._backoff = backoff
@@ -155,6 +162,35 @@ class GroqClient:
         if any(line.exercise not in names for line in rewrite.lines):
             raise GroqUnavailableError("bad_response")
         return rewrite
+
+    async def comment(self, summary: str) -> str:
+        """A short comment on a training summary (ADR-0047 B), from the person's own key.
+        Untrusted text: the caller cleans and labels it, and nothing acts on it."""
+        summary = SUMMARY_TAG.sub(" ", unicodedata.normalize("NFKC", summary))
+        body = {
+            "model": self._comment_model,
+            "temperature": 0.3,
+            "max_completion_tokens": 2000,  # reasoning tokens count too
+            "reasoning_effort": "low",
+            "include_reasoning": False,
+            "messages": [
+                {"role": "system", "content": comment_prompt()},
+                {"role": "user", "content": f"<summary>\n{summary}\n</summary>"},
+            ],
+        }
+        try:
+            async with asyncio.timeout(self._deadline):
+                response = await self._post("/chat/completions", json_body=body)
+        except TimeoutError as exc:
+            log.warning("groq.deadline", path="/chat/completions")
+            raise GroqUnavailableError("timeout") from exc
+        try:
+            content = response.json()["choices"][0]["message"]["content"]
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            raise GroqUnavailableError("bad_response") from exc
+        if not isinstance(content, str):
+            raise GroqUnavailableError("bad_response")
+        return content
 
     async def verify(self) -> None:
         """Check the key works: list the models it can use. Raises ``GroqUnavailableError``,

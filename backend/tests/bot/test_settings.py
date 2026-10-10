@@ -3,6 +3,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+import respx
+from cryptography.fernet import Fernet
+from pydantic import SecretStr
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
@@ -23,9 +26,10 @@ from training_coach.bot import settings as settings_ui
 from training_coach.bot.app import MORNING_JOB, NUDGE_JOB, REVIEW_JOB, Handlers
 from training_coach.bot.messages import NUDGE, SOMETHING_WENT_WRONG
 from training_coach.db.models import Workout
-from training_coach.db.session import make_session_factory
+from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
-from training_coach.services import user_settings
+from training_coach.services import ai_comment, ai_key, user_settings
+from training_coach.services.secret_box import SecretBox
 from training_coach.services.user_settings import Prefs
 
 App = Application  # type: ignore[type-arg]  # see build_bot
@@ -354,6 +358,23 @@ async def test_the_review_is_sent_to_the_owner(seeded: Sessions) -> None:
     assert kwargs["text"].startswith("Week of ")
 
 
+@respx.mock
+async def test_the_ai_comment_follows_the_review(seeded: Sessions) -> None:
+    """ADR-0047 B: with the person's own key stored, a labelled comment comes after the review."""
+    secrets = Fernet.generate_key().decode()
+    settings = SETTINGS.model_copy(update={"secrets_key": SecretStr(secrets)})
+    with session_scope(seeded) as session:
+        ai_key.store(session, SecretBox(SecretStr(secrets)), SecretStr("gsk_" + "a" * 40))
+    reply = {"choices": [{"message": {"content": "Solid week."}}]}
+    respx.post("https://api.groq.com/openai/v1/chat/completions").respond(json=reply)
+    context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
+    await Handlers(settings, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    sent = [call.kwargs["text"] for call in context.bot.send_message.await_args_list]
+    assert len(sent) == 2
+    assert sent[0].startswith("Week of ")
+    assert sent[1] == f"{ai_comment.LABEL}\n\nSolid week."
+
+
 async def test_the_review_is_skipped_while_paused(seeded: Sessions) -> None:
     _set(seeded, paused=True)
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
@@ -424,3 +445,30 @@ async def test_strangers_cannot_set_the_protein_target(application: App, seeded:
     await run(application, press("s:ask-protein", OWNER))  # the owner is being asked...
     assert await run(application, text_message("165", STRANGER)) == {}  # ...a stranger answers
     assert _prefs(seeded).protein_g is None
+
+
+async def test_a_failing_ai_comment_never_fails_the_review(
+    seeded: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The review is already out; whatever goes wrong with the extra comment is only logged."""
+
+    async def boom(*_args: object) -> str:
+        raise RuntimeError("database gone")
+
+    monkeypatch.setattr(ai_comment, "weekly", boom)
+    context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
+    await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    context.bot.send_message.assert_awaited_once()
+
+
+async def test_a_failing_comment_send_never_fails_the_review(
+    seeded: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def comment(*_args: object) -> str:
+        return "AI comment"
+
+    monkeypatch.setattr(ai_comment, "weekly", comment)
+    send = AsyncMock(side_effect=[None, RuntimeError("socket gone")])
+    context = SimpleNamespace(bot=SimpleNamespace(send_message=send))
+    await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    assert send.await_count == 2

@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     groq_api_key: SecretStr | None = None
     groq_transcribe_model: str = "whisper-large-v3-turbo"
     groq_parse_model: str = "openai/gpt-oss-20b"  # needs strict JSON-schema output
+    # Writes the weekly AI comment, with each person's own Groq key (ADR-0047 B).
+    groq_comment_model: str = "openai/gpt-oss-120b"
 
     # Keys that encrypt secrets people store in the app, like their own Groq key (ADR-0047).
     # One or more Fernet keys, comma separated, newest first; rotate with `rotate-secrets`.
