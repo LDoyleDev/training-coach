@@ -30,14 +30,19 @@ log() { echo "auto-deploy: $*"; }
 # The first commit after $1 up to $2 without a good signature by GitHub's key; nothing if they
 # all have one. GitHub signs what it makes (a merge, or a commit through its web editor or API),
 # so a plain `git push` shows up here (ADR-0043). Every commit, not only the release's: one
-# pushed earlier would otherwise ship under a release signed on top of it.
+# pushed earlier would otherwise ship under a release signed on top of it. Fails closed: if
+# the commits can't be listed, or there are none, or the key won't load, it names $2.
 unsigned_commit() {
-  local home commit status primary found=""
+  local home commits commit status primary found=""
+  if ! commits=$(git rev-list --reverse "$1..$2" 2>/dev/null) || [ -z "$commits" ]; then
+    echo "$2"
+    return
+  fi
   home=$(mktemp -d)
   if ! "$GPG" --homedir "$home" --batch --quiet --import "$GITHUB_KEY" 2>/dev/null; then
     found="$2" # the key didn't load, so nothing is checked
   else
-    for commit in $(git rev-list --reverse "$1..$2"); do
+    for commit in $commits; do
       primary=""
       # verify-commit prints gpg's status lines on stderr; it fails on no or a bad signature.
       status=$(GNUPGHOME="$home" git -c gpg.program="$GPG" verify-commit --raw "$commit" 2>&1) ||
@@ -171,6 +176,9 @@ main() {
   return 1
 }
 
-# The checkout replaces this file; bash has read all of main() before it runs.
-main "$@"
-exit $?
+# The checkout replaces this file; bash has read all of main() before it runs. Sourced (by
+# the tests), it only defines the functions.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
+  exit $?
+fi

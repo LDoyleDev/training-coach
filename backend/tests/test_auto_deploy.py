@@ -114,6 +114,17 @@ class Pi:
         (self.stubs / f"fail-{step}").touch()
 
     def deploy(self, **extra: str) -> subprocess.CompletedProcess[str]:
+        return self._bash([str(SCRIPT)], **extra)
+
+    def unsigned_commit(self, since: str, release: str) -> str:
+        """The script's own check, called directly: sourced, the script only defines it."""
+        command = 'source "$1" && cd "$2" && unsigned_commit "$3" "$4"'
+        args = [SCRIPT.as_posix(), self.checkout.as_posix(), since, release]
+        result = self._bash(["-c", command, "test", *args])
+        assert result.returncode == 0, result.stderr
+        return result.stdout.strip()
+
+    def _bash(self, argv: list[str], **extra: str) -> subprocess.CompletedProcess[str]:
         assert BASH is not None
         env = {
             **os.environ,
@@ -126,7 +137,7 @@ class Pi:
             **extra,
         }
         return subprocess.run(  # noqa: S603 - our own script, no shell
-            [BASH, str(SCRIPT)], env=env, capture_output=True, text=True, check=False
+            [BASH, *argv], env=env, capture_output=True, text=True, check=False
         )
 
     def docker_calls(self) -> list[str]:
@@ -293,6 +304,16 @@ def test_an_unsigned_commit_under_a_signed_release_is_refused(pi: Pi) -> None:
     assert result.returncode == 1
     assert (pi.at(), pi.docker_calls()) == ("v0.1.0", [])
     assert f"v0.2.0 includes {pushed}, which GitHub didn't sign" in result.stdout
+
+
+def test_the_signature_check_fails_closed(pi: Pi) -> None:
+    """Commits it can't list (an unknown ref, a broken repo) or no commits at all count as
+    unsigned, not as checked; main's own checks shouldn't be what saves it."""
+    pi.release("v0.2.0")
+    _git(pi.checkout, "fetch", "-q", "--tags")
+    assert pi.unsigned_commit("v0.1.0", "v0.2.0") == ""  # the signed release passes
+    assert pi.unsigned_commit("v0.1.0", "no-such-ref") == "no-such-ref"
+    assert pi.unsigned_commit("v0.2.0", "v0.2.0") == "v0.2.0"  # nothing to check
 
 
 def test_without_gpg_nothing_deploys(pi: Pi) -> None:
