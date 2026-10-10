@@ -33,7 +33,8 @@ token, session cookies, the Pi itself (shared with Vybe).
 | Host compromise | Pi | SSH over Tailscale only; firewall deny inbound; unattended security upgrades | Deploy runbook checklist |
 | Supply chain | PyPI, npm, Actions | Lockfiles; Dependabot; pip-audit + npm audit; Actions pinned to SHAs; CodeQL | CI security job |
 | Bot token theft | Telegram | Allowlist blocks data access; rotate via BotFather | Rotation runbook |
-| Data loss | SD card | WAL, nightly backups, off-device copy, restore drill | Restore rehearsal per release |
+| Everything taken at once through the data export | `GET /api/account/export` (a zip of all data and photos) | Owner only, and only within 10 minutes of a sign-in, like passkey changes; alerted on Telegram and recorded as an `account.exported` event; sign-in secrets left out by rule (every binary column, every `*_hash` column, `credential_id`), so a column added later isn't exported by default; only the signed-in person's rows | `tests/api/test_export.py` |
+| Data loss | SD card | WAL, nightly backups, a desktop copy, an encrypted off-site copy (ADR-0042), restore drill; a failed deploy or off-site run alerts on Telegram (`training-coach-alert@.service`) | Restore rehearsal per release |
 
 ## Review cadence
 

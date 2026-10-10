@@ -38,4 +38,4 @@ never left the backups. The project spends nothing (cost discipline).
 ## Consequences
 
 - Restoring from off-site needs the backup key's private half: losing it loses those copies.
-- An alert on a failed run (an `OnFailure=` unit) is part of the alerting follow-up.
+- A failed run alerts on Telegram through an `OnFailure=` unit (#168; deploy runbook).
