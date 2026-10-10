@@ -45,13 +45,13 @@ def test_openapi_command_prints_schema(capsys: pytest.CaptureFixture[str]) -> No
     }
 
 
-
 def test_no_two_response_models_share_a_name(capsys: pytest.CaptureFixture[str]) -> None:
     """Two models with one name get module-path names in the schema, which renames the web
     app's types under it (two SavedView models in #137)."""
     main(["openapi"])
     names = json.loads(capsys.readouterr().out)["components"]["schemas"]
     assert [n for n in names if "__" in n] == []
+
 
 def test_openapi_command_ignores_env_and_dotenv(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
