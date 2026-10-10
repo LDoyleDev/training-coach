@@ -4,6 +4,20 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.20.0](https://github.com/LDoyleDev/training-coach/compare/v0.19.0...v0.20.0) (2026-10-10)
+
+
+### Features
+
+* **api:** download all my data as one zip ([#169](https://github.com/LDoyleDev/training-coach/issues/169)) ([361d5a6](https://github.com/LDoyleDev/training-coach/commit/361d5a671455a968e02e99a92fb6426764bdabd4))
+* **infra:** a Telegram alert when a deploy or off-site backup fails ([#168](https://github.com/LDoyleDev/training-coach/issues/168)) ([7bc0348](https://github.com/LDoyleDev/training-coach/commit/7bc03487fbfac2e28ee502de12b06bc02c941302))
+* **web:** safety cues on the riskiest exercises and a stop reminder ([#165](https://github.com/LDoyleDev/training-coach/issues/165)) ([ec8fca5](https://github.com/LDoyleDev/training-coach/commit/ec8fca532599dd297607dfe84f3d03a73ec263e7))
+
+
+### Bug Fixes
+
+* **api:** 90-day session limit, passkey removal ends its sessions, JPEG allowlist ([#167](https://github.com/LDoyleDev/training-coach/issues/167)) ([8fa0c0a](https://github.com/LDoyleDev/training-coach/commit/8fa0c0afb09795c1625beb601b953f2c3ff3d9e9))
+
 ## [0.19.0](https://github.com/LDoyleDev/training-coach/compare/v0.18.0...v0.19.0) (2026-10-10)
 
 
