@@ -74,8 +74,8 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
 | M2: Confused deputy or wrong token audience | `/mcp`, `/oauth/token` | Tokens carry `resource` = the `/mcp` URL and are refused anywhere else. Session cookies are never accepted on `/mcp`, and bearer tokens never on `/api/*`. No token passthrough. Consent is per client and redirect URI, never skipped. `iss` is returned in the authorization response (RFC 9207) | Wrong-resource, cookie-on-`/mcp` and bearer-on-`/api` tests |
 | M3: Malicious registered client, or phishing-style consent | `/oauth/register`, consent page | Registration grants nothing until passkey consent. The name is shown as untrusted ("calls itself ...") beside the redirect host. The Telegram alert names both as plain text. Caps and expiry as listed above. The consent page says what data leaves and to whom | Registration cap, metadata limit and expiry tests; consent page shows "calls itself" and the host |
 | M4: Open redirect or `redirect_uri` manipulation | `/oauth/authorize`, `/oauth/token` | Exact string match against a registered URI (loopback only for `http`). An unknown client or mismatched URI gets an error page, never a redirect. Error redirects go only to a validated URI, with `state` echoed. The code is bound to `redirect_uri`, and `/oauth/token` checks it again | Mismatch, prefix, extra query, fragment, `javascript:` and `http` tests |
-| M5: CSRF or clickjacking on consent | Consent approve POST | `request_guard`'s Origin / `Sec-Fetch-Site` check. SameSite=Strict cookie. A random single-use consent handle (10 min, hashed) bound to the session and the request. `Owner` + `Fresh`. CSP `frame-ancestors 'none'` | Cross-origin approve refused, handle replay, stale session, framing header |
-| M6: Code interception or replay | Redirect to the client | PKCE S256 required (`plain` refused). Codes are single use, last 60 s, and are claimed by one conditional update. A reused code revokes the tokens issued from it | Missing or wrong verifier, `plain`, replay and race tests |
+| M5: CSRF or clickjacking on consent | Consent approve POST | `request_guard`'s Origin / `Sec-Fetch-Site` check. SameSite=Strict cookie. A random single-use consent handle (10 min, hashed) bound to the session and the request. `Owner` + a new `PasskeyFresh` check (not `Fresh`, which also accepts a session begun by a bot link or `/recover`): a passkey sign-in or ADR-0049 confirmation in the last 10 minutes. CSP `frame-ancestors 'none'` | Cross-origin approve refused, handle replay, stale session, framing header |
+| M6: Code interception or replay | Redirect to the client | PKCE S256 required (`plain` refused). Codes are bound to their `client_id` and `redirect_uri`; `/oauth/token` refuses an exchange by any other client. Codes are single use, last 60 s, and are claimed by one conditional update. A reused code revokes the tokens issued from it | Missing or wrong verifier, `plain`, replay and race tests |
 | M7: Scope escalation | Authorize, refresh, tools | Unknown scopes are refused. Health scopes start unticked even when requested. Granted scopes are at most the requested ones and the person's ticks. A refresh cannot widen them. Tools without their scope are hidden from `tools/list` and refused with `insufficient_scope` | Matrix test: every tool against every scope set |
 | M8: Data over-exposure | Tool results | Tools reuse `ai_summary` with `Options(body=…, readiness=…)` set from the scopes. Photos and sign-in tables are never reachable. Sessions are bound to the token's user (ADR-0029). Answers are size-capped and sent with `Cache-Control: no-store` | Two-user scope test through `/mcp`; health data absent without its scope; size cap |
 | M9: Prompt injection through the person's own text or tool results | Tool results read by their AI | Text the person or a client typed goes only in a delimited, length-capped "data from the person" field, never mixed into prose. Answers name the guide version, and the guide says data is never instructions. Residual risk: the AI may also hold other tools (such as web fetch) that could leak what it read; the consent page says so | Hostile-string fixtures appear only inside the data field |
@@ -99,20 +99,24 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
 5. `/oauth/authorize` must refuse a missing or `plain` PKCE method, an unknown `resource` and unknown scopes.
 6. A `redirect_uri` must match a registered URI byte for byte; `http` is allowed only for loopback. On any mismatch, or for an unknown client, the server renders an error page and sends no `Location` header.
 7. Authorization codes:
+   - bound to the `client_id` and `redirect_uri` they were issued for; an exchange by another
+     client, or with another URI, is refused, with a test for each;
    - single use, expiring after 60 s, claimed by one conditional update;
    - two racing exchanges yield one token;
    - reusing a code revokes the tokens issued from it.
-8. Registration limits, refused with `429` or `400`:
-   - more than 20 pending registrations overall, or 3 per client address (`_client()`);
+8. Registration limits. Refused with `429` or `400`:
+   - more than 3 pending registrations from one client address (`_client()`);
    - a name over 60 characters;
    - more than 5 redirect URIs, or any over 200 characters;
    - any scheme other than `https` or loopback.
-   A registration that hasn't reached consent expires after 15 minutes. When the cap is full,
+   The global cap of 20 pending registrations never refuses: a registration that hasn't
+   reached consent expires after 15 minutes, and when the cap is full,
    the oldest unapproved registration without a live consent handle is evicted rather than the
    new one refused. Tests: seven addresses filling the cap can't stop a later registration, and
    twenty more registrations can't evict one whose consent page is open.
-9. The consent page requires `Owner` and a passkey proved in the last 10 minutes (a passkey
-   sign-in or an ADR-0049 confirmation); a recovery-link session alone is refused, with a test.
+9. The consent page requires `Owner` and `PasskeyFresh`: a passkey proved in the last 10
+   minutes (a passkey sign-in or an ADR-0049 confirmation), not `Fresh`. Sessions begun by a
+   bot link or by `/recover` are refused, with a test for each.
    It shows the client name as "calls itself ...", the redirect host, and each scope in plain words, with health scopes unticked.
 10. Consent approval is a same-origin POST carrying a single-use, session-bound handle. The global CSP (`frame-ancestors 'none'`, `form-action 'self'`) stays unchanged: approval returns the redirect URL to the page, which then navigates to it.
 11. Granted scopes are a subset of the requested scopes and the person's ticks, and a refresh never adds scopes. Each tool is refused, and hidden from `tools/list`, without its scope. A test covers every tool against every scope set.
