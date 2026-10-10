@@ -31,7 +31,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Remove Passkey */
+        /**
+         * Remove Passkey
+         * @description Remove a passkey; like adding one, it needs a recent sign-in (ADR-0040).
+         */
         delete: operations["remove_passkey_api_account_passkeys__key_id__delete"];
         options?: never;
         head?: never;
@@ -157,7 +160,8 @@ export interface paths {
         put?: never;
         /**
          * Redeem
-         * @description Exchange a one-time link from the bot for a session cookie.
+         * @description Exchange a one-time link from the bot for a session cookie. Once a passkey exists only
+         *     a recovery link does (403 otherwise: use the fingerprint, ADR-0040).
          */
         post: operations["redeem_api_auth_redeem_post"];
         delete?: never;

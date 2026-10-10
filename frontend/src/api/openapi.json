@@ -1554,6 +1554,7 @@
     },
     "/api/account/passkeys/{key_id}": {
       "delete": {
+        "description": "Remove a passkey; like adding one, it needs a recent sign-in (ADR-0040).",
         "operationId": "remove_passkey_api_account_passkeys__key_id__delete",
         "parameters": [
           {
@@ -1739,7 +1740,7 @@
     },
     "/api/auth/redeem": {
       "post": {
-        "description": "Exchange a one-time link from the bot for a session cookie.",
+        "description": "Exchange a one-time link from the bot for a session cookie. Once a passkey exists only\na recovery link does (403 otherwise: use the fingerprint, ADR-0040).",
         "operationId": "redeem_api_auth_redeem_post",
         "requestBody": {
           "content": {

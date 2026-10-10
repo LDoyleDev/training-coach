@@ -104,7 +104,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             log.info("bot.started")
         else:
             log.warning("bot.disabled", reason="telegram token or allowed user id not set")
-        nightly = _start_backups(settings, _owner_notifier(settings, bot.bot if bot else None))
+        notify = _owner_notifier(settings, bot.bot if bot else None)
+        app.state.notify = notify  # sign-in alerts (ADR-0040)
+        nightly = _start_backups(settings, notify)
         try:
             yield
         finally:

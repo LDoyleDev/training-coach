@@ -37,9 +37,11 @@ const SIGN_INS: SignIns = {
   ],
 }
 
-function server(signIns: SignIns | null | 'error', calls: string[] = []) {
+function server(signIns: SignIns | null | 'error', calls: string[] = [], stale = false) {
   const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
     calls.push(`${init?.method ?? 'GET'} ${path}`)
+    if (stale && path !== '/api/account/sign-ins' && !path.includes('/devices/'))
+      return new Response(null, { status: 403 })
     if (path === '/api/account/sign-ins') {
       if (signIns === 'error') return new Response(null, { status: 500 })
       if (signIns === null) return new Response(null, { status: 401 })
@@ -115,4 +117,13 @@ test('signing out here goes to the sign-in page', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
   await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/signin'))
   expect(calls).toContain('POST /api/auth/signout')
+})
+
+test('changing passkeys without a recent sign-in explains how', async () => {
+  server(SIGN_INS, [], true)
+  render(<Account />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Add a passkey on this device' }))
+  expect(await screen.findByText(/needs a recent sign-in/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Remove passkey Pixel' }))
+  expect(await screen.findByText(/needs a recent sign-in/)).toBeInTheDocument()
 })

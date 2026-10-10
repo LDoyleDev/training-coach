@@ -464,6 +464,9 @@ class LoginLink(Owned, Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
     used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    # "start": the first sign-in, refused once a passkey exists; "recover": signs in without a
+    # passkey and signs out every other browser (ADR-0040).
+    purpose: Mapped[str] = mapped_column(String(8), default="start", server_default="start")
 
 
 class WebSession(Owned, Base):
