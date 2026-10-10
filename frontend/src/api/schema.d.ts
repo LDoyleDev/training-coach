@@ -4,6 +4,28 @@
  */
 
 export interface paths {
+    "/api/account/ai-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ai Summary
+         * @description My training as compact Markdown for my own AI (ADR-0047): the last 4 or 12 weeks, or
+         *     everything. Measurements and readiness answers (health data) only when asked for; photos
+         *     never.
+         */
+        get: operations["ai_summary_api_account_ai_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/account/devices/{device_id}": {
         parameters: {
             query?: never;
@@ -1220,6 +1242,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    ai_summary_api_account_ai_summary_get: {
+        parameters: {
+            query?: {
+                period?: "4w" | "12w" | "all";
+                body?: boolean;
+                readiness?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/markdown": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     sign_out_device_api_account_devices__device_id__delete: {
         parameters: {
             query?: never;

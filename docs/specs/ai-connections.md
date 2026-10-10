@@ -43,7 +43,8 @@ No personal data, ever. A test fails if the guide's version and the export forma
 - An editable question at the top (default: review the period, what's working, what to
   change), then compact Markdown: a header line with the guide link and version, then the plan
   position, each exercise's step and recent sessions, test days, habits. Typically 2-6k tokens.
-- Built in the browser from the existing API; nothing new on the server. Photos never.
+- Built on the server (`services/ai_summary.py`, `GET /api/account/ai-summary`), so B and C
+  reuse the same tested summary; the browser adds the question and copies. Photos never.
 
 Pros: works with every AI, no secrets, no new attack surface, nothing to revoke.
 Cons: manual; the person must remember to paste fresh data; the copied text then lives in their

@@ -1663,6 +1663,71 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/account/ai-summary": {
+      "get": {
+        "description": "My training as compact Markdown for my own AI (ADR-0047): the last 4 or 12 weeks, or\neverything. Measurements and readiness answers (health data) only when asked for; photos\nnever.",
+        "operationId": "ai_summary_api_account_ai_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "default": "4w",
+              "enum": [
+                "4w",
+                "12w",
+                "all"
+              ],
+              "title": "Period",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Body",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "readiness",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Readiness",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/markdown": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ai Summary",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/account/devices/{device_id}": {
       "delete": {
         "operationId": "sign_out_device_api_account_devices__device_id__delete",
