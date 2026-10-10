@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { fetchStretching, logStretching, type Routine } from '../api'
+import { fetchStretching, logStretching, SignedOutError, type Routine } from '../api'
+import SignedOutNotice from '../components/SignedOutNotice'
 
 const CHOICES = [10, 20, 30] // minutes, as the bot offers (ADR-0032)
 
@@ -19,14 +20,17 @@ export default function Stretching({ workoutId }: { workoutId: number }) {
   const [state, setState] = useState<State>({ status: 'choose' })
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
+  const [signedOut, setSignedOut] = useState(false)
 
   const run = async (work: () => Promise<void>) => {
     setBusy(true)
     setNote(null)
+    setSignedOut(false) // a retry after signing in again
     try {
       await work()
-    } catch {
-      setNote("Couldn't reach the coach. Check your connection and try again.")
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't reach the coach. Check your connection and try again.")
     } finally {
       setBusy(false)
     }
@@ -54,6 +58,7 @@ export default function Stretching({ workoutId }: { workoutId: number }) {
           {note}
         </p>
       )}
+      {signedOut && <SignedOutNotice />}
 
       {state.status === 'choose' && (
         <>

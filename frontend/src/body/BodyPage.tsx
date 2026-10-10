@@ -1,6 +1,14 @@
-import AppShell from '../components/AppShell'
 import { useEffect, useState } from 'react'
-import { deleteMeasurement, fetchBody, saveBody, type MeasureKind, type Measurement } from '../api'
+import {
+  deleteMeasurement,
+  fetchBody,
+  saveBody,
+  SignedOutError,
+  type MeasureKind,
+  type Measurement,
+} from '../api'
+import AppShell from '../components/AppShell'
+import SignedOutNotice from '../components/SignedOutNotice'
 import { byDay, change, format, isoDay, latest, parse } from './logic'
 
 type Loaded =
@@ -44,16 +52,17 @@ export default function BodyPage() {
     if (Object.keys(parsed.values).length === 0) return setNote('Fill in at least one.')
     setBusy(true)
     setNote(null)
+    setSignedOut(false) // a retry after signing in again
     try {
       const answer = await saveBody({ on: day, values: parsed.values })
-      if (answer === 'signed-out') setSignedOut(true)
-      else if (answer === true) {
+      if (answer === true) {
         setTyped({})
         setNote('Saved.')
         await load()
       } else setNote(answer)
-    } catch {
-      setNote("Couldn't save. Check your connection and try again.")
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't save. Check your connection and try again.")
     } finally {
       setBusy(false)
     }
@@ -61,11 +70,13 @@ export default function BodyPage() {
 
   const remove = async (entry: Measurement) => {
     setNote(null)
+    setSignedOut(false) // a retry after signing in again
     try {
-      if ((await deleteMeasurement(entry.on, entry.kind)) === 'signed-out') setSignedOut(true)
-      else await load()
-    } catch {
-      setNote("Couldn't remove it. Check your connection and try again.")
+      await deleteMeasurement(entry.on, entry.kind)
+      await load()
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't remove it. Check your connection and try again.")
     }
   }
 
@@ -77,12 +88,7 @@ export default function BodyPage() {
           {note}
         </p>
       )}
-      {signedOut && (
-        <p role="alert" className="status status-error">
-          Your sign-in has ended. <a href="/signin">Sign in again</a>, then save; what you typed
-          stays here.
-        </p>
-      )}
+      {signedOut && <SignedOutNotice />}
 
       {latest(kinds, entries).length > 0 && (
         <section aria-labelledby="latest" className={card}>

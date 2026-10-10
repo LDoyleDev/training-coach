@@ -14,10 +14,11 @@ const ROUTINE: Routine = {
 }
 
 /** A fake API: the routine answer and the logged answer, or a failure. */
-function serve(routine: Routine | null | 'fail' = ROUTINE, logged = true) {
+function serve(routine: Routine | null | 'fail' | 'signed-out' = ROUTINE, logged = true) {
   const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
     if (init?.method === 'POST') return Response.json({ logged })
     if (routine === 'fail') return new Response(null, { status: 500 })
+    if (routine === 'signed-out') return new Response(null, { status: 401 })
     if (routine === null) return new Response(null, { status: 404 })
     expect(path).toBe('/api/session/stretching/7?minutes=10')
     return Response.json(routine)
@@ -65,4 +66,11 @@ test('a failed request keeps the choices', async () => {
   fireEvent.click(screen.getByRole('button', { name: '10 min' }))
   expect(await screen.findByText(/Check your connection/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '20 min' })).toBeEnabled()
+})
+
+test('an ended sign-in points to sign in', async () => {
+  serve('signed-out')
+  render(<Stretching workoutId={7} />)
+  fireEvent.click(screen.getByRole('button', { name: '10 min' }))
+  expect(await screen.findByRole('link', { name: 'Sign in again' })).toBeInTheDocument()
 })
