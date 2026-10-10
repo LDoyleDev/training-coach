@@ -292,6 +292,20 @@ def progress_text(standings: list[Standing]) -> str:
     return "\n".join(_fit(lines, []))
 
 
+def cardio_line(review: Review) -> str:
+    """Zone 2 against the weekly target, and moderate cardio (#124). Short of the target says by
+    how much, once, without nagging; a week with none shows 0."""
+    zone2 = f"Zone 2: {review.zone2_minutes}"
+    if review.zone2_target is not None:
+        low, high = review.zone2_target
+        zone2 += f" of {low}-{high} min"
+        if review.zone2_minutes < low:
+            zone2 += f" ({low - review.zone2_minutes} short)"
+    else:
+        zone2 += " min"
+    return f"{zone2} · Moderate: {review.moderate_minutes} min"
+
+
 def review_text(review: Review) -> str:
     """The weekly review (#73): sessions, hard sets per muscle, bests, what's ready, habits."""
     lines = [f"Week of {review.start:%a %d %b}", ""]
@@ -311,6 +325,7 @@ def review_text(review: Review) -> str:
             lines.append(f"- {group}: {sets}{note}")
     else:
         lines += ["", "No sets logged this week."]
+    lines += ["", cardio_line(review)]
     if review.bests:
         lines += ["", "New bests:"]
         for best in review.bests:

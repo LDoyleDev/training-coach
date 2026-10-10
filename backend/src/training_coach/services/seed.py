@@ -159,6 +159,20 @@ class TestSeed(_Strict):
         return FitnessTest(self.slug, self.name, self.day, self.unit, self.per_side, self.cue)
 
 
+class TargetsSeed(_Strict):
+    """Weekly targets the review reports against (#124)."""
+
+    # Zone 2 minutes a week, low and high (Huberman's Foundational Fitness Protocol: 180-200).
+    zone2_minutes: tuple[int, int]
+
+    @model_validator(mode="after")
+    def _range(self) -> Self:
+        low, high = self.zone2_minutes
+        if not 0 < low <= high:
+            raise ValueError("zone2_minutes must be two positive numbers, low first")
+        return self
+
+
 class VersionSeed(_Strict):
     """A version of the plan and the day it took over (#107, ADR-0034)."""
 
@@ -172,6 +186,7 @@ class PlanSeed(_Strict):
     stretches: list[StretchSeed] = Field(default_factory=list)
     versions: list[VersionSeed] = Field(default_factory=list)  # oldest first
     tests: list[TestSeed] = Field(default_factory=list)
+    targets: TargetsSeed | None = None
 
     @model_validator(mode="after")
     def _references(self) -> Self:
