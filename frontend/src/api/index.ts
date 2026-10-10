@@ -189,3 +189,39 @@ export async function logStretching(workoutId: number, minutes: number): Promise
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return ((await res.json()) as Schemas['StretchedView']).logged
 }
+
+// ---------------------------------------------------------------- baseline tests (#94)
+
+export type FitnessTest = Schemas['TestView']
+export type TestDay = Schemas['TestDayView']
+export type TestDayBody = Schemas['TestDayBody']
+export type TestResult = Schemas['TestResultView']
+
+/** Every test and every saved test day; null when not signed in. */
+export async function fetchTests(
+  signal?: AbortSignal,
+): Promise<{ tests: FitnessTest[]; days: TestDay[] } | null> {
+  const [tests, days] = await Promise.all([
+    fetch('/api/tests', { signal, credentials: 'same-origin' }),
+    fetch('/api/tests/results', { signal, credentials: 'same-origin' }),
+  ])
+  if (tests.status === 401 || days.status === 401) return null
+  if (!tests.ok || !days.ok) throw new Error('The server answered with an error.')
+  return { tests: (await tests.json()) as FitnessTest[], days: (await days.json()) as TestDay[] }
+}
+
+/** Save a test day; a string says why the server refused it. */
+export async function saveTestDay(body: TestDayBody): Promise<true | string> {
+  const res = await fetch('/api/tests', {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify(body),
+    credentials: 'same-origin',
+  })
+  if (res.status === 422) {
+    const detail = ((await res.json()) as { detail?: unknown }).detail
+    return typeof detail === 'string' ? detail : 'Those results could not be saved.'
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return true
+}
