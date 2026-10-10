@@ -25,6 +25,7 @@ export default function Stretching({ workoutId }: { workoutId: number }) {
   const run = async (work: () => Promise<void>) => {
     setBusy(true)
     setNote(null)
+    setSignedOut(false) // a retry after signing in again
     try {
       await work()
     } catch (error) {

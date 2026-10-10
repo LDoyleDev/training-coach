@@ -167,3 +167,21 @@ test('removing clears an earlier note', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Remove Waist on 2026-10-10' }))
   await waitFor(() => expect(screen.queryByText('Saved.')).not.toBeInTheDocument())
 })
+
+test('a retry after signing in again clears the notice', async () => {
+  serve()
+  render(<BodyPage />)
+  fireEvent.change(await screen.findByLabelText('Waist'), { target: { value: '85' } })
+  vi.unstubAllGlobals()
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(null, { status: 401 })),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByRole('link', { name: 'Sign in again' })).toBeInTheDocument()
+  vi.unstubAllGlobals()
+  serve() // signed in again in another tab
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByText('Saved.')).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Sign in again' })).not.toBeInTheDocument()
+})

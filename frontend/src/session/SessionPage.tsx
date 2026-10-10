@@ -147,6 +147,7 @@ export default function SessionPage() {
     nextValues: Values,
     nextFirst: number[] = first,
   ): Promise<boolean> => {
+    setSignedOut(false) // a retry after signing in again
     setBusy(true)
     try {
       const result = await keepProgress({
@@ -228,6 +229,7 @@ export default function SessionPage() {
   const saveEarlier = async (day: Pending) => {
     if (saving.includes(day.day)) return
     setSaving((days) => [...days, day.day])
+    setSignedOut(false) // a retry after signing in again
     try {
       const result = await saveSession(day.day)
       setNote(
@@ -246,6 +248,7 @@ export default function SessionPage() {
 
   const save = async () => {
     setNote(null)
+    setSignedOut(false) // a retry after signing in again
     setBusy(true)
     try {
       const result = await saveSession()

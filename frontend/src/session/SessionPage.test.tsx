@@ -451,3 +451,16 @@ test('an ended sign-in while confirming a set points to sign in and keeps the se
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument() // still here
   expect(screen.queryByText(/Check your connection/)).not.toBeInTheDocument()
 })
+
+test('confirming again after signing in clears the notice', async () => {
+  serve({ keep: 'signed-out' })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Confirm set')
+  expect(await screen.findByRole('link', { name: 'Sign in again' })).toBeInTheDocument()
+  vi.unstubAllGlobals()
+  serve()
+  click('Confirm set')
+  expect(await screen.findByRole('button', { name: 'Skip rest' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Sign in again' })).not.toBeInTheDocument()
+})

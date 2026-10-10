@@ -119,6 +119,7 @@ export default function TestsPage() {
   const save = async () => {
     setBusy(true)
     setNote(null)
+    setSignedOut(false) // a retry after signing in again
     try {
       const answer = await saveTestDay({
         day,

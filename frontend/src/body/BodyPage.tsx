@@ -52,6 +52,7 @@ export default function BodyPage() {
     if (Object.keys(parsed.values).length === 0) return setNote('Fill in at least one.')
     setBusy(true)
     setNote(null)
+    setSignedOut(false) // a retry after signing in again
     try {
       const answer = await saveBody({ on: day, values: parsed.values })
       if (answer === true) {
@@ -69,6 +70,7 @@ export default function BodyPage() {
 
   const remove = async (entry: Measurement) => {
     setNote(null)
+    setSignedOut(false) // a retry after signing in again
     try {
       await deleteMeasurement(entry.on, entry.kind)
       await load()
