@@ -591,9 +591,10 @@
       "KeyBody": {
         "properties": {
           "key": {
-            "pattern": "^gsk_[A-Za-z0-9]{20,200}$",
+            "format": "password",
             "title": "Key",
-            "type": "string"
+            "type": "string",
+            "writeOnly": true
           }
         },
         "required": [

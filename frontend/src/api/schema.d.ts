@@ -913,7 +913,10 @@ export interface components {
         };
         /** KeyBody */
         KeyBody: {
-            /** Key */
+            /**
+             * Key
+             * Format: password
+             */
             key: string;
         };
         /** KindView */

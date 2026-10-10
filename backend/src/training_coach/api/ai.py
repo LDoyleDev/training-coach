@@ -1,12 +1,12 @@
 """The person's own AI key for comments (ADR-0047 B). Owner-only. The key goes in once, is
 checked with Groq, stored encrypted and never sent back: only its last four characters."""
 
+import re
 from datetime import UTC, datetime
-from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
-from pydantic import BaseModel, Field, SecretStr, StringConstraints
+from pydantic import BaseModel, SecretStr
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.alerts import alert
@@ -21,7 +21,8 @@ router = APIRouter(prefix="/api/account/ai", tags=["account"])
 log = structlog.get_logger(__name__)
 
 # Groq keys are "gsk_" and letters and digits; anything else can't be one, so it never leaves.
-GroqKey = Annotated[str, StringConstraints(pattern=r"^gsk_[A-Za-z0-9]{20,200}$")]
+# Checked by hand, not by the model: a validation error would echo the pasted value back.
+GROQ_KEY = re.compile(r"gsk_[A-Za-z0-9]{20,200}")
 
 
 class AiView(BaseModel):
@@ -35,7 +36,7 @@ class AiView(BaseModel):
 
 
 class KeyBody(BaseModel):
-    key: GroqKey = Field(repr=False)
+    key: SecretStr
 
 
 class OptionsBody(BaseModel):
@@ -85,7 +86,9 @@ async def store_key(
     box = _box(request)
     if box is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "AI keys aren't set up on this server")
-    key = SecretStr(body.key)
+    key = body.key
+    if not GROQ_KEY.fullmatch(key.get_secret_value()):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "That isn't a Groq key")
     await _check(key)
     with session_scope(_bound(request, user)) as session:
         ai_key.store(session, box, key)

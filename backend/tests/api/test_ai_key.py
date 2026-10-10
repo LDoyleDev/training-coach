@@ -105,7 +105,9 @@ def test_a_key_groq_refuses_is_not_kept(
 )
 def test_something_that_is_not_a_groq_key_never_leaves(signed_in: TestClient, key: str) -> None:
     groq = respx.get(MODELS).respond(json={"data": []})
-    assert signed_in.put("/api/account/ai/key", json={"key": key}).status_code == 422
+    response = signed_in.put("/api/account/ai/key", json={"key": key})
+    assert response.status_code == 422
+    assert key.strip() not in response.text  # a pasted secret is never echoed back
     assert not groq.called
 
 
