@@ -27,6 +27,7 @@ import {
 } from './logic'
 import { card, primary, secondary } from '../ui'
 import Toast from '../components/Toast'
+import { RetryCard, SignInCard } from '../components/StateCards'
 
 type Loaded =
   | { status: 'loading' }
@@ -414,17 +415,8 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
         Loading the tests…
       </p>
     )
-  if (loaded.status === 'signed-out')
-    return (
-      <p className="status">
-        Sign in to see your tests. <a href="/signin">Sign in</a>
-      </p>
-    )
-  return (
-    <p className="status status-error" role="alert">
-      Couldn't load the tests. Check your connection and reload the page.
-    </p>
-  )
+  if (loaded.status === 'signed-out') return <SignInCard text="Sign in to see your tests." />
+  return <RetryCard text="Couldn't load the tests. Check your connection." />
 }
 
 /** One test day: its conditions, a note when they differ from last time, and each result

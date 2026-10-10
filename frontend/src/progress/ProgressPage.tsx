@@ -4,6 +4,7 @@ import AppShell from '../components/AppShell'
 import Sparkline from '../components/Sparkline'
 import { amount } from './logic'
 import { card } from '../ui'
+import { RetryCard, SignInCard } from '../components/StateCards'
 
 type Loaded =
   | { status: 'loading' }
@@ -41,17 +42,13 @@ export default function ProgressPage() {
   if (loaded.status === 'signed-out')
     return (
       <AppShell>
-        <p className="status">
-          Sign in to see your progress. <a href="/signin">Sign in</a>
-        </p>
+        <SignInCard text="Sign in to see your progress." />
       </AppShell>
     )
   if (loaded.status === 'error')
     return (
       <AppShell>
-        <p className="status status-error" role="alert">
-          Couldn't load your progress. Check your connection and reload the page.
-        </p>
+        <RetryCard text="Couldn't load your progress. Check your connection." />
       </AppShell>
     )
 

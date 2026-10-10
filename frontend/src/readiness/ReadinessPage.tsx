@@ -3,6 +3,7 @@ import { fetchReadiness, saveReadiness, SignedOutError, type Readiness } from '.
 import AppShell from '../components/AppShell'
 import SignedOutNotice from '../components/SignedOutNotice'
 import { card, primary } from '../ui'
+import { RetryCard, SignInCard } from '../components/StateCards'
 
 type Loaded =
   | { status: 'loading' }
@@ -112,14 +113,6 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
       </p>
     )
   if (loaded.status === 'signed-out')
-    return (
-      <p className="status">
-        Sign in to answer the readiness questions. <a href="/signin">Sign in</a>
-      </p>
-    )
-  return (
-    <p className="status status-error" role="alert">
-      Couldn't load the questions. Check your connection and reload the page.
-    </p>
-  )
+    return <SignInCard text="Sign in to answer the readiness questions." />
+  return <RetryCard text="Couldn't load the questions. Check your connection." />
 }

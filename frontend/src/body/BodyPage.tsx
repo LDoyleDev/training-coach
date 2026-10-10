@@ -14,6 +14,7 @@ import Photos from './Photos'
 import Sparkline from '../components/Sparkline'
 import { card, primary, small } from '../ui'
 import Toast from '../components/Toast'
+import { RetryCard, SignInCard } from '../components/StateCards'
 
 type Loaded =
   | { status: 'loading' }
@@ -192,15 +193,6 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
         Loading…
       </p>
     )
-  if (loaded.status === 'signed-out')
-    return (
-      <p className="status">
-        Sign in to see your measurements. <a href="/signin">Sign in</a>
-      </p>
-    )
-  return (
-    <p className="status status-error" role="alert">
-      Couldn't load your measurements. Check your connection and reload the page.
-    </p>
-  )
+  if (loaded.status === 'signed-out') return <SignInCard text="Sign in to see your measurements." />
+  return <RetryCard text="Couldn't load your measurements. Check your connection." />
 }
