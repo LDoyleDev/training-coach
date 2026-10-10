@@ -273,6 +273,7 @@ def test_every_per_person_table_is_covered() -> None:
         "session_progress",
         "web_sessions",
         "readiness_answers",
+        "ai_connections",
     }
 
 

@@ -535,6 +535,25 @@ class ReadinessAnswers(Owned, Base):
     answered_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
+class AiConnection(Owned, Base):
+    """A person's own AI key for comments (ADR-0047 B): one row each. The key is stored only
+    encrypted (``services.secret_box``) and is binary, so the export leaves it out; only its
+    last four characters are kept in the clear, to show which key it is."""
+
+    __tablename__ = "ai_connections"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    groq_key: Mapped[bytes] = mapped_column(LargeBinary)  # Fernet token
+    key_ends: Mapped[str] = mapped_column(String(4))
+    enabled: Mapped[bool] = mapped_column(Boolean, server_default=true())
+    share_body: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    share_readiness: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # When the key last failed (revoked, quota, unreadable): the person is told once.
+    failed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
+
+
 class Event(Owned, Base):
     """Audit log. Payloads must never contain secrets, transcripts or measurements.
     ``user_id`` is empty for system events such as ``seed.applied``."""
@@ -551,6 +570,7 @@ class Event(Owned, Base):
 
 
 __all__ = [
+    "AiConnection",
     "Base",
     "Event",
     "Exercise",
