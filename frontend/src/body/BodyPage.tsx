@@ -1,3 +1,4 @@
+import AppShell from '../components/AppShell'
 import { useEffect, useState } from 'react'
 import { deleteMeasurement, fetchBody, saveBody, type MeasureKind, type Measurement } from '../api'
 import { byDay, change, format, isoDay, latest, parse } from './logic'
@@ -33,7 +34,7 @@ export default function BodyPage() {
     void load()
   }, [])
 
-  if (loaded.status !== 'ready') return <Shell>{<Status loaded={loaded} />}</Shell>
+  if (loaded.status !== 'ready') return <AppShell>{<Status loaded={loaded} />}</AppShell>
   const { kinds, entries } = loaded
   const kindOf = (name: string) => kinds.find((k) => k.kind === name)
 
@@ -69,7 +70,7 @@ export default function BodyPage() {
   }
 
   return (
-    <Shell>
+    <AppShell>
       <h1 className="text-3xl font-extrabold">Body</h1>
       {note && (
         <p role="status" className="status">
@@ -171,18 +172,7 @@ export default function BodyPage() {
           ))}
         </section>
       )}
-    </Shell>
-  )
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="page">
-      <header className="masthead">
-        <span className="wordmark">Training Coach</span>
-      </header>
-      <main className="flex flex-col gap-4">{children}</main>
-    </div>
+    </AppShell>
   )
 }
 

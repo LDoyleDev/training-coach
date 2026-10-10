@@ -1,3 +1,4 @@
+import AppShell from '../components/AppShell'
 import { useCallback, useEffect, useState } from 'react'
 import {
   fetchPending,
@@ -129,10 +130,10 @@ export default function SessionPage() {
 
   if (loaded.status !== 'ready')
     return (
-      <Shell>
+      <AppShell>
         {loaded.status === 'none' && testDay && <TestDayNotice due={testDay} />}
         <Status loaded={loaded} />
-      </Shell>
+      </AppShell>
     )
   const session = loaded.session
   const total = session.order.length
@@ -257,7 +258,7 @@ export default function SessionPage() {
   }
 
   return (
-    <Shell>
+    <AppShell>
       {note && (
         <p role="status" className="status">
           {note}
@@ -480,18 +481,7 @@ export default function SessionPage() {
           </a>
         </section>
       )}
-    </Shell>
-  )
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="page">
-      <header className="masthead">
-        <span className="wordmark">Training Coach</span>
-      </header>
-      <main className="flex flex-col gap-4">{children}</main>
-    </div>
+    </AppShell>
   )
 }
 

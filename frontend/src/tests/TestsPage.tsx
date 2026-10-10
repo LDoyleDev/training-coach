@@ -1,3 +1,4 @@
+import AppShell from '../components/AppShell'
 import { useEffect, useState } from 'react'
 import {
   fetchTests,
@@ -73,7 +74,7 @@ export default function TestsPage() {
     void load()
   }, [])
 
-  if (loaded.status !== 'ready') return <Shell>{<Status loaded={loaded} />}</Shell>
+  if (loaded.status !== 'ready') return <AppShell>{<Status loaded={loaded} />}</AppShell>
   const { tests, days, due } = loaded
   const list = steps(tests, day)
   const step: Step | undefined = list[position]
@@ -140,7 +141,7 @@ export default function TestsPage() {
   const nameOf = (slug: string) => tests.find((t) => t.slug === slug)
 
   return (
-    <Shell>
+    <AppShell>
       {note && (
         <p role="status" className="status">
           {note}
@@ -398,18 +399,7 @@ export default function TestsPage() {
           </button>
         </section>
       )}
-    </Shell>
-  )
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="page">
-      <header className="masthead">
-        <span className="wordmark">Training Coach</span>
-      </header>
-      <main className="flex flex-col gap-4">{children}</main>
-    </div>
+    </AppShell>
   )
 }
 
