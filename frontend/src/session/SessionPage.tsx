@@ -534,6 +534,9 @@ function Overview({
       </h1>
       <p className="text-[var(--slate)]">{session.focus}</p>
       {session.warm_up && <p className={card}>Warm up for about 10 minutes first.</p>}
+      <p className="text-[var(--slate)]">
+        Stop if you feel sharp pain, dizziness or chest tightness.
+      </p>
       <ul className="flex flex-col gap-2">
         {session.items.map((item) => (
           <li key={item.slug} className={card + ' flex justify-between gap-3'}>

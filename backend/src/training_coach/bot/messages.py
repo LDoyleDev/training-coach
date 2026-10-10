@@ -54,7 +54,7 @@ def _paired(items: tuple[ItemPlan, ...]) -> bool:
     return any(item.pair is not None for item in items)
 
 
-WARM_UP = "Warm up for about 10 minutes first."
+WARM_UP = "Warm up for about 10 minutes first. Stop if you feel sharp pain, dizziness or chest tightness."
 BASELINE = (
     "Baseline for {names}: the first session at this step. Aim for the targets and log what "
     "you manage; the next targets grow from it."
