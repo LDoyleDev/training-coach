@@ -1,6 +1,6 @@
 # MCP threat model (ADR-0047 C: Connect my AI)
 
-Status: **draft for review.** ADR-0047 requires this to be reviewed before any C code merges, and C gets a security review before release. In `docs/security/threat-model.md`, the row "Prompt injection via other Claude connectors" becomes a one-line pointer to this file.
+Status: **draft for review.** ADR-0047 requires this to be reviewed before any C code merges, and C gets a security review before release. In `docs/security/threat-model.md`, the MCP row is a one-line pointer to this file.
 
 ## Scope
 
@@ -52,7 +52,9 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
   - name up to 60 characters;
   - at most 5 redirect URIs, each up to 200 characters, `https` or loopback only;
   - a registration that hasn't reached consent expires after 15 minutes, and when the cap is
-    full the oldest unapproved one is evicted instead of the new one being refused.
+    full the oldest unapproved one is evicted instead of the new one being refused;
+  - a registration whose consent page is open (a live consent handle) can't be evicted, so a
+    flood of new registrations can't break a connect the person is finishing.
 - **Authorization code with PKCE S256,** checked against the stored code challenge.
 - **Resource indicators (RFC 8707):** `resource` must equal the `/mcp` URL.
 - **Consent requires a passkey, proved in the last 10 minutes:** a passkey sign-in or ADR-0049's
@@ -106,8 +108,9 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
    - more than 5 redirect URIs, or any over 200 characters;
    - any scheme other than `https` or loopback.
    A registration that hasn't reached consent expires after 15 minutes. When the cap is full,
-   the oldest unapproved registration is evicted rather than the new one refused; a test shows
-   seven addresses filling the cap can't stop a later registration.
+   the oldest unapproved registration without a live consent handle is evicted rather than the
+   new one refused. Tests: seven addresses filling the cap can't stop a later registration, and
+   twenty more registrations can't evict one whose consent page is open.
 9. The consent page requires `Owner` and a passkey proved in the last 10 minutes (a passkey
    sign-in or an ADR-0049 confirmation); a recovery-link session alone is refused, with a test.
    It shows the client name as "calls itself ...", the redirect host, and each scope in plain words, with health scopes unticked.
