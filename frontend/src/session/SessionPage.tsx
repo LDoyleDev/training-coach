@@ -611,7 +611,6 @@ function Counter({
   )
 }
 
-/** A test day due today stands in front of the session, which waits (ADR-0038). */
 /** Advice before a hard day (ADR-0046): answer the readiness questions, or see a doctor. */
 function ReadinessNotice({ text }: { text: string }) {
   return (
@@ -621,6 +620,7 @@ function ReadinessNotice({ text }: { text: string }) {
   )
 }
 
+/** A test day due today stands in front of the session, which waits (ADR-0038). */
 function TestDayNotice({ due }: { due: TestDayDue }) {
   return (
     <section aria-labelledby="test-day" className={card + ' flex flex-col gap-3'}>
