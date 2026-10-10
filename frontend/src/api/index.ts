@@ -377,3 +377,18 @@ export async function downloadExport(): Promise<Blob> {
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return res.blob()
 }
+
+/** Erase everything stored about me (ADR-0044); `confirm` is the word the person typed.
+ *  Needs a recent sign-in; signs this browser out. */
+export async function eraseAllMyData(confirm: string): Promise<void> {
+  const res = signedIn(
+    await fetch('/api/account/erase', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm }),
+    }),
+  )
+  if (res.status === 403) throw new StaleSignInError()
+  if (res.status !== 204) throw new Error(`The server answered ${res.status}.`)
+}

@@ -176,6 +176,20 @@
         "title": "EarnedView",
         "type": "object"
       },
+      "EraseRequest": {
+        "properties": {
+          "confirm": {
+            "const": "erase",
+            "title": "Confirm",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "title": "EraseRequest",
+        "type": "object"
+      },
       "ExerciseKind": {
         "description": "How an exercise is measured.",
         "enum": [
@@ -1547,6 +1561,41 @@
           }
         },
         "summary": "Sign Out Device",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/erase": {
+      "post": {
+        "description": "Erase everything stored about the signed-in person (ADR-0044): workouts, measurements,\nphotos, settings, passkeys and every signed-in browser. Needs a recent sign-in, like\npasskey changes; signs this browser out and alerts on Telegram.",
+        "operationId": "erase_my_data_api_account_erase_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EraseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Erase My Data",
         "tags": [
           "account"
         ]

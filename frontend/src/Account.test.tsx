@@ -149,3 +149,49 @@ test('downloading without a recent sign-in explains how', async () => {
     await screen.findByText(/downloading everything needs a recent sign-in/),
   ).toBeInTheDocument()
 })
+
+test('erasing needs the word typed, then signs out', async () => {
+  const calls = server(SIGN_INS)
+  const assign = vi.fn()
+  vi.stubGlobal('location', { ...window.location, assign })
+  render(<Account />)
+  const button = await screen.findByRole('button', { name: 'Erase all my data' })
+  expect(button).toBeDisabled()
+  fireEvent.change(screen.getByLabelText(/Type erase to confirm/), { target: { value: 'eras' } })
+  expect(button).toBeDisabled()
+  fireEvent.change(screen.getByLabelText(/Type erase to confirm/), { target: { value: 'erase' } })
+  fireEvent.click(button)
+  await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/signin'))
+  expect(calls).toContain('POST /api/account/erase')
+})
+
+test('erasing without a recent sign-in explains how and erases nothing', async () => {
+  server(SIGN_INS, [], true)
+  const assign = vi.fn()
+  vi.stubGlobal('location', { ...window.location, assign })
+  render(<Account />)
+  fireEvent.change(await screen.findByLabelText(/Type erase to confirm/), {
+    target: { value: 'erase' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Erase all my data' }))
+  expect(await screen.findByText(/erasing everything needs a recent sign-in/)).toBeInTheDocument()
+  expect(assign).not.toHaveBeenCalled()
+})
+
+test('a failed erase says nothing was erased', async () => {
+  server(SIGN_INS)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (path: string) =>
+      path === '/api/account/sign-ins'
+        ? new Response(JSON.stringify(SIGN_INS), { status: 200 })
+        : new Response(null, { status: 500 }),
+    ),
+  )
+  render(<Account />)
+  fireEvent.change(await screen.findByLabelText(/Type erase to confirm/), {
+    target: { value: 'erase' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Erase all my data' }))
+  expect(await screen.findByText(/Nothing was erased/)).toBeInTheDocument()
+})
