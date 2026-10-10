@@ -1,7 +1,8 @@
-"""The signed-in person's sign-in methods (ADR-0036): passkeys and signed-in browsers, each
-removable, so a lost phone can be cut off. Owner-only."""
+"""The signed-in person's account (ADR-0036): passkeys and signed-in browsers, each removable,
+so a lost phone can be cut off; downloading and erasing all their data. Owner-only."""
 
 from datetime import UTC, datetime
+from typing import Literal
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
@@ -12,7 +13,9 @@ from training_coach.api.alerts import alert
 from training_coach.api.auth import COOKIE, Fresh, Owner
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import auth, passkeys
+from training_coach.services.erase import erase
 from training_coach.services.export import archive, record
+from training_coach.services.seed import load_plan
 
 router = APIRouter(prefix="/api/account", tags=["account"])
 log = structlog.get_logger(__name__)
@@ -105,4 +108,32 @@ def export(request: Request, background: BackgroundTasks, user: Owner, _fresh: F
             "Content-Disposition": f'attachment; filename="{name}"',
             "Cache-Control": "private, no-store",
         },
+    )
+
+
+class EraseRequest(BaseModel):
+    confirm: Literal["erase"]  # typed by the person: no erasing by a stray click
+
+
+@router.post("/erase", status_code=status.HTTP_204_NO_CONTENT)
+def erase_my_data(
+    body: EraseRequest,
+    request: Request,
+    response: Response,
+    background: BackgroundTasks,
+    user: Owner,
+    _fresh: Fresh,
+) -> None:
+    """Erase everything stored about the signed-in person (ADR-0044): workouts, measurements,
+    photos, settings, passkeys and every signed-in browser. Needs a recent sign-in, like
+    passkey changes; signs this browser out and alerts on Telegram."""
+    with session_scope(make_session_factory(request.app.state.engine)) as session:
+        if not erase(session, user, load_plan()):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "no such person")
+    response.delete_cookie(COOKIE, path="/", secure=True, httponly=True, samesite="strict")
+    alert(
+        request,
+        background,
+        "data_erased",
+        "All your Training Coach data was erased. Backups age out within 5 weeks.",
     )

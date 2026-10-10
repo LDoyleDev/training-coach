@@ -21,6 +21,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Erase My Data
+         * @description Erase everything stored about the signed-in person (ADR-0044): workouts, measurements,
+         *     photos, settings, passkeys and every signed-in browser. Needs a recent sign-in, like
+         *     passkey changes; signs this browser out and alerts on Telegram.
+         */
+        post: operations["erase_my_data_api_account_erase_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/account/export": {
         parameters: {
             query?: never;
@@ -633,6 +655,14 @@ export interface components {
              */
             unit: "reps" | "seconds" | "minutes";
         };
+        /** EraseRequest */
+        EraseRequest: {
+            /**
+             * Confirm
+             * @constant
+             */
+            confirm: "erase";
+        };
         /**
          * ExerciseKind
          * @description How an exercise is measured.
@@ -1134,6 +1164,37 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    erase_my_data_api_account_erase_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EraseRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
