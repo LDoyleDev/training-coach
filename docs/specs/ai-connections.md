@@ -1,7 +1,10 @@
 # AI connections: bring your own intelligence
 
-Status: **agreed 2026-10-10** (ADR-0047): the order below, Groq only for B, and an editable prompt in A. Phase 3 ("MCP endpoint for Claude") widened: every
-person connects **their own** AI, so nobody runs on Liam's Claude subscription or Groq quota.
+Status: **agreed 2026-10-10** (ADR-0047): the order below, Groq only for B, and an editable
+prompt in A.
+
+This widens phase 3's "MCP endpoint for Claude": each person connects **their own** AI, so
+nobody runs on Liam's Claude subscription or Groq quota.
 
 ## Goal
 
@@ -53,6 +56,13 @@ AI's history (their choice, said on the button).
 - The key is **encrypted at rest** (Fernet, AES-128-CBC + HMAC; `cryptography` is already a
   dependency through `webauthn`) with a key from `TC_SECRETS_KEY` in `.env`, never in the
   database or backups in the clear, never logged, never shown again (only "ends in ...4f2a").
+  This protects against a leaked database or backup, **not** a compromised Pi: the key and the
+  database sit on the same host.
+- **Rotation:** `TC_SECRETS_KEY` holds one or more keys, newest first (`MultiFernet`): add a new
+  key, run `training-coach rotate-secrets` (re-encrypts every stored key with the newest), then
+  remove the old one. Steps go in `docs/runbooks/rotate-secrets.md` with the feature.
+- **Lost key:** stored Groq keys can't be read. Comments stop, each person is told once and
+  asked to enter their key again; nothing else is affected.
 - The Pi calls Groq with the person's key, a fixed system prompt (`prompts/weekly-comment.md`,
   versioned) that includes the guide's rules, and the same compact summary as A.
 - Output is untrusted text: length-capped, shown as "AI comment (from your Groq key)", never
@@ -97,8 +107,15 @@ apps can register themselves, and resource indicators (RFC 8707) so tokens only 
 - Per connection: 60 requests a minute, answers capped in size; Cloudflare rate limit on `/mcp`
   and `/oauth/*` like `/api/auth/*`. Every call is an event (tool, time, no data) on the
   Account page.
-- Dynamic registration is open (the spec expects it) but a registered client can do nothing
-  until a person approves it with their passkey; unused registrations expire after a day.
+- Dynamic registration is open (the spec expects it), but bounded: at most 20 pending (not yet
+  approved) registrations overall and 3 per client address, metadata capped (name 60
+  characters, at most 5 redirect URIs of 200 characters, https or localhost only), and
+  unapproved registrations expire after a day. A registered client can do nothing until a
+  person approves it with their passkey.
+- **The client's name is the client's own claim.** Anyone can register a client called
+  "Claude". The consent page shows the name as untrusted ("calls itself ...") next to the
+  redirect address it will send the person back to, and the alert names both; the person
+  revokes anything they don't recognise.
 
 Pros: the richest: the AI asks what it needs, when it needs it; works from the AI app on the
 phone; the person's own AI and plan pay; revocable per connection.
