@@ -32,3 +32,15 @@ test('the front door goes to the session page', () => {
   expect(container).toBeEmptyDOMElement()
   vi.unstubAllGlobals()
 })
+
+test('an unknown page says so instead of redirecting', () => {
+  const replace = vi.fn()
+  vi.stubGlobal('location', { ...window.location, pathname: '/plans', replace })
+  render(<Pages />)
+  expect(screen.getByRole('link', { name: "Go to today's session" })).toHaveAttribute(
+    'href',
+    '/session',
+  )
+  expect(replace).not.toHaveBeenCalled()
+  vi.unstubAllGlobals()
+})
