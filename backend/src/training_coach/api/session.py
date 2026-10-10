@@ -12,6 +12,7 @@ from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import local_date
+from training_coach.domain.stretching import HOLD_SECONDS
 from training_coach.services import guided, stretching, workout_log
 from training_coach.services import progress as feedback
 
@@ -258,3 +259,63 @@ def pending(request: Request, user: Owner) -> list[PendingView]:
             PendingView(day=p.day, session=p.session, sets=p.sets)
             for p in guided.pending(session, today)
         ]
+
+
+# ------------------------------------------------------------------ stretching (#135)
+
+
+class StretchView(BaseModel):
+    name: str
+    rounds: int
+    per_side: bool
+    cue: str
+
+
+class RoutineView(BaseModel):
+    session: str
+    minutes: int
+    hold_seconds: int
+    steps: list[StretchView]
+
+
+class StretchBody(BaseModel):
+    minutes: int
+
+
+class StretchedView(BaseModel):
+    logged: bool  # false: this workout already had its stretching
+
+
+NOT_OFFERED = "no stretching for that workout"
+
+
+@router.get("/stretching/{workout_id}", response_model=RoutineView)
+def stretching_routine(workout_id: int, minutes: int, request: Request, user: Owner) -> RoutineView:
+    """The stretches after a saved resistance workout, filling ``minutes`` (ADR-0032)."""
+    with session_scope(_bound(request, user)) as session:
+        routine = stretching.for_workout(session, workout_id, minutes)
+    if routine is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_OFFERED)
+    return RoutineView(
+        session=routine.session,
+        minutes=routine.minutes,
+        hold_seconds=HOLD_SECONDS,
+        steps=[
+            StretchView(
+                name=s.stretch.name, rounds=s.rounds, per_side=s.stretch.per_side, cue=s.stretch.cue
+            )
+            for s in routine.steps
+        ],
+    )
+
+
+@router.post("/stretching/{workout_id}", response_model=StretchedView)
+def stretching_done(
+    workout_id: int, body: StretchBody, request: Request, user: Owner
+) -> StretchedView:
+    """Log the stretching minutes on the workout, once."""
+    with session_scope(_bound(request, user)) as session:
+        logged = stretching.log(session, workout_id, body.minutes)
+    if logged is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_OFFERED)
+    return StretchedView(logged=logged)

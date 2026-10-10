@@ -10,7 +10,7 @@ from sqlalchemy import Engine, select
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import SessionProgress, SessionTemplate, Workout
+from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, Workout
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import local_date
@@ -262,3 +262,52 @@ def test_a_stale_tab_gets_a_conflict_not_an_overwrite(signed_in: TestClient) -> 
     stale = {"template_id": view["session"]["template_id"], "revision": 0, "position": 0}
     assert signed_in.put("/api/session/progress", json=stale).status_code == 409
     assert len(signed_in.get("/api/session/today").json()["progress"]["sets"]) == 3
+
+
+# ------------------------------------------------------------------ stretching (#135)
+
+
+def _saved_legs(client: TestClient) -> int:
+    _do_first_sets(client, 6)
+    workout: int = client.post("/api/session/save", json={}).json()["workout_id"]
+    return workout
+
+
+def test_stretching_after_a_saved_session_is_shown_then_logged_once(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    workout = _saved_legs(signed_in)
+    routine = signed_in.get(f"/api/session/stretching/{workout}", params={"minutes": 10})
+    assert routine.status_code == 200
+    body = routine.json()
+    assert (body["session"], body["minutes"], body["hold_seconds"]) == ("Legs", 10, 30)
+    assert body["steps"]
+    assert all(s["rounds"] >= 2 and s["cue"] for s in body["steps"])
+    done = signed_in.post(f"/api/session/stretching/{workout}", json={"minutes": 10})
+    assert done.json() == {"logged": True}
+    again = signed_in.post(f"/api/session/stretching/{workout}", json={"minutes": 20})
+    assert again.json() == {"logged": False}  # one per workout
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        mobility = bound.scalars(select(Exercise.id).where(Exercise.slug == "mobility")).one()
+        sets = bound.get_one(Workout, workout).sets
+        assert [s.value for s in sets if s.exercise_id == mobility] == [10]
+
+
+@pytest.mark.parametrize("minutes", [15, 0])
+def test_only_the_offered_times_make_a_routine(signed_in: TestClient, minutes: int) -> None:
+    workout = _saved_legs(signed_in)
+    path = f"/api/session/stretching/{workout}"
+    assert signed_in.get(path, params={"minutes": minutes}).status_code == 404
+    assert signed_in.post(path, json={"minutes": minutes}).status_code == 404
+
+
+def test_no_stretching_for_a_workout_that_isnt_there(signed_in: TestClient) -> None:
+    assert signed_in.get("/api/session/stretching/999", params={"minutes": 10}).status_code == 404
+    assert signed_in.post("/api/session/stretching/999", json={"minutes": 10}).status_code == 404
+
+
+def test_stretching_needs_a_signed_in_browser(engine: Engine) -> None:
+    settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+    with TestClient(create_app(settings), base_url=ORIGIN) as stranger:
+        assert stranger.get("/api/session/stretching/1", params={"minutes": 10}).status_code == 401
+        assert stranger.post("/api/session/stretching/1", json={"minutes": 10}).status_code == 401

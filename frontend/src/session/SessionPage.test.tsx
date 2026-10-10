@@ -126,6 +126,7 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
   click('Save session')
   expect(await screen.findByRole('heading', { name: 'Legs done' })).toBeInTheDocument()
   expect(screen.getByText('Next up: Recovery + posture.')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '20 min' })).toBeInTheDocument() // stretching
   expect(screen.getByText(/new best 7 in one set/)).toBeInTheDocument()
 
   const kept = sent['PUT /api/session/progress']
