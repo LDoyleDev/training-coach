@@ -1,6 +1,18 @@
 import { expect, test } from 'vitest'
 import type { FitnessTest, TestDay } from '../api'
-import { newToken, previous, sideText, stepOf, steps, timeOfDay, toSave, unitText } from './logic'
+import {
+  change,
+  compare,
+  conditionsChanged,
+  newToken,
+  previous,
+  sideText,
+  stepOf,
+  steps,
+  timeOfDay,
+  toSave,
+  unitText,
+} from './logic'
 
 const make = (over: Partial<FitnessTest>): FitnessTest => ({
   slug: 'x',
@@ -61,4 +73,64 @@ test('a one-sided test is saved only with both sides', () => {
 test('time of day from the clock, and a token the server accepts', () => {
   expect([7, 12, 15, 20].map(timeOfDay)).toEqual(['morning', 'midday', 'afternoon', 'evening'])
   expect(newToken()).toMatch(/^[a-f0-9]{32}$/)
+})
+
+const day = (id: number, over: Partial<TestDay>, results: TestDay['results']): TestDay => ({
+  id,
+  on: `2026-10-0${id}`,
+  day: 1,
+  time_of_day: 'morning',
+  fed: false,
+  slept_well: true,
+  results,
+  ...over,
+})
+
+const pull = (value: number) => ({ test: 'pull', side: 'both' as const, value })
+
+test('each result is set against the first baseline and the previous test', () => {
+  const days = [
+    day(3, {}, [pull(9), { test: 'hang', side: 'both', value: 40 }]),
+    day(2, {}, [pull(8)]),
+    day(1, {}, [pull(6)]),
+  ]
+  expect(compare(days, 0)).toEqual([
+    { test: 'pull', side: 'both', value: 9, baseline: 6, last: 8 },
+    { test: 'hang', side: 'both', value: 40, baseline: null, last: null }, // first time
+  ])
+  // With one earlier test, it is the baseline; there's no separate "last".
+  expect(compare(days, 1)).toEqual([
+    { test: 'pull', side: 'both', value: 8, baseline: 6, last: null },
+  ])
+  expect(compare(days, 2)[0]).toMatchObject({ baseline: null, last: null })
+})
+
+test('changes are signed', () => {
+  expect([change(9, 6), change(6, 9), change(5, 5)]).toEqual(['+3', '-3', '±0'])
+})
+
+test('conditions that differ from the last test of the same day are named', () => {
+  const days = [
+    day(3, { time_of_day: 'evening', fed: true, slept_well: false }, []),
+    day(2, { day: 2 }, []),
+    day(1, {}, []),
+  ]
+  expect(conditionsChanged(days, 0)).toEqual([
+    'evening, last time morning',
+    'fed, last time fasted',
+    'slept badly, last time slept well',
+  ])
+  expect(conditionsChanged(days, 1)).toEqual([]) // no earlier day 2
+  expect(conditionsChanged([day(2, { fed: true }, []), day(1, { fed: false }, [])], 0)).toEqual([
+    'fed, last time fasted',
+  ])
+  expect(
+    conditionsChanged(
+      [day(2, { fed: false, slept_well: false }, []), day(1, { fed: true, slept_well: true }, [])],
+      0,
+    ),
+  ).toEqual(['fasted, last time fed', 'slept badly, last time slept well'])
+  expect(
+    conditionsChanged([day(2, { slept_well: true }, []), day(1, { slept_well: false }, [])], 0),
+  ).toEqual(['slept well, last time slept badly'])
 })

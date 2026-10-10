@@ -65,3 +65,56 @@ export function timeOfDay(hour: number): 'morning' | 'midday' | 'afternoon' | 'e
 export function newToken(): string {
   return crypto.randomUUID().replaceAll('-', '')
 }
+
+export type Compared = {
+  test: string
+  side: Side
+  value: number
+  baseline: number | null // the first test day with this result, when it isn't this one
+  last: number | null // the test day before this one with it, when it isn't the baseline
+}
+
+/** Each result of `days[index]` next to the first baseline and the previous test (#96).
+ * `days` is newest first, as the server lists them. */
+export function compare(days: TestDay[], index: number): Compared[] {
+  const earlier = days.slice(index + 1) // older days, newest first
+  return days[index].results.map((r) => {
+    const before = earlier.filter((d) =>
+      d.results.some((o) => o.test === r.test && o.side === r.side),
+    )
+    const valueOn = (d: TestDay | undefined) =>
+      d?.results.find((o) => o.test === r.test && o.side === r.side)?.value ?? null
+    const first = before[before.length - 1]
+    const last = before[0]
+    return {
+      test: r.test,
+      side: r.side,
+      value: r.value,
+      baseline: valueOn(first),
+      last: last === first ? null : valueOn(last),
+    }
+  })
+}
+
+export function change(now: number, then: number): string {
+  const diff = now - then
+  return diff === 0 ? '±0' : diff > 0 ? `+${diff}` : `${diff}`
+}
+
+/** What differs from the previous test day of the same day number: results compare only
+ * under the same conditions (D4). Empty when they match or there's no earlier day. */
+export function conditionsChanged(days: TestDay[], index: number): string[] {
+  const now = days[index]
+  const before = days.slice(index + 1).find((d) => d.day === now.day)
+  if (!before) return []
+  const changes: string[] = []
+  if (before.time_of_day !== now.time_of_day)
+    changes.push(`${now.time_of_day}, last time ${before.time_of_day}`)
+  if (before.fed !== now.fed)
+    changes.push(`${now.fed ? 'fed' : 'fasted'}, last time ${before.fed ? 'fed' : 'fasted'}`)
+  if (before.slept_well !== now.slept_well)
+    changes.push(
+      `${now.slept_well ? 'slept well' : 'slept badly'}, last time ${before.slept_well ? 'slept well' : 'slept badly'}`,
+    )
+  return changes
+}

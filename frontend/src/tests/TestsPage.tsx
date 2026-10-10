@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { fetchTests, saveTestDay, type FitnessTest, type TestDay, type TestResult } from '../api'
 import {
+  change,
+  compare,
+  conditionsChanged,
   newToken,
   previous,
   sideText,
@@ -51,6 +54,7 @@ export default function TestsPage() {
   const [token, setToken] = useState(newToken)
   const [note, setNote] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [savedId, setSavedId] = useState<number | null>(null)
 
   const load = () =>
     fetchTests()
@@ -113,7 +117,8 @@ export default function TestsPage() {
         results: toSave(tests, results),
         token,
       })
-      if (answer === true) {
+      if (typeof answer === 'number') {
+        setSavedId(answer)
         setStage('saved')
         void load()
       } else setNote(answer)
@@ -160,25 +165,8 @@ export default function TestsPage() {
           {days.length > 0 && (
             <>
               <h2 className="text-lg font-bold">Done so far</h2>
-              {days.map((d) => (
-                <div key={d.id} className={card}>
-                  <p className="font-bold">
-                    {d.on} · Day {d.day} · {d.time_of_day}, {d.fed ? 'fed' : 'fasted'},{' '}
-                    {d.slept_well ? 'slept well' : 'slept badly'}
-                  </p>
-                  <ul>
-                    {d.results.map((r) => {
-                      const test = nameOf(r.test)
-                      return (
-                        <li key={`${r.test}:${r.side}`}>
-                          {test?.name ?? r.test}
-                          {r.side !== 'both' ? ` (${sideText(r.side)})` : ''}:{' '}
-                          {test ? unitText(test, r.value) : r.value}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
+              {days.map((d, index) => (
+                <DayResults key={d.id} tests={tests} days={days} index={index} />
               ))}
             </>
           )}
@@ -386,6 +374,9 @@ export default function TestsPage() {
           <h1 id="saved" className="text-3xl font-extrabold">
             Day {day} tests saved
           </h1>
+          {days.some((d) => d.id === savedId) && (
+            <DayResults tests={tests} days={days} index={days.findIndex((d) => d.id === savedId)} />
+          )}
           <button type="button" className={primary} onClick={() => setStage('list')}>
             Done
           </button>
@@ -423,5 +414,46 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
     <p className="status status-error" role="alert">
       Couldn't load the tests. Check your connection and reload the page.
     </p>
+  )
+}
+
+/** One test day: its conditions, a note when they differ from last time, and each result
+ * next to the first baseline and the previous test (#96). */
+function DayResults({
+  tests,
+  days,
+  index,
+}: {
+  tests: FitnessTest[]
+  days: TestDay[]
+  index: number
+}) {
+  const d = days[index]
+  const changed = conditionsChanged(days, index)
+  return (
+    <div className={card + ' flex flex-col gap-2'}>
+      <p className="font-bold">
+        {d.on} · Day {d.day} · {d.time_of_day}, {d.fed ? 'fed' : 'fasted'},{' '}
+        {d.slept_well ? 'slept well' : 'slept badly'}
+      </p>
+      {changed.length > 0 && (
+        <p className="text-[var(--slate)]">Not quite comparable: {changed.join('; ')}.</p>
+      )}
+      <ul>
+        {compare(days, index).map((r) => {
+          const test = tests.find((t) => t.slug === r.test)
+          const show = (v: number) => (test ? unitText(test, v) : String(v))
+          return (
+            <li key={`${r.test}:${r.side}`}>
+              {test?.name ?? r.test}
+              {r.side !== 'both' ? ` (${sideText(r.side)})` : ''}: {show(r.value)}
+              {r.baseline !== null &&
+                ` · baseline ${show(r.baseline)} (${change(r.value, r.baseline)})`}
+              {r.last !== null && ` · last ${show(r.last)} (${change(r.value, r.last)})`}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
