@@ -1,0 +1,13 @@
+# Tells Liam on Telegram that a Training Coach job failed. Started by OnFailure= in
+# training-coach-deploy.service and training-coach-offsite.service; %i is the failed unit.
+# Uses the app image's own bot settings (`training-coach notify`), so no token on the host.
+# Install with the other units: docs/runbooks/deploy.md, "Failure alerts".
+[Unit]
+Description=Alert on Telegram that %i failed
+
+[Service]
+Type=oneshot
+User=vybe
+WorkingDirectory=/home/vybe/training-coach
+ExecStart=/usr/bin/docker compose run --rm --no-deps -T app training-coach notify "Training Coach on the Pi: %i failed. See: journalctl -u %i -n 50"
+TimeoutStartSec=5min

@@ -1,6 +1,8 @@
 # Deploys the newest release tag if the Pi isn't on it (ADR-0030). Started by the timer.
 # Install: docs/runbooks/deploy.md, "Automatic deploys". Paths assume the vybe user's checkout.
 [Unit]
+# A failure tells Liam on Telegram (training-coach-alert@.service).
+OnFailure=training-coach-alert@%n.service
 Description=Deploy the newest Training Coach release
 Wants=network-online.target
 After=network-online.target docker.service
