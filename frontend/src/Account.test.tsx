@@ -127,3 +127,12 @@ test('changing passkeys without a recent sign-in explains how', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Remove passkey Pixel' }))
   expect(await screen.findByText(/needs a recent sign-in/)).toBeInTheDocument()
 })
+
+test('all my data can be downloaded', async () => {
+  server(SIGN_INS)
+  render(<Account />)
+  expect(await screen.findByRole('link', { name: 'Download all my data' })).toHaveAttribute(
+    'href',
+    '/api/account/export',
+  )
+})

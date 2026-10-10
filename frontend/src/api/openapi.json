@@ -1552,6 +1552,24 @@
         ]
       }
     },
+    "/api/account/export": {
+      "get": {
+        "description": "Everything stored about the signed-in person, as a zip: data.json and the photos.",
+        "operationId": "export_api_account_export_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {}
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Export",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/account/passkeys/{key_id}": {
       "delete": {
         "description": "Remove a passkey; like adding one, it needs a recent sign-in (ADR-0040).",

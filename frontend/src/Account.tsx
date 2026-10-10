@@ -142,6 +142,19 @@ export default function Account() {
               ))}
             </ul>
           </section>
+
+          <section aria-labelledby="your-data">
+            <h2 id="your-data">Your data</h2>
+            <p>
+              Everything stored about you: workouts, tests, measurements, habits, settings and your
+              photos, as one zip file.
+            </p>
+            <p>
+              <a href="/api/account/export" download>
+                Download all my data
+              </a>
+            </p>
+          </section>
         </>
       )}
     </AppShell>

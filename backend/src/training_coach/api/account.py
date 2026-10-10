@@ -3,7 +3,8 @@ removable, so a lost phone can be cut off. Owner-only."""
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
+import structlog
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -11,8 +12,10 @@ from training_coach.api.alerts import alert
 from training_coach.api.auth import COOKIE, Fresh, Owner
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import auth, passkeys
+from training_coach.services.export import archive
 
 router = APIRouter(prefix="/api/account", tags=["account"])
+log = structlog.get_logger(__name__)
 
 
 class PasskeyView(BaseModel):
@@ -72,3 +75,23 @@ def sign_out_device(
     if not ended:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such signed-in device")
     alert(request, background, "device_signed_out", "A device was signed out of Training Coach.")
+
+
+@router.get(
+    "/export", response_class=Response, responses={200: {"content": {"application/zip": {}}}}
+)
+def export(request: Request, user: Owner) -> Response:
+    """Everything stored about the signed-in person, as a zip: data.json and the photos."""
+    now = datetime.now(UTC)
+    with session_scope(_bound(request, user)) as session:
+        data = archive(session, now)
+    log.info("account.exported", bytes=len(data))
+    name = f"training-coach-{now.date().isoformat()}.zip"
+    return Response(
+        data,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{name}"',
+            "Cache-Control": "private, no-store",
+        },
+    )
