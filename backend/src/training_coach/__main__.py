@@ -3,6 +3,7 @@
 
 import argparse
 import asyncio
+import contextlib
 import json
 import os
 import sys
@@ -93,14 +94,24 @@ def notify(text: str = "") -> None:
         log.error("notify.failed", reason="the bot isn't configured")
         raise SystemExit(1)
     from telegram import Bot  # only here: the other commands don't need the bot
+    from telegram.error import TelegramError
 
     from training_coach.bot.app import send_with_retry
 
     async def send() -> bool:
         assert settings.telegram_bot_token is not None  # noqa: S101 - checked above
         assert settings.telegram_allowed_user_id is not None  # noqa: S101 - checked above
-        async with Bot(settings.telegram_bot_token.get_secret_value()) as bot:
+        # No `async with`: its initialize() makes a request of its own that a network blip
+        # would fail outside the retries. send_message needs none of it (review of #168).
+        bot = Bot(settings.telegram_bot_token.get_secret_value())
+        try:
             return await send_with_retry(bot, settings.telegram_allowed_user_id, message)
+        except TelegramError as exc:  # anything the retries don't absorb is a failed alert
+            log.error("notify.failed", reason=type(exc).__name__)
+            return False
+        finally:
+            with contextlib.suppress(TelegramError):
+                await bot.shutdown()
 
     if not asyncio.run(send()):
         log.error("notify.failed", reason="telegram didn't take it")

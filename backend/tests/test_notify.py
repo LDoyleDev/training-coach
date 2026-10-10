@@ -16,12 +16,10 @@ OWNER = 42
 class FakeBot:
     def __init__(self, token: str) -> None:
         self.token = token
+        self.shut = False
 
-    async def __aenter__(self) -> "FakeBot":
-        return self
-
-    async def __aexit__(self, *_exc: object) -> None:
-        return None
+    async def shutdown(self) -> None:
+        self.shut = True
 
 
 @pytest.fixture
@@ -80,3 +78,17 @@ def test_without_the_bot_configured_it_fails(monkeypatch: pytest.MonkeyPatch) ->
         cli.main(["notify", "Backup failed."])
     assert stop.value.code == 1
     get_settings.cache_clear()
+
+
+def test_a_network_failure_is_a_failed_alert_not_a_crash(
+    sent: list[tuple[int, str]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from telegram.error import NetworkError
+
+    async def broken(*_a: Any, **_kw: Any) -> bool:
+        raise NetworkError("down")
+
+    monkeypatch.setattr(bot_app, "send_with_retry", broken)
+    with pytest.raises(SystemExit) as stop:
+        cli.main(["notify", "Backup failed."])
+    assert stop.value.code == 1
