@@ -1,5 +1,6 @@
 import AppShell from '../components/AppShell'
 import SignedOutNotice from '../components/SignedOutNotice'
+import Sparkline from '../components/Sparkline'
 import { useEffect, useState } from 'react'
 import {
   fetchTests,
@@ -460,12 +461,18 @@ function DayResults({
           const test = tests.find((t) => t.slug === r.test)
           const show = (v: number) => (test ? unitText(test, v) : String(v))
           return (
-            <li key={`${r.test}:${r.side}`}>
-              {test?.name ?? r.test}
-              {r.side !== 'both' ? ` (${sideText(r.side)})` : ''}: {show(r.value)}
-              {r.baseline !== null &&
-                ` · baseline ${show(r.baseline)} (${change(r.value, r.baseline)})`}
-              {r.last !== null && ` · last ${show(r.last)} (${change(r.value, r.last)})`}
+            <li key={`${r.test}:${r.side}`} className="flex items-center justify-between gap-3">
+              <span>
+                {test?.name ?? r.test}
+                {r.side !== 'both' ? ` (${sideText(r.side)})` : ''}: {show(r.value)}
+                {r.baseline !== null &&
+                  ` · baseline ${show(r.baseline)} (${change(r.value, r.baseline)})`}
+                {r.last !== null && ` · last ${show(r.last)} (${change(r.value, r.last)})`}
+              </span>
+              <Sparkline
+                values={r.history}
+                label={`${test?.name ?? r.test}${r.side !== 'both' ? ` (${sideText(r.side)})` : ''}, ${r.history.length} test days`}
+              />
             </li>
           )
         })}

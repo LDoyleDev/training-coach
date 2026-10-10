@@ -11,6 +11,7 @@ import AppShell from '../components/AppShell'
 import SignedOutNotice from '../components/SignedOutNotice'
 import { byDay, change, format, isoDay, latest, parse } from './logic'
 import Photos from './Photos'
+import Sparkline from '../components/Sparkline'
 
 type Loaded =
   | { status: 'loading' }
@@ -98,11 +99,17 @@ export default function BodyPage() {
           </h2>
           <ul className="flex flex-col gap-1">
             {latest(kinds, entries).map((l) => (
-              <li key={l.kind.kind}>
-                <span className="font-bold">{l.kind.label}</span>: {format(l.kind, l.value)}
-                {l.first !== null && ` · since first ${change(l.kind, l.value, l.first)}`}
-                {l.previous !== null && ` · since last ${change(l.kind, l.value, l.previous)}`}
-                <span className="text-[var(--slate)]"> ({l.on})</span>
+              <li key={l.kind.kind} className="flex items-center justify-between gap-3">
+                <span>
+                  <span className="font-bold">{l.kind.label}</span>: {format(l.kind, l.value)}
+                  {l.first !== null && ` · since first ${change(l.kind, l.value, l.first)}`}
+                  {l.previous !== null && ` · since last ${change(l.kind, l.value, l.previous)}`}
+                  <span className="text-[var(--slate)]"> ({l.on})</span>
+                </span>
+                <Sparkline
+                  values={l.values}
+                  label={`${l.kind.label}, ${l.values.length} entries`}
+                />
               </li>
             ))}
           </ul>

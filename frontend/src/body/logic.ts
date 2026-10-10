@@ -17,6 +17,7 @@ export type Latest = {
   on: string
   first: number | null // the first ever, when it isn't the latest
   previous: number | null // the one before the latest, when it isn't the first
+  values: number[] // every one, newest first, for a trend line
 }
 
 /** Each kind's latest value with the first and previous to compare. `entries` are newest
@@ -27,7 +28,16 @@ export function latest(kinds: MeasureKind[], entries: Measurement[]): Latest[] {
     if (mine.length === 0) return []
     const first = mine.length > 1 ? mine[mine.length - 1].value : null
     const previous = mine.length > 2 ? mine[1].value : null
-    return [{ kind, value: mine[0].value, on: mine[0].on, first, previous }]
+    return [
+      {
+        kind,
+        value: mine[0].value,
+        on: mine[0].on,
+        first,
+        previous,
+        values: mine.map((e) => e.value),
+      },
+    ]
   })
 }
 

@@ -41,8 +41,15 @@ test('the latest of each kind, against the first and the previous', () => {
     m('2026-09-28', 'bodyweight', 84.2),
   ]
   expect(latest([WEIGHT, HEART], entries)).toEqual([
-    { kind: WEIGHT, value: 83.1, on: '2026-10-10', first: 84.2, previous: 83.6 },
-    { kind: HEART, value: 52, on: '2026-10-10', first: null, previous: null },
+    {
+      kind: WEIGHT,
+      value: 83.1,
+      on: '2026-10-10',
+      first: 84.2,
+      previous: 83.6,
+      values: [83.1, 83.6, 84.2],
+    },
+    { kind: HEART, value: 52, on: '2026-10-10', first: null, previous: null, values: [52] },
   ])
   // Two values: the older one is the first, with no separate previous.
   expect(latest([WEIGHT], entries.slice(0, 3))[0]).toMatchObject({ first: 83.6, previous: null })
