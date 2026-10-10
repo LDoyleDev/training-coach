@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Deploy the newest release tag on the Pi when there is one (ADR-0030).
 # Run every 15 minutes by the training-coach-deploy timer (scripts/systemd/); safe to run by hand.
-#   fetch tags -> already on the newest? exit quietly -> backup -> checkout tag -> rebuild ->
+#   fetch tags -> already on the newest? exit quietly -> on main and signed by GitHub? ->
+#   backup -> checkout tag -> rebuild ->
 #   wait for /healthz to report the new version. If it never does, roll the code back, unless
 #   the release changed the schema (then restoring the backup needs a person). Either way the
 #   failed tag is not tried again until someone deploys by hand or deletes .git/auto-deploy-failed.
@@ -9,6 +10,7 @@
 #      TC_HEALTH_URL       default http://127.0.0.1:8095/healthz (the port on vybe-pi)
 #      TC_HEALTH_TIMEOUT   seconds to wait for health after a rebuild (default 180)
 #      TC_HEALTH_INTERVAL  seconds between health checks (default 5)
+#      TC_DEPLOY_GPG       the gpg that checks a release is GitHub's (default: gpg)
 set -euo pipefail
 
 REPO_DIR="${TC_REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -16,9 +18,32 @@ REMOTE="${TC_DEPLOY_REMOTE:-https://github.com/LDoyleDev/training-coach.git}"
 HEALTH_URL="${TC_HEALTH_URL:-http://127.0.0.1:8095/healthz}"
 HEALTH_TIMEOUT="${TC_HEALTH_TIMEOUT:-180}"
 HEALTH_INTERVAL="${TC_HEALTH_INTERVAL:-5}"
+GPG="${TC_DEPLOY_GPG:-gpg}"
 FAILED_MARK=".git/auto-deploy-failed"
+# GitHub signs every commit it makes, squash merges included, with this key (ADR-0043). Pinned
+# here and read from the checkout already deployed, so a release can't vouch for itself.
+GITHUB_KEY="scripts/keys/github-web-flow.gpg"
+GITHUB_FINGERPRINT="968479A1AFF927E37D1A566BB5690EEEBB952194"
 
 log() { echo "auto-deploy: $*"; }
+
+# True if the commit carries a good signature by GitHub's key: it was merged on github.com,
+# through a pull request and its required checks, not pushed from somewhere else.
+signed_by_github() {
+  local home status primary=""
+  home=$(mktemp -d)
+  if "$GPG" --homedir "$home" --batch --quiet --import "$GITHUB_KEY" 2>/dev/null; then
+    # verify-commit prints gpg's status lines on stderr; it fails on no or a bad signature.
+    status=$(GNUPGHOME="$home" git -c gpg.program="$GPG" verify-commit --raw "$1" 2>&1) || status=""
+    # VALIDSIG's last field is the primary key's fingerprint; GOODSIG means not expired or revoked.
+    if [[ "$status" == *"[GNUPG:] GOODSIG "* ]]; then
+      primary=$(echo "$status" | awk '$2 == "VALIDSIG" { print $NF }')
+    fi
+  fi
+  command -v gpgconf >/dev/null && gpgconf --homedir "$home" --kill all 2>/dev/null
+  rm -rf "$home"
+  [ "$primary" = "$GITHUB_FINGERPRINT" ]
+}
 
 # True once /healthz returns the given JSON fragment.
 healthy() {
@@ -73,6 +98,14 @@ main() {
   fi
   if ! git merge-base --is-ancestor "$target" refs/remotes/deploy/main; then
     log "ERROR: $latest is not on main; not deploying it"
+    return 1
+  fi
+  if ! command -v "$GPG" >/dev/null; then
+    log "ERROR: gpg is needed to check $latest is genuine (sudo apt install gnupg)"
+    return 1
+  fi
+  if ! signed_by_github "$target"; then
+    log "ERROR: $latest is not signed by GitHub, so it wasn't merged there; not deploying it"
     return 1
   fi
   if ! git merge-base --is-ancestor "$current" "$target"; then
