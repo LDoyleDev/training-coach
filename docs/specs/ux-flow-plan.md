@@ -1,8 +1,8 @@
 # Making the app flow: a UX plan with options
 
-Status: **proposal, for review** (2026-10-11). Part 1 is being built now because it was asked
-for directly; the rest waits for a decision. Findings come from a full read of every page and
-bot flow on 2026-10-10.
+Status: **proposal, for review** (written 2026-10-11, from a read of every page and bot flow
+done the evening before). Part 1 is being built now because it was asked for directly; the
+rest waits for a decision.
 
 ## What's wrong today
 
@@ -31,7 +31,7 @@ bot flow on 2026-10-10.
   - The morning message doesn't link to the web app.
   - Readiness is reachable only from a notice.
 - **Re-confirming who you are.** Signing out, signing in and re-typing for a sensitive change
-  (fixed by ADR-0049: a fingerprint prompt in place).
+  (fixed by [ADR-0049](../adr/0049-confirm-with-fingerprint.md), #194: a fingerprint prompt in place).
 
 ## Part 1: being built now (asked for)
 
