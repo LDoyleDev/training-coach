@@ -40,8 +40,11 @@ export default function App() {
 
   return (
     <div className="page">
-      <header className="masthead">
+      <header className="masthead flex items-baseline justify-between gap-4">
         <span className="wordmark">Training Coach</span>
+        <a href="/session" className="font-bold text-[var(--bell-ink)] no-underline">
+          Open the app
+        </a>
       </header>
 
       {state.status === 'loading' && <p className="status">Loading the plan…</p>}

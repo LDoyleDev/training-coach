@@ -1033,6 +1033,87 @@
         "title": "SignIns",
         "type": "object"
       },
+      "StandingView": {
+        "properties": {
+          "best_set": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Set"
+          },
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "last": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Last",
+            "type": "array"
+          },
+          "recent": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "retired": {
+            "title": "Retired",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "hold",
+              "ready",
+              "top_of_ladder"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "step_number": {
+            "title": "Step Number",
+            "type": "integer"
+          },
+          "steps": {
+            "title": "Steps",
+            "type": "integer"
+          },
+          "unit": {
+            "enum": [
+              "reps",
+              "seconds",
+              "minutes"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exercise",
+          "unit",
+          "step",
+          "step_number",
+          "steps",
+          "last",
+          "best_set",
+          "status",
+          "retired",
+          "recent"
+        ],
+        "title": "StandingView",
+        "type": "object"
+      },
       "StretchBody": {
         "properties": {
           "minutes": {
@@ -2018,6 +2099,32 @@
         "summary": "Get Plan",
         "tags": [
           "plan"
+        ]
+      }
+    },
+    "/api/progress": {
+      "get": {
+        "description": "Every exercise in plan order: its step, last session, best set and whether it's ready.",
+        "operationId": "standings_api_progress_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StandingView"
+                  },
+                  "title": "Response Standings Api Progress Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Standings",
+        "tags": [
+          "progress"
         ]
       }
     },

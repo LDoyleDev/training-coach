@@ -10,6 +10,7 @@ import {
 import AppShell from '../components/AppShell'
 import SignedOutNotice from '../components/SignedOutNotice'
 import { byDay, change, format, isoDay, latest, parse } from './logic'
+import Photos from './Photos'
 
 type Loaded =
   | { status: 'loading' }
@@ -144,6 +145,8 @@ export default function BodyPage() {
           Save
         </button>
       </section>
+
+      <Photos />
 
       {entries.length > 0 && (
         <section aria-labelledby="history" className="flex flex-col gap-3">

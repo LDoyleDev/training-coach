@@ -314,6 +314,11 @@ class Standing:
     best_set: int | None
     status: Progress
     retired: bool = False  # out of the plan (#107): shown for its history, never ready
+    # The best set of each session at this step, newest first (up to RECENT), for a trend.
+    recent: tuple[int, ...] = ()
+
+
+RECENT = 12
 
 
 def overview(session: Session) -> list[Standing]:
@@ -361,6 +366,7 @@ def overview(session: Session) -> list[Standing]:
                 best_set=max((max(v, default=0) for v in history), default=None),
                 status=status,
                 retired=exercise.retired,
+                recent=tuple(max(v, default=0) for v in history[:RECENT]),
             )
         )
     return result

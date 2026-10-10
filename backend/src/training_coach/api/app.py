@@ -21,6 +21,7 @@ from training_coach.api.fitness import router as fitness_router
 from training_coach.api.passkeys import router as passkeys_router
 from training_coach.api.photos import router as photos_router
 from training_coach.api.plan import router as plan_router
+from training_coach.api.progress import router as progress_router
 from training_coach.api.security import security_headers_middleware
 from training_coach.api.session import router as session_router
 from training_coach.bot.app import build_bot, send_with_retry
@@ -73,7 +74,7 @@ def _report_death(task: "asyncio.Task[None]") -> None:
 
 
 # Pages of the web app that are reached by URL, not only from within it (a link from the bot).
-SPA_PAGES = ("/signin", "/account", "/session", "/tests", "/body")
+SPA_PAGES = ("/signin", "/account", "/session", "/tests", "/body", "/progress")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -145,6 +146,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(fitness_router)
     app.include_router(body_router)
     app.include_router(photos_router)
+    app.include_router(progress_router)
 
     # Mounted last so API routes always win over static files.
     dist = settings.web_dist_dir

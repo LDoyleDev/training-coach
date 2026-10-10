@@ -303,3 +303,56 @@ export async function deleteMeasurement(on: string, kind: string): Promise<void>
   if (res.status !== 204 && res.status !== 404)
     throw new Error(`The server answered ${res.status}.`)
 }
+
+// ---------------------------------------------------------------- progress photos (#143)
+
+export type PhotoView = Schemas['PhotoView']
+export type Pose = PhotoView['pose']
+
+export async function fetchPhotos(signal?: AbortSignal): Promise<PhotoView[]> {
+  const res = signedIn(await fetch('/api/photos', { signal, credentials: 'same-origin' }))
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as PhotoView[]
+}
+
+/** Upload a JPEG for a day and pose: true, or why the server refused it. */
+export async function uploadPhoto(on: string, pose: Pose, jpeg: Blob): Promise<true | string> {
+  const res = signedIn(
+    await fetch(`/api/photos/${on}/${pose}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: jpeg,
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 413) return 'That photo is too large.'
+  if (res.status === 415 || res.status === 422) {
+    const detail = await res
+      .json()
+      .then((body: { detail?: unknown }) => body.detail)
+      .catch(() => null) // a proxy's error page isn't JSON
+    return typeof detail === 'string' ? detail : "That photo couldn't be stored."
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return true
+}
+
+export async function deletePhoto(id: number): Promise<void> {
+  const res = signedIn(
+    await fetch(`/api/photos/${id}`, { method: 'DELETE', credentials: 'same-origin' }),
+  )
+  if (res.status !== 204 && res.status !== 404)
+    throw new Error(`The server answered ${res.status}.`)
+}
+
+// ---------------------------------------------------------------- progress
+
+export type Standing = Schemas['StandingView']
+
+/** Each exercise's standing; null when not signed in. */
+export async function fetchProgress(signal?: AbortSignal): Promise<Standing[] | null> {
+  const res = await fetch('/api/progress', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Standing[]
+}
