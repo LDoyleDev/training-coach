@@ -28,7 +28,6 @@ def segment(marker: int, body: bytes) -> bytes:
 GPS = b"GPS 52.5200N 13.4050E"
 CLEAN = (
     bytes([0xFF, 0xD8])
-    + segment(0xE0, b"JFIF\x00\x01\x01")
     + segment(0xDB, bytes(65))
     + segment(0xDA, b"\x01\x01\x00\x00\x3f\x00")
     + b"\x12\x34"

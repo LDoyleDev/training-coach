@@ -143,3 +143,29 @@ def test_an_unknown_purpose_never_signs_in_without_a_passkey(
     with make_session_factory(engine)() as shared:
         assert shared.scalars(select(Passkey.id), execution_options={ALL_USERS: True}).all()
     assert _options(client, "/api/auth/passkeys/sign-in/options")["rpId"] == RP_ID
+
+
+def test_removing_a_passkey_ends_the_other_sessions_it_started(
+    client: TestClient, engine: Engine
+) -> None:
+    device = _with_passkey(client, engine)
+    assert _sign_in(client, device) == 204  # the phone, signed in by the key
+    phone = client.cookies.get("__Host-tc_session")
+    assert _sign_in(client, device) == 204  # another browser, by the same key
+    (key,) = _passkeys(engine)
+    assert client.delete(f"/api/account/passkeys/{key.id}").status_code == 204
+    assert client.get("/api/auth/me").status_code == 200  # the browser asking stays
+    client.cookies.set("__Host-tc_session", phone or "")
+    assert client.get("/api/auth/me").status_code == 401  # the key's other session ended
+
+
+def test_a_session_ends_ninety_days_after_it_began_however_much_it_is_used(
+    client: TestClient, engine: Engine
+) -> None:
+    with time_machine.travel(datetime.now(UTC), tick=False) as clock:
+        assert _redeem(client, _link(engine)) == 204
+        for _ in range(89):
+            clock.shift(timedelta(days=1))
+            assert client.get("/api/auth/me").status_code == 200  # renewed every day
+        clock.shift(timedelta(days=1))
+        assert client.get("/api/auth/me").status_code == 401

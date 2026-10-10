@@ -24,7 +24,7 @@ def jpeg(*segments: bytes) -> bytes:
 def test_metadata_is_dropped_and_the_picture_kept() -> None:
     photo = jpeg(JFIF, EXIF, XMP, ADOBE, COMMENT, TABLES, FRAME, SCAN)
     cleaned = clean_jpeg(photo)
-    assert cleaned == jpeg(JFIF, ADOBE, TABLES, FRAME, SCAN)
+    assert cleaned == jpeg(ADOBE, TABLES, FRAME, SCAN)  # JFIF too: it can hold a thumbnail
     assert isinstance(cleaned, bytes)
     assert b"GPS" not in cleaned
     assert b"xmpmeta" not in cleaned
@@ -33,7 +33,7 @@ def test_metadata_is_dropped_and_the_picture_kept() -> None:
 
 def test_fill_bytes_and_restart_markers_pass_through() -> None:
     photo = b"\xff\xd8" + b"\xff" + JFIF + b"\xff\xd0" + TABLES + FRAME + SCAN
-    assert clean_jpeg(photo) == b"\xff\xd8" + JFIF + b"\xff\xd0" + TABLES + FRAME + SCAN
+    assert clean_jpeg(photo) == b"\xff\xd8" + b"\xff\xd0" + TABLES + FRAME + SCAN
 
 
 def test_trailing_padding_after_the_end_is_allowed() -> None:
@@ -98,3 +98,13 @@ def test_an_end_before_any_image_data_is_damaged() -> None:
 def test_image_data_that_never_ends_is_damaged() -> None:
     scan = SCAN_HEADER + bytes([0x12, 0x34, 0xFF])
     assert clean_jpeg(jpeg(TABLES, FRAME, scan)) == "the photo is damaged"
+
+
+def test_an_embedded_thumbnail_and_other_segments_are_dropped() -> None:
+    """A JFXX segment can carry a whole thumbnail with its own metadata; an APP14 that isn't
+    Adobe's and unknown markers carry nothing the picture needs."""
+    thumbnail = segment(0xE0, b"JFXX\x00\x10" + jpeg(EXIF, TABLES, FRAME, SCAN))
+    not_adobe = segment(0xEE, b"Other GPS 52.5")
+    unknown = segment(0xF0, b"GPS 52.5")
+    cleaned = clean_jpeg(jpeg(thumbnail, not_adobe, unknown, TABLES, FRAME, SCAN))
+    assert cleaned == jpeg(TABLES, FRAME, SCAN)
