@@ -159,9 +159,15 @@ test('once a passkey exists, a link asks for the fingerprint instead', async () 
 
 test.each([
   ['?next=/account', '/account'],
+  ['?next=/progress', '/progress'],
   ['?next=//evil.example', '/'],
   ['?next=https://evil.example', '/'],
   ['?next=/\\evil.example', '/'],
+  ['?next=/%09/evil.example', '/'],
+  ['?next=/%0a/evil.example', '/'],
+  ['?next=/account%0a', '/'],
+  ['?next=javascript:alert(1)', '/'],
+  ['?next=/unknown', '/'],
   ['', '/'],
 ])('next page %s goes to %s', (search, page) => {
   expect(nextPage(search)).toBe(page)
