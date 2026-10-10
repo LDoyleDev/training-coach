@@ -1,8 +1,9 @@
 import AppShell from './components/AppShell'
-import { useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import {
   addPasskey,
   downloadExport,
+  eraseAllMyData,
   fetchSignIns,
   passkeysSupported,
   removePasskey,
@@ -27,11 +28,12 @@ const day = (iso: string) =>
 
 /**
  * /account (ADR-0036): your passkeys and signed-in browsers. Remove a passkey or sign a lost
- * phone out; add a passkey on this device; sign out here.
+ * phone out; add a passkey on this device; sign out here. Download or erase all your data.
  */
 export default function Account() {
   const [state, setState] = useState<State>({ status: 'loading' })
   const [note, setNote] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState('')
 
   const load = useCallback(() => {
     fetchSignIns()
@@ -82,6 +84,19 @@ export default function Account() {
           error instanceof StaleSignInError
             ? STALE.replace('changing passkeys', 'downloading everything')
             : "That didn't work. Check your connection and try again.",
+        ),
+      )
+  }
+
+  const erase = (event: FormEvent) => {
+    event.preventDefault()
+    eraseAllMyData(confirm)
+      .then(() => window.location.assign('/signin'))
+      .catch((error: unknown) =>
+        setNote(
+          error instanceof StaleSignInError
+            ? STALE.replace('changing passkeys', 'erasing everything')
+            : "That didn't work. Nothing was erased; check your connection and try again.",
         ),
       )
   }
@@ -176,6 +191,31 @@ export default function Account() {
                 Download all my data
               </button>
             </p>
+          </section>
+
+          <section aria-labelledby="erase">
+            <h2 id="erase">Erase all my data</h2>
+            <p>
+              Deletes everything stored about you: workouts, tests, measurements, habits, settings,
+              photos, passkeys and every signed-in browser. You start again from the first session.
+              It can't be undone; download your data first if you want a copy. Backups that still
+              hold it are deleted within 5 weeks.
+            </p>
+            <form onSubmit={erase}>
+              <label>
+                Type <strong>erase</strong> to confirm{' '}
+                <input
+                  value={confirm}
+                  onChange={(event) => setConfirm(event.target.value)}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+              </label>{' '}
+              <button type="submit" disabled={confirm !== 'erase'}>
+                Erase all my data
+              </button>
+            </form>
           </section>
         </>
       )}
