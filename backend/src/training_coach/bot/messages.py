@@ -23,6 +23,7 @@ NO_PLAN = (
 
 SOMETHING_WENT_WRONG = "Something went wrong on my side. Try again in a minute."
 NUDGE = "Nothing logged today yet. {session} is still waiting: start it, rest or swap it."
+NUDGE_TEST = "Nothing logged today yet. {name} is still waiting: {where}."
 STALE = "That message is out of date. Send /today for the current session."
 
 
@@ -83,6 +84,30 @@ def today_text(today: Today) -> str:
     lines += work_list(session.items)
     if session.optional:
         lines += ["", "This one is optional: resting today is fine."]
+    if today.logged_today:
+        lines += ["", "Already logged today: " + ", ".join(today.logged_today)]
+    return "\n".join(lines)
+
+
+def tests_where(public_url: str | None) -> str:
+    """Where test results are entered: the web app's tests page (ADR-0037)."""
+    return f"{public_url}/tests" if public_url else "the Tests page of the web app"
+
+
+def test_day_text(today: Today, where: str) -> str:
+    """A test day in place of the session (ADR-0038): the tests, where to enter them, and that
+    the session waits."""
+    test = today.test_day
+    assert test is not None  # noqa: S101 - callers check
+    lines = [
+        f"Today: {test.name}",
+        ", ".join(test.tests) + ".",
+        WARM_UP,
+        "Do them in order and rest as long as you need between them.",
+        f"Enter the results in the app: {where}",
+        "",
+        f"The plan waits: {today.session.name} comes after the tests.",
+    ]
     if today.logged_today:
         lines += ["", "Already logged today: " + ", ".join(today.logged_today)]
     return "\n".join(lines)

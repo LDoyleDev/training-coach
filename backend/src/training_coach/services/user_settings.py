@@ -6,7 +6,7 @@ from datetime import date, time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Event, UserSettings, Workout
+from training_coach.db.models import Event, FitnessTestDay, UserSettings, Workout
 from training_coach.services import users
 
 DEFAULT_MORNING = time(7, 30)
@@ -113,5 +113,9 @@ def update(
 
 
 def anything_logged(session: Session, on: date) -> bool:
-    """Any workout on ``on``, whatever its status: done, rest or skipped (ADR-0014)."""
-    return session.scalar(select(Workout.id).where(Workout.local_date == on).limit(1)) is not None
+    """Any workout on ``on``, whatever its status (done, rest or skipped, ADR-0014), or a
+    test day (ADR-0038)."""
+    if session.scalar(select(Workout.id).where(Workout.local_date == on).limit(1)) is not None:
+        return True
+    tested = select(FitnessTestDay.id).where(FitnessTestDay.local_date == on).limit(1)
+    return session.scalar(tested) is not None
