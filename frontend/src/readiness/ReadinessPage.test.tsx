@@ -87,7 +87,10 @@ test('earlier answers are filled in, with when they are asked again', async () =
 test('signed out, it points to sign in', async () => {
   serve(null)
   render(<ReadinessPage />)
-  expect(await screen.findByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/signin')
+  expect(await screen.findByRole('link', { name: 'Sign in' })).toHaveAttribute(
+    'href',
+    expect.stringMatching(/^\/signin\?next=/),
+  )
 })
 
 test('a failed load says so', async () => {

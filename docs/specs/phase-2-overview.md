@@ -30,7 +30,7 @@ Order: data first, then Telegram features, then the dashboard that shows them.
 
 Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74 (#94-#96, built), 2-B #142
 (measurements, built) and #143 (photos, built), 2-C #73 and #124 (done), 2-D #90 and #91 (done),
-2-E #26 (done). Web: 2-F sign-in #115 (done; share links still open), 2-H #117 and #118 (done),
+2-E #26 (done). Web: 2-F sign-in #115 (done; sharing done as a picture, ADR-0050), 2-H #117 and #118 (done),
 summaries #116 (done). Plan changes keep history: #107 (done).
 
 ### 2-0 Multi-user-ready schema (#72, done)
@@ -82,8 +82,8 @@ summaries #116 (done). Plan changes keep history: #107 (done).
   owner-only; a test enforces it. Cloudflare rate limit on `/api/auth/*` (a manual step).
 - Download all my data, built (#169): one zip from the Account page (threat model).
 - Erase all my data, built (ADR-0044): from the Account page, typed confirmation.
-- Still to do: read-only share links as ADR-0012 (hashed expiring tokens, `/share` and
-  `/unshare`), never showing measurements or photos.
+- Sharing: `/share` sends the last 4 weeks as a picture (ADR-0050, replacing ADR-0012's
+  share links), never showing measurements or photos.
 
 ### 2-G Dashboard screens
 - Built so far without the mockup: `/progress` (each exercise's step, last session, best and a

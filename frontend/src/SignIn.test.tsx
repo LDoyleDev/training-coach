@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { nextPage } from './next'
 import SignIn from './SignIn'
 
 const webauthn = vi.hoisted(() => ({
@@ -11,6 +12,13 @@ const webauthn = vi.hoisted(() => ({
 vi.mock('@simplewebauthn/browser', () => webauthn)
 
 const TOKEN = 'a'.repeat(43)
+
+/** Catch navigation: jsdom can't leave the page. */
+function goes() {
+  const assign = vi.fn()
+  vi.stubGlobal('location', { ...window.location, assign })
+  return assign
+}
 
 /** Answer each fetch by its path: a status, and JSON for ceremony options. */
 function server(statuses: Record<string, number>) {
@@ -99,12 +107,13 @@ test('the link is posted once, even when React runs the effect twice', async () 
   expect(fetchMock).toHaveBeenCalledTimes(1)
 })
 
-test('without a link, sign in with a fingerprint', async () => {
-  window.history.replaceState(null, '', '/signin')
+test('without a link, sign in with a fingerprint and go back where you were', async () => {
+  window.history.replaceState(null, '', '/signin?next=/account')
+  const assign = goes()
   server({ '/api/auth/passkeys/sign-in/options': 200, '/api/auth/passkeys/sign-in': 204 })
   render(<SignIn />)
   fireEvent.click(screen.getByRole('button', { name: 'Sign in with fingerprint or face' }))
-  expect(await screen.findByText("You're signed in on this device.")).toBeInTheDocument()
+  await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/account'))
   expect(webauthn.startAuthentication).toHaveBeenCalledWith({ optionsJSON: { challenge: 'c' } })
 })
 
@@ -143,6 +152,23 @@ test('once a passkey exists, a link asks for the fingerprint instead', async () 
   render(<SignIn />)
   expect(await screen.findByText(/doesn't sign you in on its own/)).toBeInTheDocument()
   expect(screen.getByText(/send \/recover/i)).toBeInTheDocument()
+  const assign = goes()
   fireEvent.click(screen.getByRole('button', { name: 'Sign in with fingerprint or face' }))
-  expect(await screen.findByText("You're signed in on this device.")).toBeInTheDocument()
+  await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/'))
+})
+
+test.each([
+  ['?next=/account', '/account'],
+  ['?next=/progress', '/progress'],
+  ['?next=//evil.example', '/'],
+  ['?next=https://evil.example', '/'],
+  ['?next=/\\evil.example', '/'],
+  ['?next=/%09/evil.example', '/'],
+  ['?next=/%0a/evil.example', '/'],
+  ['?next=/account%0a', '/'],
+  ['?next=javascript:alert(1)', '/'],
+  ['?next=/unknown', '/'],
+  ['', '/'],
+])('next page %s goes to %s', (search, page) => {
+  expect(nextPage(search)).toBe(page)
 })

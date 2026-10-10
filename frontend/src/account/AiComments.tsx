@@ -11,6 +11,7 @@ import {
   storeAiKey,
   testAiKey,
 } from '../api'
+import { card, primaryInline } from '../ui'
 
 const CHECKS: Record<KeyCheck, string> = {
   works: 'The key works.',
@@ -101,8 +102,10 @@ export default function AiComments() {
   }
 
   return (
-    <section aria-labelledby="ai-comments">
-      <h2 id="ai-comments">AI comments from your own key</h2>
+    <section aria-labelledby="ai-comments" className={card}>
+      <h2 id="ai-comments" className="mb-2 text-xl">
+        AI comments from your own key
+      </h2>
       {!ai.available ? (
         <p>AI comments aren’t set up on this server yet.</p>
       ) : (
@@ -142,7 +145,7 @@ export default function AiComments() {
                 />
                 Comments may see readiness answers (health data)
               </label>
-              <p className="flex gap-2">
+              <p className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => void test()}>
                   Test the key
                 </button>
@@ -167,7 +170,7 @@ export default function AiComments() {
               />
             </label>
             <p>
-              <button type="submit" disabled={!key.trim()}>
+              <button type="submit" disabled={!key.trim()} className={primaryInline}>
                 Check and save the key
               </button>
             </p>

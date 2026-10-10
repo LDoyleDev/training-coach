@@ -100,7 +100,10 @@ test('a failed action says so', async () => {
 test('signed out, it links to sign-in', async () => {
   server(null)
   render(<Account />)
-  expect(await screen.findByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/signin')
+  expect(await screen.findByRole('link', { name: 'Sign in' })).toHaveAttribute(
+    'href',
+    '/signin?next=/account',
+  )
 })
 
 test('a server error is shown', async () => {
@@ -114,7 +117,10 @@ test('signing out here goes to the sign-in page', async () => {
   const assign = vi.fn()
   vi.stubGlobal('location', { ...window.location, assign })
   render(<Account />)
-  fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
+  await screen.findByText('This browser', { exact: false })
+  for (const button of screen.getAllByRole('button', { name: 'Sign out' })) {
+    fireEvent.click(button) // the header's and this browser's row: both sign out here
+  }
   await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/signin'))
   expect(calls).toContain('POST /api/auth/signout')
 })

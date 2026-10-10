@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import { fetchStretching, logStretching, SignedOutError, type Routine } from '../api'
 import SignedOutNotice from '../components/SignedOutNotice'
+import { card, primary } from '../ui'
 
 const CHOICES = [10, 20, 30] // minutes, as the bot offers (ADR-0032)
 
-const card = 'rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-4'
 const choice =
   'min-h-11 flex-1 rounded-xl border-2 border-[var(--ink)] px-4 font-bold text-[var(--ink)] disabled:opacity-60'
-const primary =
-  'min-h-14 w-full rounded-2xl bg-[var(--bell-ink)] px-4 text-lg font-bold text-white disabled:opacity-60'
 
 type State =
   | { status: 'choose' }

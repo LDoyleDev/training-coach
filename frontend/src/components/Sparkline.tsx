@@ -12,7 +12,7 @@ export default function Sparkline({ values, label }: { values: number[]; label: 
       viewBox="0 0 120 32"
       role="img"
       aria-label={label}
-      className="shrink-0"
+      className="h-auto w-20 shrink-0 sm:w-[120px]"
     >
       <polyline
         points={points}
