@@ -16,8 +16,9 @@ import {
 } from './api'
 
 const STALE =
-  'For safety, changing passkeys needs a recent sign-in. Sign out, sign back in with your ' +
-  'fingerprint (or /recover if you lost it), then do it within 10 minutes.'
+  'For safety, changing passkeys needs you to confirm it’s you. Try again and confirm with ' +
+  'your fingerprint when your phone asks. No passkey on this device? Send /login to the bot, ' +
+  'sign in with the link, then try again.'
 
 type State =
   | { status: 'loading' }
@@ -84,7 +85,7 @@ export default function Account() {
       .catch((error: unknown) =>
         setNote(
           error instanceof StaleSignInError
-            ? STALE.replace('changing passkeys', 'downloading everything')
+            ? STALE.replace('changing passkeys needs', 'downloading everything needs')
             : "That didn't work. Check your connection and try again.",
         ),
       )
@@ -97,7 +98,7 @@ export default function Account() {
       .catch((error: unknown) =>
         setNote(
           error instanceof StaleSignInError
-            ? STALE.replace('changing passkeys', 'erasing everything')
+            ? STALE.replace('changing passkeys needs', 'erasing everything needs')
             : "That didn't work. Nothing was erased; check your connection and try again.",
         ),
       )

@@ -53,3 +53,4 @@ Code). Template: [template.md](template.md).
 | [0046](0046-readiness-questions.md) | Readiness questions that advise, not block | Accepted |
 | [0047](0047-bring-your-own-ai.md) | Bring your own AI | Accepted |
 | [0048](0048-undo-the-last-change.md) | Undo the last change to the plan | Accepted |
+| [0049](0049-confirm-with-fingerprint.md) | Confirm it's you with your fingerprint, without signing out | Accepted |

@@ -123,9 +123,60 @@ test('changing passkeys without a recent sign-in explains how', async () => {
   server(SIGN_INS, [], true)
   render(<Account />)
   fireEvent.click(await screen.findByRole('button', { name: 'Add a passkey on this device' }))
-  expect(await screen.findByText(/needs a recent sign-in/)).toBeInTheDocument()
+  expect(await screen.findByText(/needs you to confirm it’s you/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Remove passkey Pixel' }))
-  expect(await screen.findByText(/needs a recent sign-in/)).toBeInTheDocument()
+  expect(await screen.findByText(/needs you to confirm it’s you/)).toBeInTheDocument()
+})
+
+test('an old sign-in asks for the fingerprint once, then goes ahead', async () => {
+  const calls: string[] = []
+  let confirmed = false
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (path: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${path}`)
+      if (path === '/api/account/sign-ins') return new Response(JSON.stringify(SIGN_INS))
+      if (path === '/api/auth/passkeys/confirm/options') return new Response('{"challenge":"c"}')
+      if (path === '/api/auth/passkeys/confirm') {
+        confirmed = true
+        return new Response(null, { status: 204 })
+      }
+      return new Response(null, { status: confirmed ? 204 : 403 })
+    }),
+  )
+  render(<Account />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove passkey Pixel' }))
+  expect(await screen.findByText('Passkey removed.')).toBeInTheDocument()
+  expect(calls.filter((c) => c.includes('passkeys'))).toEqual([
+    'DELETE /api/account/passkeys/7',
+    'POST /api/auth/passkeys/confirm/options',
+    'POST /api/auth/passkeys/confirm',
+    'DELETE /api/account/passkeys/7',
+  ])
+  expect(webauthn.startAuthentication).toHaveBeenCalled()
+})
+
+test('a sign-in that ended while confirming says so', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (path: string) => {
+      if (path === '/api/account/sign-ins') return new Response(JSON.stringify(SIGN_INS))
+      if (path === '/api/auth/passkeys/confirm/options') return new Response('{"challenge":"c"}')
+      if (path === '/api/auth/passkeys/confirm') return new Response(null, { status: 401 })
+      return new Response(null, { status: 403 })
+    }),
+  )
+  render(<Account />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Download all my data' }))
+  expect(await screen.findByText(/Check your connection/)).toBeInTheDocument()
+})
+
+test('cancelling the fingerprint prompt explains what to do', async () => {
+  server(SIGN_INS, [], true)
+  webauthn.startAuthentication.mockRejectedValueOnce(new Error('NotAllowedError'))
+  render(<Account />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Download all my data' }))
+  expect(await screen.findByText(/confirm with your fingerprint/)).toBeInTheDocument()
 })
 
 test('all my data can be downloaded', async () => {
@@ -145,9 +196,7 @@ test('downloading without a recent sign-in explains how', async () => {
   server(SIGN_INS, [], true)
   render(<Account />)
   fireEvent.click(await screen.findByRole('button', { name: 'Download all my data' }))
-  expect(
-    await screen.findByText(/downloading everything needs a recent sign-in/),
-  ).toBeInTheDocument()
+  expect(await screen.findByText(/downloading everything needs you to confirm/)).toBeInTheDocument()
 })
 
 test('erasing needs the word typed, then signs out', async () => {
@@ -174,7 +223,7 @@ test('erasing without a recent sign-in explains how and erases nothing', async (
     target: { value: 'erase' },
   })
   fireEvent.click(screen.getByRole('button', { name: 'Erase all my data' }))
-  expect(await screen.findByText(/erasing everything needs a recent sign-in/)).toBeInTheDocument()
+  expect(await screen.findByText(/erasing everything needs you to confirm/)).toBeInTheDocument()
   expect(assign).not.toHaveBeenCalled()
 })
 
