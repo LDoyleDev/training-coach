@@ -17,6 +17,23 @@
         "title": "Answer",
         "type": "object"
       },
+      "AnswersBody": {
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "maxProperties": 7,
+            "title": "Answers",
+            "type": "object"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "AnswersBody",
+        "type": "object"
+      },
       "BlockView": {
         "properties": {
           "kind": {
@@ -824,6 +841,110 @@
         "title": "ProgressView",
         "type": "object"
       },
+      "QuestionView": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "text"
+        ],
+        "title": "QuestionView",
+        "type": "object"
+      },
+      "ReadinessSavedView": {
+        "properties": {
+          "status": {
+            "enum": [
+              "due",
+              "clear",
+              "see_doctor"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ReadinessSavedView",
+        "type": "object"
+      },
+      "ReadinessView": {
+        "description": "The questions, the latest answers if they still count, and what they mean.",
+        "properties": {
+          "answered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered At"
+          },
+          "answers": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answers"
+          },
+          "ask_again_after": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ask Again After"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/QuestionView"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "due",
+              "clear",
+              "see_doctor"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "questions",
+          "status",
+          "answers",
+          "answered_at",
+          "ask_again_after"
+        ],
+        "title": "ReadinessView",
+        "type": "object"
+      },
       "Redeem": {
         "properties": {
           "token": {
@@ -1437,6 +1558,17 @@
                 "type": "null"
               }
             ]
+          },
+          "readiness_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readiness Note"
           },
           "session": {
             "anyOf": [
@@ -2194,6 +2326,67 @@
         "summary": "Standings",
         "tags": [
           "progress"
+        ]
+      }
+    },
+    "/api/readiness": {
+      "get": {
+        "operationId": "get_readiness_api_readiness_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Readiness",
+        "tags": [
+          "readiness"
+        ]
+      },
+      "put": {
+        "description": "Answer every question; the answers replace any earlier ones.",
+        "operationId": "put_readiness_api_readiness_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswersBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessSavedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Readiness",
+        "tags": [
+          "readiness"
         ]
       }
     },

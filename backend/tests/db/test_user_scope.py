@@ -272,6 +272,7 @@ def test_every_per_person_table_is_covered() -> None:
         "passkeys",
         "session_progress",
         "web_sessions",
+        "readiness_answers",
     }
 
 
