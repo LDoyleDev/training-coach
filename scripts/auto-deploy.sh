@@ -27,8 +27,8 @@ GITHUB_FINGERPRINT="968479A1AFF927E37D1A566BB5690EEEBB952194"
 
 log() { echo "auto-deploy: $*"; }
 
-# True if the commit carries a good signature by GitHub's key: it was merged on github.com,
-# through a pull request and its required checks, not pushed from somewhere else.
+# True if the commit carries a good signature by GitHub's key: GitHub made it (a merge, or a
+# commit through its web editor or API), so it wasn't a plain `git push` (ADR-0043).
 signed_by_github() {
   local home status primary=""
   home=$(mktemp -d)

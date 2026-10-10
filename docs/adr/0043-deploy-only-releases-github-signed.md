@@ -12,8 +12,14 @@ someone could write to it: a push past the pull requests (a leaked token with ad
 override of branch protection) would deploy like any release. The security review asked the Pi
 to check that a release is genuine before running it.
 
-Every commit GitHub makes itself, squash merges of pull requests included, is signed with
-GitHub's own key (`https://github.com/web-flow.gpg`). A commit pushed from anywhere else isn't.
+Every commit GitHub makes itself is signed with GitHub's own key
+(`https://github.com/web-flow.gpg`): squash merges of pull requests, but also commits made in
+its web editor or through its API (the contents API, `createCommitOnBranch`). A commit pushed
+with `git push` from anywhere else isn't.
+
+What keeps commits on `main` to pull requests with passing checks is branch protection, which
+holds for admins too here (required pull request, required checks, `enforce_admins`). The
+signature is a second, independent check for when that protection is loosened or bypassed.
 
 ## Decision
 
@@ -31,13 +37,18 @@ signature by GitHub's key, and refuses it otherwise.
 
 | Option | Pros | Cons |
 | --- | --- | --- |
-| GitHub's merge signature (chosen) | Automatic; proves a merge on github.com, so the pull request and required checks; no setup | Trusts GitHub and the account: someone signed in as Liam can still merge |
+| GitHub's signature (chosen) | Automatic; proves GitHub made the commit, which stops a plain `git push`; no setup | Doesn't prove a pull request: a token with write access can make a signed commit through the API where branch protection allows it; trusts GitHub and the account |
 | Liam signs each release tag with his own key | Proves Liam approved it, even if GitHub is compromised | A key to keep safe and a manual step per release; deferred until there's a hardware key |
 | Ask GitHub's API whether the checks passed | Checks CI directly | Same trust in GitHub; a network call and its failure modes; branch protection already requires them |
 
 ## Consequences
 
-- A commit on `main` that GitHub didn't make (a direct push) is never deployed automatically.
+- A commit on `main` that GitHub didn't make (a plain `git push`, for instance while branch
+  protection is off) is never deployed automatically.
+- Residual risk: a stolen token with write access can still make a signed commit through
+  GitHub's API. Branch protection enforced for admins is what stops that from reaching
+  `main`, together with keeping each token (`gh` on the desktop, the workflows'
+  `GITHUB_TOKEN`) to the scopes it needs. The check doesn't replace either.
 - When GitHub rotates its key (last in January 2024), deploys stop with an alert. Then update
   the key file and fingerprint in a PR, release, and deploy that release by hand (deploy
   runbook).

@@ -62,8 +62,8 @@ Within about 15 minutes of the merge, a timer on the Pi does these steps:
 - checks out the new tag and rebuilds
 - waits for `/healthz` to report the new version
 
-It deploys only release tags on `main` that GitHub signed (a merge made on github.com,
-ADR-0043), only forward, and never over local changes. Steady state is silent; every deploy
+It deploys only release tags on `main` that GitHub signed (made on github.com, not by a
+plain `git push`; ADR-0043), only forward, and never over local changes. Steady state is silent; every deploy
 logs `auto-deploy: deployed vX.Y.Z`.
 
 If it logs `vX.Y.Z is not signed by GitHub`, check how that commit got onto `main`
