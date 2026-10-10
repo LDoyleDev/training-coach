@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.18.0](https://github.com/LDoyleDev/training-coach/compare/v0.17.0...v0.18.0) (2026-10-10)
+
+
+### Features
+
+* **api:** passkey-first sign-in, /recover, fresh sign-in for passkey changes, alerts ([#158](https://github.com/LDoyleDev/training-coach/issues/158)) ([692e7e5](https://github.com/LDoyleDev/training-coach/commit/692e7e564949c95eb866ed2b2b21f5e7367bbedd))
+
+
+### Bug Fixes
+
+* **api:** refuse cross-site changes, cap bodies, distrust forwarded addresses ([#160](https://github.com/LDoyleDev/training-coach/issues/160)) ([6092fc9](https://github.com/LDoyleDev/training-coach/commit/6092fc94fd76f5dc15b48a76cab547c1665d1033))
+
 ## [0.17.0](https://github.com/LDoyleDev/training-coach/compare/v0.16.0...v0.17.0) (2026-10-10)
 
 
