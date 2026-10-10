@@ -121,3 +121,15 @@ def test_a_recipient_that_isnt_an_age_key_is_refused(pi: Path) -> None:
     done = _run(pi)
     assert done.returncode == 1
     assert "isn't an age public key" in done.stderr
+
+
+def test_the_script_is_executable_in_git() -> None:
+    """The timer runs it directly (review of #162): mode 100755 in the repository."""
+    listed = subprocess.run(  # noqa: S603 - fixed argv, no shell
+        ["git", "ls-files", "-s", str(SCRIPT)],  # noqa: S607
+        cwd=SCRIPT.parent,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert listed.startswith("100755"), listed
