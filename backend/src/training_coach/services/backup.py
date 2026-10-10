@@ -125,7 +125,10 @@ def prune(directory: Path, now: float | None = None) -> int:
         if match is None:
             continue
         # Its name says when it was taken, which a copy or a restore can't change.
-        taken = datetime.strptime(match.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
+        try:
+            taken = datetime.strptime(match.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
+        except ValueError:  # digits that aren't a time: not a name we write, leave it alone
+            continue
         if manual_expired(taken, moment):
             path.unlink(missing_ok=True)
             removed += 1

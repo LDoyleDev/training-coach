@@ -329,7 +329,8 @@ def test_manual_backups_go_after_35_days_by_the_time_in_their_name(tmp_path: Pat
     old = tmp_path / manual_name(now - timedelta(days=35, minutes=1))
     recent = tmp_path / manual_name(now - timedelta(days=34))
     odd = tmp_path / "training_coach-manual-latest.db"  # not a name we write: left alone
-    for path in (old, recent, odd):
+    not_a_time = tmp_path / "training_coach-manual-20269999T999999Z.db"  # digits, no date
+    for path in (old, recent, odd, not_a_time):
         path.write_bytes(b"")
     assert prune(tmp_path, now=now.timestamp()) == 1
-    assert {p.name for p in tmp_path.iterdir()} == {recent.name, odd.name}
+    assert {p.name for p in tmp_path.iterdir()} == {recent.name, odd.name, not_a_time.name}
