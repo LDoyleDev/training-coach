@@ -478,6 +478,10 @@ class WebSession(Owned, Base):
     user_id: Mapped[int] = _owner()
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     label: Mapped[str] = mapped_column(String(120))  # the browser, so a device can be recognised
+    # The passkey that started it, if one did: removing the key ends its sessions too.
+    passkey_id: Mapped[int | None] = mapped_column(
+        ForeignKey("passkeys.id", ondelete="SET NULL"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     last_seen_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime)

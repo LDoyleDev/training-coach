@@ -20,10 +20,14 @@ class Pose(StrEnum):
 SOI = b"\xff\xd8"
 EOI = b"\xff\xd9"
 SOS = 0xDA
-APP0 = 0xE0  # JFIF: density and version, nothing personal
-APP14 = 0xEE  # Adobe: the colour transform some decoders need
-KEEP_APP = frozenset({APP0, APP14})
-COM = 0xFE
+# Only what is needed to draw the picture is kept (an allowlist, security review 2026-10-10):
+# frames and Huffman/arithmetic tables (0xC0-0xCF), scan headers (SOS), quantisation tables
+# (DQT), the restart
+# interval (DRI) and the Adobe colour transform. Everything else goes, JFIF included: a JFIF
+# or JFXX segment can carry a thumbnail with its own metadata.
+IMAGE = frozenset({*range(0xC0, 0xD0), 0xDA, 0xDB, 0xDD})  # 0xDA: each scan's header
+APP14 = 0xEE
+ADOBE = b"Adobe"
 STANDALONE = frozenset({0x01, *range(0xD0, 0xD8)})  # TEM, RST0-7: no length field
 
 
@@ -76,8 +80,8 @@ def clean_jpeg(data: bytes) -> bytes | str:
         end = at + 2 + length
         if length < 2 or end > len(data):
             return "the photo is damaged"
-        metadata = (0xE0 <= marker <= 0xEF and marker not in KEEP_APP) or marker == COM
-        if not metadata:
+        adobe = marker == APP14 and data[at + 4 : at + 4 + len(ADOBE)] == ADOBE
+        if marker in IMAGE or adobe:
             kept += data[at:end]
         at = end
         if marker == SOS:

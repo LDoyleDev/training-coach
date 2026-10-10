@@ -1,6 +1,9 @@
-"""Entry point: ``training-coach [serve|seed|openapi|backup]`` (or ``python -m training_coach``)."""
+"""Entry point: ``training-coach [serve|seed|openapi|backup|notify]`` (or
+``python -m training_coach``)."""
 
 import argparse
+import asyncio
+import contextlib
 import json
 import os
 import sys
@@ -75,6 +78,47 @@ def backup() -> None:
     log.info("backup.created", file=str(path), bytes=path.stat().st_size)
 
 
+NOTIFY_LENGTH = 1000  # one Telegram message, well under its limit
+
+
+def notify(text: str = "") -> None:
+    """Send ``text`` to the owner on Telegram: how jobs outside the app (a failed deploy or
+    off-site backup, ``training-coach-alert@.service``) tell Liam. Exits 1 if it can't."""
+    settings = get_settings()
+    configure_logging(settings)
+    message = text.strip()[:NOTIFY_LENGTH]
+    if not message:
+        log.error("notify.failed", reason="nothing to send")
+        raise SystemExit(1)
+    if settings.telegram_bot_token is None or settings.telegram_allowed_user_id is None:
+        log.error("notify.failed", reason="the bot isn't configured")
+        raise SystemExit(1)
+    from telegram import Bot  # only here: the other commands don't need the bot
+    from telegram.error import TelegramError
+
+    from training_coach.bot.app import send_with_retry
+
+    async def send() -> bool:
+        assert settings.telegram_bot_token is not None  # noqa: S101 - checked above
+        assert settings.telegram_allowed_user_id is not None  # noqa: S101 - checked above
+        # No `async with`: its initialize() makes a request of its own that a network blip
+        # would fail outside the retries. send_message needs none of it (review of #168).
+        bot = Bot(settings.telegram_bot_token.get_secret_value())
+        try:
+            return await send_with_retry(bot, settings.telegram_allowed_user_id, message)
+        except TelegramError as exc:  # anything the retries don't absorb is a failed alert
+            log.error("notify.failed", reason=type(exc).__name__)
+            return False
+        finally:
+            with contextlib.suppress(TelegramError):
+                await bot.shutdown()
+
+    if not asyncio.run(send()):
+        log.error("notify.failed", reason="telegram didn't take it")
+        raise SystemExit(1)
+    log.info("notify.sent")
+
+
 def openapi() -> None:
     """Print the API schema as JSON. The dashboard's TypeScript types are generated from it
     (ADR-0020). Settings come from the class defaults alone, never from `.env` or `TC_`
@@ -91,11 +135,16 @@ def main(argv: list[str] | None = None) -> None:
         "command",
         nargs="?",
         default="serve",
-        choices=["serve", "seed", "openapi", "backup"],
+        choices=["serve", "seed", "openapi", "backup", "notify"],
         help="serve: API + bot (default). seed: load the training plan (idempotent). "
-        "openapi: print the API schema. backup: copy the database to data/backups/ now.",
+        "openapi: print the API schema. backup: copy the database to data/backups/ now. "
+        "notify TEXT: send TEXT to the owner on Telegram.",
     )
+    parser.add_argument("text", nargs="?", default="", help="the message, for notify")
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
+    if args.command == "notify":
+        notify(args.text)
+        return
     commands = {"serve": serve, "seed": seed, "openapi": openapi, "backup": backup}
     commands[args.command]()
 

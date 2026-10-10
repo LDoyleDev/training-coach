@@ -81,9 +81,23 @@ Day to day:
 | What | How |
 | --- | --- |
 | What did it do? | `journalctl -u training-coach-deploy -n 50` |
-| Did a deploy fail? | `systemctl --failed`, or the journal shows `auto-deploy: ERROR` |
+| Did a deploy fail? | A Telegram alert (below), `systemctl --failed`, or the journal shows `auto-deploy: ERROR` |
 | Hold releases back | `sudo systemctl stop training-coach-deploy.timer` (`start` to resume) |
 | Unit files changed in a release | Copy them again and `daemon-reload` (the units aren't updated by a deploy) |
+
+### Failure alerts
+
+A failed deploy or off-site backup sends a Telegram message ("Training Coach on the Pi: ...
+failed. See: journalctl ..."). The units' `OnFailure=` starts `training-coach-alert@.service`,
+which runs `training-coach notify` in a throwaway container of the app image, so the bot token
+stays in the app's `.env`. Install it once, with the other units:
+
+```bash
+sudo cp scripts/systemd/training-coach-alert@.service /etc/systemd/system/
+sudo cp scripts/systemd/training-coach-{deploy,offsite}.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start training-coach-alert@test.service   # sends a test alert
+```
 
 When a release doesn't come up healthy, the script rolls the code back to the previous version
 and the bot keeps working. If the release changed the schema, it leaves the new version in

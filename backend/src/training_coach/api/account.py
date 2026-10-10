@@ -60,7 +60,8 @@ def remove_passkey(
 ) -> None:
     """Remove a passkey; like adding one, it needs a recent sign-in (ADR-0040)."""
     with session_scope(_bound(request, user)) as session:
-        removed = passkeys.remove(session, key_id)
+        current = request.cookies.get(COOKIE, "")
+        removed = passkeys.remove(session, key_id, datetime.now(UTC), current)
     if not removed:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such passkey")
     alert(request, background, "passkey_removed", "A passkey was removed from Training Coach.")

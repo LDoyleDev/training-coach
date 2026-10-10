@@ -35,7 +35,7 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
-from training_coach.db.models import Passkey, PasskeyChallenge
+from training_coach.db.models import Passkey, PasskeyChallenge, WebSession
 from training_coach.db.session import ALL_USERS, bound_user
 from training_coach.services import auth
 
@@ -257,7 +257,7 @@ def sign_in(
         return None
     passkey.sign_count = verified.new_sign_count
     passkey.last_used_at = now
-    return auth.start_session(session, passkey.user_id, now, label)
+    return auth.start_session(session, passkey.user_id, now, label, passkey_id=passkey.id)
 
 
 @dataclass(frozen=True)
@@ -274,11 +274,21 @@ def keys(session: Session) -> list[Key]:
     return [Key(row.id, row.name, row.created_at, row.last_used_at) for row in rows]
 
 
-def remove(session: Session, key_id: int) -> bool:
+def remove(session: Session, key_id: int, now: datetime, current: str = "") -> bool:
     """Remove one of the bound user's passkeys; False if there is no such key of theirs. The
     device keeps its copy, but it no longer signs in here."""
     row = session.scalar(select(Passkey).where(Passkey.id == key_id))
     if row is None:
         return False
+    # Browsers it signed in stop working too, except the one asking (``current``, its cookie):
+    # a removed key leaves nothing else behind.
+    for started in session.scalars(
+        select(WebSession).where(
+            WebSession.passkey_id == key_id,
+            WebSession.ended_at.is_(None),
+            WebSession.token_hash != auth.hash_token(current),
+        )
+    ):
+        started.ended_at = now
     session.delete(row)
     return True
