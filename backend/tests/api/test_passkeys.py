@@ -353,9 +353,21 @@ def test_a_sign_in_challenge_or_a_stranger_device_cannot_confirm(
     _signed_in(client, engine)
     mine, stranger = Device(ORIGIN, RP_ID), Device(ORIGIN, RP_ID)
     assert _register(client, mine) == 204
-    assert _confirm(client, stranger) == 401  # not one of their passkeys
+    assert _confirm(client, stranger) == 400  # not one of their passkeys
     sign_in = _options(client, "/api/auth/passkeys/sign-in/options")
     answer = mine.sign_in(sign_in)
-    assert client.post("/api/auth/passkeys/confirm", json={"credential": answer}).status_code == 401
-    assert _confirm(client, Device(ORIGIN, RP_ID, user_verified=False)) == 401
+    assert client.post("/api/auth/passkeys/confirm", json={"credential": answer}).status_code == 400
+    assert _confirm(client, Device(ORIGIN, RP_ID, user_verified=False)) == 400
     assert _confirm(client, mine) == 204
+
+
+def test_a_session_that_ended_meanwhile_is_signed_out_not_refused(
+    client: TestClient, engine: Engine
+) -> None:
+    _signed_in(client, engine)
+    device = Device(ORIGIN, RP_ID)
+    assert _register(client, device) == 204
+    options = _options(client, "/api/auth/passkeys/confirm/options")
+    assert client.post("/api/auth/signout").status_code == 204
+    answer = device.sign_in(options)
+    assert client.post("/api/auth/passkeys/confirm", json={"credential": answer}).status_code == 401

@@ -201,9 +201,9 @@ def confirm(answer: Answer, request: Request, response: Response, user: Owner) -
         confirmed = passkeys.confirm(
             session, party, handle, answer.credential, datetime.now(UTC), token
         )
-    if not confirmed:
+    if not confirmed:  # 400, not 401: a 401 here means only that the sign-in has ended
         raise HTTPException(
-            status.HTTP_401_UNAUTHORIZED, "that passkey wasn't accepted", headers=_cleared()
+            status.HTTP_400_BAD_REQUEST, "that passkey wasn't accepted", headers=_cleared()
         )
     response.headers.update(_cleared())
     log.info("auth.confirmed")

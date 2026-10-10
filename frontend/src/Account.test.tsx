@@ -156,6 +156,21 @@ test('an old sign-in asks for the fingerprint once, then goes ahead', async () =
   expect(webauthn.startAuthentication).toHaveBeenCalled()
 })
 
+test('a sign-in that ended while confirming says so', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (path: string) => {
+      if (path === '/api/account/sign-ins') return new Response(JSON.stringify(SIGN_INS))
+      if (path === '/api/auth/passkeys/confirm/options') return new Response('{"challenge":"c"}')
+      if (path === '/api/auth/passkeys/confirm') return new Response(null, { status: 401 })
+      return new Response(null, { status: 403 })
+    }),
+  )
+  render(<Account />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Download all my data' }))
+  expect(await screen.findByText(/Check your connection/)).toBeInTheDocument()
+})
+
 test('cancelling the fingerprint prompt explains what to do', async () => {
   server(SIGN_INS, [], true)
   webauthn.startAuthentication.mockRejectedValueOnce(new Error('NotAllowedError'))

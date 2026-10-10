@@ -98,7 +98,17 @@ export async function confirmWithPasskey(): Promise<boolean> {
   if (res.status === 409) return false // no passkey to confirm with
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   const credential = await startAuthentication({ optionsJSON: await res.json() })
-  return answer('/api/auth/passkeys/confirm', credential)
+  const confirmed = signedIn(
+    await fetch('/api/auth/passkeys/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+      credentials: 'same-origin',
+    }),
+  )
+  if (confirmed.status === 400) return false // the fingerprint wasn't accepted
+  if (confirmed.status !== 204) throw new Error(`The server answered ${confirmed.status}.`)
+  return true
 }
 
 /**
