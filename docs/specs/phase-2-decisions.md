@@ -78,6 +78,7 @@ table-driven tests (pure code, 100% covered).
   app moves to another server.
 - Never in logs, share views (ADR-0012) or public endpoints (ADR-0019).
 - The nightly backup and the desktop pull include them (today they copy the database only).
+- Built as rows in the database, cleaned of metadata on the server (ADR-0039, #143).
 
 ## 6. Habits (D5): decided 2026-10-07
 

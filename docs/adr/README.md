@@ -43,3 +43,4 @@ Code). Template: [template.md](template.md).
 | [0036](0036-sign-in-with-passkeys-and-a-telegram-link.md) | Sign in with passkeys, started and recovered with a Telegram link | Accepted |
 | [0037](0037-baseline-tests-as-test-days.md) | Baseline tests are test days, defined in plan.toml, entered in the web app | Accepted |
 | [0038](0038-test-days-wait-in-front-of-the-queue.md) | Test days stand in front of the queue while a round is due | Accepted |
+| [0039](0039-progress-photos-in-the-database.md) | Progress photos are kept in the database, cleaned of their metadata | Accepted |
