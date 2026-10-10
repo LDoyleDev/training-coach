@@ -17,6 +17,7 @@ from training_coach.db.models import (
     FitnessTestDay,
     HabitCheck,
     LadderStep,
+    Measurement,
     PlanState,
     SetLog,
     User,
@@ -60,6 +61,7 @@ def two(engine: Engine) -> tuple[Sessions, Sessions]:
                     PlanState(),
                     Event(kind="x", payload={}),
                     HabitCheck(local_date=DAY, habit=Habit.PROTEIN),
+                    Measurement(local_date=DAY, kind="waist", tenths=850),
                     FitnessTestDay(
                         local_date=DAY,
                         day=1,
@@ -83,7 +85,16 @@ def test_each_user_sees_only_their_rows(two: tuple[Sessions, Sessions]) -> None:
     one, other = two
     assert _all(one, Workout.status) == ["done"]
     assert _all(other, Workout.status) == ["rest"]
-    for model in (Workout, SetLog, UserSettings, PlanState, Event, HabitCheck, FitnessTestDay):
+    for model in (
+        Workout,
+        SetLog,
+        UserSettings,
+        PlanState,
+        Event,
+        HabitCheck,
+        FitnessTestDay,
+        Measurement,
+    ):
         assert _all(one, model.user_id) == [1], model
         assert _all(other, model.user_id) == [2], model
     with other() as session:
@@ -252,6 +263,7 @@ def test_every_per_person_table_is_covered() -> None:
         "events",
         "habit_checks",
         "test_days",
+        "measurements",
         "login_links",
         "passkeys",
         "session_progress",
