@@ -278,7 +278,11 @@ class Handlers:
         else:
             log.error("bot.review_failed")
             return
-        comment = await ai_comment.weekly(self.sessions, self.settings, self._local_today())
+        try:
+            comment = await ai_comment.weekly(self.sessions, self.settings, self._local_today())
+        except Exception:  # the review went out; the comment is an extra and never fails the job
+            log.exception("bot.ai_comment_failed")
+            return
         if comment is not None:
             await send_with_retry(context.bot, self.settings.telegram_allowed_user_id, comment)
 

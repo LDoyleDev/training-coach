@@ -445,3 +445,17 @@ async def test_strangers_cannot_set_the_protein_target(application: App, seeded:
     await run(application, press("s:ask-protein", OWNER))  # the owner is being asked...
     assert await run(application, text_message("165", STRANGER)) == {}  # ...a stranger answers
     assert _prefs(seeded).protein_g is None
+
+
+async def test_a_failing_ai_comment_never_fails_the_review(
+    seeded: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The review is already out; whatever goes wrong with the extra comment is only logged."""
+
+    async def boom(*_args: object) -> str:
+        raise RuntimeError("database gone")
+
+    monkeypatch.setattr(ai_comment, "weekly", boom)
+    context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
+    await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    context.bot.send_message.assert_awaited_once()

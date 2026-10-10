@@ -28,7 +28,14 @@ KEY_FAILED = (
 )
 LIMIT = 1200
 WEEKS = 4
-URL = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
+# Everything Telegram would make tappable: any scheme (https://, tg://), www., bare domains
+# (t.me/x, evil.example), @mentions and /commands. The comment is untrusted text.
+URL = re.compile(
+    r"\b[a-z][a-z0-9+.-]*://\S*|\bwww\.\S+|\b[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}\b(?:/\S*)?",
+    re.IGNORECASE,
+)
+MENTION = re.compile(r"(?<![\w@])@\w+")
+COMMAND = re.compile(r"(?<![\w/])/(?=[a-z])", re.IGNORECASE)
 REFUSED = frozenset({"http_401", "http_403"})
 
 
@@ -37,6 +44,8 @@ def clean(text: str) -> str:
     text = unicodedata.normalize("NFKC", text)
     text = "".join(c for c in text if c == "\n" or unicodedata.category(c)[0] != "C")
     text = URL.sub("[link removed]", text)
+    text = MENTION.sub("[mention removed]", text)
+    text = COMMAND.sub("", text)  # "/undo" -> "undo": not a tappable command
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
     if len(text) > LIMIT:
         text = text[:LIMIT].rsplit(" ", 1)[0].rstrip() + " …"
