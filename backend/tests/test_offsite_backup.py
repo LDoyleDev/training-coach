@@ -148,3 +148,12 @@ def test_every_listed_key_can_read_the_copy(pi: Path) -> None:
     assert _run(pi).returncode == 0
     (stored,) = (pi / "bucket").iterdir()
     assert stored.read_bytes().startswith(f"ENCRYPTED({RECIPIENT},{SECOND},):".encode())
+
+
+def test_a_blank_list_of_keys_is_refused(pi: Path) -> None:
+    _backup(pi, "2026-10-10")
+    (pi / "offsite.env").write_text('TC_BACKUP_AGE_RECIPIENT=" "\nTC_OFFSITE_BUCKET=b\n')
+    (pi / "offsite.env").chmod(0o600)
+    done = _run(pi)
+    assert done.returncode == 1
+    assert "lists no age public key" in done.stderr

@@ -34,9 +34,12 @@ set +a
 : "${TC_BACKUP_AGE_RECIPIENT:?set in $ENV_FILE}"
 : "${TC_OFFSITE_BUCKET:?set in $ENV_FILE}"
 recipients=()
+set -f # split on spaces only: a stray * must not match files
 for key in $TC_BACKUP_AGE_RECIPIENT; do
   case "$key" in age1*) recipients+=(-r "$key") ;; *) fail "TC_BACKUP_AGE_RECIPIENT has something that isn't an age public key" ;; esac
 done
+set +f
+[ "${#recipients[@]}" -gt 0 ] || fail "TC_BACKUP_AGE_RECIPIENT lists no age public key"
 command -v age >/dev/null || fail "age isn't installed (sudo apt install age)"
 command -v rclone >/dev/null || fail "rclone isn't installed (sudo apt install rclone)"
 
