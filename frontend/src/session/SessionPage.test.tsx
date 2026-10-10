@@ -106,6 +106,7 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
   render(<SessionPage />)
   expect(await screen.findByRole('heading', { name: 'Legs' })).toBeInTheDocument()
   expect(screen.getByText('Warm up for about 10 minutes first.')).toBeInTheDocument()
+  expect(screen.getByText(/Stop if you feel sharp pain/)).toBeInTheDocument()
   click('Start session')
 
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument()

@@ -86,6 +86,7 @@ afterEach(() => vi.unstubAllGlobals())
 test('day 1: conditions, each test, then save once', async () => {
   const sent = serve({ days: [DONE] })
   render(<TestsPage />)
+  expect(await screen.findByText(/These are maximum efforts/)).toBeInTheDocument()
   fireEvent.click(await screen.findByRole('button', { name: 'Start day 1 tests' }))
   click('Fasted')
   click('Morning')

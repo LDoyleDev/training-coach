@@ -55,6 +55,8 @@ def _paired(items: tuple[ItemPlan, ...]) -> bool:
 
 
 WARM_UP = "Warm up for about 10 minutes first."
+# Shown with every session and test day (legal review): safety is design and warnings.
+STOP = "Stop if you feel sharp pain, dizziness or chest tightness."
 BASELINE = (
     "Baseline for {names}: the first session at this step. Aim for the targets and log what "
     "you manage; the next targets grow from it."
@@ -77,6 +79,7 @@ def today_text(today: Today) -> str:
         lines.append(f"Week {today.block.week} of {WEEKS}, {today.block.kind} block.")
     if session.kind == "strength":
         lines.append(WARM_UP)
+    lines.append(STOP)
     if _paired(session.items):
         lines.append(WORK_DOWN)
     lines += _baseline(session.items)
@@ -103,6 +106,7 @@ def test_day_text(today: Today, where: str) -> str:
         f"Today: {test.name}",
         ", ".join(test.tests) + ".",
         WARM_UP,
+        STOP,
         "Do them in order and rest as long as you need between them.",
         f"Enter the results in the app: {where}",
         "",
