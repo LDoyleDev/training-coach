@@ -27,22 +27,36 @@ GITHUB_FINGERPRINT="968479A1AFF927E37D1A566BB5690EEEBB952194"
 
 log() { echo "auto-deploy: $*"; }
 
-# True if the commit carries a good signature by GitHub's key: GitHub made it (a merge, or a
-# commit through its web editor or API), so it wasn't a plain `git push` (ADR-0043).
-signed_by_github() {
-  local home status primary=""
+# The first commit after $1 up to $2 without a good signature by GitHub's key; nothing if they
+# all have one. GitHub signs what it makes (a merge, or a commit through its web editor or API),
+# so a plain `git push` shows up here (ADR-0043). Every commit, not only the release's: one
+# pushed earlier would otherwise ship under a release signed on top of it.
+unsigned_commit() {
+  local home commit status primary found=""
   home=$(mktemp -d)
-  if "$GPG" --homedir "$home" --batch --quiet --import "$GITHUB_KEY" 2>/dev/null; then
-    # verify-commit prints gpg's status lines on stderr; it fails on no or a bad signature.
-    status=$(GNUPGHOME="$home" git -c gpg.program="$GPG" verify-commit --raw "$1" 2>&1) || status=""
-    # VALIDSIG's last field is the primary key's fingerprint; GOODSIG means not expired or revoked.
-    if [[ "$status" == *"[GNUPG:] GOODSIG "* ]]; then
-      primary=$(echo "$status" | awk '$2 == "VALIDSIG" { print $NF }')
-    fi
+  if ! "$GPG" --homedir "$home" --batch --quiet --import "$GITHUB_KEY" 2>/dev/null; then
+    found="$2" # the key didn't load, so nothing is checked
+  else
+    for commit in $(git rev-list --reverse "$1..$2"); do
+      primary=""
+      # verify-commit prints gpg's status lines on stderr; it fails on no or a bad signature.
+      status=$(GNUPGHOME="$home" git -c gpg.program="$GPG" verify-commit --raw "$commit" 2>&1) ||
+        status=""
+      # VALIDSIG's last field is the primary key's fingerprint; GOODSIG: not expired or revoked.
+      if [[ "$status" == *"[GNUPG:] GOODSIG "* ]]; then
+        primary=$(echo "$status" | awk '$2 == "VALIDSIG" { print $NF }')
+      fi
+      if [ "$primary" != "$GITHUB_FINGERPRINT" ]; then
+        found="$commit"
+        break
+      fi
+    done
   fi
-  command -v gpgconf >/dev/null && gpgconf --homedir "$home" --kill all 2>/dev/null
+  if command -v gpgconf >/dev/null; then
+    gpgconf --homedir "$home" --kill all 2>/dev/null || true
+  fi
   rm -rf "$home"
-  [ "$primary" = "$GITHUB_FINGERPRINT" ]
+  echo "$found"
 }
 
 # True once /healthz returns the given JSON fragment.
@@ -104,12 +118,15 @@ main() {
     log "ERROR: gpg is needed to check $latest is genuine (sudo apt install gnupg)"
     return 1
   fi
-  if ! signed_by_github "$target"; then
-    log "ERROR: $latest is not signed by GitHub, so it wasn't merged there; not deploying it"
-    return 1
-  fi
   if ! git merge-base --is-ancestor "$current" "$target"; then
     log "ERROR: the checkout ($(git describe --tags --always)) is not behind $latest; deploy by hand"
+    return 1
+  fi
+  local unsigned
+  unsigned=$(unsigned_commit "$current" "$target")
+  if [ -n "$unsigned" ]; then
+    log "ERROR: $latest includes $(git rev-parse --short "$unsigned"), which GitHub didn't" \
+      "sign; not deploying it"
     return 1
   fi
 

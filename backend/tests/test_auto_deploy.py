@@ -279,7 +279,20 @@ def test_a_release_github_did_not_sign_is_refused(pi: Pi, signer: str | None) ->
     result = pi.deploy()
     assert result.returncode == 1
     assert (pi.at(), pi.docker_calls()) == ("v0.1.0", [])
-    assert "v0.2.0 is not signed by GitHub" in result.stdout
+    assert "which GitHub didn't sign" in result.stdout
+
+
+def test_an_unsigned_commit_under_a_signed_release_is_refused(pi: Pi) -> None:
+    """A commit pushed past the pull requests, then a signed release on top of it (the next
+    merge): every commit since the deployed version is checked, not only the release's."""
+    _git(pi.origin, "commit", "-q", "--allow-empty", "-m", "pushed past the pull requests")
+    pushed = _git(pi.origin, "rev-parse", "--short", "HEAD")
+    pi.release("v0.2.0")
+    pi.health("0.2.0")
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert (pi.at(), pi.docker_calls()) == ("v0.1.0", [])
+    assert f"v0.2.0 includes {pushed}, which GitHub didn't sign" in result.stdout
 
 
 def test_without_gpg_nothing_deploys(pi: Pi) -> None:
