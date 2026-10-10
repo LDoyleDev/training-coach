@@ -1,4 +1,8 @@
-"""Web sign-in (ADR-0036): one-time links from the bot, and the sessions they start.
+"""Web sign-in (ADR-0036, ADR-0040): one-time links from the bot, and the sessions they start.
+
+Once a passkey exists, a start link no longer signs in on its own: the fingerprint does. A
+recovery link (``/recover``) still does, for a lost phone: it signs out every other browser and
+removes every passkey, so nobody else's key survives a recovery; add yours again after.
 
 Tokens are 32 random bytes, handed out once and stored only as SHA-256 hashes. Which person a
 token belongs to is the question being asked, so those lookups run in an unbound session with
@@ -11,16 +15,20 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import cast
 
-from sqlalchemy import CursorResult, select, update
+from sqlalchemy import CursorResult, delete, select, update
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import LoginLink, WebSession
+from training_coach.db.models import LoginLink, Passkey, WebSession
 from training_coach.db.session import ALL_USERS
 
 LINK_TTL = timedelta(minutes=10)
 SESSION_TTL = timedelta(days=30)
 RENEW_AFTER = timedelta(days=1)  # touch a session at most once a day: SQLite is on an SD card
 LABEL_LENGTH = 120
+FRESH = timedelta(minutes=10)  # adding a passkey needs a sign-in this recent (ADR-0040)
+START = "start"
+RECOVER = "recover"
+NEEDS_PASSKEY = "needs-passkey"
 EVERYONE = {ALL_USERS: True}
 
 
@@ -28,16 +36,31 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def create_link(session: Session, now: datetime) -> str:
+def create_link(session: Session, now: datetime, purpose: str = START) -> str:
     """A sign-in link token for the user ``session`` is bound to; valid once, for 10 minutes."""
     token = secrets.token_urlsafe(32)
-    session.add(LoginLink(token_hash=hash_token(token), expires_at=now + LINK_TTL))
+    session.add(LoginLink(token_hash=hash_token(token), expires_at=now + LINK_TTL, purpose=purpose))
     session.flush()
     return token
 
 
-def redeem_link(session: Session, token: str, now: datetime, label: str) -> str | None:
-    """Exchange a link token for a session token, or None if it's unknown, used or expired.
+def has_passkeys(session: Session, user_id: int) -> bool:
+    """Whether ``user_id`` has registered a passkey (any session may ask)."""
+    found = session.scalar(
+        select(Passkey.id).where(Passkey.user_id == user_id).limit(1), execution_options=EVERYONE
+    )
+    return found is not None
+
+
+@dataclass(frozen=True)
+class Redeemed:
+    cookie: str
+    recovered: bool  # a recovery link: every other browser was signed out
+
+
+def redeem_link(session: Session, token: str, now: datetime, label: str) -> Redeemed | str | None:
+    """Exchange a link token for a session, or None if it's unknown, used or expired, or
+    ``NEEDS_PASSKEY`` for a start link once a passkey exists (the link is used up either way).
     ``session`` is unbound: the link says whose it is."""
     digest = hash_token(token)
     # Claimed in one conditional statement: of two racing redeems, only one changes the row.
@@ -56,10 +79,22 @@ def redeem_link(session: Session, token: str, now: datetime, label: str) -> str 
     )
     if claimed.rowcount != 1:
         return None
-    user = session.scalars(  # the row this statement just claimed
-        select(LoginLink.user_id).where(LoginLink.token_hash == digest), execution_options=EVERYONE
+    user, purpose = session.execute(  # the row this statement just claimed
+        select(LoginLink.user_id, LoginLink.purpose).where(LoginLink.token_hash == digest),
+        execution_options=EVERYONE,
     ).one()
-    return start_session(session, user, now, label)
+    if purpose == RECOVER:
+        session.execute(
+            update(WebSession)
+            .where(WebSession.user_id == user, WebSession.ended_at.is_(None))
+            .values(ended_at=now),
+            execution_options=EVERYONE,
+        )
+        session.execute(delete(Passkey).where(Passkey.user_id == user), execution_options=EVERYONE)
+        return Redeemed(start_session(session, user, now, label), recovered=True)
+    if has_passkeys(session, user):
+        return NEEDS_PASSKEY
+    return Redeemed(start_session(session, user, now, label), recovered=False)
 
 
 def start_session(session: Session, user_id: int, now: datetime, label: str) -> str:
@@ -107,6 +142,13 @@ def session_user(session: Session, token: str, now: datetime) -> Seen | None:
         found.last_seen_at = now
         found.expires_at = now + SESSION_TTL
     return Seen(found.user_id, renewed)
+
+
+def fresh(session: Session, token: str, now: datetime) -> bool:
+    """Whether the session behind ``token`` began within ``FRESH``: proved by a link or a
+    fingerprint moments ago, so it may add a passkey (ADR-0040). ``session`` is unbound."""
+    found = _live(session, token, now)
+    return found is not None and now - found.created_at <= FRESH
 
 
 def end_session(session: Session, token: str, now: datetime) -> None:

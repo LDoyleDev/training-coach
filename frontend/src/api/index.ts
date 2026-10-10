@@ -37,16 +37,25 @@ export function sessionSize(s: Session): string {
   return `${s.total_sets} sets`
 }
 
-/** Exchange a one-time sign-in link for a session cookie (ADR-0036). False when refused. */
-export async function redeemLink(token: string): Promise<boolean> {
+/** Changing passkeys needs a sign-in from the last few minutes (ADR-0040): a 403. */
+export class StaleSignInError extends Error {
+  constructor() {
+    super('Sign in again to change passkeys.')
+  }
+}
+
+/** Exchange a one-time sign-in link for a session cookie (ADR-0036). 'use-passkey' once a
+ * passkey exists: then only the fingerprint signs in (ADR-0040). */
+export async function redeemLink(token: string): Promise<'signed-in' | 'refused' | 'use-passkey'> {
   const res = await fetch('/api/auth/redeem', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
     credentials: 'same-origin',
   })
-  if (res.status === 204) return true
-  if (res.status === 401 || res.status === 422) return false
+  if (res.status === 204) return 'signed-in'
+  if (res.status === 403) return 'use-passkey'
+  if (res.status === 401 || res.status === 422) return 'refused'
   throw new Error(`The server answered ${res.status}.`)
 }
 
@@ -57,6 +66,7 @@ export function passkeysSupported(): boolean {
 
 async function ceremonyOptions(path: string) {
   const res = await fetch(path, { method: 'POST', credentials: 'same-origin' })
+  if (res.status === 403) throw new StaleSignInError()
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return res.json()
 }
@@ -101,6 +111,7 @@ export async function fetchSignIns(signal?: AbortSignal): Promise<SignIns | null
 
 async function remove(path: string): Promise<void> {
   const res = await fetch(path, { method: 'DELETE', credentials: 'same-origin' })
+  if (res.status === 403) throw new StaleSignInError()
   if (res.status !== 204 && res.status !== 404)
     throw new Error(`The server answered ${res.status}.`)
 }

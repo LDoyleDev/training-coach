@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, command, run, texts
-from training_coach.bot.app import LOGIN_OFF, LOGIN_TEXT, build_bot
+from training_coach.bot.app import LOGIN_OFF, LOGIN_TEXT, RECOVER_TEXT, build_bot
 from training_coach.config import Settings
+from training_coach.db.models import Passkey
 from training_coach.services import auth
 
 App = Application  # type: ignore[type-arg]  # see build_bot
@@ -66,3 +67,42 @@ def test_public_url_must_be_https(given: str, kept: str) -> None:
 def test_anything_but_an_https_origin_is_refused(given: str, problem: str) -> None:
     with pytest.raises(ValueError, match=problem):
         Settings(public_url=given)
+
+
+async def test_once_a_passkey_exists_login_points_to_the_fingerprint(
+    with_url: App, sessions: Sessions
+) -> None:
+    with sessions() as session:
+        session.add(Passkey(credential_id="mine", public_key=b"k", sign_count=0, name="Phone"))
+        session.commit()
+    (reply,) = texts(await run(with_url, command("/login", OWNER)))
+    assert f"{URL}/signin\n" in reply
+    assert "#" not in reply  # no link token
+    assert "/recover" in reply
+
+
+async def test_recover_sends_a_recovery_link(with_url: App, sessions: Sessions) -> None:
+    (reply,) = texts(await run(with_url, command("/recover", OWNER)))
+    first, link = reply.split("\n")
+    assert first == RECOVER_TEXT
+    token = link.split("#", 1)[1]
+    shared = sessionmaker(bind=sessions.kw["bind"])
+    with shared() as session:
+        redeemed = auth.redeem_link(session, token, datetime.now(UTC), "test")
+        assert isinstance(redeemed, auth.Redeemed)
+        assert redeemed.recovered
+
+
+async def test_strangers_get_no_recovery_link(with_url: App) -> None:
+    assert await run(with_url, command("/recover", STRANGER)) == {}
+
+
+async def test_the_owner_in_a_group_gets_no_link(with_url: App) -> None:
+    for text in ("/login", "/recover"):
+        update = command(text, OWNER)
+        update["message"]["chat"] = {"id": -100123, "type": "supergroup", "title": "Gym"}
+        assert await run(with_url, update) == {}
+
+
+async def test_without_a_public_url_recover_says_it_is_off(application: App) -> None:
+    assert texts(await run(application, command("/recover", OWNER))) == [LOGIN_OFF]

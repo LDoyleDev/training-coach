@@ -6,6 +6,7 @@ type State =
   | 'working'
   | 'signed-in'
   | 'refused'
+  | 'use-passkey' // a link once a passkey exists: the fingerprint signs in (ADR-0040)
   | 'passkey-refused'
   | 'error'
 
@@ -38,9 +39,9 @@ export default function SignIn() {
     if (!token || posted.current) return
     posted.current = true
     redeemLink(token)
-      .then((ok) => {
-        setState(ok ? 'signed-in' : 'refused')
-        if (ok && passkeysSupported()) setOffer('offer')
+      .then((result) => {
+        setState(result)
+        if (result === 'signed-in' && passkeysSupported()) setOffer('offer')
       })
       .catch(() => setState('error'))
   }, [token])
@@ -73,8 +74,15 @@ export default function SignIn() {
           </p>
         )}
 
-        {(state === 'choose' || state === 'passkey-refused') && (
+        {(state === 'choose' || state === 'passkey-refused' || state === 'use-passkey') && (
           <>
+            {state === 'use-passkey' && (
+              <p className="status" role="status">
+                You've set up a passkey, so a link from the bot doesn't sign you in on its own any
+                more. Use your fingerprint or face here. Lost your phone or passkey? Send /recover
+                to the bot.
+              </p>
+            )}
             {state === 'passkey-refused' && (
               <p className="status status-error" role="alert">
                 {PROBLEMS['passkey-refused']}

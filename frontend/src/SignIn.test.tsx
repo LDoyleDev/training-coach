@@ -133,3 +133,16 @@ test('a browser without passkeys is told how to sign in', () => {
   expect(screen.getByText("This browser can't use passkeys.")).toBeInTheDocument()
   expect(screen.getByText(/Send \/login to the bot/)).toBeInTheDocument()
 })
+
+test('once a passkey exists, a link asks for the fingerprint instead', async () => {
+  server({
+    '/api/auth/redeem': 403,
+    '/api/auth/passkeys/sign-in/options': 200,
+    '/api/auth/passkeys/sign-in': 204,
+  })
+  render(<SignIn />)
+  expect(await screen.findByText(/doesn't sign you in on its own/)).toBeInTheDocument()
+  expect(screen.getByText(/send \/recover/i)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Sign in with fingerprint or face' }))
+  expect(await screen.findByText("You're signed in on this device.")).toBeInTheDocument()
+})

@@ -3,11 +3,12 @@ removable, so a lost phone can be cut off. Owner-only."""
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.auth import COOKIE, Owner
+from training_coach.api.alerts import alert
+from training_coach.api.auth import COOKIE, Fresh, Owner
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import auth, passkeys
 
@@ -51,16 +52,23 @@ def sign_ins(request: Request, user: Owner) -> SignIns:
 
 
 @router.delete("/passkeys/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remove_passkey(key_id: int, request: Request, user: Owner) -> None:
+def remove_passkey(
+    key_id: int, request: Request, background: BackgroundTasks, user: Owner, _fresh: Fresh
+) -> None:
+    """Remove a passkey; like adding one, it needs a recent sign-in (ADR-0040)."""
     with session_scope(_bound(request, user)) as session:
         removed = passkeys.remove(session, key_id)
     if not removed:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such passkey")
+    alert(request, background, "passkey_removed", "A passkey was removed from Training Coach.")
 
 
 @router.delete("/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
-def sign_out_device(device_id: int, request: Request, user: Owner) -> None:
+def sign_out_device(
+    device_id: int, request: Request, background: BackgroundTasks, user: Owner
+) -> None:
     with session_scope(_bound(request, user)) as session:
         ended = auth.end_device(session, device_id, datetime.now(UTC))
     if not ended:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such signed-in device")
+    alert(request, background, "device_signed_out", "A device was signed out of Training Coach.")

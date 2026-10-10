@@ -60,7 +60,15 @@ from training_coach.bot.messages import (
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import auth, blocks, habits, queue_actions, review, user_settings
+from training_coach.services import (
+    auth,
+    blocks,
+    habits,
+    passkeys,
+    queue_actions,
+    review,
+    user_settings,
+)
 from training_coach.services.groq import GroqClient
 from training_coach.services.today import session_plan
 from training_coach.services.today import today as todays_session
@@ -77,7 +85,8 @@ HELP_TEXT = (
     "/review - this week so far: sessions, sets per muscle, bests\n"
     "/habits - tick today's habits: morning light, protein, wind-down\n"
     "/settings - message times, nudges, habits, pause\n"
-    "/login - a link to sign in to the web app\n"
+    "/login - sign in to the web app\n"
+    "/recover - sign in without your passkey (lost phone); signs out other devices\n"
     "/help - this message\n\n"
     "Log a workout by sending it as a message, like: pull-ups 8 8 7, dips 12 11 10. "
     "A voice note works too. I'll show what I understood before saving anything.\n\n"
@@ -87,6 +96,15 @@ HELP_TEXT = (
     "take a rest day or swap it."
 )
 LOGIN_TEXT = "Sign in to Training Coach. The link works once, for 10 minutes:"
+LOGIN_PASSKEY = (
+    "Sign in with your fingerprint (your passkey) here:\n{url}/signin\n\n"
+    "Lost your phone or passkey? Send /recover."
+)
+RECOVER_TEXT = (
+    "Recovery link for Training Coach. It works once, for 10 minutes. It signs you in without "
+    "your fingerprint, signs out every other device and removes your passkeys (add yours "
+    "again after):"
+)
 LOGIN_OFF = "Web sign-in isn't set up yet: TC_PUBLIC_URL is missing on the server."
 MORNING_JOB = "morning"
 NUDGE_JOB = "nudge"
@@ -98,7 +116,9 @@ Job = Callable[[ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
 def owner_only(settings: Settings) -> filters.BaseFilter:
     if settings.telegram_allowed_user_id is None:
         raise ValueError("TC_TELEGRAM_ALLOWED_USER_ID must be set to run the bot")
-    return filters.User(user_id=settings.telegram_allowed_user_id)
+    # Only in the private chat with the owner: in a group, links and logs would be seen by
+    # everyone in it (security review, ADR-0040).
+    return filters.ChatType.PRIVATE & filters.User(user_id=settings.telegram_allowed_user_id)
 
 
 def _retry_seconds(exc: RetryAfter) -> float:
@@ -179,12 +199,38 @@ class Handlers:
             await message.reply_text(LOGIN_OFF)
             return
         with session_scope(self.sessions) as session:
-            token = auth.create_link(session, datetime.now(UTC))
+            # Once a passkey exists the fingerprint signs in, not a link (ADR-0040).
+            keyed = bool(passkeys.keys(session))
+            token = None if keyed else auth.create_link(session, datetime.now(UTC))
+        if token is None:
+            await message.reply_text(
+                LOGIN_PASSKEY.format(url=self.settings.public_url),
+                link_preview_options=LinkPreviewOptions(is_disabled=True),
+            )
+            log.info("bot.login_passkey_pointer_sent")
+            return
         await message.reply_text(
             f"{LOGIN_TEXT}\n{self.settings.public_url}/signin#{token}",
             link_preview_options=LinkPreviewOptions(is_disabled=True),
         )
         log.info("bot.login_link_sent")
+
+    async def recover(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+        """A recovery link (ADR-0040): signs in without a passkey and signs out every other
+        browser; the web app then sends an alert here."""
+        message = update.effective_message
+        if message is None:
+            return
+        if self.settings.public_url is None:
+            await message.reply_text(LOGIN_OFF)
+            return
+        with session_scope(self.sessions) as session:
+            token = auth.create_link(session, datetime.now(UTC), purpose=auth.RECOVER)
+        await message.reply_text(
+            f"{RECOVER_TEXT}\n{self.settings.public_url}/signin#{token}",
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
+        )
+        log.info("bot.recover_link_sent")
 
     async def week(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         with session_scope(self.sessions) as session:
@@ -413,6 +459,7 @@ def build_bot(
     application.add_handler(CommandHandler("today", handlers.today, filters=allowed))
     application.add_handler(CommandHandler("week", handlers.week, filters=allowed))
     application.add_handler(CommandHandler("login", handlers.login, filters=allowed))
+    application.add_handler(CommandHandler("recover", handlers.recover, filters=allowed))
     progress_handlers = progress_ui.ProgressHandlers(settings, sessions)
     application.add_handler(CommandHandler("progress", progress_handlers.command, filters=allowed))
     application.add_handler(CommandHandler("review", progress_handlers.review, filters=allowed))

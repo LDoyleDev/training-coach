@@ -89,12 +89,12 @@ def test_another_persons_keys_and_browsers_are_not_there(
 ) -> None:
     with session_scope(make_session_factory(engine)) as shared:
         shared.add(User(id=2))
-    with session_scope(make_session_factory(engine, user_id=2)) as theirs:
-        key = Passkey(credential_id="theirs", public_key=b"k", sign_count=0, name="Theirs")
-        theirs.add(key)
-        theirs.flush()
-        key_id = key.id
     with _browser(app, engine, user=2, agent="Their phone") as them:
+        with session_scope(make_session_factory(engine, user_id=2)) as theirs:
+            key = Passkey(credential_id="theirs", public_key=b"k", sign_count=0, name="Theirs")
+            theirs.add(key)
+            theirs.flush()
+            key_id = key.id
         their_device = _sign_ins(them)["devices"][0]["id"]
         assert phone.delete(f"/api/account/passkeys/{key_id}").status_code == 404
         assert phone.delete(f"/api/account/devices/{their_device}").status_code == 404

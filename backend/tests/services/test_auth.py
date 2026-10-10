@@ -24,11 +24,15 @@ def _link(engine: Engine, at: datetime = NOW) -> str:
     return token
 
 
+def _cookie(redeemed: auth.Redeemed | str | None) -> str:
+    assert isinstance(redeemed, auth.Redeemed)
+    return redeemed.cookie
+
+
 def test_a_link_signs_in_once_and_the_session_names_its_user(engine: Engine) -> None:
     token = _link(engine)
     with _shared(engine) as shared:
-        cookie = auth.redeem_link(shared, token, NOW + timedelta(minutes=9), "Firefox")
-        assert cookie is not None
+        cookie = _cookie(auth.redeem_link(shared, token, NOW + timedelta(minutes=9), "Firefox"))
         assert auth.redeem_link(shared, token, NOW + timedelta(minutes=9), "Firefox") is None
         assert auth.session_user(shared, cookie, NOW) == auth.Seen(OWNER, renewed=False)
 
@@ -49,7 +53,7 @@ def test_unknown_tokens_get_nothing(engine: Engine) -> None:
 def test_only_hashes_are_stored(engine: Engine) -> None:
     token = _link(engine)
     with _shared(engine) as shared:
-        cookie = auth.redeem_link(shared, token, NOW, "x" * 500)
+        cookie = _cookie(auth.redeem_link(shared, token, NOW, "x" * 500))
         shared.commit()
         everyone = {ALL_USERS: True}
         stored = [
@@ -65,8 +69,7 @@ def test_only_hashes_are_stored(engine: Engine) -> None:
 
 def test_a_session_lasts_thirty_days_and_is_renewed_by_use(engine: Engine) -> None:
     with _shared(engine) as shared:
-        cookie = auth.redeem_link(shared, _link(engine), NOW, "x")
-        assert cookie is not None
+        cookie = _cookie(auth.redeem_link(shared, _link(engine), NOW, "x"))
         day_29 = NOW + timedelta(days=29)
         assert auth.session_user(shared, cookie, day_29) == auth.Seen(OWNER, renewed=True)
         assert auth.session_user(shared, cookie, day_29) == auth.Seen(OWNER, renewed=False)
@@ -76,8 +79,7 @@ def test_a_session_lasts_thirty_days_and_is_renewed_by_use(engine: Engine) -> No
 
 def test_signing_out_ends_the_session_at_once(engine: Engine) -> None:
     with _shared(engine) as shared:
-        cookie = auth.redeem_link(shared, _link(engine), NOW, "x")
-        assert cookie is not None
+        cookie = _cookie(auth.redeem_link(shared, _link(engine), NOW, "x"))
         auth.end_session(shared, cookie, NOW)
         assert auth.session_user(shared, cookie, NOW) is None
 

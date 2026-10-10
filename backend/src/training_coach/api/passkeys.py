@@ -9,11 +9,12 @@ from datetime import UTC, datetime
 from ipaddress import ip_address, ip_network
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.auth import Owner, set_session_cookie
+from training_coach.api.alerts import alert, device
+from training_coach.api.auth import Fresh, Owner, set_session_cookie
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import passkeys
@@ -101,7 +102,7 @@ def _handle(request: Request) -> str:
 
 
 @router.post("/register/options")
-def registration_options(request: Request, user: Owner) -> Response:
+def registration_options(request: Request, user: Owner, _fresh: Fresh) -> Response:
     """Options for adding a passkey to the signed-in person."""
     party = _party(request)
     with session_scope(_bound(request, user)) as session:
@@ -110,7 +111,14 @@ def registration_options(request: Request, user: Owner) -> Response:
 
 
 @router.post("/register", status_code=status.HTTP_204_NO_CONTENT)
-def register(answer: Answer, request: Request, response: Response, user: Owner) -> None:
+def register(
+    answer: Answer,
+    request: Request,
+    response: Response,
+    background: BackgroundTasks,
+    user: Owner,
+    _fresh: Fresh,
+) -> None:
     party, handle = _party(request), _handle(request)
     name = request.headers.get("user-agent", "")
     with session_scope(_bound(request, user)) as session:
@@ -122,6 +130,13 @@ def register(answer: Answer, request: Request, response: Response, user: Owner) 
             status.HTTP_400_BAD_REQUEST, "that passkey couldn't be added", headers=_cleared()
         )
     response.headers.update(_cleared())
+    alert(
+        request,
+        background,
+        "passkey_added",
+        f"A passkey was added to Training Coach on {device(request)}. Not you? Remove it on "
+        "the Account page, or send /recover.",
+    )
 
 
 @router.post("/sign-in/options")
@@ -139,7 +154,9 @@ def sign_in_options(request: Request) -> Response:
 
 
 @router.post("/sign-in", status_code=status.HTTP_204_NO_CONTENT)
-def sign_in(answer: Answer, request: Request, response: Response) -> None:
+def sign_in(
+    answer: Answer, request: Request, response: Response, background: BackgroundTasks
+) -> None:
     party, handle = _party(request), _handle(request)
     label = request.headers.get("user-agent", "")
     with session_scope(_shared(request)) as session:
@@ -152,3 +169,9 @@ def sign_in(answer: Answer, request: Request, response: Response) -> None:
         )
     response.headers.update(_cleared())
     set_session_cookie(response, cookie)
+    alert(
+        request,
+        background,
+        "passkey_sign_in",
+        f"New sign-in to Training Coach with your passkey, on {device(request)}.",
+    )

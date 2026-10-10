@@ -7,8 +7,13 @@ import {
   removePasskey,
   signOut,
   signOutDevice,
+  StaleSignInError,
   type SignIns,
 } from './api'
+
+const STALE =
+  'For safety, changing passkeys needs a recent sign-in. Sign out, sign back in with your ' +
+  'fingerprint (or /recover if you lost it), then do it within 10 minutes.'
 
 type State =
   | { status: 'loading' }
@@ -40,14 +45,22 @@ export default function Account() {
   const act = (work: Promise<unknown>, done: string) => {
     work
       .then(() => setNote(done))
-      .catch(() => setNote("That didn't work. Check your connection and try again."))
+      .catch((error: unknown) =>
+        setNote(
+          error instanceof StaleSignInError
+            ? STALE
+            : "That didn't work. Check your connection and try again.",
+        ),
+      )
       .finally(load)
   }
 
   const add = () => {
     addPasskey()
       .then((ok) => setNote(ok ? 'Passkey added.' : "The passkey wasn't added."))
-      .catch(() => setNote("The passkey wasn't added."))
+      .catch((error: unknown) =>
+        setNote(error instanceof StaleSignInError ? STALE : "The passkey wasn't added."),
+      )
       .finally(load)
   }
 

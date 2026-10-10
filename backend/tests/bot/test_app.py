@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.error import Forbidden, NetworkError, RetryAfter, TimedOut
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 from telegram.warnings import PTBDeprecationWarning
 
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, command, run, texts
@@ -45,13 +45,18 @@ def test_every_command_is_restricted_to_owner(application: Application) -> None:
         "today",
         "week",
         "login",
+        "recover",
         "progress",
         "review",
         "habits",
         "settings",
     }
     for handler in commands:
-        assert OWNER in handler.filters.user_ids  # type: ignore[attr-defined]  # BaseFilter has no user_ids; this one is filters.User
+        # The owner, and only in the private chat with the bot (ADR-0040).
+        merged = handler.filters  # PTB's private _MergedFilter: base AND other
+        parts = (getattr(merged, "base_filter", None), getattr(merged, "and_filter", None))
+        assert any(isinstance(p, filters.User) and OWNER in p.user_ids for p in parts)
+        assert filters.ChatType.PRIVATE in parts
     # Button presses can't carry a filter and typed text combines filters; test_buttons.py,
     # test_settings.py, test_logging_flow.py, test_progress.py, test_habits.py and
     # test_stretching.py prove strangers are ignored by behaviour instead.
