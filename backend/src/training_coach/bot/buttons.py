@@ -60,6 +60,14 @@ def morning(template_id: int) -> InlineKeyboardMarkup:
     )
 
 
+def instead(template_id: int, session: str) -> InlineKeyboardMarkup:
+    """On a test day: train the waiting session instead (ADR-0038). Shows it like Start."""
+    label = f"Train {session} instead"
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(label, callback_data=_data("start", template_id))]]
+    )
+
+
 def swap(template_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [

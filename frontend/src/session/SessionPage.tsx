@@ -7,6 +7,7 @@ import {
   type Guided,
   type Pending,
   type Saved,
+  type TestDayDue,
 } from '../api'
 import {
   fromKept,
@@ -62,6 +63,7 @@ export default function SessionPage() {
   const [watchFrom, setWatchFrom] = useState<number | null>(null) // stopwatch start while running
   const [pending, setPending] = useState<Pending[]>([])
   const [saving, setSaving] = useState<string[]>([]) // earlier days being saved
+  const [testDay, setTestDay] = useState<TestDayDue | null>(null) // due in front (ADR-0038)
 
   const running = watchFrom !== null
   const resting = stage === 'rest'
@@ -109,6 +111,7 @@ export default function SessionPage() {
     fetchToday()
       .then((today) => {
         if (today === null) return setLoaded({ status: 'signed-out' })
+        setTestDay(today.test_day ?? null)
         // An empty order can't be guided; treat it like nothing planned.
         if (today.session === null || today.session.order.length === 0)
           return setLoaded({ status: 'none' })
@@ -124,7 +127,13 @@ export default function SessionPage() {
 
   useEffect(load, [load])
 
-  if (loaded.status !== 'ready') return <Shell>{<Status loaded={loaded} />}</Shell>
+  if (loaded.status !== 'ready')
+    return (
+      <Shell>
+        {loaded.status === 'none' && testDay && <TestDayNotice due={testDay} />}
+        <Status loaded={loaded} />
+      </Shell>
+    )
   const session = loaded.session
   const total = session.order.length
 
@@ -257,6 +266,7 @@ export default function SessionPage() {
 
       {stage === 'overview' && (
         <>
+          {testDay && <TestDayNotice due={testDay} />}
           {pending.map((day) => (
             <p key={day.day} className={card}>
               {day.session} on {day.day} wasn't saved ({day.sets} sets).{' '}
@@ -591,5 +601,21 @@ function Counter({
       </div>
       <span className="text-sm text-[var(--slate)]">{versus(value, target)}</span>
     </div>
+  )
+}
+
+/** A test day due today stands in front of the session, which waits (ADR-0038). */
+function TestDayNotice({ due }: { due: TestDayDue }) {
+  return (
+    <section aria-labelledby="test-day" className={card + ' flex flex-col gap-3'}>
+      <h2 id="test-day" className="text-lg font-bold">
+        Today: {due.name}
+      </h2>
+      <p>{due.tests.join(', ')}.</p>
+      <p className="text-[var(--slate)]">The session below waits until they're done.</p>
+      <a href="/tests" className={primary + ' flex items-center justify-center'}>
+        Go to the tests
+      </a>
+    </section>
   )
 }

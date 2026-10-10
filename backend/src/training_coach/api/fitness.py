@@ -8,12 +8,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.auth import Owner
+from training_coach.api.session import TestDayDueView, test_day_view
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import Side
 from training_coach.domain.fitness_tests import RANGES, Result, TimeOfDay
 from training_coach.domain.queue import local_date
-from training_coach.services import fitness_tests
+from training_coach.services import fitness_tests, retests
 
 router = APIRouter(prefix="/api/tests", tags=["tests"])
 
@@ -29,6 +30,14 @@ def _bound(request: Request, user: int) -> sessionmaker[Session]:
 def _today(request: Request) -> date:
     settings: Settings = request.app.state.settings
     return local_date(datetime.now(UTC), settings.tz)
+
+
+@router.get("/due", response_model=TestDayDueView | None)
+def due(request: Request, user: Owner) -> TestDayDueView | None:
+    """The test day due today, if any (ADR-0038)."""
+    settings: Settings = request.app.state.settings
+    with session_scope(_bound(request, user)) as session:
+        return test_day_view(retests.due(session, _today(request), settings.tz))
 
 
 class TestView(BaseModel):

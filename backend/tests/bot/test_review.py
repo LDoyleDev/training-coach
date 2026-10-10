@@ -30,7 +30,8 @@ def _review(**changes: object) -> Review:
 
 def test_an_empty_week_says_so() -> None:
     assert review_text(_review()) == (
-        "Week of Mon 05 Oct\n\nSessions: 0 of 7 done.\n\nNo sets logged this week."
+        "Week of Mon 05 Oct\n\nSessions: 0 of 7 done.\n\nNo sets logged this week.\n\n"
+        "Zone 2: 0 min · Moderate: 0 min"
     )
 
 
@@ -108,3 +109,12 @@ def test_habits_show_days_done_with_so_far_mid_week() -> None:
     partial = review_text(_review(habits=[HabitWeek(Habit.WIND_DOWN, 1, 3)]))
     assert partial.endswith("- Wind-down: 1 of 3 so far")
     assert "Habits" not in review_text(_review())
+
+
+def test_zone_2_against_the_target() -> None:
+    short = review_text(_review(zone2_minutes=105, moderate_minutes=60, zone2_target=(180, 200)))
+    assert "Zone 2: 105 of 180-200 min (75 short) · Moderate: 60 min" in short
+    reached = review_text(_review(zone2_minutes=190, zone2_target=(180, 200)))
+    assert "Zone 2: 190 of 180-200 min · Moderate: 0 min" in reached
+    none = review_text(_review(zone2_target=(180, 200)))
+    assert "Zone 2: 0 of 180-200 min (180 short)" in none

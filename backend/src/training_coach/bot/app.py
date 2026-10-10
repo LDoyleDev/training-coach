@@ -44,6 +44,7 @@ from training_coach.bot.logging_flow import LogHandlers
 from training_coach.bot.messages import (
     NO_PLAN,
     NUDGE,
+    NUDGE_TEST,
     SOMETHING_WENT_WRONG,
     STALE,
     picked_text,
@@ -51,6 +52,8 @@ from training_coach.bot.messages import (
     rest_text,
     review_text,
     session_detail_text,
+    test_day_text,
+    tests_where,
     today_text,
     week_text,
 )
@@ -152,6 +155,10 @@ class Handlers:
             plan = todays_session(session, self._local_today(), self.settings.tz)
             if plan is None:
                 return NO_PLAN, None
+            if plan.test_day is not None:
+                where = tests_where(self.settings.public_url)
+                instead = buttons.instead(plan.session.template_id, plan.session.name)
+                return test_day_text(plan, where), instead
             return today_text(plan), buttons.morning(plan.session.template_id)
 
     async def help(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -181,7 +188,7 @@ class Handlers:
 
     async def week(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         with session_scope(self.sessions) as session:
-            days = upcoming_week(session, self._local_today())
+            days = upcoming_week(session, self._local_today(), tz=self.settings.tz)
             text = NO_PLAN if days is None else week_text(days)
         if update.effective_message is not None:
             await update.effective_message.reply_text(text)
@@ -301,7 +308,7 @@ class Handlers:
             with session_scope(self.sessions) as session:
                 prefs = user_settings.load(session)
                 logged = user_settings.anything_logged(session, today)
-                plan = todays_session(session, today)
+                plan = todays_session(session, today, self.settings.tz)
                 ticked = habits.checked(session, today)
         except SQLAlchemyError as exc:
             log.error("bot.nudge_failed", error=type(exc).__name__)
@@ -323,7 +330,11 @@ class Handlers:
             return
         parts: list[str] = []
         rows: list[Sequence[InlineKeyboardButton]] = []
-        if nudge and plan is not None:
+        if nudge and plan is not None and plan.test_day is not None:
+            where = tests_where(self.settings.public_url)
+            parts.append(NUDGE_TEST.format(name=plan.test_day.name, where=where))
+            rows += buttons.instead(plan.session.template_id, plan.session.name).inline_keyboard
+        elif nudge and plan is not None:
             parts.append(NUDGE.format(session=plan.session.name))
             rows += buttons.morning(plan.session.template_id).inline_keyboard
         if habit_rows:
