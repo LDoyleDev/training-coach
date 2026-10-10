@@ -39,6 +39,8 @@ token, session cookies, the Pi itself (shared with Vybe).
 | A person's own AI key read from a leaked database or backup; or swapped for someone else's, so their data goes to another account | `ai_connections`, `PUT /api/account/ai/key` (ADR-0047 B) | Stored only as a Fernet token under `TC_SECRETS_KEY` (in `.env`, not in the database or backups); binary, so the export leaves it out; never logged or sent back (last four characters only). Checked with Groq before it is kept; only `gsk_` keys accepted. Storing one needs a sign-in in the last 10 minutes and is alerted on Telegram. Rotation without re-entry (`rotate-secrets`). Does not protect against a compromised Pi, where `.env` sits beside the database | `tests/api/test_ai_key.py`, `tests/services/test_secret_box.py`, `tests/services/test_ai_key.py` |
 | Data loss | SD card | WAL, nightly backups, a desktop copy, an encrypted off-site copy (ADR-0042), restore drill; a failed deploy or off-site run alerts on Telegram (`training-coach-alert@.service`); the Pi or app going down alerts through a Healthchecks.io heartbeat (ADR-0045) | Restore rehearsal per release |
 
+The MCP connection (ADR-0047 C) has its own threat model, to be agreed before any of its code: [mcp-threat-model.md](mcp-threat-model.md).
+
 ## Review cadence
 
 Revisit this document at the start of each phase and whenever a new external surface is added.
