@@ -923,6 +923,223 @@
         "title": "StretchedView",
         "type": "object"
       },
+      "TestDayBody": {
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "integer"
+          },
+          "fed": {
+            "title": "Fed",
+            "type": "boolean"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/TestResultView"
+            },
+            "maxItems": 40,
+            "title": "Results",
+            "type": "array"
+          },
+          "slept_well": {
+            "title": "Slept Well",
+            "type": "boolean"
+          },
+          "time_of_day": {
+            "enum": [
+              "morning",
+              "midday",
+              "afternoon",
+              "evening"
+            ],
+            "title": "Time Of Day",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 32,
+            "minLength": 16,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "time_of_day",
+          "fed",
+          "slept_well",
+          "results",
+          "token"
+        ],
+        "title": "TestDayBody",
+        "type": "object"
+      },
+      "TestDaySaved": {
+        "properties": {
+          "already_saved": {
+            "title": "Already Saved",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "already_saved"
+        ],
+        "title": "TestDaySaved",
+        "type": "object"
+      },
+      "TestDayView": {
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "integer"
+          },
+          "fed": {
+            "title": "Fed",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/TestResultView"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "slept_well": {
+            "title": "Slept Well",
+            "type": "boolean"
+          },
+          "time_of_day": {
+            "enum": [
+              "morning",
+              "midday",
+              "afternoon",
+              "evening"
+            ],
+            "title": "Time Of Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "on",
+          "day",
+          "time_of_day",
+          "fed",
+          "slept_well",
+          "results"
+        ],
+        "title": "TestDayView",
+        "type": "object"
+      },
+      "TestResultView": {
+        "properties": {
+          "side": {
+            "enum": [
+              "both",
+              "left",
+              "right"
+            ],
+            "title": "Side",
+            "type": "string"
+          },
+          "test": {
+            "maxLength": 64,
+            "title": "Test",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "test",
+          "side",
+          "value"
+        ],
+        "title": "TestResultView",
+        "type": "object"
+      },
+      "TestView": {
+        "properties": {
+          "cue": {
+            "title": "Cue",
+            "type": "string"
+          },
+          "day": {
+            "title": "Day",
+            "type": "integer"
+          },
+          "high": {
+            "title": "High",
+            "type": "integer"
+          },
+          "low": {
+            "title": "Low",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "reps",
+              "seconds",
+              "metres",
+              "cm"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "day",
+          "unit",
+          "per_side",
+          "cue",
+          "low",
+          "high"
+        ],
+        "title": "TestView",
+        "type": "object"
+      },
       "TodayView": {
         "description": "``session`` is empty when nothing planned is left today (done or rested); ``progress``\nis where the person left off, to resume.",
         "properties": {
@@ -1542,6 +1759,98 @@
         "summary": "Today",
         "tags": [
           "session"
+        ]
+      }
+    },
+    "/api/tests": {
+      "get": {
+        "description": "Every test, day 1 first.",
+        "operationId": "definitions_api_tests_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TestView"
+                  },
+                  "title": "Response Definitions Api Tests Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Definitions",
+        "tags": [
+          "tests"
+        ]
+      },
+      "post": {
+        "description": "Save a test day once (a repeated Save with the same token returns it).",
+        "operationId": "save_api_tests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestDayBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestDaySaved"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save",
+        "tags": [
+          "tests"
+        ]
+      }
+    },
+    "/api/tests/results": {
+      "get": {
+        "description": "Every test day, newest first.",
+        "operationId": "results_api_tests_results_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TestDayView"
+                  },
+                  "title": "Response Results Api Tests Results Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Results",
+        "tags": [
+          "tests"
         ]
       }
     },

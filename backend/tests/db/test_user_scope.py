@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from tests import factories
 from training_coach.db.models import (
     Event,
+    FitnessTestDay,
     HabitCheck,
     LadderStep,
     PlanState,
@@ -59,6 +60,15 @@ def two(engine: Engine) -> tuple[Sessions, Sessions]:
                     PlanState(),
                     Event(kind="x", payload={}),
                     HabitCheck(local_date=DAY, habit=Habit.PROTEIN),
+                    FitnessTestDay(
+                        local_date=DAY,
+                        day=1,
+                        time_of_day="morning",
+                        fed=True,
+                        slept_well=True,
+                        results=[],
+                        token=f"scope-{status}".ljust(20, "x"),
+                    ),
                 ]
             )
     return one, other
@@ -73,7 +83,7 @@ def test_each_user_sees_only_their_rows(two: tuple[Sessions, Sessions]) -> None:
     one, other = two
     assert _all(one, Workout.status) == ["done"]
     assert _all(other, Workout.status) == ["rest"]
-    for model in (Workout, SetLog, UserSettings, PlanState, Event, HabitCheck):
+    for model in (Workout, SetLog, UserSettings, PlanState, Event, HabitCheck, FitnessTestDay):
         assert _all(one, model.user_id) == [1], model
         assert _all(other, model.user_id) == [2], model
     with other() as session:
@@ -241,6 +251,7 @@ def test_every_per_person_table_is_covered() -> None:
         "settings",
         "events",
         "habit_checks",
+        "test_days",
         "login_links",
         "passkeys",
         "session_progress",

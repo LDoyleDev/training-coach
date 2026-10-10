@@ -26,6 +26,82 @@ name = "Original plan"
 since = 2026-10-01
 name = "Huberman rebuild (ADR-0017)"
 
+# ------------------------------------------------------------------- baseline tests
+# The product spec's performance tests (2-A, ADR-0037), on two days. Retest under the same
+# conditions. A test with results can't leave the plan; its name and cue can change.
+
+[[tests]]
+slug = "max-pull-ups"
+name = "Max pull-ups"
+day = 1
+unit = "reps"
+cue = "From a dead hang, chin over the bar each rep. Stop at the first rep that isn't full."
+
+[[tests]]
+slug = "max-push-ups"
+name = "Max push-ups"
+day = 1
+unit = "reps"
+cue = "Chest to a fist's height off the floor, body straight. Stop when form breaks."
+
+[[tests]]
+slug = "max-dips"
+name = "Max dips"
+day = 1
+unit = "reps"
+cue = "Upper arms to parallel, then lock out. Stop at the first rep that isn't full."
+
+[[tests]]
+slug = "dead-hang"
+name = "Dead hang"
+day = 1
+unit = "seconds"
+cue = "Both hands, arms straight, feet off the floor. Time until your grip goes."
+
+[[tests]]
+slug = "bulgarian-split-squat"
+name = "Bulgarian split squat"
+day = 2
+unit = "reps"
+per_side = true
+cue = "Bodyweight, back foot on a chair. Reps until you can't do a full one, each leg."
+
+[[tests]]
+slug = "goblet-squat-8kg"
+name = "Goblet squat, 8 kg"
+day = 2
+unit = "reps"
+cue = "Hold 8 kg at your chest, full depth. Reps until you can't do a full one."
+
+[[tests]]
+slug = "single-leg-calf-raise"
+name = "Single-leg calf raise"
+day = 2
+unit = "reps"
+per_side = true
+cue = "On a step, full range, a finger on the wall for balance. Reps to failure, each leg."
+
+[[tests]]
+slug = "run-12-min"
+name = "12-minute run"
+day = 2
+unit = "metres"
+cue = "As far as you can in 12 minutes, on the same route each time. The distance in metres."
+
+[[tests]]
+slug = "deep-squat-hold"
+name = "Deep squat hold"
+day = 2
+unit = "seconds"
+cue = "Heels down, as deep as you can, chest up. Time until you have to stand."
+
+[[tests]]
+slug = "toe-touch"
+name = "Toe touch"
+day = 2
+unit = "cm"
+cue = "Standing, legs straight, reach down slowly. Fingertips past the toes is plus, short of them minus."
+
 # ------------------------------------------------------------------- legs
 
 [[exercises]]

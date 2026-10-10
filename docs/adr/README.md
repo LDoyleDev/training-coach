@@ -41,3 +41,4 @@ Code). Template: [template.md](template.md).
 | [0034](0034-plan-changes-keep-history-per-exercise.md) | Plan changes keep history per exercise | Accepted |
 | [0035](0035-web-app-first-telegram-for-reminders.md) | The web app is the main surface; Telegram is for reminders | Accepted |
 | [0036](0036-sign-in-with-passkeys-and-a-telegram-link.md) | Sign in with passkeys, started and recovered with a Telegram link | Accepted |
+| [0037](0037-baseline-tests-as-test-days.md) | Baseline tests are test days, defined in plan.toml, entered in the web app | Accepted |

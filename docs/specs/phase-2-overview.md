@@ -37,8 +37,8 @@ Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74, 2-C #73 (done)
 
 ### 2-A Baseline tests and retests (#74)
 - Model for test definitions (from the product spec list) and results with date and conditions.
-- `/baseline` walks through day 1 and day 2 tests in Telegram, one test at a time, with the
-  same confirm-before-save rule as workout logs (ADR-0007).
+- The web app walks through day 1 and day 2 tests one test at a time, with the same
+  confirm-before-save rule as workout logs (ADR-0007). Not in Telegram (ADR-0035, ADR-0037).
 - Retests at the start of each block, or every 4 weeks without blocks (D4); results comparable
   test by test.
 

@@ -33,6 +33,7 @@ from training_coach.db.base import Base
 from training_coach.db.types import UTCDateTime, utcnow
 from training_coach.domain.blocks import BlockKind
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
+from training_coach.domain.fitness_tests import TimeOfDay
 from training_coach.domain.habits import Habit
 
 
@@ -356,6 +357,29 @@ class HabitCheck(Owned, Base):
     user_id: Mapped[int] = _owner()
     local_date: Mapped[date] = mapped_column(Date)
     habit: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class FitnessTestDay(Owned, Base):
+    """One day of baseline tests or a retest (2-A, #94, ADR-0037): the conditions and the
+    results, ``[{"test": slug, "side": "both", "value": 12}, ...]``, checked by
+    ``domain.fitness_tests`` before saving. ``token`` makes a repeated Save harmless."""
+
+    __tablename__ = "test_days"
+    __table_args__ = (
+        CheckConstraint("day IN (1, 2)", name="day_valid"),
+        CheckConstraint(_in("time_of_day", TimeOfDay), name="time_of_day_valid"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    local_date: Mapped[date] = mapped_column(Date, index=True)
+    day: Mapped[int] = mapped_column(Integer)
+    time_of_day: Mapped[str] = mapped_column(String(16))
+    fed: Mapped[bool] = mapped_column(Boolean)
+    slept_well: Mapped[bool] = mapped_column(Boolean)
+    results: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    token: Mapped[str] = mapped_column(String(32), unique=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 

@@ -309,6 +309,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Definitions
+         * @description Every test, day 1 first.
+         */
+        get: operations["definitions_api_tests_get"];
+        put?: never;
+        /**
+         * Save
+         * @description Save a test day once (a repeated Save with the same token returns it).
+         */
+        post: operations["save_api_tests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tests/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Results
+         * @description Every test day, newest first.
+         */
+        get: operations["results_api_tests_results_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -664,6 +708,90 @@ export interface components {
         StretchedView: {
             /** Logged */
             logged: boolean;
+        };
+        /** TestDayBody */
+        TestDayBody: {
+            /** Day */
+            day: number;
+            /** Fed */
+            fed: boolean;
+            /** On */
+            on?: string | null;
+            /** Results */
+            results: components["schemas"]["TestResultView"][];
+            /** Slept Well */
+            slept_well: boolean;
+            /**
+             * Time Of Day
+             * @enum {string}
+             */
+            time_of_day: "morning" | "midday" | "afternoon" | "evening";
+            /** Token */
+            token: string;
+        };
+        /** TestDaySaved */
+        TestDaySaved: {
+            /** Already Saved */
+            already_saved: boolean;
+            /** Id */
+            id: number;
+        };
+        /** TestDayView */
+        TestDayView: {
+            /** Day */
+            day: number;
+            /** Fed */
+            fed: boolean;
+            /** Id */
+            id: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Results */
+            results: components["schemas"]["TestResultView"][];
+            /** Slept Well */
+            slept_well: boolean;
+            /**
+             * Time Of Day
+             * @enum {string}
+             */
+            time_of_day: "morning" | "midday" | "afternoon" | "evening";
+        };
+        /** TestResultView */
+        TestResultView: {
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "both" | "left" | "right";
+            /** Test */
+            test: string;
+            /** Value */
+            value: number;
+        };
+        /** TestView */
+        TestView: {
+            /** Cue */
+            cue: string;
+            /** Day */
+            day: number;
+            /** High */
+            high: number;
+            /** Low */
+            low: number;
+            /** Name */
+            name: string;
+            /** Per Side */
+            per_side: boolean;
+            /** Slug */
+            slug: string;
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "reps" | "seconds" | "metres" | "cm";
         };
         /**
          * TodayView
@@ -1142,6 +1270,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TodayView"];
+                };
+            };
+        };
+    };
+    definitions_api_tests_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestView"][];
+                };
+            };
+        };
+    };
+    save_api_tests_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestDayBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestDaySaved"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    results_api_tests_results_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestDayView"][];
                 };
             };
         };

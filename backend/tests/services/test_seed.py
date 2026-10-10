@@ -12,6 +12,7 @@ from training_coach.db.models import (
     Event,
     Exercise,
     ExerciseState,
+    FitnessTestDay,
     LadderStep,
     PlanState,
     PlanVersion,
@@ -673,3 +674,47 @@ name = "Heavier bell"
     for workout in (before, after):
         session.refresh(workout)
     assert (_version(session, before), _version(session, after)) == ("Rebuild", "Heavier bell")
+
+
+# ------------------------------------------------------------------ baseline tests (#94)
+
+HANG_TEST = """
+[[tests]]
+slug = "dead-hang"
+name = "Dead hang"
+day = 1
+unit = "seconds"
+cue = "Hang."
+"""
+
+
+@pytest.mark.parametrize(
+    ("tests", "message"),
+    [
+        (HANG_TEST + HANG_TEST, "duplicate test slug"),
+        (HANG_TEST.replace("day = 1", "day = 3"), "day must be one of"),
+        (HANG_TEST.replace('"seconds"', '"kg"'), "unit"),
+    ],
+)
+def test_invalid_tests_are_rejected(tests: str, message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        load_plan(tests + MINI_PLAN)
+
+
+def test_a_test_with_results_cant_leave_the_plan(session: Session) -> None:
+    apply_seed(session, load_plan(HANG_TEST + MINI_PLAN))
+    session.add(
+        FitnessTestDay(
+            local_date=date(2026, 10, 10),
+            day=1,
+            time_of_day="morning",
+            fed=True,
+            slept_well=True,
+            results=[{"test": "dead-hang", "side": "both", "value": 40}],
+            token="x" * 20,
+        )
+    )
+    session.flush()
+    with pytest.raises(SeedError, match="'dead-hang'"):
+        apply_seed(session, load_plan(MINI_PLAN))
+    apply_seed(session, load_plan(HANG_TEST.replace("Hang.", "Hang still.") + MINI_PLAN))

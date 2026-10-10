@@ -27,6 +27,7 @@ from training_coach.db.models import (
     Event,
     Exercise,
     ExerciseState,
+    FitnessTestDay,
     LadderStep,
     PlanState,
     PlanVersion,
@@ -40,6 +41,7 @@ from training_coach.db.models import (
 )
 from training_coach.db.session import ALL_USERS
 from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.fitness_tests import DAYS, FitnessTest, Unit
 from training_coach.domain.parser import normalise_name
 from training_coach.domain.stretching import Stretch
 
@@ -143,6 +145,20 @@ class StretchSeed(_Strict):
         return Stretch(self.slug, self.name, frozenset(self.muscles), self.per_side, self.cue)
 
 
+class TestSeed(_Strict):
+    """A baseline test (2-A, #94). Read from the bundled plan; results name it by slug."""
+
+    slug: str = Field(pattern=SLUG, max_length=64)
+    name: str = Field(min_length=1, max_length=120)
+    day: int
+    unit: Unit
+    per_side: bool = False
+    cue: str = Field(min_length=1, max_length=300)
+
+    def test(self) -> FitnessTest:
+        return FitnessTest(self.slug, self.name, self.day, self.unit, self.per_side, self.cue)
+
+
 class VersionSeed(_Strict):
     """A version of the plan and the day it took over (#107, ADR-0034)."""
 
@@ -155,9 +171,16 @@ class PlanSeed(_Strict):
     sessions: list[SessionSeed] = Field(min_length=1)
     stretches: list[StretchSeed] = Field(default_factory=list)
     versions: list[VersionSeed] = Field(default_factory=list)  # oldest first
+    tests: list[TestSeed] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _references(self) -> Self:
+        tests = [t.slug for t in self.tests]
+        if len(tests) != len(set(tests)):
+            raise ValueError("duplicate test slug")
+        for test in self.tests:
+            if test.day not in DAYS:
+                raise ValueError(f"test {test.slug}: day must be one of {DAYS}")
         days = [v.since for v in self.versions]
         if days != sorted(set(days)):
             raise ValueError("plan versions must be in date order, one per day")
@@ -293,6 +316,16 @@ def _versions_preflight(session: Session, plan: PlanSeed) -> None:
             )
 
 
+def _tests_preflight(session: Session, plan: PlanSeed) -> None:
+    """A test with results stays in the plan: its results name it."""
+    kept = {t.slug for t in plan.tests}
+    days = session.scalars(select(FitnessTestDay), execution_options={ALL_USERS: True})
+    recorded = {r["test"] for day in days for r in day.results}
+    missing = sorted(recorded - kept)
+    if missing:
+        raise SeedError(f"tests {missing} have results but are not in plan.toml; keep them there")
+
+
 def _apply_versions(session: Session, plan: PlanSeed, result: SeedResult) -> None:
     existing = {v.since: v for v in session.scalars(select(PlanVersion))}
     for seed in plan.versions:
@@ -342,6 +375,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
     exercises = {e.slug: e for e in session.scalars(select(Exercise))}
     _preflight(session, plan, exercises)
     _versions_preflight(session, plan)
+    _tests_preflight(session, plan)
     for seed in plan.exercises:
         exercise = exercises.get(seed.slug)
         if exercise is None:
