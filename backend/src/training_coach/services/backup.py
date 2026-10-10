@@ -3,7 +3,7 @@
 ``create`` copies the live database with SQLite's online backup API (safe while the app
 writes), checks the copy's integrity and only then renames it into place, so a backup file
 that exists is a complete one. ``prune`` applies the retention in ``domain.backups`` and only
-ever deletes files matching the nightly name: manual backups are the owner's to delete.
+ever deletes files matching the nightly or manual names it writes: other files are left alone.
 ``run_nightly`` is started by the app's lifespan, whether or not the bot is on.
 """
 
@@ -21,12 +21,13 @@ from zoneinfo import ZoneInfo
 import structlog
 from sqlalchemy.engine import make_url
 
-from training_coach.domain.backups import keep, next_run
+from training_coach.domain.backups import keep, manual_expired, next_run
 
 log = structlog.get_logger(__name__)
 
 AT = time(3, 30)  # local; quiet, and clear of the DST jumps at 02:00-03:00
 NIGHTLY = re.compile(r"^training_coach-(\d{4}-\d{2}-\d{2})\.db$")
+MANUAL = re.compile(r"^training_coach-manual-(\d{8}T\d{6}Z)\.db$")
 FILE_MODE = 0o640  # owner and the app group only: the copy holds the same data as the live db
 DIR_MODE = 0o750
 STALE_PARTIAL = 3600  # seconds: older partials were left by a killed run, not one in progress
@@ -101,9 +102,10 @@ def nightly_days(directory: Path) -> dict[date, Path]:
 
 
 def prune(directory: Path, now: float | None = None) -> int:
-    """Delete nightly backups outside the retention, and partial copies left by a killed run.
-    Returns how many backups were removed."""
-    cutoff = (time_now() if now is None else now) - STALE_PARTIAL
+    """Delete nightly and manual backups outside the retention, and partial copies left by a
+    killed run. Returns how many backups were removed."""
+    clock = time_now() if now is None else now
+    cutoff = clock - STALE_PARTIAL
     for leftover in directory.glob(".training_coach-*.partial*"):
         try:
             if leftover.stat().st_mtime < cutoff:
@@ -115,6 +117,16 @@ def prune(directory: Path, now: float | None = None) -> int:
     removed = 0
     for day, path in days.items():
         if day not in kept:
+            path.unlink(missing_ok=True)
+            removed += 1
+    moment = datetime.fromtimestamp(clock, UTC)
+    for path in directory.glob("training_coach-manual-*.db"):
+        match = MANUAL.match(path.name)
+        if match is None:
+            continue
+        # Its name says when it was taken, which a copy or a restore can't change.
+        taken = datetime.strptime(match.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
+        if manual_expired(taken, moment):
             path.unlink(missing_ok=True)
             removed += 1
     return removed

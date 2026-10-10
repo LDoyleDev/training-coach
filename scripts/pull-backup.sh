@@ -17,10 +17,11 @@ chmod 700 "$DEST" # the copies hold the same personal data as the live database
 # Hidden files are backups still being written; skip them.
 rsync -a --exclude='.*' -- "$PI:$SOURCE" "$DEST/"
 
-# Retention (ADR-0042): nightly copies older than KEEP_DAYS go, so data deleted in the app is
-# gone from every copy within that time. Manual backups are yours to delete.
+# Retention (ADR-0042, ADR-0044): copies older than KEEP_DAYS go, nightly and manual alike, so
+# data deleted or erased in the app is gone from every copy within that time.
 KEEP_DAYS="${TC_DESKTOP_KEEP_DAYS:-35}"
 find "$DEST" -maxdepth 1 -name 'training_coach-2*.db' -mtime "+$KEEP_DAYS" -delete
+find "$DEST" -maxdepth 1 -name 'training_coach-manual-*.db' -mtime "+$KEEP_DAYS" -delete
 
 # Liveness: a pull that works but brings nothing new means the Pi stopped backing up.
 if [ -z "$(find "$DEST" -maxdepth 1 -name 'training_coach-2*.db' -mtime -2 -print -quit)" ]; then

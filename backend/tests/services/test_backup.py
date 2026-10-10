@@ -25,6 +25,7 @@ from training_coach.services.backup import (
     back_up,
     create,
     database_path,
+    manual_name,
     nightly_name,
     prune,
     run_nightly,
@@ -166,7 +167,7 @@ def test_prune_touches_only_nightly_files(tmp_path: Path) -> None:
     ]
     for name in others:
         (tmp_path / name).write_bytes(b"")
-    assert prune(tmp_path) == 40 - 11
+    assert prune(tmp_path, now=datetime(2026, 10, 7, 12, tzinfo=UTC).timestamp()) == 40 - 11
     left = {p.name for p in tmp_path.iterdir()}
     assert set(others) <= left
     assert nightly_name(today) in left
@@ -319,3 +320,16 @@ async def test_the_loop_is_cancelled_cleanly(live: Path, tmp_path: Path) -> None
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
+
+
+def test_manual_backups_go_after_35_days_by_the_time_in_their_name(tmp_path: Path) -> None:
+    """Erased data must be gone from every copy within 5 weeks (ADR-0044), pre-deploy backups
+    included; the name, not the file's time, says when it was taken."""
+    now = datetime(2026, 11, 10, 12, tzinfo=UTC)
+    old = tmp_path / manual_name(now - timedelta(days=35, minutes=1))
+    recent = tmp_path / manual_name(now - timedelta(days=34))
+    odd = tmp_path / "training_coach-manual-latest.db"  # not a name we write: left alone
+    for path in (old, recent, odd):
+        path.write_bytes(b"")
+    assert prune(tmp_path, now=now.timestamp()) == 1
+    assert {p.name for p in tmp_path.iterdir()} == {recent.name, odd.name}
