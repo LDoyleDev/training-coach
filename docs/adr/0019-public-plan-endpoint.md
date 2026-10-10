@@ -1,6 +1,6 @@
 # ADR-0019: The bundled training plan is public at GET /api/plan
 
-- Status: Accepted
+- Status: Superseded by ADR-0041 (the site is private)
 - Date: 2026-10-05
 - Deciders: Liam
 
