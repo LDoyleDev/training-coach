@@ -20,8 +20,10 @@ on the server (with an image library, a new dependency) or in the browser.
   photos with no change. The picture column is loaded only when a photo is asked for.
 - **Cleaned on the server, without a library.** Only JPEG is accepted. `domain.photos` walks
   the JPEG's segments and drops every metadata one (EXIF with GPS and time, XMP, other APPn,
-  comments), keeping JFIF, the Adobe colour marker and the image data. A file that isn't a
-  well-formed JPEG is refused. The browser also shrinks photos (longest side 1600 px) and
+  comments), keeping JFIF, the Adobe colour marker and the image data. It walks through each
+  scan's image data too, so metadata between the scans of a progressive JPEG is dropped, and
+  stops at the first end-of-image marker, dropping anything after it (camera trailers, a second
+  picture). A file that isn't a well-formed JPEG is refused. The browser also shrinks photos (longest side 1600 px) and
   re-encodes them, which drops metadata too, but the server doesn't rely on it.
 - **Sizes.** Up to 3 MB an upload, read from the request and cut off past the limit. At
   roughly 300 KB a photo and three a retest, that is a few MB a year.

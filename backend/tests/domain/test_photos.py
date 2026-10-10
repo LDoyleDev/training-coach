@@ -69,3 +69,32 @@ def test_what_isnt_a_storable_jpeg_says_why(data: bytes, reason: str) -> None:
 
 def test_a_photo_over_the_limit_is_refused() -> None:
     assert clean_jpeg(bytes([0xFF, 0xD8]) + bytes(MAX_BYTES)) == "the photo is over 3 MB"
+
+
+def test_anything_after_the_end_of_the_image_is_dropped() -> None:
+    picture = jpeg(TABLES, FRAME, SCAN)
+    trailer = EXIF + jpeg(EXIF, TABLES, FRAME, SCAN)  # a camera trailer, a second picture
+    cleaned = clean_jpeg(picture + trailer)
+    assert cleaned == picture
+    assert isinstance(cleaned, bytes)
+    assert b"GPS" not in cleaned
+
+
+SCAN_HEADER = segment(0xDA, bytes([1, 1, 0, 0, 0x3F, 0]))
+END = bytes([0xFF, 0xD9])
+
+
+def test_metadata_between_scans_is_dropped() -> None:
+    first = SCAN_HEADER + bytes([0x12, 0xFF, 0x00, 0xFF, 0xD3, 0x34])  # stuffed byte, restart
+    second = SCAN_HEADER + bytes([0x56, 0x78])
+    progressive = jpeg(TABLES, FRAME, first, EXIF, COMMENT, TABLES, second) + END
+    assert clean_jpeg(progressive) == jpeg(TABLES, FRAME, first, TABLES, second) + END
+
+
+def test_an_end_before_any_image_data_is_damaged() -> None:
+    assert clean_jpeg(jpeg(TABLES) + END) == "the photo is damaged"
+
+
+def test_image_data_that_never_ends_is_damaged() -> None:
+    scan = SCAN_HEADER + bytes([0x12, 0x34, 0xFF])
+    assert clean_jpeg(jpeg(TABLES, FRAME, scan)) == "the photo is damaged"
