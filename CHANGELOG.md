@@ -4,6 +4,23 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.23.0](https://github.com/LDoyleDev/training-coach/compare/v0.22.0...v0.23.0) (2026-10-10)
+
+
+### Features
+
+* **api:** store my own Groq key, encrypted, for AI comments ([#189](https://github.com/LDoyleDev/training-coach/issues/189)) ([3f58b62](https://github.com/LDoyleDev/training-coach/commit/3f58b62f4c04f3c8b6b19b2e797c9bfef51b0e06))
+* **bot:** /undo takes back the last rest, swap, push or saved log ([#188](https://github.com/LDoyleDev/training-coach/issues/188)) ([bef989b](https://github.com/LDoyleDev/training-coach/commit/bef989bbdfd49c8a3c4cc1a01e1301dc4b52e88c))
+* **bot:** a weekly AI comment from my own Groq key after the review ([#191](https://github.com/LDoyleDev/training-coach/issues/191)) ([780af4d](https://github.com/LDoyleDev/training-coach/commit/780af4d5cc9ca957764b039bf4e83c6c319bc5ef))
+* **web:** add my own Groq key for AI comments on the Account page ([#190](https://github.com/LDoyleDev/training-coach/issues/190)) ([711c7fe](https://github.com/LDoyleDev/training-coach/commit/711c7fe26d6d479916d44ee7d50e60f7bdc25f3c))
+* **web:** copy my training for my own AI, with a guide to read ([#187](https://github.com/LDoyleDev/training-coach/issues/187)) ([a98b75a](https://github.com/LDoyleDev/training-coach/commit/a98b75a1b601e0632751074a990a369981a799fd))
+* **web:** trend lines for measurements and test results ([#184](https://github.com/LDoyleDev/training-coach/issues/184)) ([e9d4eec](https://github.com/LDoyleDev/training-coach/commit/e9d4eec56b435f91a18e5439c185efbfaf36bf65))
+
+
+### Documentation
+
+* proposal for bring-your-own-AI connections ([#186](https://github.com/LDoyleDev/training-coach/issues/186)) ([eece39b](https://github.com/LDoyleDev/training-coach/commit/eece39b3ec21e498540c20687215a09bddeeecda))
+
 ## [0.22.0](https://github.com/LDoyleDev/training-coach/compare/v0.21.0...v0.22.0) (2026-10-10)
 
 
