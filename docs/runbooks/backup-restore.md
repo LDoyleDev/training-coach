@@ -72,9 +72,11 @@ out the matching tag first.
 
 ## Off-site copies (ADR-0042)
 
-Every night at 04:30 the Pi encrypts the newest backup with the **desktop's age public key** and
-copies it to a Cloudflare R2 bucket, then deletes copies older than 35 days. Only the desktop's
-private key (`~/.config/sops/age/keys.txt`, with an offline copy) can read them. R2's free tier
+Every night at 04:30 the Pi encrypts the newest backup with a **dedicated backup age key** and
+copies it to a Cloudflare R2 bucket, then deletes copies older than 35 days. Only that key's
+private half can read them: its master copy is in Liam's password manager ("Training Coach
+backup key"), with a working copy at `%USERPROFILE%\.age	raining-coach-backups.txt` on Windows.
+The desktop dual-boots Windows and Linux, so the key mustn't live on only one side. R2's free tier
 (10 GB, no download fees) covers this many times over.
 
 ### Set up (once)
@@ -95,7 +97,7 @@ private key (`~/.config/sops/age/keys.txt`, with an offline copy) can read them.
    with:
 
    ```
-   TC_BACKUP_AGE_RECIPIENT=age15axwxydanlmvam3kgl9cly7t2050yn5mlf0y89yv2nl2svk6l9zsg7rpc0
+   TC_BACKUP_AGE_RECIPIENT=age1src86urme5la8q453dxf300jgq625u6dvsm0zn4gwudlps49dvgsuhczzr
    TC_OFFSITE_BUCKET=training-coach-backups
    RCLONE_CONFIG_R2_TYPE=s3
    RCLONE_CONFIG_R2_PROVIDER=Cloudflare
@@ -104,8 +106,9 @@ private key (`~/.config/sops/age/keys.txt`, with an offline copy) can read them.
    RCLONE_CONFIG_R2_ENDPOINT=https://<account id>.r2.cloudflarestorage.com
    ```
 
-   (The recipient is the desktop's age **public** key from `~/.secrets/README.md`; check it
-   matches `age-keygen -y ~/.config/sops/age/keys.txt` on the desktop.)
+   (The recipient is the backup key's **public** half. Made once on Windows with
+   `winget install FiloSottile.age` and `age-keygen -o $HOME\.age	raining-coach-backups.txt`;
+   `age-keygen -y` on that file prints it again.)
 4. **Try it once**, then install the timer:
 
    ```
@@ -115,16 +118,17 @@ private key (`~/.config/sops/age/keys.txt`, with an offline copy) can read them.
    systemctl list-timers training-coach-offsite.timer
    ```
 
-5. **Back up the desktop's age private key offline** (password manager or paper). Without it the
-   off-site copies can't be read.
+5. **Keep the backup key's private half in the password manager** (the `AGE-SECRET-KEY-1…`
+   line). Without it the off-site copies can't be read.
 
 Check: `journalctl -u training-coach-offsite -n 20` shows `ok: kept the last 35 days off-site`.
 
 ### Restore from off-site
 
-On the desktop: download the file from the R2 dashboard (or `rclone copy r2:<bucket>/<name> .`),
-then `age -d -i ~/.config/sops/age/keys.txt -o training_coach.db <name>.db.age`, and restore that
-file as in "Restore" above.
+On any machine with age: download the file from the R2 dashboard (or
+`rclone copy r2:<bucket>/<name> .`), then decrypt with the backup key, e.g. on Windows
+`age -d -i $HOME\.age	raining-coach-backups.txt -o training_coach.db <name>.db.age` (or a key
+file restored from the password manager), and restore that file as in "Restore" above.
 
 ## Rehearsal
 
