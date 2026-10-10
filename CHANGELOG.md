@@ -4,6 +4,23 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.17.0](https://github.com/LDoyleDev/training-coach/compare/v0.16.0...v0.17.0) (2026-10-10)
+
+
+### Features
+
+* **api:** progress photos, cleaned of metadata, kept in the database ([#150](https://github.com/LDoyleDev/training-coach/issues/150)) ([7732ebe](https://github.com/LDoyleDev/training-coach/commit/7732ebe28e9a59eb41300b99b387f7ff4bec4bea))
+* **web:** a Progress page with each exercise's step, best and trend ([#155](https://github.com/LDoyleDev/training-coach/issues/155)) ([0159b49](https://github.com/LDoyleDev/training-coach/commit/0159b491a78ba97808e6146df73eb3a1cadf5856))
+* **web:** progress photos on /body, shrunk in the browser ([#152](https://github.com/LDoyleDev/training-coach/issues/152)) ([2a4b0b9](https://github.com/LDoyleDev/training-coach/commit/2a4b0b9dbb10edd5d30ade19436b267d44b3e370))
+* **web:** the public plan page links to the app ([#153](https://github.com/LDoyleDev/training-coach/issues/153)) ([0d95bc4](https://github.com/LDoyleDev/training-coach/commit/0d95bc41a76be44de2ca8dc988f749128f7ed7ee))
+
+
+### Documentation
+
+* backups cover photos and measurements; rehearse with them ([#154](https://github.com/LDoyleDev/training-coach/issues/154)) ([bee8b6e](https://github.com/LDoyleDev/training-coach/commit/bee8b6e905b69eba4f41d007cc8c436cc9e5f5c3))
+* phase 2 overview records photos and the progress page ([#157](https://github.com/LDoyleDev/training-coach/issues/157)) ([d8cdc1c](https://github.com/LDoyleDev/training-coach/commit/d8cdc1cef2f1fca996af656866d9fab073c35c3c))
+* run a release PR's checks by closing and reopening it ([#156](https://github.com/LDoyleDev/training-coach/issues/156)) ([2145a58](https://github.com/LDoyleDev/training-coach/commit/2145a5809b69b09284f7265061492baa6d967810))
+
 ## [0.16.0](https://github.com/LDoyleDev/training-coach/compare/v0.15.0...v0.16.0) (2026-10-10)
 
 
