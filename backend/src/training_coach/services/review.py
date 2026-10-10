@@ -1,9 +1,9 @@
 """The weekly review (phase 2 step 2-C, #73; D6 in docs/specs/phase-2-decisions.md).
 
 One week is Monday to Sunday in local time. The review counts what was logged: sessions done
-against the plan's cycle, hard sets per muscle group against Galpin's 10-20, the personal
-bests set that week, what is ready to move up, and the habits ticked (D5). It only reads; the
-caller owns the session.
+against the plan's cycle, hard sets per muscle group against Galpin's 10-20, cardio minutes
+against the zone 2 target (#124), the personal bests set that week, what is ready to move up,
+and the habits ticked (D5). It only reads; the caller owns the session.
 """
 
 from dataclasses import dataclass, field
@@ -21,6 +21,10 @@ from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
 from training_coach.domain.volume import weekly_sets
 from training_coach.services import blocks, habits, progress
+from training_coach.services.seed import bundled_plan
+
+ZONE2 = "zone2"  # walks, rides and easy runs log as this exercise through its aliases
+MODERATE = "moderate-cardio"
 
 
 @dataclass(frozen=True)
@@ -44,6 +48,10 @@ class Review:
     ready: list[str]  # exercises ready to move up
     strength_block: bool = False  # moving up waits for the hypertrophy block (ADR-0028)
     habits: list[HabitWeek] = field(default_factory=list)  # empty in a week with no check-off
+    # Cardio minutes from done workouts, whatever logged them (#124).
+    zone2_minutes: int = 0
+    moderate_minutes: int = 0
+    zone2_target: tuple[int, int] | None = None  # from plan.toml
 
 
 def week_start(day: date) -> date:
@@ -69,6 +77,25 @@ def _volume(session: Session, start: date, end: date) -> list[tuple[str, int]]:
     )
     groups = {e.id: e.muscle_groups for e in session.scalars(select(Exercise))}
     return weekly_sets((groups.get(exercise_id, []), int(sets)) for exercise_id, sets in rows)
+
+
+def _minutes(session: Session, start: date, end: date) -> dict[str, int]:
+    """Minutes logged per cardio exercise in done workouts of the week. Zone 2 is the zone2
+    exercise's duration for now; it can become minutes in the zone 2 heart-rate band once that
+    data arrives, without changing the review (#124)."""
+    rows = session.execute(
+        select(Exercise.slug, func.sum(SetLog.value))
+        .join(SetLog, SetLog.exercise_id == Exercise.id)
+        .join(Workout, Workout.id == SetLog.workout_id)
+        .where(
+            Workout.local_date >= start,
+            Workout.local_date <= end,
+            Workout.status == WorkoutStatus.DONE,
+            Exercise.slug.in_((ZONE2, MODERATE)),
+        )
+        .group_by(Exercise.slug)
+    )
+    return {slug: int(total) for slug, total in rows}
 
 
 def _higher(a: int | None, b: int | None) -> int | None:
@@ -122,6 +149,8 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
     # Each planned session counts once; doing one again that week is an extra.
     planned_done = len({w.template_id for w in done if w.template_id is not None})
     ticked = habits.week(session, start, on)
+    minutes = _minutes(session, start, end)
+    targets = bundled_plan().targets
     return Review(
         start=start,
         planned=session.scalar(select(func.count()).select_from(SessionTemplate)) or 0,
@@ -137,4 +166,7 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
             and block.kind is BlockKind.STRENGTH
         ),
         habits=ticked if any(h.done for h in ticked) else [],
+        zone2_minutes=minutes.get(ZONE2, 0),
+        moderate_minutes=minutes.get(MODERATE, 0),
+        zone2_target=targets.zone2_minutes if targets is not None else None,
     )

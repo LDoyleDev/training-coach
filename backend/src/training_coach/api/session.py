@@ -13,7 +13,7 @@ from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import local_date
 from training_coach.domain.stretching import HOLD_SECONDS
-from training_coach.services import guided, stretching, workout_log
+from training_coach.services import guided, retests, stretching, workout_log
 from training_coach.services import progress as feedback
 
 router = APIRouter(prefix="/api/session", tags=["session"])
@@ -91,12 +91,25 @@ class ProgressView(BaseModel):
     revision: int  # send it back with the next PUT
 
 
+class TestDayDueView(BaseModel):
+    day: int
+    name: str
+    tests: list[str]
+
+
+def test_day_view(found: retests.TestDayDue | None) -> TestDayDueView | None:
+    if found is None:
+        return None
+    return TestDayDueView(day=found.day, name=found.name, tests=list(found.tests))
+
+
 class TodayView(BaseModel):
     """``session`` is empty when nothing planned is left today (done or rested); ``progress``
     is where the person left off, to resume."""
 
     session: GuidedView | None
     progress: ProgressView | None = None
+    test_day: TestDayDueView | None = None  # due today, in front of the session (ADR-0038)
 
 
 class KeepBody(BaseModel):
@@ -141,12 +154,13 @@ def today(request: Request, user: Owner) -> TodayView:
     with session_scope(_bound(request, user)) as session:
         kept = guided.kept(session, on)
         plan = guided.today(session, on, settings.tz)
+        test_day = test_day_view(retests.due(session, on, settings.tz))
         if plan is not None and kept is not None and kept.template_id != plan.template_id:
             kept = None  # kept for a session that's no longer today's: its swaps don't apply
         if plan is not None and kept is not None and kept.first:
             plan = guided.today(session, on, settings.tz, set(kept.first))
     if plan is None:
-        return TodayView(session=None)
+        return TodayView(session=None, test_day=test_day)
     progress = None
     if kept is not None:
         progress = ProgressView(
@@ -159,6 +173,7 @@ def today(request: Request, user: Owner) -> TodayView:
         )
     return TodayView(
         progress=progress,
+        test_day=test_day,
         session=GuidedView(
             day=plan.day.isoformat(),
             template_id=plan.template_id,

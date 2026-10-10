@@ -1103,6 +1103,32 @@
         "title": "TestDayBody",
         "type": "object"
       },
+      "TestDayDueView": {
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tests": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tests",
+            "type": "array"
+          }
+        },
+        "required": [
+          "day",
+          "name",
+          "tests"
+        ],
+        "title": "TestDayDueView",
+        "type": "object"
+      },
       "TestDaySaved": {
         "properties": {
           "already_saved": {
@@ -1274,6 +1300,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/GuidedView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "test_day": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TestDayDueView"
               },
               {
                 "type": "null"
@@ -2078,6 +2114,36 @@
           }
         },
         "summary": "Save",
+        "tags": [
+          "tests"
+        ]
+      }
+    },
+    "/api/tests/due": {
+      "get": {
+        "description": "The test day due today, if any (ADR-0038).",
+        "operationId": "due_api_tests_due_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TestDayDueView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Due Api Tests Due Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Due",
         "tags": [
           "tests"
         ]

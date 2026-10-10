@@ -196,18 +196,24 @@ export type FitnessTest = Schemas['TestView']
 export type TestDay = Schemas['TestDayView']
 export type TestDayBody = Schemas['TestDayBody']
 export type TestResult = Schemas['TestResultView']
+export type TestDayDue = Schemas['TestDayDueView']
 
 /** Every test and every saved test day; null when not signed in. */
 export async function fetchTests(
   signal?: AbortSignal,
-): Promise<{ tests: FitnessTest[]; days: TestDay[] } | null> {
-  const [tests, days] = await Promise.all([
-    fetch('/api/tests', { signal, credentials: 'same-origin' }),
-    fetch('/api/tests/results', { signal, credentials: 'same-origin' }),
-  ])
-  if (tests.status === 401 || days.status === 401) return null
-  if (!tests.ok || !days.ok) throw new Error('The server answered with an error.')
-  return { tests: (await tests.json()) as FitnessTest[], days: (await days.json()) as TestDay[] }
+): Promise<{ tests: FitnessTest[]; days: TestDay[]; due: TestDayDue | null } | null> {
+  const [tests, days, due] = await Promise.all(
+    ['/api/tests', '/api/tests/results', '/api/tests/due'].map((path) =>
+      fetch(path, { signal, credentials: 'same-origin' }),
+    ),
+  )
+  if ([tests, days, due].some((r) => r.status === 401)) return null
+  if (![tests, days, due].every((r) => r.ok)) throw new Error('The server answered with an error.')
+  return {
+    tests: (await tests.json()) as FitnessTest[],
+    days: (await days.json()) as TestDay[],
+    due: (await due.json()) as TestDayDue | null,
+  }
 }
 
 /** Save a test day: its id, or a string saying why the server refused it. */

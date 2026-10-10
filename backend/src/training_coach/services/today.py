@@ -13,15 +13,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import (
+    FitnessTestDay,
     SessionTemplate,
     TemplateItem,
     Workout,
 )
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind
-from training_coach.domain.queue import ADVANCING, Position, upcoming
+from training_coach.domain.queue import ADVANCING, Position, advance
+from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import targets
-from training_coach.services import blocks, users
+from training_coach.services import blocks, retests, users
 from training_coach.services.progress import sessions_at_step
 from training_coach.services.seed import bundled_plan
 
@@ -57,6 +59,8 @@ class Today:
     session: SessionPlan
     logged_today: tuple[str, ...]  # "Legs (done)", one per workout already logged today
     block: Block | None = None  # the training block, when blocks are on (ADR-0028)
+    # A test day due today (ADR-0038): it comes first, and the session waits a day.
+    test_day: retests.TestDayDue | None = None
 
 
 @dataclass(frozen=True)
@@ -156,13 +160,16 @@ def today(session: Session, on: date, tz: ZoneInfo | None = None) -> Today | Non
             f"{names[w.template_id] if w.template_id else 'Extra'} ({w.status})" for w in logged
         ),
         block=block,
+        test_day=retests.due(session, on, tz) if tz is not None else None,
     )
 
 
-def week(session: Session, on: date, days: int = 7) -> list[Day] | None:
-    """The next ``days`` sessions, dated as if each is done on its day (ADR-0006).
+def week(session: Session, on: date, days: int = 7, tz: ZoneInfo | None = None) -> list[Day] | None:
+    """The next ``days`` sessions, dated as if each is done on its day (ADR-0006); with
+    ``tz``, test days that fall due take their day and the sessions wait (ADR-0038).
 
-    Starts tomorrow when today's planned session is already done or rested.
+    Starts tomorrow when today's planned session is already done or rested, or a test day was
+    saved today.
     """
     current = position(session)
     order = _order(session)
@@ -176,9 +183,21 @@ def week(session: Session, on: date, days: int = 7) -> list[Day] | None:
             Workout.status.in_(ADVANCING),
         )
     )
-    start = on + timedelta(days=1) if advanced_today is not None else on
+    tested_today = session.scalar(
+        select(FitnessTestDay.id).where(FitnessTestDay.local_date == on).limit(1)
+    )
+    done_today = advanced_today is not None or tested_today is not None
+    start = on + timedelta(days=1) if done_today else on
     names = {t.id: t.name for t in order}
-    return [
-        Day(date=start + timedelta(days=i), session=names[template_id])
-        for i, template_id in enumerate(upcoming(ids, current, days))
-    ]
+    planned = retests.done(session) if tz is not None else []
+    result: list[Day] = []
+    for n in range(days):
+        day = start + timedelta(days=n)
+        test = retests.due(session, day, tz, planned) if tz is not None else None
+        if test is not None:
+            result.append(Day(date=day, session=test.name))
+            planned.append(PastTest(day, test.day))  # as if done on its day
+            continue
+        result.append(Day(date=day, session=names[current.pointer]))
+        current = advance(ids, current)
+    return result
