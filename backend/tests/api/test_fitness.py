@@ -1,7 +1,7 @@
 """/api/tests (2-A, #94): baseline tests and retests, owner-only."""
 
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,7 +9,9 @@ from sqlalchemy import Engine
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.session import make_session_factory
+from training_coach.db.models import FitnessTestDay
+from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.queue import local_date
 from training_coach.services import auth
 from training_coach.services.users import OWNER
 
@@ -88,3 +90,30 @@ def test_tests_need_a_signed_in_browser(engine: Engine) -> None:
         assert stranger.get("/api/tests").status_code == 401
         assert stranger.get("/api/tests/results").status_code == 401
         assert stranger.post("/api/tests", json=DAY_1).status_code == 401
+
+
+def test_day_2_is_due_the_day_after_day_1(signed_in: TestClient, engine: Engine) -> None:
+    assert signed_in.get("/api/tests/due").json() is None  # nothing before the baseline
+    today = local_date(datetime.now(UTC), Settings().tz)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
+        bound.add(
+            FitnessTestDay(
+                local_date=today - timedelta(days=1),
+                day=1,
+                time_of_day="morning",
+                fed=True,
+                slept_well=True,
+                results=[],
+                token="d" * 20,
+            )
+        )
+    due = signed_in.get("/api/tests/due").json()
+    assert (due["day"], due["name"]) == (2, "Baseline tests, day 2")
+    assert "12-minute run" in due["tests"]
+    assert signed_in.get("/api/session/today").json()["test_day"] == due
+
+
+def test_whats_due_needs_a_signed_in_browser(engine: Engine) -> None:
+    settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+    with TestClient(create_app(settings), base_url=ORIGIN) as stranger:
+        assert stranger.get("/api/tests/due").status_code == 401

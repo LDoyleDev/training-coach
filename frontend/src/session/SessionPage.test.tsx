@@ -419,3 +419,21 @@ test('a baseline exercise says so on the overview and its set', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Start session' }))
   expect(screen.getByText(/Baseline: first time at this step/)).toBeInTheDocument()
 })
+
+const DUE = { day: 2, name: 'Retest, day 2', tests: ['Bulgarian split squat', '12-minute run'] }
+
+test('a test day due today comes first, and the session waits below it', async () => {
+  serve({ today: { session: SESSION, progress: null, test_day: DUE } })
+  render(<SessionPage />)
+  expect(await screen.findByRole('heading', { name: 'Today: Retest, day 2' })).toBeInTheDocument()
+  expect(screen.getByText('Bulgarian split squat, 12-minute run.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Go to the tests' })).toHaveAttribute('href', '/tests')
+  expect(screen.getByRole('button', { name: 'Start session' })).toBeInTheDocument()
+})
+
+test('a test day shows even with nothing left to train', async () => {
+  serve({ today: { session: null, progress: null, test_day: DUE } })
+  render(<SessionPage />)
+  expect(await screen.findByRole('heading', { name: 'Today: Retest, day 2' })).toBeInTheDocument()
+  expect(screen.getByText(/Nothing left to train today/)).toBeInTheDocument()
+})
