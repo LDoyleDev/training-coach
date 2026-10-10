@@ -49,6 +49,7 @@ class Guided:
     rest_seconds: int
     items: tuple[ItemPlan, ...]
     order: tuple[GuidedSet, ...]
+    slug: str = ""  # the session template's
 
 
 def _minutes(items: tuple[ItemPlan, ...], warm_up: bool) -> int:
@@ -87,6 +88,7 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
         name=plan.name,
         focus=plan.focus,
         kind=plan.kind,
+        slug=plan.slug,
         warm_up=warm_up,
         block=block,
         minutes=_minutes(plan.items, warm_up),

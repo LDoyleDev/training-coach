@@ -395,6 +395,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Readiness */
+        get: operations["get_readiness_api_readiness_get"];
+        /**
+         * Put Readiness
+         * @description Answer every question; the answers replace any earlier ones.
+         */
+        put: operations["put_readiness_api_readiness_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session/pending": {
         parameters: {
             query?: never;
@@ -594,6 +615,13 @@ export interface components {
             /** Credential */
             credential: {
                 [key: string]: unknown;
+            };
+        };
+        /** AnswersBody */
+        AnswersBody: {
+            /** Answers */
+            answers: {
+                [key: string]: boolean;
             };
         };
         /** BlockView */
@@ -895,6 +923,42 @@ export interface components {
             /** Template Id */
             template_id: number;
         };
+        /** QuestionView */
+        QuestionView: {
+            /** Key */
+            key: string;
+            /** Text */
+            text: string;
+        };
+        /** ReadinessSavedView */
+        ReadinessSavedView: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "due" | "clear" | "see_doctor";
+        };
+        /**
+         * ReadinessView
+         * @description The questions, the latest answers if they still count, and what they mean.
+         */
+        ReadinessView: {
+            /** Answered At */
+            answered_at: string | null;
+            /** Answers */
+            answers: {
+                [key: string]: boolean;
+            } | null;
+            /** Ask Again After */
+            ask_again_after: string | null;
+            /** Questions */
+            questions: components["schemas"]["QuestionView"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "due" | "clear" | "see_doctor";
+        };
         /** Redeem */
         Redeem: {
             /** Token */
@@ -1122,6 +1186,8 @@ export interface components {
          */
         TodayView: {
             progress?: components["schemas"]["ProgressView"] | null;
+            /** Readiness Note */
+            readiness_note?: string | null;
             session: components["schemas"]["GuidedView"] | null;
             test_day?: components["schemas"]["TestDayDueView"] | null;
         };
@@ -1703,6 +1769,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StandingView"][];
+                };
+            };
+        };
+    };
+    get_readiness_api_readiness_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadinessView"];
+                };
+            };
+        };
+    };
+    put_readiness_api_readiness_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswersBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadinessSavedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

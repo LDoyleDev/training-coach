@@ -12,8 +12,10 @@ from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import local_date
+from training_coach.domain.readiness import HARD_SESSIONS
+from training_coach.domain.readiness import note as readiness_note
 from training_coach.domain.stretching import HOLD_SECONDS
-from training_coach.services import guided, retests, stretching, workout_log
+from training_coach.services import guided, readiness, retests, stretching, workout_log
 from training_coach.services import progress as feedback
 
 router = APIRouter(prefix="/api/session", tags=["session"])
@@ -110,6 +112,9 @@ class TodayView(BaseModel):
     session: GuidedView | None
     progress: ProgressView | None = None
     test_day: TestDayDueView | None = None  # due today, in front of the session (ADR-0038)
+    # On a hard day (HIIT or a test day): answer the readiness questions, or see a doctor first
+    # (ADR-0046). Advice only.
+    readiness_note: str | None = None
 
 
 class KeepBody(BaseModel):
@@ -155,12 +160,15 @@ def today(request: Request, user: Owner) -> TodayView:
         kept = guided.kept(session, on)
         plan = guided.today(session, on, settings.tz)
         test_day = test_day_view(retests.due(session, on, settings.tz))
+        current = readiness.current(session, datetime.now(UTC))
         if plan is not None and kept is not None and kept.template_id != plan.template_id:
             kept = None  # kept for a session that's no longer today's: its swaps don't apply
         if plan is not None and kept is not None and kept.first:
             plan = guided.today(session, on, settings.tz, set(kept.first))
+    hard = test_day is not None or (plan is not None and plan.slug in HARD_SESSIONS)
+    caution = readiness_note(current, hard)
     if plan is None:
-        return TodayView(session=None, test_day=test_day)
+        return TodayView(session=None, test_day=test_day, readiness_note=caution)
     progress = None
     if kept is not None:
         progress = ProgressView(
@@ -174,6 +182,7 @@ def today(request: Request, user: Owner) -> TodayView:
     return TodayView(
         progress=progress,
         test_day=test_day,
+        readiness_note=caution,
         session=GuidedView(
             day=plan.day.isoformat(),
             template_id=plan.template_id,

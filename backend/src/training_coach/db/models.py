@@ -522,6 +522,19 @@ class PasskeyChallenge(Base):
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
+class ReadinessAnswers(Owned, Base):
+    """A person's answers to the readiness questions (ADR-0046): the latest only, one row each.
+    Health data: never logged, never shared."""
+
+    __tablename__ = "readiness_answers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    version: Mapped[int] = mapped_column(Integer)  # which questions (domain.readiness.VERSION)
+    answers: Mapped[dict[str, bool]] = mapped_column(JSON)
+    answered_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
 class Event(Owned, Base):
     """Audit log. Payloads must never contain secrets, transcripts or measurements.
     ``user_id`` is empty for system events such as ``seed.applied``."""

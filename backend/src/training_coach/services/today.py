@@ -52,6 +52,7 @@ class SessionPlan:
     optional: bool
     items: tuple[ItemPlan, ...]
     kind: str = "strength"  # strength | conditioning | recovery (plan.toml)
+    slug: str = ""  # the session template's, e.g. "hiit"
 
 
 @dataclass(frozen=True)
@@ -139,6 +140,7 @@ def session_plan(
             for item in template.items
         ),
         kind=template.kind,
+        slug=template.slug,
     )
 
 

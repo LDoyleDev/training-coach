@@ -86,6 +86,7 @@ def test_nothing_to_guide_once_today_is_done(signed_in: TestClient, engine: Engi
         "session": None,
         "progress": None,
         "test_day": None,
+        "readiness_note": None,
     }
 
 
@@ -181,7 +182,12 @@ def test_saving_logs_the_sets_once_and_moves_the_queue(
     again = signed_in.post("/api/session/save", json={})
     assert again.json()["already_saved"] is True
     assert again.json()["workout_id"] == body["workout_id"]
-    assert _today_view(signed_in) == {"session": None, "progress": None, "test_day": None}
+    assert _today_view(signed_in) == {
+        "session": None,
+        "progress": None,
+        "test_day": None,
+        "readiness_note": None,
+    }
 
 
 def test_one_sided_sets_log_both_sides(signed_in: TestClient, engine: Engine) -> None:

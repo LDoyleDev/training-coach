@@ -22,6 +22,7 @@ from training_coach.api.passkeys import router as passkeys_router
 from training_coach.api.photos import router as photos_router
 from training_coach.api.plan import router as plan_router
 from training_coach.api.progress import router as progress_router
+from training_coach.api.readiness import router as readiness_router
 from training_coach.api.security import request_guard, security_headers_middleware
 from training_coach.api.session import router as session_router
 from training_coach.bot.app import build_bot, send_with_retry
@@ -150,6 +151,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(body_router)
     app.include_router(photos_router)
     app.include_router(progress_router)
+    app.include_router(readiness_router)
 
     # Mounted last so API routes always win over static files.
     dist = settings.web_dist_dir
