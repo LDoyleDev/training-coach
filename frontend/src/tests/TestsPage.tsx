@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { fetchTests, saveTestDay, type FitnessTest, type TestDay, type TestResult } from '../api'
+import {
+  fetchTests,
+  saveTestDay,
+  type FitnessTest,
+  type TestDay,
+  type TestDayDue,
+  type TestResult,
+} from '../api'
 import {
   change,
   compare,
@@ -19,7 +26,7 @@ type Loaded =
   | { status: 'loading' }
   | { status: 'signed-out' }
   | { status: 'error' }
-  | { status: 'ready'; tests: FitnessTest[]; days: TestDay[] }
+  | { status: 'ready'; tests: FitnessTest[]; days: TestDay[]; due: TestDayDue | null }
 
 type When = 'morning' | 'midday' | 'afternoon' | 'evening'
 type Stage = 'list' | 'conditions' | 'test' | 'check' | 'saved'
@@ -67,7 +74,7 @@ export default function TestsPage() {
   }, [])
 
   if (loaded.status !== 'ready') return <Shell>{<Status loaded={loaded} />}</Shell>
-  const { tests, days } = loaded
+  const { tests, days, due } = loaded
   const list = steps(tests, day)
   const step: Step | undefined = list[position]
 
@@ -148,6 +155,15 @@ export default function TestsPage() {
           <p className="text-[var(--slate)]">
             Two days of tests. Retest under the same conditions to see what changed.
           </p>
+          {due && (
+            <div className={card + ' flex flex-col gap-3 border-[var(--bell-ink)]'}>
+              <p className="font-bold">Due today: {due.name}</p>
+              <p className="text-[var(--slate)]">Your session waits until they're done.</p>
+              <button type="button" className={primary} onClick={() => start(due.day)}>
+                Start {due.name.toLowerCase()}
+              </button>
+            </div>
+          )}
           {[1, 2].map((which) => (
             <div key={which} className={card + ' flex flex-col gap-3'}>
               <h2 className="font-bold">Day {which}</h2>

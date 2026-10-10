@@ -333,6 +333,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tests/due": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Due
+         * @description The test day due today, if any (ADR-0038).
+         */
+        get: operations["due_api_tests_due_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tests/results": {
         parameters: {
             query?: never;
@@ -729,6 +749,15 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** TestDayDueView */
+        TestDayDueView: {
+            /** Day */
+            day: number;
+            /** Name */
+            name: string;
+            /** Tests */
+            tests: string[];
+        };
         /** TestDaySaved */
         TestDaySaved: {
             /** Already Saved */
@@ -801,6 +830,7 @@ export interface components {
         TodayView: {
             progress?: components["schemas"]["ProgressView"] | null;
             session: components["schemas"]["GuidedView"] | null;
+            test_day?: components["schemas"]["TestDayDueView"] | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1323,6 +1353,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    due_api_tests_due_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestDayDueView"] | null;
                 };
             };
         };
