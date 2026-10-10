@@ -4,6 +4,13 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.24.0](https://github.com/LDoyleDev/training-coach/compare/v0.23.0...v0.24.0) (2026-10-10)
+
+
+### Features
+
+* **web:** a Sign out button in the top bar of every page ([#192](https://github.com/LDoyleDev/training-coach/issues/192)) ([d9e1881](https://github.com/LDoyleDev/training-coach/commit/d9e18815cd4fe73b185ec6a55d5db0a9a53f56e7))
+
 ## [0.23.0](https://github.com/LDoyleDev/training-coach/compare/v0.22.0...v0.23.0) (2026-10-10)
 
 
