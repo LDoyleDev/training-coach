@@ -3,14 +3,13 @@ import { fetchProgress, type Standing } from '../api'
 import AppShell from '../components/AppShell'
 import Sparkline from '../components/Sparkline'
 import { amount } from './logic'
+import { card } from '../ui'
 
 type Loaded =
   | { status: 'loading' }
   | { status: 'signed-out' }
   | { status: 'error' }
   | { status: 'ready'; standings: Standing[] }
-
-const card = 'rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-4'
 
 const STATUS: Record<Standing['status'], string | null> = {
   ready: 'Ready to move up',

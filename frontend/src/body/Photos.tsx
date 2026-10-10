@@ -10,6 +10,7 @@ import {
 import SignedOutNotice from '../components/SignedOutNotice'
 import { isoDay } from './logic'
 import { shrink } from './shrink'
+import { card, small } from '../ui'
 
 const POSES: { pose: Pose; label: string }[] = [
   { pose: 'front', label: 'Front' },
@@ -20,10 +21,8 @@ const POSES: { pose: Pose; label: string }[] = [
 /** Photos are taken now, so they are today's. */
 const today = () => isoDay(new Date())
 
-const card = 'rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-4'
 const pick =
   'flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-xl border-2 border-[var(--ink)] px-3 font-bold text-[var(--ink)]'
-const small = 'min-h-11 rounded-xl border-2 border-[var(--ink)] px-3 font-bold text-[var(--ink)]'
 
 /** Progress photos on /body (2-B, #143): take or choose one per pose, see them by day.
  * Personal: only ever shown to the signed-in owner. */
@@ -135,13 +134,13 @@ export default function Photos() {
                     loading="lazy"
                     className="aspect-[3/4] w-full rounded-xl object-cover"
                   />
-                  <figcaption className="flex items-center justify-between gap-1 text-sm">
+                  <figcaption className="flex flex-wrap items-center justify-between gap-1 text-sm">
                     {POSES.find((p) => p.pose === photo.pose)?.label}
                     {confirming === photo.id ? (
-                      <span className="flex gap-1">
+                      <span className="flex w-full gap-1">
                         <button
                           type="button"
-                          className={small}
+                          className={small + ' flex-1 px-1'}
                           aria-label={`Keep the ${photo.pose} photo on ${on}`}
                           onClick={() => setConfirming(null)}
                         >
@@ -149,7 +148,7 @@ export default function Photos() {
                         </button>
                         <button
                           type="button"
-                          className={small + ' text-[var(--bell-ink)]'}
+                          className={small + ' flex-1 px-1 text-[var(--bell-ink)]'}
                           aria-label={`Yes, remove the ${photo.pose} photo on ${on}`}
                           onClick={() => remove(photo)}
                         >

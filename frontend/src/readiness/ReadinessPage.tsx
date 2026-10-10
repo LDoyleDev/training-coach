@@ -2,16 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { fetchReadiness, saveReadiness, SignedOutError, type Readiness } from '../api'
 import AppShell from '../components/AppShell'
 import SignedOutNotice from '../components/SignedOutNotice'
+import { card, primary } from '../ui'
 
 type Loaded =
   | { status: 'loading' }
   | { status: 'signed-out' }
   | { status: 'error' }
   | { status: 'ready'; readiness: Readiness }
-
-const card = 'rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-4'
-const primary =
-  'min-h-14 w-full rounded-2xl bg-[var(--bell-ink)] px-4 text-lg font-bold text-white disabled:opacity-60'
 
 const CLEAR =
   "Thanks. Nothing in your answers says to hold back. You'll be asked again in about 6 months, " +

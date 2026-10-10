@@ -25,6 +25,8 @@ import {
   unitText,
   type Step,
 } from './logic'
+import { card, primary, secondary } from '../ui'
+import Toast from '../components/Toast'
 
 type Loaded =
   | { status: 'loading' }
@@ -35,11 +37,6 @@ type Loaded =
 type When = 'morning' | 'midday' | 'afternoon' | 'evening'
 type Stage = 'list' | 'conditions' | 'test' | 'check' | 'saved'
 
-const card = 'rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-4'
-const primary =
-  'min-h-14 w-full rounded-2xl bg-[var(--bell-ink)] px-4 text-lg font-bold text-white disabled:opacity-60'
-const secondary =
-  'min-h-11 rounded-xl border-2 border-[var(--ink)] px-4 font-bold text-[var(--ink)]'
 const toggle = (on: boolean) =>
   'min-h-11 flex-1 rounded-xl border-2 px-3 font-bold ' +
   (on
@@ -148,11 +145,7 @@ export default function TestsPage() {
 
   return (
     <AppShell>
-      {note && (
-        <p role="status" className="status">
-          {note}
-        </p>
-      )}
+      <Toast text={note} onClose={() => setNote(null)} />
       {signedOut && <SignedOutNotice />}
 
       {stage === 'list' && (

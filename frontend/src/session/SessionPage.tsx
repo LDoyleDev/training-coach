@@ -26,6 +26,7 @@ import {
   type Values,
 } from './logic'
 import Stretching from './Stretching'
+import { card, primary, secondary } from '../ui'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
 
@@ -35,12 +36,6 @@ type Loaded =
   | { status: 'error' }
   | { status: 'none' } // nothing planned left today
   | { status: 'ready'; session: Guided }
-
-const card = 'rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-4'
-const primary =
-  'min-h-14 w-full rounded-2xl bg-[var(--bell-ink)] px-4 text-lg font-bold text-white disabled:opacity-60'
-const secondary =
-  'min-h-11 rounded-xl border-2 border-[var(--ink)] px-4 font-bold text-[var(--ink)]'
 
 /**
  * /session: today's session one set at a time (D1, docs/specs/dashboard-design.md). Every

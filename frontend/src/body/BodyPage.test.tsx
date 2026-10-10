@@ -140,7 +140,7 @@ test('an ended sign-in points to sign in and keeps what was typed', async () => 
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   expect(await screen.findByRole('link', { name: 'Sign in again' })).toHaveAttribute(
     'href',
-    '/signin',
+    expect.stringMatching(/^\/signin\?next=/),
   )
   expect(screen.getByLabelText('Waist')).toHaveValue('85')
   expect(sent).toEqual([])

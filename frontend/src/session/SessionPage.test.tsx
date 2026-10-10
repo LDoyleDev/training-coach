@@ -473,7 +473,7 @@ test('an ended sign-in while confirming a set points to sign in and keeps the se
   click('Confirm set')
   expect(await screen.findByRole('link', { name: 'Sign in again' })).toHaveAttribute(
     'href',
-    '/signin',
+    expect.stringMatching(/^\/signin\?next=/),
   )
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument() // still here
   expect(screen.queryByText(/Check your connection/)).not.toBeInTheDocument()

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { addPasskey, passkeysSupported, redeemLink, signInWithPasskey } from './api'
+import { nextPage } from './next'
+import { primary, primaryInline, secondary } from './ui'
 
 type State =
   | 'choose' // no link: sign in with a passkey, or get a link from the bot
@@ -28,6 +30,7 @@ const PROBLEMS: Record<'refused' | 'passkey-refused' | 'error', string> = {
 export default function SignIn() {
   // Read once, on the first render, before the effect clears it from the address bar.
   const [token] = useState(() => window.location.hash.slice(1))
+  const [next] = useState(() => nextPage(window.location.search))
   const [state, setState] = useState<State>(token ? 'working' : 'choose')
   const [offer, setOffer] = useState<Offer>('none')
   const [supported] = useState(passkeysSupported)
@@ -49,7 +52,7 @@ export default function SignIn() {
   const usePasskey = () => {
     setState('working')
     signInWithPasskey()
-      .then((ok) => setState(ok ? 'signed-in' : 'passkey-refused'))
+      .then((ok) => (ok ? window.location.assign(next) : setState('passkey-refused')))
       .catch(() => setState('passkey-refused'))
   }
 
@@ -90,7 +93,7 @@ export default function SignIn() {
             )}
             {supported ? (
               <p>
-                <button type="button" onClick={usePasskey}>
+                <button type="button" onClick={usePasskey} className={primary}>
                   Sign in with fingerprint or face
                 </button>
               </p>
@@ -114,7 +117,7 @@ export default function SignIn() {
             </p>
             {offer === 'offer' && (
               <p>
-                <button type="button" onClick={add}>
+                <button type="button" onClick={add} className={secondary}>
                   Use your fingerprint next time
                 </button>
               </p>
@@ -129,7 +132,9 @@ export default function SignIn() {
               </p>
             )}
             <p>
-              <a href="/">Continue</a>
+              <a href={next} className={`${primaryInline} inline-flex items-center no-underline`}>
+                Continue
+              </a>
             </p>
           </>
         )}
