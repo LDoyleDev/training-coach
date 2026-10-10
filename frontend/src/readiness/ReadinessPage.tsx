@@ -2,16 +2,14 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { fetchReadiness, saveReadiness, SignedOutError, type Readiness } from '../api'
 import AppShell from '../components/AppShell'
 import SignedOutNotice from '../components/SignedOutNotice'
+import { card, primary } from '../ui'
+import { RetryCard, SignInCard } from '../components/StateCards'
 
 type Loaded =
   | { status: 'loading' }
   | { status: 'signed-out' }
   | { status: 'error' }
   | { status: 'ready'; readiness: Readiness }
-
-const card = 'rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-4'
-const primary =
-  'min-h-14 w-full rounded-2xl bg-[var(--bell-ink)] px-4 text-lg font-bold text-white disabled:opacity-60'
 
 const CLEAR =
   "Thanks. Nothing in your answers says to hold back. You'll be asked again in about 6 months, " +
@@ -115,14 +113,6 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
       </p>
     )
   if (loaded.status === 'signed-out')
-    return (
-      <p className="status">
-        Sign in to answer the readiness questions. <a href="/signin">Sign in</a>
-      </p>
-    )
-  return (
-    <p className="status status-error" role="alert">
-      Couldn't load the questions. Check your connection and reload the page.
-    </p>
-  )
+    return <SignInCard text="Sign in to answer the readiness questions." />
+  return <RetryCard text="Couldn't load the questions. Check your connection." />
 }

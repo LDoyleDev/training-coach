@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { fetchPlan, type Plan } from './api'
-import { ChatPreview } from './components/ChatPreview'
+import AppShell from './components/AppShell'
 import { CycleRing } from './components/CycleRing'
 import { Ladders } from './components/Ladders'
 import { SessionList } from './components/SessionList'
 import { VolumeChart } from './components/VolumeChart'
+import { card, primaryInline } from './ui'
 
 const LADDER_PICKS = [
   'pull-up',
@@ -42,29 +43,30 @@ export default function App() {
   }
 
   return (
-    <div className="page">
-      <header className="masthead flex items-baseline justify-between gap-4">
-        <span className="wordmark">Training Coach</span>
-        <a href="/session" className="font-bold text-[var(--bell-ink)] no-underline">
-          Today
-        </a>
-      </header>
-
+    <AppShell>
       {state.status === 'loading' && <p className="status">Loading the plan…</p>}
       {state.status === 'signed-out' && (
-        <p className="status">
-          Sign in to see your plan. <a href="/signin">Sign in</a>
-        </p>
+        <div className={card}>
+          <p className="m-0 mb-3">Sign in to see your plan.</p>
+          <a
+            href="/signin?next=/plan"
+            className={`${primaryInline} inline-flex items-center no-underline`}
+          >
+            Sign in
+          </a>
+        </div>
       )}
       {state.status === 'error' && (
         <p className="status status-error" role="alert">
-          Couldn't load the plan. {state.message} Check that the server is running, then reload the
-          page.
+          Couldn't load the plan. {state.message} Check your connection, then try again.{' '}
+          <button type="button" onClick={() => window.location.reload()}>
+            Try again
+          </button>
         </p>
       )}
 
       {state.status === 'ready' && (
-        <main>
+        <div>
           <section className="hero">
             <div className="hero-text">
               <h1>Seven sessions, one fixed order</h1>
@@ -117,19 +119,7 @@ export default function App() {
               })}
             />
           </section>
-
-          <section className="block block-split" aria-labelledby="day">
-            <div>
-              <h2 id="day">A day with the coach</h2>
-              <p className="block-intro">
-                Everything happens in Telegram. The day's session arrives at 07:30, the workout is
-                logged with one voice note, and nothing is saved until it's confirmed.
-              </p>
-              <p className="aside">How a day with the bot looks.</p>
-            </div>
-            <ChatPreview />
-          </section>
-        </main>
+        </div>
       )}
 
       <footer className="footer">
@@ -139,6 +129,6 @@ export default function App() {
           Huberman or Andy Galpin.
         </p>
       </footer>
-    </div>
+    </AppShell>
   )
 }

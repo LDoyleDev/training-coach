@@ -12,17 +12,15 @@ import SignedOutNotice from '../components/SignedOutNotice'
 import { byDay, change, format, isoDay, latest, parse } from './logic'
 import Photos from './Photos'
 import Sparkline from '../components/Sparkline'
+import { card, primary, small } from '../ui'
+import Toast from '../components/Toast'
+import { RetryCard, SignInCard } from '../components/StateCards'
 
 type Loaded =
   | { status: 'loading' }
   | { status: 'signed-out' }
   | { status: 'error' }
   | { status: 'ready'; kinds: MeasureKind[]; entries: Measurement[] }
-
-const card = 'rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-4'
-const primary =
-  'min-h-14 w-full rounded-2xl bg-[var(--bell-ink)] px-4 text-lg font-bold text-white disabled:opacity-60'
-const small = 'min-h-11 rounded-xl border-2 border-[var(--ink)] px-3 font-bold text-[var(--ink)]'
 
 /** /body: measurements (2-B, #142). Personal: never in a share view. */
 export default function BodyPage() {
@@ -85,11 +83,7 @@ export default function BodyPage() {
   return (
     <AppShell>
       <h1 className="text-3xl font-extrabold">Body</h1>
-      {note && (
-        <p role="status" className="status">
-          {note}
-        </p>
-      )}
+      <Toast text={note} onClose={() => setNote(null)} />
       {signedOut && <SignedOutNotice />}
 
       {latest(kinds, entries).length > 0 && (
@@ -199,15 +193,6 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
         Loading…
       </p>
     )
-  if (loaded.status === 'signed-out')
-    return (
-      <p className="status">
-        Sign in to see your measurements. <a href="/signin">Sign in</a>
-      </p>
-    )
-  return (
-    <p className="status status-error" role="alert">
-      Couldn't load your measurements. Check your connection and reload the page.
-    </p>
-  )
+  if (loaded.status === 'signed-out') return <SignInCard text="Sign in to see your measurements." />
+  return <RetryCard text="Couldn't load your measurements. Check your connection." />
 }

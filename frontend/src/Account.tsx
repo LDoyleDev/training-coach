@@ -1,6 +1,8 @@
 import AppShell from './components/AppShell'
 import AiComments from './account/AiComments'
 import CopyForAI from './account/CopyForAI'
+import Toast from './components/Toast'
+import { card, danger, primaryInline, secondary } from './ui'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import {
   addPasskey,
@@ -25,6 +27,10 @@ type State =
   | { status: 'signed-out' }
   | { status: 'error' }
   | { status: 'ready'; signIns: SignIns }
+
+/** One item in a list, with its action at the end; wraps on a phone. */
+const row =
+  'flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] py-2 last:border-0'
 
 const day = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -110,36 +116,56 @@ export default function Account() {
 
   return (
     <AppShell>
-      <h1>Sign-in and devices</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1>Account</h1>
+        <button type="button" onClick={leave} className="sm:hidden">
+          Sign out
+        </button>
+      </div>
       {state.status === 'loading' && (
         <p className="status" role="status">
           Loading…
         </p>
       )}
       {state.status === 'error' && (
-        <p className="status status-error" role="alert">
-          Couldn't load your sign-ins. Check your connection and reload the page.
-        </p>
+        <div className={card}>
+          <p className="status-error m-0 mb-3" role="alert">
+            Couldn't load your sign-ins. Check your connection.
+          </p>
+          <button type="button" onClick={load}>
+            Try again
+          </button>
+        </div>
       )}
       {state.status === 'signed-out' && (
-        <p className="status">
-          You're not signed in. <a href="/signin">Sign in</a>
-        </p>
+        <div className={card}>
+          <p className="m-0 mb-3">You're not signed in.</p>
+          <a
+            href="/signin?next=/account"
+            className={`${primaryInline} inline-flex items-center no-underline`}
+          >
+            Sign in
+          </a>
+        </div>
       )}
       {state.status === 'ready' && (
         <>
-          {note && <p role="status">{note}</p>}
+          <Toast text={note} onClose={() => setNote(null)} />
 
-          <section aria-labelledby="passkeys">
-            <h2 id="passkeys">Passkeys</h2>
+          <section aria-labelledby="passkeys" className={card}>
+            <h2 id="passkeys" className="mb-2 text-xl">
+              Passkeys
+            </h2>
             {state.signIns.passkeys.length === 0 ? (
               <p>No passkeys yet: you sign in with a link from the bot.</p>
             ) : (
-              <ul>
+              <ul className="m-0 mb-3 list-none p-0">
                 {state.signIns.passkeys.map((key) => (
-                  <li key={key.id}>
-                    {key.name} · added {day(key.created_at)}
-                    {key.last_used_at ? ` · last used ${day(key.last_used_at)}` : ''}{' '}
+                  <li key={key.id} className={row}>
+                    <span>
+                      {key.name} · added {day(key.created_at)}
+                      {key.last_used_at ? ` · last used ${day(key.last_used_at)}` : ''}
+                    </span>
                     <button
                       type="button"
                       onClick={() => act(removePasskey(key.id), 'Passkey removed.')}
@@ -158,13 +184,17 @@ export default function Account() {
             )}
           </section>
 
-          <section aria-labelledby="devices">
-            <h2 id="devices">Signed-in browsers</h2>
-            <ul>
+          <section aria-labelledby="devices" className={card}>
+            <h2 id="devices" className="mb-2 text-xl">
+              Signed-in browsers
+            </h2>
+            <ul className="m-0 list-none p-0">
               {state.signIns.devices.map((device) => (
-                <li key={device.id}>
-                  {device.current ? 'This browser' : device.label} · last seen{' '}
-                  {day(device.last_seen_at)}{' '}
+                <li key={device.id} className={row}>
+                  <span>
+                    {device.current ? 'This browser' : device.label} · last seen{' '}
+                    {day(device.last_seen_at)}
+                  </span>
                   {device.current ? (
                     <button type="button" onClick={leave}>
                       Sign out
@@ -183,41 +213,47 @@ export default function Account() {
             </ul>
           </section>
 
-          <section aria-labelledby="readiness">
-            <h2 id="readiness">Readiness</h2>
-            <p>
-              Seven questions about your health before hard exercise.{' '}
-              <a href="/readiness">Answer or update them</a>
-            </p>
+          <section aria-labelledby="readiness" className={card}>
+            <h2 id="readiness" className="mb-2 text-xl">
+              Readiness
+            </h2>
+            <p className="mt-0">Seven questions about your health before hard exercise.</p>
+            <a href="/readiness" className={`${secondary} inline-flex items-center no-underline`}>
+              Answer or update them
+            </a>
           </section>
 
-          <section aria-labelledby="your-data">
-            <h2 id="your-data">Your data</h2>
-            <p>
+          <section aria-labelledby="your-data" className={card}>
+            <h2 id="your-data" className="mb-2 text-xl">
+              Your data
+            </h2>
+            <p className="mt-0">
               Everything stored about you: workouts, tests, measurements, habits, settings and your
               photos, as one zip file.
             </p>
-            <p>
-              <button type="button" onClick={download}>
-                Download all my data
-              </button>
-            </p>
+            <button type="button" onClick={download}>
+              Download all my data
+            </button>
           </section>
 
           <CopyForAI />
           <AiComments />
 
-          <section aria-labelledby="erase">
-            <h2 id="erase">Erase all my data</h2>
-            <p>
+          <section aria-labelledby="erase" className={card}>
+            <h2 id="erase" className="mb-2 text-xl">
+              Erase all my data
+            </h2>
+            <p className="mt-0">
               Deletes everything stored about you: workouts, tests, measurements, habits, settings,
               photos, passkeys and every signed-in browser. You start again from the first session.
               It can't be undone; download your data first if you want a copy. Backups that still
               hold it are deleted within 5 weeks.
             </p>
-            <form onSubmit={erase}>
-              <label>
-                Type <strong>erase</strong> to confirm{' '}
+            <form onSubmit={erase} className="flex flex-col gap-3">
+              <label className="flex flex-col gap-1">
+                <span>
+                  Type <strong>erase</strong> to confirm
+                </span>
                 <input
                   value={confirm}
                   onChange={(event) => setConfirm(event.target.value)}
@@ -225,10 +261,12 @@ export default function Account() {
                   autoCapitalize="none"
                   spellCheck={false}
                 />
-              </label>{' '}
-              <button type="submit" disabled={confirm !== 'erase'}>
-                Erase all my data
-              </button>
+              </label>
+              <div>
+                <button type="submit" disabled={confirm !== 'erase'} className={danger}>
+                  Erase all my data
+                </button>
+              </div>
             </form>
           </section>
         </>

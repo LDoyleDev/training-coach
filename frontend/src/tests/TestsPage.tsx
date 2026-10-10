@@ -25,6 +25,9 @@ import {
   unitText,
   type Step,
 } from './logic'
+import { card, primary, secondary } from '../ui'
+import Toast from '../components/Toast'
+import { RetryCard, SignInCard } from '../components/StateCards'
 
 type Loaded =
   | { status: 'loading' }
@@ -35,11 +38,6 @@ type Loaded =
 type When = 'morning' | 'midday' | 'afternoon' | 'evening'
 type Stage = 'list' | 'conditions' | 'test' | 'check' | 'saved'
 
-const card = 'rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-4'
-const primary =
-  'min-h-14 w-full rounded-2xl bg-[var(--bell-ink)] px-4 text-lg font-bold text-white disabled:opacity-60'
-const secondary =
-  'min-h-11 rounded-xl border-2 border-[var(--ink)] px-4 font-bold text-[var(--ink)]'
 const toggle = (on: boolean) =>
   'min-h-11 flex-1 rounded-xl border-2 px-3 font-bold ' +
   (on
@@ -148,11 +146,7 @@ export default function TestsPage() {
 
   return (
     <AppShell>
-      {note && (
-        <p role="status" className="status">
-          {note}
-        </p>
-      )}
+      <Toast text={note} onClose={() => setNote(null)} />
       {signedOut && <SignedOutNotice />}
 
       {stage === 'list' && (
@@ -421,17 +415,8 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
         Loading the tests…
       </p>
     )
-  if (loaded.status === 'signed-out')
-    return (
-      <p className="status">
-        Sign in to see your tests. <a href="/signin">Sign in</a>
-      </p>
-    )
-  return (
-    <p className="status status-error" role="alert">
-      Couldn't load the tests. Check your connection and reload the page.
-    </p>
-  )
+  if (loaded.status === 'signed-out') return <SignInCard text="Sign in to see your tests." />
+  return <RetryCard text="Couldn't load the tests. Check your connection." />
 }
 
 /** One test day: its conditions, a note when they differ from last time, and each result

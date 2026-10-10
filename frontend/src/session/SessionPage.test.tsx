@@ -223,13 +223,23 @@ test('a save refused because today changed says so', async () => {
 
 test.each([
   [null, /Sign in to start today's session/],
-  [{ session: null, progress: null }, /Nothing left to train today/],
-  [{ session: { ...SESSION, order: [] }, progress: null }, /Nothing left to train today/],
+  [{ session: null, progress: null }, /Nothing left today/],
+  [{ session: { ...SESSION, order: [] }, progress: null }, /Nothing left today/],
   ['error' as const, /Couldn't load today's session/],
 ])('states without a session: %s', async (today, text) => {
   serve({ today })
   render(<SessionPage />)
   expect(await screen.findByText(text)).toBeInTheDocument()
+})
+
+test('with nothing left today, it points to what is next instead of a dead end', async () => {
+  serve({ today: { session: null, progress: null } })
+  render(<SessionPage />)
+  expect(await screen.findByRole('link', { name: 'See my progress' })).toHaveAttribute(
+    'href',
+    '/progress',
+  )
+  expect(screen.getByRole('link', { name: 'The week ahead' })).toHaveAttribute('href', '/plan')
 })
 
 test('fixing an earlier set returns to the furthest set, and the server keeps it', async () => {
@@ -437,7 +447,7 @@ test('a test day shows even with nothing left to train', async () => {
   serve({ today: { session: null, progress: null, test_day: DUE } })
   render(<SessionPage />)
   expect(await screen.findByRole('heading', { name: 'Today: Retest, day 2' })).toBeInTheDocument()
-  expect(screen.getByText(/Nothing left to train today/)).toBeInTheDocument()
+  expect(screen.getByText(/Nothing left today/)).toBeInTheDocument()
 })
 
 test('a hard day shows the readiness advice, linking to the questions', async () => {
@@ -473,7 +483,7 @@ test('an ended sign-in while confirming a set points to sign in and keeps the se
   click('Confirm set')
   expect(await screen.findByRole('link', { name: 'Sign in again' })).toHaveAttribute(
     'href',
-    '/signin',
+    expect.stringMatching(/^\/signin\?next=/),
   )
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument() // still here
   expect(screen.queryByText(/Check your connection/)).not.toBeInTheDocument()
