@@ -486,6 +486,9 @@ class WebSession(Owned, Base):
     last_seen_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
     ended_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    # Last time the person confirmed it's them with their fingerprint, without signing in again
+    # (ADR-0049): it makes the session fresh, like a new sign-in.
+    confirmed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class Passkey(Owned, Base):

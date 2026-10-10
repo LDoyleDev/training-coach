@@ -58,7 +58,7 @@ test.each([
   [400, "Groq didn't accept that key."],
   [422, "Groq didn't accept that key."],
   [503, "Couldn't reach Groq"],
-  [403, 'Sign in again to add a key'],
+  [403, 'needs you to confirm it’s you'],
   [401, 'Your sign-in ended'],
   [500, "That didn't work."],
 ])('a key answered %i says why', async (status, message) => {

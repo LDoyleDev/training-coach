@@ -260,6 +260,70 @@ def sign_in(
     return auth.start_session(session, passkey.user_id, now, label, passkey_id=passkey.id)
 
 
+def confirmation(session: Session, party: Party, now: datetime) -> Ceremony | None:
+    """Options for the signed-in person to confirm it's them (ADR-0049): only their own
+    passkeys are offered, so the phone goes straight to the right one. None without any."""
+    user = bound_user(session)
+    if user is None:
+        raise PermissionError("confirming needs a signed-in user")
+    allowed = [
+        PublicKeyCredentialDescriptor(id=base64url_to_bytes(credential))
+        for credential in session.scalars(select(Passkey.credential_id))
+    ]
+    if not allowed:
+        return None
+    options = generate_authentication_options(
+        rp_id=party.rp_id,
+        allow_credentials=allowed,
+        user_verification=UserVerificationRequirement.REQUIRED,
+    )
+    handle = _challenge(session, options.challenge, SIGN_IN, user, now)
+    return Ceremony(options_to_json(options), handle)
+
+
+def confirm(
+    session: Session,
+    party: Party,
+    handle: str,
+    credential: dict[str, Any],
+    now: datetime,
+    token: str,
+) -> bool:
+    """Whether the signed-in person proved it's them with one of their passkeys; if so their
+    session (``token``) is fresh again. The challenge names them, so another person's
+    challenge or passkey can't confirm it."""
+    user = bound_user(session)
+    if user is None:
+        raise PermissionError("confirming needs a signed-in user")
+    challenge = _take(session, handle, SIGN_IN, user, now)
+    if challenge is None:
+        return False
+    try:
+        parsed = parse_authentication_credential_json(credential)
+    except Exception:  # a malformed answer is a refusal, as in sign_in
+        return False
+    passkey = session.scalar(  # bound: only this person's passkeys
+        select(Passkey).where(Passkey.credential_id == bytes_to_base64url(parsed.raw_id))
+    )
+    if passkey is None:
+        return False
+    try:
+        verified = verify_authentication_response(
+            credential=parsed,
+            expected_challenge=challenge,
+            expected_rp_id=party.rp_id,
+            expected_origin=party.origin,
+            credential_public_key=passkey.public_key,
+            credential_current_sign_count=passkey.sign_count,
+            require_user_verification=True,
+        )
+    except Exception:  # as above
+        return False
+    passkey.sign_count = verified.new_sign_count
+    passkey.last_used_at = now
+    return auth.confirm(session, token, user, now)
+
+
 @dataclass(frozen=True)
 class Key:
     id: int

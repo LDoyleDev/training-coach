@@ -152,10 +152,24 @@ def session_user(session: Session, token: str, now: datetime) -> Seen | None:
 
 
 def fresh(session: Session, token: str, now: datetime) -> bool:
-    """Whether the session behind ``token`` began within ``FRESH``: proved by a link or a
-    fingerprint moments ago, so it may add a passkey (ADR-0040). ``session`` is unbound."""
+    """Whether the session behind ``token`` began, or was confirmed with a fingerprint, within
+    ``FRESH``, so it may change how one signs in (ADR-0040, ADR-0049). ``session`` is unbound
+    or bound to the session's user."""
     found = _live(session, token, now)
-    return found is not None and now - found.created_at <= FRESH
+    if found is None:
+        return False
+    proved = max(found.created_at, found.confirmed_at or found.created_at)
+    return now - proved <= FRESH
+
+
+def confirm(session: Session, token: str, user_id: int, now: datetime) -> bool:
+    """The person behind ``token`` just proved it's them with a passkey (ADR-0049): the session
+    counts as fresh again. False if the token isn't a live session of ``user_id``."""
+    found = _live(session, token, now)
+    if found is None or found.user_id != user_id:
+        return False
+    found.confirmed_at = now
+    return True
 
 
 def end_session(session: Session, token: str, now: datetime) -> None:
