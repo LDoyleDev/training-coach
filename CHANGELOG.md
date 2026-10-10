@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.25.0](https://github.com/LDoyleDev/training-coach/compare/v0.24.0...v0.25.0) (2026-10-10)
+
+
+### Features
+
+* **web:** confirm it's you with your fingerprint instead of signing out ([#194](https://github.com/LDoyleDev/training-coach/issues/194)) ([d8364ac](https://github.com/LDoyleDev/training-coach/commit/d8364ac0cccc2ccc4a5303fd8b0bf6be631ce4d9))
+
+
+### Documentation
+
+* a UX plan with options to make the app flow ([#195](https://github.com/LDoyleDev/training-coach/issues/195)) ([3713c10](https://github.com/LDoyleDev/training-coach/commit/3713c1072b4c6bbb5952570c63aba28d875ba8b7))
+
 ## [0.24.0](https://github.com/LDoyleDev/training-coach/compare/v0.23.0...v0.24.0) (2026-10-10)
 
 
