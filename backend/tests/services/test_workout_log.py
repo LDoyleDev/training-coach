@@ -100,7 +100,17 @@ def test_save_writes_sets_at_the_current_step_and_moves_the_queue(seeded: Sessio
     assert _pointer(seeded) == ids["zone2"]
     payloads = list(seeded.scalars(select(Event.payload).where(Event.kind == "workout.logged")))
     assert payloads == [
-        {"workout_id": workout.id, "template_id": ids["upper"], "exercises": 2, "sets": 4}
+        {
+            "workout_id": workout.id,
+            "template_id": ids["upper"],
+            "exercises": 2,
+            "sets": 4,
+            "undo": {
+                "before": [ids["upper"], []],
+                "after": [ids["zone2"], []],
+                "workout_id": workout.id,
+            },
+        }
     ]
 
 

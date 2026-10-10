@@ -39,6 +39,7 @@ from training_coach.bot import habits as habits_ui
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import settings as settings_ui
 from training_coach.bot import stretching as stretching_ui
+from training_coach.bot import undo as undo_ui
 from training_coach.bot.buttons import edit_quietly
 from training_coach.bot.logging_flow import LogHandlers
 from training_coach.bot.messages import (
@@ -86,6 +87,7 @@ HELP_TEXT = (
     "/review - this week so far: sessions, sets per muscle, bests\n"
     "/habits - tick today's habits: morning light, protein, wind-down\n"
     "/settings - message times, nudges, habits, pause\n"
+    "/undo - take back the last rest day, swap, push or saved log\n"
     "/login - sign in to the web app\n"
     "/recover - sign in without your passkey (lost phone); signs out other devices\n"
     "/help - this message\n\n"
@@ -478,6 +480,11 @@ def build_bot(
         CallbackQueryHandler(habit_handlers.button, pattern=rf"^{habits_ui.PREFIX}:")
     )
     application.add_handler(CallbackQueryHandler(handlers.button, pattern=rf"^{buttons.PREFIX}:"))
+    undo_handlers = undo_ui.UndoHandlers(settings, sessions)
+    application.add_handler(CommandHandler("undo", undo_handlers.command, filters=allowed))
+    application.add_handler(
+        CallbackQueryHandler(undo_handlers.button, pattern=rf"^{undo_ui.PREFIX}:")
+    )
 
     settings_handlers = settings_ui.SettingsHandlers(
         settings, sessions, lambda _context, prefs: schedule_jobs(application, handlers, prefs)
