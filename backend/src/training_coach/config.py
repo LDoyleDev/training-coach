@@ -10,8 +10,20 @@ from typing import Literal
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from cryptography.fernet import Fernet
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def fernet_keys(value: str) -> list[str]:
+    """The Fernet keys in a comma-separated list, newest first; empty if any is not one."""
+    keys = [k.strip() for k in value.split(",") if k.strip()]
+    try:
+        for key in keys:
+            Fernet(key)
+    except ValueError:
+        return []
+    return keys
 
 
 class Settings(BaseSettings):
@@ -44,6 +56,11 @@ class Settings(BaseSettings):
     groq_transcribe_model: str = "whisper-large-v3-turbo"
     groq_parse_model: str = "openai/gpt-oss-20b"  # needs strict JSON-schema output
 
+    # Keys that encrypt secrets people store in the app, like their own Groq key (ADR-0047).
+    # One or more Fernet keys, comma separated, newest first; rotate with `rotate-secrets`.
+    # Storing such secrets is off until it is set.
+    secrets_key: SecretStr | None = None
+
     # Scheduling
     timezone: str = "Europe/Berlin"
 
@@ -63,6 +80,18 @@ class Settings(BaseSettings):
             ZoneInfo(value)
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError(f"unknown timezone: {value}") from exc
+        return value
+
+    @field_validator("secrets_key")
+    @classmethod
+    def _fernet_keys(cls, value: SecretStr | None) -> SecretStr | None:
+        """Every key must be a Fernet key. The message never repeats the value."""
+        if value is not None and not fernet_keys(value.get_secret_value()):
+            raise ValueError(
+                "secrets_key must be one or more Fernet keys, comma separated "
+                "(make one with: python -c 'from cryptography.fernet import Fernet; "
+                "print(Fernet.generate_key().decode())')"
+            )
         return value
 
     @field_validator("public_url")

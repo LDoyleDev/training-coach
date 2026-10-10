@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -156,4 +157,43 @@ def test_backup_command_fails_when_the_database_is_missing(
     with pytest.raises(SystemExit):
         main(["backup"])
     assert not (tmp_path / "backups").exists()
+    get_settings.cache_clear()
+
+
+def test_rotate_secrets_reseals_with_the_newest_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from cryptography.fernet import Fernet
+    from pydantic import SecretStr
+
+    from training_coach.db.session import make_session_factory, session_scope
+    from training_coach.services import ai_key
+    from training_coach.services.secret_box import SecretBox
+    from training_coach.services.seed import apply_seed, load_plan
+    from training_coach.services.users import OWNER
+
+    old, new = Fernet.generate_key().decode(), Fernet.generate_key().decode()
+    url = f"sqlite:///{tmp_path / 'cli.db'}"
+    monkeypatch.setenv("TC_DATABASE_URL", url)
+    monkeypatch.setenv("TC_ENVIRONMENT", "test")
+    get_settings.cache_clear()
+    command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
+    engine = make_engine(url)
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, load_plan())
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as session:
+        ai_key.store(session, SecretBox(SecretStr(old)), SecretStr("gsk_" + "a" * 40))
+
+    monkeypatch.setenv("TC_SECRETS_KEY", f"{new},{old}")
+    get_settings.cache_clear()
+    main(["rotate-secrets"])
+    assert "Re-sealed 1 key(s)" in capsys.readouterr().out
+
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as session:
+        assert ai_key.key(session, SecretBox(SecretStr(new)), datetime.now(UTC)) is not None
+    engine.dispose()
+    monkeypatch.delenv("TC_SECRETS_KEY")
+    get_settings.cache_clear()
+    with pytest.raises(SystemExit, match="TC_SECRETS_KEY is not set"):
+        main(["rotate-secrets"])
     get_settings.cache_clear()

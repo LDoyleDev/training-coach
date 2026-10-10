@@ -15,6 +15,7 @@ from telegram import Bot
 
 from training_coach import __version__
 from training_coach.api.account import router as account_router
+from training_coach.api.ai import router as ai_router
 from training_coach.api.auth import router as auth_router
 from training_coach.api.body import router as body_router
 from training_coach.api.fitness import router as fitness_router
@@ -155,6 +156,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(passkeys_router)
     app.include_router(account_router)
+    app.include_router(ai_router)
     app.include_router(session_router)
     app.include_router(fitness_router)
     app.include_router(body_router)

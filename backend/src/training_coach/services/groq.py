@@ -156,6 +156,16 @@ class GroqClient:
             raise GroqUnavailableError("bad_response")
         return rewrite
 
+    async def verify(self) -> None:
+        """Check the key works: list the models it can use. Raises ``GroqUnavailableError``,
+        with ``http_401`` for a key Groq refuses."""
+        try:
+            async with asyncio.timeout(self._deadline):
+                await self._post("/models", method="GET")
+        except TimeoutError as exc:
+            log.warning("groq.deadline", path="/models")
+            raise GroqUnavailableError("timeout") from exc
+
     async def _post(
         self,
         path: str,
@@ -163,6 +173,7 @@ class GroqClient:
         data: dict[str, str] | None = None,
         files: dict[str, tuple[str, bytes, str]] | None = None,
         json_body: dict[str, Any] | None = None,
+        method: Literal["GET", "POST"] = "POST",
     ) -> httpx.Response:
         headers = {"Authorization": f"Bearer {self._key.get_secret_value()}"}
         async with httpx.AsyncClient(
@@ -170,8 +181,8 @@ class GroqClient:
         ) as client:
             for attempt in range(1, self._attempts + 1):
                 try:
-                    response = await client.post(
-                        path, data=data, files=files, json=json_body, headers=headers
+                    response = await client.request(
+                        method, path, data=data, files=files, json=json_body, headers=headers
                     )
                 except httpx.TransportError as exc:  # includes timeouts
                     reason = type(exc).__name__

@@ -6,6 +6,7 @@ authors = [{ name = "Liam Doyle" }]
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.0",
+    "cryptography>=50.0.2",  # Fernet for stored keys (ADR-0047); also under webauthn
     "fastapi>=0.141.1",
     "httpx>=0.28.1",
     "pydantic-settings>=2.15.0",

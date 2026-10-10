@@ -4,6 +4,24 @@
  */
 
 export interface paths {
+    "/api/account/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ai */
+        get: operations["get_ai_api_account_ai_get"];
+        /** Set Options */
+        put: operations["set_options_api_account_ai_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/account/ai-summary": {
         parameters: {
             query?: never;
@@ -20,6 +38,48 @@ export interface paths {
         get: operations["ai_summary_api_account_ai_summary_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/ai/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Store Key
+         * @description Check the key with Groq, then keep it encrypted. Needs a recent sign-in and is alerted:
+         *     whoever holds the key's account can see what is sent to it.
+         */
+        put: operations["store_key_api_account_ai_key_put"];
+        post?: never;
+        /** Remove Key */
+        delete: operations["remove_key_api_account_ai_key_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/ai/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Key
+         * @description Check the stored key still works.
+         */
+        post: operations["test_key_api_account_ai_test_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -629,6 +689,23 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AiView */
+        AiView: {
+            /** Available */
+            available: boolean;
+            /** Body */
+            body: boolean;
+            /** Connected */
+            connected: boolean;
+            /** Enabled */
+            enabled: boolean;
+            /** Ends In */
+            ends_in: string | null;
+            /** Failed */
+            failed: boolean;
+            /** Readiness */
+            readiness: boolean;
+        };
         /**
          * Answer
          * @description The browser's answer to a ceremony: WebAuthn JSON, checked by the library.
@@ -829,6 +906,11 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** KeyBody */
+        KeyBody: {
+            /** Key */
+            key: string;
+        };
         /** KindView */
         KindView: {
             /** Decimals */
@@ -875,6 +957,15 @@ export interface components {
             on: string;
             /** Value */
             value: number;
+        };
+        /** OptionsBody */
+        OptionsBody: {
+            /** Body */
+            body: boolean;
+            /** Enabled */
+            enabled: boolean;
+            /** Readiness */
+            readiness: boolean;
         };
         /** PasskeyView */
         PasskeyView: {
@@ -1242,6 +1333,59 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_ai_api_account_ai_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiView"];
+                };
+            };
+        };
+    };
+    set_options_api_account_ai_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OptionsBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     ai_summary_api_account_ai_summary_get: {
         parameters: {
             query?: {
@@ -1272,6 +1416,75 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    store_key_api_account_ai_key_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeyBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_key_api_account_ai_key_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    test_key_api_account_ai_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

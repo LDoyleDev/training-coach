@@ -1,6 +1,56 @@
 {
   "components": {
     "schemas": {
+      "AiView": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "body": {
+            "title": "Body",
+            "type": "boolean"
+          },
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "ends_in": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends In"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "boolean"
+          },
+          "readiness": {
+            "title": "Readiness",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "available",
+          "connected",
+          "ends_in",
+          "enabled",
+          "body",
+          "readiness",
+          "failed"
+        ],
+        "title": "AiView",
+        "type": "object"
+      },
       "Answer": {
         "description": "The browser's answer to a ceremony: WebAuthn JSON, checked by the library.",
         "properties": {
@@ -538,6 +588,20 @@
         "title": "KeptView",
         "type": "object"
       },
+      "KeyBody": {
+        "properties": {
+          "key": {
+            "pattern": "^gsk_[A-Za-z0-9]{20,200}$",
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "KeyBody",
+        "type": "object"
+      },
       "KindView": {
         "properties": {
           "decimals": {
@@ -666,6 +730,29 @@
           "value"
         ],
         "title": "MeasurementView",
+        "type": "object"
+      },
+      "OptionsBody": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "readiness": {
+            "title": "Readiness",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "body",
+          "readiness"
+        ],
+        "title": "OptionsBody",
         "type": "object"
       },
       "PasskeyView": {
@@ -1663,6 +1750,66 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/account/ai": {
+      "get": {
+        "operationId": "get_ai_api_account_ai_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Ai",
+        "tags": [
+          "account"
+        ]
+      },
+      "put": {
+        "operationId": "set_options_api_account_ai_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptionsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Options",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/account/ai-summary": {
       "get": {
         "description": "My training as compact Markdown for my own AI (ADR-0047): the last 4 or 12 weeks, or\neverything. Measurements and readiness answers (health data) only when asked for; photos\nnever.",
@@ -1723,6 +1870,75 @@
           }
         },
         "summary": "Ai Summary",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/ai/key": {
+      "delete": {
+        "operationId": "remove_key_api_account_ai_key_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Remove Key",
+        "tags": [
+          "account"
+        ]
+      },
+      "put": {
+        "description": "Check the key with Groq, then keep it encrypted. Needs a recent sign-in and is alerted:\nwhoever holds the key's account can see what is sent to it.",
+        "operationId": "store_key_api_account_ai_key_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Store Key",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/ai/test": {
+      "post": {
+        "description": "Check the stored key still works.",
+        "operationId": "test_key_api_account_ai_test_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Test Key",
         "tags": [
           "account"
         ]

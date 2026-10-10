@@ -1,4 +1,4 @@
-"""Entry point: ``training-coach [serve|seed|openapi|backup|notify]`` (or
+"""Entry point: ``training-coach [serve|seed|openapi|backup|notify|rotate-secrets]`` (or
 ``python -m training_coach``)."""
 
 import argparse
@@ -18,7 +18,9 @@ from training_coach.api.app import create_app
 from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.logging import configure_logging
+from training_coach.services import ai_key
 from training_coach.services import backup as backups
+from training_coach.services.secret_box import SecretBox
 from training_coach.services.seed import SeedError, apply_seed, load_plan
 
 log = structlog.get_logger(__name__)
@@ -119,6 +121,23 @@ def notify(text: str = "") -> None:
     log.info("notify.sent")
 
 
+def rotate_secrets() -> None:
+    """Re-seal every stored secret (people's AI keys) with the newest TC_SECRETS_KEY, so an
+    older key can be removed (ADR-0047, docs/runbooks/rotate-secrets.md)."""
+    settings = get_settings()
+    configure_logging(settings)
+    if settings.secrets_key is None:
+        sys.exit("TC_SECRETS_KEY is not set")
+    engine = make_engine(settings.database_url)
+    try:
+        with session_scope(make_session_factory(engine)) as session:
+            done, lost = ai_key.rotate_all(session, SecretBox(settings.secrets_key))
+    finally:
+        engine.dispose()
+    log.info("secrets.rotated", resealed=done, unreadable=lost)
+    sys.stdout.write(f"Re-sealed {done} key(s) with the newest secrets key; {lost} unreadable.\n")
+
+
 def openapi() -> None:
     """Print the API schema as JSON. The dashboard's TypeScript types are generated from it
     (ADR-0020). Settings come from the class defaults alone, never from `.env` or `TC_`
@@ -135,17 +154,24 @@ def main(argv: list[str] | None = None) -> None:
         "command",
         nargs="?",
         default="serve",
-        choices=["serve", "seed", "openapi", "backup", "notify"],
+        choices=["serve", "seed", "openapi", "backup", "notify", "rotate-secrets"],
         help="serve: API + bot (default). seed: load the training plan (idempotent). "
         "openapi: print the API schema. backup: copy the database to data/backups/ now. "
-        "notify TEXT: send TEXT to the owner on Telegram.",
+        "notify TEXT: send TEXT to the owner on Telegram. "
+        "rotate-secrets: re-seal stored keys with the newest TC_SECRETS_KEY.",
     )
     parser.add_argument("text", nargs="?", default="", help="the message, for notify")
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
     if args.command == "notify":
         notify(args.text)
         return
-    commands = {"serve": serve, "seed": seed, "openapi": openapi, "backup": backup}
+    commands = {
+        "serve": serve,
+        "seed": seed,
+        "openapi": openapi,
+        "backup": backup,
+        "rotate-secrets": rotate_secrets,
+    }
     commands[args.command]()
 
 
