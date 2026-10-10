@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from training_coach.domain.backups import keep, next_run
+from training_coach.domain.backups import keep, manual_expired, next_run
 
 BERLIN = ZoneInfo("Europe/Berlin")
 AT = time(3, 30)
@@ -79,3 +79,9 @@ def test_duplicates_count_once() -> None:
 def test_next_run_is_the_next_local_half_three(now: datetime, expected: datetime) -> None:
     assert next_run(now, BERLIN, AT) == expected
     assert next_run(now, BERLIN, AT).astimezone(BERLIN).time() == AT
+
+
+def test_a_manual_backup_expires_after_35_days() -> None:
+    taken = datetime(2026, 10, 1, 8, tzinfo=UTC)
+    assert not manual_expired(taken, taken + timedelta(days=35))
+    assert manual_expired(taken, taken + timedelta(days=35, seconds=1))
