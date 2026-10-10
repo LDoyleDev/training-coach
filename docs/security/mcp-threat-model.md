@@ -51,10 +51,13 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
   - at most 20 pending registrations overall and 3 per client address;
   - name up to 60 characters;
   - at most 5 redirect URIs, each up to 200 characters, `https` or loopback only;
-  - unapproved registrations expire after 1 day.
+  - a registration that hasn't reached consent expires after 15 minutes, and when the cap is
+    full the oldest unapproved one is evicted instead of the new one being refused.
 - **Authorization code with PKCE S256,** checked against the stored code challenge.
 - **Resource indicators (RFC 8707):** `resource` must equal the `/mcp` URL.
-- **Consent requires a fresh passkey sign-in,** through the `Fresh` dependency (`FRESH` = 10 minutes; ADR-0049's fingerprint confirmation counts).
+- **Consent requires a passkey, proved in the last 10 minutes:** a passkey sign-in or ADR-0049's
+  fingerprint confirmation. A session started by a recovery link can't approve a connection
+  until a passkey confirms it, so Telegram access alone can't open a data channel.
 - **Tokens:**
   - access tokens last 1 hour;
   - refresh tokens last 30 days and rotate;
@@ -75,7 +78,7 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
 | M8: Data over-exposure | Tool results | Tools reuse `ai_summary` with `Options(body=…, readiness=…)` set from the scopes. Photos and sign-in tables are never reachable. Sessions are bound to the token's user (ADR-0029). Answers are size-capped and sent with `Cache-Control: no-store` | Two-user scope test through `/mcp`; health data absent without its scope; size cap |
 | M9: Prompt injection through the person's own text or tool results | Tool results read by their AI | Text the person or a client typed goes only in a delimited, length-capped "data from the person" field, never mixed into prose. Answers name the guide version, and the guide says data is never instructions. Residual risk: the AI may also hold other tools (such as web fetch) that could leak what it read; the consent page says so | Hostile-string fixtures appear only inside the data field |
 | M10: Injected or rogue `propose_log` | `propose_log` | The proposal is parsed into the typed-log Pydantic model and checked again by the rule parser: known exercises, sane ranges, today or an earlier unsaved day. An invalid proposal is refused with a reason. A valid one reaches the person only as a draft with a random token, and only their "Save" (web session or `owner_only` bot button) stores it. No MCP token can confirm. At most 3 pending proposals per connection. No tool touches the plan, settings or sign-in | `tests/api/test_mcp_propose.py`: invented exercise, extreme value, future day, confirm through a token refused, cap |
-| M11: DoS on the Pi | `/oauth/register`, `/oauth/token`, `/mcp` | Row caps on registrations, consent handles and codes, with expired rows cleared on each call. 60 requests a minute per connection. 64 KB body cap (`MAX_BODY`). SHA-256 lookups, no slow hashing. Cloudflare rate limit. Coalesced alerts, so a flood can't spam Telegram | Cap and 429 tests; body limit on `/mcp` |
+| M11: DoS on the Pi, or slots taken so the real AI can't register | `/oauth/register`, `/oauth/token`, `/mcp` | Row caps on registrations, consent handles and codes, with expired rows cleared on each call. Unapproved registrations live 15 minutes, and a full cap evicts the oldest unapproved one, so a few addresses can't lock out Claude.ai. 60 requests a minute per connection. 64 KB body cap (`MAX_BODY`). SHA-256 lookups, no slow hashing. Cloudflare rate limit. Coalesced alerts, so a flood can't spam Telegram | Cap and 429 tests; body limit on `/mcp` |
 | M12: Long-lived or forgotten access | Connections | The Account page lists each connection (name as claimed, redirect host, scopes, created, last used) with Revoke. Revoke ends access and refresh tokens at once. `/recover` and erase revoke every connection. Alerts on create, revoke and refresh reuse | Revoke, recover and erase tests |
 | M13: Audit log leaking data | `events`, structlog | Each call writes one `mcp.call` event holding only the connection id, tool name and outcome; the `Event` rules apply. No arguments, tokens, codes or client names in logs. The alert `kind` is logged, not its text | Captured-log and event-payload assertions |
 
@@ -102,8 +105,12 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
    - a name over 60 characters;
    - more than 5 redirect URIs, or any over 200 characters;
    - any scheme other than `https` or loopback.
-   Unapproved clients expire after 24 hours.
-9. The consent page requires `Owner` + `Fresh`. It shows the client name as "calls itself ...", the redirect host, and each scope in plain words, with health scopes unticked.
+   A registration that hasn't reached consent expires after 15 minutes. When the cap is full,
+   the oldest unapproved registration is evicted rather than the new one refused; a test shows
+   seven addresses filling the cap can't stop a later registration.
+9. The consent page requires `Owner` and a passkey proved in the last 10 minutes (a passkey
+   sign-in or an ADR-0049 confirmation); a recovery-link session alone is refused, with a test.
+   It shows the client name as "calls itself ...", the redirect host, and each scope in plain words, with health scopes unticked.
 10. Consent approval is a same-origin POST carrying a single-use, session-bound handle. The global CSP (`frame-ancestors 'none'`, `form-action 'self'`) stays unchanged: approval returns the redirect URL to the page, which then navigates to it.
 11. Granted scopes are a subset of the requested scopes and the person's ticks, and a refresh never adds scopes. Each tool is refused, and hidden from `tools/list`, without its scope. A test covers every tool against every scope set.
 12. Tool results are built from sessions bound to the token's user. A two-user test shows that user B's token never returns user A's rows.
@@ -124,8 +131,9 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
 
 ## Open questions for the owner
 
-1. Should consent require a passkey specifically? `Fresh` also accepts a session from a recovery link, so someone holding Liam's Telegram could run `/recover` and then connect an AI. That would be loud, but it would work.
-2. Should refresh tokens have an absolute lifetime (say 90 days, like `MAX_SESSION_AGE`), after which the person approves again with the fingerprint?
-3. Should removing a passkey revoke the connections approved with it, as it already ends the sessions it started?
-4. The limit of 3 pending registrations per address applies to Anthropic's shared egress. Is that acceptable while there is one user, with a per-vendor allowance revisited when others join?
-5. Should C1 ship with only `training:read`, adding the health scopes in a later PR after the first security review?
+1. Should refresh tokens have an absolute lifetime (say 90 days, like `MAX_SESSION_AGE`), after which the person approves again with the fingerprint?
+2. Should removing a passkey revoke the connections approved with it, as it already ends the sessions it started?
+3. The limit of 3 pending registrations per address applies to Anthropic's shared egress, and
+   the 15-minute expiry with eviction keeps the slots from being held. Is that acceptable while
+   there is one user, with a per-vendor allowance revisited when others join?
+4. Should C1 ship with only `training:read`, adding the health scopes in a later PR after the first security review?
