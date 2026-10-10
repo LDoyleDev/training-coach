@@ -180,6 +180,14 @@ export default function Account() {
             </ul>
           </section>
 
+          <section aria-labelledby="readiness">
+            <h2 id="readiness">Readiness</h2>
+            <p>
+              Seven questions about your health before hard exercise.{' '}
+              <a href="/readiness">Answer or update them</a>
+            </p>
+          </section>
+
           <section aria-labelledby="your-data">
             <h2 id="your-data">Your data</h2>
             <p>
