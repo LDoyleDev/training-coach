@@ -112,6 +112,39 @@ place, because going back needs the backup it took (see Rollback). Either way, t
 is saved in `.git/auto-deploy-failed` and not retried. Fix it with a new release, or deploy by
 hand and `rm .git/auto-deploy-failed`.
 
+## Uptime monitoring (ADR-0045)
+
+Every 5 minutes the Pi tells Healthchecks.io the app is up: it pings a check if `/healthz`
+answers, and reports a failure if it doesn't. Healthchecks.io alerts you when the pings stop
+(the Pi, power or network is down) or a failure comes in, and again when they resume.
+
+One-time setup:
+
+1. Create a free account at <https://healthchecks.io>. Add a check named `training-coach`
+   with period **5 minutes** and grace **10 minutes**. Email alerts are on by default;
+   for Telegram, add the Telegram integration (Integrations, then follow its bot link).
+2. On the Pi, store the check's ping URL (shown on the check's page) where only you can read
+   it:
+
+   ```bash
+   mkdir -p ~/.config/training-coach
+   install -m 600 /dev/null ~/.config/training-coach/heartbeat.env
+   nano ~/.config/training-coach/heartbeat.env   # TC_HEARTBEAT_URL=https://hc-ping.com/<uuid>
+   ```
+
+3. Send one ping by hand; the check turns green:
+
+   ```bash
+   ~/training-coach/scripts/heartbeat.sh
+   ```
+
+4. Install the timer:
+
+   ```bash
+   sudo cp ~/training-coach/scripts/systemd/training-coach-heartbeat.{service,timer} /etc/systemd/system/
+   sudo systemctl daemon-reload && sudo systemctl enable --now training-coach-heartbeat.timer
+   ```
+
 ## Deploy by hand
 
 ```bash

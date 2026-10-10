@@ -1,0 +1,14 @@
+# Pings the uptime monitor if the app answers /healthz, or reports that it doesn't (ADR-0045).
+# Started by the timer. Install: docs/runbooks/deploy.md, "Uptime monitoring".
+# No OnFailure alert: when a ping can't go out the network is usually down, and the monitor
+# itself alerts on the missing pings.
+[Unit]
+Description=Tell the uptime monitor Training Coach is up
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=vybe
+ExecStart=/home/vybe/training-coach/scripts/heartbeat.sh
+TimeoutStartSec=2min
