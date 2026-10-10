@@ -23,8 +23,6 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("confirmed_at", sa.DateTime(), nullable=True))
 
 
-
 def downgrade() -> None:
     with op.batch_alter_table("web_sessions", schema=None) as batch_op:
         batch_op.drop_column("confirmed_at")
-
