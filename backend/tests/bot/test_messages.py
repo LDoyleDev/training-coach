@@ -65,7 +65,7 @@ def test_today_text_lists_exercises_and_notes() -> None:
         logged_today=("Legs (done)",),
     )
     assert today_text(plan) == (
-        "Today: Arms\nAccessories\nWarm up for about 10 minutes first. "
+        "Today: Arms\nAccessories\nWarm up for about 10 minutes first.\n"
         "Stop if you feel sharp pain, dizziness or chest tightness.\n\n"
         "1. Plank (Knees): 8\n\n"
         "This one is optional: resting today is fine.\n\nAlready logged today: Legs (done)"
@@ -154,3 +154,11 @@ def test_no_baseline_line_once_every_exercise_has_history() -> None:
     plan = SessionPlan(1, "Torso", "Pull", False, (_item(ExerciseKind.REPS, (5,)),))
     assert "Baseline" not in today_text(Today(plan, ()))
     assert "Baseline" not in session_detail_text(plan)
+
+
+def test_every_session_carries_the_stop_reminder_even_without_a_warm_up() -> None:
+    items = (_item(ExerciseKind.DURATION_MIN, (45,)),)
+    plan = SessionPlan(9, "Long zone 2", "Easy", False, items, kind="conditioning")
+    text = today_text(Today(plan, ()))
+    assert "Warm up" not in text
+    assert "Stop if you feel sharp pain, dizziness or chest tightness." in text
