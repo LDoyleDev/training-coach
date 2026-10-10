@@ -369,3 +369,11 @@ export async function fetchProgress(signal?: AbortSignal): Promise<Standing[] | 
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Standing[]
 }
+
+/** Everything stored about me, as a zip (needs a recent sign-in, like a passkey change). */
+export async function downloadExport(): Promise<Blob> {
+  const res = await fetch('/api/account/export', { credentials: 'same-origin' })
+  if (res.status === 403) throw new StaleSignInError()
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return res.blob()
+}

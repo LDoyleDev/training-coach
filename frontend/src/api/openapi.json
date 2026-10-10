@@ -1554,7 +1554,7 @@
     },
     "/api/account/export": {
       "get": {
-        "description": "Everything stored about the signed-in person, as a zip: data.json and the photos.",
+        "description": "Everything stored about the signed-in person, as a zip: data.json and the photos. Like a\npasskey change it needs a recent sign-in, and it is alerted: it is everything at once.",
         "operationId": "export_api_account_export_get",
         "responses": {
           "200": {

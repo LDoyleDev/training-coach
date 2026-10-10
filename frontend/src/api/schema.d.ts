@@ -30,7 +30,8 @@ export interface paths {
         };
         /**
          * Export
-         * @description Everything stored about the signed-in person, as a zip: data.json and the photos.
+         * @description Everything stored about the signed-in person, as a zip: data.json and the photos. Like a
+         *     passkey change it needs a recent sign-in, and it is alerted: it is everything at once.
          */
         get: operations["export_api_account_export_get"];
         put?: never;

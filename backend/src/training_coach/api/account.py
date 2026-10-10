@@ -12,7 +12,7 @@ from training_coach.api.alerts import alert
 from training_coach.api.auth import COOKIE, Fresh, Owner
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import auth, passkeys
-from training_coach.services.export import archive
+from training_coach.services.export import archive, record
 
 router = APIRouter(prefix="/api/account", tags=["account"])
 log = structlog.get_logger(__name__)
@@ -81,12 +81,22 @@ def sign_out_device(
 @router.get(
     "/export", response_class=Response, responses={200: {"content": {"application/zip": {}}}}
 )
-def export(request: Request, user: Owner) -> Response:
-    """Everything stored about the signed-in person, as a zip: data.json and the photos."""
+def export(request: Request, background: BackgroundTasks, user: Owner, _fresh: Fresh) -> Response:
+    """Everything stored about the signed-in person, as a zip: data.json and the photos. Like a
+    passkey change it needs a recent sign-in, and it is alerted: it is everything at once."""
     now = datetime.now(UTC)
     with session_scope(_bound(request, user)) as session:
         data = archive(session, now)
     log.info("account.exported", bytes=len(data))
+    with session_scope(_bound(request, user)) as session:
+        record(session, len(data))
+    alert(
+        request,
+        background,
+        "data_exported",
+        "All your Training Coach data was downloaded. Not you? Sign that device out on the "
+        "Account page, or send /recover.",
+    )
     name = f"training-coach-{now.date().isoformat()}.zip"
     return Response(
         data,

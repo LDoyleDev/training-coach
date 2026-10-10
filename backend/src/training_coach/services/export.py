@@ -11,7 +11,7 @@ import zipfile
 from datetime import date, datetime, time
 from typing import Any
 
-from sqlalchemy import inspect, select
+from sqlalchemy import LargeBinary, inspect, select
 from sqlalchemy.orm import Mapper, Session
 
 from training_coach.db.models import (
@@ -50,8 +50,20 @@ TABLES: dict[str, type] = {
     "passkeys": Passkey,
     "events": Event,
 }
-# Secrets, and every binary column (the photos go in as files).
-SECRET = frozenset({"token_hash", "public_key", "credential_id", "jpeg", "token"})
+# Left out by rule, so a column added later can't slip out by default (review of #169):
+# every binary column (keys; the photos go in as files), every "*_hash" column (sign-in
+# secrets), and these by name. Idempotency tokens (a log's or test day's) are the person's
+# own data and stay.
+SECRET_NAMES = frozenset({"credential_id"})
+
+
+def secret(column: Any) -> bool:
+    """Whether a column is left out of the export."""
+    return (
+        isinstance(column.type, LargeBinary)
+        or column.key.endswith("_hash")
+        or column.key in SECRET_NAMES
+    )
 
 
 def _value(value: Any) -> Any:
@@ -62,7 +74,7 @@ def _value(value: Any) -> Any:
 
 def _rows(session: Session, model: type) -> list[dict[str, Any]]:
     mapper: Mapper[Any] = inspect(model)
-    columns = [c.key for c in mapper.column_attrs if c.key not in SECRET]
+    columns = [c.key for c in mapper.column_attrs if not secret(c.columns[0])]
     order = mapper.primary_key[0]
     found: list[Any] = list(session.scalars(select(model).order_by(order)))
     return [{key: _value(getattr(row, key)) for key in columns} for row in found]
@@ -81,7 +93,8 @@ def _reference(session: Session) -> dict[str, Any]:
 
 
 def archive(session: Session, now: datetime) -> bytes:
-    """The zip for the user ``session`` is bound to."""
+    """The zip for the user ``session`` is bound to. Built in memory: a few MB for one
+    person (photos are about 300 KB each, a few a month), well within the Pi's memory."""
     data = {
         "exported_at": now.isoformat(),
         "tables": {name: _rows(session, model) for name, model in TABLES.items()},
@@ -94,3 +107,8 @@ def archive(session: Session, now: datetime) -> bytes:
             name = f"photos/{photo.local_date.isoformat()}-{photo.pose}-{photo.id}.jpg"
             zipped.writestr(name, photo.jpeg)
     return buffer.getvalue()
+
+
+def record(session: Session, size: int) -> None:
+    """Note an export in the person's events, next to the alert."""
+    session.add(Event(kind="account.exported", payload={"bytes": size}))
