@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { MeasureKind, Measurement } from '../api'
 import BodyPage from './BodyPage'
@@ -125,4 +125,45 @@ test('signed out, or the server down', async () => {
   )
   render(<BodyPage />)
   expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load your measurements.")
+})
+
+test('an ended sign-in points to sign in and keeps what was typed', async () => {
+  const sent = serve()
+  render(<BodyPage />)
+  fireEvent.change(await screen.findByLabelText('Waist'), { target: { value: '85' } })
+  vi.unstubAllGlobals()
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(null, { status: 401 })),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByRole('link', { name: 'Sign in again' })).toHaveAttribute(
+    'href',
+    '/signin',
+  )
+  expect(screen.getByLabelText('Waist')).toHaveValue('85')
+  expect(sent).toEqual([])
+})
+
+test('a remove after an ended sign-in points to sign in too', async () => {
+  serve({ entries: [{ on: '2026-10-10', kind: 'waist', value: 85 }] })
+  render(<BodyPage />)
+  const button = await screen.findByRole('button', { name: 'Remove Waist on 2026-10-10' })
+  vi.unstubAllGlobals()
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(null, { status: 401 })),
+  )
+  fireEvent.click(button)
+  expect(await screen.findByRole('link', { name: 'Sign in again' })).toBeInTheDocument()
+})
+
+test('removing clears an earlier note', async () => {
+  serve({ entries: [{ on: '2026-10-10', kind: 'waist', value: 85 }] })
+  render(<BodyPage />)
+  fireEvent.change(await screen.findByLabelText('Bodyweight'), { target: { value: '83' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByText('Saved.')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Remove Waist on 2026-10-10' }))
+  await waitFor(() => expect(screen.queryByText('Saved.')).not.toBeInTheDocument())
 })
