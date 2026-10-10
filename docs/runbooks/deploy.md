@@ -62,8 +62,15 @@ Within about 15 minutes of the merge, a timer on the Pi does these steps:
 - checks out the new tag and rebuilds
 - waits for `/healthz` to report the new version
 
-It deploys only release tags on `main`, only forward, and never over local changes. Steady
-state is silent; every deploy logs `auto-deploy: deployed vX.Y.Z`.
+It deploys only release tags on `main` whose commits since the deployed version GitHub all
+signed (made on github.com, not by a plain `git push`; ADR-0043), only forward, and never over
+local changes. Steady state is silent; every deploy logs `auto-deploy: deployed vX.Y.Z`.
+
+If it logs `vX.Y.Z includes <commit>, which GitHub didn't sign`, check how that commit got
+onto `main` (`git log --show-signature -1 <commit>`). A commit someone pushed directly is the
+alarm this check exists for. If GitHub has rotated its signing key instead
+(<https://github.com/web-flow.gpg> changed), update `scripts/keys/github-web-flow.gpg` and `GITHUB_FINGERPRINT` in
+`scripts/auto-deploy.sh` in a PR, release it, and deploy that release by hand (below).
 
 One-time setup on the Pi (the units assume the `vybe` user and `~/training-coach`; edit them
 first if either differs; `vybe` must be in the `docker` group):

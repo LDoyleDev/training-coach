@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Deploy the newest release tag on the Pi when there is one (ADR-0030).
 # Run every 15 minutes by the training-coach-deploy timer (scripts/systemd/); safe to run by hand.
-#   fetch tags -> already on the newest? exit quietly -> backup -> checkout tag -> rebuild ->
+#   fetch tags -> already on the newest? exit quietly -> on main and signed by GitHub? ->
+#   backup -> checkout tag -> rebuild ->
 #   wait for /healthz to report the new version. If it never does, roll the code back, unless
 #   the release changed the schema (then restoring the backup needs a person). Either way the
 #   failed tag is not tried again until someone deploys by hand or deletes .git/auto-deploy-failed.
@@ -9,6 +10,7 @@
 #      TC_HEALTH_URL       default http://127.0.0.1:8095/healthz (the port on vybe-pi)
 #      TC_HEALTH_TIMEOUT   seconds to wait for health after a rebuild (default 180)
 #      TC_HEALTH_INTERVAL  seconds between health checks (default 5)
+#      TC_DEPLOY_GPG       the gpg that checks a release is GitHub's (default: gpg)
 set -euo pipefail
 
 REPO_DIR="${TC_REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -16,9 +18,51 @@ REMOTE="${TC_DEPLOY_REMOTE:-https://github.com/LDoyleDev/training-coach.git}"
 HEALTH_URL="${TC_HEALTH_URL:-http://127.0.0.1:8095/healthz}"
 HEALTH_TIMEOUT="${TC_HEALTH_TIMEOUT:-180}"
 HEALTH_INTERVAL="${TC_HEALTH_INTERVAL:-5}"
+GPG="${TC_DEPLOY_GPG:-gpg}"
 FAILED_MARK=".git/auto-deploy-failed"
+# GitHub signs every commit it makes, squash merges included, with this key (ADR-0043). Pinned
+# here and read from the checkout already deployed, so a release can't vouch for itself.
+GITHUB_KEY="scripts/keys/github-web-flow.gpg"
+GITHUB_FINGERPRINT="968479A1AFF927E37D1A566BB5690EEEBB952194"
 
 log() { echo "auto-deploy: $*"; }
+
+# The first commit after $1 up to $2 without a good signature by GitHub's key; nothing if they
+# all have one. GitHub signs what it makes (a merge, or a commit through its web editor or API),
+# so a plain `git push` shows up here (ADR-0043). Every commit, not only the release's: one
+# pushed earlier would otherwise ship under a release signed on top of it. Fails closed: if
+# the commits can't be listed, or there are none, or the key won't load, it names $2.
+unsigned_commit() {
+  local home commits commit status primary found=""
+  if ! commits=$(git rev-list --reverse "$1..$2" 2>/dev/null) || [ -z "$commits" ]; then
+    echo "$2"
+    return
+  fi
+  home=$(mktemp -d)
+  if ! "$GPG" --homedir "$home" --batch --quiet --import "$GITHUB_KEY" 2>/dev/null; then
+    found="$2" # the key didn't load, so nothing is checked
+  else
+    for commit in $commits; do
+      primary=""
+      # verify-commit prints gpg's status lines on stderr; it fails on no or a bad signature.
+      status=$(GNUPGHOME="$home" git -c gpg.program="$GPG" verify-commit --raw "$commit" 2>&1) ||
+        status=""
+      # VALIDSIG's last field is the primary key's fingerprint; GOODSIG: not expired or revoked.
+      if [[ "$status" == *"[GNUPG:] GOODSIG "* ]]; then
+        primary=$(echo "$status" | awk '$2 == "VALIDSIG" { print $NF }')
+      fi
+      if [ "$primary" != "$GITHUB_FINGERPRINT" ]; then
+        found="$commit"
+        break
+      fi
+    done
+  fi
+  if command -v gpgconf >/dev/null; then
+    gpgconf --homedir "$home" --kill all 2>/dev/null || true
+  fi
+  rm -rf "$home"
+  echo "$found"
+}
 
 # True once /healthz returns the given JSON fragment.
 healthy() {
@@ -75,8 +119,19 @@ main() {
     log "ERROR: $latest is not on main; not deploying it"
     return 1
   fi
+  if ! command -v "$GPG" >/dev/null; then
+    log "ERROR: gpg is needed to check $latest is genuine (sudo apt install gnupg)"
+    return 1
+  fi
   if ! git merge-base --is-ancestor "$current" "$target"; then
     log "ERROR: the checkout ($(git describe --tags --always)) is not behind $latest; deploy by hand"
+    return 1
+  fi
+  local unsigned
+  unsigned=$(unsigned_commit "$current" "$target")
+  if [ -n "$unsigned" ]; then
+    log "ERROR: $latest includes $(git rev-parse --short "$unsigned"), which GitHub didn't" \
+      "sign; not deploying it"
     return 1
   fi
 
@@ -121,6 +176,9 @@ main() {
   return 1
 }
 
-# The checkout replaces this file; bash has read all of main() before it runs.
-main "$@"
-exit $?
+# The checkout replaces this file; bash has read all of main() before it runs. Sourced (by
+# the tests), it only defines the functions.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
+  exit $?
+fi

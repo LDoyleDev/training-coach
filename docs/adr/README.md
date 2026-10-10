@@ -47,4 +47,5 @@ Code). Template: [template.md](template.md).
 | [0040](0040-passkey-first-sign-in-with-telegram-recovery.md) | Passkey first, Telegram for recovery, and an alert for every sign-in change | Accepted |
 | [0041](0041-the-site-is-private.md) | The site is private: no public pages | Accepted |
 | [0042](0042-encrypted-off-site-backups.md) | Encrypted off-site backups on Cloudflare R2, kept 35 days | Accepted |
+| [0043](0043-deploy-only-releases-github-signed.md) | The Pi deploys only releases GitHub signed | Accepted |
 | [0044](0044-erase-all-my-data.md) | Erasing all my data: delete the person, cascade, start fresh | Accepted |
