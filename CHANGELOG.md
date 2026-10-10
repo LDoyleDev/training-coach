@@ -4,6 +4,44 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.16.0](https://github.com/LDoyleDev/training-coach/compare/v0.15.0...v0.16.0) (2026-10-10)
+
+
+### Features
+
+* **api:** baseline test definitions and test days ([#137](https://github.com/LDoyleDev/training-coach/issues/137)) ([aed6b07](https://github.com/LDoyleDev/training-coach/commit/aed6b07c39df082fcf19f50772ad6cf455c9003f))
+* **api:** body measurements, one per kind per day ([#144](https://github.com/LDoyleDev/training-coach/issues/144)) ([bcb0e58](https://github.com/LDoyleDev/training-coach/commit/bcb0e5831df621a016b6c2c67ce5b0d94537cff2))
+* **api:** keep a guided session's progress and save it as a workout ([#129](https://github.com/LDoyleDev/training-coach/issues/129)) ([b596963](https://github.com/LDoyleDev/training-coach/commit/b596963ffeb4081329d4a7e1d87e86830373de6b))
+* **api:** sign in to the web app with a one-time link from the bot ([#122](https://github.com/LDoyleDev/training-coach/issues/122)) ([d041b48](https://github.com/LDoyleDev/training-coach/commit/d041b4856013cdcd670d6fe6d5e96dbe324c83ec))
+* **api:** sign in with a passkey (fingerprint or face) ([#123](https://github.com/LDoyleDev/training-coach/issues/123)) ([d441477](https://github.com/LDoyleDev/training-coach/commit/d441477b8be56769e4b5004f5e90f6d8764da80a))
+* **api:** today's guided session in work order ([#128](https://github.com/LDoyleDev/training-coach/issues/128)) ([e0d73e6](https://github.com/LDoyleDev/training-coach/commit/e0d73e6d257a77d0ded484ed11473bab6627d911))
+* **bot:** a short how-to for every exercise in a session ([#125](https://github.com/LDoyleDev/training-coach/issues/125)) ([1d47489](https://github.com/LDoyleDev/training-coach/commit/1d4748901689d9118e7c312922b36328b9de1445))
+* **bot:** weekly review shows zone 2 minutes against 180-200 ([#141](https://github.com/LDoyleDev/training-coach/issues/141)) ([4665dde](https://github.com/LDoyleDev/training-coach/commit/4665dde9622f661da32c51af1eb1d4525907fe76))
+* **db:** every workout records the plan version in force on its date ([#134](https://github.com/LDoyleDev/training-coach/issues/134)) ([9a53f15](https://github.com/LDoyleDev/training-coach/commit/9a53f153adad90ca597a10e368f7ab5d145ff74d))
+* **scheduler:** due test days stand in front of the queue ([#140](https://github.com/LDoyleDev/training-coach/issues/140)) ([7cfc8d7](https://github.com/LDoyleDev/training-coach/commit/7cfc8d701c66a0e0264b0c3b9027b736e1512b38))
+* **web:** an account page to remove passkeys and sign out devices ([#127](https://github.com/LDoyleDev/training-coach/issues/127)) ([85b5977](https://github.com/LDoyleDev/training-coach/commit/85b597724d9e5fdb986a0d8585a75b2991c6c9a8))
+* **web:** compare test results with the baseline and last time ([#139](https://github.com/LDoyleDev/training-coach/issues/139)) ([7a06e59](https://github.com/LDoyleDev/training-coach/commit/7a06e591f0828638ff59e831b7fa70a0a5d14bc2))
+* **web:** label a first session at a step as the baseline ([#133](https://github.com/LDoyleDev/training-coach/issues/133)) ([0f9298d](https://github.com/LDoyleDev/training-coach/commit/0f9298d37f0bccfa97045c2bac877f1be9c6dbff))
+* **web:** measurements at /body with the change since first and last ([#147](https://github.com/LDoyleDev/training-coach/issues/147)) ([85bd110](https://github.com/LDoyleDev/training-coach/commit/85bd110c8857e2b0ad067a136b576cb068828493))
+* **web:** offer stretching after a saved guided session ([#136](https://github.com/LDoyleDev/training-coach/issues/136)) ([c813b4c](https://github.com/LDoyleDev/training-coach/commit/c813b4c65736ac7d895c716f419a977cbcf9a203))
+* **web:** one header with a nav between the signed-in pages ([#148](https://github.com/LDoyleDev/training-coach/issues/148)) ([0ac630b](https://github.com/LDoyleDev/training-coach/commit/0ac630b7a7728559545e57a6bd12920cf14823b0))
+* **web:** rest timer, stopwatch, pair switch and saving an unsaved day ([#132](https://github.com/LDoyleDev/training-coach/issues/132)) ([97af54c](https://github.com/LDoyleDev/training-coach/commit/97af54c598b1dc0b544e3af42811901542a4c4d1))
+* **web:** show a due test day before today's session ([#145](https://github.com/LDoyleDev/training-coach/issues/145)) ([a63d1df](https://github.com/LDoyleDev/training-coach/commit/a63d1df6543c859dfa9b40c4f47ab42f395d598c))
+* **web:** the guided session, one set at a time ([#131](https://github.com/LDoyleDev/training-coach/issues/131)) ([59cdbb5](https://github.com/LDoyleDev/training-coach/commit/59cdbb5fd30bff9d337e9eb44cc0f423a24739cf))
+* **web:** walk through a day of baseline tests at /tests ([#138](https://github.com/LDoyleDev/training-coach/issues/138)) ([1fb87e6](https://github.com/LDoyleDev/training-coach/commit/1fb87e6540b289b77aab2f5fe52afcb6faf18209))
+
+
+### Bug Fixes
+
+* **web:** an ended sign-in says so on every page, keeping what was typed ([#149](https://github.com/LDoyleDev/training-coach/issues/149)) ([5d02637](https://github.com/LDoyleDev/training-coach/commit/5d02637e578132570687a96c0c302d0f690bd15c))
+
+
+### Documentation
+
+* decide the guided session (D1) and list its issues ([#119](https://github.com/LDoyleDev/training-coach/issues/119)) ([5eddada](https://github.com/LDoyleDev/training-coach/commit/5eddadab6a44b556f5c65bcc57c59e0997dd1ca5))
+* phase 2 overview matches what is built ([#146](https://github.com/LDoyleDev/training-coach/issues/146)) ([6cf6232](https://github.com/LDoyleDev/training-coach/commit/6cf6232ce3a043a9ab864d8f6398fce6db4a7811))
+* web app first (ADR-0035) and passkey sign-in (ADR-0036) ([#121](https://github.com/LDoyleDev/training-coach/issues/121)) ([2f8e1d5](https://github.com/LDoyleDev/training-coach/commit/2f8e1d5b63198c00a84bad24277f9813c10ab38e))
+
 ## [0.15.0](https://github.com/LDoyleDev/training-coach/compare/v0.14.0...v0.15.0) (2026-10-09)
 
 
