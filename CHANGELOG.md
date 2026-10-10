@@ -4,6 +4,15 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.19.0](https://github.com/LDoyleDev/training-coach/compare/v0.18.0...v0.19.0) (2026-10-10)
+
+
+### Features
+
+* **infra:** a dedicated backup key, and more than one if wanted ([#164](https://github.com/LDoyleDev/training-coach/issues/164)) ([1b73f18](https://github.com/LDoyleDev/training-coach/commit/1b73f1841ccf26074b467092cf9b8d974240fa31))
+* **infra:** encrypted off-site backups to R2, 35 days everywhere ([#162](https://github.com/LDoyleDev/training-coach/issues/162)) ([0cf50c2](https://github.com/LDoyleDev/training-coach/commit/0cf50c2be57c462ac0f024117bda02c7317e0651))
+* **web:** the site is private; the plan moves to /plan behind sign-in ([#161](https://github.com/LDoyleDev/training-coach/issues/161)) ([3d86417](https://github.com/LDoyleDev/training-coach/commit/3d864179f6846592406f66dc3af3e4e0b8723a4c))
+
 ## [0.18.0](https://github.com/LDoyleDev/training-coach/compare/v0.17.0...v0.18.0) (2026-10-10)
 
 
