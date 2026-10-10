@@ -122,6 +122,7 @@ export type Done = Schemas['DoneView']
 export type Kept = Schemas['ProgressView']
 export type Saved = Schemas['SavedView']
 export type Pending = Schemas['PendingView']
+export type Routine = Schemas['RoutineView']
 export type KeepBody = Schemas['KeepBody']
 
 const json = { 'Content-Type': 'application/json' }
@@ -165,4 +166,26 @@ export async function fetchPending(signal?: AbortSignal): Promise<Pending[]> {
   const res = await fetch('/api/session/pending', { signal, credentials: 'same-origin' })
   if (!res.ok) return []
   return (await res.json()) as Pending[]
+}
+
+/** The stretches after a saved resistance workout, filling `minutes`; null when not offered. */
+export async function fetchStretching(workoutId: number, minutes: number): Promise<Routine | null> {
+  const res = await fetch(`/api/session/stretching/${workoutId}?minutes=${minutes}`, {
+    credentials: 'same-origin',
+  })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Routine
+}
+
+/** Log the stretching minutes on the workout: false when it already had its stretching. */
+export async function logStretching(workoutId: number, minutes: number): Promise<boolean> {
+  const res = await fetch(`/api/session/stretching/${workoutId}`, {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify({ minutes }),
+    credentials: 'same-origin',
+  })
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return ((await res.json()) as Schemas['StretchedView']).logged
 }

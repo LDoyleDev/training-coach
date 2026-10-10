@@ -264,6 +264,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/session/stretching/{workout_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stretching Routine
+         * @description The stretches after a saved resistance workout, filling ``minutes`` (ADR-0032).
+         */
+        get: operations["stretching_routine_api_session_stretching__workout_id__get"];
+        put?: never;
+        /**
+         * Stretching Done
+         * @description Log the stretching minutes on the workout, once.
+         */
+        post: operations["stretching_done_api_session_stretching__workout_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session/today": {
         parameters: {
             query?: never;
@@ -553,6 +577,17 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** RoutineView */
+        RoutineView: {
+            /** Hold Seconds */
+            hold_seconds: number;
+            /** Minutes */
+            minutes: number;
+            /** Session */
+            session: string;
+            /** Steps */
+            steps: components["schemas"]["StretchView"][];
+        };
         /** SaveBody */
         SaveBody: {
             /** Day */
@@ -608,6 +643,27 @@ export interface components {
             devices: components["schemas"]["DeviceView"][];
             /** Passkeys */
             passkeys: components["schemas"]["PasskeyView"][];
+        };
+        /** StretchBody */
+        StretchBody: {
+            /** Minutes */
+            minutes: number;
+        };
+        /** StretchView */
+        StretchView: {
+            /** Cue */
+            cue: string;
+            /** Name */
+            name: string;
+            /** Per Side */
+            per_side: boolean;
+            /** Rounds */
+            rounds: number;
+        };
+        /** StretchedView */
+        StretchedView: {
+            /** Logged */
+            logged: boolean;
         };
         /**
          * TodayView
@@ -989,6 +1045,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SavedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stretching_routine_api_session_stretching__workout_id__get: {
+        parameters: {
+            query: {
+                minutes: number;
+            };
+            header?: never;
+            path: {
+                workout_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoutineView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stretching_done_api_session_stretching__workout_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workout_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StretchBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StretchedView"];
                 };
             };
             /** @description Validation Error */
