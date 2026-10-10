@@ -32,6 +32,7 @@ export default function Photos() {
   const [note, setNote] = useState<string | null>(null)
   const [busy, setBusy] = useState<Pose | null>(null)
   const [signedOut, setSignedOut] = useState(false)
+  const [confirming, setConfirming] = useState<number | null>(null) // asked "Remove?"
 
   const fail = (error: unknown, otherwise: string) => {
     if (error instanceof SignedOutError) setSignedOut(true)
@@ -51,8 +52,17 @@ export default function Photos() {
     setBusy(pose)
     setNote(null)
     setSignedOut(false)
+    let small: Blob
     try {
-      const answer = await uploadPhoto(today(), pose, await shrink(file))
+      small = await shrink(file)
+    } catch {
+      // Not a connection problem: retrying the same picture won't help.
+      setNote("That picture can't be read here. Try a photo from the camera (JPEG).")
+      setBusy(null)
+      return
+    }
+    try {
+      const answer = await uploadPhoto(today(), pose, small)
       if (answer === true) {
         setNote('Photo saved.')
         await load()
@@ -65,6 +75,7 @@ export default function Photos() {
   }
 
   const remove = async (photo: PhotoView) => {
+    setConfirming(null)
     setNote(null)
     setSignedOut(false)
     try {
@@ -99,7 +110,6 @@ export default function Photos() {
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               className="sr-only"
               aria-label={`${label} photo for today`}
               disabled={busy !== null}
@@ -127,14 +137,35 @@ export default function Photos() {
                   />
                   <figcaption className="flex items-center justify-between gap-1 text-sm">
                     {POSES.find((p) => p.pose === photo.pose)?.label}
-                    <button
-                      type="button"
-                      className={small}
-                      aria-label={`Remove the ${photo.pose} photo on ${on}`}
-                      onClick={() => remove(photo)}
-                    >
-                      ×
-                    </button>
+                    {confirming === photo.id ? (
+                      <span className="flex gap-1">
+                        <button
+                          type="button"
+                          className={small}
+                          aria-label={`Keep the ${photo.pose} photo on ${on}`}
+                          onClick={() => setConfirming(null)}
+                        >
+                          Keep
+                        </button>
+                        <button
+                          type="button"
+                          className={small + ' text-[var(--bell-ink)]'}
+                          aria-label={`Yes, remove the ${photo.pose} photo on ${on}`}
+                          onClick={() => remove(photo)}
+                        >
+                          Remove
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className={small}
+                        aria-label={`Remove the ${photo.pose} photo on ${on}`}
+                        onClick={() => setConfirming(photo.id)}
+                      >
+                        ×
+                      </button>
+                    )}
                   </figcaption>
                 </figure>
               ))}

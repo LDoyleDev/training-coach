@@ -327,7 +327,10 @@ export async function uploadPhoto(on: string, pose: Pose, jpeg: Blob): Promise<t
   )
   if (res.status === 413) return 'That photo is too large.'
   if (res.status === 415 || res.status === 422) {
-    const detail = ((await res.json()) as { detail?: unknown }).detail
+    const detail = await res
+      .json()
+      .then((body: { detail?: unknown }) => body.detail)
+      .catch(() => null) // a proxy's error page isn't JSON
     return typeof detail === 'string' ? detail : "That photo couldn't be stored."
   }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
