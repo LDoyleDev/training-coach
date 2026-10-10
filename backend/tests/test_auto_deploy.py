@@ -31,6 +31,35 @@ esac
 CURL = """#!/usr/bin/env bash
 cat "$STUB_DIR/health" 2>/dev/null || exit 7
 """
+# Signs with the fingerprint in sign-as (beside it) written into the signature, and verifies by
+# reading it back, answering with gpg's status lines; "bad" makes a signature that won't verify.
+GPG = """#!/usr/bin/env bash
+mode="" file=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --import) exit 0 ;;
+    --verify) mode=verify; file="$2"; shift ;;
+    -bsau) mode=sign ;;
+  esac
+  shift
+done
+cat >/dev/null
+if [ "$mode" = sign ]; then
+  echo "[GNUPG:] SIG_CREATED D" >&2
+  printf -- '-----BEGIN PGP SIGNATURE-----\\n\\n%s\\n-----END PGP SIGNATURE-----\\n' \\
+    "$(cat "$(dirname "$0")/sign-as")"  # beside the stub: commits run without STUB_DIR
+  exit 0
+fi
+signer=$(sed -n 3p "$file")
+echo "[GNUPG:] NEWSIG"  # as gpg does: git looks for the lines after it
+if [ "$signer" = bad ]; then
+  echo "[GNUPG:] BADSIG 0 GitHub"
+  exit 1
+fi
+echo "[GNUPG:] GOODSIG 0 GitHub"
+echo "[GNUPG:] VALIDSIG $signer 2026-10-10 0 0 4 0 1 8 00 $signer"
+"""
+GITHUB = "968479A1AFF927E37D1A566BB5690EEEBB952194"  # pinned in the script
 
 
 def _git(cwd: Path, *args: str) -> str:
@@ -50,14 +79,27 @@ class Pi:
     checkout: Path
     stubs: Path
 
-    def release(self, tag: str, *, migration: bool = False, branch: str = "main") -> None:
-        """Commit on the origin and tag it, as release-please does."""
+    def release(
+        self,
+        tag: str,
+        *,
+        migration: bool = False,
+        branch: str = "main",
+        signer: str | None = GITHUB,
+    ) -> None:
+        """Commit on the origin and tag it, as release-please does; signed by GitHub, as a merge
+        on github.com is, unless ``signer`` says otherwise (None: not signed)."""
         _git(self.origin, "checkout", "-q", branch)
         folder = self.origin / ("backend/migrations" if migration else "backend/src")
         folder.mkdir(parents=True, exist_ok=True)
         (folder / f"{tag}.txt").write_text(tag)
         _git(self.origin, "add", ".")
-        _git(self.origin, "commit", "-qm", tag)
+        if signer is None:
+            _git(self.origin, "commit", "-qm", tag)
+        else:
+            (self.stubs / "sign-as").write_text(signer)
+            gpg = f"gpg.program={(self.stubs / 'gpg').as_posix()}"
+            _git(self.origin, "-c", gpg, "-c", "user.signingkey=x", "commit", "-q", "-S", "-m", tag)
         _git(self.origin, "tag", tag)
         _git(self.origin, "checkout", "-q", "main")
 
@@ -71,7 +113,18 @@ class Pi:
     def fail(self, step: str) -> None:
         (self.stubs / f"fail-{step}").touch()
 
-    def deploy(self) -> subprocess.CompletedProcess[str]:
+    def deploy(self, **extra: str) -> subprocess.CompletedProcess[str]:
+        return self._bash([str(SCRIPT)], **extra)
+
+    def unsigned_commit(self, since: str, release: str) -> str:
+        """The script's own check, called directly: sourced, the script only defines it."""
+        command = 'source "$1" && cd "$2" && unsigned_commit "$3" "$4"'
+        args = [SCRIPT.as_posix(), self.checkout.as_posix(), since, release]
+        result = self._bash(["-c", command, "test", *args])
+        assert result.returncode == 0, result.stderr
+        return result.stdout.strip()
+
+    def _bash(self, argv: list[str], **extra: str) -> subprocess.CompletedProcess[str]:
         assert BASH is not None
         env = {
             **os.environ,
@@ -81,9 +134,10 @@ class Pi:
             "TC_DEPLOY_REMOTE": str(self.origin),
             "TC_HEALTH_TIMEOUT": "1",
             "TC_HEALTH_INTERVAL": "0.1",
+            **extra,
         }
         return subprocess.run(  # noqa: S603 - our own script, no shell
-            [BASH, str(SCRIPT)], env=env, capture_output=True, text=True, check=False
+            [BASH, *argv], env=env, capture_output=True, text=True, check=False
         )
 
     def docker_calls(self) -> list[str]:
@@ -101,7 +155,7 @@ def pi(tmp_path: Path) -> Pi:
     stubs.mkdir()
     _git(origin, "init", "-q", "-b", "main")
     _git(origin, "commit", "-q", "--allow-empty", "-m", "start")
-    for name, body in (("docker", DOCKER), ("curl", CURL)):
+    for name, body in (("docker", DOCKER), ("curl", CURL), ("gpg", GPG)):
         (stubs / name).write_text(body, newline="\n")
         (stubs / name).chmod(0o755)
     made = Pi(origin, checkout, stubs)
@@ -221,6 +275,55 @@ def test_a_tag_that_is_not_on_main_is_refused(pi: Pi) -> None:
     assert result.returncode == 1
     assert (pi.at(), pi.docker_calls()) == ("v0.1.0", [])
     assert "not on main" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "signer",
+    [None, "0123456789ABCDEF0123456789ABCDEF01234567", "bad"],
+    ids=["unsigned", "someone-else", "bad-signature"],
+)
+def test_a_release_github_did_not_sign_is_refused(pi: Pi, signer: str | None) -> None:
+    """On main is not enough: a commit pushed there past the pull requests (a stolen token, an
+    admin override) isn't signed by GitHub's key, so it doesn't deploy."""
+    pi.release("v0.2.0", signer=signer)
+    pi.health("0.2.0")
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert (pi.at(), pi.docker_calls()) == ("v0.1.0", [])
+    assert "which GitHub didn't sign" in result.stdout
+
+
+def test_an_unsigned_commit_under_a_signed_release_is_refused(pi: Pi) -> None:
+    """A commit pushed past the pull requests, then a signed release on top of it (the next
+    merge): every commit since the deployed version is checked, not only the release's."""
+    _git(pi.origin, "commit", "-q", "--allow-empty", "-m", "pushed past the pull requests")
+    pushed = _git(pi.origin, "rev-parse", "--short", "HEAD")
+    pi.release("v0.2.0")
+    pi.health("0.2.0")
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert (pi.at(), pi.docker_calls()) == ("v0.1.0", [])
+    assert f"v0.2.0 includes {pushed}, which GitHub didn't sign" in result.stdout
+
+
+def test_the_signature_check_fails_closed(pi: Pi) -> None:
+    """Commits it can't list (an unknown ref, a broken repo) or no commits at all count as
+    unsigned, not as checked; main's own checks shouldn't be what saves it."""
+    pi.release("v0.2.0")
+    _git(pi.checkout, "fetch", "-q", "--tags")
+    assert pi.unsigned_commit("v0.1.0", "v0.2.0") == ""  # the signed release passes
+    assert pi.unsigned_commit("v0.1.0", "no-such-ref") == "no-such-ref"
+    assert pi.unsigned_commit("v0.2.0", "v0.2.0") == "v0.2.0"  # nothing to check
+
+
+def test_without_gpg_nothing_deploys(pi: Pi) -> None:
+    """No check means no deploy, not a deploy without the check."""
+    pi.release("v0.2.0")
+    pi.health("0.2.0")
+    result = pi.deploy(TC_DEPLOY_GPG="no-such-gpg")
+    assert result.returncode == 1
+    assert (pi.at(), pi.docker_calls()) == ("v0.1.0", [])
+    assert "gpg is needed" in result.stdout
 
 
 def test_local_changes_are_never_deployed_over(pi: Pi) -> None:
