@@ -2,6 +2,7 @@
 const PAGES = [
   { path: '/session', label: 'Today' },
   { path: '/progress', label: 'Progress' },
+  { path: '/plan', label: 'Plan' },
   { path: '/tests', label: 'Tests' },
   { path: '/body', label: 'Body' },
   { path: '/account', label: 'Account' },

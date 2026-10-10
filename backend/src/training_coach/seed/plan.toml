@@ -29,7 +29,7 @@ name = "Original plan"
 
 [[versions]]
 since = 2026-10-01
-name = "Huberman rebuild (ADR-0017)"
+name = "Rebuild (Oct 2026, ADR-0017)"
 
 # ------------------------------------------------------------------- baseline tests
 # The product spec's performance tests (2-A, ADR-0037), on two days. Retest under the same

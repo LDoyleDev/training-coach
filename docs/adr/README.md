@@ -23,7 +23,7 @@ Code). Template: [template.md](template.md).
 | [0016](0016-queue-and-target-rules.md) | Queue edge cases and target rules | Accepted (targets superseded by 0027) |
 | [0017](0017-plan-follows-huberman-protocol.md) | The training plan follows Huberman's Foundational Fitness Protocol | Accepted |
 | [0018](0018-develop-in-wsl2-on-windows.md) | Develop in WSL 2 on the Windows desktop | Accepted |
-| [0019](0019-public-plan-endpoint.md) | The bundled training plan is public at GET /api/plan | Accepted |
+| [0019](0019-public-plan-endpoint.md) | The bundled training plan is public at GET /api/plan | Superseded by 0041 |
 | [0020](0020-generated-api-types.md) | Dashboard API types are generated from the OpenAPI schema | Accepted |
 | [0021](0021-claude-code-guardrails.md) | Claude Code guardrails: hooks, review subagents, a lean CLAUDE.md | Accepted |
 | [0022](0022-swap-and-rest-buttons.md) | What Swap and Rest today do to the queue | Accepted |
@@ -45,4 +45,5 @@ Code). Template: [template.md](template.md).
 | [0038](0038-test-days-wait-in-front-of-the-queue.md) | Test days stand in front of the queue while a round is due | Accepted |
 | [0039](0039-progress-photos-in-the-database.md) | Progress photos are kept in the database, cleaned of their metadata | Accepted |
 | [0040](0040-passkey-first-sign-in-with-telegram-recovery.md) | Passkey first, Telegram for recovery, and an alert for every sign-in change | Accepted |
+| [0041](0041-the-site-is-private.md) | The site is private: no public pages | Accepted |
 | [0042](0042-encrypted-off-site-backups.md) | Encrypted off-site backups on Cloudflare R2, kept 35 days | Accepted |
