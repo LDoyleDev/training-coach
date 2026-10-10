@@ -2,6 +2,7 @@ import AppShell from './components/AppShell'
 import { useCallback, useEffect, useState } from 'react'
 import {
   addPasskey,
+  downloadExport,
   fetchSignIns,
   passkeysSupported,
   removePasskey,
@@ -62,6 +63,27 @@ export default function Account() {
         setNote(error instanceof StaleSignInError ? STALE : "The passkey wasn't added."),
       )
       .finally(load)
+  }
+
+  const download = () => {
+    setNote('Preparing your data…')
+    downloadExport()
+      .then((zip) => {
+        const url = URL.createObjectURL(zip)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `training-coach-${new Date().toISOString().slice(0, 10)}.zip`
+        link.click()
+        URL.revokeObjectURL(url)
+        setNote('Your data is downloading.')
+      })
+      .catch((error: unknown) =>
+        setNote(
+          error instanceof StaleSignInError
+            ? STALE.replace('changing passkeys', 'downloading everything')
+            : "That didn't work. Check your connection and try again.",
+        ),
+      )
   }
 
   const leave = () => {
@@ -141,6 +163,19 @@ export default function Account() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section aria-labelledby="your-data">
+            <h2 id="your-data">Your data</h2>
+            <p>
+              Everything stored about you: workouts, tests, measurements, habits, settings and your
+              photos, as one zip file.
+            </p>
+            <p>
+              <button type="button" onClick={download}>
+                Download all my data
+              </button>
+            </p>
           </section>
         </>
       )}

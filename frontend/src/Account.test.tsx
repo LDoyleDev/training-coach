@@ -127,3 +127,25 @@ test('changing passkeys without a recent sign-in explains how', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Remove passkey Pixel' }))
   expect(await screen.findByText(/needs a recent sign-in/)).toBeInTheDocument()
 })
+
+test('all my data can be downloaded', async () => {
+  const calls = server(SIGN_INS)
+  const createObjectURL = vi.fn(() => 'blob:zip')
+  vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL: vi.fn() })
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  render(<Account />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Download all my data' }))
+  expect(await screen.findByText('Your data is downloading.')).toBeInTheDocument()
+  expect(calls).toContain('GET /api/account/export')
+  expect(click).toHaveBeenCalled()
+  click.mockRestore()
+})
+
+test('downloading without a recent sign-in explains how', async () => {
+  server(SIGN_INS, [], true)
+  render(<Account />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Download all my data' }))
+  expect(
+    await screen.findByText(/downloading everything needs a recent sign-in/),
+  ).toBeInTheDocument()
+})
