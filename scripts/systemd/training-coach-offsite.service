@@ -1,0 +1,13 @@
+# Encrypts the newest nightly backup and copies it off the Pi (ADR-0042). Started by the timer.
+# Install: docs/runbooks/backup-restore.md, "Off-site copies". Paths assume the vybe user.
+[Unit]
+Description=Copy the newest Training Coach backup off-site, encrypted
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=vybe
+ExecStart=/home/vybe/training-coach/scripts/offsite-backup.sh
+TimeoutStartSec=15min
+Nice=10

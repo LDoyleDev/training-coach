@@ -1,0 +1,12 @@
+# Daily at 04:30, after the app's 03:30 backup (ADR-0042). Persistent: a missed run (the Pi was
+# off) runs at the next boot.
+[Unit]
+Description=Copy the newest Training Coach backup off-site every night
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
