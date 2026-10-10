@@ -344,3 +344,15 @@ export async function deletePhoto(id: number): Promise<void> {
   if (res.status !== 204 && res.status !== 404)
     throw new Error(`The server answered ${res.status}.`)
 }
+
+// ---------------------------------------------------------------- progress
+
+export type Standing = Schemas['StandingView']
+
+/** Each exercise's standing; null when not signed in. */
+export async function fetchProgress(signal?: AbortSignal): Promise<Standing[] | null> {
+  const res = await fetch('/api/progress', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Standing[]
+}

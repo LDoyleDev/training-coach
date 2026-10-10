@@ -15,6 +15,7 @@ test('the nav links every signed-in page and marks the one shown', () => {
   const links = [...nav.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('href')])
   expect(links).toEqual([
     ['Today', '/session'],
+    ['Progress', '/progress'],
     ['Tests', '/tests'],
     ['Body', '/body'],
     ['Account', '/account'],
