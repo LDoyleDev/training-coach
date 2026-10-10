@@ -191,6 +191,15 @@ def test_rotate_secrets_reseals_with_the_newest_key(
 
     with session_scope(make_session_factory(engine, user_id=OWNER)) as session:
         assert ai_key.key(session, SecretBox(SecretStr(new)), datetime.now(UTC)) is not None
+
+    # A secrets key left out of the list: its stored keys can't be opened, and it says so.
+    monkeypatch.setenv("TC_SECRETS_KEY", Fernet.generate_key().decode())
+    get_settings.cache_clear()
+    with pytest.raises(SystemExit, match="1 stored key"):
+        main(["rotate-secrets"])
+    assert (
+        "Re-sealed 0 key(s) with the newest secrets key; 1 unreadable." in capsys.readouterr().out
+    )
     engine.dispose()
     monkeypatch.delenv("TC_SECRETS_KEY")
     get_settings.cache_clear()

@@ -136,6 +136,14 @@ def rotate_secrets() -> None:
         engine.dispose()
     log.info("secrets.rotated", resealed=done, unreadable=lost)
     sys.stdout.write(f"Re-sealed {done} key(s) with the newest secrets key; {lost} unreadable.\n")
+    if lost:
+        # No listed key opens these, so they were unreadable already: those people are asked to
+        # enter their key again. Say so loudly before anyone removes an old key.
+        sys.exit(
+            f"{lost} stored key(s) could not be opened with any key in TC_SECRETS_KEY. Is a "
+            "secrets key missing from the list? Put it back and run this again before "
+            "removing any key."
+        )
 
 
 def openapi() -> None:

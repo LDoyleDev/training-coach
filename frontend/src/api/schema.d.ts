@@ -59,7 +59,11 @@ export interface paths {
          */
         put: operations["store_key_api_account_ai_key_put"];
         post?: never;
-        /** Remove Key */
+        /**
+         * Remove Key
+         * @description Remove the key. No fresh sign-in (removing sends nothing anywhere), but alerted, so a
+         *     removal from a stolen session doesn't go unnoticed.
+         */
         delete: operations["remove_key_api_account_ai_key_delete"];
         options?: never;
         head?: never;
@@ -77,7 +81,8 @@ export interface paths {
         put?: never;
         /**
          * Test Key
-         * @description Check the stored key still works.
+         * @description Check the stored key still works, and record the answer: a refused key is marked
+         *     failed, a working one clears an earlier failure, so the status matches the check.
          */
         post: operations["test_key_api_account_ai_test_post"];
         delete?: never;
@@ -908,7 +913,10 @@ export interface components {
         };
         /** KeyBody */
         KeyBody: {
-            /** Key */
+            /**
+             * Key
+             * Format: password
+             */
             key: string;
         };
         /** KindView */
