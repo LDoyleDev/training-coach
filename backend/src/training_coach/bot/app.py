@@ -38,6 +38,7 @@ from training_coach.bot import buttons, logging_flow
 from training_coach.bot import habits as habits_ui
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import settings as settings_ui
+from training_coach.bot import share as share_ui
 from training_coach.bot import stretching as stretching_ui
 from training_coach.bot import undo as undo_ui
 from training_coach.bot.buttons import edit_quietly
@@ -88,6 +89,7 @@ HELP_TEXT = (
     "/habits - tick today's habits: morning light, protein, wind-down\n"
     "/settings - message times, nudges, habits, pause\n"
     "/undo - take back the last rest day, swap, push or saved log\n"
+    "/share - your last 4 weeks as a picture to forward (no body data or photos)\n"
     "/login - sign in to the web app\n"
     "/recover - sign in without your passkey (lost phone); signs out other devices\n"
     "/help - this message\n\n"
@@ -487,6 +489,8 @@ def build_bot(
         CallbackQueryHandler(habit_handlers.button, pattern=rf"^{habits_ui.PREFIX}:")
     )
     application.add_handler(CallbackQueryHandler(handlers.button, pattern=rf"^{buttons.PREFIX}:"))
+    share_handlers = share_ui.ShareHandlers(settings, sessions)
+    application.add_handler(CommandHandler("share", share_handlers.command, filters=allowed))
     undo_handlers = undo_ui.UndoHandlers(settings, sessions)
     application.add_handler(CommandHandler("undo", undo_handlers.command, filters=allowed))
     application.add_handler(

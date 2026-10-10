@@ -133,6 +133,11 @@ async def run(
         for call in telegram.calls:
             method = str(call.request.url).rsplit("/", 1)[-1]
             if method not in ("getMe", "file_1.oga") and "telegram" in str(call.request.url):
+                if call.request.headers.get("content-type", "").startswith("multipart/"):
+                    # An upload (a photo): keep the body as text to search, not as a form.
+                    body = {"multipart": call.request.content.decode("latin-1")}
+                    calls.setdefault(method, []).append(body)
+                    continue
                 form = parse_qs(call.request.content.decode())
                 calls.setdefault(method, []).append({k: v[0] for k, v in form.items()})
     return calls

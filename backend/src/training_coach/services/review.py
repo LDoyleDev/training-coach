@@ -98,6 +98,11 @@ def _minutes(session: Session, start: date, end: date) -> dict[str, int]:
     return {slug: int(total) for slug, total in rows}
 
 
+def cardio_minutes(session: Session, start: date, end: date) -> dict[str, int]:
+    """Minutes of zone 2 and moderate cardio done from ``start`` to ``end`` (by slug)."""
+    return _minutes(session, start, end)
+
+
 def _higher(a: int | None, b: int | None) -> int | None:
     return max((v for v in (a, b) if v is not None), default=None)
 

@@ -16,7 +16,7 @@ Code). Template: [template.md](template.md).
 | [0009](0009-telegram-long-polling-owner-only.md) | Telegram via long polling, owner-only | Accepted |
 | [0010](0010-sqlite-on-sd-card.md) | SQLite on the SD card, with nightly backups | Accepted |
 | [0011](0011-claude-github-action-subscription.md) | Claude GitHub Action on the owner's subscription | Accepted |
-| [0012](0012-dashboard-auth-and-share-links.md) | Dashboard auth via Telegram, read-only share links | Accepted; sign-in superseded by 0036 |
+| [0012](0012-dashboard-auth-and-share-links.md) | Dashboard auth via Telegram, read-only share links | Accepted; sign-in superseded by 0036, share links by 0050 |
 | [0013](0013-uv-for-python-dependencies.md) | uv and pyproject.toml for Python dependencies | Accepted |
 | [0014](0014-multiple-workouts-per-day.md) | Several workouts per day | Accepted |
 | [0015](0015-seed-failure-does-not-block-startup.md) | A failed plan seed does not block startup | Accepted |
@@ -53,3 +53,4 @@ Code). Template: [template.md](template.md).
 | [0046](0046-readiness-questions.md) | Readiness questions that advise, not block | Accepted |
 | [0047](0047-bring-your-own-ai.md) | Bring your own AI | Accepted |
 | [0048](0048-undo-the-last-change.md) | Undo the last change to the plan | Accepted |
+| [0050](0050-share-as-a-picture.md) | Share progress as a picture, not a link | Accepted |

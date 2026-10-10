@@ -9,6 +9,7 @@ dependencies = [
     "cryptography>=50.0.2",  # Fernet for stored keys (ADR-0047); also under webauthn
     "fastapi>=0.141.1",
     "httpx>=0.28.1",
+    "pillow>=11",  # draws the /share progress image (ADR-0050)
     "pydantic-settings>=2.15.0",
     "python-telegram-bot[job-queue]>=22.8",
     "sqlalchemy>=2",
