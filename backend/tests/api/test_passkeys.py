@@ -55,7 +55,7 @@ def _register(client: TestClient, device: Device) -> int:
 
 
 def _sign_in(client: TestClient, device: Device, origin: str | None = None) -> int:
-    client.cookies.delete("tc_session")
+    client.cookies.delete("__Host-tc_session")
     options = _options(client, "/api/auth/passkeys/sign-in/options")
     return client.post(
         "/api/auth/passkeys/sign-in", json={"credential": device.sign_in(options, origin)}
@@ -117,12 +117,12 @@ def test_an_answer_cannot_be_replayed(client: TestClient, engine: Engine) -> Non
     _signed_in(client, engine)
     device = Device(ORIGIN, RP_ID)
     assert _register(client, device) == 204
-    client.cookies.delete("tc_session")
+    client.cookies.delete("__Host-tc_session")
     options = _options(client, "/api/auth/passkeys/sign-in/options")
     handle = client.cookies.get("tc_passkey")
     answer = device.sign_in(options)
     assert client.post("/api/auth/passkeys/sign-in", json={"credential": answer}).status_code == 204
-    client.cookies.delete("tc_session")
+    client.cookies.delete("__Host-tc_session")
     client.cookies.set("tc_passkey", handle or "", path="/api/auth/passkeys")  # the old challenge
     assert client.post("/api/auth/passkeys/sign-in", json={"credential": answer}).status_code == 401
 
@@ -131,7 +131,7 @@ def test_a_challenge_expires_after_five_minutes(client: TestClient, engine: Engi
     _signed_in(client, engine)
     device = Device(ORIGIN, RP_ID)
     assert _register(client, device) == 204
-    client.cookies.delete("tc_session")
+    client.cookies.delete("__Host-tc_session")
     start = datetime.now(UTC)
     with time_machine.travel(start, tick=False):
         options = _options(client, "/api/auth/passkeys/sign-in/options")
@@ -215,7 +215,7 @@ def test_malformed_fields_are_a_refusal_not_an_error(
     _signed_in(client, engine)
     device = Device(ORIGIN, RP_ID)
     assert _register(client, device) == 204
-    client.cookies.delete("tc_session")
+    client.cookies.delete("__Host-tc_session")
     options = _options(client, "/api/auth/passkeys/sign-in/options")
     answer = device.sign_in(options)
     answer["response"][field] = "%%% not base64 %%%"

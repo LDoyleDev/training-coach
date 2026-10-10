@@ -31,8 +31,10 @@ def serve() -> None:
         host="0.0.0.0",  # noqa: S104 - bound inside the container; only the tunnel reaches it
         port=8080,
         log_config=None,
-        proxy_headers=True,
-        forwarded_allow_ips="*",
+        # The client address is the tunnel's; the visitor's comes only from CF-Connecting-IP,
+        # believed only from TC_TRUSTED_PROXIES (api/passkeys.py). X-Forwarded-For is never
+        # trusted: a visitor can set it (security review, 2026-10-10).
+        proxy_headers=False,
     )
 
 

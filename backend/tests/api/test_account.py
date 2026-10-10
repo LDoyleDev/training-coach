@@ -78,7 +78,7 @@ def test_a_removed_passkey_no_longer_signs_in(phone: TestClient) -> None:
     assert key["name"] == "Phone"
     assert phone.delete(f"/api/account/passkeys/{key['id']}").status_code == 204
     assert _sign_ins(phone)["passkeys"] == []
-    phone.cookies.delete("tc_session")
+    phone.cookies.delete("__Host-tc_session")
     options = json.loads(phone.post("/api/auth/passkeys/sign-in/options").text)
     answer = device.sign_in(options)
     assert phone.post("/api/auth/passkeys/sign-in", json={"credential": answer}).status_code == 401
