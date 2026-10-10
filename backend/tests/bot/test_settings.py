@@ -459,3 +459,16 @@ async def test_a_failing_ai_comment_never_fails_the_review(
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
     await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
     context.bot.send_message.assert_awaited_once()
+
+
+async def test_a_failing_comment_send_never_fails_the_review(
+    seeded: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def comment(*_args: object) -> str:
+        return "AI comment"
+
+    monkeypatch.setattr(ai_comment, "weekly", comment)
+    send = AsyncMock(side_effect=[None, RuntimeError("socket gone")])
+    context = SimpleNamespace(bot=SimpleNamespace(send_message=send))
+    await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    assert send.await_count == 2
