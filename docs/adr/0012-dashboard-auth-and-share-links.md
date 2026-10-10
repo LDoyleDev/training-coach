@@ -1,6 +1,6 @@
 # ADR-0012: Dashboard auth via Telegram, read-only share links
 
-- Status: Accepted; owner sign-in superseded by ADR-0036 (share links still stand)
+- Status: Accepted; owner sign-in superseded by ADR-0036, share links by ADR-0050 (a picture)
 - Date: 2026-09-29
 - Deciders: Liam
 

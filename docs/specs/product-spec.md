@@ -44,7 +44,7 @@ Missed session: the order is kept; everything shifts back one day (ADR-0006).
 | Weekly review message | 2 |
 | Habit check-offs: morning light, sleep, protein | 2 |
 | Body measurements and progress photos | 2 |
-| Dashboard (web + Telegram Mini App), share links | 2 |
+| Dashboard (web + Telegram Mini App), `/share` progress picture (ADR-0050) | 2 |
 | Guided session mode with rest timers | 2 |
 | `/undo`: take back the last rest, swap, push or saved log (ADR-0048) | 2 |
 | MCP endpoint for Claude (read, log, propose plan changes) | 3 |

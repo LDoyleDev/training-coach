@@ -100,7 +100,10 @@ describe('App', () => {
   it('asks to sign in when signed out', async () => {
     mockFetch({ ok: false, status: 401, json: () => Promise.resolve({}) })
     render(<App />)
-    expect(await screen.findByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/signin')
+    expect(await screen.findByRole('link', { name: 'Sign in' })).toHaveAttribute(
+      'href',
+      '/signin?next=/plan',
+    )
   })
 
   it('explains a failed load', async () => {
