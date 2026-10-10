@@ -1,0 +1,11 @@
+# Every 5 minutes; the check on Healthchecks.io expects a ping every 5 minutes with a grace of
+# 10 (ADR-0045).
+[Unit]
+Description=Ping the uptime monitor every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target
