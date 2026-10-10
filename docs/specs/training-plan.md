@@ -67,6 +67,12 @@ Hamstrings, chest and calves sit below 10 (see Known limits).
 Conditioning covers Galpin's endurance adaptations: long zone 2 (long-duration endurance),
 moderate cardio (muscular endurance / threshold), high intensity (anaerobic and VO2 max).
 
+**Zone 2 target: 180-200 minutes a week**, built up over time (Huberman's Foundational Fitness
+Protocol). The long zone 2 session gives 45-75 of them; walks, rides and easy runs on other days
+make up the rest (they log as zone 2 through its aliases). The weekly review shows the week's
+zone 2 and moderate cardio minutes against it (#124); the target is `[targets] zone2_minutes`
+in `plan.toml`.
+
 ## Known limits
 
 - Hamstrings and chest get 9 sets a week and calves 6, under Galpin's 10. Adding more would
@@ -84,3 +90,4 @@ moderate cardio (muscular endurance / threshold), high intensity (anaerobic and 
 - [Galpin's guide to strength and hypertrophy (Huberman Lab readable notes)](https://www.hubermanlab.readablepods.com/blog/build-strength-grow-muscles/)
 - [Galpin guest series: training for fitness and longevity (Podcast Notes)](https://podcastnotes.org/huberman-lab/guest-series-dr-andy-galpin-optimize-your-training-program-for-fitness-longevity-huberman-lab/)
 - [Huberman's workout routine: neck, calves, tibialis (WellnessPulse)](https://wellnesspulse.com/fitness/huberman-workout-routine/)
+- [Foundational Fitness Protocol (Huberman Lab newsletter, Nov 2022)](https://www.hubermanlab.com/newsletter/foundational-fitness-protocol)

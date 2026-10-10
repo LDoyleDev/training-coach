@@ -167,3 +167,30 @@ def test_habits_appear_only_in_a_week_with_a_check_off(plan: Session) -> None:
         HabitWeek(Habit.PROTEIN, 0, 3),
         HabitWeek(Habit.WIND_DOWN, 1, 3),
     ]
+
+
+# ------------------------------------------------------------------ cardio minutes (#124)
+
+
+def _template(session: Session, slug: str) -> int:
+    return session.scalars(select(SessionTemplate.id).where(SessionTemplate.slug == slug)).one()
+
+
+def test_zone_2_and_moderate_minutes_this_week(plan: Session) -> None:
+    _log(plan, "zone2", [60], MONDAY, template=_template(plan, "zone2"))
+    _log(plan, "zone2", [45], MONDAY + timedelta(days=2))  # "walk 45 min" as an extra
+    _log(plan, "moderate-cardio", [60], SUNDAY, template=_template(plan, "moderate-cardio"))
+    review = weekly(plan, SUNDAY)
+    assert (review.zone2_minutes, review.moderate_minutes) == (105, 60)
+    assert review.zone2_target == (180, 200)
+
+
+def test_only_done_workouts_this_week_count_as_cardio(plan: Session) -> None:
+    _log(plan, "zone2", [50], MONDAY - timedelta(days=1))  # last Sunday
+    _log(plan, "zone2", [40], SUNDAY + timedelta(days=1))  # next Monday
+    _log(plan, "mobility", [20], MONDAY)  # not cardio
+    for status in (WorkoutStatus.REST, WorkoutStatus.SKIPPED):
+        plan.add(Workout(local_date=MONDAY, template_id=_template(plan, "zone2"), status=status))
+    plan.flush()
+    review = weekly(plan, MONDAY)
+    assert (review.zone2_minutes, review.moderate_minutes) == (0, 0)
