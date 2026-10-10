@@ -46,6 +46,7 @@ Missed session: the order is kept; everything shifts back one day (ADR-0006).
 | Body measurements and progress photos | 2 |
 | Dashboard (web + Telegram Mini App), share links | 2 |
 | Guided session mode with rest timers | 2 |
+| `/undo`: take back the last rest, swap, push or saved log (ADR-0048) | 2 |
 | MCP endpoint for Claude (read, log, propose plan changes) | 3 |
 | Readiness check (sleep, soreness) that eases the session | 3 |
 
