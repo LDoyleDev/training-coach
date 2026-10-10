@@ -4,9 +4,11 @@
 # Where the official base images come from. Docker Hub by default (the Pi); CI passes Google's
 # Docker Hub mirror, mirror.gcr.io/library, to avoid Docker Hub's pull limits on shared runners.
 ARG REGISTRY=docker.io/library
+# Base images are pinned by digest (the multi-arch index, the same on the mirror), so a tag
+# moved upstream can't change what's built; Dependabot proposes new digests monthly.
 
 # --- 1. Dashboard ---------------------------------------------------------
-FROM ${REGISTRY}/node:22-alpine AS web
+FROM ${REGISTRY}/node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -14,8 +16,8 @@ COPY frontend/ ./
 RUN npm run build
 
 # --- 2. Python dependencies ----------------------------------------------
-FROM ${REGISTRY}/python:3.12-slim AS deps
-COPY --from=ghcr.io/astral-sh/uv:0.8.17 /uv /bin/uv
+FROM ${REGISTRY}/python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS deps
+COPY --from=ghcr.io/astral-sh/uv:0.8.17@sha256:e4644cb5bd56fdc2c5ea3ee0525d9d21eed1603bccd6a21f887a938be7e85be1 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock ./
@@ -24,7 +26,7 @@ COPY backend/ ./
 RUN uv sync --frozen --no-dev
 
 # --- 3. Runtime ------------------------------------------------------------
-FROM ${REGISTRY}/python:3.12-slim AS runtime
+FROM ${REGISTRY}/python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS runtime
 RUN groupadd --system --gid 10001 app \
  && useradd --system --uid 10001 --gid app --home /app --shell /usr/sbin/nologin app
 WORKDIR /app
