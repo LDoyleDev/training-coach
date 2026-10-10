@@ -94,10 +94,13 @@ async def store_key(
 
 
 @router.delete("/key", status_code=status.HTTP_204_NO_CONTENT)
-def remove_key(request: Request, user: Owner) -> None:
+def remove_key(request: Request, background: BackgroundTasks, user: Owner) -> None:
+    """Remove the key. No fresh sign-in (removing sends nothing anywhere), but alerted, so a
+    removal from a stolen session doesn't go unnoticed."""
     with session_scope(_bound(request, user)) as session:
         if not ai_key.remove(session):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "no AI key stored")
+    alert(request, background, "ai_key_removed", "Your AI key was removed from Training Coach.")
 
 
 @router.put("", response_model=AiView)

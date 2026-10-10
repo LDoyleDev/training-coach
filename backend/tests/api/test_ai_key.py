@@ -110,7 +110,7 @@ def test_something_that_is_not_a_groq_key_never_leaves(signed_in: TestClient, ke
 
 
 @respx.mock
-def test_options_test_and_remove(signed_in: TestClient) -> None:
+def test_options_test_and_remove(signed_in: TestClient, alerts: list[str]) -> None:
     respx.get(MODELS).respond(json={"data": []})
     signed_in.put("/api/account/ai/key", json={"key": KEY})
     choice = {"enabled": False, "body": True, "readiness": True}
@@ -121,6 +121,7 @@ def test_options_test_and_remove(signed_in: TestClient) -> None:
     }
     assert signed_in.post("/api/account/ai/test").status_code == 204
     assert signed_in.delete("/api/account/ai/key").status_code == 204
+    assert alerts[-1] == "Your AI key was removed from Training Coach."
     assert signed_in.get("/api/account/ai").json() == NOTHING
     assert signed_in.delete("/api/account/ai/key").status_code == 404
     assert signed_in.put("/api/account/ai", json=choice).status_code == 404

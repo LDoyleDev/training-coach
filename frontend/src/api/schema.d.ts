@@ -59,7 +59,11 @@ export interface paths {
          */
         put: operations["store_key_api_account_ai_key_put"];
         post?: never;
-        /** Remove Key */
+        /**
+         * Remove Key
+         * @description Remove the key. No fresh sign-in (removing sends nothing anywhere), but alerted, so a
+         *     removal from a stolen session doesn't go unnoticed.
+         */
         delete: operations["remove_key_api_account_ai_key_delete"];
         options?: never;
         head?: never;

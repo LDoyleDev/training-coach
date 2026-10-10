@@ -1877,6 +1877,7 @@
     },
     "/api/account/ai/key": {
       "delete": {
+        "description": "Remove the key. No fresh sign-in (removing sends nothing anywhere), but alerted, so a\nremoval from a stolen session doesn't go unnoticed.",
         "operationId": "remove_key_api_account_ai_key_delete",
         "responses": {
           "204": {
