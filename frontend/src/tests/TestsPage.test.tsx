@@ -51,7 +51,7 @@ type Server = {
   after?: TestDay[] // the days listed once a save went through
   due?: TestDayDue
   signedIn?: boolean
-  save?: 'refuse' | 'fail'
+  save?: 'refuse' | 'fail' | 'signed-out'
 }
 
 /** A fake API; returns the bodies of the saves sent. */
@@ -64,6 +64,7 @@ function serve(server: Server = {}) {
       if (server.signedIn === false) return new Response(null, { status: 401 })
       if (init?.method === 'POST') {
         sent.push(JSON.parse(String(init.body)))
+        if (server.save === 'signed-out') return new Response(null, { status: 401 })
         if (server.save === 'refuse')
           return Response.json({ detail: 'max-pull-ups is in twice' }, { status: 422 })
         if (server.save === 'fail') return new Response(null, { status: 500 })
@@ -251,4 +252,17 @@ test('a test day due today is offered first', async () => {
   click('Start baseline tests, day 2')
   expect(screen.getByRole('heading', { name: 'Day 2: conditions' })).toBeInTheDocument()
   expect(sent).toHaveLength(0)
+})
+
+test('an ended sign-in while saving points to sign in and keeps the results', async () => {
+  serve({ save: 'signed-out' })
+  render(<TestsPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start day 1 tests' }))
+  click('Start the tests')
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '8' } })
+  click('Next')
+  click('Skip')
+  click('Save')
+  expect(await screen.findByRole('link', { name: 'Sign in again' })).toBeInTheDocument()
+  expect(screen.getByText('Max pull-ups: 8')).toBeInTheDocument()
 })

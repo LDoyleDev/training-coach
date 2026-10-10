@@ -1,8 +1,10 @@
 import AppShell from '../components/AppShell'
+import SignedOutNotice from '../components/SignedOutNotice'
 import { useEffect, useState } from 'react'
 import {
   fetchTests,
   saveTestDay,
+  SignedOutError,
   type FitnessTest,
   type TestDay,
   type TestDayDue,
@@ -62,6 +64,7 @@ export default function TestsPage() {
   const [token, setToken] = useState(newToken)
   const [note, setNote] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [signedOut, setSignedOut] = useState(false) // the sign-in ended on the page
   const [savedId, setSavedId] = useState<number | null>(null)
 
   const load = () =>
@@ -130,8 +133,9 @@ export default function TestsPage() {
         setStage('saved')
         void load()
       } else setNote(answer)
-    } catch {
-      setNote("Couldn't save. Check your connection and try again.")
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't save. Check your connection and try again.")
     } finally {
       setBusy(false)
     }
@@ -147,6 +151,7 @@ export default function TestsPage() {
           {note}
         </p>
       )}
+      {signedOut && <SignedOutNotice />}
 
       {stage === 'list' && (
         <section aria-labelledby="tests" className="flex flex-col gap-4">

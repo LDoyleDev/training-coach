@@ -56,7 +56,7 @@ const SAVED: Saved = {
 
 type Server = {
   today?: TodayView | null | 'error'
-  keep?: number | 'stale'
+  keep?: number | 'stale' | 'signed-out'
   save?: Saved | 'stale'
   pending?: Pending[]
   saveEarlier?: 'fail'
@@ -76,6 +76,7 @@ function serve(server: Server = {}) {
     }
     if (path === '/api/session/progress') {
       const keep = server.keep ?? 1
+      if (keep === 'signed-out') return new Response(null, { status: 401 })
       return keep === 'stale'
         ? new Response(null, { status: 409 })
         : Response.json({ revision: keep })
@@ -436,4 +437,17 @@ test('a test day shows even with nothing left to train', async () => {
   render(<SessionPage />)
   expect(await screen.findByRole('heading', { name: 'Today: Retest, day 2' })).toBeInTheDocument()
   expect(screen.getByText(/Nothing left to train today/)).toBeInTheDocument()
+})
+
+test('an ended sign-in while confirming a set points to sign in and keeps the set', async () => {
+  serve({ keep: 'signed-out' })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Confirm set')
+  expect(await screen.findByRole('link', { name: 'Sign in again' })).toHaveAttribute(
+    'href',
+    '/signin',
+  )
+  expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument() // still here
+  expect(screen.queryByText(/Check your connection/)).not.toBeInTheDocument()
 })

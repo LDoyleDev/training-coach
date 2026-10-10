@@ -1,10 +1,12 @@
 import AppShell from '../components/AppShell'
+import SignedOutNotice from '../components/SignedOutNotice'
 import { useCallback, useEffect, useState } from 'react'
 import {
   fetchPending,
   fetchToday,
   keepProgress,
   saveSession,
+  SignedOutError,
   type Guided,
   type Pending,
   type Saved,
@@ -64,6 +66,7 @@ export default function SessionPage() {
   const [watchFrom, setWatchFrom] = useState<number | null>(null) // stopwatch start while running
   const [pending, setPending] = useState<Pending[]>([])
   const [saving, setSaving] = useState<string[]>([]) // earlier days being saved
+  const [signedOut, setSignedOut] = useState(false) // the sign-in ended on the page
   const [testDay, setTestDay] = useState<TestDayDue | null>(null) // due in front (ADR-0038)
 
   const running = watchFrom !== null
@@ -160,8 +163,9 @@ export default function SessionPage() {
       }
       setRevision(result)
       return true
-    } catch {
-      setNote("Couldn't save that set. Check your connection and confirm again.")
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't save that set. Check your connection and confirm again.")
       return false
     } finally {
       setBusy(false)
@@ -232,8 +236,9 @@ export default function SessionPage() {
           : `Saved ${day.session} for ${day.day}.`,
       )
       setPending((days) => days.filter((p) => p.day !== day.day)) // settled either way
-    } catch {
-      setNote("Couldn't save. Check your connection and try again.") // still offered
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't save. Check your connection and try again.") // still offered
     } finally {
       setSaving((days) => days.filter((d) => d !== day.day))
     }
@@ -250,8 +255,9 @@ export default function SessionPage() {
       }
       setSaved(result)
       setStage('saved')
-    } catch {
-      setNote("Couldn't save. Check your connection and try again.")
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't save. Check your connection and try again.")
     } finally {
       setBusy(false)
     }
@@ -264,6 +270,7 @@ export default function SessionPage() {
           {note}
         </p>
       )}
+      {signedOut && <SignedOutNotice />}
 
       {stage === 'overview' && (
         <>

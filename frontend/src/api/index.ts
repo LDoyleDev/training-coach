@@ -127,6 +127,19 @@ export type KeepBody = Schemas['KeepBody']
 
 const json = { 'Content-Type': 'application/json' }
 
+/** The sign-in ended while a page was open: a change answered 401. Pages say so and link to
+ * sign in, keeping what was typed. */
+export class SignedOutError extends Error {
+  constructor() {
+    super('Your sign-in has ended.')
+  }
+}
+
+function signedIn(res: Response): Response {
+  if (res.status === 401) throw new SignedOutError()
+  return res
+}
+
 /** Today's guided session; null when not signed in. */
 export async function fetchToday(signal?: AbortSignal): Promise<TodayView | null> {
   const res = await fetch('/api/session/today', { signal, credentials: 'same-origin' })
@@ -137,12 +150,14 @@ export async function fetchToday(signal?: AbortSignal): Promise<TodayView | null
 
 /** Keep where the person is. 'stale': another device moved on (reload). */
 export async function keepProgress(body: KeepBody): Promise<number | 'stale'> {
-  const res = await fetch('/api/session/progress', {
-    method: 'PUT',
-    headers: json,
-    body: JSON.stringify(body),
-    credentials: 'same-origin',
-  })
+  const res = signedIn(
+    await fetch('/api/session/progress', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
   if (res.status === 409) return 'stale'
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return ((await res.json()) as { revision: number }).revision
@@ -150,12 +165,14 @@ export async function keepProgress(body: KeepBody): Promise<number | 'stale'> {
 
 /** Save the session as a workout: today's, or an earlier day's. 'stale': today changed. */
 export async function saveSession(day?: string): Promise<Saved | 'stale'> {
-  const res = await fetch('/api/session/save', {
-    method: 'POST',
-    headers: json,
-    body: JSON.stringify(day ? { day } : {}),
-    credentials: 'same-origin',
-  })
+  const res = signedIn(
+    await fetch('/api/session/save', {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify(day ? { day } : {}),
+      credentials: 'same-origin',
+    }),
+  )
   if (res.status === 409) return 'stale'
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Saved
@@ -170,9 +187,11 @@ export async function fetchPending(signal?: AbortSignal): Promise<Pending[]> {
 
 /** The stretches after a saved resistance workout, filling `minutes`; null when not offered. */
 export async function fetchStretching(workoutId: number, minutes: number): Promise<Routine | null> {
-  const res = await fetch(`/api/session/stretching/${workoutId}?minutes=${minutes}`, {
-    credentials: 'same-origin',
-  })
+  const res = signedIn(
+    await fetch(`/api/session/stretching/${workoutId}?minutes=${minutes}`, {
+      credentials: 'same-origin',
+    }),
+  )
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Routine
@@ -180,12 +199,14 @@ export async function fetchStretching(workoutId: number, minutes: number): Promi
 
 /** Log the stretching minutes on the workout: false when it already had its stretching. */
 export async function logStretching(workoutId: number, minutes: number): Promise<boolean> {
-  const res = await fetch(`/api/session/stretching/${workoutId}`, {
-    method: 'POST',
-    headers: json,
-    body: JSON.stringify({ minutes }),
-    credentials: 'same-origin',
-  })
+  const res = signedIn(
+    await fetch(`/api/session/stretching/${workoutId}`, {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify({ minutes }),
+      credentials: 'same-origin',
+    }),
+  )
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return ((await res.json()) as Schemas['StretchedView']).logged
 }
@@ -218,12 +239,14 @@ export async function fetchTests(
 
 /** Save a test day: its id, or a string saying why the server refused it. */
 export async function saveTestDay(body: TestDayBody): Promise<number | string> {
-  const res = await fetch('/api/tests', {
-    method: 'POST',
-    headers: json,
-    body: JSON.stringify(body),
-    credentials: 'same-origin',
-  })
+  const res = signedIn(
+    await fetch('/api/tests', {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
   if (res.status === 422) {
     const detail = ((await res.json()) as { detail?: unknown }).detail
     return typeof detail === 'string' ? detail : 'Those results could not be saved.'
@@ -255,15 +278,16 @@ export async function fetchBody(
   }
 }
 
-/** Save a day's measurements: true, 'signed-out', or why the server refused them. */
-export async function saveBody(body: MeasureBody): Promise<true | 'signed-out' | string> {
-  const res = await fetch('/api/body', {
-    method: 'PUT',
-    headers: json,
-    body: JSON.stringify(body),
-    credentials: 'same-origin',
-  })
-  if (res.status === 401) return 'signed-out'
+/** Save a day's measurements: true, or why the server refused them. */
+export async function saveBody(body: MeasureBody): Promise<true | string> {
+  const res = signedIn(
+    await fetch('/api/body', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
   if (res.status === 422) {
     const detail = ((await res.json()) as { detail?: unknown }).detail
     return typeof detail === 'string' ? detail : 'Those values could not be saved.'
@@ -272,14 +296,10 @@ export async function saveBody(body: MeasureBody): Promise<true | 'signed-out' |
   return true
 }
 
-/** Remove one measurement: 'signed-out' when the sign-in has ended. */
-export async function deleteMeasurement(on: string, kind: string): Promise<'signed-out' | null> {
-  const res = await fetch(`/api/body/${on}/${kind}`, {
-    method: 'DELETE',
-    credentials: 'same-origin',
-  })
-  if (res.status === 401) return 'signed-out'
+export async function deleteMeasurement(on: string, kind: string): Promise<void> {
+  const res = signedIn(
+    await fetch(`/api/body/${on}/${kind}`, { method: 'DELETE', credentials: 'same-origin' }),
+  )
   if (res.status !== 204 && res.status !== 404)
     throw new Error(`The server answered ${res.status}.`)
-  return null
 }
