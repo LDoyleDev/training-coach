@@ -26,7 +26,7 @@ import {
   type Values,
 } from './logic'
 import Stretching from './Stretching'
-import { card, primary, secondary } from '../ui'
+import { card, primary, primaryInline, secondary } from '../ui'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
 
@@ -485,9 +485,17 @@ export default function SessionPage() {
             </ul>
           )}
           {saved.stretching && <Stretching workoutId={saved.workout_id} />}
-          <a href="/" className={secondary + ' flex items-center justify-center'}>
-            Done
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="/progress"
+              className={`${primaryInline} inline-flex items-center no-underline`}
+            >
+              See my progress
+            </a>
+            <a href="/plan" className={`${secondary} inline-flex items-center no-underline`}>
+              The week ahead
+            </a>
+          </div>
         </section>
       )}
     </AppShell>
@@ -503,16 +511,40 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
     )
   if (loaded.status === 'signed-out')
     return (
-      <p className="status">
-        Sign in to start today's session. <a href="/signin">Sign in</a>
-      </p>
+      <div className={card}>
+        <p className="m-0 mb-3">Sign in to start today's session.</p>
+        <a
+          href="/signin?next=/session"
+          className={`${primaryInline} inline-flex items-center no-underline`}
+        >
+          Sign in
+        </a>
+      </div>
     )
   if (loaded.status === 'none')
-    return <p className="status">Nothing left to train today. Enjoy the rest.</p>
+    return (
+      <div className={`${card} flex flex-col gap-3`}>
+        <h1 className="text-3xl font-extrabold">Nothing left today</h1>
+        <p className="m-0">Today's training is done or rested. Enjoy the rest.</p>
+        <div className="flex flex-wrap gap-2">
+          <a href="/progress" className={`${primaryInline} inline-flex items-center no-underline`}>
+            See my progress
+          </a>
+          <a href="/plan" className={`${secondary} inline-flex items-center no-underline`}>
+            The week ahead
+          </a>
+        </div>
+      </div>
+    )
   return (
-    <p className="status status-error" role="alert">
-      Couldn't load today's session. Check your connection and reload the page.
-    </p>
+    <div className={card}>
+      <p className="status-error m-0 mb-3" role="alert">
+        Couldn't load today's session. Check your connection.
+      </p>
+      <button type="button" onClick={() => window.location.reload()}>
+        Try again
+      </button>
+    </div>
   )
 }
 
