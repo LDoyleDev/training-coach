@@ -1,3 +1,5 @@
+import { signOut } from '../api'
+
 /** The signed-in pages, in the order the nav shows them. */
 const PAGES = [
   { path: '/session', label: 'Today' },
@@ -8,7 +10,12 @@ const PAGES = [
   { path: '/account', label: 'Account' },
 ] as const
 
-/** The frame of every signed-in page: the wordmark and a nav between the pages. */
+/** Sign out here: the server ends this browser's session, then the sign-in page. */
+function leave() {
+  signOut().finally(() => window.location.assign('/signin'))
+}
+
+/** The frame of every signed-in page: the wordmark, a nav between the pages and sign out. */
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const here = window.location.pathname
   return (
@@ -34,6 +41,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </a>
               </li>
             ))}
+            <li>
+              <button type="button" onClick={leave} className="text-[var(--ink)]">
+                Sign out
+              </button>
+            </li>
           </ul>
         </nav>
       </header>
