@@ -32,7 +32,7 @@ class ReadinessView(BaseModel):
 
     questions: list[QuestionView]
     status: StatusName
-    answers: dict[str, bool] | None  # empty when due: asked again from scratch
+    answers: dict[str, bool] | None  # None when due: asked again from scratch
     answered_at: datetime | None
     ask_again_after: datetime | None
 

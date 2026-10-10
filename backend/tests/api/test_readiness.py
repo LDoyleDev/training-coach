@@ -12,8 +12,16 @@ from sqlalchemy import Engine, select
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import PlanState, ReadinessAnswers, SessionTemplate
+from training_coach.db.models import (
+    FitnessTestDay,
+    PlanState,
+    ReadinessAnswers,
+    SessionTemplate,
+    Workout,
+)
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.enums import WorkoutStatus
+from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import DOCTOR_NOTE, DUE_NOTE, KEYS, RENEW
 from training_coach.services import auth
 from training_coach.services.seed import apply_seed, load_plan
@@ -106,6 +114,35 @@ def test_an_easy_day_says_nothing(signed_in: TestClient, engine: Engine) -> None
     today = signed_in.get("/api/session/today").json()
     assert today["session"] is not None
     assert today["readiness_note"] is None
+
+
+def test_a_test_day_is_a_hard_day_even_with_nothing_left_to_train(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """Day 2 of the tests is due today (day 1 was yesterday): hard, whatever the session."""
+    _today_is(engine, "zone2")  # an easy session
+    today = local_date(datetime.now(UTC), Settings().tz)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        mine.add(
+            FitnessTestDay(
+                local_date=today - timedelta(days=1),
+                day=1,
+                time_of_day="morning",
+                fed=True,
+                slept_well=True,
+                results=[],
+                token="d" * 20,
+            )
+        )
+    view = signed_in.get("/api/session/today").json()
+    assert view["test_day"] is not None
+    assert view["readiness_note"] == DUE_NOTE
+    template = view["session"]["template_id"]
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        mine.add(Workout(local_date=today, template_id=template, status=WorkoutStatus.REST))
+    view = signed_in.get("/api/session/today").json()
+    assert view["session"] is None  # today's session is done
+    assert view["readiness_note"] == DUE_NOTE
 
 
 def test_the_answers_are_in_the_export(signed_in: TestClient) -> None:
