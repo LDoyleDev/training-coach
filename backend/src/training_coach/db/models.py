@@ -36,6 +36,7 @@ from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.fitness_tests import TimeOfDay
 from training_coach.domain.habits import Habit
 from training_coach.domain.measurements import Kind as MeasurementKind
+from training_coach.domain.photos import Pose
 
 
 def _in(column: str, values: type[StrEnum]) -> str:
@@ -400,6 +401,26 @@ class Measurement(Owned, Base):
     local_date: Mapped[date] = mapped_column(Date)
     kind: Mapped[str] = mapped_column(String(16))
     tenths: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class ProgressPhoto(Owned, Base):
+    """A progress photo (2-B, #143, ADR-0039): one per pose per day, a JPEG with its metadata
+    removed. Kept in the database so backups include it. Personal: never logged or shared."""
+
+    __tablename__ = "progress_photos"
+    __table_args__ = (
+        UniqueConstraint("user_id", "local_date", "pose"),
+        CheckConstraint(_in("pose", Pose), name="pose_valid"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    local_date: Mapped[date] = mapped_column(Date)
+    pose: Mapped[str] = mapped_column(String(8))
+    # Loaded only when the picture itself is asked for, never by a listing.
+    jpeg: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
+    size: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 

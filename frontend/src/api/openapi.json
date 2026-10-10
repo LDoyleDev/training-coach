@@ -698,6 +698,40 @@
         "title": "PendingView",
         "type": "object"
       },
+      "PhotoView": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "pose": {
+            "enum": [
+              "front",
+              "side",
+              "back"
+            ],
+            "title": "Pose",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "on",
+          "pose",
+          "size"
+        ],
+        "title": "PhotoView",
+        "type": "object"
+      },
       "PlanView": {
         "properties": {
           "sessions": {
@@ -838,6 +872,19 @@
           }
         },
         "title": "SaveBody",
+        "type": "object"
+      },
+      "SavedPhoto": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "SavedPhoto",
         "type": "object"
       },
       "SavedView": {
@@ -1794,6 +1841,162 @@
         "summary": "Remove",
         "tags": [
           "body"
+        ]
+      }
+    },
+    "/api/photos": {
+      "get": {
+        "description": "Every photo, newest day first (no pictures, just what there is).",
+        "operationId": "listing_api_photos_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PhotoView"
+                  },
+                  "title": "Response Listing Api Photos Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Listing",
+        "tags": [
+          "photos"
+        ]
+      }
+    },
+    "/api/photos/{on}/{pose}": {
+      "put": {
+        "description": "Store a photo for a day and pose, replacing one already there; its metadata is removed.",
+        "operationId": "upload_api_photos__on___pose__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "on",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "On",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pose",
+            "required": true,
+            "schema": {
+              "enum": [
+                "front",
+                "side",
+                "back"
+              ],
+              "title": "Pose",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedPhoto"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload",
+        "tags": [
+          "photos"
+        ]
+      }
+    },
+    "/api/photos/{photo_id}": {
+      "delete": {
+        "operationId": "remove_api_photos__photo_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "photo_id",
+            "required": true,
+            "schema": {
+              "title": "Photo Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove",
+        "tags": [
+          "photos"
+        ]
+      },
+      "get": {
+        "description": "One photo. Never cached anywhere but in memory.",
+        "operationId": "picture_api_photos__photo_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "photo_id",
+            "required": true,
+            "schema": {
+              "title": "Photo Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Picture",
+        "tags": [
+          "photos"
         ]
       }
     },
