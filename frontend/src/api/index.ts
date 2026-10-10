@@ -39,10 +39,11 @@ export function sessionSize(s: Session): string {
   return `${s.total_sets} sets`
 }
 
-/** Changing passkeys needs a sign-in from the last few minutes (ADR-0040): a 403. */
+/** A change that needs a sign-in from the last few minutes (ADR-0040) answered 403, and the
+ * person couldn't confirm with their fingerprint (cancelled, or no passkey here). */
 export class StaleSignInError extends Error {
   constructor() {
-    super('Sign in again to change passkeys.')
+    super('Confirm it’s you to do this.')
   }
 }
 
@@ -85,8 +86,54 @@ async function answer(path: string, credential: unknown): Promise<boolean> {
   throw new Error(`The server answered ${res.status}.`)
 }
 
-/** Add a passkey for the signed-in person (ADR-0036). Throws if the user cancels. */
-export async function addPasskey(): Promise<boolean> {
+/** Confirm it's you with your fingerprint (ADR-0049): this browser then counts as freshly
+ * signed in for 10 minutes. No new sign-in, no signing out. */
+export async function confirmWithPasskey(): Promise<boolean> {
+  const res = signedIn(
+    await fetch('/api/auth/passkeys/confirm/options', {
+      method: 'POST',
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) return false // no passkey to confirm with
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  const credential = await startAuthentication({ optionsJSON: await res.json() })
+  const confirmed = signedIn(
+    await fetch('/api/auth/passkeys/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+      credentials: 'same-origin',
+    }),
+  )
+  if (confirmed.status === 400) return false // the fingerprint wasn't accepted
+  if (confirmed.status !== 204) throw new Error(`The server answered ${confirmed.status}.`)
+  return true
+}
+
+/**
+ * Run a change that needs a recent sign-in. If the sign-in is too old, ask for the
+ * fingerprint once (the phone shows its prompt) and try again, so nobody has to sign out and
+ * in. Throws StaleSignInError when that isn't possible (cancelled, refused, no passkey).
+ */
+export async function withFreshSignIn<T>(change: () => Promise<T>): Promise<T> {
+  try {
+    return await change()
+  } catch (error) {
+    if (!(error instanceof StaleSignInError)) throw error
+  }
+  let confirmed = false
+  try {
+    confirmed = await confirmWithPasskey()
+  } catch (error) {
+    if (error instanceof SignedOutError) throw error
+    // cancelled at the fingerprint prompt, or the browser refused: say what to do
+  }
+  if (!confirmed) throw new StaleSignInError()
+  return change()
+}
+
+async function addPasskeyNow(): Promise<boolean> {
   const optionsJSON = await ceremonyOptions('/api/auth/passkeys/register/options')
   const credential = await startRegistration({ optionsJSON })
   return answer('/api/auth/passkeys/register', credential)
@@ -118,7 +165,10 @@ async function remove(path: string): Promise<void> {
     throw new Error(`The server answered ${res.status}.`)
 }
 
-export const removePasskey = (id: number) => remove(`/api/account/passkeys/${id}`)
+/** Add a passkey for the signed-in person (ADR-0036). Throws if the user cancels. */
+export const addPasskey = () => withFreshSignIn(addPasskeyNow)
+export const removePasskey = (id: number) =>
+  withFreshSignIn(() => remove(`/api/account/passkeys/${id}`))
 export const signOutDevice = (id: number) => remove(`/api/account/devices/${id}`)
 
 export async function signOut(): Promise<void> {
@@ -416,7 +466,9 @@ export async function saveReadiness(answers: Record<string, boolean>): Promise<R
 }
 
 /** Everything stored about me, as a zip (needs a recent sign-in, like a passkey change). */
-export async function downloadExport(): Promise<Blob> {
+export const downloadExport = () => withFreshSignIn(downloadExportNow)
+
+async function downloadExportNow(): Promise<Blob> {
   const res = await fetch('/api/account/export', { credentials: 'same-origin' })
   if (res.status === 403) throw new StaleSignInError()
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
@@ -425,7 +477,9 @@ export async function downloadExport(): Promise<Blob> {
 
 /** Erase everything stored about me (ADR-0044); `confirm` is the word the person typed.
  *  Needs a recent sign-in; signs this browser out. */
-export async function eraseAllMyData(confirm: string): Promise<void> {
+export const eraseAllMyData = (confirm: string) => withFreshSignIn(() => eraseNow(confirm))
+
+async function eraseNow(confirm: string): Promise<void> {
   const res = signedIn(
     await fetch('/api/account/erase', {
       method: 'POST',
@@ -459,7 +513,9 @@ export async function fetchAiStatus(signal?: AbortSignal): Promise<AiStatus | nu
 }
 
 /** Check a Groq key with Groq and keep it encrypted. Needs a recent sign-in. */
-export async function storeAiKey(key: string): Promise<AiStatus | KeyCheck> {
+export const storeAiKey = (key: string) => withFreshSignIn(() => storeAiKeyNow(key))
+
+async function storeAiKeyNow(key: string): Promise<AiStatus | KeyCheck> {
   const res = signedIn(
     await fetch('/api/account/ai/key', {
       method: 'PUT',

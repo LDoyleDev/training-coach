@@ -22,7 +22,7 @@ const CHECKS: Record<KeyCheck, string> = {
 function failure(error: unknown): string {
   if (error instanceof SignedOutError) return 'Your sign-in ended. Sign in again, then retry.'
   if (error instanceof StaleSignInError)
-    return 'Sign in again to add a key (it needs a fresh sign-in).'
+    return 'Adding a key needs you to confirm it’s you. Try again and confirm with your fingerprint when your phone asks.'
   return "That didn't work. Check your connection and try again."
 }
 
