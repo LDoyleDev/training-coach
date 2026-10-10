@@ -80,6 +80,7 @@ summaries #116 (done). Plan changes keep history: #107 (done).
 - Sign-in, built (#115): passkeys, started and recovered with a one-time Telegram link
   (ADR-0036, superseding ADR-0012's Telegram login). Every route declares public or
   owner-only; a test enforces it. Cloudflare rate limit on `/api/auth/*` (a manual step).
+- Download all my data, built (#169): one zip from the Account page (threat model).
 - Still to do: read-only share links as ADR-0012 (hashed expiring tokens, `/share` and
   `/unshare`), never showing measurements or photos.
 
