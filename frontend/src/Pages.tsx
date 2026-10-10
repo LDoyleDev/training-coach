@@ -1,4 +1,5 @@
 import Account from './Account'
+import BodyPage from './body/BodyPage'
 import App from './App'
 import SessionPage from './session/SessionPage'
 import SignIn from './SignIn'
@@ -10,5 +11,6 @@ export default function Pages() {
   if (window.location.pathname === '/account') return <Account />
   if (window.location.pathname === '/session') return <SessionPage />
   if (window.location.pathname === '/tests') return <TestsPage />
+  if (window.location.pathname === '/body') return <BodyPage />
   return <App />
 }

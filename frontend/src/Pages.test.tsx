@@ -6,6 +6,7 @@ vi.mock('./App', () => ({ default: () => <p>the plan</p> }))
 vi.mock('./SignIn', () => ({ default: () => <p>sign in</p> }))
 vi.mock('./Account', () => ({ default: () => <p>account</p> }))
 vi.mock('./tests/TestsPage', () => ({ default: () => <p>tests</p> }))
+vi.mock('./body/BodyPage', () => ({ default: () => <p>body</p> }))
 
 afterEach(() => window.history.replaceState(null, '', '/'))
 
@@ -14,6 +15,7 @@ test.each([
   ['/signin', 'sign in'],
   ['/account', 'account'],
   ['/tests', 'tests'],
+  ['/body', 'body'],
 ])('%s shows %s', (path, text) => {
   window.history.replaceState(null, '', path)
   render(<Pages />)

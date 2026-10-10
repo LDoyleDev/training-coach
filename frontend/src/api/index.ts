@@ -225,3 +225,44 @@ export async function saveTestDay(body: TestDayBody): Promise<number | string> {
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return ((await res.json()) as Schemas['TestDaySaved']).id
 }
+
+// ---------------------------------------------------------------- body measurements (#142)
+
+export type MeasureKind = Schemas['KindView']
+export type Measurement = Schemas['MeasurementView']
+export type MeasureBody = Schemas['MeasureBody']
+
+/** The kinds and every measurement; null when not signed in. */
+export async function fetchBody(
+  signal?: AbortSignal,
+): Promise<{ kinds: MeasureKind[]; entries: Measurement[] } | null> {
+  const [kinds, entries] = await Promise.all(
+    ['/api/body/kinds', '/api/body'].map((path) =>
+      fetch(path, { signal, credentials: 'same-origin' }),
+    ),
+  )
+  if (kinds.status === 401 || entries.status === 401) return null
+  if (!kinds.ok || !entries.ok) throw new Error('The server answered with an error.')
+  return {
+    kinds: (await kinds.json()) as MeasureKind[],
+    entries: (await entries.json()) as Measurement[],
+  }
+}
+
+/** Save a day's measurements: true, or why the server refused them. */
+export async function saveBody(body: MeasureBody): Promise<true | string> {
+  const res = await fetch('/api/body', {
+    method: 'PUT',
+    headers: json,
+    body: JSON.stringify(body),
+    credentials: 'same-origin',
+  })
+  if (res.status === 422) {
+    const detail = ((await res.json()) as { detail?: unknown }).detail
+    return typeof detail === 'string' ? detail : 'Those values could not be saved.'
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return true
+}
+
+export const deleteMeasurement = (on: string, kind: string) => remove(`/api/body/${on}/${kind}`)
