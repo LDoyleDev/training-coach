@@ -14,6 +14,11 @@ checked with `PRAGMA integrity_check`, and only then renamed into place.
 A failed backup logs `backup.failed` and, when the bot is on, sends you a Telegram message.
 Data loss is at most one day.
 
+Everything personal is in that one file: workouts, test days, measurements and progress
+photos (photos are rows in `progress_photos`, ADR-0039). So a backup, the desktop copy and a
+restore cover photos and measurements with nothing extra to copy. Treat backups and the
+desktop copy as private for the same reason.
+
 ## Manual backup (before a deploy with a migration, or any risky change)
 
 ```bash
@@ -69,9 +74,10 @@ out the matching tag first.
 Rehearse a restore once per phase and note it in the release PR:
 
 1. Take a manual backup (above) and note the row counts: `sqlite3 data/backups/<file>.db
-   "select count(*) from workouts; select count(*) from set_logs;"`.
+   "select count(*) from workouts; select count(*) from set_logs; select count(*) from
+   measurements; select count(*) from progress_photos; select count(*) from test_days;"`.
 2. Restore it as above.
-3. Check `/today` in the bot and the counts again.
+3. Check `/today` in the bot, open a photo on `/body`, and compare the counts again.
 
 Last rehearsed: 2026-10-07 on the desktop (#14): a seeded database with one logged workout was
 backed up with `training-coach backup`, replaced with garbage (start-up then logs `seed.failed`),
