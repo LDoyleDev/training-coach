@@ -440,6 +440,32 @@ test('a test day shows even with nothing left to train', async () => {
   expect(screen.getByText(/Nothing left to train today/)).toBeInTheDocument()
 })
 
+test('a hard day shows the readiness advice, linking to the questions', async () => {
+  const advice = 'Your readiness answers say to check with a doctor before hard efforts.'
+  serve({ today: { session: SESSION, progress: null, readiness_note: advice } })
+  render(<SessionPage />)
+  expect(await screen.findByText(advice)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Readiness questions' })).toHaveAttribute(
+    'href',
+    '/readiness',
+  )
+})
+
+test('the readiness advice shows even with nothing left to train', async () => {
+  serve({
+    today: { session: null, progress: null, test_day: DUE, readiness_note: 'Answer first.' },
+  })
+  render(<SessionPage />)
+  expect(await screen.findByText('Answer first.')).toBeInTheDocument()
+})
+
+test('an easy day shows no readiness advice', async () => {
+  serve({ today: { session: SESSION, progress: null, readiness_note: null } })
+  render(<SessionPage />)
+  await screen.findByRole('button', { name: 'Start session' })
+  expect(screen.queryByRole('link', { name: 'Readiness questions' })).not.toBeInTheDocument()
+})
+
 test('an ended sign-in while confirming a set points to sign in and keeps the set', async () => {
   serve({ keep: 'signed-out' })
   render(<SessionPage />)

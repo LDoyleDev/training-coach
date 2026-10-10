@@ -3,6 +3,7 @@ import Account from './Account'
 import BodyPage from './body/BodyPage'
 import App from './App'
 import ProgressPage from './progress/ProgressPage'
+import ReadinessPage from './readiness/ReadinessPage'
 import SessionPage from './session/SessionPage'
 import SignIn from './SignIn'
 import TestsPage from './tests/TestsPage'
@@ -16,6 +17,7 @@ export default function Pages() {
   if (window.location.pathname === '/body') return <BodyPage />
   if (window.location.pathname === '/progress') return <ProgressPage />
   if (window.location.pathname === '/plan') return <App />
+  if (window.location.pathname === '/readiness') return <ReadinessPage />
   if (window.location.pathname === '/') return <FrontDoor />
   return (
     <p className="status">

@@ -75,7 +75,16 @@ def _report_death(task: "asyncio.Task[None]") -> None:
 
 
 # Pages of the web app that are reached by URL, not only from within it (a link from the bot).
-SPA_PAGES = ("/signin", "/account", "/session", "/tests", "/body", "/progress", "/plan")
+SPA_PAGES = (
+    "/signin",
+    "/account",
+    "/session",
+    "/tests",
+    "/body",
+    "/progress",
+    "/plan",
+    "/readiness",
+)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

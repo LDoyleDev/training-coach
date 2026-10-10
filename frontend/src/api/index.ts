@@ -370,6 +370,33 @@ export async function fetchProgress(signal?: AbortSignal): Promise<Standing[] | 
   return (await res.json()) as Standing[]
 }
 
+// ---------------------------------------------------------------- readiness (ADR-0046)
+
+export type Readiness = Schemas['ReadinessView']
+export type ReadinessStatus = Schemas['ReadinessSavedView']['status']
+
+/** The readiness questions with my latest answers; null when not signed in. */
+export async function fetchReadiness(signal?: AbortSignal): Promise<Readiness | null> {
+  const res = await fetch('/api/readiness', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Readiness
+}
+
+/** Save a full set of answers; returns what they mean. */
+export async function saveReadiness(answers: Record<string, boolean>): Promise<ReadinessStatus> {
+  const res = signedIn(
+    await fetch('/api/readiness', {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers }),
+    }),
+  )
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return ((await res.json()) as Schemas['ReadinessSavedView']).status
+}
+
 /** Everything stored about me, as a zip (needs a recent sign-in, like a passkey change). */
 export async function downloadExport(): Promise<Blob> {
   const res = await fetch('/api/account/export', { credentials: 'same-origin' })

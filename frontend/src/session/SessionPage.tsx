@@ -68,6 +68,7 @@ export default function SessionPage() {
   const [saving, setSaving] = useState<string[]>([]) // earlier days being saved
   const [signedOut, setSignedOut] = useState(false) // the sign-in ended on the page
   const [testDay, setTestDay] = useState<TestDayDue | null>(null) // due in front (ADR-0038)
+  const [readinessNote, setReadinessNote] = useState<string | null>(null) // hard days (ADR-0046)
 
   const running = watchFrom !== null
   const resting = stage === 'rest'
@@ -116,6 +117,7 @@ export default function SessionPage() {
       .then((today) => {
         if (today === null) return setLoaded({ status: 'signed-out' })
         setTestDay(today.test_day ?? null)
+        setReadinessNote(today.readiness_note ?? null)
         // An empty order can't be guided; treat it like nothing planned.
         if (today.session === null || today.session.order.length === 0)
           return setLoaded({ status: 'none' })
@@ -134,6 +136,7 @@ export default function SessionPage() {
   if (loaded.status !== 'ready')
     return (
       <AppShell>
+        {loaded.status === 'none' && readinessNote && <ReadinessNotice text={readinessNote} />}
         {loaded.status === 'none' && testDay && <TestDayNotice due={testDay} />}
         <Status loaded={loaded} />
       </AppShell>
@@ -277,6 +280,7 @@ export default function SessionPage() {
 
       {stage === 'overview' && (
         <>
+          {readinessNote && <ReadinessNotice text={readinessNote} />}
           {testDay && <TestDayNotice due={testDay} />}
           {pending.map((day) => (
             <p key={day.day} className={card}>
@@ -608,6 +612,15 @@ function Counter({
 }
 
 /** A test day due today stands in front of the session, which waits (ADR-0038). */
+/** Advice before a hard day (ADR-0046): answer the readiness questions, or see a doctor. */
+function ReadinessNotice({ text }: { text: string }) {
+  return (
+    <p role="note" className={card}>
+      {text} <a href="/readiness">Readiness questions</a>
+    </p>
+  )
+}
+
 function TestDayNotice({ due }: { due: TestDayDue }) {
   return (
     <section aria-labelledby="test-day" className={card + ' flex flex-col gap-3'}>
