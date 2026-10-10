@@ -79,10 +79,14 @@ export default function AiComments() {
     setNote(null)
     try {
       setNote(CHECKS[await testAiKey()])
-      setAi((await fetchAiStatus()) ?? ai) // a refused key is now marked, a working one cleared
     } catch (error) {
-      setNote(failure(error))
+      return setNote(failure(error))
     }
+    // A refused key is now marked, a working one cleared. If this reload fails, the answer
+    // above still stands; the status catches up on the next visit.
+    fetchAiStatus()
+      .then((fresh) => fresh && setAi(fresh))
+      .catch(() => {})
   }
 
   const remove = async () => {

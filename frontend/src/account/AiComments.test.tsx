@@ -122,6 +122,19 @@ test('failed changes say so', async () => {
   await vi.waitFor(() => expect(screen.getByText('…4f2a')).toBeInTheDocument())
 })
 
+test('a working key stays "works" when reloading the status fails', async () => {
+  serve({
+    'GET /api/account/ai': [{ status: 200, body: STORED }, { status: 500 }],
+    'POST /api/account/ai/test': [{ status: 204 }],
+  })
+  render(<AiComments />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Test the key' }))
+  expect(await screen.findByText('The key works.')).toBeInTheDocument()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  expect(screen.getByText('The key works.')).toBeInTheDocument()
+  expect(screen.getByText('…4f2a')).toBeInTheDocument()
+})
+
 test('not set up on the server: no key field', async () => {
   serve({ 'GET /api/account/ai': [{ status: 200, body: { ...NONE, available: false } }] })
   render(<AiComments />)
