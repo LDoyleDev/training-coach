@@ -52,7 +52,12 @@ Check after any deploy: `curl -s localhost:8095/healthz` on the Pi and
 
 ## Automatic deploys (ADR-0030)
 
-Merging a release PR is the deploy. Within about 15 minutes, a timer on the Pi does these steps:
+Merging a release PR is the deploy. Its checks don't start on their own: release-please
+pushes with the workflow token, which never triggers other workflows, so the required checks
+stay "expected". Close and reopen the release PR (`gh pr close <n> && gh pr reopen <n>`) to
+run them, then merge once they pass.
+
+Within about 15 minutes of the merge, a timer on the Pi does these steps:
 - takes a backup
 - checks out the new tag and rebuilds
 - waits for `/healthz` to report the new version
