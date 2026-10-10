@@ -9,7 +9,8 @@ checked with `PRAGMA integrity_check`, and only then renamed into place.
 | --- | --- | --- |
 | Nightly | `data/backups/training_coach-YYYY-MM-DD.db` | newest 7, plus the newest of each of the 4 weeks before them |
 | Manual | `data/backups/training_coach-manual-<UTC time>.db` | until you delete it |
-| Desktop copy | `~/backups/training-coach/` via `scripts/pull-backup.sh` | everything, never pruned |
+| Desktop copy | `~/backups/training-coach/` via `scripts/pull-backup.sh` | 35 days (manual backups until you delete them) |
+| Off-site | Cloudflare R2 bucket, encrypted with age, via `scripts/offsite-backup.sh` | 35 days |
 
 A failed backup logs `backup.failed` and, when the bot is on, sends you a Telegram message.
 Data loss is at most one day.
@@ -68,6 +69,62 @@ curl -s localhost:8095/healthz && docker compose logs app | grep -E "bot.started
 Restoring an older backup into a newer release is fine: migrations bring it up to date on
 start. Restoring into an older release than the backup's needs that release's schema; check
 out the matching tag first.
+
+## Off-site copies (ADR-0042)
+
+Every night at 04:30 the Pi encrypts the newest backup with the **desktop's age public key** and
+copies it to a Cloudflare R2 bucket, then deletes copies older than 35 days. Only the desktop's
+private key (`~/.config/sops/age/keys.txt`, with an offline copy) can read them. R2's free tier
+(10 GB, no download fees) covers this many times over.
+
+### Set up (once)
+
+1. **On the Pi**: `sudo apt install -y age rclone`.
+2. **In Cloudflare** (dashboard → R2): create a bucket, e.g. `training-coach-backups` (location:
+   Europe). Then **Manage API tokens → Create API token**: permission *Object Read & Write*,
+   *applied to this bucket only*. Note the Access Key ID, Secret Access Key and the S3 endpoint
+   (`https://<account id>.r2.cloudflarestorage.com`). Never paste them into chat, issues or git.
+3. **On the Pi**, create the settings file (it holds the token, so mode 600):
+
+   ```
+   mkdir -p ~/.config/training-coach
+   install -m 600 /dev/null ~/.config/training-coach/offsite.env
+   nano ~/.config/training-coach/offsite.env
+   ```
+
+   with:
+
+   ```
+   TC_BACKUP_AGE_RECIPIENT=age15axwxydanlmvam3kgl9cly7t2050yn5mlf0y89yv2nl2svk6l9zsg7rpc0
+   TC_OFFSITE_BUCKET=training-coach-backups
+   RCLONE_CONFIG_R2_TYPE=s3
+   RCLONE_CONFIG_R2_PROVIDER=Cloudflare
+   RCLONE_CONFIG_R2_ACCESS_KEY_ID=<access key id>
+   RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=<secret access key>
+   RCLONE_CONFIG_R2_ENDPOINT=https://<account id>.r2.cloudflarestorage.com
+   ```
+
+   (The recipient is the desktop's age **public** key from `~/.secrets/README.md`; check it
+   matches `age-keygen -y ~/.config/sops/age/keys.txt` on the desktop.)
+4. **Try it once**, then install the timer:
+
+   ```
+   ~/training-coach/scripts/offsite-backup.sh       # "uploaded training_coach-....db.age"
+   sudo cp ~/training-coach/scripts/systemd/training-coach-offsite.{service,timer} /etc/systemd/system/
+   sudo systemctl daemon-reload && sudo systemctl enable --now training-coach-offsite.timer
+   systemctl list-timers training-coach-offsite.timer
+   ```
+
+5. **Back up the desktop's age private key offline** (password manager or paper). Without it the
+   off-site copies can't be read.
+
+Check: `journalctl -u training-coach-offsite -n 20` shows `ok: kept the last 35 days off-site`.
+
+### Restore from off-site
+
+On the desktop: download the file from the R2 dashboard (or `rclone copy r2:<bucket>/<name> .`),
+then `age -d -i ~/.config/sops/age/keys.txt -o training_coach.db <name>.db.age`, and restore that
+file as in "Restore" above.
 
 ## Rehearsal
 
