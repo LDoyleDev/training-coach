@@ -437,3 +437,72 @@ export async function eraseAllMyData(confirm: string): Promise<void> {
   if (res.status === 403) throw new StaleSignInError()
   if (res.status !== 204) throw new Error(`The server answered ${res.status}.`)
 }
+
+// ---------------------------------------------------------------- my own AI key (ADR-0047 B)
+
+export type AiStatus = Schemas['AiView']
+export type AiOptions = Schemas['OptionsBody']
+export type KeyCheck = 'works' | 'refused' | 'unreachable'
+
+function checked(res: Response): KeyCheck | null {
+  if (res.status === 400) return 'refused'
+  if (res.status === 503) return 'unreachable'
+  return null
+}
+
+/** Whether I have a key stored, its last four characters and my choices; null signed out. */
+export async function fetchAiStatus(signal?: AbortSignal): Promise<AiStatus | null> {
+  const res = await fetch('/api/account/ai', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as AiStatus
+}
+
+/** Check a Groq key with Groq and keep it encrypted. Needs a recent sign-in. */
+export async function storeAiKey(key: string): Promise<AiStatus | KeyCheck> {
+  const res = signedIn(
+    await fetch('/api/account/ai/key', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ key }),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 403) throw new StaleSignInError()
+  if (res.status === 422) return 'refused' // not shaped like a Groq key: never sent to Groq
+  const problem = checked(res)
+  if (problem) return problem
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as AiStatus
+}
+
+export async function setAiOptions(options: AiOptions): Promise<AiStatus> {
+  const res = signedIn(
+    await fetch('/api/account/ai', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify(options),
+      credentials: 'same-origin',
+    }),
+  )
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as AiStatus
+}
+
+export async function testAiKey(): Promise<KeyCheck> {
+  const res = signedIn(
+    await fetch('/api/account/ai/test', { method: 'POST', credentials: 'same-origin' }),
+  )
+  if (res.status === 204) return 'works'
+  const problem = checked(res)
+  if (problem) return problem
+  throw new Error(`The server answered ${res.status}.`)
+}
+
+export async function removeAiKey(): Promise<void> {
+  const res = signedIn(
+    await fetch('/api/account/ai/key', { method: 'DELETE', credentials: 'same-origin' }),
+  )
+  if (res.status !== 204 && res.status !== 404)
+    throw new Error(`The server answered ${res.status}.`)
+}

@@ -1,4 +1,5 @@
 import AppShell from './components/AppShell'
+import AiComments from './account/AiComments'
 import CopyForAI from './account/CopyForAI'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import {
@@ -203,6 +204,7 @@ export default function Account() {
           </section>
 
           <CopyForAI />
+          <AiComments />
 
           <section aria-labelledby="erase">
             <h2 id="erase">Erase all my data</h2>
