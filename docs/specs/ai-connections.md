@@ -53,8 +53,9 @@ AI's history (their choice, said on the button).
 
 - Account page: "AI comments" with a field for a Groq key, a "test it" button, and an on/off.
   Optional ticks for which data the comment may see (measurements off by default).
-- The key is **encrypted at rest** (Fernet, AES-128-CBC + HMAC; `cryptography` is already a
-  dependency through `webauthn`) with a key from `TC_SECRETS_KEY` in `.env`, never in the
+- The key is **encrypted at rest** (Fernet, AES-128-CBC + HMAC; `cryptography`, today only
+  a dependency of `webauthn`, becomes a direct dependency with B, so it can't vanish with a
+  `webauthn` change) with a key from `TC_SECRETS_KEY` in `.env`, never in the
   database or backups in the clear, never logged, never shown again (only "ends in ...4f2a").
   This protects against a leaked database or backup, **not** a compromised Pi: the key and the
   database sit on the same host.
@@ -94,6 +95,10 @@ apps can register themselves, and resource indicators (RFC 8707) so tokens only 
 - `log:propose`: propose a workout log. **Proposals don't save**: they appear in the web app
   and on Telegram as "Your AI wants to log ... Save?" and wait for the person (the bot's
   confirm step, ADR-0007). Nothing the AI sends changes the plan, settings or sign-in.
+  A proposal is treated like any LLM output (ADR-0007): parsed into the same Pydantic model as
+  a typed log, re-checked by the rule parser (known exercises, value ranges, today or an
+  earlier unsaved day), and refused with a reason if it doesn't validate. Only a valid
+  proposal reaches the person, and only their "Save" stores it.
 
 **Tools** (small, read-mostly): `get_guide`, `get_summary(period)`, `get_exercise(slug)`,
 `get_tests()`, `get_body(period)` (with `body:read`), `get_readiness()` (with
@@ -132,7 +137,7 @@ make it call `propose_log`, which is why proposals never save on their own.
 | Health data leaving without meaning to | Off by default everywhere; separate ticks/scopes; consent text names what leaves and to whom; photos never |
 | Stolen MCP or Groq credentials | Hashed (MCP) or encrypted (Groq) at rest; short-lived access tokens; rotation with reuse detection; revoke on the Account page; erase removes all |
 | An AI acting on its own | Read-mostly tools; writes are proposals the person confirms; no tool touches plan, settings or sign-in |
-| Prompt injection through our data | Little free text exists (exercise names are ours); the guide tells the AI to treat data as data; AI output shown to the person is labelled and never executed |
+| Prompt injection through our data | Most text is ours (exercise and session names), but some is the person's own (habit names, notes, device labels): the summary and MCP answers mark it as data from the person, and the guide tells the AI to treat all data as data, never as instructions. AI output shown to the person is labelled and never executed; `propose_log` is the one write and is validated, then confirmed |
 | Abuse of the public endpoints | Passkey-gated consent, rate limits (app and Cloudflare), size caps, registrations expire, alerts on every new connection |
 | Our legal position | A and C are transfers the person starts to a provider they chose; B is processing on their instruction with their account. The privacy notice says so (draft in `docs/legal/`). |
 

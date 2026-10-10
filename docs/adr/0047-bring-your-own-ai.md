@@ -26,7 +26,7 @@ The guide (`docs/ai-guide.md`) lives in the public repo, so the site stays priva
 
 | Option | Pros | Cons |
 | --- | --- | --- |
-| Bring your own AI, three ways (proposed) | No shared AI cost; people choose; Liam's accounts stay his | Three features to maintain; MCP is a public OAuth surface |
+| Bring your own AI, three ways (chosen) | No shared AI cost; people choose; Liam's accounts stay his | Three features to maintain; MCP is a public OAuth surface |
 | One shared AI on Liam's Groq or API key | Simplest | Others use Liam's quota or money; one key's limits for everyone |
 | MCP only | One mechanism | Leaves out people whose AI app has no connectors |
 
