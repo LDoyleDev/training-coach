@@ -29,7 +29,7 @@ The web app, multi-user and wearable data direction: `platform-and-health-data-p
 Order: data first, then Telegram features, then the dashboard that shows them.
 
 Issues (milestone "Phase 2 - Overview"): 2-0 #72 (done), 2-A #74 (#94-#96, built), 2-B #142
-(measurements, built) and #143 (photos, open), 2-C #73 and #124 (done), 2-D #90 and #91 (done),
+(measurements, built) and #143 (photos, built), 2-C #73 and #124 (done), 2-D #90 and #91 (done),
 2-E #26 (done). Web: 2-F sign-in #115 (done; share links still open), 2-H #117 and #118 (done),
 summaries #116 (done). Plan changes keep history: #107 (done).
 
@@ -52,7 +52,9 @@ summaries #116 (done). Plan changes keep history: #107 (done).
   web app at `/body` (#142, web-first per ADR-0035), with the change since the first and the
   last; never logged.
 - Photos stored on the Pi (D3); never in logs, never in share views (ADR-0012), excluded from
-  any public endpoint (ADR-0019); the nightly backup and the desktop pull include them.
+  any public endpoint (ADR-0019); the nightly backup and the desktop pull include them. Built
+  (#143): rows in the database, cleaned of metadata on the server, taken or chosen on `/body`
+  (ADR-0039).
 
 ### 2-C Weekly review message (#73, done)
 - Built: `/review` shows the week so far, and the review is sent every Sunday at 19:00 (local,
@@ -82,6 +84,8 @@ summaries #116 (done). Plan changes keep history: #107 (done).
   `/unshare`), never showing measurements or photos.
 
 ### 2-G Dashboard screens
+- Built so far without the mockup: `/progress` (each exercise's step, last session, best and a
+  trend, as the bot's `/progress`), `/tests`, `/body`, and a nav between the signed-in pages.
 - Built to the agreed design (D1): Today, Plan with live position and ladder progress,
   Progress charts, Baseline vs retests, Measurements, Share view. Works as a Telegram Mini App.
 
