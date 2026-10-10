@@ -117,7 +117,7 @@ export default function Account() {
     <AppShell>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1>Account</h1>
-        <button type="button" onClick={leave}>
+        <button type="button" onClick={leave} className="sm:hidden">
           Sign out
         </button>
       </div>

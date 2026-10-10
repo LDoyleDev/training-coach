@@ -9,11 +9,11 @@ export const card = 'rounded-2xl border border-[var(--line)] bg-[var(--paper)] p
 
 /** The one main action on a screen: full width, filled. */
 export const primary =
-  'min-h-14 w-full rounded-2xl border-0 bg-[var(--bell-ink)] px-4 text-lg font-bold text-white disabled:opacity-60'
+  'min-h-14 w-full rounded-2xl border-0 bg-[var(--bell-ink)] px-4 text-lg font-bold text-[var(--chalk)] disabled:opacity-60'
 
 /** A main action that sits inline: filled, as wide as its words. */
 export const primaryInline =
-  'min-h-11 rounded-xl border-0 bg-[var(--bell-ink)] px-4 font-bold text-white disabled:opacity-60'
+  'min-h-11 rounded-xl border-0 bg-[var(--bell-ink)] px-4 font-bold text-[var(--chalk)] disabled:opacity-60'
 
 /** Any other action: outlined. */
 export const secondary =

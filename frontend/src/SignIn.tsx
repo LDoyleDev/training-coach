@@ -68,7 +68,7 @@ export default function SignIn() {
       <header className="masthead">
         <span className="wordmark">Training Coach</span>
       </header>
-      <main>
+      <main className="mt-4 flex flex-col gap-3">
         <h1>Sign in</h1>
 
         {state === 'working' && (
