@@ -247,6 +247,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listing
+         * @description Every photo, newest day first (no pictures, just what there is).
+         */
+        get: operations["listing_api_photos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/photos/{on}/{pose}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upload
+         * @description Store a photo for a day and pose, replacing one already there; its metadata is removed.
+         */
+        put: operations["upload_api_photos__on___pose__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/photos/{photo_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Picture
+         * @description One photo. Never cached anywhere but in memory.
+         */
+        get: operations["picture_api_photos__photo_id__get"];
+        put?: never;
+        post?: never;
+        /** Remove */
+        delete: operations["remove_api_photos__photo_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plan": {
         parameters: {
             query?: never;
@@ -713,6 +774,23 @@ export interface components {
             /** Sets */
             sets: number;
         };
+        /** PhotoView */
+        PhotoView: {
+            /** Id */
+            id: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /**
+             * Pose
+             * @enum {string}
+             */
+            pose: "front" | "side" | "back";
+            /** Size */
+            size: number;
+        };
         /** PlanView */
         PlanView: {
             /** Sessions */
@@ -759,6 +837,11 @@ export interface components {
         SaveBody: {
             /** Day */
             day?: string | null;
+        };
+        /** SavedPhoto */
+        SavedPhoto: {
+            /** Id */
+            id: number;
         };
         /** SavedView */
         SavedView: {
@@ -1291,6 +1374,118 @@ export interface operations {
             path: {
                 on: string;
                 kind: "bodyweight" | "waist" | "chest" | "upper_arm" | "thigh" | "resting_hr";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listing_api_photos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoView"][];
+                };
+            };
+        };
+    };
+    upload_api_photos__on___pose__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                on: string;
+                pose: "front" | "side" | "back";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedPhoto"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    picture_api_photos__photo_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_api_photos__photo_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photo_id: number;
             };
             cookie?: never;
         };

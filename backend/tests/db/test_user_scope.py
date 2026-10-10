@@ -19,6 +19,7 @@ from training_coach.db.models import (
     LadderStep,
     Measurement,
     PlanState,
+    ProgressPhoto,
     SetLog,
     User,
     UserSettings,
@@ -62,6 +63,7 @@ def two(engine: Engine) -> tuple[Sessions, Sessions]:
                     Event(kind="x", payload={}),
                     HabitCheck(local_date=DAY, habit=Habit.PROTEIN),
                     Measurement(local_date=DAY, kind="waist", tenths=850),
+                    ProgressPhoto(local_date=DAY, pose="front", jpeg=b"x", size=1),
                     FitnessTestDay(
                         local_date=DAY,
                         day=1,
@@ -94,6 +96,7 @@ def test_each_user_sees_only_their_rows(two: tuple[Sessions, Sessions]) -> None:
         HabitCheck,
         FitnessTestDay,
         Measurement,
+        ProgressPhoto,
     ):
         assert _all(one, model.user_id) == [1], model
         assert _all(other, model.user_id) == [2], model
@@ -264,6 +267,7 @@ def test_every_per_person_table_is_covered() -> None:
         "habit_checks",
         "test_days",
         "measurements",
+        "progress_photos",
         "login_links",
         "passkeys",
         "session_progress",
