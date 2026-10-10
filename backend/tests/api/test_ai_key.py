@@ -1,11 +1,12 @@
 """/api/account/ai: the person's own Groq key (ADR-0047 B). Checked, encrypted, never sent back."""
 
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
 import respx
+import time_machine
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
@@ -124,6 +125,32 @@ def test_options_test_and_remove(signed_in: TestClient) -> None:
     assert signed_in.delete("/api/account/ai/key").status_code == 404
     assert signed_in.put("/api/account/ai", json=choice).status_code == 404
     assert signed_in.post("/api/account/ai/test").status_code == 404
+
+
+@respx.mock
+def test_storing_a_key_needs_a_recent_sign_in(signed_in: TestClient, alerts: list[str]) -> None:
+    groq = respx.get(MODELS).respond(json={"data": []})
+    with time_machine.travel(datetime.now(UTC) + timedelta(minutes=11)):
+        assert signed_in.put("/api/account/ai/key", json={"key": KEY}).status_code == 403
+    assert not groq.called
+    assert alerts == []
+    assert signed_in.get("/api/account/ai").json() == NOTHING
+
+
+@respx.mock
+def test_the_test_button_records_what_groq_said(signed_in: TestClient) -> None:
+    groq = respx.get(MODELS)
+    groq.respond(json={"data": []})
+    signed_in.put("/api/account/ai/key", json={"key": KEY})
+    groq.respond(401)
+    assert signed_in.post("/api/account/ai/test").status_code == 400
+    assert signed_in.get("/api/account/ai").json()["failed"]
+    groq.respond(503)  # can't tell: the status stays as it was
+    assert signed_in.post("/api/account/ai/test").status_code == 503
+    assert signed_in.get("/api/account/ai").json()["failed"]
+    groq.respond(json={"data": []})
+    assert signed_in.post("/api/account/ai/test").status_code == 204
+    assert not signed_in.get("/api/account/ai").json()["failed"]
 
 
 @pytest.fixture

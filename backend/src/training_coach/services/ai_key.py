@@ -101,6 +101,13 @@ def failed(session: Session, at: datetime) -> bool:
     return True
 
 
+def working(session: Session) -> None:
+    """The key was just checked and works: clear an earlier failure."""
+    row = _row(session)
+    if row is not None:
+        row.failed_at = None
+
+
 def rotate_all(session: Session, box: SecretBox) -> tuple[int, int]:
     """Re-seal every stored key with the newest secrets key (an unbound session: a system task
     over everyone). Returns (re-sealed, unreadable)."""

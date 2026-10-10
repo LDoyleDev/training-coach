@@ -112,12 +112,22 @@ def set_options(body: OptionsBody, request: Request, user: Owner) -> AiView:
 
 @router.post("/test", status_code=status.HTTP_204_NO_CONTENT)
 async def test_key(request: Request, user: Owner) -> None:
-    """Check the stored key still works."""
+    """Check the stored key still works, and record the answer: a refused key is marked
+    failed, a working one clears an earlier failure, so the status matches the check."""
     box = _box(request)
     if box is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "AI keys aren't set up on this server")
+    now = datetime.now(UTC)
     with session_scope(_bound(request, user)) as session:
-        key = ai_key.key(session, box, datetime.now(UTC))
+        key = ai_key.key(session, box, now)
     if key is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no readable AI key stored")
-    await _check(key)
+    try:
+        await _check(key)
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_400_BAD_REQUEST:
+            with session_scope(_bound(request, user)) as session:
+                ai_key.failed(session, now)
+        raise
+    with session_scope(_bound(request, user)) as session:
+        ai_key.working(session)
