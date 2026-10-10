@@ -75,7 +75,7 @@ out the matching tag first.
 Every night at 04:30 the Pi encrypts the newest backup with a **dedicated backup age key** and
 copies it to a Cloudflare R2 bucket, then deletes copies older than 35 days. Only that key's
 private half can read them: its master copy is in Liam's password manager ("Training Coach
-backup key"), with a working copy at `%USERPROFILE%\.age	raining-coach-backups.txt` on Windows.
+backup key"), with a working copy at `%USERPROFILE%\.age\training-coach-backups.txt` on Windows.
 The desktop dual-boots Windows and Linux, so the key mustn't live on only one side. R2's free tier
 (10 GB, no download fees) covers this many times over.
 
@@ -106,8 +106,13 @@ The desktop dual-boots Windows and Linux, so the key mustn't live on only one si
    RCLONE_CONFIG_R2_ENDPOINT=https://<account id>.r2.cloudflarestorage.com
    ```
 
+   For a second key (recommended: any one of them can decrypt, so losing one loses nothing),
+   list both public halves in quotes:
+   `TC_BACKUP_AGE_RECIPIENT="age1first... age1second..."`.
+
    (The recipient is the backup key's **public** half. Made once on Windows with
-   `winget install FiloSottile.age` and `age-keygen -o $HOME\.age	raining-coach-backups.txt`;
+   `winget install FiloSottile.age`, `mkdir $HOME\.age` and
+   `age-keygen -o $HOME\.age\training-coach-backups.txt`;
    `age-keygen -y` on that file prints it again.)
 4. **Try it once**, then install the timer:
 
@@ -127,7 +132,7 @@ Check: `journalctl -u training-coach-offsite -n 20` shows `ok: kept the last 35 
 
 On any machine with age: download the file from the R2 dashboard (or
 `rclone copy r2:<bucket>/<name> .`), then decrypt with the backup key, e.g. on Windows
-`age -d -i $HOME\.age	raining-coach-backups.txt -o training_coach.db <name>.db.age` (or a key
+`age -d -i $HOME\.age\training-coach-backups.txt -o training_coach.db <name>.db.age` (or a key
 file restored from the password manager), and restore that file as in "Restore" above.
 
 ## Rehearsal
