@@ -7,6 +7,7 @@ The caller owns the transaction.
 
 from dataclasses import dataclass
 from datetime import date
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,7 +16,7 @@ from training_coach.db.models import Event, PlanState, SessionTemplate, Workout
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import Position, complete, swap_with_next
-from training_coach.services import users
+from training_coach.services import undo, users
 from training_coach.services.today import SessionPlan, position, session_plan
 
 
@@ -32,9 +33,9 @@ def _state_at(session: Session, template_id: int) -> PlanState | None:
     return state
 
 
-def _hold(session: Session, template_id: int, on: date, status: WorkoutStatus) -> None:
+def _hold(session: Session, template_id: int, on: date, status: WorkoutStatus) -> Workout | None:
     """Log the workout unless the same answer was already given for this session today
-    (the morning message and /today both carry buttons for it)."""
+    (the morning message and /today both carry buttons for it). The new row, if any."""
     existing = session.scalar(
         select(Workout.id).where(
             Workout.template_id == template_id,
@@ -42,8 +43,12 @@ def _hold(session: Session, template_id: int, on: date, status: WorkoutStatus) -
             Workout.status == status,
         )
     )
-    if existing is None:
-        session.add(Workout(local_date=on, template_id=template_id, status=status))
+    if existing is not None:
+        return None
+    workout = Workout(local_date=on, template_id=template_id, status=status)
+    session.add(workout)
+    session.flush()  # its id goes in the event, for /undo
+    return workout
 
 
 def _order(session: Session) -> list[int]:
@@ -60,6 +65,13 @@ def _save(state: PlanState, new: Position) -> None:
     state.queued = list(new.queued)
 
 
+def _undoable(
+    session: Session, payload: dict[str, Any], before: list[Any] | None, held: Workout | None
+) -> dict[str, Any]:
+    """The event payload plus what /undo needs to take the change back (ADR-0048)."""
+    return {**payload, "undo": undo.record(before, undo.snapshot(session), held)}
+
+
 def rest_today(session: Session, template_id: int, on: date) -> RestOutcome | None:
     """Rest instead of the offered session.
 
@@ -71,9 +83,11 @@ def rest_today(session: Session, template_id: int, on: date) -> RestOutcome | No
     if state is None or template is None:
         return None
     status = WorkoutStatus.REST if template.is_rest_optional else WorkoutStatus.SKIPPED
-    _hold(session, template_id, on, status)
+    before = undo.snapshot(session)
+    held = _hold(session, template_id, on, status)
     _save(state, complete(_order(session), _current(session, template_id), template_id, status))
-    session.add(Event(kind="queue.rest", payload={"template_id": template_id, "status": status}))
+    payload = {"template_id": template_id, "status": status}
+    session.add(Event(kind="queue.rest", payload=_undoable(session, payload, before, held)))
     return RestOutcome(session=template.name, advanced=template.is_rest_optional)
 
 
@@ -83,8 +97,10 @@ def push_to_tomorrow(session: Session, template_id: int, on: date) -> str | None
     template = session.get(SessionTemplate, template_id) if state is not None else None
     if state is None or template is None:
         return None
-    _hold(session, template_id, on, WorkoutStatus.SKIPPED)
-    session.add(Event(kind="queue.pushed", payload={"template_id": template_id}))
+    before = undo.snapshot(session)
+    held = _hold(session, template_id, on, WorkoutStatus.SKIPPED)
+    payload = _undoable(session, {"template_id": template_id}, before, held)
+    session.add(Event(kind="queue.pushed", payload=payload))
     return template.name
 
 
@@ -94,9 +110,11 @@ def swap_next(session: Session, template_id: int, block: Block | None = None) ->
     order = _order(session)
     if state is None or len(order) < 2:
         return None
+    before = undo.snapshot(session)
     swapped = swap_with_next(order, _current(session, template_id))
     _save(state, swapped)
-    session.add(Event(kind="queue.swapped", payload={"from": template_id, "to": swapped.pointer}))
+    payload = _undoable(session, {"from": template_id, "to": swapped.pointer}, before, None)
+    session.add(Event(kind="queue.swapped", payload=payload))
     return session_plan(session, swapped.pointer, block)
 
 
