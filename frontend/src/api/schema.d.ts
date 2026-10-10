@@ -186,6 +186,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/body": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * History
+         * @description Every measurement, newest day first.
+         */
+        get: operations["history_api_body_get"];
+        /**
+         * Save
+         * @description Save a day's measurements (any of them), replacing the same kind that day.
+         */
+        put: operations["save_api_body_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/body/kinds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Kinds
+         * @description What can be measured, in order, with units and ranges.
+         */
+        get: operations["kinds_api_body_kinds_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/body/{on}/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove */
+        delete: operations["remove_api_body__on___kind__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plan": {
         parameters: {
             query?: never;
@@ -327,6 +388,26 @@ export interface paths {
          * @description Save a test day once (a repeated Save with the same token returns it).
          */
         post: operations["save_api_tests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tests/due": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Due
+         * @description The test day due today, if any (ADR-0038).
+         */
+        get: operations["due_api_tests_due_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -559,10 +640,52 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** KindView */
+        KindView: {
+            /** Decimals */
+            decimals: number;
+            /** High */
+            high: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "bodyweight" | "waist" | "chest" | "upper_arm" | "thigh" | "resting_hr";
+            /** Label */
+            label: string;
+            /** Low */
+            low: number;
+            /** Unit */
+            unit: string;
+        };
         /** Me */
         Me: {
             /** User Id */
             user_id: number;
+        };
+        /** MeasureBody */
+        MeasureBody: {
+            /** On */
+            on?: string | null;
+            /** Values */
+            values: {
+                [key: string]: number;
+            };
+        };
+        /** MeasurementView */
+        MeasurementView: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "bodyweight" | "waist" | "chest" | "upper_arm" | "thigh" | "resting_hr";
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Value */
+            value: number;
         };
         /** PasskeyView */
         PasskeyView: {
@@ -729,6 +852,15 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** TestDayDueView */
+        TestDayDueView: {
+            /** Day */
+            day: number;
+            /** Name */
+            name: string;
+            /** Tests */
+            tests: string[];
+        };
         /** TestDaySaved */
         TestDaySaved: {
             /** Already Saved */
@@ -801,6 +933,7 @@ export interface components {
         TodayView: {
             progress?: components["schemas"]["ProgressView"] | null;
             session: components["schemas"]["GuidedView"] | null;
+            test_day?: components["schemas"]["TestDayDueView"] | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1080,6 +1213,107 @@ export interface operations {
             };
         };
     };
+    history_api_body_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementView"][];
+                };
+            };
+        };
+    };
+    save_api_body_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeasureBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    kinds_api_body_kinds_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KindView"][];
+                };
+            };
+        };
+    };
+    remove_api_body__on___kind__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                on: string;
+                kind: "bodyweight" | "waist" | "chest" | "upper_arm" | "thigh" | "resting_hr";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_plan_api_plan_get: {
         parameters: {
             query?: never;
@@ -1323,6 +1557,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    due_api_tests_due_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestDayDueView"] | null;
                 };
             };
         };

@@ -718,3 +718,15 @@ def test_a_test_with_results_cant_leave_the_plan(session: Session) -> None:
     with pytest.raises(SeedError, match="'dead-hang'"):
         apply_seed(session, load_plan(MINI_PLAN))
     apply_seed(session, load_plan(HANG_TEST.replace("Hang.", "Hang still.") + MINI_PLAN))
+
+
+@pytest.mark.parametrize("minutes", ["[200, 180]", "[0, 200]", "[180]"])
+def test_the_zone_2_target_is_two_positive_numbers_low_first(minutes: str) -> None:
+    with pytest.raises(ValidationError, match="zone2_minutes"):
+        load_plan(f"[targets]\nzone2_minutes = {minutes}\n" + MINI_PLAN)
+
+
+def test_the_bundled_zone_2_target_is_huberman_s_180_to_200() -> None:
+    targets = load_plan().targets
+    assert targets is not None
+    assert targets.zone2_minutes == (180, 200)

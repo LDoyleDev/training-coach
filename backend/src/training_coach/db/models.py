@@ -35,6 +35,7 @@ from training_coach.domain.blocks import BlockKind
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.fitness_tests import TimeOfDay
 from training_coach.domain.habits import Habit
+from training_coach.domain.measurements import Kind as MeasurementKind
 
 
 def _in(column: str, values: type[StrEnum]) -> str:
@@ -380,6 +381,25 @@ class FitnessTestDay(Owned, Base):
     slept_well: Mapped[bool] = mapped_column(Boolean)
     results: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
     token: Mapped[str] = mapped_column(String(32), unique=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class Measurement(Owned, Base):
+    """A body measurement for a day (2-B, #142): one per kind per day, in tenths
+    (``domain.measurements``). Personal: never logged, never shared."""
+
+    __tablename__ = "measurements"
+    __table_args__ = (
+        UniqueConstraint("user_id", "local_date", "kind"),
+        CheckConstraint(_in("kind", MeasurementKind), name="kind_valid"),
+        CheckConstraint("tenths > 0", name="tenths_positive"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    local_date: Mapped[date] = mapped_column(Date)
+    kind: Mapped[str] = mapped_column(String(16))
+    tenths: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 

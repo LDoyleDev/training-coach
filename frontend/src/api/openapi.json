@@ -507,6 +507,52 @@
         "title": "KeptView",
         "type": "object"
       },
+      "KindView": {
+        "properties": {
+          "decimals": {
+            "title": "Decimals",
+            "type": "integer"
+          },
+          "high": {
+            "title": "High",
+            "type": "number"
+          },
+          "kind": {
+            "enum": [
+              "bodyweight",
+              "waist",
+              "chest",
+              "upper_arm",
+              "thigh",
+              "resting_hr"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "low": {
+            "title": "Low",
+            "type": "number"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "unit",
+          "decimals",
+          "low",
+          "high"
+        ],
+        "title": "KindView",
+        "type": "object"
+      },
       "Me": {
         "properties": {
           "user_id": {
@@ -518,6 +564,77 @@
           "user_id"
         ],
         "title": "Me",
+        "type": "object"
+      },
+      "MeasureBody": {
+        "properties": {
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On"
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "maxProperties": 6,
+            "propertyNames": {
+              "enum": [
+                "bodyweight",
+                "waist",
+                "chest",
+                "upper_arm",
+                "thigh",
+                "resting_hr"
+              ]
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "title": "MeasureBody",
+        "type": "object"
+      },
+      "MeasurementView": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "bodyweight",
+              "waist",
+              "chest",
+              "upper_arm",
+              "thigh",
+              "resting_hr"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "on",
+          "kind",
+          "value"
+        ],
+        "title": "MeasurementView",
         "type": "object"
       },
       "PasskeyView": {
@@ -986,6 +1103,32 @@
         "title": "TestDayBody",
         "type": "object"
       },
+      "TestDayDueView": {
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tests": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tests",
+            "type": "array"
+          }
+        },
+        "required": [
+          "day",
+          "name",
+          "tests"
+        ],
+        "title": "TestDayDueView",
+        "type": "object"
+      },
       "TestDaySaved": {
         "properties": {
           "already_saved": {
@@ -1157,6 +1300,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/GuidedView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "test_day": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TestDayDueView"
               },
               {
                 "type": "null"
@@ -1506,6 +1659,144 @@
         ]
       }
     },
+    "/api/body": {
+      "get": {
+        "description": "Every measurement, newest day first.",
+        "operationId": "history_api_body_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MeasurementView"
+                  },
+                  "title": "Response History Api Body Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "History",
+        "tags": [
+          "body"
+        ]
+      },
+      "put": {
+        "description": "Save a day's measurements (any of them), replacing the same kind that day.",
+        "operationId": "save_api_body_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeasureBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save",
+        "tags": [
+          "body"
+        ]
+      }
+    },
+    "/api/body/kinds": {
+      "get": {
+        "description": "What can be measured, in order, with units and ranges.",
+        "operationId": "kinds_api_body_kinds_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/KindView"
+                  },
+                  "title": "Response Kinds Api Body Kinds Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Kinds",
+        "tags": [
+          "body"
+        ]
+      }
+    },
+    "/api/body/{on}/{kind}": {
+      "delete": {
+        "operationId": "remove_api_body__on___kind__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "on",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "On",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "bodyweight",
+                "waist",
+                "chest",
+                "upper_arm",
+                "thigh",
+                "resting_hr"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove",
+        "tags": [
+          "body"
+        ]
+      }
+    },
     "/api/plan": {
       "get": {
         "operationId": "get_plan_api_plan_get",
@@ -1823,6 +2114,36 @@
           }
         },
         "summary": "Save",
+        "tags": [
+          "tests"
+        ]
+      }
+    },
+    "/api/tests/due": {
+      "get": {
+        "description": "The test day due today, if any (ADR-0038).",
+        "operationId": "due_api_tests_due_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TestDayDueView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Due Api Tests Due Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Due",
         "tags": [
           "tests"
         ]

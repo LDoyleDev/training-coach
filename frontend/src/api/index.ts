@@ -196,18 +196,24 @@ export type FitnessTest = Schemas['TestView']
 export type TestDay = Schemas['TestDayView']
 export type TestDayBody = Schemas['TestDayBody']
 export type TestResult = Schemas['TestResultView']
+export type TestDayDue = Schemas['TestDayDueView']
 
 /** Every test and every saved test day; null when not signed in. */
 export async function fetchTests(
   signal?: AbortSignal,
-): Promise<{ tests: FitnessTest[]; days: TestDay[] } | null> {
-  const [tests, days] = await Promise.all([
-    fetch('/api/tests', { signal, credentials: 'same-origin' }),
-    fetch('/api/tests/results', { signal, credentials: 'same-origin' }),
-  ])
-  if (tests.status === 401 || days.status === 401) return null
-  if (!tests.ok || !days.ok) throw new Error('The server answered with an error.')
-  return { tests: (await tests.json()) as FitnessTest[], days: (await days.json()) as TestDay[] }
+): Promise<{ tests: FitnessTest[]; days: TestDay[]; due: TestDayDue | null } | null> {
+  const [tests, days, due] = await Promise.all(
+    ['/api/tests', '/api/tests/results', '/api/tests/due'].map((path) =>
+      fetch(path, { signal, credentials: 'same-origin' }),
+    ),
+  )
+  if ([tests, days, due].some((r) => r.status === 401)) return null
+  if (![tests, days, due].every((r) => r.ok)) throw new Error('The server answered with an error.')
+  return {
+    tests: (await tests.json()) as FitnessTest[],
+    days: (await days.json()) as TestDay[],
+    due: (await due.json()) as TestDayDue | null,
+  }
 }
 
 /** Save a test day: its id, or a string saying why the server refused it. */
@@ -224,4 +230,56 @@ export async function saveTestDay(body: TestDayBody): Promise<number | string> {
   }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return ((await res.json()) as Schemas['TestDaySaved']).id
+}
+
+// ---------------------------------------------------------------- body measurements (#142)
+
+export type MeasureKind = Schemas['KindView']
+export type Measurement = Schemas['MeasurementView']
+export type MeasureBody = Schemas['MeasureBody']
+
+/** The kinds and every measurement; null when not signed in. */
+export async function fetchBody(
+  signal?: AbortSignal,
+): Promise<{ kinds: MeasureKind[]; entries: Measurement[] } | null> {
+  const [kinds, entries] = await Promise.all(
+    ['/api/body/kinds', '/api/body'].map((path) =>
+      fetch(path, { signal, credentials: 'same-origin' }),
+    ),
+  )
+  if (kinds.status === 401 || entries.status === 401) return null
+  if (!kinds.ok || !entries.ok) throw new Error('The server answered with an error.')
+  return {
+    kinds: (await kinds.json()) as MeasureKind[],
+    entries: (await entries.json()) as Measurement[],
+  }
+}
+
+/** Save a day's measurements: true, 'signed-out', or why the server refused them. */
+export async function saveBody(body: MeasureBody): Promise<true | 'signed-out' | string> {
+  const res = await fetch('/api/body', {
+    method: 'PUT',
+    headers: json,
+    body: JSON.stringify(body),
+    credentials: 'same-origin',
+  })
+  if (res.status === 401) return 'signed-out'
+  if (res.status === 422) {
+    const detail = ((await res.json()) as { detail?: unknown }).detail
+    return typeof detail === 'string' ? detail : 'Those values could not be saved.'
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return true
+}
+
+/** Remove one measurement: 'signed-out' when the sign-in has ended. */
+export async function deleteMeasurement(on: string, kind: string): Promise<'signed-out' | null> {
+  const res = await fetch(`/api/body/${on}/${kind}`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  })
+  if (res.status === 401) return 'signed-out'
+  if (res.status !== 204 && res.status !== 404)
+    throw new Error(`The server answered ${res.status}.`)
+  return null
 }

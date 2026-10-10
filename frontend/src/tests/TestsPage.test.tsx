@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { FitnessTest, TestDay } from '../api'
+import type { FitnessTest, TestDay, TestDayDue } from '../api'
 import TestsPage from './TestsPage'
 
 const TESTS: FitnessTest[] = [
@@ -49,6 +49,7 @@ const DONE: TestDay = {
 type Server = {
   days?: TestDay[]
   after?: TestDay[] // the days listed once a save went through
+  due?: TestDayDue
   signedIn?: boolean
   save?: 'refuse' | 'fail'
 }
@@ -70,6 +71,7 @@ function serve(server: Server = {}) {
         return Response.json({ id: 2, already_saved: false })
       }
       if (path === '/api/tests') return Response.json(TESTS)
+      if (path === '/api/tests/due') return Response.json(server.due ?? null)
       return Response.json(saved && server.after ? server.after : (server.days ?? []))
     }),
   )
@@ -237,4 +239,16 @@ test('after saving, each result shows against the baseline and last time', async
     await screen.findByText('Max pull-ups: 9 · baseline 6 (+3) · last 7 (+2)'),
   ).toBeInTheDocument()
   expect(screen.getByText('Not quite comparable: fed, last time fasted.')).toBeInTheDocument()
+})
+
+test('a test day due today is offered first', async () => {
+  const sent = serve({
+    days: [DONE],
+    due: { day: 2, name: 'Baseline tests, day 2', tests: ['Bulgarian split squat'] },
+  })
+  render(<TestsPage />)
+  expect(await screen.findByText('Due today: Baseline tests, day 2')).toBeInTheDocument()
+  click('Start baseline tests, day 2')
+  expect(screen.getByRole('heading', { name: 'Day 2: conditions' })).toBeInTheDocument()
+  expect(sent).toHaveLength(0)
 })
