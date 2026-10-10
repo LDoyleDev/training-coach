@@ -22,6 +22,7 @@ export default function BodyPage() {
   const [bounds] = useState(() => ({ min: isoDay(new Date(), 14), max: isoDay(new Date()) }))
   const [note, setNote] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [signedOut, setSignedOut] = useState(false) // the sign-in ended while on the page
 
   const load = () =>
     fetchBody()
@@ -45,7 +46,8 @@ export default function BodyPage() {
     setNote(null)
     try {
       const answer = await saveBody({ on: day, values: parsed.values })
-      if (answer === true) {
+      if (answer === 'signed-out') setSignedOut(true)
+      else if (answer === true) {
         setTyped({})
         setNote('Saved.')
         await load()
@@ -58,9 +60,10 @@ export default function BodyPage() {
   }
 
   const remove = async (entry: Measurement) => {
+    setNote(null)
     try {
-      await deleteMeasurement(entry.on, entry.kind)
-      await load()
+      if ((await deleteMeasurement(entry.on, entry.kind)) === 'signed-out') setSignedOut(true)
+      else await load()
     } catch {
       setNote("Couldn't remove it. Check your connection and try again.")
     }
@@ -72,6 +75,12 @@ export default function BodyPage() {
       {note && (
         <p role="status" className="status">
           {note}
+        </p>
+      )}
+      {signedOut && (
+        <p role="alert" className="status status-error">
+          Your sign-in has ended. <a href="/signin">Sign in again</a>, then save; what you typed
+          stays here.
         </p>
       )}
 

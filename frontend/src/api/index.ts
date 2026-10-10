@@ -255,14 +255,15 @@ export async function fetchBody(
   }
 }
 
-/** Save a day's measurements: true, or why the server refused them. */
-export async function saveBody(body: MeasureBody): Promise<true | string> {
+/** Save a day's measurements: true, 'signed-out', or why the server refused them. */
+export async function saveBody(body: MeasureBody): Promise<true | 'signed-out' | string> {
   const res = await fetch('/api/body', {
     method: 'PUT',
     headers: json,
     body: JSON.stringify(body),
     credentials: 'same-origin',
   })
+  if (res.status === 401) return 'signed-out'
   if (res.status === 422) {
     const detail = ((await res.json()) as { detail?: unknown }).detail
     return typeof detail === 'string' ? detail : 'Those values could not be saved.'
@@ -271,4 +272,14 @@ export async function saveBody(body: MeasureBody): Promise<true | string> {
   return true
 }
 
-export const deleteMeasurement = (on: string, kind: string) => remove(`/api/body/${on}/${kind}`)
+/** Remove one measurement: 'signed-out' when the sign-in has ended. */
+export async function deleteMeasurement(on: string, kind: string): Promise<'signed-out' | null> {
+  const res = await fetch(`/api/body/${on}/${kind}`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  })
+  if (res.status === 401) return 'signed-out'
+  if (res.status !== 204 && res.status !== 404)
+    throw new Error(`The server answered ${res.status}.`)
+  return null
+}
