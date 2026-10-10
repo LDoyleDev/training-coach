@@ -19,7 +19,8 @@ first, so it can be rotated without anyone entering their key again:
    `docker compose exec app python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`
 2. In `.env`, put it in front: `TC_SECRETS_KEY=<new>,<old>`, then `docker compose up -d`.
 3. Re-seal every stored key with the new one: `docker compose exec app training-coach rotate-secrets`.
-   It prints how many were re-sealed and how many could not be read.
+   It prints how many were re-sealed. If any could not be opened it fails and says so: a
+   key is missing from the list. Put it back before going on.
 4. Remove the old key from `.env` and `docker compose up -d` again.
 
 If the key leaked, also ask people to replace their Groq keys at console.groq.com: whoever had
