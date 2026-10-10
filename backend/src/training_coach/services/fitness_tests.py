@@ -7,6 +7,7 @@ from datetime import date
 from functools import lru_cache
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import FitnessTestDay
@@ -56,9 +57,9 @@ def save(
     token: str,
 ) -> Saved | str:
     """Save one test day, or say why not. The same ``token`` again returns the saved day."""
-    existing = session.scalar(select(FitnessTestDay).where(FitnessTestDay.token == token))
+    existing = _saved(session, token)
     if existing is not None:
-        return Saved(existing.id, already_saved=True)
+        return existing
     if on > today:
         return "that day hasn't happened yet"
     if (today - on).days > MAX_DAYS_BACK:
@@ -75,9 +76,18 @@ def save(
         results=[{"test": r.test, "side": r.side.value, "value": r.value} for r in results],
         token=token,
     )
-    session.add(row)
-    session.flush()
+    try:  # a Save racing this one with the same token wins on the unique token
+        with session.begin_nested():
+            session.add(row)
+            session.flush()
+    except IntegrityError:
+        return _saved(session, token) or "that test day couldn't be saved; try again"
     return Saved(row.id, already_saved=False)
+
+
+def _saved(session: Session, token: str) -> Saved | None:
+    existing = session.scalar(select(FitnessTestDay).where(FitnessTestDay.token == token))
+    return None if existing is None else Saved(existing.id, already_saved=True)
 
 
 def history(session: Session) -> list[Day]:

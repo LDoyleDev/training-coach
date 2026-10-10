@@ -1,11 +1,15 @@
 from datetime import date, timedelta
 
+from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from training_coach.db.models import User
+from training_coach.db.session import make_session_factory
 from training_coach.domain.enums import Side
 from training_coach.domain.fitness_tests import Result, TimeOfDay, Unit
 from training_coach.services import fitness_tests
 from training_coach.services.fitness_tests import Conditions, Saved
+from training_coach.services.users import OWNER
 
 TODAY = date(2026, 10, 10)
 MORNING = Conditions(TimeOfDay.MORNING, fed=False, slept_well=True)
@@ -54,3 +58,31 @@ def test_what_cant_be_saved_says_why(session: Session) -> None:
         "dead-hang isn't a day 2 test"
     )
     assert fitness_tests.history(session) == []
+
+
+def test_a_save_racing_another_with_the_same_token_returns_the_saved_day(engine: Engine) -> None:
+    """Both Saves miss the token lookup; the second loses on the unique token (review of #137)."""
+    hang = [Result("dead-hang", Side.BOTH, 30)]
+    sessions = make_session_factory(engine, user_id=OWNER)
+    with sessions() as first, sessions() as second:
+        assert fitness_tests._saved(second, TOKEN) is None  # the second has looked already
+        saved = fitness_tests.save(first, TODAY, TODAY, 1, MORNING, hang, TOKEN)
+        first.commit()
+        raced = fitness_tests.save(second, TODAY, TODAY, 1, MORNING, hang, TOKEN)
+    assert isinstance(saved, Saved)
+    assert raced == Saved(saved.id, already_saved=True)
+
+
+def test_another_persons_token_is_refused_without_showing_their_day(engine: Engine) -> None:
+    """Tokens are unique across people; a clash with someone else's can't return their day."""
+    hang = [Result("dead-hang", Side.BOTH, 30)]
+    with make_session_factory(engine)() as shared:
+        shared.add(User(id=2))
+        shared.commit()
+    with make_session_factory(engine, user_id=2)() as other:
+        assert isinstance(fitness_tests.save(other, TODAY, TODAY, 1, MORNING, hang, TOKEN), Saved)
+        other.commit()
+    with make_session_factory(engine, user_id=OWNER)() as mine:
+        clash = fitness_tests.save(mine, TODAY, TODAY, 1, MORNING, hang, TOKEN)
+        assert clash == "that test day couldn't be saved; try again"
+        assert fitness_tests.history(mine) == []
