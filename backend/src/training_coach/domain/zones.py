@@ -1,4 +1,4 @@
-"""Heart-rate zones (ADR-0054): Karvonen, from resting and max heart rate. Pure logic, no I/O.
+"""Heart-rate zones (ADR-0055): Karvonen, from resting and max heart rate. Pure logic, no I/O.
 
 Karvonen counts from the heart-rate reserve, max minus resting: zone 2 runs from 60 to 70% of
 it above resting. Resting heart rate is the median of the last 7 nights. Max heart rate is the

@@ -1,4 +1,4 @@
-# ADR-0054: Band data through Health Connect Webhook
+# ADR-0055: Band data through Health Connect Webhook
 
 - Status: Accepted
 - Date: 2026-10-11

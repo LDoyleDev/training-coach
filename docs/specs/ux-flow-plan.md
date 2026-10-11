@@ -84,9 +84,9 @@ only, and A4 later as the default with A1 as the fallback. After saving a cardio
 | C1 "Open in app" button on the morning message and on `/today` (built: also on the weekly review and a saved log; https `TC_PUBLIC_URL` only) | S |
 | C2 Rest today, Swap and Push on the web (built: "Change today" on the session page, the same queue services as the bot, ADR-0052) | M |
 | C3 Undo on the web (built: "Undo: <what>" with a confirm tap after a change or a saved log, ADR-0052) | S |
-| C4 The weekly review on the web, with the AI comment under it | M |
+| C4 The weekly review on the web, with the AI comment under it (built: `/review`, linked from Home and Progress and from the bot's review, this week so far and earlier weeks, `/api/review` on the bot's review service. The AI comment stays on Telegram: it is made once per review and never stored (ADR-0047), so the page says so instead of making another call) | M |
 | C5 Habits on the web (built: "Habits today" on the session page, one tap ticks and another unticks, with what counts and days done this week; `/api/habits` on the bot's habit service, so a tick shows on both) | M |
-| C6 Settings on the web (message times, nudges, pause) | M |
+| C6 Settings on the web (built: "Messages and settings" on Account: message times, nudge and habit buttons on/off, protein target, training blocks, pause, with the bot's rules; a new time moves the bot's messages at once; `/api/settings`) | M |
 
 Telegram would then be for what it does best: the morning nudge, quick voice and text logs,
 and alerts. The web app becomes the place you work in.
@@ -96,7 +96,7 @@ and alerts. The web app becomes the place you work in.
 | Option | What |
 | --- | --- |
 | D1 **Bottom tabs on phones** (being built, Part 1) | Today, Progress, Tests, Body, More |
-| D2 Fewer pages | Fold Readiness into Today (as a due card) and Plan into Progress |
+| D2 Fewer pages | Fold Readiness into Today (as a due card) and Plan into Progress (built: Plan is a tab of Progress, `/progress?tab=plan`, with no nav entry of its own; `/plan` and old links open that tab. Readiness is asked on app load instead, see Decided) |
 | D3 Install as an app (PWA) (built: install button on Account, a one-time hint on Home, offline notice; how to install: `docs/runbooks/deploy.md`) | A home-screen icon and full screen; no store, no cost |
 
 ## Suggested order

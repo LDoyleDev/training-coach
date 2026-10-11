@@ -596,6 +596,47 @@ export async function saveDailyCheck(answers: DailyCheckAnswers): Promise<DailyC
   return (await res.json()) as DailyCheck
 }
 
+// ---------------------------------------------------------------- weekly review (C4)
+
+export type WeekReview = Schemas['ReviewWeekView']
+
+/** The review of the week containing ``week`` (this week when absent); null when signed out. */
+export async function fetchReview(week?: string, signal?: AbortSignal): Promise<WeekReview | null> {
+  const query = week ? `?week=${encodeURIComponent(week)}` : ''
+  const res = await fetch(`/api/review${query}`, { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as WeekReview
+}
+
+// ---------------------------------------------------------------- settings (ux-flow-plan C6)
+
+export type MessageSettings = Schemas['SettingsView']
+export type SettingsChange = Schemas['SettingsChange']
+
+/** Message times, nudges, habits, protein, blocks and pause; null when not signed in. */
+export async function fetchSettings(signal?: AbortSignal): Promise<MessageSettings | null> {
+  const res = await fetch('/api/settings', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as MessageSettings
+}
+
+/** Change only what's given. 'invalid': the server refused a value (as the bot would). */
+export async function saveSettings(change: SettingsChange): Promise<MessageSettings | 'invalid'> {
+  const res = signedIn(
+    await fetch('/api/settings', {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: json,
+      body: JSON.stringify(change),
+    }),
+  )
+  if (res.status === 422) return 'invalid'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as MessageSettings
+}
+
 // ---------------------------------------------------------------- habits (ux-flow-plan C5)
 
 export type Habits = Schemas['HabitsView']
@@ -721,7 +762,7 @@ export async function removeAiKey(): Promise<void> {
     throw new Error(`The server answered ${res.status}.`)
 }
 
-// ------------------------------------------------------- heart-rate zones (ADR-0054)
+// ------------------------------------------------------- heart-rate zones (ADR-0055)
 
 export type HeartRate = Schemas['HeartRateView']
 export type HeartRateBody = Schemas['HeartRateBody']
@@ -752,7 +793,7 @@ export async function saveHeartRate(body: HeartRateBody): Promise<HeartRate | st
   return (await res.json()) as HeartRate
 }
 
-// ------------------------------------------------------ band import secret (ADR-0054)
+// ------------------------------------------------------ band import secret (ADR-0055)
 
 export type BandImport = Schemas['IngestView']
 export type BandSecret = Schemas['NewSecret']

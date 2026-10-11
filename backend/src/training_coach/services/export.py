@@ -27,6 +27,7 @@ from training_coach.db.models import (
     ImportedWorkout,
     IngestKey,
     LadderStep,
+    McpConnection,
     Measurement,
     Passkey,
     PlanState,
@@ -56,6 +57,7 @@ TABLES: dict[str, type] = {
     "heart_rate_samples": HeartRateSample,
     "band_import_secret": IngestKey,  # when it was made and used; the hash is left out
     "ai_connections": AiConnection,  # the key itself is binary, so left out
+    "connected_ai_apps": McpConnection,
     "progress_photos": ProgressPhoto,
     "habit_checks": HabitCheck,
     "settings": UserSettings,

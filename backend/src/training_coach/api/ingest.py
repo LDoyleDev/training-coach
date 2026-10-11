@@ -1,4 +1,4 @@
-"""Band data from the phone (ADR-0054): the Health Connect Webhook app posts here, with the
+"""Band data from the phone (ADR-0055): the Health Connect Webhook app posts here, with the
 person's ingest secret; and the Account routes that make and remove that secret.
 
 The ingest route is public in the sense that no cookie signs it in: only the secret does. It
@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.alerts import alert
 from training_coach.api.auth import Fresh, Owner
-from training_coach.api.passkeys import client_address
+from training_coach.api.passkeys import _client
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import health_import, ingest_keys
@@ -32,7 +32,7 @@ MAX_BYTES = 5 * 1024 * 1024  # a first sync of 48 hours of per-minute heart rate
 WINDOW = 600.0  # seconds
 MAX_CALLS = 60  # per address per window; the app syncs at most every 15 minutes
 MAX_FAILURES = 10  # wrong secrets per address per window
-MAX_ADDRESSES = 10_000  # forget everyone rather than grow without bound
+MAX_ADDRESSES = 10_000  # then idle addresses are forgotten, so memory stays bounded
 
 
 class Limiter:
@@ -45,8 +45,13 @@ class Limiter:
 
     @staticmethod
     def _recent(seen: dict[str, deque[float]], address: str, now: float) -> deque[float]:
-        if len(seen) > MAX_ADDRESSES:
-            seen.clear()
+        if address not in seen and len(seen) >= MAX_ADDRESSES:
+            # Forget idle addresses only: clearing everything would let a caller with many
+            # addresses wipe its own wrong-secret count (review of #224).
+            for idle in [a for a, times in seen.items() if not times or now - times[-1] > WINDOW]:
+                del seen[idle]
+            if len(seen) >= MAX_ADDRESSES:
+                del seen[next(iter(seen))]
         times = seen.setdefault(address, deque())
         while times and now - times[0] > WINDOW:
             times.popleft()
@@ -54,10 +59,10 @@ class Limiter:
 
     def allow(self, address: str, now: float) -> bool:
         calls = self._recent(self.calls, address, now)
-        if (
-            len(calls) >= MAX_CALLS
-            or len(self._recent(self.failures, address, now)) >= MAX_FAILURES
-        ):
+        # Only addresses that sent a wrong secret are tracked as failures, so a flood of
+        # well-behaved addresses can't push a guesser's count out.
+        failed = address in self.failures and self._recent(self.failures, address, now)
+        if len(calls) >= MAX_CALLS or (failed and len(failed) >= MAX_FAILURES):
             return False
         calls.append(now)
         return True
@@ -98,7 +103,7 @@ async def _body(request: Request) -> bytes:
 @router.post("/health-connect", response_model=IngestReceived)
 async def health_connect(request: Request) -> IngestReceived:
     """Store a Health Connect Webhook payload for the person whose secret it carries."""
-    address, clock = client_address(request), time.monotonic()
+    address, clock = _client(request), time.monotonic()
     limiter = _limiter(request)
     if not limiter.allow(address, clock):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "too many requests")

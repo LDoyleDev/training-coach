@@ -261,7 +261,7 @@ class UserSettings(Owned, Base):
     # Daily protein target in grams for the protein habit; empty shows the per-kg guide.
     protein_g: Mapped[int | None] = mapped_column(Integer)
     paused: Mapped[bool] = mapped_column(Boolean, server_default=false())
-    # Heart-rate zones (ADR-0054): the age for the max estimate, and a max of their own.
+    # Heart-rate zones (ADR-0055): the age for the max estimate, and a max of their own.
     birth_year: Mapped[int | None] = mapped_column(Integer)
     max_hr: Mapped[int | None] = mapped_column(Integer)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
@@ -500,6 +500,11 @@ class WebSession(Owned, Base):
     # Last time the person confirmed it's them with their fingerprint, without signing in again
     # (ADR-0049): it makes the session fresh, like a new sign-in.
     confirmed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    # The passkey that confirmed it: a connection approved on the strength of that
+    # confirmation ends when the key is removed (ADR-0047 C).
+    confirmed_passkey_id: Mapped[int | None] = mapped_column(
+        ForeignKey("passkeys.id", ondelete="SET NULL")
+    )
 
 
 class Passkey(Owned, Base):
@@ -571,11 +576,11 @@ class DailyCheck(Owned, Base):
     answered_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
-# ------------------------------------------------------------- band data (ADR-0054)
+# ------------------------------------------------------------- band data (ADR-0055)
 
 
 class IngestKey(Owned, Base):
-    """The secret a person's phone sends with band data (ADR-0054): one each, shown once,
+    """The secret a person's phone sends with band data (ADR-0055): one each, shown once,
     only its SHA-256 kept."""
 
     __tablename__ = "ingest_keys"
@@ -588,7 +593,7 @@ class IngestKey(Owned, Base):
 
 
 class HealthDay(Owned, Base):
-    """A day's steps and resting heart rate from the band (ADR-0054). Health data: never
+    """A day's steps and resting heart rate from the band (ADR-0055). Health data: never
     logged, never shared."""
 
     __tablename__ = "health_days"
@@ -615,7 +620,7 @@ class HealthDay(Owned, Base):
 
 
 class HeartRateSample(Owned, Base):
-    """Heart rate in one minute (ADR-0054), kept 8 days: long enough for a workout whose heart
+    """Heart rate in one minute (ADR-0055), kept 8 days: long enough for a workout whose heart
     rate arrived in an earlier sync, and for resting heart rate."""
 
     __tablename__ = "heart_rate_samples"
@@ -635,7 +640,7 @@ class HeartRateSample(Owned, Base):
 
 
 class SleepSession(Owned, Base):
-    """A night (or nap) from the band (ADR-0054), with minutes per stage. Identified by where it
+    """A night (or nap) from the band (ADR-0055), with minutes per stage. Identified by where it
     came from and when it started; sent again, it is updated."""
 
     __tablename__ = "sleep_sessions"
@@ -663,7 +668,7 @@ class SleepSession(Owned, Base):
 
 
 class ImportedWorkout(Owned, Base):
-    """A workout the band recorded (ADR-0054). A cardio one is offered to count; once counted
+    """A workout the band recorded (ADR-0055). A cardio one is offered to count; once counted
     it points at the workout it was logged as."""
 
     __tablename__ = "imported_workouts"
@@ -693,7 +698,7 @@ class ImportedWorkout(Owned, Base):
     minutes: Mapped[int] = mapped_column(Integer)
     avg_hr: Mapped[int | None] = mapped_column(Integer)
     max_hr: Mapped[int | None] = mapped_column(Integer)
-    # Minutes in Karvonen zones 1-5 (ADR-0054); empty without heart rate.
+    # Minutes in Karvonen zones 1-5 (ADR-0055); empty without heart rate.
     zone1_min: Mapped[int | None] = mapped_column(Integer)
     zone2_min: Mapped[int | None] = mapped_column(Integer)
     zone3_min: Mapped[int | None] = mapped_column(Integer)
@@ -720,6 +725,117 @@ class AiConnection(Owned, Base):
     # When the key last failed (revoked, quota, unreadable): the person is told once.
     failed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
+
+
+# ------------------------------------------- connect my AI (MCP, ADR-0047 C)
+# docs/security/mcp-threat-model.md is the spec. Every secret below (codes, tokens, consent
+# handles) is 32 random bytes handed out once and kept only as its SHA-256.
+
+
+class OAuthClient(Base):
+    """An AI app that registered itself (RFC 7591). Shared: it belongs to nobody until a person
+    approves it with their passkey, and until then it expires. Its name is its own claim."""
+
+    __tablename__ = "oauth_clients"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[str] = mapped_column(String(64), unique=True)  # public, not a secret
+    name: Mapped[str] = mapped_column(String(60))
+    redirect_uris: Mapped[list[str]] = mapped_column(JSON)
+    # SHA-256 of the registering address, so pending registrations can be capped per client.
+    client_hash: Mapped[str] = mapped_column(String(64), index=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)  # unless approved
+    approved_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class OAuthConsent(Base):
+    """An open consent page: the authorization request it was made for, then (once the person
+    proves their passkey on it) the signed-in browser it is bound to. Single use, 10 minutes."""
+
+    __tablename__ = "oauth_consents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    handle_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    client_id: Mapped[int] = mapped_column(
+        ForeignKey("oauth_clients.id", ondelete="CASCADE"), index=True
+    )
+    redirect_uri: Mapped[str] = mapped_column(String(200))
+    scopes: Mapped[list[str]] = mapped_column(JSON)  # as requested
+    state: Mapped[str | None] = mapped_column(String(500))
+    code_challenge: Mapped[str] = mapped_column(String(128))
+    resource: Mapped[str] = mapped_column(String(200))
+    # SHA-256 of the address that opened it, so open consent pages can be capped per client.
+    client_hash: Mapped[str] = mapped_column(String(64), index=True)
+    web_session_id: Mapped[int | None] = mapped_column(
+        ForeignKey("web_sessions.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class McpConnection(Owned, Base):
+    """An AI app a person approved: what it may read, until it is revoked or 90 days after the
+    approval, whatever the refreshes. The client's name and redirect address are kept as
+    approved, to show on the Account page."""
+
+    __tablename__ = "mcp_connections"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    client_id: Mapped[int] = mapped_column(
+        ForeignKey("oauth_clients.id", ondelete="CASCADE"), index=True
+    )
+    client_name: Mapped[str] = mapped_column(String(60))
+    redirect_uri: Mapped[str] = mapped_column(String(200))
+    scopes: Mapped[list[str]] = mapped_column(JSON)  # as granted
+    # The passkey that approved it: removing the key revokes the connection.
+    passkey_id: Mapped[int | None] = mapped_column(
+        ForeignKey("passkeys.id", ondelete="SET NULL"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    ends_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    last_used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class OAuthCode(Base):
+    """An authorization code: single use, 60 seconds, for one client's redirect address and
+    PKCE challenge. Reached only through its connection."""
+
+    __tablename__ = "oauth_codes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    connection_id: Mapped[int] = mapped_column(
+        ForeignKey("mcp_connections.id", ondelete="CASCADE"), index=True
+    )
+    redirect_uri: Mapped[str] = mapped_column(String(200))
+    code_challenge: Mapped[str] = mapped_column(String(128))
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class OAuthToken(Base):
+    """An access token (1 hour) or refresh token (30 days, single use: each refresh rotates
+    it) for one connection and one resource. Used refresh tokens are kept until they expire,
+    so presenting one again is noticed."""
+
+    __tablename__ = "oauth_tokens"
+    __table_args__ = (CheckConstraint("kind IN ('access', 'refresh')", name="kind_valid"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    kind: Mapped[str] = mapped_column(String(8))
+    connection_id: Mapped[int] = mapped_column(
+        ForeignKey("mcp_connections.id", ondelete="CASCADE"), index=True
+    )
+    resource: Mapped[str] = mapped_column(String(200))
+    scopes: Mapped[list[str]] = mapped_column(JSON)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class Event(Owned, Base):
@@ -750,6 +866,11 @@ __all__ = [
     "IngestKey",
     "LadderStep",
     "LoginLink",
+    "McpConnection",
+    "OAuthClient",
+    "OAuthCode",
+    "OAuthConsent",
+    "OAuthToken",
     "Owned",
     "Passkey",
     "PasskeyChallenge",

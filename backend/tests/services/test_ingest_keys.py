@@ -1,4 +1,4 @@
-"""The band import secret (ADR-0054): made once, kept hashed, found in an unbound session."""
+"""The band import secret (ADR-0055): made once, kept hashed, found in an unbound session."""
 
 from datetime import UTC, datetime, timedelta
 

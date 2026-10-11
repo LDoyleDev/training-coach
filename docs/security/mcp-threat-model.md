@@ -60,6 +60,11 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11).** ADR
   - approved registrations (connections) don't count toward the cap;
   - a registration whose consent page is open (a live consent handle) can't be evicted, so a
     flood of new registrations can't break a connect the person is finishing.
+- **Open consent pages (consent handles), capped three ways:** at most 3 per client address
+  (more are refused with `429`), at most 3 per registered app (a new one replaces that app's
+  oldest page not yet bound to a browser, and is refused only if all 3 are bound), and 40
+  overall. A page can only be opened while its registration is within its 15 minutes and
+  lasts 10, so open pages protect a registration from eviction for at most 25 minutes.
 - **Authorization code with PKCE S256,** checked against the stored code challenge.
 - **Resource indicators (RFC 8707):** `resource` must equal the `/mcp` URL.
 - **Consent requires a passkey, proved in the last 10 minutes:** a passkey sign-in or ADR-0049's
@@ -116,7 +121,8 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11).** ADR
      client, or with another URI, is refused, with a test for each;
    - single use, expiring after 60 s, claimed by one conditional update;
    - two racing exchanges yield one token;
-   - reusing a code revokes the tokens issued from it.
+   - reusing a code revokes the tokens issued from it, also for 10 minutes after it expired
+     (used codes are kept that long), with a test.
 8. Registration limits. Refused with `429` or `400`:
    - more than 3 pending registrations from one client address (`_client()`);
    - a name over 60 characters;
@@ -131,6 +137,10 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11).** ADR
    twenty open consent pages give `429`, and approved connections don't count toward the cap. Accepted residual
    risk with one user: a registration can still be evicted in the moment between registering
    and opening the consent page; the client just registers again.
+   Open consent pages are capped per client address (3, then `429`), per app (3; a new one
+   replaces the app's oldest unbound page) and overall (40). Tests: one app at its cap doesn't
+   stop another app getting a page, a page the person has bound is never replaced, one address
+   can't fill the overall cap, and a page can't be opened once its registration has expired.
 9. The consent page requires `Owner` and `PasskeyFresh`: a passkey proved in the last 10
    minutes (a passkey sign-in or an ADR-0049 confirmation), not `Fresh`. Sessions begun by a
    bot link or by `/recover` are refused, with a test for each.

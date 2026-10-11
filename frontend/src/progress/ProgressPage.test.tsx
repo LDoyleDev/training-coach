@@ -1,8 +1,10 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Standing } from '../api'
 import { amount, trend } from './logic'
 import ProgressPage from './ProgressPage'
+
+vi.mock('../App', () => ({ default: () => <p>the plan</p> }))
 
 const make = (over: Partial<Standing>): Standing => ({
   exercise: 'Pull-up',
@@ -65,4 +67,26 @@ test('signed out, or the server down', async () => {
   serve(500)
   render(<ProgressPage />)
   expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load your progress.")
+})
+
+test('the plan is a tab here, kept in the address', async () => {
+  serve([make({})])
+  render(<ProgressPage />)
+  expect(await screen.findByText('Pull-up')).toBeInTheDocument()
+  expect(screen.getByRole('tab', { name: 'My progress' })).toHaveAttribute('aria-selected', 'true')
+  fireEvent.click(screen.getByRole('tab', { name: 'The plan' }))
+  expect(screen.getByText('the plan')).toBeInTheDocument()
+  expect(window.location.search).toBe('?tab=plan')
+  fireEvent.click(screen.getByRole('tab', { name: 'My progress' }))
+  expect(await screen.findByText('Pull-up')).toBeInTheDocument()
+  expect(window.location.pathname + window.location.search).toBe('/progress')
+})
+
+test('?tab=plan opens on the plan', () => {
+  serve([])
+  window.history.replaceState(null, '', '/progress?tab=plan')
+  render(<ProgressPage />)
+  expect(screen.getByRole('tab', { name: 'The plan' })).toHaveAttribute('aria-selected', 'true')
+  expect(screen.getByText('the plan')).toBeInTheDocument()
+  window.history.replaceState(null, '', '/')
 })

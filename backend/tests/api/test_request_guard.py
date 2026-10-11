@@ -71,6 +71,14 @@ def test_large_bodies_are_refused_before_they_are_read(client: TestClient) -> No
     assert bogus.status_code == 413
 
 
+def test_only_the_band_ingest_route_skips_the_body_cap(client: TestClient) -> None:
+    # Review of #224: the exemption once covered every path under /api/ingest/.
+    other = client.post("/api/ingest/anything-else", headers={"Content-Length": str(MAX_BODY + 1)})
+    assert other.status_code == 413
+    band = client.post("/api/ingest/health-connect", headers={"Content-Length": "lots"})
+    assert band.status_code != 413  # its own cap applies once the secret checks out
+
+
 def test_a_streamed_change_must_say_how_long_it_is(client: TestClient) -> None:
     def chunks() -> Iterator[bytes]:
         yield b'{"token": "'
