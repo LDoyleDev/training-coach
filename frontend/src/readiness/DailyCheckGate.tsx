@@ -8,6 +8,7 @@ import {
   type DailyCheck,
   type DailyCheckAnswers,
 } from '../api'
+import { hours } from '../components/duration'
 import { primary, secondary } from '../ui'
 
 /** Pages that open without the check: signing in, and the readiness questions' own page. */
@@ -26,6 +27,14 @@ type Step =
   | { kind: 'rested'; text: string }
 
 const answer = 'min-h-16 w-full rounded-2xl border-2 border-[var(--ink)] text-xl font-bold'
+/** The answer the band suggests (ADR-0055): filled, but still one tap to confirm. */
+const suggestedAnswer =
+  'min-h-16 w-full rounded-2xl border-2 border-[var(--bell-ink)] bg-[var(--bell-ink)] text-xl font-bold text-[var(--chalk)]'
+
+/** The option the band suggests for a question, if any (only sleep, from last night). */
+function suggested(check: DailyCheck, key: string): string | null {
+  return key === 'sleep' ? (check.suggested_sleep ?? null) : null
+}
 
 /** Rest today's session (the same rest as on Today, ADR-0052): what happened, in words. */
 async function restToday(): Promise<string> {
@@ -124,17 +133,29 @@ export default function DailyCheckGate({ children }: { children: React.ReactNode
               <p id="question" className="m-0 text-xl">
                 {step.check.questions[step.index].text}
               </p>
+              {suggested(step.check, step.check.questions[step.index].key) &&
+                step.check.band_asleep_min !== null &&
+                step.check.band_asleep_min !== undefined && (
+                  <p className="m-0 text-[var(--slate)]">
+                    Your band: {hours(step.check.band_asleep_min)} asleep. Tap to confirm.
+                  </p>
+                )}
               <div className="flex flex-col gap-3">
-                {step.check.questions[step.index].options.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={answer}
-                    onClick={() => pick(step.check, step.index, option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+                {step.check.questions[step.index].options.map((option) => {
+                  const picked =
+                    suggested(step.check, step.check.questions[step.index].key) === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={picked ? suggestedAnswer : answer}
+                      aria-pressed={picked}
+                      onClick={() => pick(step.check, step.index, option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })}
               </div>
             </section>
             <div className="flex flex-wrap justify-between gap-2">

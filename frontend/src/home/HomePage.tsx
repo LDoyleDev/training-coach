@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchHome, type Home } from '../api'
 import AppShell from '../components/AppShell'
+import BandSummary from '../components/BandSummary'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { InstallHint } from '../pwa/InstallApp'
 import { card, primary, secondary } from '../ui'
@@ -137,6 +138,8 @@ export default function HomePage() {
           <p className="m-0 text-[var(--slate)]">Nothing logged in the last seven days.</p>
         )}
       </section>
+
+      <BandSummary />
 
       <InstallHint />
 

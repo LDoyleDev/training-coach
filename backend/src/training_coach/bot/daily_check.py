@@ -98,8 +98,15 @@ def rows(tap: Tap) -> list[list[InlineKeyboardButton]]:
 
 
 def ask(day: date) -> list[list[InlineKeyboardButton]]:
-    """The rows for a fresh morning message."""
+    """The rows for a fresh morning message, none ticked: even with the band's night, the sleep
+    answer is the person's own tap (ADR-0055), as on the web."""
     return rows(Tap(day, (None, None, None)))
+
+
+def suggestion(sleep: Sleep) -> str:
+    """The band's guess as words, e.g. 'that looks like "Slept well"'; never a tick."""
+    label = dict(LABELS[0])[sleep]
+    return f'That looks like "{label}": tap it if it\'s right.'
 
 
 def with_check(markup: InlineKeyboardMarkup, day: date) -> InlineKeyboardMarkup:
