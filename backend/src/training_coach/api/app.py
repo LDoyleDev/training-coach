@@ -21,6 +21,7 @@ from training_coach.api.auth import router as auth_router
 from training_coach.api.body import router as body_router
 from training_coach.api.cardio import router as cardio_router
 from training_coach.api.change import router as change_router
+from training_coach.api.connections import router as connections_router
 from training_coach.api.daily_check import router as daily_check_router
 from training_coach.api.fitness import router as fitness_router
 from training_coach.api.habits import router as habits_router
@@ -28,6 +29,8 @@ from training_coach.api.heart_rate import router as heart_rate_router
 from training_coach.api.home import router as home_router
 from training_coach.api.ingest import account_router as ingest_account_router
 from training_coach.api.ingest import router as ingest_router
+from training_coach.api.mcp import PER_CONNECTION
+from training_coach.api.mcp import router as mcp_router
 from training_coach.api.oauth import PER_ADDRESS
 from training_coach.api.oauth import router as oauth_router
 from training_coach.api.passkeys import router as passkeys_router
@@ -199,6 +202,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     # Unauthenticated OAuth and MCP calls, per client address and route, a minute.
     app.state.address_limits = RateLimit(PER_ADDRESS, 60)
+    app.state.connection_limits = RateLimit(PER_CONNECTION, 60)  # /mcp, per connection
 
     @app.get("/healthz", response_model=Health, tags=["ops"])
     async def healthz() -> Health:
@@ -226,6 +230,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(settings_router)
     app.include_router(review_router)
     app.include_router(oauth_router)
+    app.include_router(mcp_router)
+    app.include_router(connections_router)
 
     # Mounted last so API routes always win over static files.
     dist = settings.web_dist_dir

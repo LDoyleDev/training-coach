@@ -1,6 +1,7 @@
 """Band data from the phone (ADR-0055): the ingest secret on Account, and the public route the
 Health Connect Webhook app posts to."""
 
+import asyncio
 import json
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
@@ -28,6 +29,7 @@ from training_coach.db.models import (
     SleepSession,
 )
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.services import health_import
 from training_coach.services.users import OWNER
 
 PATH = "/api/ingest/health-connect"
@@ -183,7 +185,9 @@ def test_bodies_past_the_cap_are_refused(signed_in: TestClient, phone: TestClien
     assert _post(phone, secret, big).status_code == 413
 
 
-@pytest.mark.parametrize("content", ["not json", "[1, 2]", "\xff"])
+@pytest.mark.parametrize(
+    "content", ["not json", "[1, 2]", "\xff", "[" * 60_000], ids=["text", "array", "bytes", "deep"]
+)
 def test_anything_but_a_json_object_is_refused(
     signed_in: TestClient, phone: TestClient, content: str
 ) -> None:
@@ -218,3 +222,24 @@ def test_band_data_is_exported_and_erased(
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         for model in (SleepSession, IngestKey, HeartRateSample, HealthDay, ImportedWorkout):
             assert mine.scalar(select(model.id).limit(1)) is None, model.__name__
+
+
+def test_parsing_and_storing_run_off_the_event_loop(
+    signed_in: TestClient, phone: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A first sync is megabytes of heart rate: it mustn't stall the bot and the web app."""
+    secret = _secret(signed_in)
+    real = health_import.store
+    loops: list[bool] = []
+
+    def store(*args: object, **kwargs: object) -> None:
+        try:
+            asyncio.get_running_loop()
+            loops.append(True)
+        except RuntimeError:  # a worker thread has no running loop
+            loops.append(False)
+        real(*args, **kwargs)  # type: ignore[arg-type]  # passes the real arguments on
+
+    monkeypatch.setattr(health_import, "store", store)
+    assert _post(phone, secret).status_code == 200
+    assert loops == [False]

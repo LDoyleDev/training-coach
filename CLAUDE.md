@@ -8,7 +8,7 @@ Stack-specific rules live next to the code: `backend/CLAUDE.md` and `frontend/CL
 Training Coach: a self-hosted training coach for one user (Liam), running on a Raspberry Pi 5.
 The web app (React) is the main surface: today's session, the guided session, progress and
 settings, signed in with passkeys (ADR-0035, ADR-0036). A Telegram bot sends reminders and takes
-quick logs by voice or text. Later, an MCP endpoint lets Claude read and log data.
+quick logs by voice or text. A person's own AI can read their data over MCP (ADR-0047 C).
 
 - Product spec: `docs/specs/product-spec.md`
 - Current phase spec: `docs/specs/phase-1-daily-loop.md` (its Status table says what is done and next)
@@ -84,7 +84,8 @@ formats every file you edit (ADR-0021).
   filter. Add a test for each new handler proving strangers are ignored.
 - LLM output is untrusted data: parse into a Pydantic model, reject anything that does not
   validate, and show it to the user for confirmation before saving. LLMs never get tools and
-  never trigger actions directly.
+  never trigger actions directly. (An outside AI the person connects over MCP gets read tools
+  only, ADR-0047 C: `docs/security/mcp-threat-model.md`.)
 - Never read, print, or commit `.env` or any secret. Never paste secrets into issues, PRs,
   commits, logs or test fixtures. Use obviously fake values in tests (`123456:TEST-TOKEN`).
 - Sharing is a picture the bot sends on `/share` (ADR-0050), with no public link; it never
