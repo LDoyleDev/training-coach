@@ -4,6 +4,30 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.27.0](https://github.com/LDoyleDev/training-coach/compare/v0.26.0...v0.27.0) (2026-10-11)
+
+
+### Features
+
+* **api:** ingest band data from Health Connect Webhook (ADR-0055) ([#224](https://github.com/LDoyleDev/training-coach/issues/224)) ([5d11332](https://github.com/LDoyleDev/training-coach/commit/5d11332d211b5f56f70024d2f26a4f6b0a565ab9))
+* **api:** OAuth server and passkey consent page for Connect my AI ([#227](https://github.com/LDoyleDev/training-coach/issues/227)) ([cec9956](https://github.com/LDoyleDev/training-coach/commit/cec9956b2ea1286f6eb640dc94cf2c9600f7106e))
+* **api:** read-only /mcp endpoint with scoped tools for Connect my AI ([#222](https://github.com/LDoyleDev/training-coach/issues/222)) ([f51623f](https://github.com/LDoyleDev/training-coach/commit/f51623f76f121e581e021524af409f22aaf61712))
+* **db:** MCP connections, codes and tokens with rotation and revoke ([#218](https://github.com/LDoyleDev/training-coach/issues/218)) ([6207a95](https://github.com/LDoyleDev/training-coach/commit/6207a95a72ff5cfc86459236a07c083ffbd968e5))
+* **domain:** Karvonen heart-rate zones for imported workouts ([#225](https://github.com/LDoyleDev/training-coach/issues/225)) ([4236d57](https://github.com/LDoyleDev/training-coach/commit/4236d5788e8fcad2b065290c9d3b2e56568351ce))
+* **web:** band sleep, steps and resting HR on Home and Progress ([#228](https://github.com/LDoyleDev/training-coach/issues/228)) ([9c09540](https://github.com/LDoyleDev/training-coach/commit/9c095409a1ec041093983a42cf70d8d8fd9f8ab9))
+* **web:** count a band workout as cardio with one tap ([#226](https://github.com/LDoyleDev/training-coach/issues/226)) ([d496f79](https://github.com/LDoyleDev/training-coach/commit/d496f7970c2aa1f11512a7388037a44e6302ee1e))
+* **web:** list and revoke connected AI apps on the Account page ([#223](https://github.com/LDoyleDev/training-coach/issues/223)) ([66f6a30](https://github.com/LDoyleDev/training-coach/commit/66f6a3087741639341efe7a92c0ad7243b4b2f43))
+* **web:** message times, nudges and pause on Account ([#217](https://github.com/LDoyleDev/training-coach/issues/217)) ([7113afd](https://github.com/LDoyleDev/training-coach/commit/7113afd9fe9f6cea45ad0dfbb162f5d6b05f8426))
+* **web:** show the week's AI comment on /review, kept 7 days ([#229](https://github.com/LDoyleDev/training-coach/issues/229)) ([e7dbed4](https://github.com/LDoyleDev/training-coach/commit/e7dbed4c4ea8a0fc87731a92f32b8e882c0955fd))
+* **web:** the plan becomes a tab of Progress ([#220](https://github.com/LDoyleDev/training-coach/issues/220)) ([8d66da2](https://github.com/LDoyleDev/training-coach/commit/8d66da23f24a49ecbc6dcdd343c33f70192c780a))
+* **web:** the weekly review page, linked from Home and Progress ([#219](https://github.com/LDoyleDev/training-coach/issues/219)) ([52a56b5](https://github.com/LDoyleDev/training-coach/commit/52a56b5663c79b53e73e00e19c2da1a34a76932b))
+* **web:** tick today's habits on the session page ([#216](https://github.com/LDoyleDev/training-coach/issues/216)) ([e1ebed4](https://github.com/LDoyleDev/training-coach/commit/e1ebed4447a0ba7bcc87c58cf3f242518d4168bf))
+
+
+### Documentation
+
+* threat model for connecting my own AI over MCP ([#196](https://github.com/LDoyleDev/training-coach/issues/196)) ([212857f](https://github.com/LDoyleDev/training-coach/commit/212857f603a8a5e18fc10aefbe6dbf1b6309464e))
+
 ## [0.26.0](https://github.com/LDoyleDev/training-coach/compare/v0.25.0...v0.26.0) (2026-10-11)
 
 
