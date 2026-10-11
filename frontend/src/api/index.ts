@@ -270,6 +270,36 @@ export async function logCardio(body: CardioLog): Promise<CardioLogged | 'stale'
   return (await res.json()) as CardioLogged
 }
 
+export type BandOffer = Schemas['BandOfferView']
+export type BandCounted = Schemas['BandCounted']
+
+/** Band workouts to count as cardio (ADR-0055); none when signed out. */
+export async function fetchBandOffers(signal?: AbortSignal): Promise<BandOffer[]> {
+  const res = await fetch('/api/band/offers', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return []
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as BandOffer[]
+}
+
+/** Count one. 'gone': no longer on offer; 'stale': today's session changed meanwhile. */
+export async function countBandOffer(id: number): Promise<BandCounted | 'gone' | 'stale'> {
+  const res = signedIn(
+    await fetch(`/api/band/offers/${id}/count`, { method: 'POST', credentials: 'same-origin' }),
+  )
+  if (res.status === 404) return 'gone'
+  if (res.status === 409) return 'stale'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as BandCounted
+}
+
+export async function dismissBandOffer(id: number): Promise<void> {
+  const res = signedIn(
+    await fetch(`/api/band/offers/${id}/dismiss`, { method: 'POST', credentials: 'same-origin' }),
+  )
+  if (res.status !== 204 && res.status !== 404)
+    throw new Error(`The server answered ${res.status}.`)
+}
+
 export type Changed = Schemas['ChangedView']
 export type Choices = Schemas['ChoicesView']
 export type Queued = Schemas['QueuedView']

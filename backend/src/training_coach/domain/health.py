@@ -125,6 +125,39 @@ def resting(minutes: Sequence[Minute]) -> int | None:
     return min(m.bpm for m in minutes)
 
 
+ZONE2, MODERATE = "zone2", "moderate-cardio"  # the plan's cardio exercises (plan.toml)
+HARD_WITHOUT_HEART_RATE = frozenset({CardioActivity.RUN, CardioActivity.JOG, CardioActivity.STAIRS})
+MIN_COUNTED = 5  # minutes: less isn't worth offering
+
+
+def counted_as(
+    activity: CardioActivity, minutes: int, zone_minutes: Sequence[int] | None
+) -> tuple[str, int] | None:
+    """The cardio exercise a band workout counts as, and for how many minutes (ADR-0055).
+
+    With heart rate: zone 2 when it spent at least as long in zone 2 as in zones 3-5, for its
+    zone 2 minutes only; moderate otherwise, for all of it. Without: a run or stairs is
+    moderate, anything else zone 2, for all of it. None when that is under 5 minutes."""
+    if zone_minutes is not None:
+        zone2, harder = zone_minutes[1], sum(zone_minutes[2:])
+        found = (ZONE2, zone2) if zone2 >= harder else (MODERATE, minutes)
+    elif activity in HARD_WITHOUT_HEART_RATE:
+        found = (MODERATE, minutes)
+    else:
+        found = (ZONE2, minutes)
+    return found if found[1] >= MIN_COUNTED else None
+
+
+def offer_text(activity: CardioActivity, minutes: int, zone_minutes: Sequence[int] | None) -> str:
+    """The question, e.g. "Walk, 46 min, 38 in zone 2 - count it?"."""
+    name = "Cardio" if activity is CardioActivity.OTHER else activity.value.capitalize()
+    if zone_minutes is None:
+        return f"{name}, {minutes} min - count it?"
+    if zone_minutes[1] >= sum(zone_minutes[2:]):
+        return f"{name}, {minutes} min, {zone_minutes[1]} in zone 2 - count it?"
+    return f"{name}, {minutes} min, {sum(zone_minutes[2:])} in zones 3-5 - count it?"
+
+
 def within(moment: datetime, now: datetime, back: timedelta, ahead: timedelta) -> bool:
     """Whether a record's time is believable: not older than ``back``, not ahead of ``now``."""
     return now - back <= moment <= now + ahead

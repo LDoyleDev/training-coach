@@ -505,6 +505,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/band/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Offers */
+        get: operations["offers_api_band_offers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/band/offers/{import_id}/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count
+         * @description Count a band workout as cardio. 404 when it isn't on offer; 409 when today's session
+         *     changed in a way that makes it stale (count it again).
+         */
+        post: operations["count_api_band_offers__import_id__count_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/band/offers/{import_id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss */
+        post: operations["dismiss_api_band_offers__import_id__dismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/body": {
         parameters: {
             query?: never;
@@ -1381,6 +1436,37 @@ export interface components {
             redirect_uri: string;
             /** Scopes */
             scopes: string[];
+        };
+        /** BandCounted */
+        BandCounted: {
+            /** Already Saved */
+            already_saved: boolean;
+            /** Planned */
+            planned: boolean;
+            week: components["schemas"]["WeekView"];
+            /** Workout Id */
+            workout_id: number;
+        };
+        /** BandOfferView */
+        BandOfferView: {
+            activity: components["schemas"]["CardioActivity"];
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Minutes */
+            minutes: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Text */
+            text: string;
+            /** Value */
+            value: number;
+            /** Zone2 */
+            zone2: number | null;
         };
         /** BlockView */
         BlockView: {
@@ -3288,6 +3374,86 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    offers_api_band_offers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BandOfferView"][];
+                };
+            };
+        };
+    };
+    count_api_band_offers__import_id__count_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BandCounted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismiss_api_band_offers__import_id__dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

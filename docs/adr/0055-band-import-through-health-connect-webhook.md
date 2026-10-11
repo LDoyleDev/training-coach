@@ -132,9 +132,11 @@ and erasing everything removes them by the `user_id` cascade.
 
 ### Counting an import as cardio (confirm before save, ADR-0007)
 
-- An imported workout of a cardio type, at least 10 minutes long, from the last 7 days, is
-  offered once on Today and in Telegram: "Walk, 46 min, 38 in zone 2 - count it?" with
-  **Count it** / **Not this one** (Telegram buttons carry the import's id only and check the
+- An imported workout of a cardio type, at least 10 minutes long, from the last 7 days, that
+  would count for at least 5 minutes, is offered on Today (until answered) and once in Telegram
+  (a job checks every 10 minutes and sends at most 3 at a time, from today and yesterday only;
+  an offer counts as sent only once Telegram took it; nothing is sent while paused):
+  "Walk, 46 min, 38 in zone 2 - count it?" with **Count it** / **Not this one** (Telegram buttons carry the import's id only and check the
   sender first, `owner_only`; a stranger's press gets nothing).
 - **What it counts as:** zone 2 cardio when it has heart rate and at least as many minutes in
   zone 2 as in zones 3-5, logged as **its zone 2 minutes** (so the week's zone 2 total gets the

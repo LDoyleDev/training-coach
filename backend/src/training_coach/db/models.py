@@ -706,6 +706,8 @@ class ImportedWorkout(Owned, Base):
     zone5_min: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(16), default="new", server_default="new")
     workout_id: Mapped[int | None] = mapped_column(ForeignKey("workouts.id", ondelete="SET NULL"))
+    # When it was offered in Telegram: each offer is sent once.
+    announced_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class AiConnection(Owned, Base):
