@@ -275,6 +275,7 @@ def test_every_per_person_table_is_covered() -> None:
         "readiness_answers",
         "daily_checks",
         "ai_connections",
+        "mcp_connections",
     }
 
 
