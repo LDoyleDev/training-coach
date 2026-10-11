@@ -128,3 +128,14 @@ and alerts. The web app becomes the place you work in.
 - **First screen: B1, as a motivating summary.** Totals and progress first, then the week, then
   a button to Today (#203).
 - **C1 Open in app: yes**, as a button on the bot's messages.
+- **Readiness is asked when the app opens.** On any page load (or opening the installed app),
+  if the readiness questions (ADR-0046) are due, they come first, full screen, one question at
+  a time with big Yes and No buttons, before the page that was opened. Then a short result:
+  "Go as planned" or "Go easier on hard days", and Continue opens that page (deep links kept).
+  "Not now" lets you through for this visit only; the next load asks again. Once answered, it
+  isn't asked again until they're due (about 6 months, or the questions change). Signed out, an
+  error, or no answer within 4 seconds: straight through, never blocked. `/signin` and
+  `/readiness` open without it. The Readiness page stays, linked from Account and from Today's
+  hard-day note, with no nav tab. Built in `frontend/src/readiness/ReadinessGate.tsx`, from what
+  `GET /api/readiness` already returns. A daily "up for training today?" check (sleep, soreness)
+  is a different feature: the product spec's phase-3 readiness check, not decided yet.
