@@ -77,7 +77,7 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11).** ADR
 
 | Threat | Entry point | Controls | Tests / checks |
 | --- | --- | --- | --- |
-| M1: Token theft or replay | Leaked tokens from the AI vendor, logs or a backup | Opaque 32-byte tokens stored only hashed. Access 1 h, refresh 30 d rotating; reusing a refresh token revokes the whole connection and alerts. Accepted cost: a refresh whose answer is lost forces a fresh consent (tokens are stored only hashed, so the same pair can't be sent again). Bearer tokens are accepted only in the `Authorization` header, never in a query string, and never logged. Export leaves `*_hash` columns out by rule. Revoke on the Account page | `tests/services/test_mcp_tokens.py`: expiry, hashing, rotation, reuse revokes, query-string token refused, captured logs |
+| M1: Token theft or replay | Leaked tokens from the AI vendor, logs or a backup | Opaque 32-byte tokens stored only hashed. Access 1 h, refresh 30 d rotating; reusing a refresh token revokes the whole connection and alerts. Accepted cost: a refresh whose answer is lost forces a fresh consent (tokens are stored only hashed, so the same pair can't be sent again). A refresh is accepted only from the client the token was issued to. Bearer tokens are accepted only in the `Authorization` header, never in a query string, and never logged. Export leaves `*_hash` columns out by rule. Revoke on the Account page | `tests/services/test_mcp_tokens.py`: expiry, hashing, rotation, reuse revokes, refresh by another client refused, query-string token refused, captured logs |
 | M2: Confused deputy or wrong token audience; DNS rebinding | `/mcp`, `/oauth/token` | `/mcp` validates `Origin` as the MCP Streamable HTTP spec requires: a request with a browser `Origin` that isn't this site's is refused with 403 (AI clients send none). Tokens carry `resource` = the `/mcp` URL and are refused anywhere else. Session cookies are never accepted on `/mcp`, and bearer tokens never on `/api/*`. No token passthrough. Consent is per client and redirect URI, never skipped. `iss` is returned in the authorization response (RFC 9207) | Wrong-resource, cookie-on-`/mcp` and bearer-on-`/api` tests |
 | M3: Malicious registered client, or phishing-style consent | `/oauth/register`, consent page | Registration grants nothing until passkey consent. The name is shown as untrusted ("calls itself ...") beside the redirect host. The Telegram alert names both as plain text. Caps and expiry as listed above. The consent page says what data leaves and to whom | Registration cap, metadata limit and expiry tests; consent page shows "calls itself" and the host |
 | M4: Open redirect or `redirect_uri` manipulation | `/oauth/authorize`, `/oauth/token` | Exact string match against a registered URI, `https` only (no loopback, no `http`). An unknown client or mismatched URI gets an error page, never a redirect. Error redirects go only to a validated URI, with `state` echoed. The code is bound to `redirect_uri`, and `/oauth/token` checks it again | Mismatch, prefix, extra query, fragment, `javascript:`, `http` and loopback tests |
@@ -99,7 +99,10 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11).** ADR
    - access tokens expire after 1 hour, refresh tokens after 30 days;
    - each refresh issues a new pair and invalidates the old refresh token;
    - presenting a used refresh token revokes the connection and sends a Telegram alert, even a
-     retry after a lost answer (accepted: the person approves again), with a test.
+     retry after a lost answer (accepted: the person approves again), with a test;
+   - a refresh token is bound to the `client_id` it was issued to: `/oauth/token` refuses a
+     refresh by any other client (`invalid_grant`, nothing issued, the token stays valid for
+     its own client), with a test.
 4. `/mcp` must reject the following with `401` and a `WWW-Authenticate` header naming the resource metadata. `/api/*` must ignore bearer tokens.
    - a token whose resource is not the `/mcp` URL;
    - a token in a query string;
