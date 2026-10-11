@@ -25,6 +25,7 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.domain.blocks import BlockKind
+from training_coach.domain.cardio import TIMED, activity_in
 from training_coach.domain.dates import DateLine, date_line
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.parser import Entry, Known, ParseResult, normalise_name, parse_log
@@ -178,7 +179,16 @@ def draft(session: Session, text: str, on: date, tz: ZoneInfo) -> Draft:
         entries=parsed.entries,
         problems=parsed.problems,
         strength=_strength(session, on, tz, template),
+        activity=_activity(text, parsed.entries),
     )
+
+
+def _activity(text: str, entries: tuple[Entry, ...]) -> str | None:
+    """A walk, ride or run named in a log of one timed cardio exercise (ux-flow-plan A1)."""
+    if len(entries) != 1 or entries[0].slug not in TIMED:
+        return None
+    found = activity_in(text)
+    return found.value if found is not None else None
 
 
 def _named(session: Session, words: str) -> SessionTemplate | None:
@@ -232,6 +242,7 @@ def _draft_past(session: Session, dated: DateLine, body: str, tz: ZoneInfo) -> D
         strength=_strength(session, dated.day, tz, template),
         backdated=True,
         rest=rest,
+        activity=_activity(body, entries),
     )
 
 
@@ -381,6 +392,7 @@ def _save_past(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stal
         template_id=confirmed.template_id,
         status=WorkoutStatus.REST if confirmed.rest else WorkoutStatus.DONE,
         log_token=confirmed.token,
+        activity=confirmed.activity,
     )
     _file(session, workout, confirmed, exercises, strength, tz)
     later = session.scalar(select(Workout.id).where(Workout.local_date > confirmed.on).limit(1))
