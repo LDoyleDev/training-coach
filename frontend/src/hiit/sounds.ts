@@ -65,10 +65,14 @@ function bell(fundamental: number, loudness: number, length: number, delay = 0):
   }
 }
 
-/** The bell at the start of a section: brighter for work, lower and softer for rest. */
+/** A struck bell when work starts; for any rest, a softer, rounder chime with a slow attack. */
 export function playBell(phase: 'work' | 'rest'): void {
-  if (phase === 'work') bell(784, 0.6, 1.5)
-  else bell(587, 0.45, 1.6)
+  if (phase === 'work') {
+    bell(784, 0.6, 1.5)
+    return
+  }
+  partial(523, 0.4, 1.4, 0, 0.04)
+  partial(784, 0.18, 1.0, 0, 0.04)
 }
 
 /** Three rising chimes when the workout is done. */
@@ -76,4 +80,29 @@ export function playFinished(): void {
   bell(659, 0.45, 0.8, 0)
   bell(784, 0.45, 0.8, 0.18)
   bell(1047, 0.5, 1.8, 0.36)
+}
+
+type Speech = {
+  speechSynthesis?: SpeechSynthesis
+  SpeechSynthesisUtterance?: typeof SpeechSynthesisUtterance
+}
+
+/** Whether this browser can speak the voice cues. */
+export function voiceSupported(): boolean {
+  const scope = globalThis as unknown as Speech
+  return Boolean(scope.speechSynthesis && scope.SpeechSynthesisUtterance)
+}
+
+/** Say a short cue ("Work", "Rest", "Done"), cutting off any cue still being said. */
+export function speak(text: string): void {
+  const scope = globalThis as unknown as Speech
+  if (!scope.speechSynthesis || !scope.SpeechSynthesisUtterance) return
+  try {
+    const utterance = new scope.SpeechSynthesisUtterance(text)
+    utterance.rate = 1.05
+    scope.speechSynthesis.cancel()
+    scope.speechSynthesis.speak(utterance)
+  } catch {
+    // speech can fail on some systems; the bells still ring
+  }
 }

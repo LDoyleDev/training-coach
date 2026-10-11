@@ -121,9 +121,11 @@ and alerts. The web app becomes the place you work in.
 - **Cardio: A1 + A2 + A3.** Log activity with exact minutes, how hard (zone 2 or moderate) and
   what it was (walk, hike, jog, run, bike, swim, row, stairs, other); no heart rate yet. "Done as
   planned" is one tap on a planned cardio day. Log cardio and Run a HIIT session are always on
-  the session page, under any session and once the day is done. HIIT asks for rounds, work and
-  rest, counts down 3-2-1 with beeps before each change and rings a bell as each section starts,
-  then saves the rounds. Cardio outside today's planned session is an extra and never moves the
+  the session page, under any session and once the day is done. HIIT works like the Tabata Timer
+  app: prepare, work, rest, cycles, sets, rest between sets and cool down, with saved workouts
+  (Tabata by default, kept in the browser); a full-screen colour per phase, 3-2-1 beeps before
+  each change, a bell as work starts, a softer chime for rest, optional voice cues, skip back and
+  forward; then it saves the work intervals done as rounds. Cardio outside today's planned session is an extra and never moves the
   queue. Built in #201 (timer), #202 (`/api/cardio`) and the session page PR.
 - **First screen: B1, as a motivating summary.** Totals and progress first, then the week, then
   a button to Today (#203).
