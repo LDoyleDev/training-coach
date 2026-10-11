@@ -55,6 +55,12 @@ def _context() -> SimpleNamespace:
         ("https://localhost", None),
         ("https://[::1]", None),
         ("https://[::1]:8443", None),
+        ("https://127.0.0.1", None),
+        ("https://192.168.1.5", None),
+        ("https://10.0.0.2:8443", None),
+        ("https://[2001:db8::1]", None),
+        ("https://[2001:db8::1]:8443", None),
+        ("https://LOCALHOST", None),
         ("https://coach.example.com:8443", "https://coach.example.com:8443/session"),
     ],
 )
