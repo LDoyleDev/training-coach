@@ -3,7 +3,7 @@ import { fetchHome, type Home } from '../api'
 import AppShell from '../components/AppShell'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { card, primary, secondary } from '../ui'
-import { day } from './logic'
+import { ago, day } from './logic'
 
 type Loaded =
   | { status: 'loading' }
@@ -67,7 +67,7 @@ export default function HomePage() {
         </h1>
         {totals.first_day && (
           <p className="m-0 text-[var(--slate)]">
-            Training since {day(totals.first_day)}, {count(totals.days)} days ago.
+            Training since {day(totals.first_day)}, {ago(totals.days)}.
           </p>
         )}
         <div className="grid grid-cols-2 gap-3">

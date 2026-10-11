@@ -7,3 +7,9 @@ export function day(iso: string): string {
     month: 'short',
   })
 }
+
+/** "today", "1 day ago", "40 days ago". */
+export function ago(days: number): string {
+  if (days <= 0) return 'today'
+  return `${days.toLocaleString('en-GB')} ${days === 1 ? 'day' : 'days'} ago`
+}
