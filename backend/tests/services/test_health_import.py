@@ -161,3 +161,19 @@ def test_full_resolution_samples_are_averaged_per_minute() -> None:
     }
     (minute,) = health_import.parse(body, hcw.NOW).heart_rate
     assert (minute.bpm, minute.low, minute.high) == (65, 60, 70)
+
+
+def test_a_night_sent_again_longer_updates_the_same_row(session: Session) -> None:
+    """Health Connect sends only the end and the length; a night still open at one sync and
+    longer at the next has another derived start, and must not count twice."""
+    early_end = hcw.SLEEP_END - timedelta(hours=1)
+    first = {
+        **hcw.sleep(),
+        "session_end_time": hcw.iso(early_end),
+        "duration_seconds": int((early_end - hcw.SLEEP_START).total_seconds()) - 600,
+    }
+    _store(session, {"sleep": [first]})
+    _store(session, {"sleep": [hcw.sleep()]})
+    (night,) = session.scalars(select(SleepSession))
+    assert (night.start_at, night.end_at) == (hcw.SLEEP_START, hcw.SLEEP_END)
+    assert night.asleep_min == 440

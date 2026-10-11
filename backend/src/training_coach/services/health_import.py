@@ -265,12 +265,26 @@ def _resting_records(session: Session, records: list[tuple[datetime, int]], tz: 
 
 
 def _sleep(session: Session, sleep: Sleep, tz: ZoneInfo) -> None:
-    row = session.scalar(
-        select(SleepSession).where(
-            SleepSession.source == sleep.source, SleepSession.start_at == sleep.start
+    """The payload carries only the end and the length, so a night still being recorded comes
+    back with another start: match it by overlap with the same source, not by its start."""
+    same = list(
+        session.scalars(
+            select(SleepSession)
+            .where(
+                SleepSession.source == sleep.source,
+                SleepSession.start_at < sleep.end,
+                SleepSession.end_at > sleep.start,
+            )
+            .order_by(SleepSession.start_at)
         )
     )
-    if row is None:
+    if same:
+        row, *older = same
+        for extra in older:  # one night, sent in pieces before: keep a single row
+            session.delete(extra)
+        session.flush()
+        row.start_at = sleep.start
+    else:
         row = SleepSession(source=sleep.source, start_at=sleep.start)
         session.add(row)
     m = sleep.minutes
