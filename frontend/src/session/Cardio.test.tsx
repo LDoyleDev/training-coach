@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { CardioLogged, CardioOptions } from '../api'
 import type { HiitTimerProps } from '../hiit/HiitTimer'
@@ -181,4 +181,30 @@ test("without today's plan the card still works", async () => {
   click('Log cardio')
   expect(screen.getByRole('button', { name: 'Walk' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Stairs' })).toBeInTheDocument()
+})
+
+test('a retry after a failed save sends the same token, so it saves once', async () => {
+  const sent = serve({ log: 'error' })
+  render(<Cardio featured />)
+  fireEvent.click(await screen.findByRole('button', { name: /Done as planned/ }))
+  await screen.findByText(/Couldn't save/)
+  click(/Done as planned/)
+  await waitFor(() => expect(sent).toHaveLength(2))
+  const [first, again] = sent as { token: string }[]
+  expect(again.token).toBe(first.token)
+})
+
+test('a new log starts afresh: no activity or token carried over', async () => {
+  const sent = serve()
+  render(<Cardio featured />)
+  fireEvent.click(await screen.findByRole('button', { name: /different minutes/ }))
+  click('Hike')
+  click('Save 45 min')
+  fireEvent.click(await screen.findByRole('button', { name: 'Log more' }))
+  click(/Done as planned/)
+  await waitFor(() => expect(sent).toHaveLength(2))
+  const [hike, planned] = sent as { token: string; activity: string | null }[]
+  expect(hike.activity).toBe('hike')
+  expect(planned.activity).toBeNull()
+  expect(planned.token).not.toBe(hike.token)
 })

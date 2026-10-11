@@ -72,12 +72,12 @@ export default function Cardio({ featured }: { featured: boolean }) {
   const planned = options?.planned ?? null
   const activities = options?.activities ?? (Object.keys(ACTIVITY) as CardioActivity[])
 
-  /** Open a form with its starting values and a token of its own. */
+  /** Open a form with its starting values and nothing picked. */
   const open = (next: Mode, nextKind: CardioKind, nextValue: number) => {
     setNote(null)
     setKind(nextKind)
     setValue(nextValue)
-    setToken(newToken())
+    setActivity(null)
     setMode(next)
   }
   const logForm = () =>
@@ -85,23 +85,32 @@ export default function Cardio({ featured }: { featured: boolean }) {
       ? open('log', planned.kind, planned.target)
       : open('log', 'zone2', 30)
 
-  const save = async (saveKind: CardioKind, saveValue: number, saveToken = token) => {
+  /** The token stays until a save succeeds: a double tap or a retry after a lost answer
+   * sends the same one, so it saves once. */
+  const save = async (
+    saveKind: CardioKind,
+    saveValue: number,
+    saveActivity: CardioActivity | null,
+  ) => {
+    if (busy) return
     setNote(null)
     setSignedOut(false)
     setBusy(true)
     try {
       const result = await logCardio({
-        token: saveToken,
+        token,
         kind: saveKind,
         value: saveValue,
-        activity: saveKind === 'hiit' ? null : activity,
+        activity: saveActivity,
       })
       if (result === 'stale') {
         setNote("Today's session changed (a rest, swap or another log), so this wasn't saved.")
         return
       }
+      setToken(newToken())
       setKind(saveKind)
       setValue(saveValue)
+      setActivity(saveActivity)
       setLogged(result)
       setMode('saved')
     } catch (error) {
@@ -146,7 +155,7 @@ export default function Cardio({ featured }: { featured: boolean }) {
           type="button"
           className={primary}
           disabled={busy}
-          onClick={() => save('hiit', value)}
+          onClick={() => save('hiit', value, null)}
         >
           Save {value} rounds
         </button>
@@ -200,7 +209,7 @@ export default function Cardio({ featured }: { featured: boolean }) {
           type="button"
           className={primary}
           disabled={busy || value < 1}
-          onClick={() => save(kind, value)}
+          onClick={() => save(kind, value, activity)}
         >
           Save {value} min
         </button>
@@ -282,7 +291,7 @@ export default function Cardio({ featured }: { featured: boolean }) {
               type="button"
               className={primary}
               disabled={busy}
-              onClick={() => save(planned.kind, planned.target, newToken())}
+              onClick={() => save(planned.kind, planned.target, null)}
             >
               Done as planned: {planned.target} min
             </button>
