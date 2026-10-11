@@ -80,7 +80,7 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
 | M8: Data over-exposure | Tool results | Tools reuse `ai_summary` with `Options(body=…, readiness=…)` set from the scopes. Photos and sign-in tables are never reachable. Sessions are bound to the token's user (ADR-0029). Answers are size-capped and sent with `Cache-Control: no-store` | Two-user scope test through `/mcp`; health data absent without its scope; size cap |
 | M9: Prompt injection through the person's own text or tool results | Tool results read by their AI | Text the person or a client typed goes only in a delimited, length-capped "data from the person" field, never mixed into prose. Answers name the guide version, and the guide says data is never instructions. Residual risk: the AI may also hold other tools (such as web fetch) that could leak what it read; the consent page says so | Hostile-string fixtures appear only inside the data field |
 | M10: Injected or rogue `propose_log` | `propose_log` | The proposal is parsed into the typed-log Pydantic model and checked again by the rule parser: known exercises, sane ranges, today or an earlier unsaved day. An invalid proposal is refused with a reason. A valid one reaches the person only as a draft with a random token, and only their "Save" (web session or `owner_only` bot button) stores it. No MCP token can confirm. At most 3 pending proposals per connection. No tool touches the plan, settings or sign-in | `tests/api/test_mcp_propose.py`: invented exercise, extreme value, future day, confirm through a token refused, cap |
-| M11: DoS on the Pi, or slots taken so the real AI can't register | `/oauth/register`, `/oauth/token`, `/mcp` | Row caps on registrations, consent handles and codes, with expired rows cleared on each call. Unapproved registrations live 15 minutes, and a full cap evicts the oldest unapproved one, so a few addresses can't lock out Claude.ai. 60 requests a minute per connection. 64 KB body cap (`MAX_BODY`). SHA-256 lookups, no slow hashing. Cloudflare rate limit. Coalesced alerts, so a flood can't spam Telegram | Cap and 429 tests; body limit on `/mcp` |
+| M11: DoS on the Pi, or slots taken so the real AI can't register | `/oauth/register`, `/oauth/token`, `/mcp` | Row caps on registrations, consent handles and codes, with expired rows cleared on each call. Unapproved registrations live 15 minutes, and a full cap evicts the oldest unapproved one, so a few addresses can't lock out Claude.ai. 60 requests a minute per connection, and a per-address limit (`_client()`) on unauthenticated `/mcp`, `/oauth/authorize` and `/oauth/token` calls. 64 KB body cap (`MAX_BODY`). SHA-256 lookups, no slow hashing. Cloudflare rate limit. Coalesced alerts, so a flood can't spam Telegram | Cap and 429 tests; body limit on `/mcp` |
 | M12: Long-lived or forgotten access | Connections | The Account page lists each connection (name as claimed, redirect host, scopes, created, last used) with Revoke. Revoke ends access and refresh tokens at once. `/recover` and erase revoke every connection. Alerts on create, revoke and refresh reuse | Revoke, recover and erase tests |
 | M13: Audit log leaking data | `events`, structlog | Each call writes one `mcp.call` event holding only the connection id, tool name and outcome; the `Event` rules apply. No arguments, tokens, codes or client names in logs. The alert `kind` is logged, not its text | Captured-log and event-payload assertions |
 
@@ -116,7 +116,9 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
    reached consent expires after 15 minutes, and when the cap is full,
    the oldest unapproved registration without a live consent handle is evicted rather than the
    new one refused. Tests: seven addresses filling the cap can't stop a later registration, and
-   twenty more registrations can't evict one whose consent page is open.
+   twenty more registrations can't evict one whose consent page is open. Accepted residual
+   risk with one user: a registration can still be evicted in the moment between registering
+   and opening the consent page; the client just registers again.
 9. The consent page requires `Owner` and `PasskeyFresh`: a passkey proved in the last 10
    minutes (a passkey sign-in or an ADR-0049 confirmation), not `Fresh`. Sessions begun by a
    bot link or by `/recover` are refused, with a test for each.
@@ -134,7 +136,9 @@ Status: **draft for review.** ADR-0047 requires this to be reviewed before any C
    - a valid proposal creates an unsaved draft only;
    - saving needs the person's web session or the `owner_only` bot button, and a token-authenticated request to confirm is refused;
    - at most 3 proposals are pending per connection.
-16. `/mcp` allows 60 requests a minute per connection (`429` beyond that) and keeps the 64 KB body cap. Every `/mcp` and `/oauth` answer carries `Cache-Control: no-store`.
+16. `/mcp` allows 60 requests a minute per connection (`429` beyond that) and keeps the 64 KB body cap.
+    Unauthenticated `/mcp`, `/oauth/authorize` and `/oauth/token` calls are also limited per
+    client address (`_client()`), with a test. Every `/mcp` and `/oauth` answer carries `Cache-Control: no-store`.
 17. Each tool call writes exactly one `mcp.call` event holding only `{connection_id, tool, outcome}`. A test asserts that no argument, token or measurement appears in events or captured logs.
 18. A Telegram alert goes out, after the response, for a new connection (client name and redirect host as plain text), a revoke and a refresh reuse.
 19. The Account page lists connections and can revoke them, ending every token at once. `/recover` and `POST /api/account/erase` revoke every connection.
