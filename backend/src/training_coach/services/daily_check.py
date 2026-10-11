@@ -4,6 +4,7 @@ bot alike. Callers pass a session bound to the user (ADR-0029). Health data: nev
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import DailyCheck
@@ -25,9 +26,18 @@ def save(session: Session, day: date, answers: Answers, now: datetime) -> None:
     keeping."""
     row = session.scalar(select(DailyCheck).where(DailyCheck.local_date == day))
     if row is None:
-        row = DailyCheck(local_date=day)
-        session.add(row)
-    row.sleep, row.soreness, row.energy = answers.sleep, answers.soreness, answers.energy
-    row.answered_at = now
+        try:
+            with session.begin_nested():  # a double tap, or web and bot at once: one inserts
+                session.add(_filled(DailyCheck(local_date=day), answers, now))
+        except IntegrityError:
+            row = session.scalar(select(DailyCheck).where(DailyCheck.local_date == day))
+    if row is not None:
+        _filled(row, answers, now)
     session.execute(delete(DailyCheck).where(DailyCheck.local_date < day - KEEP))
     session.flush()
+
+
+def _filled(row: DailyCheck, answers: Answers, now: datetime) -> DailyCheck:
+    row.sleep, row.soreness, row.energy = answers.sleep, answers.soreness, answers.energy
+    row.answered_at = now
+    return row

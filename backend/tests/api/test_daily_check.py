@@ -130,3 +130,30 @@ def test_answers_older_than_a_year_are_dropped_as_new_ones_come_in(
         assert kept == [day - daily_check.KEEP, day]
         assert daily_check.on(mine, day) == good
         assert daily_check.on(mine, day - timedelta(days=1)) is None
+
+
+def test_two_saves_racing_on_a_new_day_keep_the_last_answers(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both saves saw no row; the second one's insert hits the unique key and updates instead."""
+    good = Answers(Sleep.GOOD, Soreness.NONE, Energy.HIGH)
+    poor = Answers(Sleep.POOR, Soreness.A_LOT, Energy.LOW)
+    day = date(2026, 10, 11)
+    now = datetime(2026, 10, 11, 6, tzinfo=UTC)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        daily_check.save(mine, day, good, now)
+        mine.flush()
+        real = mine.scalar
+        missed: list[bool] = []
+
+        def first_miss(statement: object) -> object:
+            if not missed:  # the racing request's look-up ran before the first insert landed
+                missed.append(True)
+                return None
+            return real(statement)  # type: ignore[call-overload]  # passes the statement on
+
+        monkeypatch.setattr(mine, "scalar", first_miss)
+        daily_check.save(mine, day, poor, now)
+        monkeypatch.undo()
+        assert daily_check.on(mine, day) == poor
+        assert len(mine.scalars(select(DailyCheck)).all()) == 1
