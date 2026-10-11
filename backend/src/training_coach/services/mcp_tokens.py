@@ -38,6 +38,8 @@ log = structlog.get_logger(__name__)
 ACCESS_TTL = timedelta(hours=1)
 REFRESH_TTL = timedelta(days=30)
 CODE_TTL = timedelta(seconds=60)
+# A used code stays this long past its expiry, so a late replay still revokes and alerts.
+CODE_KEPT = timedelta(minutes=10)
 # However much it's used, a connection ends this long after its approval (like a session).
 MAX_CONNECTION_AGE = timedelta(days=90)
 ACCESS, REFRESH = "access", "refresh"
@@ -94,10 +96,12 @@ def create_connection(
     client_name: str,
     redirect_uri: str,
     scopes: list[str],
-    passkey_id: int | None,
+    passkey_id: int,
     now: datetime,
 ) -> int:
-    """A new connection for the user ``session`` is bound to; its id."""
+    """A new connection for the user ``session`` is bound to; its id. ``passkey_id`` is the
+    passkey that approved it, so removing that passkey revokes it (required: a connection
+    without one would outlive its passkey)."""
     row = McpConnection(
         client_id=client,
         client_name=client_name,
@@ -116,7 +120,7 @@ def issue_code(
     session: Session, connection_id: int, redirect_uri: str, code_challenge: str, now: datetime
 ) -> str:
     """A one-time authorization code for a just-approved connection."""
-    session.execute(delete(OAuthCode).where(OAuthCode.expires_at <= now))
+    session.execute(delete(OAuthCode).where(OAuthCode.expires_at <= now - CODE_KEPT))
     code = new_secret()
     session.add(
         OAuthCode(

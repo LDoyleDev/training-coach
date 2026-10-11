@@ -645,6 +645,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/habits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Habits */
+        get: operations["get_habits_api_habits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/habits/{habit}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Habit
+         * @description Tick or untick a habit for today. Repeating the same tap changes nothing.
+         */
+        put: operations["put_habit_api_habits__habit__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/home": {
         parameters: {
             query?: never;
@@ -788,6 +825,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Review */
+        get: operations["get_review_api_review_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session/pending": {
         parameters: {
             query?: never;
@@ -892,6 +946,24 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settings */
+        get: operations["get_settings_api_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Settings */
+        patch: operations["patch_settings_api_settings_patch"];
         trace?: never;
     };
     "/api/tests": {
@@ -1498,6 +1570,37 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * Habit
+         * @enum {string}
+         */
+        Habit: "morning_light" | "protein" | "wind_down";
+        /** HabitMark */
+        HabitMark: {
+            /** Done */
+            done: boolean;
+        };
+        /** HabitView */
+        HabitView: {
+            /** Done */
+            done: boolean;
+            /** Hint */
+            hint: string;
+            key: components["schemas"]["Habit"];
+            /** Label */
+            label: string;
+            /** Week Done */
+            week_done: number;
+        };
+        /** HabitsView */
+        HabitsView: {
+            /** Day */
+            day: string;
+            /** Habits */
+            habits: components["schemas"]["HabitView"][];
+            /** Week Days */
+            week_days: number;
+        };
         /** Health */
         Health: {
             /** Bot Enabled */
@@ -1860,6 +1963,81 @@ export interface components {
             /** Scopes Supported */
             scopes_supported: string[];
         };
+        /** ReviewBestView */
+        ReviewBestView: {
+            /** Best Set */
+            best_set: number | null;
+            /** Exercise */
+            exercise: string;
+            kind: components["schemas"]["ExerciseKind"];
+            /** Step */
+            step: string;
+            /** Strength */
+            strength: boolean;
+            /** Total */
+            total: number | null;
+        };
+        /** ReviewHabitView */
+        ReviewHabitView: {
+            /** Days */
+            days: number;
+            /** Done */
+            done: number;
+            /** Label */
+            label: string;
+        };
+        /** ReviewSetsView */
+        ReviewSetsView: {
+            /** Group */
+            group: string;
+            /** Sets */
+            sets: number;
+        };
+        /** ReviewWeekView */
+        ReviewWeekView: {
+            /** Ai Comments */
+            ai_comments: boolean;
+            /** Bests */
+            bests: components["schemas"]["ReviewBestView"][];
+            /** Current */
+            current: boolean;
+            /** Done */
+            done: number;
+            /** Extras */
+            extras: number;
+            /** Habits */
+            habits: components["schemas"]["ReviewHabitView"][];
+            /** Moderate Minutes */
+            moderate_minutes: number;
+            /** Next */
+            next: string | null;
+            /** Planned */
+            planned: number;
+            /** Previous */
+            previous: string;
+            /** Ready */
+            ready: string[];
+            /** Rested */
+            rested: number;
+            /** Sets */
+            sets: components["schemas"]["ReviewSetsView"][];
+            /** Sets Target */
+            sets_target: [
+                number,
+                number
+            ];
+            /** Start */
+            start: string;
+            /** Strength Block */
+            strength_block: boolean;
+            /** Zone2 Minutes */
+            zone2_minutes: number;
+            /** Zone2 Target */
+            zone2_target: [
+                number,
+                number
+            ] | null;
+        };
         /** RoutineView */
         RoutineView: {
             /** Hold Seconds */
@@ -1949,6 +2127,49 @@ export interface components {
             set_no: number;
             /** Target */
             target: number;
+        };
+        /**
+         * SettingsChange
+         * @description Only the fields sent change.
+         */
+        SettingsChange: {
+            /** Blocks */
+            blocks?: boolean | null;
+            /** Habits Enabled */
+            habits_enabled?: boolean | null;
+            /** Morning Time */
+            morning_time?: string | null;
+            /** Nudge Time */
+            nudge_time?: string | null;
+            /** Nudges Enabled */
+            nudges_enabled?: boolean | null;
+            /** Paused */
+            paused?: boolean | null;
+            /** Protein G */
+            protein_g?: number | null;
+            /** Review Time */
+            review_time?: string | null;
+        };
+        /** SettingsView */
+        SettingsView: {
+            /** Blocks Since */
+            blocks_since: string | null;
+            /** Habits Enabled */
+            habits_enabled: boolean;
+            /** Morning Time */
+            morning_time: string;
+            /** Nudge Time */
+            nudge_time: string;
+            /** Nudges Enabled */
+            nudges_enabled: boolean;
+            /** Paused */
+            paused: boolean;
+            /** Protein G */
+            protein_g: number | null;
+            /** Review Time */
+            review_time: string;
+            /** Timezone */
+            timezone: string;
         };
         /** SignIns */
         SignIns: {
@@ -3159,6 +3380,61 @@ export interface operations {
             };
         };
     };
+    get_habits_api_habits_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HabitsView"];
+                };
+            };
+        };
+    };
+    put_habit_api_habits__habit__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                habit: components["schemas"]["Habit"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HabitMark"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HabitsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     home_api_home_get: {
         parameters: {
             query?: never;
@@ -3384,6 +3660,37 @@ export interface operations {
             };
         };
     };
+    get_review_api_review_get: {
+        parameters: {
+            query?: {
+                week?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewWeekView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     pending_api_session_pending_get: {
         parameters: {
             query?: never;
@@ -3554,6 +3861,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TodayView"];
+                };
+            };
+        };
+    };
+    get_settings_api_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+        };
+    };
+    patch_settings_api_settings_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

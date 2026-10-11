@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { fetchPlan, type Plan } from './api'
-import AppShell from './components/AppShell'
 import { CycleRing } from './components/CycleRing'
 import { Ladders } from './components/Ladders'
 import { SessionList } from './components/SessionList'
@@ -21,6 +20,8 @@ type State =
   | { status: 'error'; message: string }
   | { status: 'ready'; plan: Plan }
 
+/** The plan: the cycle, each session, weekly volume and the ladders. Shown as the Plan tab of
+ * Progress (ux-flow-plan D2), which gives it the page frame. */
 export default function App() {
   const [state, setState] = useState<State>({ status: 'loading' })
   const [open, setOpen] = useState<string | null>(null)
@@ -43,7 +44,7 @@ export default function App() {
   }
 
   return (
-    <AppShell>
+    <>
       {state.status === 'loading' && <p className="status">Loading the plan…</p>}
       {state.status === 'signed-out' && (
         <div className={card}>
@@ -69,7 +70,7 @@ export default function App() {
         <div>
           <section className="hero">
             <div className="hero-text">
-              <h1>Seven sessions, one fixed order</h1>
+              <h2>Seven sessions, one fixed order</h2>
               <p className="lede">
                 Strength, conditioning and recovery, built for training at home with a pull-up bar,
                 two chairs and an 8 kg kettlebell.
@@ -129,6 +130,6 @@ export default function App() {
           Huberman or Andy Galpin.
         </p>
       </footer>
-    </AppShell>
+    </>
   )
 }

@@ -849,6 +849,86 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "Habit": {
+        "enum": [
+          "morning_light",
+          "protein",
+          "wind_down"
+        ],
+        "title": "Habit",
+        "type": "string"
+      },
+      "HabitMark": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "done"
+        ],
+        "title": "HabitMark",
+        "type": "object"
+      },
+      "HabitView": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "hint": {
+            "title": "Hint",
+            "type": "string"
+          },
+          "key": {
+            "$ref": "#/components/schemas/Habit"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "week_done": {
+            "title": "Week Done",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "hint",
+          "done",
+          "week_done"
+        ],
+        "title": "HabitView",
+        "type": "object"
+      },
+      "HabitsView": {
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "habits": {
+            "items": {
+              "$ref": "#/components/schemas/HabitView"
+            },
+            "title": "Habits",
+            "type": "array"
+          },
+          "week_days": {
+            "title": "Week Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "week_days",
+          "habits"
+        ],
+        "title": "HabitsView",
+        "type": "object"
+      },
       "Health": {
         "properties": {
           "bot_enabled": {
@@ -1854,6 +1934,242 @@
         "title": "ResourceMetadata",
         "type": "object"
       },
+      "ReviewBestView": {
+        "properties": {
+          "best_set": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Set"
+          },
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ExerciseKind"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "strength": {
+            "title": "Strength",
+            "type": "boolean"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "required": [
+          "exercise",
+          "step",
+          "kind",
+          "best_set",
+          "total",
+          "strength"
+        ],
+        "title": "ReviewBestView",
+        "type": "object"
+      },
+      "ReviewHabitView": {
+        "properties": {
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "done",
+          "days"
+        ],
+        "title": "ReviewHabitView",
+        "type": "object"
+      },
+      "ReviewSetsView": {
+        "properties": {
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "group",
+          "sets"
+        ],
+        "title": "ReviewSetsView",
+        "type": "object"
+      },
+      "ReviewWeekView": {
+        "properties": {
+          "ai_comments": {
+            "title": "Ai Comments",
+            "type": "boolean"
+          },
+          "bests": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewBestView"
+            },
+            "title": "Bests",
+            "type": "array"
+          },
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "extras": {
+            "title": "Extras",
+            "type": "integer"
+          },
+          "habits": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewHabitView"
+            },
+            "title": "Habits",
+            "type": "array"
+          },
+          "moderate_minutes": {
+            "title": "Moderate Minutes",
+            "type": "integer"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next"
+          },
+          "planned": {
+            "title": "Planned",
+            "type": "integer"
+          },
+          "previous": {
+            "title": "Previous",
+            "type": "string"
+          },
+          "ready": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ready",
+            "type": "array"
+          },
+          "rested": {
+            "title": "Rested",
+            "type": "integer"
+          },
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewSetsView"
+            },
+            "title": "Sets",
+            "type": "array"
+          },
+          "sets_target": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Sets Target",
+            "type": "array"
+          },
+          "start": {
+            "title": "Start",
+            "type": "string"
+          },
+          "strength_block": {
+            "title": "Strength Block",
+            "type": "boolean"
+          },
+          "zone2_minutes": {
+            "title": "Zone2 Minutes",
+            "type": "integer"
+          },
+          "zone2_target": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone2 Target"
+          }
+        },
+        "required": [
+          "start",
+          "current",
+          "previous",
+          "next",
+          "planned",
+          "done",
+          "rested",
+          "extras",
+          "sets",
+          "sets_target",
+          "zone2_minutes",
+          "zone2_target",
+          "moderate_minutes",
+          "bests",
+          "ready",
+          "strength_block",
+          "habits",
+          "ai_comments"
+        ],
+        "title": "ReviewWeekView",
+        "type": "object"
+      },
       "RoutineView": {
         "properties": {
           "hold_seconds": {
@@ -2117,6 +2433,168 @@
           "target"
         ],
         "title": "SetView",
+        "type": "object"
+      },
+      "SettingsChange": {
+        "description": "Only the fields sent change.",
+        "properties": {
+          "blocks": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocks"
+          },
+          "habits_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Habits Enabled"
+          },
+          "morning_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Morning Time"
+          },
+          "nudge_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nudge Time"
+          },
+          "nudges_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nudges Enabled"
+          },
+          "paused": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused"
+          },
+          "protein_g": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protein G"
+          },
+          "review_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Time"
+          }
+        },
+        "title": "SettingsChange",
+        "type": "object"
+      },
+      "SettingsView": {
+        "properties": {
+          "blocks_since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocks Since"
+          },
+          "habits_enabled": {
+            "title": "Habits Enabled",
+            "type": "boolean"
+          },
+          "morning_time": {
+            "title": "Morning Time",
+            "type": "string"
+          },
+          "nudge_time": {
+            "title": "Nudge Time",
+            "type": "string"
+          },
+          "nudges_enabled": {
+            "title": "Nudges Enabled",
+            "type": "boolean"
+          },
+          "paused": {
+            "title": "Paused",
+            "type": "boolean"
+          },
+          "protein_g": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protein G"
+          },
+          "review_time": {
+            "title": "Review Time",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "morning_time",
+          "nudge_time",
+          "nudges_enabled",
+          "review_time",
+          "habits_enabled",
+          "protein_g",
+          "blocks_since",
+          "paused",
+          "timezone"
+        ],
+        "title": "SettingsView",
         "type": "object"
       },
       "SignIns": {
@@ -3971,6 +4449,79 @@
         ]
       }
     },
+    "/api/habits": {
+      "get": {
+        "operationId": "get_habits_api_habits_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HabitsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Habits",
+        "tags": [
+          "habits"
+        ]
+      }
+    },
+    "/api/habits/{habit}": {
+      "put": {
+        "description": "Tick or untick a habit for today. Repeating the same tap changes nothing.",
+        "operationId": "put_habit_api_habits__habit__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "habit",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Habit"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HabitMark"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HabitsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Habit",
+        "tags": [
+          "habits"
+        ]
+      }
+    },
     "/api/home": {
       "get": {
         "description": "All-time totals, this week against the plan, ladder progress, the last seven days and\ntoday's session.",
@@ -4258,6 +4809,56 @@
         ]
       }
     },
+    "/api/review": {
+      "get": {
+        "operationId": "get_review_api_review_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "week",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Week"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewWeekView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Review",
+        "tags": [
+          "review"
+        ]
+      }
+    },
     "/api/session/pending": {
       "get": {
         "description": "Earlier days' guided sessions with sets but never saved, to offer saving them.",
@@ -4490,6 +5091,66 @@
         "summary": "Today",
         "tags": [
           "session"
+        ]
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "operationId": "get_settings_api_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_settings_api_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Settings",
+        "tags": [
+          "settings"
         ]
       }
     },
