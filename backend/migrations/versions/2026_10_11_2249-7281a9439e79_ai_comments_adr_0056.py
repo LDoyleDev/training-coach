@@ -1,7 +1,7 @@
 """ai comments (ADR-0056): the weekly AI comment, kept 7 days for the web review
 
 Revision ID: 7281a9439e79
-Revises: 07d0d154d62c
+Revises: 5395d39ffac9
 Create Date: 2026-10-11 22:49:52.249360
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "7281a9439e79"
-down_revision: str | Sequence[str] | None = "07d0d154d62c"
+down_revision: str | Sequence[str] | None = "5395d39ffac9"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
