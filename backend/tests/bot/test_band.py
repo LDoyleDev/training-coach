@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
@@ -153,3 +154,33 @@ def test_counted_text_without_a_target() -> None:
     assert band_ui.counted_text(week, planned=True) == (
         "Counted, and today's session is done. Zone 2 this week: 40 min. /undo takes it back."
     )
+
+
+def _locked(*_args: object, **_kwargs: object) -> None:
+    raise OperationalError("UPDATE", {}, Exception("database is locked"))
+
+
+async def test_an_offer_sent_but_not_marked_stops_the_run(
+    seeded: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Review of #226: a failed mark escaped the job and skipped the rest of the batch.
+    _walk(seeded, hour=6)
+    _walk(seeded, hour=7)
+    monkeypatch.setattr(band_ui.band_cardio, "announced", _locked)
+    send = AsyncMock(return_value=True)
+    await band_ui.BandHandlers(SETTINGS, seeded, send).announce(SimpleNamespace(bot=None))  # type: ignore[arg-type]  # fake context
+    assert send.await_count == 1  # stopped after the unmarked one, so nothing goes twice
+
+
+@pytest.mark.parametrize("action", ["bc", "bx"])
+async def test_a_failed_save_keeps_the_buttons_and_says_so(
+    application: App, seeded: Sessions, monkeypatch: pytest.MonkeyPatch, action: str
+) -> None:
+    # Review of #226: the buttons went before the save, so a failure left a dead end.
+    walk = _walk(seeded)
+    monkeypatch.setattr(band_ui.band_cardio, "count", _locked)
+    monkeypatch.setattr(band_ui.band_cardio, "dismiss", _locked)
+    calls = await run(application, press(f"{action}:{walk}", OWNER))
+    assert texts(calls) == [band_ui.FAILED]
+    assert "editMessageReplyMarkup" not in calls
+    assert _workouts(seeded) == 0
