@@ -80,7 +80,7 @@ only, and A4 later as the default with A1 as the fallback. After saving a cardio
 
 | Idea | Effort |
 | --- | --- |
-| C1 "Open in app" button on the morning message and on `/today` | S |
+| C1 "Open in app" button on the morning message and on `/today` (built: also on the weekly review and a saved log; https `TC_PUBLIC_URL` only) | S |
 | C2 Rest today, Swap and Push on the web (the queue logic already exists) | M |
 | C3 Undo on the web (the `/undo` logic already exists) | S |
 | C4 The weekly review on the web, with the AI comment under it | M |

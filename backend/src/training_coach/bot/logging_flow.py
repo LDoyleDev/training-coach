@@ -18,6 +18,7 @@ from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 from telegram.warnings import PTBDeprecationWarning
 
+from training_coach.bot import links
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import stretching as stretching_ui
 from training_coach.bot.buttons import edit_quietly
@@ -269,7 +270,8 @@ class LogHandlers:
         await query.message.reply_text(reply, reply_markup=markup)
 
     def _save(self, draft: Draft) -> tuple[str, InlineKeyboardMarkup | None]:
-        """The saved reply, with bests and any "ready to progress" prompts (1-G)."""
+        """The saved reply, with bests, any "ready to progress" prompts (1-G) and "Open in
+        app" (C1)."""
         markup = None
         with session_scope(self.sessions) as session:
             result = workout_log.save(session, draft, self.settings.tz)
@@ -290,6 +292,7 @@ class LogHandlers:
                         *stretching_ui.rows(result.workout_id),
                     ]
                     markup = InlineKeyboardMarkup(rows)
+                markup = links.with_open(markup, self.settings.public_url, links.HOME)
             elif isinstance(result, Saved):
                 text = LOG_SAVED_BEFORE
             elif isinstance(result, Stale):
