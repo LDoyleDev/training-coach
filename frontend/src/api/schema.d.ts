@@ -4,6 +4,67 @@
  */
 
 export interface paths {
+    "/.well-known/oauth-authorization-server": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Server Metadata
+         * @description RFC 8414. Public clients only (``none``), PKCE S256 only, registration open but bounded.
+         *     No client ID metadata documents: Claude then registers (its documented fallback).
+         */
+        get: operations["server_metadata__well_known_oauth_authorization_server_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/.well-known/oauth-protected-resource": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resource Metadata
+         * @description RFC 9728: what ``/mcp`` is and which server issues its tokens.
+         */
+        get: operations["resource_metadata__well_known_oauth_protected_resource_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/.well-known/oauth-protected-resource/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resource Metadata For Mcp
+         * @description The same, at the path RFC 9728 derives from the ``/mcp`` URL.
+         */
+        get: operations["resource_metadata_for_mcp__well_known_oauth_protected_resource_mcp_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/account/ai": {
         parameters: {
             query?: never;
@@ -438,6 +499,87 @@ export interface paths {
          * @description Save one cardio log for today. 409 when today's session changed meanwhile.
          */
         post: operations["log_api_cardio_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connect/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Consent Approve
+         * @description Approve: a connection with the scopes ticked, and the app's address with its code.
+         */
+        post: operations["consent_approve_api_connect_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connect/bind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Consent Bind
+         * @description Bind a consent page to this browser, once its passkey is proved on the page.
+         */
+        post: operations["consent_bind_api_connect_bind_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connect/deny": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Consent Deny
+         * @description Don't allow: back to the app with ``access_denied``. Public, like the details.
+         */
+        post: operations["consent_deny_api_connect_deny_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connect/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Consent Details
+         * @description What a consent page asks for. Public: the handle is the secret, and nothing here is
+         *     personal.
+         */
+        post: operations["consent_details_api_connect_details_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -920,6 +1062,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Authorize
+         * @description The authorization request (OAuth 2.1, PKCE S256, RFC 8707). On to the consent page with
+         *     a handle (in the fragment, so no log or Referer sees it), or an error.
+         */
+        get: operations["authorize_oauth_authorize_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register
+         * @description Dynamic client registration (RFC 7591), bounded: registering grants nothing until the
+         *     person approves the app with their passkey.
+         */
+        post: operations["register_oauth_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Token
+         * @description The token endpoint, form-encoded (RFC 6749): a code for tokens, or a refresh.
+         */
+        post: operations["token_oauth_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -972,6 +1176,17 @@ export interface components {
             answers: {
                 [key: string]: boolean;
             };
+        };
+        /** ApproveBody */
+        ApproveBody: {
+            /** Client Id */
+            client_id: string;
+            /** Handle */
+            handle: string;
+            /** Redirect Uri */
+            redirect_uri: string;
+            /** Scopes */
+            scopes: string[];
         };
         /** BlockView */
         BlockView: {
@@ -1035,6 +1250,33 @@ export interface components {
             others: components["schemas"]["ChoiceView"][];
             /** Template Id */
             template_id: number;
+        };
+        /** ConsentHandle */
+        ConsentHandle: {
+            /** Handle */
+            handle: string;
+        };
+        /** ConsentScopeView */
+        ConsentScopeView: {
+            /** Health */
+            health: boolean;
+            /** Label */
+            label: string;
+            /** Scope */
+            scope: string;
+        };
+        /** ConsentView */
+        ConsentView: {
+            /** Client Id */
+            client_id: string;
+            /** Client Name */
+            client_name: string;
+            /** Redirect Host */
+            redirect_host: string;
+            /** Redirect Uri */
+            redirect_uri: string;
+            /** Scopes */
+            scopes: components["schemas"]["ConsentScopeView"][];
         };
         /**
          * DailyCheckView
@@ -1137,6 +1379,11 @@ export interface components {
             slug: string;
             /** Start Step */
             start_step: number;
+        };
+        /** GoTo */
+        GoTo: {
+            /** Redirect */
+            redirect: string;
         };
         /** GuidedView */
         GuidedView: {
@@ -1519,6 +1766,19 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** ResourceMetadata */
+        ResourceMetadata: {
+            /** Authorization Servers */
+            authorization_servers: string[];
+            /** Bearer Methods Supported */
+            bearer_methods_supported: string[];
+            /** Resource */
+            resource: string;
+            /** Resource Name */
+            resource_name: string;
+            /** Scopes Supported */
+            scopes_supported: string[];
+        };
         /** RoutineView */
         RoutineView: {
             /** Hold Seconds */
@@ -1552,6 +1812,31 @@ export interface components {
             stretching: boolean;
             /** Workout Id */
             workout_id: number;
+        };
+        /** ServerMetadata */
+        ServerMetadata: {
+            /** Authorization Endpoint */
+            authorization_endpoint: string;
+            /** Authorization Response Iss Parameter Supported */
+            authorization_response_iss_parameter_supported: boolean;
+            /** Code Challenge Methods Supported */
+            code_challenge_methods_supported: string[];
+            /** Grant Types Supported */
+            grant_types_supported: string[];
+            /** Issuer */
+            issuer: string;
+            /** Registration Endpoint */
+            registration_endpoint: string;
+            /** Response Modes Supported */
+            response_modes_supported: string[];
+            /** Response Types Supported */
+            response_types_supported: string[];
+            /** Scopes Supported */
+            scopes_supported: string[];
+            /** Token Endpoint */
+            token_endpoint: string;
+            /** Token Endpoint Auth Methods Supported */
+            token_endpoint_auth_methods_supported: string[];
         };
         /** SessionView */
         SessionView: {
@@ -1841,6 +2126,66 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    server_metadata__well_known_oauth_authorization_server_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerMetadata"];
+                };
+            };
+        };
+    };
+    resource_metadata__well_known_oauth_protected_resource_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceMetadata"];
+                };
+            };
+        };
+    };
+    resource_metadata_for_mcp__well_known_oauth_protected_resource_mcp_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceMetadata"];
+                };
+            };
+        };
+    };
     get_ai_api_account_ai_get: {
         parameters: {
             query?: never;
@@ -2488,6 +2833,136 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoggedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    consent_approve_api_connect_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoTo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    consent_bind_api_connect_bind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsentHandle"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    consent_deny_api_connect_deny_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsentHandle"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoTo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    consent_details_api_connect_details_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsentHandle"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentView"];
                 };
             };
             /** @description Validation Error */
@@ -3268,6 +3743,135 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Health"];
                 };
+            };
+        };
+    };
+    authorize_oauth_authorize_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Found */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description To the consent page */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    register_oauth_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Registered (RFC 7591) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    token_oauth_token_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tokens (RFC 6749 section 5.1) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

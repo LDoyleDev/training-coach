@@ -9,6 +9,7 @@ vi.mock('./tests/TestsPage', () => ({ default: () => <p>tests</p> }))
 vi.mock('./body/BodyPage', () => ({ default: () => <p>body</p> }))
 vi.mock('./progress/ProgressPage', () => ({ default: () => <p>progress</p> }))
 vi.mock('./home/HomePage', () => ({ default: () => <p>home</p> }))
+vi.mock('./connect/ConnectPage', () => ({ default: () => <p>connect</p> }))
 
 afterEach(() => window.history.replaceState(null, '', '/'))
 
@@ -19,6 +20,7 @@ test.each([
   ['/tests', 'tests'],
   ['/body', 'body'],
   ['/progress', 'progress'],
+  ['/connect', 'connect'],
   ['/', 'home'],
 ])('%s shows %s', (path, text) => {
   window.history.replaceState(null, '', path)

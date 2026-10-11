@@ -24,6 +24,8 @@ from training_coach.api.change import router as change_router
 from training_coach.api.daily_check import router as daily_check_router
 from training_coach.api.fitness import router as fitness_router
 from training_coach.api.home import router as home_router
+from training_coach.api.oauth import PER_ADDRESS
+from training_coach.api.oauth import router as oauth_router
 from training_coach.api.passkeys import router as passkeys_router
 from training_coach.api.photos import router as photos_router
 from training_coach.api.plan import router as plan_router
@@ -34,6 +36,7 @@ from training_coach.api.session import router as session_router
 from training_coach.bot.app import build_bot, send_with_retry
 from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
+from training_coach.domain.rate_limit import RateLimit
 from training_coach.logging import configure_logging
 from training_coach.services import backup, users
 
@@ -90,6 +93,7 @@ SPA_PAGES = (
     "/progress",
     "/plan",
     "/readiness",
+    "/connect",  # the consent page for connecting an AI app (ADR-0047 C)
 )
 
 
@@ -172,6 +176,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.shared_sessions = make_session_factory(engine)
     app.state.engine = engine
     app.state.settings = settings
+    # Unauthenticated OAuth and MCP calls, per client address and route, a minute.
+    app.state.address_limits = RateLimit(PER_ADDRESS, 60)
 
     @app.get("/healthz", response_model=Health, tags=["ops"])
     async def healthz() -> Health:
@@ -192,6 +198,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(progress_router)
     app.include_router(readiness_router)
     app.include_router(daily_check_router)
+    app.include_router(oauth_router)
 
     # Mounted last so API routes always win over static files.
     dist = settings.web_dist_dir
