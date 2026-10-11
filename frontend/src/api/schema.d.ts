@@ -743,6 +743,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Health */
+        get: operations["get_health_api_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/home": {
         parameters: {
             query?: never;
@@ -1507,10 +1524,13 @@ export interface components {
         DailyCheckView: {
             advice: components["schemas"]["AdviceView"] | null;
             answers: components["schemas"]["CheckAnswers"] | null;
+            /** Band Asleep Min */
+            band_asleep_min?: number | null;
             /** Day */
             day: string;
             /** Questions */
             questions: components["schemas"]["CheckQuestionView"][];
+            suggested_sleep?: components["schemas"]["Sleep"] | null;
         };
         /** DeviceView */
         DeviceView: {
@@ -1678,6 +1698,21 @@ export interface components {
             status: string;
             /** Version */
             version: string;
+        };
+        /**
+         * HealthView
+         * @description Everything empty until band data arrives.
+         */
+        HealthView: {
+            /** Resting */
+            resting: number | null;
+            sleep: components["schemas"]["NightView"] | null;
+            /** Steps Today */
+            steps_today: number | null;
+            /** Steps Yesterday */
+            steps_yesterday: number | null;
+            /** Usual Resting */
+            usual_resting: number | null;
         };
         /** HeartRateBody */
         HeartRateBody: {
@@ -1907,6 +1942,29 @@ export interface components {
             secret: string;
             /** Url */
             url: string | null;
+        };
+        /** NightView */
+        NightView: {
+            /** Asleep */
+            asleep: number;
+            /** Awake */
+            awake: number;
+            /** Deep */
+            deep: number;
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /** Light */
+            light: number;
+            /** Rem */
+            rem: number;
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
         };
         /** OptionView */
         OptionView: {
@@ -3713,6 +3771,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_health_api_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthView"];
                 };
             };
         };

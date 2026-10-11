@@ -792,6 +792,18 @@ export async function removeAiKey(): Promise<void> {
     throw new Error(`The server answered ${res.status}.`)
 }
 
+// ------------------------------------------------------------ band summary (ADR-0055)
+
+export type BandHealth = Schemas['HealthView']
+
+/** Last night's sleep, steps and resting heart rate from the band; null when signed out. */
+export async function fetchHealth(signal?: AbortSignal): Promise<BandHealth | null> {
+  const res = await fetch('/api/health', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as BandHealth
+}
+
 // ------------------------------------------------------- heart-rate zones (ADR-0055)
 
 export type HeartRate = Schemas['HeartRateView']

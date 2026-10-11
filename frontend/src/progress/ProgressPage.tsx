@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchProgress, type Standing } from '../api'
 import PlanView from '../App'
 import AppShell from '../components/AppShell'
+import BandSummary from '../components/BandSummary'
 import Sparkline from '../components/Sparkline'
 import { amount } from './logic'
 import { card, secondary } from '../ui'
@@ -96,6 +97,7 @@ function Standings() {
       <a href="/review" className={secondary + ' inline-flex items-center self-start no-underline'}>
         This week's review
       </a>
+      <BandSummary />
       <ul className="flex flex-col gap-3">
         {loaded.standings.map((s) => {
           const status = STATUS[s.status]

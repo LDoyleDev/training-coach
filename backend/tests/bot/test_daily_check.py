@@ -12,7 +12,7 @@ from telegram.ext import Application
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, button_data, press, run, texts
 from training_coach.bot import daily_check as daily_ui
 from training_coach.bot.app import Handlers
-from training_coach.db.models import DailyCheck, PlanState
+from training_coach.db.models import DailyCheck, PlanState, SleepSession
 from training_coach.domain.daily_check import Answers, Energy, Sleep, Soreness
 from training_coach.domain.queue import local_date
 from training_coach.services import daily_check
@@ -92,6 +92,28 @@ async def test_the_morning_message_asks_until_answered(seeded: Sessions) -> None
     assert daily_ui.ASK not in str(sent["text"])
     data = [b.callback_data for row in sent["reply_markup"].inline_keyboard for b in row]  # type: ignore[attr-defined]
     assert not any(str(d).startswith("d:") for d in data)
+
+
+async def test_the_morning_message_says_what_the_band_saw(seeded: Sessions) -> None:
+    """Last night's sleep from the band helps with the sleep row (ADR-0055)."""
+    end = datetime.combine(_today(), datetime.min.time(), tzinfo=SETTINGS.tz) + timedelta(hours=7)
+    with seeded() as session:
+        session.add(
+            SleepSession(
+                source="com.mi.health",
+                start_at=end - timedelta(hours=7, minutes=30),
+                end_at=end,
+                local_date=_today(),
+                asleep_min=440,
+                awake_min=10,
+                light_min=250,
+                deep_min=90,
+                rem_min=100,
+            )
+        )
+        session.commit()
+    sent = await _morning(seeded)
+    assert str(sent["text"]).endswith(f"{daily_ui.ASK}\nYour band: 7 h 20 min asleep last night.")
 
 
 async def test_a_tap_marks_it_and_keeps_the_other_buttons(
