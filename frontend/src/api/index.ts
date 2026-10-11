@@ -241,6 +241,97 @@ export async function saveSession(day?: string): Promise<Saved | 'stale'> {
   return (await res.json()) as Saved
 }
 
+export type CardioOptions = Schemas['OptionsView']
+export type CardioLog = Schemas['LogBody']
+export type CardioLogged = Schemas['LoggedView']
+export type CardioKind = CardioLog['kind']
+export type CardioActivity = Schemas['CardioActivity']
+
+/** Today's planned cardio, the activities and this week's minutes; null when signed out. */
+export async function fetchCardio(signal?: AbortSignal): Promise<CardioOptions | null> {
+  const res = await fetch('/api/cardio', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as CardioOptions
+}
+
+/** Log cardio in one step (ux-flow-plan A1). 'stale': today's session changed meanwhile. */
+export async function logCardio(body: CardioLog): Promise<CardioLogged | 'stale'> {
+  const res = signedIn(
+    await fetch('/api/cardio', {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) return 'stale'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as CardioLogged
+}
+
+export type Changed = Schemas['ChangedView']
+export type Choices = Schemas['ChoicesView']
+export type Queued = Schemas['QueuedView']
+export type UndoOffer = Schemas['UndoOfferView']
+export type UndoState = Schemas['UndoView']
+export type Undone = Schemas['UndoneView']
+export type TodayChange = 'rest' | 'push' | 'next'
+
+async function post(url: string, body: unknown): Promise<Response> {
+  return signedIn(
+    await fetch(url, {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+}
+
+/** Rest today, Push to tomorrow, or do the next session first (ux-flow-plan C2), for the
+ * session the page shows. 'stale': today's session changed meanwhile. */
+export async function changeToday(
+  change: TodayChange,
+  templateId: number,
+): Promise<Changed | 'stale'> {
+  const res = await post(`/api/today/${change}`, { template_id: templateId })
+  if (res.status === 409) return 'stale'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Changed
+}
+
+/** Do another session today instead of the one shown. 'stale': today changed meanwhile. */
+export async function pickToday(templateId: number, pickedId: number): Promise<Changed | 'stale'> {
+  const res = await post('/api/today/pick', { template_id: templateId, picked_id: pickedId })
+  if (res.status === 409) return 'stale'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Changed
+}
+
+/** What Swap offers today. 'stale': nothing planned today any more. */
+export async function fetchChoices(): Promise<Choices | 'stale'> {
+  const res = signedIn(await fetch('/api/today/choices', { credentials: 'same-origin' }))
+  if (res.status === 409) return 'stale'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Choices
+}
+
+/** What Undo would take back (ux-flow-plan C3), or why nothing can be. */
+export async function fetchUndo(): Promise<UndoState> {
+  const res = signedIn(await fetch('/api/today/undo', { credentials: 'same-origin' }))
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as UndoState
+}
+
+/** Undo the change the offer named (ADR-0048). A string: why it can't be undone now. */
+export async function undoChange(eventId: number): Promise<Undone | string> {
+  const res = await post('/api/today/undo', { event_id: eventId })
+  if (res.status === 409) return ((await res.json()) as { detail: string }).detail
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Undone
+}
+
 /** Earlier days' guided sessions never saved. */
 export async function fetchPending(signal?: AbortSignal): Promise<Pending[]> {
   const res = await fetch('/api/session/pending', { signal, credentials: 'same-origin' })
@@ -420,6 +511,18 @@ export async function fetchProgress(signal?: AbortSignal): Promise<Standing[] | 
   return (await res.json()) as Standing[]
 }
 
+// ---------------------------------------------------------------- home (B1)
+
+export type Home = Schemas['HomeView']
+
+/** What has been done, this week, the ladders and today's session; null when not signed in. */
+export async function fetchHome(signal?: AbortSignal): Promise<Home | null> {
+  const res = await fetch('/api/home', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Home
+}
+
 // ---------------------------------------------------------------- your own AI (ADR-0047)
 
 export type SummaryPeriod = '4w' | '12w' | 'all'
@@ -463,6 +566,34 @@ export async function saveReadiness(answers: Record<string, boolean>): Promise<R
   )
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return ((await res.json()) as Schemas['ReadinessSavedView']).status
+}
+
+// ---------------------------------------------------------------- daily check (ADR-0053)
+
+export type DailyCheck = Schemas['DailyCheckView']
+export type DailyCheckAnswers = Schemas['CheckAnswers']
+
+/** Today's daily check: the questions, and the answers with advice once given; null when not
+ * signed in. */
+export async function fetchDailyCheck(signal?: AbortSignal): Promise<DailyCheck | null> {
+  const res = await fetch('/api/daily-check', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as DailyCheck
+}
+
+/** Answer today's check (again replaces); returns it with the advice. */
+export async function saveDailyCheck(answers: DailyCheckAnswers): Promise<DailyCheck> {
+  const res = signedIn(
+    await fetch('/api/daily-check', {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: json,
+      body: JSON.stringify(answers),
+    }),
+  )
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as DailyCheck
 }
 
 /** Everything stored about me, as a zip (needs a recent sign-in, like a passkey change). */

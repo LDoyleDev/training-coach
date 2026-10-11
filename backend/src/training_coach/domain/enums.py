@@ -28,3 +28,17 @@ class Side(StrEnum):
     BOTH = "both"
     LEFT = "left"
     RIGHT = "right"
+
+
+class CardioActivity(StrEnum):
+    """What a logged cardio session was (ux-flow-plan A1). Optional on a workout."""
+
+    WALK = "walk"
+    HIKE = "hike"
+    JOG = "jog"
+    RUN = "run"
+    BIKE = "bike"
+    SWIM = "swim"
+    ROW = "row"
+    STAIRS = "stairs"
+    OTHER = "other"

@@ -34,7 +34,8 @@ from telegram.ext import (
 )
 from telegram.warnings import PTBDeprecationWarning
 
-from training_coach.bot import buttons, logging_flow
+from training_coach.bot import buttons, links, logging_flow
+from training_coach.bot import daily_check as daily_ui
 from training_coach.bot import habits as habits_ui
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import settings as settings_ui
@@ -66,6 +67,7 @@ from training_coach.services import (
     ai_comment,
     auth,
     blocks,
+    daily_check,
     habits,
     passkeys,
     queue_actions,
@@ -98,7 +100,8 @@ HELP_TEXT = (
     "To log a past day, put its date on the first line, like: yesterday, Tue or 29 Sep. "
     "Add the session (Legs) or rest after the date if you like.\n\n"
     "The session for the day also arrives every morning, with buttons to start it, "
-    "take a rest day or swap it."
+    "take a rest day or swap it, and three taps on how you slept, how sore you are and your "
+    "energy, which say how hard to go today."
 )
 LOGIN_TEXT = "Sign in to Training Coach. The link works once, for 10 minutes:"
 LOGIN_PASSKEY = (
@@ -175,16 +178,19 @@ class Handlers:
         return local_date(datetime.now(UTC), self.settings.tz)
 
     def _today(self) -> tuple[str, InlineKeyboardMarkup | None]:
-        """Today's message, with the Start / Rest today / Swap buttons when there is a plan."""
+        """Today's message, with the Start / Rest today / Swap buttons when there is a plan
+        and "Open in app" under them (C1): the session, or the Tests page on a test day."""
+        url = self.settings.public_url
         with session_scope(self.sessions) as session:
             plan = todays_session(session, self._local_today(), self.settings.tz)
             if plan is None:
                 return NO_PLAN, None
             if plan.test_day is not None:
-                where = tests_where(self.settings.public_url)
                 instead = buttons.instead(plan.session.template_id, plan.session.name)
-                return test_day_text(plan, where), instead
-            return today_text(plan), buttons.morning(plan.session.template_id)
+                text = test_day_text(plan, tests_where(url))
+                return text, links.with_open(instead, url, links.TESTS)
+            markup = buttons.morning(plan.session.template_id)
+            return today_text(plan), links.with_open(markup, url, links.SESSION)
 
     async def help(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_message is not None:
@@ -245,9 +251,11 @@ class Handlers:
             await update.effective_message.reply_text(text)
 
     async def morning(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        on = self._local_today()
         try:
             with session_scope(self.sessions) as session:
                 paused = user_settings.load(session).paused
+                checked = daily_check.on(session, on) is not None
             text, markup = self._today()
         except SQLAlchemyError as exc:
             log.error("bot.morning_failed", error=type(exc).__name__)
@@ -255,6 +263,9 @@ class Handlers:
         if paused:
             log.info("bot.morning_skipped", reason="paused")
             return
+        if markup is not None and not checked:  # the daily check, until answered (ADR-0053)
+            text = f"{text}\n\n{daily_ui.ASK}"
+            markup = daily_ui.with_check(markup, on)
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
         if await send_with_retry(
             context.bot, self.settings.telegram_allowed_user_id, text, reply_markup=markup
@@ -275,7 +286,12 @@ class Handlers:
             log.error("bot.review_failed", error=type(exc).__name__)
             return
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
-        if await send_with_retry(context.bot, self.settings.telegram_allowed_user_id, text):
+        if await send_with_retry(
+            context.bot,
+            self.settings.telegram_allowed_user_id,
+            text,
+            reply_markup=links.with_open(None, self.settings.public_url, links.PROGRESS),
+        ):
             log.info("bot.review_sent")
         else:
             log.error("bot.review_failed")
@@ -489,6 +505,10 @@ def build_bot(
         CallbackQueryHandler(habit_handlers.button, pattern=rf"^{habits_ui.PREFIX}:")
     )
     application.add_handler(CallbackQueryHandler(handlers.button, pattern=rf"^{buttons.PREFIX}:"))
+    daily_handlers = daily_ui.DailyCheckHandlers(settings, sessions)
+    application.add_handler(
+        CallbackQueryHandler(daily_handlers.button, pattern=rf"^{daily_ui.PREFIX}:")
+    )
     share_handlers = share_ui.ShareHandlers(settings, sessions)
     application.add_handler(CommandHandler("share", share_handlers.command, filters=allowed))
     undo_handlers = undo_ui.UndoHandlers(settings, sessions)

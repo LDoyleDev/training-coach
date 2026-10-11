@@ -36,7 +36,7 @@ def _context() -> object:
 
 def _buttons(kwargs: dict[str, object]) -> list[tuple[str, str]]:
     markup = kwargs["reply_markup"]
-    return [(b.text, b.callback_data) for row in markup.inline_keyboard for b in row]  # type: ignore[attr-defined]
+    return [(b.text, b.callback_data or b.url) for row in markup.inline_keyboard for b in row]  # type: ignore[attr-defined]
 
 
 async def test_a_test_day_morning_names_the_tests_and_where_to_enter_them(
@@ -55,10 +55,11 @@ async def test_a_test_day_morning_names_the_tests_and_where_to_enter_them(
     assert "Bulgarian split squat" in text
     assert "Enter the results in the app: https://coach.example.com/tests" in text
     assert "The plan waits:" in text
-    (button,) = _buttons(kwargs)
+    button, *_check, link = _buttons(kwargs)  # the daily check's rows between (ADR-0053)
     assert button[0].startswith("Train ")
     assert button[0].endswith(" instead")
     assert button[1] == session_id  # Start on the waiting session
+    assert link == ("Open in app", "https://coach.example.com/tests")  # C1
 
 
 async def test_without_a_public_url_the_tests_page_is_named(seeded: Sessions) -> None:

@@ -10,13 +10,23 @@ from sqlalchemy.orm import Session, sessionmaker
 from training_coach.api.auth import Owner
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.daily_check import summary as daily_summary
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import HARD_SESSIONS
 from training_coach.domain.readiness import note as readiness_note
 from training_coach.domain.stretching import HOLD_SECONDS
-from training_coach.services import guided, readiness, retests, stretching, workout_log
+from training_coach.services import (
+    daily_check,
+    guided,
+    queue_actions,
+    readiness,
+    retests,
+    stretching,
+    workout_log,
+)
 from training_coach.services import progress as feedback
+from training_coach.services.today import position
 
 router = APIRouter(prefix="/api/session", tags=["session"])
 
@@ -105,16 +115,25 @@ def test_day_view(found: retests.TestDayDue | None) -> TestDayDueView | None:
     return TestDayDueView(day=found.day, name=found.name, tests=list(found.tests))
 
 
+class QueuedView(BaseModel):
+    template_id: int
+    name: str
+
+
 class TodayView(BaseModel):
     """``session`` is empty when nothing planned is left today (done or rested); ``progress``
     is where the person left off, to resume."""
 
     session: GuidedView | None
+    # The queue's session, when today's is another one picked for today (ADR-0022): still next.
+    planned: QueuedView | None = None
     progress: ProgressView | None = None
     test_day: TestDayDueView | None = None  # due today, in front of the session (ADR-0038)
     # On a hard day (HIIT or a test day): answer the readiness questions, or see a doctor first
     # (ADR-0046). Advice only.
     readiness_note: str | None = None
+    # Today's daily check, once answered (ADR-0053): "Slept OK, ...: go lighter today".
+    daily_check: str | None = None
 
 
 class KeepBody(BaseModel):
@@ -157,18 +176,30 @@ def today(request: Request, user: Owner) -> TodayView:
     or un-swap is a PUT to /progress, so the server is the one place it lives."""
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
-        kept = guided.kept(session, on)
-        plan = guided.today(session, on, settings.tz)
-        test_day = test_day_view(retests.due(session, on, settings.tz))
-        current = readiness.current(session, datetime.now(UTC))
-        if plan is not None and kept is not None and kept.template_id != plan.template_id:
-            kept = None  # kept for a session that's no longer today's: its swaps don't apply
-        if plan is not None and kept is not None and kept.first:
-            plan = guided.today(session, on, settings.tz, set(kept.first))
+        return today_view(session, on, settings)
+
+
+def today_view(session: Session, on: date, settings: Settings) -> TodayView:
+    """What GET /today answers, inside the caller's transaction (also after a change to today)."""
+    kept = guided.kept(session, on)
+    plan = guided.today(session, on, settings.tz)
+    test_day = test_day_view(retests.due(session, on, settings.tz))
+    current = readiness.current(session, datetime.now(UTC))
+    if plan is not None and kept is not None and kept.template_id != plan.template_id:
+        kept = None  # kept for a session that's no longer today's: its swaps don't apply
+    if plan is not None and kept is not None and kept.first:
+        plan = guided.today(session, on, settings.tz, set(kept.first))
     hard = test_day is not None or (plan is not None and plan.slug in HARD_SESSIONS)
     caution = readiness_note(current, hard)
+    answers = daily_check.on(session, on)
+    daily = daily_summary(answers) if answers is not None else None
     if plan is None:
-        return TodayView(session=None, test_day=test_day, readiness_note=caution)
+        return TodayView(session=None, test_day=test_day, readiness_note=caution, daily_check=daily)
+    queue = position(session)
+    planned = None
+    if queue is not None and queue.pointer != plan.template_id:
+        name = dict(queue_actions.choices(session)).get(queue.pointer)
+        planned = QueuedView(template_id=queue.pointer, name=name) if name else None
     progress = None
     if kept is not None:
         progress = ProgressView(
@@ -180,9 +211,11 @@ def today(request: Request, user: Owner) -> TodayView:
             revision=kept.revision,
         )
     return TodayView(
+        planned=planned,
         progress=progress,
         test_day=test_day,
         readiness_note=caution,
+        daily_check=daily,
         session=GuidedView(
             day=plan.day.isoformat(),
             template_id=plan.template_id,

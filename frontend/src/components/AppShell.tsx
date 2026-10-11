@@ -1,10 +1,12 @@
 import { signOut } from '../api'
+import OfflineNotice from '../pwa/Offline'
 
 /** The signed-in pages, in the order the nav shows them. */
 const PAGES = [
+  { path: '/', label: 'Home' },
   { path: '/session', label: 'Today' },
   { path: '/progress', label: 'Progress' },
-  { path: '/plan', label: 'Plan' },
+  { path: '/plan', label: 'Plan', phone: false }, // six tabs fit a phone; Home links to Plan
   { path: '/tests', label: 'Tests' },
   { path: '/body', label: 'Body' },
   { path: '/account', label: 'Account' },
@@ -34,7 +36,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         >
           <ul className="m-0 grid list-none grid-cols-6 p-0 sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
             {PAGES.map((page) => (
-              <li key={page.path}>
+              <li key={page.path} className={'phone' in page ? 'hidden sm:block' : undefined}>
                 <a
                   href={page.path}
                   aria-current={here === page.path ? 'page' : undefined}
@@ -57,7 +59,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </ul>
         </nav>
       </header>
-      <main className="mt-4 flex flex-col gap-4">{children}</main>
+      <main className="mt-4 flex flex-col gap-4">
+        <OfflineNotice />
+        {children}
+      </main>
     </div>
   )
 }

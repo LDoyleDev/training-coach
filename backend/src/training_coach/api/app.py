@@ -5,6 +5,7 @@ import asyncio
 import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import structlog
 from fastapi import FastAPI
@@ -18,7 +19,11 @@ from training_coach.api.account import router as account_router
 from training_coach.api.ai import router as ai_router
 from training_coach.api.auth import router as auth_router
 from training_coach.api.body import router as body_router
+from training_coach.api.cardio import router as cardio_router
+from training_coach.api.change import router as change_router
+from training_coach.api.daily_check import router as daily_check_router
 from training_coach.api.fitness import router as fitness_router
+from training_coach.api.home import router as home_router
 from training_coach.api.passkeys import router as passkeys_router
 from training_coach.api.photos import router as photos_router
 from training_coach.api.plan import router as plan_router
@@ -86,6 +91,26 @@ SPA_PAGES = (
     "/plan",
     "/readiness",
 )
+
+
+# What makes the web app installable (D3), with the type a browser expects. The service worker
+# is checked on every visit (no-cache) so a deploy reaches the phone on the next page opened.
+INSTALL_FILES = {
+    "/sw.js": "text/javascript",
+    "/manifest.webmanifest": "application/manifest+json",
+}
+
+
+def _add_install_files(app: FastAPI, dist: Path) -> None:
+    for path, media_type in INSTALL_FILES.items():
+        file = dist / path.removeprefix("/")
+        if not file.is_file():  # an older build, or a test with only index.html
+            continue
+
+        async def serve(file: Path = file, media_type: str = media_type) -> FileResponse:
+            return FileResponse(file, media_type=media_type, headers={"Cache-Control": "no-cache"})
+
+        app.add_api_route(path, serve, include_in_schema=False)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -158,11 +183,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(account_router)
     app.include_router(ai_router)
     app.include_router(session_router)
+    app.include_router(cardio_router)
+    app.include_router(change_router)
     app.include_router(fitness_router)
     app.include_router(body_router)
     app.include_router(photos_router)
+    app.include_router(home_router)
     app.include_router(progress_router)
     app.include_router(readiness_router)
+    app.include_router(daily_check_router)
 
     # Mounted last so API routes always win over static files.
     dist = settings.web_dist_dir
@@ -174,6 +203,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         for path in SPA_PAGES:  # the app's own router shows the page
             app.add_api_route(path, page, include_in_schema=False)
+        _add_install_files(app, dist)
         app.mount("/", StaticFiles(directory=dist, html=True), name="web")
 
     return app

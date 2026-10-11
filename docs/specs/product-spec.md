@@ -48,7 +48,7 @@ Missed session: the order is kept; everything shifts back one day (ADR-0006).
 | Guided session mode with rest timers | 2 |
 | `/undo`: take back the last rest, swap, push or saved log (ADR-0048) | 2 |
 | MCP endpoint for Claude (read, log, propose plan changes) | 3 |
-| Readiness check (sleep, soreness) that eases the session | 3 |
+| Daily check (sleep, soreness, energy) that advises as planned, lighter or rest (ADR-0053, built early) | 3 |
 
 Deliberately out of scope: exercise video library (link per exercise instead), social feed,
 AI-generated daily workouts (the plan is fixed and edited deliberately).
