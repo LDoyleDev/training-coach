@@ -23,6 +23,7 @@ from training_coach.db.models import (
     FitnessTestDay,
     HabitCheck,
     LadderStep,
+    McpConnection,
     Measurement,
     Passkey,
     PlanState,
@@ -46,6 +47,7 @@ TABLES: dict[str, type] = {
     "readiness_answers": ReadinessAnswers,
     "daily_checks": DailyCheck,
     "ai_connections": AiConnection,  # the key itself is binary, so left out
+    "connected_ai_apps": McpConnection,
     "progress_photos": ProgressPhoto,
     "habit_checks": HabitCheck,
     "settings": UserSettings,
