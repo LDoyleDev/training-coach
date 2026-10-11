@@ -12,6 +12,7 @@ from sqlalchemy import Engine
 
 from training_coach.api.app import create_app
 from training_coach.api.auth import COOKIE, owner
+from training_coach.api.mcp import connection
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory
 from training_coach.services import auth
@@ -81,15 +82,19 @@ def test_signing_out_ends_the_session(app_client: TestClient, engine: Engine) ->
 
 
 def test_every_route_is_public_or_owner_only(engine: Engine) -> None:
-    """A new route must say who may call it (ADR-0036): listed here as public, or behind
-    ``owner``. Pages of the web app (no schema) only serve the static index."""
+    """A new route must say who may call it (ADR-0036): listed here as public, behind
+    ``owner`` (a session cookie), or behind ``connection`` (an AI app's bearer token, ADR-0047
+    C), never both. Pages of the web app (no schema) only serve the static index."""
     app = create_app(Settings(environment="test", database_url=str(engine.url)))
     for route in app.routes:
         if not isinstance(route, APIRoute) or not route.include_in_schema:
             continue
-        guarded = any(dep.call is owner for dep in route.dependant.dependencies)
+        calls = {dep.call for dep in route.dependant.dependencies}
+        guarded = owner in calls or connection in calls
         assert route.path in PUBLIC or guarded, f"{route.path} declares no access"
         assert not (route.path in PUBLIC and guarded), f"{route.path} is listed as public"
+        assert not (owner in calls and connection in calls), f"{route.path} takes both"
+        assert (connection in calls) == (route.path == "/mcp"), route.path
 
 
 def test_the_signin_page_serves_the_web_app(engine: Engine, tmp_path: Path) -> None:

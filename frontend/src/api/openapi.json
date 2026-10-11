@@ -418,6 +418,62 @@
         "title": "ChoicesView",
         "type": "object"
       },
+      "ConnectionView": {
+        "properties": {
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "redirect_host": {
+            "title": "Redirect Host",
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "client_name",
+          "redirect_host",
+          "scopes",
+          "created_at",
+          "last_used_at",
+          "ends_at"
+        ],
+        "title": "ConnectionView",
+        "type": "object"
+      },
       "ConsentHandle": {
         "properties": {
           "handle": {
@@ -3871,6 +3927,67 @@
         ]
       }
     },
+    "/api/account/connections": {
+      "get": {
+        "operationId": "list_connections_api_account_connections_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectionView"
+                  },
+                  "title": "Response List Connections Api Account Connections Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Connections",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/connections/{connection_id}": {
+      "delete": {
+        "description": "Revoke: its access and refresh tokens stop working at once. Like signing out a device,\nit needs no fresh sign-in: it only ever takes access away.",
+        "operationId": "revoke_connection_api_account_connections__connection_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "title": "Connection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Connection",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/account/devices/{device_id}": {
       "delete": {
         "operationId": "sign_out_device_api_account_devices__device_id__delete",
@@ -6007,6 +6124,35 @@
         "summary": "Healthz",
         "tags": [
           "ops"
+        ]
+      }
+    },
+    "/mcp": {
+      "post": {
+        "description": "One JSON-RPC message (MCP Streamable HTTP, stateless, JSON answers).",
+        "operationId": "mcp_mcp_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "A JSON-RPC answer"
+          },
+          "202": {
+            "description": "Accepted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Mcp",
+        "tags": [
+          "mcp"
         ]
       }
     },

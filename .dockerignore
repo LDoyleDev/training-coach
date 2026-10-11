@@ -5,6 +5,8 @@
 .env.*
 data
 docs
+# The guide an AI reads through get_guide (ADR-0047 C) ships with the app.
+!docs/ai-guide.md
 **/node_modules
 **/.venv
 **/__pycache__

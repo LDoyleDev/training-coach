@@ -163,6 +163,30 @@ def test_full_resolution_samples_are_averaged_per_minute() -> None:
     assert (minute.bpm, minute.low, minute.high) == (65, 60, 70)
 
 
+def test_a_night_sent_again_longer_updates_the_same_row(session: Session) -> None:
+    """Health Connect sends only the end and the length; a night still open at one sync and
+    longer at the next has another derived start, and must not count twice."""
+    early_end = hcw.SLEEP_END - timedelta(hours=1)
+    first = {
+        **hcw.sleep(),
+        "session_end_time": hcw.iso(early_end),
+        "duration_seconds": int((early_end - hcw.SLEEP_START).total_seconds()) - 600,
+    }
+    _store(session, {"sleep": [first]})
+    _store(session, {"sleep": [hcw.sleep()]})
+    (night,) = session.scalars(select(SleepSession))
+    assert (night.start_at, night.end_at) == (hcw.SLEEP_START, hcw.SLEEP_END)
+    assert night.asleep_min == 440
+
+
+def test_a_later_higher_resting_record_keeps_the_days_low(session: Session) -> None:
+    _store(session, {"resting_heart_rate": [{"bpm": 48, "time": "2026-10-11T06:00:00Z"}]})
+    _store(session, {"resting_heart_rate": [{"bpm": 55, "time": "2026-10-11T07:00:00Z"}]})
+    day = _day(session, TODAY)
+    assert day is not None
+    assert (day.resting_hr, day.resting_source) == (48, "record")
+
+
 def _zone_minutes(walk: ImportedWorkout) -> list[int | None]:
     return [walk.zone1_min, walk.zone2_min, walk.zone3_min, walk.zone4_min, walk.zone5_min]
 
