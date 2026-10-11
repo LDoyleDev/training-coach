@@ -202,7 +202,7 @@ def authorize(request: Request) -> Response:
     limited(request, "authorize")
     params = dict(request.query_params)
     with session_scope(_shared(request)) as session:
-        result = oauth.authorize(session, params, where, datetime.now(UTC))
+        result = oauth.authorize(session, params, where, _client(request), datetime.now(UTC))
     if isinstance(result, oauth.ErrorPage):
         return _error_page(result.message, result.status)
     if isinstance(result, oauth.ErrorRedirect):

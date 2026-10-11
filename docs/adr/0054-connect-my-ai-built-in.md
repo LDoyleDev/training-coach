@@ -46,6 +46,13 @@ dependency rule is "prefer the standard library".
 - **Every C1 scope is advertised** in `scopes_supported`, so Claude asks for all three; the
   consent page leaves the health ones unticked, so each connection opts in. No
   `offline_access` scope: refresh tokens are always issued.
+- **Open consent pages are capped per address, per app and overall** (3, 3, 40). At the
+  per-app cap a new page **replaces** the app's oldest page that no browser has bound yet,
+  rather than being refused: an app's id is visible in the person's address bar, so with
+  refusal anyone who saw it could fill its 3 slots and block the person's next attempt; with
+  replacement the person's retry always gets a page, and a page they've proved their passkey
+  on is never replaced. The per-address cap refuses (`429`), so one caller holds at most 3 of
+  the 40 and can't keep more than 3 waiting registrations safe from eviction.
 - **Rate limits live in memory** (`domain/rate_limit.py`): one process serves everything
   (ADR-0002) and the SD card gets no writes for counting. A restart forgets the counts;
   Cloudflare's rule stays in front.

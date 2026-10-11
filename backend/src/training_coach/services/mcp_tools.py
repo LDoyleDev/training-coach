@@ -22,6 +22,9 @@ from training_coach.services.ai_summary import GUIDE_URL, GUIDE_VERSION, Options
 
 MAX_DATA = 40_000  # characters of data in one answer: about 10k tokens
 MARK = "training-coach-data"
+# The marker's name however it's written: a model may read "</ TRAINING_coach data >" as the
+# closing marker just as well.
+MARK_LIKE = re.compile(r"training[\W_]*coach[\W_]*data", re.IGNORECASE)
 PERIODS = {"4w": 4, "12w": 12, "all": None}
 SLUG = re.compile(r"[a-z0-9-]{1,64}")
 READINESS_WEEKS = 4
@@ -140,8 +143,9 @@ def run(
 ) -> str:
     """The tool's answer for the person ``session`` is bound to. Raises ``BadArgumentsError``."""
     _check(tool, arguments)
-    if tool.name == "get_guide":
-        return guide()
+    if tool.name == "get_guide":  # our own text, not data: named, not wrapped
+        header = f"Training Coach guide, guide version {GUIDE_VERSION} ({GUIDE_URL})."
+        return f"{header}\n\n{guide()}"
     text: str | None
     if tool.name == "get_summary":
         weeks = PERIODS[_period(arguments)]
@@ -166,8 +170,10 @@ def run(
 
 def envelope(data: str) -> str:
     """The data between markers, under a line naming the guide; cut at ``MAX_DATA``. Nothing
-    in the data can close the markers early."""
-    data = data.replace(MARK, "training coach data")
+    in the data can close the markers early: any spelling of the marker's name (any case,
+    spaces, dashes or underscores between its words, as in ``</ Training_Coach DATA >``) is
+    rewritten, so no tag in the data can name it."""
+    data = MARK_LIKE.sub("(marker name removed)", data)
     if len(data) > MAX_DATA:
         data = data[:MAX_DATA] + "\n(cut here: ask for a shorter period)"
     return (
