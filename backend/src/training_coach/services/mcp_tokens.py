@@ -23,6 +23,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import cast
+from urllib.parse import urlsplit
 
 import structlog
 from sqlalchemy import CursorResult, delete, select, update
@@ -301,6 +302,38 @@ def _revoke(session: Session, connection: McpConnection, now: datetime) -> None:
         delete(OAuthToken).where(OAuthToken.connection_id == connection.id),
         execution_options=EVERYONE,
     )
+
+
+@dataclass(frozen=True)
+class Connection:
+    id: int
+    client_name: str  # as the app called itself when it was approved
+    redirect_host: str
+    scopes: list[str]
+    created_at: datetime
+    last_used_at: datetime | None
+    ends_at: datetime
+
+
+def live_connections(session: Session, now: datetime) -> list[Connection]:
+    """The bound user's live connections, newest first."""
+    rows = session.scalars(
+        select(McpConnection)
+        .where(McpConnection.revoked_at.is_(None), McpConnection.ends_at > now)
+        .order_by(McpConnection.created_at.desc(), McpConnection.id.desc())
+    )
+    return [
+        Connection(
+            row.id,
+            row.client_name,
+            urlsplit(row.redirect_uri).hostname or "",
+            list(row.scopes),
+            row.created_at,
+            row.last_used_at,
+            row.ends_at,
+        )
+        for row in rows
+    ]
 
 
 def revoke(session: Session, connection_id: int, now: datetime) -> bool:
