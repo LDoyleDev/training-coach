@@ -151,6 +151,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/ingest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ingest */
+        get: operations["get_ingest_api_account_ingest_get"];
+        put?: never;
+        /**
+         * Make Secret
+         * @description A new secret for the phone, replacing any earlier one. Needs a recent sign-in and is
+         *     alerted: whoever holds it can add health data.
+         */
+        post: operations["make_secret_api_account_ingest_post"];
+        /** Remove Secret */
+        delete: operations["remove_secret_api_account_ingest_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/account/passkeys/{key_id}": {
         parameters: {
             query?: never;
@@ -517,6 +540,26 @@ export interface paths {
         get: operations["home_api_home_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ingest/health-connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Health Connect
+         * @description Store a Health Connect Webhook payload for the person whose secret it carries.
+         */
+        post: operations["health_connect_api_ingest_health_connect_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1278,6 +1321,31 @@ export interface components {
                 number
             ] | null;
         };
+        /**
+         * IngestReceived
+         * @description How many records of each type were stored, and skipped as not fitting.
+         */
+        IngestReceived: {
+            /** Skipped */
+            skipped: {
+                [key: string]: number;
+            };
+            /** Taken */
+            taken: {
+                [key: string]: number;
+            };
+        };
+        /** IngestView */
+        IngestView: {
+            /** Created At */
+            created_at: string | null;
+            /** Exists */
+            exists: boolean;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Url */
+            url: string | null;
+        };
         /** ItemView */
         ItemView: {
             /** Baseline */
@@ -1413,6 +1481,19 @@ export interface components {
             on: string;
             /** Value */
             value: number;
+        };
+        /** NewSecret */
+        NewSecret: {
+            /** Created At */
+            created_at: string | null;
+            /** Exists */
+            exists: boolean;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Secret */
+            secret: string;
+            /** Url */
+            url: string | null;
         };
         /** OptionView */
         OptionView: {
@@ -2144,6 +2225,64 @@ export interface operations {
             };
         };
     };
+    get_ingest_api_account_ingest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestView"];
+                };
+            };
+        };
+    };
+    make_secret_api_account_ingest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewSecret"];
+                };
+            };
+        };
+    };
+    remove_secret_api_account_ingest_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     remove_passkey_api_account_passkeys__key_id__delete: {
         parameters: {
             query?: never;
@@ -2693,6 +2832,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HomeView"];
+                };
+            };
+        };
+    };
+    health_connect_api_ingest_health_connect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestReceived"];
                 };
             };
         };

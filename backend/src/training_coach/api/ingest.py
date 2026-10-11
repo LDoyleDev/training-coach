@@ -74,7 +74,7 @@ def _limiter(request: Request) -> Limiter:
     return found
 
 
-class Received(BaseModel):
+class IngestReceived(BaseModel):
     """How many records of each type were stored, and skipped as not fitting."""
 
     taken: dict[str, int]
@@ -95,8 +95,8 @@ async def _body(request: Request) -> bytes:
     return bytes(data)
 
 
-@router.post("/health-connect", response_model=Received)
-async def health_connect(request: Request) -> Received:
+@router.post("/health-connect", response_model=IngestReceived)
+async def health_connect(request: Request) -> IngestReceived:
     """Store a Health Connect Webhook payload for the person whose secret it carries."""
     address, clock = client_address(request), time.monotonic()
     limiter = _limiter(request)
@@ -123,7 +123,7 @@ async def health_connect(request: Request) -> Received:
     with session_scope(bound) as session:
         health_import.store(session, batch, settings.tz, now)
     log.info("ingest.stored", **health_import.counts(batch))
-    return Received(taken=dict(batch.taken), skipped=dict(batch.skipped))
+    return IngestReceived(taken=dict(batch.taken), skipped=dict(batch.skipped))
 
 
 # --------------------------------------------------------------------- the secret
