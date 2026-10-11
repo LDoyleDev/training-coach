@@ -16,6 +16,7 @@ from sqlalchemy.orm import Mapper, Session
 
 from training_coach.db.models import (
     AiConnection,
+    DailyCheck,
     Event,
     Exercise,
     ExerciseState,
@@ -43,6 +44,7 @@ TABLES: dict[str, type] = {
     "test_days": FitnessTestDay,
     "measurements": Measurement,
     "readiness_answers": ReadinessAnswers,
+    "daily_checks": DailyCheck,
     "ai_connections": AiConnection,  # the key itself is binary, so left out
     "progress_photos": ProgressPhoto,
     "habit_checks": HabitCheck,

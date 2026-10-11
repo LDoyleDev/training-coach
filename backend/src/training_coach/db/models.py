@@ -32,6 +32,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from training_coach.db.base import Base
 from training_coach.db.types import UTCDateTime, utcnow
 from training_coach.domain.blocks import BlockKind
+from training_coach.domain.daily_check import Energy, Sleep, Soreness
 from training_coach.domain.enums import CardioActivity, ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.fitness_tests import TimeOfDay
 from training_coach.domain.habits import Habit
@@ -538,6 +539,28 @@ class ReadinessAnswers(Owned, Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     version: Mapped[int] = mapped_column(Integer)  # which questions (domain.readiness.VERSION)
     answers: Mapped[dict[str, bool]] = mapped_column(JSON)
+    answered_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class DailyCheck(Owned, Base):
+    """A person's daily check for a day (ADR-0053): sleep, soreness and energy, one row per
+    local day, replaced when answered again. Health data: never logged, never shared; rows
+    older than a year are deleted as new ones come in."""
+
+    __tablename__ = "daily_checks"
+    __table_args__ = (
+        UniqueConstraint("user_id", "local_date"),
+        CheckConstraint(_in("sleep", Sleep), name="sleep_valid"),
+        CheckConstraint(_in("soreness", Soreness), name="soreness_valid"),
+        CheckConstraint(_in("energy", Energy), name="energy_valid"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    local_date: Mapped[date] = mapped_column(Date)  # the day in settings.tz
+    sleep: Mapped[str] = mapped_column(String(8))
+    soreness: Mapped[str] = mapped_column(String(8))
+    energy: Mapped[str] = mapped_column(String(8))
     answered_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
