@@ -109,6 +109,21 @@ def fresh_sign_in(request: Request) -> None:
 Fresh = Annotated[None, Depends(fresh_sign_in)]
 
 
+def passkey_proved(request: Request) -> auth.PasskeyProof:
+    """For approving an AI app's access (ADR-0047 C): a passkey proved this browser in the last
+    few minutes, by signing in or confirming (ADR-0049). Stricter than ``Fresh``: a session
+    begun by a bot link or ``/recover`` doesn't count, so Telegram alone can't open a channel."""
+    token = request.cookies.get(COOKIE, "")
+    with session_scope(_shared(request)) as session:
+        proof = auth.passkey_proof(session, token, datetime.now(UTC))
+    if proof is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "confirm it's you with your passkey")
+    return proof
+
+
+PasskeyFresh = Annotated[auth.PasskeyProof, Depends(passkey_proved)]
+
+
 @router.get("/me", response_model=Me)
 def me(user: Owner) -> Me:
     return Me(user_id=user)

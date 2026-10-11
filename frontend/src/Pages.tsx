@@ -1,5 +1,6 @@
 import Account from './Account'
 import BodyPage from './body/BodyPage'
+import ConnectPage from './connect/ConnectPage'
 import HomePage from './home/HomePage'
 import ProgressPage from './progress/ProgressPage'
 import ReadinessPage from './readiness/ReadinessPage'
@@ -23,6 +24,7 @@ export default function Pages() {
   }
   if (window.location.pathname === '/readiness') return <ReadinessPage />
   if (window.location.pathname === '/review') return <ReviewPage />
+  if (window.location.pathname === '/connect') return <ConnectPage />
   if (window.location.pathname === '/') return <HomePage />
   return (
     <p className="status">
