@@ -729,6 +729,25 @@ class AiConnection(Owned, Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
+class AiComment(Owned, Base):
+    """The weekly AI comment as sent (ADR-0056), so the web review can show it: one per week,
+    kept 7 days. Untrusted LLM text, already cleaned (``services.ai_comment.clean``); shown
+    only as plain text, never in a share picture."""
+
+    __tablename__ = "ai_comments"
+    __table_args__ = (
+        UniqueConstraint("user_id", "week"),
+        # ai_comment.LIMIT (1200) plus the " …" a cut comment ends with.
+        CheckConstraint("length(text) BETWEEN 1 AND 1202", name="text_length"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    week: Mapped[date] = mapped_column(Date)  # the Monday of the week it reviewed
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
 # ------------------------------------------- connect my AI (MCP, ADR-0047 C)
 # docs/security/mcp-threat-model.md is the spec. Every secret below (codes, tokens, consent
 # handles) is 32 random bytes handed out once and kept only as its SHA-256.

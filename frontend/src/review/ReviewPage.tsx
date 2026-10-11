@@ -165,11 +165,21 @@ export default function ReviewPage() {
         </Section>
       )}
 
-      {r.ai_comments && (
-        <p className="m-0 text-sm text-[var(--slate)]">
-          The AI comment from your Groq key comes on Telegram with Sunday's review. It isn't kept,
-          so it doesn't show here.
-        </p>
+      {r.ai_comment ? (
+        // Untrusted AI text (ADR-0056): rendered as plain text, never as HTML or markdown.
+        <section className={card + ' flex flex-col gap-2'} aria-label="AI comment">
+          <p className="m-0 text-sm font-semibold text-[var(--slate)]">
+            AI comment (from your Groq key, a suggestion only)
+          </p>
+          <p className="m-0 break-words whitespace-pre-line">{r.ai_comment}</p>
+        </section>
+      ) : (
+        r.ai_comments && (
+          <p className="m-0 text-sm text-[var(--slate)]">
+            The AI comment from your Groq key comes on Telegram with Sunday's review, and shows here
+            for 7 days after.
+          </p>
+        )
       )}
 
       <nav aria-label="Other weeks" className="flex flex-wrap gap-2">

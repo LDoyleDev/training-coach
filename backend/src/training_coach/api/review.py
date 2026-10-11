@@ -1,8 +1,9 @@
 """The weekly review on the web (ux-flow-plan C4): the week the bot sends on Sundays and shows
 on /review, from the same service (D6), and earlier weeks. Owner-only.
 
-The AI comment is not here: it is made once per weekly review, sent on Telegram and never
-stored (ADR-0047, docs/specs/ai-connections.md B), so the page only says where it went."""
+The AI comment is made once per weekly review and sent on Telegram. It is kept 7 days
+(ADR-0056), so for that long the week it reviewed shows it here too; it is untrusted text, sent
+as a plain string for the page to show as text."""
 
 from datetime import UTC, date, datetime, timedelta
 
@@ -17,7 +18,7 @@ from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.queue import local_date
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS
-from training_coach.services import ai_key, review
+from training_coach.services import ai_comment, ai_key, review
 from training_coach.services.review import week_start
 
 router = APIRouter(prefix="/api/review", tags=["review"])
@@ -66,6 +67,7 @@ class ReviewWeekView(BaseModel):
     strength_block: bool
     habits: list[ReviewHabitView]  # empty in a week with no check-off
     ai_comments: bool  # an AI comment goes with Sunday's review on Telegram
+    ai_comment: str | None  # this week's, while kept (7 days) and comments are on; plain text
 
 
 @router.get("", response_model=ReviewWeekView)
@@ -85,6 +87,9 @@ def get_review(
     with session_scope(_bound(request, user)) as session:
         week_review = review.weekly(session, on, settings.tz)
         ai = ai_key.status(session)
+        comment = ai_comment.stored(session, start, datetime.now(UTC))
+    # The same conditions as services.ai_comment.weekly.
+    comments_on = settings.secrets_key is not None and ai.connected and ai.enabled and not ai.failed
     return ReviewWeekView(
         start=start.isoformat(),
         current=current,
@@ -117,9 +122,6 @@ def get_review(
             ReviewHabitView(label=HABIT_LABELS[h.habit], done=h.done, days=h.days)
             for h in week_review.habits
         ],
-        # The same conditions as services.ai_comment.weekly.
-        ai_comments=settings.secrets_key is not None
-        and ai.connected
-        and ai.enabled
-        and not ai.failed,
+        ai_comments=comments_on,
+        ai_comment=comment if comments_on else None,
     )

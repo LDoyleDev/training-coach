@@ -36,6 +36,7 @@ const WEEK: WeekReview = {
   strength_block: false,
   habits: [{ label: 'Wind-down', done: 2, days: 3 }],
   ai_comments: true,
+  ai_comment: null,
 }
 
 function serve(answer: WeekReview | 'signed-out' | 'error' = WEEK, search = '') {
@@ -69,6 +70,7 @@ test('this week so far, as the bot sends it', async () => {
   expect(screen.getByText(/Push-up: you'll be asked after your next session/)).toBeVisible()
   expect(screen.getByText('2 of 3 so far')).toBeInTheDocument()
   expect(screen.getByText(/AI comment from your Groq key comes on Telegram/)).toBeVisible()
+  expect(screen.queryByRole('region', { name: 'AI comment' })).toBeNull()
   expect(screen.getByRole('link', { name: 'Week before' })).toHaveAttribute(
     'href',
     '/review?week=2026-09-28',
@@ -109,6 +111,21 @@ test('an earlier week, a quiet one', async () => {
     '/review?week=2026-10-05',
   )
   expect(screen.getByRole('link', { name: 'This week' })).toHaveAttribute('href', '/review')
+})
+
+test("the week's AI comment shows as plain text under the review", async () => {
+  serve({
+    ...WEEK,
+    ai_comment: 'Good week.\n- Sleep more.\n<b>not bold</b> **not strong** <img src=x>',
+  })
+  render(<ReviewPage />)
+  const comment = await screen.findByRole('region', { name: 'AI comment' })
+  expect(comment).toHaveTextContent('AI comment (from your Groq key, a suggestion only)')
+  expect(comment).toHaveTextContent(
+    'Good week. - Sleep more. <b>not bold</b> **not strong** <img src=x>',
+  )
+  expect(comment.querySelector('b, strong, img')).toBeNull()
+  expect(screen.queryByText(/comes on Telegram/)).toBeNull()
 })
 
 test('ready to move up waits for the hypertrophy block', async () => {

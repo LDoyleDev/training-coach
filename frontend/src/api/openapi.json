@@ -2478,6 +2478,17 @@
       },
       "ReviewWeekView": {
         "properties": {
+          "ai_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Comment"
+          },
           "ai_comments": {
             "title": "Ai Comments",
             "type": "boolean"
@@ -2615,7 +2626,8 @@
           "ready",
           "strength_block",
           "habits",
-          "ai_comments"
+          "ai_comments",
+          "ai_comment"
         ],
         "title": "ReviewWeekView",
         "type": "object"

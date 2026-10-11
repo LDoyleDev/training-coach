@@ -1,6 +1,6 @@
 """The /share progress image (ADR-0050): the last 4 weeks of training as a picture, to forward
 to anyone. It holds sessions done, cardio minutes and where each exercise stands on its
-ladder. Never body measurements, readiness answers, photos or notes.
+ladder. Never body measurements, readiness answers, photos, notes or the AI comment (ADR-0056).
 
 ``facts`` reads the database; ``render`` only draws, so it is tested on its own.
 """

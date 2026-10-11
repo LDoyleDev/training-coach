@@ -1,17 +1,19 @@
 """The /share progress image (ADR-0050)."""
 
 import io
-from datetime import date
+from dataclasses import fields
+from datetime import UTC, date, datetime
 
 from PIL import Image
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Workout
+from training_coach.db.models import AiComment, Workout
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.services import share_card
 from training_coach.services.seed import apply_seed, load_plan
 
 TODAY = date(2026, 10, 11)
+NOW = datetime(2026, 10, 11, 18, 0, tzinfo=UTC)
 
 
 def test_facts_count_the_last_four_weeks_only(session: Session) -> None:
@@ -32,6 +34,17 @@ def test_facts_count_the_last_four_weeks_only(session: Session) -> None:
     assert card.rungs  # the plan's exercises, each on its ladder
     assert all(1 <= r.number <= r.of for r in card.rungs)
     assert len(card.rungs) <= share_card.MAX_EXERCISES
+
+
+def test_the_ai_comment_never_reaches_the_card(session: Session) -> None:
+    """The weekly AI comment is kept for the web review (ADR-0056), never shared."""
+    apply_seed(session, load_plan())
+    session.flush()
+    session.add(AiComment(week=date(2026, 10, 5), text="Sleep more.", created_at=NOW))
+    session.flush()
+    card = share_card.facts(session, TODAY)
+    assert "Sleep more" not in repr(card)
+    assert all(not isinstance(getattr(card, f.name), str) for f in fields(card))
 
 
 def _png(card: share_card.Card) -> Image.Image:
