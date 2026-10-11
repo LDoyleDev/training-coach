@@ -97,7 +97,7 @@ and alerts. The web app becomes the place you work in.
 | --- | --- |
 | D1 **Bottom tabs on phones** (being built, Part 1) | Today, Progress, Tests, Body, More |
 | D2 Fewer pages | Fold Readiness into Today (as a due card) and Plan into Progress |
-| D3 Install as an app (PWA) | A home-screen icon and full screen; no store, no cost |
+| D3 Install as an app (PWA) (built: install button on Account, a one-time hint on Home, offline notice; how to install: `docs/runbooks/deploy.md`) | A home-screen icon and full screen; no store, no cost |
 
 ## Suggested order
 

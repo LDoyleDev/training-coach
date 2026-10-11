@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchHome, type Home } from '../api'
 import AppShell from '../components/AppShell'
 import { RetryCard, SignInCard } from '../components/StateCards'
+import { InstallHint } from '../pwa/InstallApp'
 import { card, primary, secondary } from '../ui'
 import { ago, day } from './logic'
 
@@ -136,6 +137,8 @@ export default function HomePage() {
           <p className="m-0 text-[var(--slate)]">Nothing logged in the last seven days.</p>
         )}
       </section>
+
+      <InstallHint />
 
       <a href="/session" className={primary + ' flex items-center justify-center no-underline'}>
         {today ? `Today: ${today}` : 'Go to today'}

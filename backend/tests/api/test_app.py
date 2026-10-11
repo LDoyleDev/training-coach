@@ -35,6 +35,37 @@ def test_serves_built_dashboard_when_configured(tmp_path: Path) -> None:
         assert client.get("/healthz").json()["status"] == "ok"
 
 
+def test_serves_the_install_files_with_their_types(tmp_path: Path) -> None:
+    """D3: the phone only installs the app with a manifest and a service worker; the worker is
+    revalidated on every visit so a deploy reaches the phone."""
+    (tmp_path / "index.html").write_text("<h1>dashboard</h1>")
+    (tmp_path / "sw.js").write_text("const VERSION = 'abc'")
+    (tmp_path / "manifest.webmanifest").write_text('{"name": "Training Coach"}')
+    settings = Settings(
+        environment="test", database_url="sqlite:///:memory:", web_dist_dir=tmp_path
+    )
+    with TestClient(create_app(settings)) as client:
+        worker = client.get("/sw.js")
+        manifest = client.get("/manifest.webmanifest")
+    assert worker.status_code == 200
+    assert worker.headers["content-type"].startswith("text/javascript")
+    assert worker.headers["cache-control"] == "no-cache"
+    assert worker.text == "const VERSION = 'abc'"
+    assert manifest.headers["content-type"].startswith("application/manifest+json")
+    assert manifest.headers["cache-control"] == "no-cache"
+    assert manifest.json() == {"name": "Training Coach"}
+
+
+def test_a_build_without_install_files_still_serves(tmp_path: Path) -> None:
+    (tmp_path / "index.html").write_text("<h1>dashboard</h1>")
+    settings = Settings(
+        environment="test", database_url="sqlite:///:memory:", web_dist_dir=tmp_path
+    )
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/sw.js").status_code == 404
+        assert "dashboard" in client.get("/").text
+
+
 async def test_backups_start_for_a_database_file_and_stop_cleanly(tmp_path: Path) -> None:
     settings = Settings(environment="test", database_url=f"sqlite:///{tmp_path / 'app.db'}")
     task = _start_backups(settings, notify=None)

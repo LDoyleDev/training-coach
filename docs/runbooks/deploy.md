@@ -50,6 +50,29 @@ services:
 Check after any deploy: `curl -s localhost:8095/healthz` on the Pi and
 `curl -s https://coach.vybe-dev.com/healthz` from anywhere.
 
+## Install on the phone (D3)
+
+The web app installs as a home-screen app; no store, no cost. It needs the https address above.
+
+- **Android (Chrome):** open `https://coach.vybe-dev.com`, sign in, then Account → Install app
+  (or Home's one-time hint, or Chrome's menu → Install app / Add to Home screen).
+- **iPhone (Safari):** Share → Add to Home Screen.
+
+The app opens full screen from the icon and stays signed in like the browser. Everything is
+still loaded from the Pi: the service worker (`/sw.js`, built from `frontend/src/pwa/sw.js`)
+caches only the app's own files, never `/api/*` or sign-in, so with no connection a page says
+it is offline instead of breaking.
+
+**Updates arrive by themselves.** Pages always come from the Pi when there is a connection, so
+the next page you open after a deploy is the new version. Every build also writes a new `sw.js`
+(its version is a hash of the build's files), sent with `Cache-Control: no-cache`; the browser
+notices it on that page, and the new worker takes over at once and replaces the offline copy.
+Nothing to reinstall. If a phone ever looks stuck on an old version, close the app fully and
+open it again.
+
+The icons are `frontend/public/icons/*.png`, drawn by `node frontend/scripts/icons.mjs` from the
+favicon's mark; rerun it and commit the PNGs if the mark changes.
+
 ## Automatic deploys (ADR-0030)
 
 Merging a release PR is the deploy. Its checks don't start on their own: release-please
