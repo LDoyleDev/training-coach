@@ -175,6 +175,46 @@ test('Swap lists the next session first and any other; picking one shows it', as
   expect(sent['POST /api/today/pick']).toEqual([{ template_id: 3, picked_id: 5 }])
 })
 
+test('after a pick, Rest and Push wait: the page offers going back to the planned one', async () => {
+  const sent = serve({
+    'GET /api/session/today': Response.json({
+      session: TORSO,
+      progress: null,
+      planned: { template_id: 3, name: 'Legs' },
+    }),
+    'POST /api/today/pick': changed({ session: 'Legs', today: LEGS_TODAY }),
+  })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Change today' }))
+  expect(
+    screen.getByText('You picked Torso + neck for today. Legs is still next in the plan.'),
+  ).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Rest today' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Push to tomorrow' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Swap session' })).toBeInTheDocument()
+  click('Back to Legs')
+  expect(await screen.findByRole('heading', { name: 'Legs' })).toBeInTheDocument()
+  expect(screen.getByRole('status')).toHaveTextContent('Back to Legs for today.')
+  expect(sent['POST /api/today/pick']).toEqual([{ template_id: 5, picked_id: 3 }])
+  // Back on the planned session, Rest and Push are offered again.
+  fireEvent.click(screen.getByRole('button', { name: 'Change today' }))
+  expect(screen.getByRole('button', { name: 'Rest today' })).toBeInTheDocument()
+})
+
+test('Close folds the after-a-pick actions away', async () => {
+  serve({
+    'GET /api/session/today': Response.json({
+      session: TORSO,
+      progress: null,
+      planned: { template_id: 3, name: 'Legs' },
+    }),
+  })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Change today' }))
+  click('Close')
+  expect(screen.getByRole('button', { name: 'Change today' })).toBeInTheDocument()
+})
+
 test('doing the next one first swaps the queue', async () => {
   const sent = serve({
     'GET /api/today/choices': Response.json({ ...CHOICES, next: CHOICES.next }),

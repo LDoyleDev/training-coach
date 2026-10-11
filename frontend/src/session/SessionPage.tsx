@@ -9,6 +9,7 @@ import {
   SignedOutError,
   type Guided,
   type Pending,
+  type Queued,
   type Saved,
   type TestDayDue,
   type TodayView,
@@ -76,6 +77,7 @@ export default function SessionPage() {
   const [undoOffer, setUndoOffer] = useState<UndoOffer | null | undefined>(undefined)
   const [undoKey, setUndoKey] = useState(0)
   const [cardioSaved, setCardioSaved] = useState(false) // its own screen offers Undo then
+  const [planned, setPlanned] = useState<Queued | null>(null) // still next, after a pick
 
   const running = watchFrom !== null
   const resting = stage === 'rest'
@@ -123,6 +125,7 @@ export default function SessionPage() {
   const show = useCallback((today: TodayView) => {
     setTestDay(today.test_day ?? null)
     setReadinessNote(today.readiness_note ?? null)
+    setPlanned(today.planned ?? null)
     // An empty order can't be guided; treat it like nothing planned.
     if (!today.session || today.session.order.length === 0) return setLoaded({ status: 'none' })
     setLoaded({ status: 'ready', session: today.session })
@@ -356,6 +359,7 @@ export default function SessionPage() {
               key={session.template_id}
               templateId={session.template_id}
               name={session.name}
+              planned={planned}
               onChanged={(result, text) => changed(result.today, text, result.undo)}
               onStale={stale}
             />

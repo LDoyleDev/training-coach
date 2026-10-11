@@ -135,12 +135,28 @@ def test_picking_another_session_shows_it_and_keeps_the_queue(
     assert next_after_pick.status_code == 200
 
 
-def test_rest_after_a_pick_rests_the_planned_session(signed_in: TestClient, engine: Engine) -> None:
+@pytest.mark.parametrize("path", ["/api/today/rest", "/api/today/push", "/api/today/next"])
+def test_rest_push_or_next_after_a_pick_change_nothing(
+    signed_in: TestClient, engine: Engine, path: str
+) -> None:
+    """They act on the queue's session, which isn't the one on screen after a pick: refused,
+    and today says which session is still planned so the page can offer going back."""
     ids = _ids(engine)
     signed_in.post("/api/today/pick", json={"template_id": ids["legs"], "picked_id": ids["hiit"]})
-    body = signed_in.post("/api/today/rest", json={"template_id": ids["hiit"]}).json()
-    assert body["session"] == "Legs"
-    assert body["today"]["session"] is None
+    today = signed_in.get("/api/session/today").json()
+    assert today["session"]["template_id"] == ids["hiit"]
+    assert today["planned"] == {"template_id": ids["legs"], "name": "Legs"}
+
+    answer = signed_in.post(path, json={"template_id": ids["hiit"]})
+    assert answer.status_code == 409
+    assert answer.json()["detail"].startswith("another session is picked for today")
+    assert _workouts(engine) == []
+    assert _pointer(engine) == ids["legs"]
+    assert signed_in.get("/api/session/today").json()["session"]["template_id"] == ids["hiit"]
+
+
+def test_today_names_no_planned_session_without_a_pick(signed_in: TestClient) -> None:
+    assert signed_in.get("/api/session/today").json()["planned"] is None
 
 
 @pytest.mark.parametrize("path", ["/api/today/rest", "/api/today/push", "/api/today/next"])

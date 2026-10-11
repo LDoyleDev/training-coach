@@ -61,6 +61,22 @@ def test_nothing_to_guide_once_today_is_held_for_tomorrow(session: Session) -> N
     assert guided.today(seeded, date(2026, 10, 13), BERLIN) is not None  # it waits a day
 
 
+def test_a_skipped_row_for_another_session_does_not_blank_the_day(session: Session) -> None:
+    """Only a hold of the queue's own session counts: an extra or another session's skipped
+    row (an import, an old hold before a swap) leaves today's session to guide."""
+    seeded = _seeded(session)
+    plan = guided.today(seeded, DAY, BERLIN)
+    assert plan is not None
+    other = seeded.scalars(select(SessionTemplate).where(SessionTemplate.slug == "zone2")).one()
+    seeded.add(Workout(local_date=DAY, template_id=None, status=WorkoutStatus.SKIPPED))
+    seeded.add(Workout(local_date=DAY, template_id=other.id, status=WorkoutStatus.SKIPPED))
+    seeded.flush()
+    assert not guided.held_today(seeded, DAY)
+    found = guided.today(seeded, DAY, BERLIN)
+    assert found is not None
+    assert found.template_id == plan.template_id
+
+
 def test_a_cardio_session_has_no_warm_up_and_counts_its_minutes(session: Session) -> None:
     seeded = _seeded(session)
     zone2 = seeded.scalars(select(SessionTemplate).where(SessionTemplate.slug == "zone2")).one()

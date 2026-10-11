@@ -24,6 +24,7 @@ from training_coach.services.today import position
 router = APIRouter(prefix="/api/today", tags=["today"])
 
 STALE = "today's session has changed"
+PICKED = "another session is picked for today: go back to the planned one to change it"
 REFUSED = {
     undo.NOTHING: "Nothing to undo. You can undo the last rest day, swap, push or saved log.",
     undo.TOO_OLD: "The last change was more than a day ago, so it can't be undone.",
@@ -96,12 +97,21 @@ def _offer(session: Session) -> UndoOfferView | None:
     return UndoOfferView(event_id=found.event_id, what=found.what)
 
 
-def _planned(session: Session, on: date, settings: Settings, shown: int) -> int | None:
-    """The queue's planned session, while today's is still the one the browser shows."""
+def _planned(
+    session: Session, on: date, settings: Settings, shown: int, *, picked: bool = False
+) -> int | None:
+    """The queue's planned session, while today's is still the one the browser shows.
+
+    Rest, Push and "next first" act on the queue's session, so they refuse while the page
+    shows another one picked for today (``picked`` allows it, for picking again): the page
+    offers "Back to <planned>" instead, and the change never names a session not on screen.
+    """
     plan = guided.today(session, on, settings.tz)
     current = position(session)
     if plan is None or plan.template_id != shown or current is None:
         return None
+    if not picked and current.pointer != shown:
+        raise HTTPException(status.HTTP_409_CONFLICT, PICKED)
     return current.pointer
 
 
@@ -166,7 +176,7 @@ def next_first(body: ChangeBody, request: Request, user: Owner) -> ChangedView:
         planned = _planned(session, on, settings, body.template_id)
         swapped = (
             queue_actions.swap_next(session, planned, blocks.current(session, on, settings.tz))
-            if planned == body.template_id  # not after a pick: that session isn't the queue's
+            if planned is not None
             else None
         )
         if swapped is None:
@@ -179,7 +189,7 @@ def pick(body: PickBody, request: Request, user: Owner) -> ChangedView:
     """Do another session today; the planned one is still next (ADR-0022)."""
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
-        planned = _planned(session, on, settings, body.template_id)
+        planned = _planned(session, on, settings, body.template_id, picked=True)
         block = blocks.current(session, on, settings.tz)
         picked = (
             queue_actions.pick(session, planned, body.picked_id, block)

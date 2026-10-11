@@ -6,35 +6,44 @@ import {
   SignedOutError,
   type Changed,
   type Choices,
+  type Queued,
   type TodayChange,
 } from '../api'
 import SignedOutNotice from '../components/SignedOutNotice'
 import { actions, card, secondary, small } from '../ui'
 
 /** What a change did, in the words the bot uses for the same buttons. */
-function changedText(change: TodayChange | 'pick', result: Changed, shown: string): string {
+function changedText(
+  change: TodayChange | 'pick' | 'back',
+  result: Changed,
+  shown: string,
+): string {
   const name = result.session
   if (change === 'rest' && result.advanced) return `${name} logged as a rest day. Enjoy it.`
   if (change === 'rest')
     return `Rest today. ${name} moves to tomorrow and the rest of the week shifts a day.`
   if (change === 'push') return `${name} moves to tomorrow and the rest of the week shifts a day.`
   if (change === 'next') return `${name} today. ${shown} moves to tomorrow.`
+  if (change === 'back') return `Back to ${name} for today.`
   return `${name} today. The plan's next session stays next.`
 }
 
 /**
  * "Change today" (ux-flow-plan C2): Rest today, Swap or Push to tomorrow for the session the
  * page shows, the same as the morning message's buttons. One tap opens it; the page updates
- * in place with what the server answers.
+ * in place with what the server answers. After "pick another", ``planned`` is the queue's
+ * session: Rest and Push act on that one, so they wait until the page goes back to it.
  */
 export default function ChangeToday({
   templateId,
   name,
+  planned = null,
   onChanged,
   onStale,
 }: {
   templateId: number
   name: string
+  planned?: Queued | null
   onChanged: (result: Changed, text: string) => void
   onStale: () => void
 }) {
@@ -44,7 +53,10 @@ export default function ChangeToday({
   const [note, setNote] = useState<string | null>(null)
   const [signedOut, setSignedOut] = useState(false)
 
-  const run = async (change: TodayChange | 'pick', send: () => Promise<Changed | 'stale'>) => {
+  const run = async (
+    change: TodayChange | 'pick' | 'back',
+    send: () => Promise<Changed | 'stale'>,
+  ) => {
     if (busy) return
     setBusy(true)
     setNote(null)
@@ -97,7 +109,33 @@ export default function ChangeToday({
         </p>
       )}
       {signedOut && <SignedOutNotice />}
-      {choices === null ? (
+      {choices === null && planned ? (
+        <>
+          <p className="m-0">
+            You picked {name} for today. {planned.name} is still next in the plan.
+          </p>
+          <div className={actions}>
+            <button
+              type="button"
+              className={small}
+              disabled={busy}
+              onClick={() => run('back', () => pickToday(templateId, planned.template_id))}
+            >
+              Back to {planned.name}
+            </button>
+            <button type="button" className={small} disabled={busy} onClick={swap}>
+              Swap session
+            </button>
+          </div>
+          <button
+            type="button"
+            className="min-h-11 font-bold text-[var(--bell-ink)] underline"
+            onClick={() => setOpen(false)}
+          >
+            Close
+          </button>
+        </>
+      ) : choices === null ? (
         <>
           <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
             <button

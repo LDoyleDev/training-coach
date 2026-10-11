@@ -1342,6 +1342,24 @@
         "title": "QuestionView",
         "type": "object"
       },
+      "QueuedView": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "name"
+        ],
+        "title": "QueuedView",
+        "type": "object"
+      },
       "ReadinessSavedView": {
         "properties": {
           "status": {
@@ -2051,6 +2069,16 @@
       "TodayView": {
         "description": "``session`` is empty when nothing planned is left today (done or rested); ``progress``\nis where the person left off, to resume.",
         "properties": {
+          "planned": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QueuedView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "progress": {
             "anyOf": [
               {

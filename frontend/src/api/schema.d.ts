@@ -1393,6 +1393,13 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** QueuedView */
+        QueuedView: {
+            /** Name */
+            name: string;
+            /** Template Id */
+            template_id: number;
+        };
         /** ReadinessSavedView */
         ReadinessSavedView: {
             /**
@@ -1658,6 +1665,7 @@ export interface components {
          *     is where the person left off, to resume.
          */
         TodayView: {
+            planned?: components["schemas"]["QueuedView"] | null;
             progress?: components["schemas"]["ProgressView"] | null;
             /** Readiness Note */
             readiness_note?: string | null;

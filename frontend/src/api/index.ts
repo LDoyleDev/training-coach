@@ -272,6 +272,7 @@ export async function logCardio(body: CardioLog): Promise<CardioLogged | 'stale'
 
 export type Changed = Schemas['ChangedView']
 export type Choices = Schemas['ChoicesView']
+export type Queued = Schemas['QueuedView']
 export type UndoOffer = Schemas['UndoOfferView']
 export type UndoState = Schemas['UndoView']
 export type Undone = Schemas['UndoneView']

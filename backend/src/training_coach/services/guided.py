@@ -22,7 +22,7 @@ from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.parser import LIMITS, Entry
 from training_coach.domain.work_order import work_order
 from training_coach.services import blocks, workout_log
-from training_coach.services.today import ItemPlan, session_plan
+from training_coach.services.today import ItemPlan, position, session_plan
 
 REST_SECONDS = 60  # after each set, adjustable during the rest (D1)
 WARM_UP_MINUTES = 10
@@ -99,9 +99,16 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
 
 
 def held_today(session: Session, on: date) -> bool:
-    """A session was held for tomorrow today (Rest today or Push, ADR-0006): no training today."""
+    """The queue's session was held for tomorrow today (Rest today or Push, ADR-0006): no
+    training today. Only a hold of the session the queue still points at counts (a hold leaves
+    the pointer on it), so a skipped row for any other session can't blank the day."""
+    current = position(session)
+    if current is None:
+        return False
     query = select(Workout.id).where(
-        Workout.local_date == on, Workout.status == WorkoutStatus.SKIPPED
+        Workout.local_date == on,
+        Workout.status == WorkoutStatus.SKIPPED,
+        Workout.template_id == current.pointer,
     )
     return session.scalar(query.limit(1)) is not None
 

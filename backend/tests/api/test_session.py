@@ -84,6 +84,7 @@ def test_nothing_to_guide_once_today_is_done(signed_in: TestClient, engine: Engi
         bound.add(Workout(local_date=today, template_id=template, status=WorkoutStatus.REST))
     assert signed_in.get("/api/session/today").json() == {
         "session": None,
+        "planned": None,
         "progress": None,
         "test_day": None,
         "readiness_note": None,
@@ -184,6 +185,7 @@ def test_saving_logs_the_sets_once_and_moves_the_queue(
     assert again.json()["workout_id"] == body["workout_id"]
     assert _today_view(signed_in) == {
         "session": None,
+        "planned": None,
         "progress": None,
         "test_day": None,
         "readiness_note": None,
