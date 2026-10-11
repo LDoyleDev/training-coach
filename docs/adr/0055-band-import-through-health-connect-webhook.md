@@ -153,10 +153,12 @@ and erasing everything removes them by the `user_id` cascade.
 
 - Home and Progress show last night's sleep, today's and yesterday's steps and the resting
   heart rate (against the usual one) small, and the weight lands in Body by itself.
-- The daily check (ADR-0053) pre-selects the sleep answer from last night's imported sleep
-  (7 hours or more: good; 6 to 7: OK; less: poorly). On the web Liam still taps to confirm;
-  in the morning Telegram message the answer comes ticked under "Your band: 7 h 20 min asleep
-  last night." and another tap changes it.
+- The daily check (ADR-0053) suggests the sleep answer from last night's imported sleep
+  (7 hours or more: good; 6 to 7: OK; less: poorly), but the answer is always Liam's own tap:
+  the web highlights the suggestion and asks to confirm, and the morning Telegram message says
+  "Your band: 7 h 20 min asleep last night. That looks like "Slept well": tap it if it's
+  right." with nothing ticked. The advice depends on it, so a band estimate never counts
+  without a tap.
 
 ## Options considered
 

@@ -113,11 +113,14 @@ async def test_the_morning_message_says_what_the_band_saw(seeded: Sessions) -> N
         )
         session.commit()
     sent = await _morning(seeded)
-    assert str(sent["text"]).endswith(f"{daily_ui.ASK}\nYour band: 7 h 20 min asleep last night.")
-    # and "Slept well" comes ticked; the other rows still need a tap
+    assert str(sent["text"]).endswith(
+        f"{daily_ui.ASK}\nYour band: 7 h 20 min asleep last night. "
+        'That looks like "Slept well": tap it if it\'s right.'
+    )
+    # Review of #228: nothing comes ticked, so tapping only soreness and energy can't save the
+    # band's guess as the sleep answer; the sleep row needs its own tap, as on the web.
     keyboard = sent["reply_markup"].inline_keyboard  # type: ignore[attr-defined]  # an InlineKeyboardMarkup
-    ticked = [b.text for row in keyboard for b in row if b.text.startswith("✓")]
-    assert ticked == ["✓ Slept well"]
+    assert not [b.text for row in keyboard for b in row if b.text.startswith("✓")]
 
 
 async def test_a_tap_marks_it_and_keeps_the_other_buttons(

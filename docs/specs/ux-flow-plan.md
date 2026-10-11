@@ -152,5 +152,5 @@ and alerts. The web app becomes the place you work in.
 - **A4 import from the band: built** (ADR-0055). Health Connect Webhook on the phone posts to
   `/api/ingest/health-connect`; band workouts are offered on Today and in Telegram to count
   with one tap; sleep, steps and resting heart rate show on Home and Progress; the scale's
-  weight goes into Body; the daily check pre-selects the sleep answer from last night (web and
-  Telegram). Phone setup: `docs/runbooks/band-import.md`.
+  weight goes into Body; the daily check suggests the sleep answer from last night, still one tap
+  to confirm (web and Telegram). Phone setup: `docs/runbooks/band-import.md`.

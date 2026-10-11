@@ -270,10 +270,11 @@ class Handlers:
             return
         if markup is not None and not checked:  # the daily check, until answered (ADR-0053)
             text = f"{text}\n\n{daily_ui.ASK}"
-            if band is not None:  # what the band saw, for the sleep row (ADR-0055)
+            if band is not None:  # what the band saw, as words only: the tap is theirs (ADR-0055)
                 text = f"{text}\n{band}"
-            sleep = suggested[0] if suggested is not None else None
-            markup = daily_ui.with_check(markup, on, sleep)
+                if suggested is not None:
+                    text = f"{text} {daily_ui.suggestion(suggested[0])}"
+            markup = daily_ui.with_check(markup, on)
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
         if await send_with_retry(
             context.bot, self.settings.telegram_allowed_user_id, text, reply_markup=markup

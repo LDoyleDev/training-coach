@@ -97,19 +97,23 @@ def rows(tap: Tap) -> list[list[InlineKeyboardButton]]:
     return out
 
 
-def ask(day: date, sleep: Sleep | None = None) -> list[list[InlineKeyboardButton]]:
-    """The rows for a fresh morning message; ``sleep`` comes ticked when the band suggests it
-    (ADR-0055), and another tap changes it."""
-    return rows(Tap(day, (sleep.value if sleep is not None else None, None, None)))
+def ask(day: date) -> list[list[InlineKeyboardButton]]:
+    """The rows for a fresh morning message, none ticked: even with the band's night, the sleep
+    answer is the person's own tap (ADR-0055), as on the web."""
+    return rows(Tap(day, (None, None, None)))
 
 
-def with_check(
-    markup: InlineKeyboardMarkup, day: date, sleep: Sleep | None = None
-) -> InlineKeyboardMarkup:
+def suggestion(sleep: Sleep) -> str:
+    """The band's guess as words, e.g. 'that looks like "Slept well"'; never a tick."""
+    label = dict(LABELS[0])[sleep]
+    return f'That looks like "{label}": tap it if it\'s right.'
+
+
+def with_check(markup: InlineKeyboardMarkup, day: date) -> InlineKeyboardMarkup:
     """``markup`` with the check's rows added, above an "Open in app" row if there is one."""
     rows = [list(row) for row in markup.inline_keyboard]
     at = len(rows) - 1 if rows and rows[-1][0].url is not None else len(rows)
-    return InlineKeyboardMarkup([*rows[:at], *ask(day, sleep), *rows[at:]])
+    return InlineKeyboardMarkup([*rows[:at], *ask(day), *rows[at:]])
 
 
 def _complete(tap: Tap) -> Answers | None:
