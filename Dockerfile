@@ -31,6 +31,8 @@ RUN groupadd --system --gid 10001 app \
 WORKDIR /app
 COPY --from=deps --chown=app:app /app /app
 COPY --from=web --chown=app:app /web/dist /app/web
+# The guide get_guide serves to a connected AI (ADR-0047 C), found by walking up from the code.
+COPY --chown=app:app docs/ai-guide.md /app/docs/ai-guide.md
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     TC_ENVIRONMENT=production \

@@ -1,7 +1,9 @@
 # AI connections: bring your own intelligence
 
 Status: **agreed 2026-10-10** (ADR-0047): the order below, Groq only for B, and an editable
-prompt in A. Built: A (#187); B with the weekly comment (morning comments not yet).
+prompt in A. Built: A (#187); B with the weekly comment (morning comments not yet); C1, read-only MCP
+(#218, #221, #222 and the Account page PR; ADR-0054, runbook `docs/runbooks/connect-my-ai.md`). C2
+(`log:propose`) not yet.
 
 This widens phase 3's "MCP endpoint for Claude": each person connects **their own** AI, so
 nobody runs on Liam's Claude subscription or Groq quota.
@@ -109,15 +111,16 @@ apps can register themselves, and resource indicators (RFC 8707) so tokens only 
 **Tokens and limits**
 - Access tokens 1 hour, refresh tokens 30 days and rotating (a reused refresh token revokes the
   whole connection), both stored hashed like sign-in links; bound to one person and one client.
-- Redirect URIs must match exactly what the client registered; https only (localhost for
-  desktop apps). The consent page sets `frame-ancestors 'none'` (no clickjacking).
+- Redirect URIs must match exactly what the client registered; https only (no localhost for now:
+  threat model, decision 1). The consent page sets `frame-ancestors 'none'` (no clickjacking).
 - Per connection: 60 requests a minute, answers capped in size; Cloudflare rate limit on `/mcp`
-  and `/oauth/*` like `/api/auth/*`. Every call is an event (tool, time, no data) on the
-  Account page.
+  and `/oauth/*` like `/api/auth/*`. Every call is an event (tool, outcome, no data); the
+  Account page shows when each connection was last used.
 - Dynamic registration is open (the spec expects it), but bounded: at most 20 pending (not yet
   approved) registrations overall and 3 per client address, metadata capped (name 60
-  characters, at most 5 redirect URIs of 200 characters, https or localhost only), and
-  unapproved registrations expire after a day. A registered client can do nothing until a
+  characters, at most 5 redirect URIs of 200 characters, https only), and
+  unapproved registrations expire after 15 minutes (the threat model's numbers are the
+  binding ones). A registered client can do nothing until a
   person approves it with their passkey.
 - **The client's name is the client's own claim.** Anyone can register a client called
   "Claude". The consent page shows the name as untrusted ("calls itself ...") next to the
