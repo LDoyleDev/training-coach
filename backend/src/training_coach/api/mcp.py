@@ -87,7 +87,7 @@ async def mcp(request: Request, access: Connection) -> Response:
         return JSONResponse({"detail": "unsupported MCP-Protocol-Version"}, 400, NO_STORE)
     try:
         message = json.loads(await request.body())
-    except ValueError:
+    except (ValueError, RecursionError):  # deep nesting fits under the body cap
         return JSONResponse(mcp_server.parse_error(), 400, NO_STORE)
     settings: Settings = request.app.state.settings
     today = local_date(datetime.now(UTC), settings.tz)

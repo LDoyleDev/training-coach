@@ -140,9 +140,9 @@ def test_calls_without_a_token_are_limited_per_address(client: TestClient) -> No
     for _ in range(30):
         rpc(client, None, "ping", headers={"cf-connecting-ip": "192.0.2.9"})
     assert rpc(client, None, "ping", headers={"cf-connecting-ip": "192.0.2.9"}).status_code == 429
-    assert (
-        rpc(client, "made-up", "ping", headers={"cf-connecting-ip": "192.0.2.9"}).status_code == 429
-    )
+    limited = rpc(client, "made-up", "ping", headers={"cf-connecting-ip": "192.0.2.9"})
+    assert limited.status_code == 429
+    assert limited.headers["cache-control"] == "no-store"
 
 
 def test_the_body_cap_holds(client: TestClient, engine: Engine) -> None:
@@ -379,3 +379,15 @@ def test_the_app_without_a_public_url_has_no_mcp(engine: Engine) -> None:
     settings = Settings(environment="test", database_url=str(engine.url))
     with TestClient(create_app(settings), base_url=ORIGIN) as bare:
         assert bare.post("/mcp", json={}).status_code == 404
+
+
+def test_deeply_nested_json_is_a_parse_error_not_a_crash(
+    client: TestClient, engine: Engine
+) -> None:
+    auth = {"authorization": f"Bearer {flow.mint(engine, ['training:read'])}"}
+    nested = b"[" * 60_000  # under the 64 KB cap, deeper than the JSON parser recurses
+    answer = client.post(
+        "/mcp", content=nested, headers=auth | {"content-type": "application/json"}
+    )
+    assert answer.status_code == 400
+    assert answer.json()["error"]["code"] == -32700
