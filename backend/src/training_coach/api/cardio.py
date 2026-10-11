@@ -53,7 +53,7 @@ class LoggedView(BaseModel):
     week: WeekView
 
 
-def _week(found: cardio.Week) -> WeekView:
+def week_view(found: cardio.Week) -> WeekView:
     target = list(found.zone2_target) if found.zone2_target is not None else None
     return WeekView(zone2=found.zone2, moderate=found.moderate, zone2_target=target)
 
@@ -68,7 +68,7 @@ def options(request: Request, user: Owner) -> OptionsView:
     return OptionsView(
         planned=PlannedView.model_validate(vars(planned)) if planned is not None else None,
         activities=list(CardioActivity),
-        week=_week(week),
+        week=week_view(week),
     )
 
 
@@ -90,5 +90,5 @@ def log(body: LogBody, request: Request, user: Owner) -> LoggedView:
             already_saved=result.saved.already_saved,
             planned=result.planned,
             next_session=workout_log.next_session_name(session),
-            week=_week(cardio.week(session, on)),
+            week=week_view(cardio.week(session, on)),
         )

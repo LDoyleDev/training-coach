@@ -1,6 +1,8 @@
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from training_coach.domain import health
 from training_coach.domain.enums import CardioActivity
 from training_coach.domain.health import Minute, SleepMinutes
@@ -72,3 +74,33 @@ def test_believable_times() -> None:
     assert not health.within(T - timedelta(days=31), T, back, ahead)
     assert health.within(T + timedelta(minutes=9), T, back, ahead)
     assert not health.within(T + timedelta(minutes=11), T, back, ahead)
+
+
+@pytest.mark.parametrize(
+    ("activity", "minutes", "zones", "expected"),
+    [
+        (CardioActivity.WALK, 46, [8, 38, 0, 0, 0], ("zone2", 38)),  # its zone 2 minutes
+        (CardioActivity.RUN, 32, [0, 6, 20, 6, 0], ("moderate-cardio", 32)),  # zones 3-5 win
+        (CardioActivity.BIKE, 40, [0, 10, 10, 0, 0], ("zone2", 10)),  # a tie is zone 2
+        (CardioActivity.WALK, 30, None, ("zone2", 30)),  # no heart rate
+        (CardioActivity.RUN, 25, None, ("moderate-cardio", 25)),
+        (CardioActivity.STAIRS, 12, None, ("moderate-cardio", 12)),
+        (CardioActivity.WALK, 40, [36, 4, 0, 0, 0], None),  # under 5 minutes of zone 2
+    ],
+)
+def test_what_a_band_workout_counts_as(
+    activity: CardioActivity,
+    minutes: int,
+    zones: list[int] | None,
+    expected: tuple[str, int] | None,
+) -> None:
+    assert health.counted_as(activity, minutes, zones) == expected
+
+
+def test_the_question() -> None:
+    walk = CardioActivity.WALK
+    assert health.offer_text(walk, 46, [8, 38, 0, 0, 0]) == "Walk, 46 min, 38 in zone 2 - count it?"
+    assert health.offer_text(CardioActivity.RUN, 32, [0, 6, 20, 6, 0]) == (
+        "Run, 32 min, 26 in zones 3-5 - count it?"
+    )
+    assert health.offer_text(CardioActivity.OTHER, 20, None) == "Cardio, 20 min - count it?"
