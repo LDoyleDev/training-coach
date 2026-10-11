@@ -17,6 +17,7 @@ test('the nav links every signed-in page and marks the one shown', () => {
   const nav = screen.getByRole('navigation', { name: 'Pages' })
   const links = [...nav.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('href')])
   expect(links).toEqual([
+    ['Home', '/'],
     ['Today', '/session'],
     ['Progress', '/progress'],
     ['Plan', '/plan'],
@@ -27,6 +28,9 @@ test('the nav links every signed-in page and marks the one shown', () => {
   expect(screen.getByRole('link', { name: 'Tests' })).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('link', { name: 'Body' })).not.toHaveAttribute('aria-current')
   expect(screen.getByRole('link', { name: 'Training Coach' })).toHaveAttribute('href', '/')
+  // Six tabs fit a phone: Plan shows from 640px up, and Home links to it.
+  expect(screen.getByRole('link', { name: 'Plan' }).closest('li')).toHaveClass('hidden', 'sm:block')
+  expect(screen.getByRole('link', { name: 'Home' }).closest('li')).not.toHaveClass('hidden')
   expect(screen.getByText('content')).toBeInTheDocument()
 })
 
