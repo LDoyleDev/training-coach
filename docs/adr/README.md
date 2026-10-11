@@ -60,3 +60,4 @@ Code). Template: [template.md](template.md).
 | [0053](0053-daily-check-before-training.md) | A daily check before training: sleep, soreness, energy | Accepted |
 | [0054](0054-connect-my-ai-built-in.md) | Connect my AI with a hand-written MCP and OAuth server in the app | Proposed |
 | [0055](0055-band-import-through-health-connect-webhook.md) | Band data through Health Connect Webhook | Accepted |
+| [0056](0056-keep-the-weekly-ai-comment-7-days.md) | Keep the weekly AI comment 7 days, for the web review | Accepted |

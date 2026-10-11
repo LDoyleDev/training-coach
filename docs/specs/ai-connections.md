@@ -70,8 +70,11 @@ AI's history (their choice, said on the button).
 - The Pi calls Groq with the person's key, a fixed system prompt (`backend/src/training_coach/prompts/weekly_comment.md`,
   versioned) that includes the guide's rules, and the same compact summary as A.
 - Output is untrusted text: length-capped, shown as "AI comment (from your Groq key)", never
-  acted on, never stored as data, links removed. One call per weekly review (the last 4
-  weeks); at most one per morning if morning comments are added.
+  acted on, links removed. One call per weekly review (the last 4 weeks); at most one per
+  morning if morning comments are added.
+- The weekly comment is kept **7 days** (ADR-0056), per person with its week, so `/review`
+  shows it under that week's review as plain text (never HTML or markdown); deleted after
+  7 days and on erase, in the export, never on a share picture. The page never makes a call.
 - If the key fails (revoked, quota), the comment is skipped and the person told once.
 
 Pros: automatic; free for the person on Groq's free tier; small change on our side.

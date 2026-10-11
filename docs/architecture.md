@@ -34,7 +34,8 @@ flowchart LR
 - **Weekly review and AI comment** (ADR-0047): JobQueue (Sunday) -> review text -> sent; then,
   if the person stored a Groq key, `services/ai_comment` opens it (`secret_box`, under
   `TC_SECRETS_KEY`), sends the 4-week `ai_summary` to Groq with their key, cleans the answer
-  and sends it labelled. Untrusted text: never stored or acted on.
+  and sends it labelled. Untrusted text: never acted on; kept 7 days in `ai_comments` for the
+  web review (ADR-0056), where it is shown as plain text.
 - **Share** (ADR-0050): `/share` -> `services/share_card` reads the last 4 weeks and draws a PNG
   (Pillow) -> sent as a photo. No public route.
 - **Undo** (ADR-0048): `/undo` -> `services/undo` finds the last rest, push, swap or log event,

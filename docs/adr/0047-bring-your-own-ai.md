@@ -17,6 +17,7 @@ Three optional ways, all off by default, detailed in `docs/specs/ai-connections.
 
 - **Copy for my AI**: a compact summary to paste, linking a public guide in this repo.
 - **Comments from my key**: the person's own Groq key, encrypted at rest, for short comments.
+  The weekly comment is kept 7 days for the web review (ADR-0056, amending this decision).
 - **Connect my AI**: a remote MCP server with OAuth 2.1, passkey consent, scoped read access,
   and log proposals the person confirms.
 
