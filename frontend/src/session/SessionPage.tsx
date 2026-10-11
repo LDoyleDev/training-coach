@@ -574,7 +574,10 @@ export default function SessionPage() {
             >
               See my progress
             </a>
-            <a href="/plan" className={`${secondary} inline-flex items-center no-underline`}>
+            <a
+              href="/progress?tab=plan"
+              className={`${secondary} inline-flex items-center no-underline`}
+            >
               The week ahead
             </a>
           </div>
@@ -617,7 +620,10 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
           <a href="/progress" className={`${primaryInline} inline-flex items-center no-underline`}>
             See my progress
           </a>
-          <a href="/plan" className={`${secondary} inline-flex items-center no-underline`}>
+          <a
+            href="/progress?tab=plan"
+            className={`${secondary} inline-flex items-center no-underline`}
+          >
             The week ahead
           </a>
         </div>
