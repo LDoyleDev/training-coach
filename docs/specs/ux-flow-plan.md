@@ -85,7 +85,7 @@ only, and A4 later as the default with A1 as the fallback. After saving a cardio
 | C2 Rest today, Swap and Push on the web (built: "Change today" on the session page, the same queue services as the bot, ADR-0052) | M |
 | C3 Undo on the web (built: "Undo: <what>" with a confirm tap after a change or a saved log, ADR-0052) | S |
 | C4 The weekly review on the web, with the AI comment under it | M |
-| C5 Habits on the web (tick today's habits on Today) | M |
+| C5 Habits on the web (built: "Habits today" on the session page, one tap ticks and another unticks, with what counts and days done this week; `/api/habits` on the bot's habit service, so a tick shows on both) | M |
 | C6 Settings on the web (built: "Messages and settings" on Account: message times, nudge and habit buttons on/off, protein target, training blocks, pause, with the bot's rules; a new time moves the bot's messages at once; `/api/settings`) | M |
 
 Telegram would then be for what it does best: the morning nudge, quick voice and text logs,

@@ -670,6 +670,86 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "Habit": {
+        "enum": [
+          "morning_light",
+          "protein",
+          "wind_down"
+        ],
+        "title": "Habit",
+        "type": "string"
+      },
+      "HabitMark": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "done"
+        ],
+        "title": "HabitMark",
+        "type": "object"
+      },
+      "HabitView": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "hint": {
+            "title": "Hint",
+            "type": "string"
+          },
+          "key": {
+            "$ref": "#/components/schemas/Habit"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "week_done": {
+            "title": "Week Done",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "hint",
+          "done",
+          "week_done"
+        ],
+        "title": "HabitView",
+        "type": "object"
+      },
+      "HabitsView": {
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "habits": {
+            "items": {
+              "$ref": "#/components/schemas/HabitView"
+            },
+            "title": "Habits",
+            "type": "array"
+          },
+          "week_days": {
+            "title": "Week Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "week_days",
+          "habits"
+        ],
+        "title": "HabitsView",
+        "type": "object"
+      },
       "Health": {
         "properties": {
           "bot_enabled": {
@@ -3540,6 +3620,79 @@
         "summary": "Put Daily Check",
         "tags": [
           "daily check"
+        ]
+      }
+    },
+    "/api/habits": {
+      "get": {
+        "operationId": "get_habits_api_habits_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HabitsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Habits",
+        "tags": [
+          "habits"
+        ]
+      }
+    },
+    "/api/habits/{habit}": {
+      "put": {
+        "description": "Tick or untick a habit for today. Repeating the same tap changes nothing.",
+        "operationId": "put_habit_api_habits__habit__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "habit",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Habit"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HabitMark"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HabitsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Habit",
+        "tags": [
+          "habits"
         ]
       }
     },

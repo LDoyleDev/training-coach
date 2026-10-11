@@ -33,6 +33,7 @@ import {
 import Stretching from './Stretching'
 import Cardio, { type CardioChange } from './Cardio'
 import ChangeToday from './ChangeToday'
+import HabitsCard from './Habits'
 import Undo from './Undo'
 import { card, primary, primaryInline, secondary } from '../ui'
 
@@ -199,6 +200,7 @@ export default function SessionPage() {
         <Status loaded={loaded} />
         {loaded.status === 'none' && undoBar}
         {loaded.status === 'none' && <Cardio featured={false} onChange={cardioChange} />}
+        {loaded.status === 'none' && <HabitsCard />}
       </AppShell>
     )
   const session = loaded.session
@@ -373,6 +375,7 @@ export default function SessionPage() {
           )}
           {undoBar}
           {!isCardio(session) && <Cardio featured={false} onChange={cardioChange} />}
+          <HabitsCard />
         </>
       )}
 
