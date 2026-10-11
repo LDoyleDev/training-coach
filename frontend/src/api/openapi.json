@@ -462,6 +462,102 @@
         "title": "Health",
         "type": "object"
       },
+      "HomeView": {
+        "properties": {
+          "progress": {
+            "$ref": "#/components/schemas/LadderView"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/RecentView"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "today": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Today"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TotalsView"
+          },
+          "week": {
+            "$ref": "#/components/schemas/HomeWeekView"
+          }
+        },
+        "required": [
+          "totals",
+          "week",
+          "progress",
+          "recent",
+          "today"
+        ],
+        "title": "HomeView",
+        "type": "object"
+      },
+      "HomeWeekView": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "extras": {
+            "title": "Extras",
+            "type": "integer"
+          },
+          "planned": {
+            "title": "Planned",
+            "type": "integer"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "zone2_minutes": {
+            "title": "Zone2 Minutes",
+            "type": "integer"
+          },
+          "zone2_target": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone2 Target"
+          }
+        },
+        "required": [
+          "start",
+          "done",
+          "planned",
+          "extras",
+          "zone2_minutes",
+          "zone2_target"
+        ],
+        "title": "HomeWeekView",
+        "type": "object"
+      },
       "ItemView": {
         "properties": {
           "baseline": {
@@ -663,6 +759,35 @@
           "high"
         ],
         "title": "KindView",
+        "type": "object"
+      },
+      "LadderView": {
+        "properties": {
+          "bests": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Bests",
+            "type": "array"
+          },
+          "ready": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ready",
+            "type": "array"
+          },
+          "steps_climbed": {
+            "title": "Steps Climbed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "steps_climbed",
+          "ready",
+          "bests"
+        ],
+        "title": "LadderView",
         "type": "object"
       },
       "LogBody": {
@@ -1187,6 +1312,25 @@
           "ask_again_after"
         ],
         "title": "ReadinessView",
+        "type": "object"
+      },
+      "RecentView": {
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "session": {
+            "title": "Session",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "session"
+        ],
+        "title": "RecentView",
         "type": "object"
       },
       "Redeem": {
@@ -1839,6 +1983,52 @@
           "session"
         ],
         "title": "TodayView",
+        "type": "object"
+      },
+      "TotalsView": {
+        "properties": {
+          "cardio_minutes": {
+            "title": "Cardio Minutes",
+            "type": "integer"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "first_day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Day"
+          },
+          "reps": {
+            "title": "Reps",
+            "type": "integer"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sessions",
+          "sets",
+          "reps",
+          "cardio_minutes",
+          "first_day",
+          "days"
+        ],
+        "title": "TotalsView",
         "type": "object"
       },
       "ValidationError": {
@@ -2710,6 +2900,28 @@
         "summary": "Log",
         "tags": [
           "cardio"
+        ]
+      }
+    },
+    "/api/home": {
+      "get": {
+        "description": "All-time totals, this week against the plan, ladder progress, the last seven days and\ntoday's session.",
+        "operationId": "home_api_home_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Home",
+        "tags": [
+          "home"
         ]
       }
     },

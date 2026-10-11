@@ -8,6 +8,7 @@ vi.mock('./Account', () => ({ default: () => <p>account</p> }))
 vi.mock('./tests/TestsPage', () => ({ default: () => <p>tests</p> }))
 vi.mock('./body/BodyPage', () => ({ default: () => <p>body</p> }))
 vi.mock('./progress/ProgressPage', () => ({ default: () => <p>progress</p> }))
+vi.mock('./home/HomePage', () => ({ default: () => <p>home</p> }))
 
 afterEach(() => window.history.replaceState(null, '', '/'))
 
@@ -18,19 +19,11 @@ test.each([
   ['/tests', 'tests'],
   ['/body', 'body'],
   ['/progress', 'progress'],
+  ['/', 'home'],
 ])('%s shows %s', (path, text) => {
   window.history.replaceState(null, '', path)
   render(<Pages />)
   expect(screen.getByText(text)).toBeInTheDocument()
-})
-
-test('the front door goes to the session page', () => {
-  const replace = vi.fn()
-  vi.stubGlobal('location', { ...window.location, pathname: '/', replace })
-  const { container } = render(<Pages />)
-  expect(replace).toHaveBeenCalledWith('/session')
-  expect(container).toBeEmptyDOMElement()
-  vi.unstubAllGlobals()
 })
 
 test('an unknown page says so instead of redirecting', () => {

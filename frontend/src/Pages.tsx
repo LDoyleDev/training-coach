@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
 import Account from './Account'
 import BodyPage from './body/BodyPage'
+import HomePage from './home/HomePage'
 import App from './App'
 import ProgressPage from './progress/ProgressPage'
 import ReadinessPage from './readiness/ReadinessPage'
@@ -18,16 +18,10 @@ export default function Pages() {
   if (window.location.pathname === '/progress') return <ProgressPage />
   if (window.location.pathname === '/plan') return <App />
   if (window.location.pathname === '/readiness') return <ReadinessPage />
-  if (window.location.pathname === '/') return <FrontDoor />
+  if (window.location.pathname === '/') return <HomePage />
   return (
     <p className="status">
       There's no page here. <a href="/session">Go to today's session</a>
     </p>
   )
-}
-
-/** The site is private (ADR-0041): the front door is today's session, or its sign-in. */
-function FrontDoor() {
-  useEffect(() => window.location.replace('/session'), [])
-  return null
 }
