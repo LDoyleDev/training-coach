@@ -444,6 +444,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Home
+         * @description All-time totals, this week against the plan, ladder progress, the last seven days and
+         *     today's session.
+         */
+        get: operations["home_api_home_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/photos": {
         parameters: {
             query?: never;
@@ -933,6 +954,37 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** HomeView */
+        HomeView: {
+            progress: components["schemas"]["LadderView"];
+            /** Recent */
+            recent: components["schemas"]["RecentView"][];
+            /** Today */
+            today: string | null;
+            totals: components["schemas"]["TotalsView"];
+            week: components["schemas"]["HomeWeekView"];
+        };
+        /** HomeWeekView */
+        HomeWeekView: {
+            /** Done */
+            done: number;
+            /** Extras */
+            extras: number;
+            /** Planned */
+            planned: number;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /** Zone2 Minutes */
+            zone2_minutes: number;
+            /** Zone2 Target */
+            zone2_target: [
+                number,
+                number
+            ] | null;
+        };
         /** ItemView */
         ItemView: {
             /** Baseline */
@@ -1005,6 +1057,15 @@ export interface components {
             low: number;
             /** Unit */
             unit: string;
+        };
+        /** LadderView */
+        LadderView: {
+            /** Bests */
+            bests: string[];
+            /** Ready */
+            ready: string[];
+            /** Steps Climbed */
+            steps_climbed: number;
         };
         /** LogBody */
         LogBody: {
@@ -1196,6 +1257,16 @@ export interface components {
              * @enum {string}
              */
             status: "due" | "clear" | "see_doctor";
+        };
+        /** RecentView */
+        RecentView: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Session */
+            session: string;
         };
         /** Redeem */
         Redeem: {
@@ -1428,6 +1499,21 @@ export interface components {
             readiness_note?: string | null;
             session: components["schemas"]["GuidedView"] | null;
             test_day?: components["schemas"]["TestDayDueView"] | null;
+        };
+        /** TotalsView */
+        TotalsView: {
+            /** Cardio Minutes */
+            cardio_minutes: number;
+            /** Days */
+            days: number;
+            /** First Day */
+            first_day: string | null;
+            /** Reps */
+            reps: number;
+            /** Sessions */
+            sessions: number;
+            /** Sets */
+            sets: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -2123,6 +2209,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    home_api_home_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeView"];
                 };
             };
         };

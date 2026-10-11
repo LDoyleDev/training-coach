@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
+from training_coach.bot import links
 from training_coach.bot.buttons import edit_quietly, row_id
 from training_coach.bot.messages import progress_text, review_text
 from training_coach.config import Settings
@@ -121,7 +122,8 @@ class ProgressHandlers:
         with session_scope(self.sessions) as session:
             text = review_text(reviews.weekly(session, today, self.settings.tz))
         if update.effective_message is not None:
-            await update.effective_message.reply_text(text)
+            markup = links.with_open(None, self.settings.public_url, links.PROGRESS)
+            await update.effective_message.reply_text(text, reply_markup=markup)
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """Move up / Not yet. Strangers get nothing, not even an answer (T1)."""

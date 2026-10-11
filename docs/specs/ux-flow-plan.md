@@ -74,13 +74,14 @@ only, and A4 later as the default with A1 as the fallback. After saving a cardio
 | Option | What |
 | --- | --- |
 | B1 **Today as home** (recommended) | One screen answering "what now?": today's session with Start or Log, plus Rest today and Swap; when done, a short summary and what's next; zone 2 minutes this week; anything ready to move up; tests or readiness due; a session left unsaved. Every empty state links to its next step |
+| B1 as chosen (being built) | The owner chose a motivating summary first (all-time sessions, sets, reps and cardio minutes, ladder steps climbed, this week and the last 7 days, from `GET /api/home`), then a button to Today. `/` shows it; Today stays at `/session` |
 | B2 Keep `/session` as is | Fix the dead end only: Done shows the summary and next up |
 
 ### C. One app across Telegram and the web
 
 | Idea | Effort |
 | --- | --- |
-| C1 "Open in app" button on the morning message and on `/today` | S |
+| C1 "Open in app" button on the morning message and on `/today` (built: also on the weekly review and a saved log; https `TC_PUBLIC_URL` only) | S |
 | C2 Rest today, Swap and Push on the web (the queue logic already exists) | M |
 | C3 Undo on the web (the `/undo` logic already exists) | S |
 | C4 The weekly review on the web, with the AI comment under it | M |
@@ -114,3 +115,16 @@ and alerts. The web app becomes the place you work in.
 3. Should Rest today and Swap live on the web too (C2), or stay in Telegram?
 4. Fold Readiness into Today and Plan into Progress (D2)?
 5. Install as an app (D3) now, or later?
+
+## Decided (2026-10-11)
+
+- **Cardio: A1 + A2 + A3.** Log activity with exact minutes, how hard (zone 2 or moderate) and
+  what it was (walk, hike, jog, run, bike, swim, row, stairs, other); no heart rate yet. "Done as
+  planned" is one tap on a planned cardio day. Log cardio and Run a HIIT session are always on
+  the session page, under any session and once the day is done. HIIT asks for rounds, work and
+  rest, counts down 3-2-1 with beeps before each change and rings a bell as each section starts,
+  then saves the rounds. Cardio outside today's planned session is an extra and never moves the
+  queue. Built in #201 (timer), #202 (`/api/cardio`) and the session page PR.
+- **First screen: B1, as a motivating summary.** Totals and progress first, then the week, then
+  a button to Today (#203).
+- **C1 Open in app: yes**, as a button on the bot's messages.

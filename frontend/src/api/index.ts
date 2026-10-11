@@ -241,6 +241,35 @@ export async function saveSession(day?: string): Promise<Saved | 'stale'> {
   return (await res.json()) as Saved
 }
 
+export type CardioOptions = Schemas['OptionsView']
+export type CardioLog = Schemas['LogBody']
+export type CardioLogged = Schemas['LoggedView']
+export type CardioKind = CardioLog['kind']
+export type CardioActivity = Schemas['CardioActivity']
+
+/** Today's planned cardio, the activities and this week's minutes; null when signed out. */
+export async function fetchCardio(signal?: AbortSignal): Promise<CardioOptions | null> {
+  const res = await fetch('/api/cardio', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as CardioOptions
+}
+
+/** Log cardio in one step (ux-flow-plan A1). 'stale': today's session changed meanwhile. */
+export async function logCardio(body: CardioLog): Promise<CardioLogged | 'stale'> {
+  const res = signedIn(
+    await fetch('/api/cardio', {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) return 'stale'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as CardioLogged
+}
+
 /** Earlier days' guided sessions never saved. */
 export async function fetchPending(signal?: AbortSignal): Promise<Pending[]> {
   const res = await fetch('/api/session/pending', { signal, credentials: 'same-origin' })
@@ -418,6 +447,18 @@ export async function fetchProgress(signal?: AbortSignal): Promise<Standing[] | 
   if (res.status === 401) return null
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Standing[]
+}
+
+// ---------------------------------------------------------------- home (B1)
+
+export type Home = Schemas['HomeView']
+
+/** What has been done, this week, the ladders and today's session; null when not signed in. */
+export async function fetchHome(signal?: AbortSignal): Promise<Home | null> {
+  const res = await fetch('/api/home', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Home
 }
 
 // ---------------------------------------------------------------- your own AI (ADR-0047)

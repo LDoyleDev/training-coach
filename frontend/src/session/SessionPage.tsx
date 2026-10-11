@@ -13,6 +13,7 @@ import {
   type TestDayDue,
 } from '../api'
 import {
+  CARDIO,
   fromKept,
   key,
   partnerOf,
@@ -26,6 +27,7 @@ import {
   type Values,
 } from './logic'
 import Stretching from './Stretching'
+import Cardio from './Cardio'
 import { card, primary, primaryInline, secondary } from '../ui'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
@@ -134,6 +136,7 @@ export default function SessionPage() {
         {loaded.status === 'none' && readinessNote && <ReadinessNotice text={readinessNote} />}
         {loaded.status === 'none' && testDay && <TestDayNotice due={testDay} />}
         <Status loaded={loaded} />
+        {loaded.status === 'none' && <Cardio featured={false} />}
       </AppShell>
     )
   const session = loaded.session
@@ -290,11 +293,18 @@ export default function SessionPage() {
               </button>
             </p>
           ))}
-          <Overview
-            session={session}
-            resumeAt={position > 0 && position < total ? position : null}
-            onStart={() => setStage(position >= total ? 'check' : 'set')}
-          />
+          {isCardio(session) ? (
+            <Cardio featured />
+          ) : (
+            <>
+              <Overview
+                session={session}
+                resumeAt={position > 0 && position < total ? position : null}
+                onStart={() => setStage(position >= total ? 'check' : 'set')}
+              />
+              <Cardio featured={false} />
+            </>
+          )}
         </>
       )}
 
@@ -500,6 +510,11 @@ export default function SessionPage() {
       )}
     </AppShell>
   )
+}
+
+/** Today's session is a single cardio exercise: logged in one step, not set by set. */
+function isCardio(session: Guided): boolean {
+  return session.items.length === 1 && CARDIO.includes(session.items[0].slug)
 }
 
 function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {

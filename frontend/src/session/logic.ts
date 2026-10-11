@@ -73,3 +73,7 @@ export function partnerOf(session: Guided, item: number): GuidedItem | null {
   if (pair === null) return null
   return session.items.find((other, i) => i !== item && other.pair === pair) ?? null
 }
+
+/** The cardio exercises logged in one step (ux-flow-plan A1): HIIT counts rounds, the others
+ * minutes. */
+export const CARDIO: string[] = ['zone2', 'moderate-cardio', 'hiit']
