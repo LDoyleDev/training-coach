@@ -55,3 +55,4 @@ Code). Template: [template.md](template.md).
 | [0048](0048-undo-the-last-change.md) | Undo the last change to the plan | Accepted |
 | [0049](0049-confirm-with-fingerprint.md) | Confirm it's you with your fingerprint, without signing out | Accepted |
 | [0050](0050-share-as-a-picture.md) | Share progress as a picture, not a link | Accepted |
+| [0051](0051-changing-today-on-the-web.md) | Changing today on the web: Rest, Push, Swap and Undo | Accepted |
