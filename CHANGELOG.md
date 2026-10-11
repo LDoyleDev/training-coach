@@ -4,6 +4,25 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.26.0](https://github.com/LDoyleDev/training-coach/compare/v0.25.0...v0.26.0) (2026-10-11)
+
+
+### Features
+
+* **api:** log cardio in one step, with minutes and what it was ([#202](https://github.com/LDoyleDev/training-coach/issues/202)) ([1330fae](https://github.com/LDoyleDev/training-coach/commit/1330faeb2c98b43beef4c9fbf768d17a43e19bd9))
+* **api:** the home page's last 7 days say what each cardio log was ([#208](https://github.com/LDoyleDev/training-coach/issues/208)) ([9dec6b3](https://github.com/LDoyleDev/training-coach/commit/9dec6b3c39ffea327188918c5b9481ac0082c1d6))
+* **bot:** an Open in app button on the morning message and /today ([#204](https://github.com/LDoyleDev/training-coach/issues/204)) ([7c1ca91](https://github.com/LDoyleDev/training-coach/commit/7c1ca91cb653c6ba74e257faa20d427a420cb016))
+* **bot:** ask the daily check on the morning message ([#214](https://github.com/LDoyleDev/training-coach/issues/214)) ([ddd5724](https://github.com/LDoyleDev/training-coach/commit/ddd5724ca0078c2d8cb4862252b64840452c20b4))
+* **parser:** a typed or spoken cardio log keeps what it was ([#207](https://github.com/LDoyleDev/training-coach/issues/207)) ([3931575](https://github.com/LDoyleDev/training-coach/commit/393157573bf52acc78a87bfb0e5ffe333058a873))
+* **web:** a HIIT interval timer with countdown beeps and a bell ([#201](https://github.com/LDoyleDev/training-coach/issues/201)) ([eaa0ba3](https://github.com/LDoyleDev/training-coach/commit/eaa0ba31009ed7067d4d61821b5a0a429bfcfb31))
+* **web:** a home page that shows what you've done, then Today ([#203](https://github.com/LDoyleDev/training-coach/issues/203)) ([68f0c49](https://github.com/LDoyleDev/training-coach/commit/68f0c4979c46f60668f4cf64d73db98ffc316359))
+* **web:** ask the readiness questions when the app opens, if due ([#209](https://github.com/LDoyleDev/training-coach/issues/209)) ([6122cf5](https://github.com/LDoyleDev/training-coach/commit/6122cf50f97beed9790da535aa824eefa7cd4197))
+* **web:** daily check of sleep, soreness and energy before training ([#213](https://github.com/LDoyleDev/training-coach/issues/213)) ([b0af6a6](https://github.com/LDoyleDev/training-coach/commit/b0af6a6d6f9a0aa9c6dd1ed8c916198faa3de544))
+* **web:** install the app on the phone's home screen (D3) ([#211](https://github.com/LDoyleDev/training-coach/issues/211)) ([c8155a1](https://github.com/LDoyleDev/training-coach/commit/c8155a110cccebafcd6f5d81f34d91610e623157))
+* **web:** log cardio in one step, and run HIIT from the session page ([#206](https://github.com/LDoyleDev/training-coach/issues/206)) ([6c15b24](https://github.com/LDoyleDev/training-coach/commit/6c15b24b43ad28f3bf038bd13491c5423a0c45cd))
+* **web:** rest, push, swap and undo today from the web app ([#212](https://github.com/LDoyleDev/training-coach/issues/212)) ([bd7a1c2](https://github.com/LDoyleDev/training-coach/commit/bd7a1c2867502017aeea4a19f66b67d91198ee6f))
+* **web:** the HIIT timer works like the Tabata Timer app ([#210](https://github.com/LDoyleDev/training-coach/issues/210)) ([ba7dff2](https://github.com/LDoyleDev/training-coach/commit/ba7dff2c48eeeea9a894859e3161a6e507b58320))
+
 ## [0.25.0](https://github.com/LDoyleDev/training-coach/compare/v0.24.0...v0.25.0) (2026-10-10)
 
 
