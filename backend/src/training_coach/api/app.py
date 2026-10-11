@@ -3,7 +3,7 @@
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -23,6 +23,7 @@ from training_coach.api.cardio import router as cardio_router
 from training_coach.api.change import router as change_router
 from training_coach.api.daily_check import router as daily_check_router
 from training_coach.api.fitness import router as fitness_router
+from training_coach.api.habits import router as habits_router
 from training_coach.api.home import router as home_router
 from training_coach.api.oauth import PER_ADDRESS
 from training_coach.api.oauth import router as oauth_router
@@ -31,14 +32,18 @@ from training_coach.api.photos import router as photos_router
 from training_coach.api.plan import router as plan_router
 from training_coach.api.progress import router as progress_router
 from training_coach.api.readiness import router as readiness_router
+from training_coach.api.review import router as review_router
 from training_coach.api.security import request_guard, security_headers_middleware
 from training_coach.api.session import router as session_router
-from training_coach.bot.app import build_bot, send_with_retry
+from training_coach.api.settings import Reschedule
+from training_coach.api.settings import router as settings_router
+from training_coach.bot.app import RESCHEDULE, build_bot, send_with_retry
 from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.domain.rate_limit import RateLimit
 from training_coach.logging import configure_logging
 from training_coach.services import backup, users
+from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
 
@@ -59,6 +64,17 @@ def _owner_notifier(settings: Settings, telegram: Bot | None) -> backup.Notify |
         return await send_with_retry(telegram, owner, text)
 
     return notify
+
+
+def _on_loop(reschedule: Callable[[Prefs], None]) -> Reschedule:
+    """The settings page moves the bot's jobs on the bot's own event loop: sync routes run in
+    worker threads, and the job queue isn't thread-safe."""
+    loop = asyncio.get_running_loop()
+
+    def call(prefs: Prefs) -> None:
+        loop.call_soon_threadsafe(reschedule, prefs)
+
+    return call
 
 
 def _start_backups(settings: Settings, notify: backup.Notify | None) -> asyncio.Task[None] | None:
@@ -93,6 +109,7 @@ SPA_PAGES = (
     "/progress",
     "/plan",
     "/readiness",
+    "/review",
     "/connect",  # the consent page for connecting an AI app (ADR-0047 C)
 )
 
@@ -144,6 +161,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             log.info("bot.started")
         else:
             log.warning("bot.disabled", reason="telegram token or allowed user id not set")
+        app.state.reschedule = _on_loop(bot.bot_data[RESCHEDULE]) if bot is not None else None
         notify = _owner_notifier(settings, bot.bot if bot else None)
         app.state.notify = notify  # sign-in alerts (ADR-0040)
         nightly = _start_backups(settings, notify)
@@ -198,6 +216,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(progress_router)
     app.include_router(readiness_router)
     app.include_router(daily_check_router)
+    app.include_router(habits_router)
+    app.include_router(settings_router)
+    app.include_router(review_router)
     app.include_router(oauth_router)
 
     # Mounted last so API routes always win over static files.

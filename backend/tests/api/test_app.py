@@ -8,9 +8,16 @@ from structlog.testing import capture_logs
 
 from training_coach import __version__
 from training_coach.api import app as api_app
-from training_coach.api.app import _owner_notifier, _report_death, _start_backups, create_app
+from training_coach.api.app import (
+    _on_loop,
+    _owner_notifier,
+    _report_death,
+    _start_backups,
+    create_app,
+)
 from training_coach.api.security import SECURITY_HEADERS
 from training_coach.config import Settings
+from training_coach.services.user_settings import Prefs
 
 
 def test_healthz_reports_ok(client: TestClient) -> None:
@@ -110,3 +117,11 @@ async def test_a_dead_backup_loop_is_reported() -> None:
     with capture_logs() as logs:
         _report_death(task)
     assert logs == [{"event": "backup.loop_died", "error": "OSError", "log_level": "error"}]
+
+
+async def test_settings_from_a_worker_thread_reach_the_bot_on_its_loop() -> None:
+    seen: list[tuple[Prefs, asyncio.AbstractEventLoop]] = []
+    call = _on_loop(lambda prefs: seen.append((prefs, asyncio.get_running_loop())))
+    await asyncio.to_thread(call, Prefs(paused=True))  # as a sync route would
+    await asyncio.sleep(0)  # let the loop run the scheduled call
+    assert seen == [(Prefs(paused=True), asyncio.get_running_loop())]

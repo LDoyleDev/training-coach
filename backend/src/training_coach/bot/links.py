@@ -15,6 +15,7 @@ LABEL = "Open in app"
 HOME = "/"
 SESSION = "/session"
 PROGRESS = "/progress"
+REVIEW = "/review"
 TESTS = "/tests"
 LOCAL_HOSTS = frozenset({"localhost"})
 

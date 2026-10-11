@@ -596,6 +596,74 @@ export async function saveDailyCheck(answers: DailyCheckAnswers): Promise<DailyC
   return (await res.json()) as DailyCheck
 }
 
+// ---------------------------------------------------------------- weekly review (C4)
+
+export type WeekReview = Schemas['ReviewWeekView']
+
+/** The review of the week containing ``week`` (this week when absent); null when signed out. */
+export async function fetchReview(week?: string, signal?: AbortSignal): Promise<WeekReview | null> {
+  const query = week ? `?week=${encodeURIComponent(week)}` : ''
+  const res = await fetch(`/api/review${query}`, { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as WeekReview
+}
+
+// ---------------------------------------------------------------- settings (ux-flow-plan C6)
+
+export type MessageSettings = Schemas['SettingsView']
+export type SettingsChange = Schemas['SettingsChange']
+
+/** Message times, nudges, habits, protein, blocks and pause; null when not signed in. */
+export async function fetchSettings(signal?: AbortSignal): Promise<MessageSettings | null> {
+  const res = await fetch('/api/settings', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as MessageSettings
+}
+
+/** Change only what's given. 'invalid': the server refused a value (as the bot would). */
+export async function saveSettings(change: SettingsChange): Promise<MessageSettings | 'invalid'> {
+  const res = signedIn(
+    await fetch('/api/settings', {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: json,
+      body: JSON.stringify(change),
+    }),
+  )
+  if (res.status === 422) return 'invalid'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as MessageSettings
+}
+
+// ---------------------------------------------------------------- habits (ux-flow-plan C5)
+
+export type Habits = Schemas['HabitsView']
+export type HabitKey = Schemas['Habit']
+
+/** Today's habits with this week's count; null when not signed in. */
+export async function fetchHabits(signal?: AbortSignal): Promise<Habits | null> {
+  const res = await fetch('/api/habits', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Habits
+}
+
+/** Tick or untick one of today's habits; returns them all as they now are. */
+export async function markHabit(habit: HabitKey, done: boolean): Promise<Habits> {
+  const res = signedIn(
+    await fetch(`/api/habits/${habit}`, {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: json,
+      body: JSON.stringify({ done }),
+    }),
+  )
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Habits
+}
+
 /** Everything stored about me, as a zip (needs a recent sign-in, like a passkey change). */
 export const downloadExport = () => withFreshSignIn(downloadExportNow)
 

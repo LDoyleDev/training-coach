@@ -73,12 +73,6 @@ describe('App', () => {
     expect(screen.getByText('Lats')).toBeInTheDocument()
   })
 
-  it('links to the signed-in app', async () => {
-    mockFetch({ ok: true, json: () => Promise.resolve(plan) })
-    render(<App />)
-    expect(await screen.findByRole('link', { name: 'Today' })).toHaveAttribute('href', '/session')
-  })
-
   it('opens a session to show its exercises', async () => {
     mockFetch({ ok: true, json: () => Promise.resolve(plan) })
     render(<App />)

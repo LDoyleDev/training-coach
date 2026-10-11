@@ -33,6 +33,7 @@ import {
 import Stretching from './Stretching'
 import Cardio, { type CardioChange } from './Cardio'
 import ChangeToday from './ChangeToday'
+import HabitsCard from './Habits'
 import Undo from './Undo'
 import { card, primary, primaryInline, secondary } from '../ui'
 
@@ -199,6 +200,7 @@ export default function SessionPage() {
         <Status loaded={loaded} />
         {loaded.status === 'none' && undoBar}
         {loaded.status === 'none' && <Cardio featured={false} onChange={cardioChange} />}
+        {loaded.status === 'none' && <HabitsCard />}
       </AppShell>
     )
   const session = loaded.session
@@ -373,6 +375,7 @@ export default function SessionPage() {
           )}
           {undoBar}
           {!isCardio(session) && <Cardio featured={false} onChange={cardioChange} />}
+          <HabitsCard />
         </>
       )}
 
@@ -571,7 +574,10 @@ export default function SessionPage() {
             >
               See my progress
             </a>
-            <a href="/plan" className={`${secondary} inline-flex items-center no-underline`}>
+            <a
+              href="/progress?tab=plan"
+              className={`${secondary} inline-flex items-center no-underline`}
+            >
               The week ahead
             </a>
           </div>
@@ -614,7 +620,10 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
           <a href="/progress" className={`${primaryInline} inline-flex items-center no-underline`}>
             See my progress
           </a>
-          <a href="/plan" className={`${secondary} inline-flex items-center no-underline`}>
+          <a
+            href="/progress?tab=plan"
+            className={`${secondary} inline-flex items-center no-underline`}
+          >
             The week ahead
           </a>
         </div>
