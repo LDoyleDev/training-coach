@@ -4,6 +4,21 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.25.0](https://github.com/LDoyleDev/training-coach/compare/v0.24.0...v0.25.0) (2026-10-10)
+
+
+### Features
+
+* **bot:** /share sends my last 4 weeks as a picture to forward ([#199](https://github.com/LDoyleDev/training-coach/issues/199)) ([745a7df](https://github.com/LDoyleDev/training-coach/commit/745a7df91c0ca40135e22854e214fa54ea26077f))
+* **web:** buttons that look like buttons, and pages that fit a phone ([#197](https://github.com/LDoyleDev/training-coach/issues/197)) ([6736a9b](https://github.com/LDoyleDev/training-coach/commit/6736a9bd5b990a969d863a9ae9562842721f5c12))
+* **web:** confirm it's you with your fingerprint instead of signing out ([#194](https://github.com/LDoyleDev/training-coach/issues/194)) ([d8364ac](https://github.com/LDoyleDev/training-coach/commit/d8364ac0cccc2ccc4a5303fd8b0bf6be631ce4d9))
+
+
+### Documentation
+
+* a UX plan with options to make the app flow ([#195](https://github.com/LDoyleDev/training-coach/issues/195)) ([3713c10](https://github.com/LDoyleDev/training-coach/commit/3713c1072b4c6bbb5952570c63aba28d875ba8b7))
+* architecture paths for undo, AI comments, share and confirm ([#200](https://github.com/LDoyleDev/training-coach/issues/200)) ([544a24a](https://github.com/LDoyleDev/training-coach/commit/544a24a608704a62b2125d4f393d3d92c62b7b48))
+
 ## [0.24.0](https://github.com/LDoyleDev/training-coach/compare/v0.23.0...v0.24.0) (2026-10-10)
 
 
