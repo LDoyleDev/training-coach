@@ -34,7 +34,7 @@ from telegram.ext import (
 )
 from telegram.warnings import PTBDeprecationWarning
 
-from training_coach.bot import buttons, logging_flow
+from training_coach.bot import buttons, links, logging_flow
 from training_coach.bot import habits as habits_ui
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import settings as settings_ui
@@ -175,16 +175,19 @@ class Handlers:
         return local_date(datetime.now(UTC), self.settings.tz)
 
     def _today(self) -> tuple[str, InlineKeyboardMarkup | None]:
-        """Today's message, with the Start / Rest today / Swap buttons when there is a plan."""
+        """Today's message, with the Start / Rest today / Swap buttons when there is a plan
+        and "Open in app" under them (C1): the session, or the Tests page on a test day."""
+        url = self.settings.public_url
         with session_scope(self.sessions) as session:
             plan = todays_session(session, self._local_today(), self.settings.tz)
             if plan is None:
                 return NO_PLAN, None
             if plan.test_day is not None:
-                where = tests_where(self.settings.public_url)
                 instead = buttons.instead(plan.session.template_id, plan.session.name)
-                return test_day_text(plan, where), instead
-            return today_text(plan), buttons.morning(plan.session.template_id)
+                text = test_day_text(plan, tests_where(url))
+                return text, links.with_open(instead, url, links.TESTS)
+            markup = buttons.morning(plan.session.template_id)
+            return today_text(plan), links.with_open(markup, url, links.SESSION)
 
     async def help(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_message is not None:
@@ -275,7 +278,12 @@ class Handlers:
             log.error("bot.review_failed", error=type(exc).__name__)
             return
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
-        if await send_with_retry(context.bot, self.settings.telegram_allowed_user_id, text):
+        if await send_with_retry(
+            context.bot,
+            self.settings.telegram_allowed_user_id,
+            text,
+            reply_markup=links.with_open(None, self.settings.public_url, links.PROGRESS),
+        ):
             log.info("bot.review_sent")
         else:
             log.error("bot.review_failed")
