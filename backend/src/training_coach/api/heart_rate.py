@@ -1,4 +1,4 @@
-"""Heart-rate zones on Account (ADR-0054): what they are and what they come from, and the
+"""Heart-rate zones on Account (ADR-0055): what they are and what they come from, and the
 birth year and own max heart rate that set them. Owner-only."""
 
 from datetime import UTC, datetime
@@ -60,11 +60,11 @@ def get_heart_rate(request: Request, user: Owner) -> HeartRateView:
 @router.put("", response_model=HeartRateView)
 def set_heart_rate(body: HeartRateBody, request: Request, user: Owner) -> HeartRateView:
     """Save the birth year and own max (either empty), and count recent zone minutes again."""
-    if (problem := zones.problem(body.birth_year, body.own_max)) is not None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, problem)
     settings: Settings = request.app.state.settings
     now = datetime.now(UTC)
     today = local_date(now, settings.tz)
+    if (problem := zones.problem(body.birth_year, body.own_max, today.year)) is not None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, problem)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         zones.save(session, body.birth_year, body.own_max)
         health_import.rezone(session, today, now)

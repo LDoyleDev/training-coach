@@ -1,4 +1,4 @@
-"""A person's heart-rate zones (ADR-0054): their settings, recent nights and workouts, put
+"""A person's heart-rate zones (ADR-0055): their settings, recent nights and workouts, put
 through ``domain.zones``. The caller passes a session bound to the person."""
 
 from dataclasses import dataclass
@@ -32,7 +32,13 @@ def current(session: Session, today: date) -> HeartRate:
     birth_year = found.birth_year if found is not None else None
     own = found.max_hr if found is not None else None
     years = zones.age(birth_year, today.year)
-    peak = session.scalar(select(func.max(ImportedWorkout.max_hr)))
+    # A dismissed workout, or a reading no heart reaches (a glitch), never moves the zones
+    # (review of #225).
+    peak = session.scalar(
+        select(func.max(ImportedWorkout.max_hr)).where(
+            ImportedWorkout.status != "dismissed", ImportedWorkout.max_hr <= HIGHEST_MAX
+        )
+    )
     nights = list(
         session.scalars(
             select(HealthDay.resting_hr)
@@ -51,10 +57,12 @@ def current(session: Session, today: date) -> HeartRate:
     )
 
 
-def problem(birth_year: int | None, own_max: int | None) -> str | None:
-    """Why these settings can't be saved, or None."""
-    if birth_year is not None and not FIRST_YEAR <= birth_year <= LAST_YEAR:
-        return f"birth year must be from {FIRST_YEAR} to {LAST_YEAR}"
+def problem(birth_year: int | None, own_max: int | None, year: int) -> str | None:
+    """Why these settings can't be saved in ``year``, or None. A birth year the max estimate
+    would ignore (an age under 10) is refused rather than silently unused (review of #225)."""
+    last = min(LAST_YEAR, year - zones.MIN_AGE)
+    if birth_year is not None and not FIRST_YEAR <= birth_year <= last:
+        return f"birth year must be from {FIRST_YEAR} to {last}"
     if own_max is not None and not LOWEST_MAX <= own_max <= HIGHEST_MAX:
         return f"max heart rate must be from {LOWEST_MAX} to {HIGHEST_MAX}"
     return None
