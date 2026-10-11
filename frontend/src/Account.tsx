@@ -2,6 +2,7 @@ import AppShell from './components/AppShell'
 import AiComments from './account/AiComments'
 import CopyForAI from './account/CopyForAI'
 import Toast from './components/Toast'
+import { InstallCard } from './pwa/InstallApp'
 import { card, danger, primaryInline, secondary } from './ui'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import {
@@ -212,6 +213,8 @@ export default function Account() {
               ))}
             </ul>
           </section>
+
+          <InstallCard />
 
           <section aria-labelledby="readiness" className={card}>
             <h2 id="readiness" className="mb-2 text-xl">
