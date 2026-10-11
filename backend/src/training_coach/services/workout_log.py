@@ -54,6 +54,10 @@ class Draft:
     strength: bool = False
     backdated: bool = False  # a past day logged late (#104): no target check, own queue rule
     rest: bool = False  # a past rest day: no sets
+    # Logged as an extra on purpose, whatever is planned today (the web's Log activity when
+    # today's session is a different one): never completes it, never moves the queue.
+    extra: bool = False
+    activity: str | None = None  # CardioActivity, for a cardio log
 
 
 @dataclass(frozen=True)
@@ -328,7 +332,7 @@ def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | No
         return _save_past(session, confirmed, tz)
     if not confirmed.entries:
         return None
-    now = target(session, confirmed.on, tz)
+    now = None if confirmed.extra else target(session, confirmed.on, tz)
     if (now.id if now is not None else None) != confirmed.template_id:
         return Stale()
     exercises = _exercises(session, confirmed)
@@ -344,6 +348,7 @@ def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | No
         template_id=confirmed.template_id,
         status=WorkoutStatus.DONE,  # only done workouts carry sets (rest/skip have none)
         log_token=confirmed.token,
+        activity=confirmed.activity,
     )
     _file(session, workout, confirmed, exercises, strength, tz)
     current = position(session)
