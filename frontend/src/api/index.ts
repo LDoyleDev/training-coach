@@ -596,6 +596,19 @@ export async function saveDailyCheck(answers: DailyCheckAnswers): Promise<DailyC
   return (await res.json()) as DailyCheck
 }
 
+// ---------------------------------------------------------------- weekly review (C4)
+
+export type WeekReview = Schemas['ReviewWeekView']
+
+/** The review of the week containing ``week`` (this week when absent); null when signed out. */
+export async function fetchReview(week?: string, signal?: AbortSignal): Promise<WeekReview | null> {
+  const query = week ? `?week=${encodeURIComponent(week)}` : ''
+  const res = await fetch(`/api/review${query}`, { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as WeekReview
+}
+
 /** Everything stored about me, as a zip (needs a recent sign-in, like a passkey change). */
 export const downloadExport = () => withFreshSignIn(downloadExportNow)
 

@@ -84,7 +84,7 @@ only, and A4 later as the default with A1 as the fallback. After saving a cardio
 | C1 "Open in app" button on the morning message and on `/today` (built: also on the weekly review and a saved log; https `TC_PUBLIC_URL` only) | S |
 | C2 Rest today, Swap and Push on the web (built: "Change today" on the session page, the same queue services as the bot, ADR-0052) | M |
 | C3 Undo on the web (built: "Undo: <what>" with a confirm tap after a change or a saved log, ADR-0052) | S |
-| C4 The weekly review on the web, with the AI comment under it | M |
+| C4 The weekly review on the web, with the AI comment under it (built: `/review`, linked from Home and Progress and from the bot's review, this week so far and earlier weeks, `/api/review` on the bot's review service. The AI comment stays on Telegram: it is made once per review and never stored (ADR-0047), so the page says so instead of making another call) | M |
 | C5 Habits on the web (tick today's habits on Today) | M |
 | C6 Settings on the web (message times, nudges, pause) | M |
 
