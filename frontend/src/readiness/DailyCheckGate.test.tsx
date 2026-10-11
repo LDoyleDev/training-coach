@@ -140,7 +140,7 @@ test.each([
   await answerAll()
   expect(await screen.findByRole('heading', { name: 'Take a rest day' })).toBeInTheDocument()
   tap('Rest today')
-  expect(await screen.findByText(new RegExp(said.replace(/[.()]/g, '\\$&')))).toBeInTheDocument()
+  expect(await screen.findByText(said, { exact: false })).toBeInTheDocument()
   expect(rested).toEqual(rest === 'none' ? [] : [{ template_id: 7 }])
   tap('Continue')
   expect(screen.getByText('the page')).toBeInTheDocument()
