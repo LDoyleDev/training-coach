@@ -608,6 +608,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Review */
+        get: operations["get_review_api_review_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session/pending": {
         parameters: {
             query?: never;
@@ -1518,6 +1535,81 @@ export interface components {
         Redeem: {
             /** Token */
             token: string;
+        };
+        /** ReviewBestView */
+        ReviewBestView: {
+            /** Best Set */
+            best_set: number | null;
+            /** Exercise */
+            exercise: string;
+            kind: components["schemas"]["ExerciseKind"];
+            /** Step */
+            step: string;
+            /** Strength */
+            strength: boolean;
+            /** Total */
+            total: number | null;
+        };
+        /** ReviewHabitView */
+        ReviewHabitView: {
+            /** Days */
+            days: number;
+            /** Done */
+            done: number;
+            /** Label */
+            label: string;
+        };
+        /** ReviewSetsView */
+        ReviewSetsView: {
+            /** Group */
+            group: string;
+            /** Sets */
+            sets: number;
+        };
+        /** ReviewWeekView */
+        ReviewWeekView: {
+            /** Ai Comments */
+            ai_comments: boolean;
+            /** Bests */
+            bests: components["schemas"]["ReviewBestView"][];
+            /** Current */
+            current: boolean;
+            /** Done */
+            done: number;
+            /** Extras */
+            extras: number;
+            /** Habits */
+            habits: components["schemas"]["ReviewHabitView"][];
+            /** Moderate Minutes */
+            moderate_minutes: number;
+            /** Next */
+            next: string | null;
+            /** Planned */
+            planned: number;
+            /** Previous */
+            previous: string;
+            /** Ready */
+            ready: string[];
+            /** Rested */
+            rested: number;
+            /** Sets */
+            sets: components["schemas"]["ReviewSetsView"][];
+            /** Sets Target */
+            sets_target: [
+                number,
+                number
+            ];
+            /** Start */
+            start: string;
+            /** Strength Block */
+            strength_block: boolean;
+            /** Zone2 Minutes */
+            zone2_minutes: number;
+            /** Zone2 Target */
+            zone2_target: [
+                number,
+                number
+            ] | null;
         };
         /** RoutineView */
         RoutineView: {
@@ -2766,6 +2858,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadinessSavedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_review_api_review_get: {
+        parameters: {
+            query?: {
+                week?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewWeekView"];
                 };
             };
             /** @description Validation Error */

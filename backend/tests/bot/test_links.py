@@ -135,10 +135,10 @@ async def test_the_morning_message_has_no_link_without_an_address(seeded: Sessio
     assert _urls(context.bot.send_message.await_args.kwargs["reply_markup"]) == []
 
 
-async def test_the_weekly_review_links_to_progress(seeded: Sessions) -> None:
+async def test_the_weekly_review_links_to_the_review_page(seeded: Sessions) -> None:
     context = _context()
     await Handlers(LINKED, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
-    assert _urls(context.bot.send_message.await_args.kwargs["reply_markup"]) == [f"{WEB}/progress"]
+    assert _urls(context.bot.send_message.await_args.kwargs["reply_markup"]) == [f"{WEB}/review"]
 
 
 async def test_the_weekly_review_has_no_buttons_without_an_address(seeded: Sessions) -> None:
@@ -147,9 +147,9 @@ async def test_the_weekly_review_has_no_buttons_without_an_address(seeded: Sessi
     assert context.bot.send_message.await_args.kwargs["reply_markup"] is None
 
 
-async def test_review_command_links_to_progress(seeded: Sessions) -> None:
+async def test_review_command_links_to_the_review_page(seeded: Sessions) -> None:
     calls = await run(build_bot(LINKED, seeded), command("/review", OWNER))
-    assert _buttons(calls["sendMessage"][0]) == [[(f"{WEB}/progress", "Open in app")]]
+    assert _buttons(calls["sendMessage"][0]) == [[(f"{WEB}/review", "Open in app")]]
 
 
 async def test_a_saved_log_links_home_under_its_other_buttons(seeded: Sessions) -> None:
