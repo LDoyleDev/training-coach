@@ -16,7 +16,7 @@ from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
 ORIGIN = "https://coach.example.com"
-TOKEN = "0123456789abcdef0123456789abcdef"  # noqa: S105 - a log token, not a secret
+TOKEN = "ab" * 16  # a log token, not a secret
 
 
 @pytest.fixture
