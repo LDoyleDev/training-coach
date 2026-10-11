@@ -33,6 +33,16 @@ def toggle(session: Session, day: date, habit: Habit, today: date) -> bool | Non
     return True
 
 
+def mark(session: Session, day: date, habit: Habit, done: bool, today: date) -> bool | None:
+    """Set ``habit`` for ``day`` to ``done`` (the web's tap, safe to repeat). The new state, or
+    None when ``day`` can no longer change."""
+    if not can_change(day, today):
+        return None
+    if (habit in checked(session, day)) == done:
+        return done
+    return toggle(session, day, habit, today)
+
+
 def week(session: Session, start: date, on: date) -> list[HabitWeek]:
     """Each habit's days done in the week from Monday ``start``, up to ``on``."""
     end = start + timedelta(days=WEEK_DAYS - 1)

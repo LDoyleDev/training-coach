@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { fetchProgress, type Standing } from '../api'
+import PlanView from '../App'
 import AppShell from '../components/AppShell'
 import Sparkline from '../components/Sparkline'
 import { amount } from './logic'
-import { card } from '../ui'
+import { card, secondary } from '../ui'
 import { RetryCard, SignInCard } from '../components/StateCards'
 
 type Loaded =
@@ -12,15 +13,59 @@ type Loaded =
   | { status: 'error' }
   | { status: 'ready'; standings: Standing[] }
 
+type Tab = 'progress' | 'plan'
+
 const STATUS: Record<Standing['status'], string | null> = {
   ready: 'Ready to move up',
   top_of_ladder: 'Top of the ladder',
   hold: null,
 }
 
-/** /progress: every exercise's step, last session, best set and trend (as /progress in the
- * bot). Moving up stays with the prompt after a saved session. */
+const TABS: [Tab, string][] = [
+  ['progress', 'My progress'],
+  ['plan', 'The plan'],
+]
+
+const tab =
+  'min-h-11 flex-1 rounded-xl border-2 border-[var(--ink)] px-3 font-bold text-[var(--ink)] aria-selected:bg-[var(--ink)] aria-selected:text-[var(--chalk)]'
+
+/** /progress: my progress, and the plan (ux-flow-plan D2: the Plan page lives here now; /plan
+ * opens it as ?tab=plan). */
 export default function ProgressPage() {
+  const [shown, setShown] = useState<Tab>(() =>
+    new URLSearchParams(window.location.search).get('tab') === 'plan' ? 'plan' : 'progress',
+  )
+  const show = (next: Tab) => {
+    setShown(next)
+    window.history.replaceState(null, '', next === 'plan' ? '/progress?tab=plan' : '/progress')
+  }
+  return (
+    <AppShell>
+      <h1 className="text-3xl font-extrabold">Progress</h1>
+      <div role="tablist" aria-label="Progress" className="flex gap-2">
+        {TABS.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={shown === key}
+            className={tab}
+            onClick={() => show(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" className="flex flex-col gap-4">
+        {shown === 'plan' ? <PlanView /> : <Standings />}
+      </div>
+    </AppShell>
+  )
+}
+
+/** Every exercise's step, last session, best set and trend (as /progress in the bot). Moving
+ * up stays with the prompt after a saved session. */
+function Standings() {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
 
   useEffect(() => {
@@ -33,33 +78,24 @@ export default function ProgressPage() {
 
   if (loaded.status === 'loading')
     return (
-      <AppShell>
-        <p className="status" role="status">
-          Loading…
-        </p>
-      </AppShell>
+      <p className="status" role="status">
+        Loading…
+      </p>
     )
-  if (loaded.status === 'signed-out')
-    return (
-      <AppShell>
-        <SignInCard text="Sign in to see your progress." />
-      </AppShell>
-    )
+  if (loaded.status === 'signed-out') return <SignInCard text="Sign in to see your progress." />
   if (loaded.status === 'error')
-    return (
-      <AppShell>
-        <RetryCard text="Couldn't load your progress. Check your connection." />
-      </AppShell>
-    )
+    return <RetryCard text="Couldn't load your progress. Check your connection." />
 
   const ready = loaded.standings.filter((s) => s.status === 'ready').length
   return (
-    <AppShell>
-      <h1 className="text-3xl font-extrabold">Progress</h1>
-      <p className="text-[var(--slate)]">
+    <>
+      <p className="m-0 text-[var(--slate)]">
         Each exercise's current step, its last session and best set there.
         {ready > 0 && ` ${ready} ready to move up: you'll be asked after your next session.`}
       </p>
+      <a href="/review" className={secondary + ' inline-flex items-center self-start no-underline'}>
+        This week's review
+      </a>
       <ul className="flex flex-col gap-3">
         {loaded.standings.map((s) => {
           const status = STATUS[s.status]
@@ -86,6 +122,6 @@ export default function ProgressPage() {
           )
         })}
       </ul>
-    </AppShell>
+    </>
   )
 }
