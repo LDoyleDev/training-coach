@@ -465,6 +465,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/habits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Habits */
+        get: operations["get_habits_api_habits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/habits/{habit}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Habit
+         * @description Tick or untick a habit for today. Repeating the same tap changes nothing.
+         */
+        put: operations["put_habit_api_habits__habit__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/home": {
         parameters: {
             query?: never;
@@ -1169,6 +1206,37 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * Habit
+         * @enum {string}
+         */
+        Habit: "morning_light" | "protein" | "wind_down";
+        /** HabitMark */
+        HabitMark: {
+            /** Done */
+            done: boolean;
+        };
+        /** HabitView */
+        HabitView: {
+            /** Done */
+            done: boolean;
+            /** Hint */
+            hint: string;
+            key: components["schemas"]["Habit"];
+            /** Label */
+            label: string;
+            /** Week Done */
+            week_done: number;
+        };
+        /** HabitsView */
+        HabitsView: {
+            /** Day */
+            day: string;
+            /** Habits */
+            habits: components["schemas"]["HabitView"][];
+            /** Week Days */
+            week_days: number;
         };
         /** Health */
         Health: {
@@ -2541,6 +2609,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DailyCheckView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_habits_api_habits_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HabitsView"];
+                };
+            };
+        };
+    };
+    put_habit_api_habits__habit__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                habit: components["schemas"]["Habit"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HabitMark"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HabitsView"];
                 };
             };
             /** @description Validation Error */
