@@ -275,6 +275,11 @@ def test_every_per_person_table_is_covered() -> None:
         "readiness_answers",
         "daily_checks",
         "ai_connections",
+        "ingest_keys",
+        "health_days",
+        "heart_rate_samples",
+        "sleep_sessions",
+        "imported_workouts",
     }
 
 
