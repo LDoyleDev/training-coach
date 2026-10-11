@@ -3,6 +3,7 @@ import BodyPage from './body/BodyPage'
 import HomePage from './home/HomePage'
 import ProgressPage from './progress/ProgressPage'
 import ReadinessPage from './readiness/ReadinessPage'
+import ReviewPage from './review/ReviewPage'
 import SessionPage from './session/SessionPage'
 import SignIn from './SignIn'
 import TestsPage from './tests/TestsPage'
@@ -21,6 +22,7 @@ export default function Pages() {
     return <ProgressPage />
   }
   if (window.location.pathname === '/readiness') return <ReadinessPage />
+  if (window.location.pathname === '/review') return <ReviewPage />
   if (window.location.pathname === '/') return <HomePage />
   return (
     <p className="status">

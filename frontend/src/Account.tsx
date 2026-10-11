@@ -1,6 +1,7 @@
 import AppShell from './components/AppShell'
 import AiComments from './account/AiComments'
 import CopyForAI from './account/CopyForAI'
+import Settings from './account/Settings'
 import Toast from './components/Toast'
 import { InstallCard } from './pwa/InstallApp'
 import { card, danger, primaryInline, secondary } from './ui'
@@ -152,6 +153,8 @@ export default function Account() {
       {state.status === 'ready' && (
         <>
           <Toast text={note} onClose={() => setNote(null)} />
+
+          <Settings />
 
           <section aria-labelledby="passkeys" className={card}>
             <h2 id="passkeys" className="mb-2 text-xl">

@@ -117,6 +117,7 @@ LOGIN_OFF = "Web sign-in isn't set up yet: TC_PUBLIC_URL is missing on the serve
 MORNING_JOB = "morning"
 NUDGE_JOB = "nudge"
 REVIEW_JOB = "weekly-review"
+RESCHEDULE = "reschedule"  # bot_data key: the settings page moves the jobs through this
 SUNDAY = 0  # PTB counts days from Sunday (0) to Saturday (6)
 Job = Callable[[ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
 
@@ -290,7 +291,7 @@ class Handlers:
             context.bot,
             self.settings.telegram_allowed_user_id,
             text,
-            reply_markup=links.with_open(None, self.settings.public_url, links.PROGRESS),
+            reply_markup=links.with_open(None, self.settings.public_url, links.REVIEW),
         ):
             log.info("bot.review_sent")
         else:
@@ -517,8 +518,12 @@ def build_bot(
         CallbackQueryHandler(undo_handlers.button, pattern=rf"^{undo_ui.PREFIX}:")
     )
 
+    def reschedule(prefs: Prefs) -> None:
+        schedule_jobs(application, handlers, prefs)
+
+    application.bot_data[RESCHEDULE] = reschedule  # for times changed on the web (C6)
     settings_handlers = settings_ui.SettingsHandlers(
-        settings, sessions, lambda _context, prefs: schedule_jobs(application, handlers, prefs)
+        settings, sessions, lambda _context, prefs: reschedule(prefs)
     )
     application.add_handler(CommandHandler("settings", settings_handlers.command, filters=allowed))
     application.add_handler(

@@ -156,6 +156,12 @@ export default function HomePage() {
         >
           Plan
         </a>
+        <a
+          href="/review"
+          className={secondary + ' col-span-2 flex items-center justify-center no-underline'}
+        >
+          This week's review
+        </a>
       </div>
     </AppShell>
   )
