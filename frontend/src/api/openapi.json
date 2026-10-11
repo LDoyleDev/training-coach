@@ -120,6 +120,88 @@
         "title": "AnswersBody",
         "type": "object"
       },
+      "BandCounted": {
+        "properties": {
+          "already_saved": {
+            "title": "Already Saved",
+            "type": "boolean"
+          },
+          "planned": {
+            "title": "Planned",
+            "type": "boolean"
+          },
+          "week": {
+            "$ref": "#/components/schemas/WeekView"
+          },
+          "workout_id": {
+            "title": "Workout Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "workout_id",
+          "already_saved",
+          "planned",
+          "week"
+        ],
+        "title": "BandCounted",
+        "type": "object"
+      },
+      "BandOfferView": {
+        "properties": {
+          "activity": {
+            "$ref": "#/components/schemas/CardioActivity"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          },
+          "zone2": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone2"
+          }
+        },
+        "required": [
+          "id",
+          "on",
+          "activity",
+          "minutes",
+          "zone2",
+          "kind",
+          "value",
+          "text"
+        ],
+        "title": "BandOfferView",
+        "type": "object"
+      },
       "BlockView": {
         "properties": {
           "kind": {
@@ -3569,6 +3651,109 @@
         "summary": "Signout",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/band/offers": {
+      "get": {
+        "operationId": "offers_api_band_offers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BandOfferView"
+                  },
+                  "title": "Response Offers Api Band Offers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Offers",
+        "tags": [
+          "band"
+        ]
+      }
+    },
+    "/api/band/offers/{import_id}/count": {
+      "post": {
+        "description": "Count a band workout as cardio. 404 when it isn't on offer; 409 when today's session\nchanged in a way that makes it stale (count it again).",
+        "operationId": "count_api_band_offers__import_id__count_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "import_id",
+            "required": true,
+            "schema": {
+              "title": "Import Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BandCounted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Count",
+        "tags": [
+          "band"
+        ]
+      }
+    },
+    "/api/band/offers/{import_id}/dismiss": {
+      "post": {
+        "operationId": "dismiss_api_band_offers__import_id__dismiss_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "import_id",
+            "required": true,
+            "schema": {
+              "title": "Import Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss",
+        "tags": [
+          "band"
         ]
       }
     },

@@ -35,6 +35,7 @@ import Cardio, { type CardioChange } from './Cardio'
 import ChangeToday from './ChangeToday'
 import HabitsCard from './Habits'
 import Undo from './Undo'
+import BandOffers from './BandOffers'
 import { card, primary, primaryInline, secondary } from '../ui'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
@@ -180,6 +181,13 @@ export default function SessionPage() {
     if (change === 'undone') load()
   }
 
+  const counted = (text: string) => {
+    setNote(text)
+    refreshUndo()
+    load()
+  }
+  const bandOffers = <BandOffers onCounted={counted} />
+
   const undoBar = !cardioSaved && <Undo key={undoKey} offer={undoOffer} onUndone={undone} />
   const noteBar = note && (
     <p role="status" className="status">
@@ -198,6 +206,7 @@ export default function SessionPage() {
         {loaded.status === 'none' && readinessNote && <ReadinessNotice text={readinessNote} />}
         {loaded.status === 'none' && testDay && <TestDayNotice due={testDay} />}
         <Status loaded={loaded} />
+        {loaded.status === 'none' && bandOffers}
         {loaded.status === 'none' && undoBar}
         {loaded.status === 'none' && <Cardio featured={false} onChange={cardioChange} />}
         {loaded.status === 'none' && <HabitsCard />}
@@ -341,6 +350,7 @@ export default function SessionPage() {
           {dailyLine}
           {readinessNote && <ReadinessNotice text={readinessNote} />}
           {testDay && <TestDayNotice due={testDay} />}
+          {bandOffers}
           {pending.map((day) => (
             <p key={day.day} className={card}>
               {day.session} on {day.day} wasn't saved ({day.sets} sets).{' '}

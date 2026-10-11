@@ -34,6 +34,7 @@ from telegram.ext import (
 )
 from telegram.warnings import PTBDeprecationWarning
 
+from training_coach.bot import band as band_ui
 from training_coach.bot import buttons, links, logging_flow
 from training_coach.bot import daily_check as daily_ui
 from training_coach.bot import habits as habits_ui
@@ -511,6 +512,12 @@ def build_bot(
     )
     share_handlers = share_ui.ShareHandlers(settings, sessions)
     application.add_handler(CommandHandler("share", share_handlers.command, filters=allowed))
+    band_handlers = band_ui.BandHandlers(settings, sessions, send_with_retry)
+    application.add_handler(CallbackQueryHandler(band_handlers.button, pattern=band_ui.PATTERN))
+    jobs = application.job_queue
+    assert jobs is not None  # noqa: S101 - the job-queue extra is a dependency
+    # Band workouts to count (ADR-0054): checked every few minutes, each offered once.
+    jobs.run_repeating(band_handlers.announce, interval=band_ui.EVERY, name=band_ui.JOB)
     undo_handlers = undo_ui.UndoHandlers(settings, sessions)
     application.add_handler(CommandHandler("undo", undo_handlers.command, filters=allowed))
     application.add_handler(
