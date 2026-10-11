@@ -112,6 +112,7 @@ def upgrade() -> None:
         sa.Column("state", sa.String(length=500), nullable=True),
         sa.Column("code_challenge", sa.String(length=128), nullable=False),
         sa.Column("resource", sa.String(length=200), nullable=False),
+        sa.Column("client_hash", sa.String(length=64), nullable=False),
         sa.Column("web_session_id", sa.Integer(), nullable=True),
         sa.Column("user_id", sa.Integer(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
@@ -141,6 +142,9 @@ def upgrade() -> None:
     with op.batch_alter_table("oauth_consents", schema=None) as batch_op:
         batch_op.create_index(
             batch_op.f("ix_oauth_consents_client_id"), ["client_id"], unique=False
+        )
+        batch_op.create_index(
+            batch_op.f("ix_oauth_consents_client_hash"), ["client_hash"], unique=False
         )
 
     op.create_table(
@@ -197,6 +201,7 @@ def downgrade() -> None:
 
     op.drop_table("oauth_tokens")
     with op.batch_alter_table("oauth_consents", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_oauth_consents_client_hash"))
         batch_op.drop_index(batch_op.f("ix_oauth_consents_client_id"))
 
     op.drop_table("oauth_consents")

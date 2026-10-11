@@ -139,7 +139,8 @@ def test_an_open_consent_page_is_never_evicted(client: TestClient) -> None:
 
 def test_twenty_open_consent_pages_refuse_a_new_registration(client: TestClient) -> None:
     for n in range(20):
-        flow.handle(client, flow.client_id(client, address=f"198.51.100.{n}"))
+        app = flow.client_id(client, address=f"198.51.100.{n}")
+        flow.handle(client, app, browser=f"198.51.100.{n}")
     refused = flow.register(client, address="192.0.2.1")
     assert refused.status_code == 429
     assert 0 < int(refused.headers["retry-after"]) <= 10 * 60
@@ -149,8 +150,68 @@ def test_approved_apps_do_not_count_toward_the_cap(proved: TestClient) -> None:
     app = flow.client_id(proved)
     assert flow.approve(proved, flow.handle(proved, app), app).status_code == 200
     for n in range(19):
-        flow.handle(proved, flow.client_id(proved, address=f"198.51.100.{n}"))
+        app = flow.client_id(proved, address=f"198.51.100.{n}")
+        flow.handle(proved, app, browser=f"198.51.100.{n}")
     assert flow.register(proved, address="192.0.2.1").status_code == 201  # the 20th waiting
+
+
+# ------------------------------------------------------------- open consent pages (M11)
+
+
+def test_one_app_at_its_cap_does_not_stop_another(client: TestClient) -> None:
+    """A fourth page for one app replaces its oldest unbound one; another app is unaffected."""
+    busy, other = flow.client_id(client), flow.client_id(client, address="198.51.100.1")
+    first = flow.handle(client, busy, browser="192.0.2.1")
+    for n in range(2, 5):
+        flow.handle(client, busy, browser=f"192.0.2.{n}")
+    assert client.post("/api/connect/details", json={"handle": first}).status_code == 404
+    assert flow.authorize(client, other, browser="192.0.2.9").status_code == 303
+
+
+def test_a_page_the_person_has_bound_is_never_replaced(proved: TestClient) -> None:
+    app = flow.client_id(proved)
+    mine = flow.handle(proved, app)
+    assert proved.post("/api/connect/bind", json={"handle": mine}).status_code == 204
+    for n in range(1, 6):  # someone who knows the app's id keeps opening pages for it
+        flow.handle(proved, app, browser=f"192.0.2.{n}")
+    assert flow.approve(proved, mine, app).status_code == 200
+
+
+def test_an_app_whose_three_pages_are_all_bound_is_refused(proved: TestClient) -> None:
+    app = flow.client_id(proved)
+    for n in range(3):
+        consent = flow.handle(proved, app, browser=f"192.0.2.{n}")
+        assert proved.post("/api/connect/bind", json={"handle": consent}).status_code == 204
+    refused = flow.authorize(proved, app, browser="192.0.2.9")
+    assert refused.status_code == 429
+    assert "location" not in refused.headers
+
+
+def test_one_address_cannot_fill_the_overall_cap(client: TestClient) -> None:
+    """Three open pages per address: the fourth is refused, so one caller holds at most 3 of
+    the 40, and keeps at most 3 waiting registrations safe from eviction."""
+    apps = [flow.client_id(client, address=f"198.51.100.{n}") for n in range(5)]
+    for app in apps[:3]:
+        flow.handle(client, app, browser="192.0.2.66")
+    refused = flow.authorize(client, apps[3], browser="192.0.2.66")
+    assert refused.status_code == 429
+    assert "location" not in refused.headers
+    assert flow.authorize(client, apps[4]).status_code == 303  # the person still can
+
+
+def test_an_open_page_protects_a_registration_for_a_bounded_time(client: TestClient) -> None:
+    """New pages need a registration still in its 15 minutes, and a page lasts 10: a flood of
+    pages can't keep a registration from eviction for more than 25 minutes."""
+    start = datetime.now(UTC)
+    held = flow.client_id(client)
+    with time_machine.travel(start + timedelta(minutes=14)):
+        flow.handle(client, held)
+    with time_machine.travel(start + timedelta(minutes=16)):
+        assert flow.authorize(client, held).status_code == 400  # expired: no new page
+    with time_machine.travel(start + timedelta(minutes=25)):
+        for n in range(20):
+            assert flow.register(client, address=f"198.51.100.{n}").status_code == 201
+        assert flow.authorize(client, held).status_code == 400  # evicted with its pages
 
 
 # ----------------------------------------------------------------------- authorize
