@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   fetchCardio,
   logCardio,
@@ -54,7 +54,8 @@ export default function Cardio({ featured }: { featured: boolean }) {
   const [kind, setKind] = useState<CardioKind>('zone2')
   const [activity, setActivity] = useState<CardioActivity | null>(null)
   const [value, setValue] = useState(30)
-  const [token, setToken] = useState(newToken)
+  // The token and the log it was first sent with: only that same log, retried, reuses it.
+  const sent = useRef<{ token: string; log: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
   const [signedOut, setSignedOut] = useState(false)
@@ -85,14 +86,17 @@ export default function Cardio({ featured }: { featured: boolean }) {
       ? open('log', planned.kind, planned.target)
       : open('log', 'zone2', 30)
 
-  /** The token stays until a save succeeds: a double tap or a retry after a lost answer
-   * sends the same one, so it saves once. */
+  /** A double tap, or a retry after a lost answer, sends the same log with the same token, so
+   * it saves once; a different log always gets a new token. */
   const save = async (
     saveKind: CardioKind,
     saveValue: number,
     saveActivity: CardioActivity | null,
   ) => {
     if (busy) return
+    const log = JSON.stringify([saveKind, saveValue, saveActivity])
+    if (sent.current?.log !== log) sent.current = { token: newToken(), log }
+    const token = sent.current.token
     setNote(null)
     setSignedOut(false)
     setBusy(true)
@@ -107,7 +111,7 @@ export default function Cardio({ featured }: { featured: boolean }) {
         setNote("Today's session changed (a rest, swap or another log), so this wasn't saved.")
         return
       }
-      setToken(newToken())
+      sent.current = null
       setKind(saveKind)
       setValue(saveValue)
       setActivity(saveActivity)

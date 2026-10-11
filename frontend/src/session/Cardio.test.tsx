@@ -208,3 +208,17 @@ test('a new log starts afresh: no activity or token carried over', async () => {
   expect(planned.activity).toBeNull()
   expect(planned.token).not.toBe(hike.token)
 })
+
+test('a different log after a failed save gets a new token', async () => {
+  const sent = serve({ log: 'error' })
+  render(<Cardio featured />)
+  fireEvent.click(await screen.findByRole('button', { name: /Done as planned/ }))
+  await screen.findByText(/Couldn't save/)
+  click(/different minutes/)
+  click('5 more')
+  click('Save 50 min')
+  await waitFor(() => expect(sent).toHaveLength(2))
+  const [planned, changed] = sent as { token: string; value: number }[]
+  expect(changed.value).toBe(50)
+  expect(changed.token).not.toBe(planned.token)
+})
