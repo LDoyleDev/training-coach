@@ -56,3 +56,4 @@ Code). Template: [template.md](template.md).
 | [0049](0049-confirm-with-fingerprint.md) | Confirm it's you with your fingerprint, without signing out | Accepted |
 | [0050](0050-share-as-a-picture.md) | Share progress as a picture, not a link | Accepted |
 | [0051](0051-hiit-timer-like-tabata-timer.md) | The HIIT timer works like Tabata Timer, with workouts saved in the browser | Accepted |
+| [0052](0052-changing-today-on-the-web.md) | Changing today on the web: Rest, Push, Swap and Undo | Accepted |

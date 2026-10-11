@@ -122,8 +122,9 @@ def pick(
     session: Session, template_id: int, picked_id: int, block: Block | None = None
 ) -> SessionPlan | None:
     """Show another session for today. The queue stays put: doing it is an out-of-order
-    session (ADR-0016), so the offered one is still next tomorrow."""
-    if _state_at(session, template_id) is None or picked_id == template_id:
+    session (ADR-0016), so the offered one is still next tomorrow. Picking the offered one
+    itself takes back an earlier pick today (the web app lists it after a pick)."""
+    if _state_at(session, template_id) is None:
         return None
     plan = session_plan(session, picked_id, block)
     if plan is not None:
@@ -131,6 +132,17 @@ def pick(
             Event(kind="queue.picked", payload={"offered": template_id, "picked": picked_id})
         )
     return plan
+
+
+def next_up(session: Session) -> tuple[int, str] | None:
+    """The session "Do the next one first" would bring forward, or None when it can't."""
+    current = position(session)
+    order = _order(session)
+    if current is None or len(order) < 2:
+        return None
+    pointer = swap_with_next(order, current).pointer
+    template = session.get(SessionTemplate, pointer)
+    return (pointer, template.name) if template is not None else None
 
 
 def choices(session: Session) -> list[tuple[int, str]]:

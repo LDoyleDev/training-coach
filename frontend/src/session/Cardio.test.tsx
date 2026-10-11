@@ -225,3 +225,39 @@ test('a different log after a failed save gets a new token', async () => {
   expect(changed.value).toBe(50)
   expect(changed.token).not.toBe(planned.token)
 })
+
+test('the saved screen offers Undo, and undoing goes back to the menu', async () => {
+  const offer = { event_id: 7, what: 'the Long zone 2 log for Mon 12 Oct (1 sets)' }
+  const sent: string[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (path: string, init?: RequestInit) => {
+      sent.push(`${init?.method ?? 'GET'} ${path}`)
+      if (path === '/api/today/undo' && init?.method === 'POST')
+        return Response.json({ what: offer.what, next_session: 'Long zone 2', today: {} })
+      if (path === '/api/today/undo') return Response.json({ offer, refused: null })
+      if (init?.method === 'POST') return Response.json(LOGGED)
+      return Response.json(ZONE2_DAY)
+    }),
+  )
+  const onChange = vi.fn()
+  render(<Cardio featured onChange={onChange} />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Done as planned: 45 min' }))
+  expect(await screen.findByRole('heading', { name: 'Long zone 2 done' })).toBeInTheDocument()
+  expect(onChange).toHaveBeenLastCalledWith('saved')
+  fireEvent.click(await screen.findByRole('button', { name: `Undo: ${offer.what}` }))
+  click('Undo it')
+  expect(await screen.findByText(`Undone: ${offer.what}.`)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Done as planned: 45 min' })).toBeInTheDocument()
+  expect(onChange).toHaveBeenLastCalledWith('undone')
+  await waitFor(() => expect(sent.filter((s) => s === 'GET /api/cardio')).toHaveLength(2))
+})
+
+test('Log more closes the saved screen for the page', async () => {
+  serve()
+  const onChange = vi.fn()
+  render(<Cardio featured onChange={onChange} />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Done as planned: 45 min' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Log more' }))
+  expect(onChange).toHaveBeenLastCalledWith('closed')
+})

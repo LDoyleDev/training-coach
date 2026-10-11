@@ -122,6 +122,102 @@
         "title": "CardioActivity",
         "type": "string"
       },
+      "ChangeBody": {
+        "properties": {
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id"
+        ],
+        "title": "ChangeBody",
+        "type": "object"
+      },
+      "ChangedView": {
+        "properties": {
+          "advanced": {
+            "default": false,
+            "title": "Advanced",
+            "type": "boolean"
+          },
+          "session": {
+            "title": "Session",
+            "type": "string"
+          },
+          "today": {
+            "$ref": "#/components/schemas/TodayView"
+          },
+          "undo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UndoOfferView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "session",
+          "today",
+          "undo"
+        ],
+        "title": "ChangedView",
+        "type": "object"
+      },
+      "ChoiceView": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "name"
+        ],
+        "title": "ChoiceView",
+        "type": "object"
+      },
+      "ChoicesView": {
+        "properties": {
+          "next": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChoiceView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "others": {
+            "items": {
+              "$ref": "#/components/schemas/ChoiceView"
+            },
+            "title": "Others",
+            "type": "array"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "next",
+          "others"
+        ],
+        "title": "ChoicesView",
+        "type": "object"
+      },
       "DeviceView": {
         "properties": {
           "created_at": {
@@ -1104,6 +1200,24 @@
         "title": "PhotoView",
         "type": "object"
       },
+      "PickBody": {
+        "properties": {
+          "picked_id": {
+            "title": "Picked Id",
+            "type": "integer"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "picked_id"
+        ],
+        "title": "PickBody",
+        "type": "object"
+      },
       "PlanView": {
         "properties": {
           "sessions": {
@@ -1226,6 +1340,24 @@
           "text"
         ],
         "title": "QuestionView",
+        "type": "object"
+      },
+      "QueuedView": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "name"
+        ],
+        "title": "QueuedView",
         "type": "object"
       },
       "ReadinessSavedView": {
@@ -1937,6 +2069,16 @@
       "TodayView": {
         "description": "``session`` is empty when nothing planned is left today (done or rested); ``progress``\nis where the person left off, to resume.",
         "properties": {
+          "planned": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QueuedView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "progress": {
             "anyOf": [
               {
@@ -2029,6 +2171,99 @@
           "days"
         ],
         "title": "TotalsView",
+        "type": "object"
+      },
+      "UndoBody": {
+        "properties": {
+          "event_id": {
+            "minimum": 1.0,
+            "title": "Event Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event_id"
+        ],
+        "title": "UndoBody",
+        "type": "object"
+      },
+      "UndoOfferView": {
+        "properties": {
+          "event_id": {
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "what": {
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "what"
+        ],
+        "title": "UndoOfferView",
+        "type": "object"
+      },
+      "UndoView": {
+        "description": "What Undo would take back, or why nothing can be.",
+        "properties": {
+          "offer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UndoOfferView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "refused": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused"
+          }
+        },
+        "required": [
+          "offer",
+          "refused"
+        ],
+        "title": "UndoView",
+        "type": "object"
+      },
+      "UndoneView": {
+        "properties": {
+          "next_session": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Session"
+          },
+          "today": {
+            "$ref": "#/components/schemas/TodayView"
+          },
+          "what": {
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "required": [
+          "what",
+          "next_session",
+          "today"
+        ],
+        "title": "UndoneView",
         "type": "object"
       },
       "ValidationError": {
@@ -3544,6 +3779,258 @@
         "summary": "Results",
         "tags": [
           "tests"
+        ]
+      }
+    },
+    "/api/today/choices": {
+      "get": {
+        "description": "What Swap offers: the next session first, or any other one for today.",
+        "operationId": "choices_api_today_choices_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChoicesView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Choices",
+        "tags": [
+          "today"
+        ]
+      }
+    },
+    "/api/today/next": {
+      "post": {
+        "description": "Do the next session today and the planned one tomorrow (ADR-0022).",
+        "operationId": "next_first_api_today_next_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Next First",
+        "tags": [
+          "today"
+        ]
+      }
+    },
+    "/api/today/pick": {
+      "post": {
+        "description": "Do another session today; the planned one is still next (ADR-0022).",
+        "operationId": "pick_api_today_pick_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PickBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pick",
+        "tags": [
+          "today"
+        ]
+      }
+    },
+    "/api/today/push": {
+      "post": {
+        "description": "Hold today's planned session for tomorrow; the rest of the week shifts a day.",
+        "operationId": "push_api_today_push_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Push",
+        "tags": [
+          "today"
+        ]
+      }
+    },
+    "/api/today/rest": {
+      "post": {
+        "description": "Rest today: the optional rest session counts as done, any other waits a day.",
+        "operationId": "rest_api_today_rest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rest",
+        "tags": [
+          "today"
+        ]
+      }
+    },
+    "/api/today/undo": {
+      "get": {
+        "description": "The change Undo would take back: the last rest day, push, swap or saved log.",
+        "operationId": "undoable_api_today_undo_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Undoable",
+        "tags": [
+          "today"
+        ]
+      },
+      "post": {
+        "description": "Take back the change ``event_id`` names, if it is still the last one (ADR-0048).\n409 when it isn't: a newer change, or something moved since.",
+        "operationId": "undo_change_api_today_undo_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UndoBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoneView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo Change",
+        "tags": [
+          "today"
         ]
       }
     },

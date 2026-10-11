@@ -2,8 +2,8 @@
 
 Which session today is follows the same rule as a typed log (``workout_log.target``): the one
 picked today, else the one at the queue's pointer; once a planned session is done or rested
-today there is none. Sets come in work order (ADR-0031), with any pair swapped to start with
-its second exercise.
+today, or held for tomorrow (Rest today or Push), there is none. Sets come in work order
+(ADR-0031), with any pair swapped to start with its second exercise.
 """
 
 import secrets
@@ -18,11 +18,11 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import SessionProgress, SessionTemplate, Workout
 from training_coach.domain.blocks import Block
-from training_coach.domain.enums import ExerciseKind, Side
+from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.parser import LIMITS, Entry
 from training_coach.domain.work_order import work_order
 from training_coach.services import blocks, workout_log
-from training_coach.services.today import ItemPlan, session_plan
+from training_coach.services.today import ItemPlan, position, session_plan
 
 REST_SECONDS = 60  # after each set, adjustable during the rest (D1)
 WARM_UP_MINUTES = 10
@@ -70,7 +70,7 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
     """Today's session to guide, or None when there is nothing planned left today. ``first``
     holds the pair numbers to start with their second exercise."""
     template = workout_log.target(session, on, tz)
-    if template is None:
+    if template is None or held_today(session, on):
         return None
     block = blocks.current(session, on, tz)
     plan = session_plan(session, template.id, block)
@@ -96,6 +96,21 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
         items=plan.items,
         order=order,
     )
+
+
+def held_today(session: Session, on: date) -> bool:
+    """The queue's session was held for tomorrow today (Rest today or Push, ADR-0006): no
+    training today. Only a hold of the session the queue still points at counts (a hold leaves
+    the pointer on it), so a skipped row for any other session can't blank the day."""
+    current = position(session)
+    if current is None:
+        return False
+    query = select(Workout.id).where(
+        Workout.local_date == on,
+        Workout.status == WorkoutStatus.SKIPPED,
+        Workout.template_id == current.pointer,
+    )
+    return session.scalar(query.limit(1)) is not None
 
 
 # ---------------------------------------------------------------- progress and saving

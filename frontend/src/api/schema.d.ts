@@ -757,6 +757,131 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/today/choices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Choices
+         * @description What Swap offers: the next session first, or any other one for today.
+         */
+        get: operations["choices_api_today_choices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today/next": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Next First
+         * @description Do the next session today and the planned one tomorrow (ADR-0022).
+         */
+        post: operations["next_first_api_today_next_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today/pick": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pick
+         * @description Do another session today; the planned one is still next (ADR-0022).
+         */
+        post: operations["pick_api_today_pick_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Push
+         * @description Hold today's planned session for tomorrow; the rest of the week shifts a day.
+         */
+        post: operations["push_api_today_push_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today/rest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rest
+         * @description Rest today: the optional rest session counts as done, any other waits a day.
+         */
+        post: operations["rest_api_today_rest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Undoable
+         * @description The change Undo would take back: the last rest day, push, swap or saved log.
+         */
+        get: operations["undoable_api_today_undo_get"];
+        put?: never;
+        /**
+         * Undo Change
+         * @description Take back the change ``event_id`` names, if it is still the last one (ADR-0048).
+         *     409 when it isn't: a newer change, or something moved since.
+         */
+        post: operations["undo_change_api_today_undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -828,6 +953,38 @@ export interface components {
          * @enum {string}
          */
         CardioActivity: "walk" | "hike" | "jog" | "run" | "bike" | "swim" | "row" | "stairs" | "other";
+        /** ChangeBody */
+        ChangeBody: {
+            /** Template Id */
+            template_id: number;
+        };
+        /** ChangedView */
+        ChangedView: {
+            /**
+             * Advanced
+             * @default false
+             */
+            advanced: boolean;
+            /** Session */
+            session: string;
+            today: components["schemas"]["TodayView"];
+            undo: components["schemas"]["UndoOfferView"] | null;
+        };
+        /** ChoiceView */
+        ChoiceView: {
+            /** Name */
+            name: string;
+            /** Template Id */
+            template_id: number;
+        };
+        /** ChoicesView */
+        ChoicesView: {
+            next: components["schemas"]["ChoiceView"] | null;
+            /** Others */
+            others: components["schemas"]["ChoiceView"][];
+            /** Template Id */
+            template_id: number;
+        };
         /** DeviceView */
         DeviceView: {
             /**
@@ -1184,6 +1341,13 @@ export interface components {
             /** Size */
             size: number;
         };
+        /** PickBody */
+        PickBody: {
+            /** Picked Id */
+            picked_id: number;
+            /** Template Id */
+            template_id: number;
+        };
         /** PlanView */
         PlanView: {
             /** Sessions */
@@ -1228,6 +1392,13 @@ export interface components {
             key: string;
             /** Text */
             text: string;
+        };
+        /** QueuedView */
+        QueuedView: {
+            /** Name */
+            name: string;
+            /** Template Id */
+            template_id: number;
         };
         /** ReadinessSavedView */
         ReadinessSavedView: {
@@ -1494,6 +1665,7 @@ export interface components {
          *     is where the person left off, to resume.
          */
         TodayView: {
+            planned?: components["schemas"]["QueuedView"] | null;
             progress?: components["schemas"]["ProgressView"] | null;
             /** Readiness Note */
             readiness_note?: string | null;
@@ -1514,6 +1686,35 @@ export interface components {
             sessions: number;
             /** Sets */
             sets: number;
+        };
+        /** UndoBody */
+        UndoBody: {
+            /** Event Id */
+            event_id: number;
+        };
+        /** UndoOfferView */
+        UndoOfferView: {
+            /** Event Id */
+            event_id: number;
+            /** What */
+            what: string;
+        };
+        /**
+         * UndoView
+         * @description What Undo would take back, or why nothing can be.
+         */
+        UndoView: {
+            offer: components["schemas"]["UndoOfferView"] | null;
+            /** Refused */
+            refused: string | null;
+        };
+        /** UndoneView */
+        UndoneView: {
+            /** Next Session */
+            next_session: string | null;
+            today: components["schemas"]["TodayView"];
+            /** What */
+            what: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -2701,6 +2902,211 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TestDayView"][];
+                };
+            };
+        };
+    };
+    choices_api_today_choices_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChoicesView"];
+                };
+            };
+        };
+    };
+    next_first_api_today_next_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pick_api_today_pick_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PickBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    push_api_today_push_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rest_api_today_rest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undoable_api_today_undo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UndoView"];
+                };
+            };
+        };
+    };
+    undo_change_api_today_undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UndoBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UndoneView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
