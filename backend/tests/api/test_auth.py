@@ -23,6 +23,7 @@ PUBLIC = {
     "/api/auth/signout",
     "/api/auth/passkeys/sign-in/options",
     "/api/auth/passkeys/sign-in",
+    "/api/ingest/health-connect",  # the ingest secret, not a cookie (ADR-0054)
 }
 
 

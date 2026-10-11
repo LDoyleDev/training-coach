@@ -564,6 +564,126 @@ class DailyCheck(Owned, Base):
     answered_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
+# ------------------------------------------------------------- band data (ADR-0054)
+
+
+class IngestKey(Owned, Base):
+    """The secret a person's phone sends with band data (ADR-0054): one each, shown once,
+    only its SHA-256 kept."""
+
+    __tablename__ = "ingest_keys"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class HealthDay(Owned, Base):
+    """A day's steps and resting heart rate from the band (ADR-0054). Health data: never
+    logged, never shared."""
+
+    __tablename__ = "health_days"
+    __table_args__ = (
+        UniqueConstraint("user_id", "local_date"),
+        CheckConstraint("steps IS NULL OR steps BETWEEN 0 AND 200000", name="steps_range"),
+        CheckConstraint(
+            "resting_hr IS NULL OR resting_hr BETWEEN 25 AND 150", name="resting_hr_range"
+        ),
+        CheckConstraint(
+            "resting_source IS NULL OR resting_source IN ('record', 'derived')",
+            name="resting_source_valid",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    local_date: Mapped[date] = mapped_column(Date)  # the day in settings.tz
+    steps: Mapped[int | None] = mapped_column(Integer)
+    resting_hr: Mapped[int | None] = mapped_column(Integer)
+    # "record": Health Connect had a resting heart rate; "derived": the night's lowest minute.
+    resting_source: Mapped[str | None] = mapped_column(String(8))
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
+
+
+class HeartRateSample(Owned, Base):
+    """Heart rate in one minute (ADR-0054), kept 8 days: long enough for a workout whose heart
+    rate arrived in an earlier sync, and for resting heart rate."""
+
+    __tablename__ = "heart_rate_samples"
+    __table_args__ = (
+        UniqueConstraint("user_id", "at"),
+        CheckConstraint("bpm BETWEEN 25 AND 250", name="bpm_range"),
+        CheckConstraint("low BETWEEN 25 AND 250 AND high BETWEEN 25 AND 250", name="span_range"),
+        CheckConstraint("low <= bpm AND bpm <= high", name="span_order"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    at: Mapped[datetime] = mapped_column(UTCDateTime)  # the minute's start
+    bpm: Mapped[int] = mapped_column(Integer)
+    low: Mapped[int] = mapped_column(Integer)
+    high: Mapped[int] = mapped_column(Integer)
+
+
+class SleepSession(Owned, Base):
+    """A night (or nap) from the band (ADR-0054), with minutes per stage. Identified by where it
+    came from and when it started; sent again, it is updated."""
+
+    __tablename__ = "sleep_sessions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "source", "start_at"),
+        CheckConstraint(
+            "asleep_min BETWEEN 0 AND 1440 AND awake_min BETWEEN 0 AND 1440"
+            " AND light_min BETWEEN 0 AND 1440 AND deep_min BETWEEN 0 AND 1440"
+            " AND rem_min BETWEEN 0 AND 1440",
+            name="minutes_range",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    source: Mapped[str] = mapped_column(String(128))  # the app that wrote it, e.g. com.mi.health
+    start_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    end_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    local_date: Mapped[date] = mapped_column(Date, index=True)  # the day it ended on
+    asleep_min: Mapped[int] = mapped_column(Integer)
+    awake_min: Mapped[int] = mapped_column(Integer)
+    light_min: Mapped[int] = mapped_column(Integer)
+    deep_min: Mapped[int] = mapped_column(Integer)
+    rem_min: Mapped[int] = mapped_column(Integer)
+
+
+class ImportedWorkout(Owned, Base):
+    """A workout the band recorded (ADR-0054). A cardio one is offered to count; once counted
+    it points at the workout it was logged as."""
+
+    __tablename__ = "imported_workouts"
+    __table_args__ = (
+        UniqueConstraint("user_id", "source", "start_at"),
+        CheckConstraint("minutes BETWEEN 0 AND 1440", name="minutes_range"),
+        CheckConstraint("avg_hr IS NULL OR avg_hr BETWEEN 25 AND 250", name="avg_hr_range"),
+        CheckConstraint("max_hr IS NULL OR max_hr BETWEEN 25 AND 250", name="max_hr_range"),
+        CheckConstraint(_in("activity", CardioActivity), name="activity_valid"),
+        CheckConstraint("status IN ('new', 'counted', 'dismissed')", name="status_valid"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    source: Mapped[str] = mapped_column(String(128))
+    start_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    end_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    local_date: Mapped[date] = mapped_column(Date, index=True)  # the day it started on
+    exercise_type: Mapped[int] = mapped_column(Integer)  # AndroidX EXERCISE_TYPE_*
+    activity: Mapped[str | None] = mapped_column(String(16))  # empty: not cardio
+    minutes: Mapped[int] = mapped_column(Integer)
+    avg_hr: Mapped[int | None] = mapped_column(Integer)
+    max_hr: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(16), default="new", server_default="new")
+    workout_id: Mapped[int | None] = mapped_column(ForeignKey("workouts.id", ondelete="SET NULL"))
+
+
 class AiConnection(Owned, Base):
     """A person's own AI key for comments (ADR-0047 B): one row each. The key is stored only
     encrypted (``services.secret_box``) and is binary, so the export leaves it out; only its
@@ -605,6 +725,10 @@ __all__ = [
     "Exercise",
     "ExerciseState",
     "HabitCheck",
+    "HealthDay",
+    "HeartRateSample",
+    "ImportedWorkout",
+    "IngestKey",
     "LadderStep",
     "LoginLink",
     "Owned",
@@ -614,6 +738,7 @@ __all__ = [
     "SessionProgress",
     "SessionTemplate",
     "SetLog",
+    "SleepSession",
     "TemplateItem",
     "User",
     "UserSettings",

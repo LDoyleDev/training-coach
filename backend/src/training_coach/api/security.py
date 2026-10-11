@@ -30,8 +30,8 @@ async def security_headers_middleware(
 
 
 UNSAFE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
-MAX_BODY = 64 * 1024  # every JSON body is far smaller; photos have their own limit
-LARGE_BODIES = ("/api/photos/",)
+MAX_BODY = 64 * 1024  # every JSON body is far smaller; photos and band data have their own limits
+LARGE_BODIES = ("/api/photos/", "/api/ingest/")  # each reads up to its own cap
 CACHEABLE: tuple[str, ...] = ()  # everything under /api is personal now
 
 

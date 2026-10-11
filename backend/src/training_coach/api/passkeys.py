@@ -77,7 +77,7 @@ def _trusted_peer(request: Request, host: str) -> bool:
     return any(address in ip_network(cidr) for cidr in settings.trusted_proxies)
 
 
-def _client(request: Request) -> str:
+def client_address(request: Request) -> str:
     """The caller's address. Behind the Cloudflare tunnel, CF-Connecting-IP names the real
     client; it is believed only from a trusted peer, so a caller reaching the app another way
     can't invent a new address per request (review of #123)."""
@@ -147,7 +147,9 @@ def sign_in_options(request: Request) -> Response:
     party = _party(request)
     try:
         with session_scope(_shared(request)) as session:
-            ceremony = passkeys.sign_in_options(session, party, datetime.now(UTC), _client(request))
+            ceremony = passkeys.sign_in_options(
+                session, party, datetime.now(UTC), client_address(request)
+            )
     except passkeys.TooManySignInsError:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS, "try again in a few minutes"

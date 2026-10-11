@@ -48,6 +48,18 @@ def save(session: Session, on: date, today: date, values: Mapping[Kind, float]) 
     return None
 
 
+def fill(session: Session, on: date, today: date, kind: Kind, value: float) -> bool:
+    """Save ``value`` for ``on`` only when that day has none of ``kind`` yet: a reading from the
+    scale (ADR-0054) never replaces a typed one or an earlier reading. True if it was saved."""
+    tenths = to_tenths(kind, value)
+    if isinstance(tenths, str) or _date_problem(on, today) is not None:
+        return False
+    if _row(session, on, kind) is not None:
+        return False
+    _put(session, on, kind, tenths)
+    return True
+
+
 def _row(session: Session, on: date, kind: Kind) -> Measurement | None:
     return session.scalar(
         select(Measurement).where(Measurement.local_date == on, Measurement.kind == kind.value)
