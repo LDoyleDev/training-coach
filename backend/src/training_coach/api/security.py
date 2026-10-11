@@ -33,6 +33,9 @@ UNSAFE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 MAX_BODY = 64 * 1024  # every JSON body is far smaller; photos and band data have their own limits
 LARGE_BODIES = ("/api/photos/", "/api/ingest/")  # each reads up to its own cap
 CACHEABLE: tuple[str, ...] = ()  # everything under /api is personal now
+# Never stored by a browser or cache: personal answers, and every OAuth and MCP answer
+# (mcp-threat-model.md requirement 16).
+NO_STORE = ("/api/", "/mcp", "/oauth/")
 
 
 def request_guard(
@@ -68,7 +71,7 @@ def request_guard(
                 return JSONResponse({"detail": "request too large"}, status_code=413)
         response = await call_next(request)
         path = request.url.path
-        if path.startswith("/api/") and not path.startswith(CACHEABLE):
+        if path.startswith(NO_STORE) and not path.startswith(CACHEABLE):
             response.headers.setdefault("Cache-Control", "no-store")
         return response
 

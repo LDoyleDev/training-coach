@@ -1,4 +1,4 @@
-"""Band data from the phone (ADR-0054): the ingest secret on Account, and the public route the
+"""Band data from the phone (ADR-0055): the ingest secret on Account, and the public route the
 Health Connect Webhook app posts to."""
 
 import json

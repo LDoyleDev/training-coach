@@ -50,7 +50,7 @@ def save(session: Session, on: date, today: date, values: Mapping[Kind, float]) 
 
 def fill(session: Session, on: date, today: date, kind: Kind, value: float) -> bool:
     """Save ``value`` for ``on`` only when that day has none of ``kind`` yet: a reading from the
-    scale (ADR-0054) never replaces a typed one or an earlier reading. True if it was saved."""
+    scale (ADR-0055) never replaces a typed one or an earlier reading. True if it was saved."""
     tenths = to_tenths(kind, value)
     if isinstance(tenths, str) or _date_problem(on, today) is not None:
         return False

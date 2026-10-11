@@ -1,4 +1,4 @@
-"""Band data from Health Connect (ADR-0054): what the records mean, in plain numbers. Pure logic,
+"""Band data from Health Connect (ADR-0055): what the records mean, in plain numbers. Pure logic,
 no I/O.
 
 Health Connect names exercise types and sleep stages by AndroidX constants, sent as strings

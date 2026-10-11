@@ -1,4 +1,4 @@
-"""Payloads as Health Connect Webhook sends them (ADR-0054), for tests.
+"""Payloads as Health Connect Webhook sends them (ADR-0055), for tests.
 
 Shapes follow the app's own reference, docs/webhook.md in
 https://github.com/mcnaveen/health-connect-webhook (v1.9.22, checked 2026-10-11), and the code

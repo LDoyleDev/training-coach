@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import LoginLink, Passkey, WebSession
 from training_coach.db.session import ALL_USERS
+from training_coach.services import mcp_tokens
 
 LINK_TTL = timedelta(minutes=10)
 SESSION_TTL = timedelta(days=30)
@@ -93,6 +94,8 @@ def redeem_link(session: Session, token: str, now: datetime, label: str) -> Rede
             execution_options=EVERYONE,
         )
         session.execute(delete(Passkey).where(Passkey.user_id == user), execution_options=EVERYONE)
+        # So are connected AI apps: Telegram access alone never keeps a data channel open.
+        mcp_tokens.revoke_all(session, user, now)
         return Redeemed(start_session(session, user, now, label), recovered=True)
     if has_passkeys(session, user):
         return NEEDS_PASSKEY
@@ -162,13 +165,42 @@ def fresh(session: Session, token: str, now: datetime) -> bool:
     return now - proved <= FRESH
 
 
-def confirm(session: Session, token: str, user_id: int, now: datetime) -> bool:
+@dataclass(frozen=True)
+class PasskeyProof:
+    session_id: int  # the signed-in browser
+    passkey_id: int  # the passkey that proved it
+
+
+def passkey_proof(session: Session, token: str, now: datetime) -> PasskeyProof | None:
+    """Which passkey proved the session behind ``token`` within ``FRESH``: a passkey sign-in or
+    a fingerprint confirmation (ADR-0049). Unlike ``fresh``, a session begun by a bot link or
+    ``/recover`` doesn't count until a passkey confirms it (ADR-0047 C: Telegram access alone
+    can't approve a connection)."""
+    found = _live(session, token, now)
+    if found is None:
+        return None
+    confirmed = found.confirmed_at
+    if (
+        confirmed is not None
+        and found.confirmed_passkey_id is not None
+        and now - confirmed <= FRESH
+    ):
+        return PasskeyProof(found.id, found.confirmed_passkey_id)
+    if found.passkey_id is not None and now - found.created_at <= FRESH:
+        return PasskeyProof(found.id, found.passkey_id)
+    return None
+
+
+def confirm(
+    session: Session, token: str, user_id: int, now: datetime, passkey_id: int | None = None
+) -> bool:
     """The person behind ``token`` just proved it's them with a passkey (ADR-0049): the session
     counts as fresh again. False if the token isn't a live session of ``user_id``."""
     found = _live(session, token, now)
     if found is None or found.user_id != user_id:
         return False
     found.confirmed_at = now
+    found.confirmed_passkey_id = passkey_id
     return True
 
 

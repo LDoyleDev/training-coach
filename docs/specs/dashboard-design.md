@@ -12,7 +12,8 @@ colours), dark and light mode, CSP without inline scripts, fast on mobile networ
 
 ## Plan screen (built)
 
-Now at `/plan`, behind sign-in like every page (ADR-0041); it was the public root page. It is a
+Now the Plan tab of Progress (`/progress?tab=plan`; `/plan` still opens it, ux-flow-plan D2),
+behind sign-in like every page (ADR-0041); it was the public root page. It is a
 read-only view of the training plan from `GET /api/plan`: the
 seven-session cycle, each session's exercises and starting variations, weekly sets per muscle
 against Galpin's 10-20 range, progression ladders, and a preview of the Telegram flow. It holds

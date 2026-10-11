@@ -1,4 +1,4 @@
-"""Band data from the phone (ADR-0054): the Health Connect Webhook app posts here, with the
+"""Band data from the phone (ADR-0055): the Health Connect Webhook app posts here, with the
 person's ingest secret; and the Account routes that make and remove that secret.
 
 The ingest route is public in the sense that no cookie signs it in: only the secret does. It
@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.alerts import alert
 from training_coach.api.auth import Fresh, Owner
-from training_coach.api.passkeys import client_address
+from training_coach.api.passkeys import _client
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import health_import, ingest_keys
@@ -98,7 +98,7 @@ async def _body(request: Request) -> bytes:
 @router.post("/health-connect", response_model=IngestReceived)
 async def health_connect(request: Request) -> IngestReceived:
     """Store a Health Connect Webhook payload for the person whose secret it carries."""
-    address, clock = client_address(request), time.monotonic()
+    address, clock = _client(request), time.monotonic()
     limiter = _limiter(request)
     if not limiter.allow(address, clock):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "too many requests")

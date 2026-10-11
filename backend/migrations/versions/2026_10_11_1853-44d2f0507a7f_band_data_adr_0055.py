@@ -1,9 +1,9 @@
-"""band data (ADR-0054): ingest keys, days, heart rate, sleep and imported workouts
+"""band data (ADR-0055): ingest keys, days, heart rate, sleep and imported workouts
 
 The check constraints repeat the models' bounds, so no path can store an impossible value.
 
 Revision ID: 44d2f0507a7f
-Revises: 120b38add5e6
+Revises: a3ed7ed9a1e7
 Create Date: 2026-10-11 18:53:28.176348
 
 """
@@ -15,7 +15,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "44d2f0507a7f"
-down_revision: str | Sequence[str] | None = "120b38add5e6"
+down_revision: str | Sequence[str] | None = "a3ed7ed9a1e7"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

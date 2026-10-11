@@ -280,6 +280,7 @@ def test_every_per_person_table_is_covered() -> None:
         "heart_rate_samples",
         "sleep_sessions",
         "imported_workouts",
+        "mcp_connections",
     }
 
 
