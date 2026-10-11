@@ -149,3 +149,7 @@ and alerts. The web app becomes the place you work in.
   answered it isn't asked again that day; Today shows the answers and advice as one line.
   Built in `frontend/src/readiness/DailyCheckGate.tsx` on `GET/PUT /api/daily-check`. The
   morning Telegram message asks the same three questions until answered.
+- **A4 import from the band: built** (ADR-0054). Health Connect Webhook on the phone posts to
+  `/api/ingest/health-connect`; band workouts are offered on Today and in Telegram to count
+  with one tap; sleep, steps and resting heart rate show on Home and Progress; the daily check
+  pre-selects the sleep answer from last night. Phone setup: `docs/runbooks/band-import.md`.
