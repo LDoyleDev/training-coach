@@ -11,6 +11,9 @@ import {
   type Pending,
   type Saved,
   type TestDayDue,
+  type TodayView,
+  type Undone,
+  type UndoOffer,
 } from '../api'
 import {
   CARDIO,
@@ -27,7 +30,9 @@ import {
   type Values,
 } from './logic'
 import Stretching from './Stretching'
-import Cardio from './Cardio'
+import Cardio, { type CardioChange } from './Cardio'
+import ChangeToday from './ChangeToday'
+import Undo from './Undo'
 import { card, primary, primaryInline, secondary } from '../ui'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
@@ -66,6 +71,11 @@ export default function SessionPage() {
   const [signedOut, setSignedOut] = useState(false) // the sign-in ended on the page
   const [testDay, setTestDay] = useState<TestDayDue | null>(null) // due in front (ADR-0038)
   const [readinessNote, setReadinessNote] = useState<string | null>(null) // hard days (ADR-0046)
+  // What Undo takes back: a change's answer, or undefined to ask the server (C3). The key
+  // starts the Undo afresh whenever today changes.
+  const [undoOffer, setUndoOffer] = useState<UndoOffer | null | undefined>(undefined)
+  const [undoKey, setUndoKey] = useState(0)
+  const [cardioSaved, setCardioSaved] = useState(false) // its own screen offers Undo then
 
   const running = watchFrom !== null
   const resting = stage === 'rest'
@@ -109,34 +119,77 @@ export default function SessionPage() {
       .catch(() => setPending([]))
   }, [])
 
-  const load = useCallback(() => {
-    fetchToday()
-      .then((today) => {
-        if (today === null) return setLoaded({ status: 'signed-out' })
-        setTestDay(today.test_day ?? null)
-        setReadinessNote(today.readiness_note ?? null)
-        // An empty order can't be guided; treat it like nothing planned.
-        if (today.session === null || today.session.order.length === 0)
-          return setLoaded({ status: 'none' })
-        setLoaded({ status: 'ready', session: today.session })
-        setValues(fromKept(today.progress))
-        setPosition(today.progress?.position ?? 0)
-        setFurthest(today.progress?.position ?? 0)
-        setRevision(today.progress?.revision ?? 0)
-        setFirst(today.progress?.first ?? [])
-      })
-      .catch(() => setLoaded({ status: 'error' }))
+  /** Show today as the server has it: loaded, or answered by a change or an undo. */
+  const show = useCallback((today: TodayView) => {
+    setTestDay(today.test_day ?? null)
+    setReadinessNote(today.readiness_note ?? null)
+    // An empty order can't be guided; treat it like nothing planned.
+    if (!today.session || today.session.order.length === 0) return setLoaded({ status: 'none' })
+    setLoaded({ status: 'ready', session: today.session })
+    setValues(fromKept(today.progress))
+    setPosition(today.progress?.position ?? 0)
+    setFurthest(today.progress?.position ?? 0)
+    setRevision(today.progress?.revision ?? 0)
+    setFirst(today.progress?.first ?? [])
   }, [])
 
+  const load = useCallback(() => {
+    fetchToday()
+      .then((today) => (today === null ? setLoaded({ status: 'signed-out' }) : show(today)))
+      .catch(() => setLoaded({ status: 'error' }))
+  }, [show])
+
   useEffect(load, [load])
+
+  /** Ask the server again what Undo would take back. */
+  const refreshUndo = (offer?: UndoOffer | null) => {
+    setUndoOffer(offer)
+    setUndoKey((k) => k + 1)
+  }
+
+  const changed = (today: TodayView, text: string, offer?: UndoOffer | null) => {
+    show(today)
+    setNote(text)
+    setSaved(null)
+    setStage('overview')
+    refreshUndo(offer)
+  }
+
+  const undone = (done: Undone) =>
+    changed(
+      done.today,
+      `Undone: ${done.what}.${done.next_session ? ` Next up: ${done.next_session}.` : ''}`,
+      null, // one step only: nothing more to undo until the next change
+    )
+
+  const stale = () => {
+    setNote("Today's session changed (on another device or in Telegram). Here it is now.")
+    refreshUndo()
+    load()
+  }
+
+  const cardioChange = (change: CardioChange) => {
+    setCardioSaved(change === 'saved')
+    if (change !== 'saved') refreshUndo()
+    if (change === 'undone') load()
+  }
+
+  const undoBar = !cardioSaved && <Undo key={undoKey} offer={undoOffer} onUndone={undone} />
+  const noteBar = note && (
+    <p role="status" className="status">
+      {note}
+    </p>
+  )
 
   if (loaded.status !== 'ready')
     return (
       <AppShell>
+        {loaded.status === 'none' && noteBar}
         {loaded.status === 'none' && readinessNote && <ReadinessNotice text={readinessNote} />}
         {loaded.status === 'none' && testDay && <TestDayNotice due={testDay} />}
         <Status loaded={loaded} />
-        {loaded.status === 'none' && <Cardio featured={false} />}
+        {loaded.status === 'none' && undoBar}
+        {loaded.status === 'none' && <Cardio featured={false} onChange={cardioChange} />}
       </AppShell>
     )
   const session = loaded.session
@@ -269,11 +322,7 @@ export default function SessionPage() {
 
   return (
     <AppShell>
-      {note && (
-        <p role="status" className="status">
-          {note}
-        </p>
-      )}
+      {noteBar}
       {signedOut && <SignedOutNotice />}
 
       {stage === 'overview' && (
@@ -294,17 +343,25 @@ export default function SessionPage() {
             </p>
           ))}
           {isCardio(session) ? (
-            <Cardio featured />
+            <Cardio featured onChange={cardioChange} />
           ) : (
-            <>
-              <Overview
-                session={session}
-                resumeAt={position > 0 && position < total ? position : null}
-                onStart={() => setStage(position >= total ? 'check' : 'set')}
-              />
-              <Cardio featured={false} />
-            </>
+            <Overview
+              session={session}
+              resumeAt={position > 0 && position < total ? position : null}
+              onStart={() => setStage(position >= total ? 'check' : 'set')}
+            />
           )}
+          {!cardioSaved && (
+            <ChangeToday
+              key={session.template_id}
+              templateId={session.template_id}
+              name={session.name}
+              onChanged={(result, text) => changed(result.today, text, result.undo)}
+              onStale={stale}
+            />
+          )}
+          {undoBar}
+          {!isCardio(session) && <Cardio featured={false} onChange={cardioChange} />}
         </>
       )}
 
@@ -495,6 +552,7 @@ export default function SessionPage() {
             </ul>
           )}
           {saved.stretching && <Stretching workoutId={saved.workout_id} />}
+          <Undo onUndone={undone} />
           <div className="flex flex-wrap gap-2">
             <a
               href="/progress"

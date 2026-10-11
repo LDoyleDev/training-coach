@@ -97,11 +97,28 @@ def test_pick_shows_another_session_and_keeps_the_queue(seeded: Session) -> None
     assert _events(seeded) == ["queue.picked"]
 
 
-def test_pick_rejects_the_same_or_an_unknown_session(seeded: Session) -> None:
+def test_pick_rejects_an_unknown_session(seeded: Session) -> None:
     upper = _ids(seeded)["upper"]
-    assert queue_actions.pick(seeded, upper, upper) is None
     assert queue_actions.pick(seeded, upper, 999) is None
     assert _events(seeded) == []
+
+
+def test_picking_the_offered_session_takes_back_an_earlier_pick(seeded: Session) -> None:
+    ids = _ids(seeded)
+    queue_actions.pick(seeded, ids["upper"], ids["rest"])
+    plan = queue_actions.pick(seeded, ids["upper"], ids["upper"])
+    assert plan is not None
+    assert plan.name == "Upper"
+    assert _events(seeded) == ["queue.picked", "queue.picked"]
+
+
+def test_next_up_names_the_session_a_swap_brings_forward(seeded: Session) -> None:
+    ids = _ids(seeded)
+    assert queue_actions.next_up(seeded) == (ids["zone2"], "Zone 2")
+
+
+def test_next_up_needs_a_plan(session: Session) -> None:
+    assert queue_actions.next_up(session) is None
 
 
 def test_choices_lists_sessions_in_order(seeded: Session) -> None:

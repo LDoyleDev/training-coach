@@ -157,14 +157,19 @@ def today(request: Request, user: Owner) -> TodayView:
     or un-swap is a PUT to /progress, so the server is the one place it lives."""
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
-        kept = guided.kept(session, on)
-        plan = guided.today(session, on, settings.tz)
-        test_day = test_day_view(retests.due(session, on, settings.tz))
-        current = readiness.current(session, datetime.now(UTC))
-        if plan is not None and kept is not None and kept.template_id != plan.template_id:
-            kept = None  # kept for a session that's no longer today's: its swaps don't apply
-        if plan is not None and kept is not None and kept.first:
-            plan = guided.today(session, on, settings.tz, set(kept.first))
+        return today_view(session, on, settings)
+
+
+def today_view(session: Session, on: date, settings: Settings) -> TodayView:
+    """What GET /today answers, inside the caller's transaction (also after a change to today)."""
+    kept = guided.kept(session, on)
+    plan = guided.today(session, on, settings.tz)
+    test_day = test_day_view(retests.due(session, on, settings.tz))
+    current = readiness.current(session, datetime.now(UTC))
+    if plan is not None and kept is not None and kept.template_id != plan.template_id:
+        kept = None  # kept for a session that's no longer today's: its swaps don't apply
+    if plan is not None and kept is not None and kept.first:
+        plan = guided.today(session, on, settings.tz, set(kept.first))
     hard = test_day is not None or (plan is not None and plan.slug in HARD_SESSIONS)
     caution = readiness_note(current, hard)
     if plan is None:

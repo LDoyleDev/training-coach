@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import SessionProgress, SessionTemplate, Workout
 from training_coach.db.session import make_session_factory
 from training_coach.domain.enums import WorkoutStatus
-from training_coach.services import guided, users, workout_log
+from training_coach.services import guided, queue_actions, users, workout_log
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -49,6 +49,16 @@ def test_nothing_to_guide_once_today_is_done(session: Session) -> None:
     seeded.add(Workout(local_date=DAY, template_id=plan.template_id, status=WorkoutStatus.DONE))
     seeded.flush()
     assert guided.today(seeded, DAY, BERLIN) is None
+
+
+def test_nothing_to_guide_once_today_is_held_for_tomorrow(session: Session) -> None:
+    """Rest today or Push from either surface: the web shows nothing left today either."""
+    seeded = _seeded(session)
+    plan = guided.today(seeded, DAY, BERLIN)
+    assert plan is not None
+    assert queue_actions.push_to_tomorrow(seeded, plan.template_id, DAY) == plan.name
+    assert guided.today(seeded, DAY, BERLIN) is None
+    assert guided.today(seeded, date(2026, 10, 13), BERLIN) is not None  # it waits a day
 
 
 def test_a_cardio_session_has_no_warm_up_and_counts_its_minutes(session: Session) -> None:

@@ -19,6 +19,7 @@ from training_coach.api.ai import router as ai_router
 from training_coach.api.auth import router as auth_router
 from training_coach.api.body import router as body_router
 from training_coach.api.cardio import router as cardio_router
+from training_coach.api.change import router as change_router
 from training_coach.api.fitness import router as fitness_router
 from training_coach.api.home import router as home_router
 from training_coach.api.passkeys import router as passkeys_router
@@ -161,6 +162,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(ai_router)
     app.include_router(session_router)
     app.include_router(cardio_router)
+    app.include_router(change_router)
     app.include_router(fitness_router)
     app.include_router(body_router)
     app.include_router(photos_router)

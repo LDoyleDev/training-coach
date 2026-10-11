@@ -270,6 +270,67 @@ export async function logCardio(body: CardioLog): Promise<CardioLogged | 'stale'
   return (await res.json()) as CardioLogged
 }
 
+export type Changed = Schemas['ChangedView']
+export type Choices = Schemas['ChoicesView']
+export type UndoOffer = Schemas['UndoOfferView']
+export type UndoState = Schemas['UndoView']
+export type Undone = Schemas['UndoneView']
+export type TodayChange = 'rest' | 'push' | 'next'
+
+async function post(url: string, body: unknown): Promise<Response> {
+  return signedIn(
+    await fetch(url, {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+}
+
+/** Rest today, Push to tomorrow, or do the next session first (ux-flow-plan C2), for the
+ * session the page shows. 'stale': today's session changed meanwhile. */
+export async function changeToday(
+  change: TodayChange,
+  templateId: number,
+): Promise<Changed | 'stale'> {
+  const res = await post(`/api/today/${change}`, { template_id: templateId })
+  if (res.status === 409) return 'stale'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Changed
+}
+
+/** Do another session today instead of the one shown. 'stale': today changed meanwhile. */
+export async function pickToday(templateId: number, pickedId: number): Promise<Changed | 'stale'> {
+  const res = await post('/api/today/pick', { template_id: templateId, picked_id: pickedId })
+  if (res.status === 409) return 'stale'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Changed
+}
+
+/** What Swap offers today. 'stale': nothing planned today any more. */
+export async function fetchChoices(): Promise<Choices | 'stale'> {
+  const res = signedIn(await fetch('/api/today/choices', { credentials: 'same-origin' }))
+  if (res.status === 409) return 'stale'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Choices
+}
+
+/** What Undo would take back (ux-flow-plan C3), or why nothing can be. */
+export async function fetchUndo(): Promise<UndoState> {
+  const res = signedIn(await fetch('/api/today/undo', { credentials: 'same-origin' }))
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as UndoState
+}
+
+/** Undo the change the offer named (ADR-0048). A string: why it can't be undone now. */
+export async function undoChange(eventId: number): Promise<Undone | string> {
+  const res = await post('/api/today/undo', { event_id: eventId })
+  if (res.status === 409) return ((await res.json()) as { detail: string }).detail
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Undone
+}
+
 /** Earlier days' guided sessions never saved. */
 export async function fetchPending(signal?: AbortSignal): Promise<Pending[]> {
   const res = await fetch('/api/session/pending', { signal, credentials: 'same-origin' })

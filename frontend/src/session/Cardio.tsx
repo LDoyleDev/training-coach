@@ -10,6 +10,7 @@ import {
 } from '../api'
 import HiitTimer from '../hiit/HiitTimer'
 import SignedOutNotice from '../components/SignedOutNotice'
+import Undo from './Undo'
 import { actions, card, primary, primaryInline, secondary } from '../ui'
 
 const EFFORTS: { kind: CardioKind; label: string }[] = [
@@ -42,12 +43,22 @@ const chip = (on: boolean) =>
     ? 'border-[var(--bell-ink)] bg-[var(--bell-ink)] text-[var(--chalk)]'
     : 'border-[var(--ink)] text-[var(--ink)]')
 
+/** What the page hears: the saved screen opened or closed, or the log was undone. */
+export type CardioChange = 'saved' | 'closed' | 'undone'
+
 /**
  * Cardio in one step (ux-flow-plan A1-A3): log the minutes and what it was, one tap for
  * "done as planned", or time HIIT intervals and save the rounds. ``featured`` when today's
- * planned session is this cardio: it then stands in for the session's Start button.
+ * planned session is this cardio: it then stands in for the session's Start button. The saved
+ * screen offers Undo (C3).
  */
-export default function Cardio({ featured }: { featured: boolean }) {
+export default function Cardio({
+  featured,
+  onChange,
+}: {
+  featured: boolean
+  onChange?: (change: CardioChange) => void
+}) {
   const [options, setOptions] = useState<CardioOptions | null>(null)
   const [fetched, setFetched] = useState(false)
   const [mode, setMode] = useState<Mode>('menu')
@@ -61,6 +72,7 @@ export default function Cardio({ featured }: { featured: boolean }) {
   const [signedOut, setSignedOut] = useState(false)
   const [logged, setLogged] = useState<CardioLogged | null>(null)
 
+  const [loads, setLoads] = useState(0) // again after an undo: today's plan is back
   useEffect(() => {
     const abort = new AbortController()
     fetchCardio(abort.signal)
@@ -68,7 +80,7 @@ export default function Cardio({ featured }: { featured: boolean }) {
       .catch(() => {}) // the buttons still work without today's plan
       .finally(() => setFetched(true))
     return () => abort.abort()
-  }, [])
+  }, [loads])
 
   const planned = options?.planned ?? null
   const activities = options?.activities ?? (Object.keys(ACTIVITY) as CardioActivity[])
@@ -117,6 +129,7 @@ export default function Cardio({ featured }: { featured: boolean }) {
       setActivity(saveActivity)
       setLogged(result)
       setMode('saved')
+      onChange?.('saved')
     } catch (error) {
       if (error instanceof SignedOutError) setSignedOut(true)
       else setNote("Couldn't save. Check your connection and try again.")
@@ -247,10 +260,26 @@ export default function Cardio({ featured }: { featured: boolean }) {
           <a href="/progress" className={`${secondary} inline-flex items-center no-underline`}>
             See my progress
           </a>
-          <button type="button" className={secondary} onClick={() => setMode('menu')}>
+          <button
+            type="button"
+            className={secondary}
+            onClick={() => {
+              setMode('menu')
+              onChange?.('closed')
+            }}
+          >
             Log more
           </button>
         </div>
+        <Undo
+          onUndone={(done) => {
+            setNote(`Undone: ${done.what}.`)
+            setLogged(null)
+            setMode('menu')
+            setLoads((n) => n + 1)
+            onChange?.('undone')
+          }}
+        />
       </section>
     )
 
