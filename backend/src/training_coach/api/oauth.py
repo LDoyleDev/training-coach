@@ -53,7 +53,7 @@ def limited(request: Request, route: str) -> None:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             "too many requests",
-            headers={"Retry-After": str(limits.retry_after(key, now))},
+            headers={"Retry-After": str(limits.retry_after(key, now)), **NO_STORE},
         )
 
 

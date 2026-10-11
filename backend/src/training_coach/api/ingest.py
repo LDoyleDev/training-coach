@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -116,17 +117,24 @@ async def health_connect(request: Request) -> IngestReceived:
         limiter.failed(address, clock)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "unknown ingest secret")
     raw = await _body(request)
-    try:
-        body = json.loads(raw)
-    except ValueError as exc:  # UnicodeDecodeError and JSONDecodeError both
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "not JSON") from exc
-    if not isinstance(body, dict):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "not a JSON object")
-    batch = health_import.parse(body, now)
     settings: Settings = request.app.state.settings
     bound = make_session_factory(request.app.state.engine, user_id=user)
-    with session_scope(bound) as session:
-        health_import.store(session, batch, settings.tz, now)
+
+    def parse_and_store() -> health_import.Batch:
+        """Parsing up to 5 MB and the SQLite writes block: off the event loop, so a first sync
+        can't stall the bot and the web app."""
+        try:
+            body = json.loads(raw)
+        except (ValueError, RecursionError) as exc:  # bad UTF-8 or JSON, or nested too deep
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "not JSON") from exc
+        if not isinstance(body, dict):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "not a JSON object")
+        batch = health_import.parse(body, now)
+        with session_scope(bound) as session:
+            health_import.store(session, batch, settings.tz, now)
+        return batch
+
+    batch = await run_in_threadpool(parse_and_store)
     log.info("ingest.stored", **health_import.counts(batch))
     return IngestReceived(taken=dict(batch.taken), skipped=dict(batch.skipped))
 

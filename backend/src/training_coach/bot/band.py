@@ -30,6 +30,7 @@ JOB = "band.offers"
 GONE = "That workout isn't on offer any more."
 STALE = "Today's session changed meanwhile. Open Today in the app to count it."
 SKIPPED = "Left out."
+FAILED = "Couldn't save that just now. Try again, or count it on Today in the app."
 
 Send = Callable[..., Awaitable[bool]]
 
@@ -87,8 +88,12 @@ class BandHandlers:
             if not await self.send(bot, owner, offer.text, reply_markup=markup(offer)):
                 log.warning("bot.band_offer_not_sent")
                 return  # Telegram is unreachable; the rest wait for the next run too
-            with session_scope(self.sessions) as session:
-                band_cardio.announced(session, offer.id, datetime.now(UTC))
+            try:
+                with session_scope(self.sessions) as session:
+                    band_cardio.announced(session, offer.id, datetime.now(UTC))
+            except SQLAlchemyError as exc:  # sent but not marked: stop, so nothing goes twice
+                log.error("bot.band_offer_unmarked", error=type(exc).__name__)
+                return
             log.info("bot.band_offer_sent")
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -102,20 +107,25 @@ class BandHandlers:
             await query.answer()
             return
         await query.answer()
-        await edit_quietly(query.edit_message_reply_markup(None))
         action, import_id = pressed
         today = self._today()
-        with session_scope(self.sessions) as session:
-            if action == SKIP:
-                band_cardio.dismiss(session, import_id)
-                reply = SKIPPED
-            else:
-                result = band_cardio.count(session, import_id, today, self.settings.tz)
-                if isinstance(result, band_cardio.Gone):
-                    reply = GONE
-                elif isinstance(result, workout_log.Stale):
-                    reply = STALE
+        try:
+            with session_scope(self.sessions) as session:
+                if action == SKIP:
+                    band_cardio.dismiss(session, import_id)
+                    reply = SKIPPED
                 else:
-                    reply = counted_text(cardio.week(session, today), result.planned)
+                    result = band_cardio.count(session, import_id, today, self.settings.tz)
+                    if isinstance(result, band_cardio.Gone):
+                        reply = GONE
+                    elif isinstance(result, workout_log.Stale):
+                        reply = STALE
+                    else:
+                        reply = counted_text(cardio.week(session, today), result.planned)
+        except SQLAlchemyError as exc:  # keep the buttons, so it can be pressed again
+            log.error("bot.band_offer_failed", error=type(exc).__name__)
+            await query.message.reply_text(FAILED)
+            return
+        await edit_quietly(query.edit_message_reply_markup(None))
         await query.message.reply_text(reply)
         log.info("bot.band_offer_answered", action=action)

@@ -1,4 +1,5 @@
 import AppShell from './components/AppShell'
+import AiApps from './account/AiApps'
 import AiComments from './account/AiComments'
 import BandImport from './account/BandImport'
 import HeartRateZones from './account/HeartRateZones'
@@ -246,6 +247,7 @@ export default function Account() {
 
           <CopyForAI />
           <AiComments />
+          <AiApps />
           <BandImport />
           <HeartRateZones />
 
