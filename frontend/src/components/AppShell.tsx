@@ -1,4 +1,5 @@
 import { signOut } from '../api'
+import OfflineNotice from '../pwa/Offline'
 
 /** The signed-in pages, in the order the nav shows them. */
 const PAGES = [
@@ -58,7 +59,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </ul>
         </nav>
       </header>
-      <main className="mt-4 flex flex-col gap-4">{children}</main>
+      <main className="mt-4 flex flex-col gap-4">
+        <OfflineNotice />
+        {children}
+      </main>
     </div>
   )
 }

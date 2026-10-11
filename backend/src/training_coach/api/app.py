@@ -5,6 +5,7 @@ import asyncio
 import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import structlog
 from fastapi import FastAPI
@@ -88,6 +89,26 @@ SPA_PAGES = (
     "/plan",
     "/readiness",
 )
+
+
+# What makes the web app installable (D3), with the type a browser expects. The service worker
+# is checked on every visit (no-cache) so a deploy reaches the phone on the next page opened.
+INSTALL_FILES = {
+    "/sw.js": "text/javascript",
+    "/manifest.webmanifest": "application/manifest+json",
+}
+
+
+def _add_install_files(app: FastAPI, dist: Path) -> None:
+    for path, media_type in INSTALL_FILES.items():
+        file = dist / path.removeprefix("/")
+        if not file.is_file():  # an older build, or a test with only index.html
+            continue
+
+        async def serve(file: Path = file, media_type: str = media_type) -> FileResponse:
+            return FileResponse(file, media_type=media_type, headers={"Cache-Control": "no-cache"})
+
+        app.add_api_route(path, serve, include_in_schema=False)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -178,6 +199,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         for path in SPA_PAGES:  # the app's own router shows the page
             app.add_api_route(path, page, include_in_schema=False)
+        _add_install_files(app, dist)
         app.mount("/", StaticFiles(directory=dist, html=True), name="web")
 
     return app
