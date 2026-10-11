@@ -13,6 +13,7 @@ from training_coach.api.app import create_app
 from training_coach.config import Settings
 from training_coach.db.base import Base
 from training_coach.db.models import (
+    AiComment,
     Event,
     Measurement,
     Owned,
@@ -74,6 +75,9 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
     assert signed_in.put(f"/api/photos/{today}/front", content=CLEAN, headers=JPEG).is_success
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         mine.add(Passkey(credential_id="cred", public_key=b"key", sign_count=0, name="Pixel"))
+        mine.add(
+            AiComment(week=date(2026, 10, 5), text="Sleep more.", created_at=datetime.now(UTC))
+        )
     with session_scope(make_session_factory(engine)) as shared:
         shared.add(User(id=2))
     with session_scope(make_session_factory(engine, user_id=2)) as theirs:
@@ -81,7 +85,7 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
 
     assert signed_in.post("/api/account/erase", json=ERASE).status_code == 204
 
-    for model in (Measurement, ProgressPhoto, Passkey, WebSession):
+    for model in (Measurement, ProgressPhoto, Passkey, WebSession, AiComment):
         assert _count(engine, model, OWNER) == 0, model.__name__
     assert _count(engine, Measurement, 2) == 1  # someone else's
     with session_scope(make_session_factory(engine)) as shared:

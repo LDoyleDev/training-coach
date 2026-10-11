@@ -15,6 +15,7 @@ from sqlalchemy import LargeBinary, inspect, select
 from sqlalchemy.orm import Mapper, Session
 
 from training_coach.db.models import (
+    AiComment,
     AiConnection,
     DailyCheck,
     Event,
@@ -57,6 +58,7 @@ TABLES: dict[str, type] = {
     "heart_rate_samples": HeartRateSample,
     "band_import_secret": IngestKey,  # when it was made and used; the hash is left out
     "ai_connections": AiConnection,  # the key itself is binary, so left out
+    "ai_comments": AiComment,  # kept 7 days (ADR-0056)
     "connected_ai_apps": McpConnection,
     "progress_photos": ProgressPhoto,
     "habit_checks": HabitCheck,

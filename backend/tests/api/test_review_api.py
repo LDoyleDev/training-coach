@@ -1,11 +1,13 @@
 """/api/review (ux-flow-plan C4): the bot's weekly review on the web, owner-only."""
 
 from collections.abc import Iterator
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 import time_machine
+from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from sqlalchemy import Engine, select
 
 from training_coach.api.app import create_app
@@ -14,7 +16,8 @@ from training_coach.db.models import Exercise, SetLog, Workout
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.habits import Habit
-from training_coach.services import auth, habits, users
+from training_coach.services import ai_comment, ai_key, auth, habits, users
+from training_coach.services.secret_box import SecretBox
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -23,18 +26,41 @@ NOW = datetime(2026, 10, 7, 10, 0, tzinfo=UTC)  # a Wednesday
 MONDAY = date(2026, 10, 5)
 
 
-@pytest.fixture
-def signed_in(engine: Engine) -> Iterator[TestClient]:
+SECRETS = Fernet.generate_key().decode()
+
+
+def _client(engine: Engine, secrets_key: str | None) -> Iterator[TestClient]:
     with time_machine.travel(NOW, tick=False):
         with session_scope(make_session_factory(engine)) as shared:
             apply_seed(shared, load_plan())
         with make_session_factory(engine, user_id=OWNER)() as bound:
             token = auth.create_link(bound, datetime.now(UTC))
             bound.commit()
-        settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+        settings = Settings(
+            environment="test",
+            database_url=str(engine.url),
+            public_url=ORIGIN,
+            secrets_key=SecretStr(secrets_key) if secrets_key else None,
+        )
         with TestClient(create_app(settings), base_url=ORIGIN) as client:
             assert client.post("/api/auth/redeem", json={"token": token}).status_code == 204
             yield client
+
+
+@pytest.fixture
+def signed_in(engine: Engine) -> Iterator[TestClient]:
+    yield from _client(engine, None)
+
+
+@pytest.fixture
+def commented(engine: Engine) -> Iterator[TestClient]:
+    """AI comments on (ADR-0047 B), with last week's and this week's comment kept."""
+    for client in _client(engine, SECRETS):
+        with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+            ai_key.store(mine, SecretBox(SecretStr(SECRETS)), SecretStr("gsk_" + "ab" * 16))
+            ai_comment.store(mine, MONDAY - timedelta(days=7), "Last week.", NOW)
+            ai_comment.store(mine, MONDAY, "Sleep more.\n<b>Not bold</b>", NOW)
+        yield client
 
 
 def _log(engine: Engine, slug: str, values: list[int], on: date) -> None:
@@ -69,6 +95,30 @@ def test_this_week_so_far_as_the_bot_counts_it(signed_in: TestClient, engine: En
     assert view["sets_target"] == [10, 20]
     assert {"label": "Wind-down", "done": 1, "days": 3} in view["habits"]
     assert view["ai_comments"] is False
+    assert view["ai_comment"] is None
+
+
+def test_the_kept_ai_comment_comes_with_its_week(commented: TestClient) -> None:
+    view = commented.get("/api/review").json()
+    assert view["ai_comments"] is True
+    assert view["ai_comment"] == "Sleep more.\n<b>Not bold</b>"  # text as kept, for the page
+    earlier = commented.get("/api/review", params={"week": "2026-09-30"}).json()
+    assert earlier["ai_comment"] == "Last week."
+    older = commented.get("/api/review", params={"week": "2026-09-21"}).json()
+    assert older["ai_comment"] is None
+
+
+def test_no_ai_comment_after_7_days(commented: TestClient) -> None:
+    with time_machine.travel(NOW + timedelta(days=7, minutes=1), tick=False):
+        view = commented.get("/api/review", params={"week": MONDAY.isoformat()}).json()
+    assert view["ai_comment"] is None
+
+
+def test_no_ai_comment_with_comments_off(commented: TestClient, engine: Engine) -> None:
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        ai_key.options(mine, enabled=False, body=False, readiness=False)
+    view = commented.get("/api/review").json()
+    assert (view["ai_comments"], view["ai_comment"]) == (False, None)
 
 
 def test_an_earlier_week_is_counted_to_its_sunday(signed_in: TestClient, engine: Engine) -> None:

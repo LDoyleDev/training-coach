@@ -15,7 +15,7 @@ from sqlalchemy import Engine, inspect
 from tests.api.test_photos import CLEAN, JPEG
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import Event, Measurement, Passkey, User
+from training_coach.db.models import AiComment, Event, Measurement, Passkey, User
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
 from training_coach.services import auth
@@ -64,6 +64,10 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
         shared.add(User(id=2))
     with session_scope(make_session_factory(engine, user_id=2)) as theirs:
         theirs.add(Measurement(local_date=date(2026, 10, 1), kind="waist", tenths=999))
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        mine.add(
+            AiComment(week=date(2026, 10, 5), text="Sleep more.", created_at=datetime.now(UTC))
+        )
 
     answer = signed_in.get("/api/account/export")
     assert answer.status_code == 200
@@ -78,6 +82,8 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
     assert tables["signed_in_browsers"][0]["label"]
     assert all("token_hash" not in row for row in tables["signed_in_browsers"])
     assert all("jpeg" not in row for row in tables["progress_photos"])
+    (comment,) = tables["ai_comments"]
+    assert (comment["week"], comment["text"]) == ("2026-10-05", "Sleep more.")
     assert "Pull-up" in {e["name"] for e in data["reference"]["exercises"].values()}
     (photo,) = [n for n in zipped.namelist() if n.startswith("photos/")]
     assert photo.startswith(f"photos/{today}-front-")

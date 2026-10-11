@@ -2121,6 +2121,8 @@ export interface components {
         };
         /** ReviewWeekView */
         ReviewWeekView: {
+            /** Ai Comment */
+            ai_comment: string | null;
             /** Ai Comments */
             ai_comments: boolean;
             /** Bests */
