@@ -59,6 +59,19 @@ test('− and + change a setting within its limits, and typing is clamped on blu
   expect(work).toHaveValue(5)
 })
 
+test('blurring an empty field restores the same default that Start would use', () => {
+  render(<HiitTimer defaults={{ rounds: 4 }} />)
+  const rounds = screen.getByLabelText('Rounds')
+  fireEvent.change(rounds, { target: { value: '' } })
+  fireEvent.blur(rounds)
+  expect(rounds).toHaveValue(4)
+  const rest = screen.getByLabelText('Rest (seconds)')
+  fireEvent.change(rest, { target: { value: '' } })
+  fireEvent.blur(rest)
+  expect(rest).toHaveValue(10)
+  expect(screen.getByText('1:50')).toBeInTheDocument()
+})
+
 test('Cancel in setup leaves with nothing', () => {
   const onCancel = vi.fn()
   render(<HiitTimer onCancel={onCancel} />)

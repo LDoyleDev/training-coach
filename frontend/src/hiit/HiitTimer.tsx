@@ -46,12 +46,14 @@ type Stage = 'setup' | 'running' | 'finished'
 function Stepper(props: {
   name: keyof HiitSettings
   value: string
+  /** What an empty or invalid field means: the same value Start would use. */
+  fallback: number
   onChange: (value: string) => void
 }) {
-  const { name, value, onChange } = props
+  const { name, value, fallback, onChange } = props
   const { min, max, step } = LIMITS[name]
   const id = `hiit-${name}`
-  const current = parseSetting(name, value, min)
+  const current = parseSetting(name, value, fallback)
   const label = NAMES[name].split(' ')[0].toLowerCase()
   return (
     <div className="flex flex-col gap-1">
@@ -241,6 +243,7 @@ export default function HiitTimer({ defaults, onFinish, onCancel }: HiitTimerPro
             key={name}
             name={name}
             value={draft[name]}
+            fallback={start[name]}
             onChange={(value) => setDraft({ ...draft, [name]: value })}
           />
         ))}
