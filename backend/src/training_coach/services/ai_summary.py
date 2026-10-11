@@ -14,12 +14,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import (
+    DailyCheck,
     Exercise,
     HabitCheck,
     LadderStep,
     PlanState,
     ReadinessAnswers,
     SessionTemplate,
+    SetLog,
     Workout,
 )
 from training_coach.domain.enums import ExerciseKind, Side
@@ -184,6 +186,76 @@ def _body(session: Session, since: date | None) -> str:
     for e in entries:
         spec = SPECS[e.kind]
         lines.append(f"- {e.on.isoformat()} {spec.label}: {e.value:.{spec.decimals}f} {spec.unit}")
+    return "\n".join(lines)
+
+
+# Single sections, for the MCP tools (ADR-0047 C): the same text as the summary's.
+
+
+def test_days(session: Session) -> str:
+    return _tests(session, None) or "## Test days\nNone yet."
+
+
+def body(session: Session, since: date | None) -> str:
+    return _body(session, since)
+
+
+def readiness(session: Session, since: date) -> str:
+    """The readiness answers and the daily checks since ``since`` (ADR-0053)."""
+    checks = list(
+        session.scalars(
+            select(DailyCheck)
+            .where(DailyCheck.local_date >= since)
+            .order_by(DailyCheck.local_date.desc())
+        )
+    )
+    lines = ["## Daily checks, newest first (health data, shared by choice)"]
+    lines += [
+        f"- {c.local_date.isoformat()}: sleep {c.sleep}, soreness {c.soreness.replace('_', ' ')}, "
+        f"energy {c.energy}"
+        for c in checks
+    ] or ["None in this period."]
+    return f"{_readiness(session)}\n\n" + "\n".join(lines)
+
+
+def exercise(session: Session, slug: str, since: date | None) -> str | None:
+    """One exercise: where the person is on its ladder and every set of it in the period;
+    None if there is no such exercise."""
+    found = session.scalar(select(Exercise).where(Exercise.slug == slug))
+    if found is None:
+        return None
+    standing = next((s for s in progress.overview(session) if s.exercise_id == found.id), None)
+    unit = UNITS[ExerciseKind(found.kind)]
+    lines = [f"## {found.name}"]
+    if standing is not None:
+        best = f"; best {standing.best_set}{unit}" if standing.best_set is not None else ""
+        lines.append(
+            f"Step: {standing.step} ({standing.step_number} of {standing.steps}){best}"
+            f"{'; ' + STATUS[standing.status] if STATUS.get(standing.status) else ''}."
+        )
+    query = (
+        select(Workout)
+        .join(SetLog, SetLog.workout_id == Workout.id)
+        .where(SetLog.exercise_id == found.id)
+        .options(selectinload(Workout.sets))
+        .order_by(Workout.local_date.desc(), Workout.id.desc())
+        .distinct()
+    )
+    if since is not None:
+        query = query.where(Workout.local_date >= since)
+    steps = {s.id: s.name for s in session.scalars(select(LadderStep))}
+    lines.append("Sessions, newest first:")
+    workouts = list(session.scalars(query))
+    for w in workouts:
+        sets = sorted(
+            (s for s in w.sets if s.exercise_id == found.id),
+            key=lambda s: (s.set_no, s.side),
+        )
+        step = steps.get(sets[0].ladder_step_id, "?")
+        values = [(s.side, s.set_no, s.value) for s in sets]
+        lines.append(f"- {w.local_date.isoformat()} ({step}): {_sets(values, unit)}")
+    if not workouts:
+        lines.append("None in this period.")
     return "\n".join(lines)
 
 
