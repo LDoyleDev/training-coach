@@ -177,3 +177,11 @@ def test_a_night_sent_again_longer_updates_the_same_row(session: Session) -> Non
     (night,) = session.scalars(select(SleepSession))
     assert (night.start_at, night.end_at) == (hcw.SLEEP_START, hcw.SLEEP_END)
     assert night.asleep_min == 440
+
+
+def test_a_later_higher_resting_record_keeps_the_days_low(session: Session) -> None:
+    _store(session, {"resting_heart_rate": [{"bpm": 48, "time": "2026-10-11T06:00:00Z"}]})
+    _store(session, {"resting_heart_rate": [{"bpm": 55, "time": "2026-10-11T07:00:00Z"}]})
+    day = _day(session, TODAY)
+    assert day is not None
+    assert (day.resting_hr, day.resting_source) == (48, "record")

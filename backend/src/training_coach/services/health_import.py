@@ -261,6 +261,8 @@ def _resting_records(session: Session, records: list[tuple[datetime, int]], tz: 
         lowest[day] = min(bpm, lowest.get(day, bpm))
     for day, bpm in lowest.items():
         row = _day(session, day)
+        if row.resting_source == "record" and row.resting_hr is not None:
+            bpm = min(row.resting_hr, bpm)  # a later, partial sync never raises the day's low
         row.resting_hr, row.resting_source = bpm, "record"
 
 
