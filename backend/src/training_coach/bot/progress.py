@@ -122,7 +122,7 @@ class ProgressHandlers:
         with session_scope(self.sessions) as session:
             text = review_text(reviews.weekly(session, today, self.settings.tz))
         if update.effective_message is not None:
-            markup = links.with_open(None, self.settings.public_url, links.PROGRESS)
+            markup = links.with_open(None, self.settings.public_url, links.REVIEW)
             await update.effective_message.reply_text(text, reply_markup=markup)
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:

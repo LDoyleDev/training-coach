@@ -239,7 +239,10 @@ test('with nothing left today, it points to what is next instead of a dead end',
     'href',
     '/progress',
   )
-  expect(screen.getByRole('link', { name: 'The week ahead' })).toHaveAttribute('href', '/plan')
+  expect(screen.getByRole('link', { name: 'The week ahead' })).toHaveAttribute(
+    'href',
+    '/progress?tab=plan',
+  )
 })
 
 test('fixing an earlier set returns to the furthest set, and the server keeps it', async () => {
