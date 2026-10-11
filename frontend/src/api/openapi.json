@@ -489,7 +489,7 @@
             "$ref": "#/components/schemas/TotalsView"
           },
           "week": {
-            "$ref": "#/components/schemas/training_coach__api__home__WeekView"
+            "$ref": "#/components/schemas/HomeWeekView"
           }
         },
         "required": [
@@ -500,6 +500,62 @@
           "today"
         ],
         "title": "HomeView",
+        "type": "object"
+      },
+      "HomeWeekView": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "extras": {
+            "title": "Extras",
+            "type": "integer"
+          },
+          "planned": {
+            "title": "Planned",
+            "type": "integer"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "zone2_minutes": {
+            "title": "Zone2 Minutes",
+            "type": "integer"
+          },
+          "zone2_target": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone2 Target"
+          }
+        },
+        "required": [
+          "start",
+          "done",
+          "planned",
+          "extras",
+          "zone2_minutes",
+          "zone2_target"
+        ],
+        "title": "HomeWeekView",
         "type": "object"
       },
       "ItemView": {
@@ -797,7 +853,7 @@
             "type": "boolean"
           },
           "week": {
-            "$ref": "#/components/schemas/training_coach__api__cardio__WeekView"
+            "$ref": "#/components/schemas/WeekView"
           },
           "workout_id": {
             "title": "Workout Id",
@@ -942,7 +998,7 @@
             ]
           },
           "week": {
-            "$ref": "#/components/schemas/training_coach__api__cardio__WeekView"
+            "$ref": "#/components/schemas/WeekView"
           }
         },
         "required": [
@@ -2033,7 +2089,7 @@
         "title": "VolumeView",
         "type": "object"
       },
-      "training_coach__api__cardio__WeekView": {
+      "WeekView": {
         "properties": {
           "moderate": {
             "title": "Moderate",
@@ -2061,62 +2117,6 @@
         "required": [
           "zone2",
           "moderate",
-          "zone2_target"
-        ],
-        "title": "WeekView",
-        "type": "object"
-      },
-      "training_coach__api__home__WeekView": {
-        "properties": {
-          "done": {
-            "title": "Done",
-            "type": "integer"
-          },
-          "extras": {
-            "title": "Extras",
-            "type": "integer"
-          },
-          "planned": {
-            "title": "Planned",
-            "type": "integer"
-          },
-          "start": {
-            "format": "date",
-            "title": "Start",
-            "type": "string"
-          },
-          "zone2_minutes": {
-            "title": "Zone2 Minutes",
-            "type": "integer"
-          },
-          "zone2_target": {
-            "anyOf": [
-              {
-                "maxItems": 2,
-                "minItems": 2,
-                "prefixItems": [
-                  {
-                    "type": "integer"
-                  },
-                  {
-                    "type": "integer"
-                  }
-                ],
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Zone2 Target"
-          }
-        },
-        "required": [
-          "start",
-          "done",
-          "planned",
-          "extras",
-          "zone2_minutes",
           "zone2_target"
         ],
         "title": "WeekView",

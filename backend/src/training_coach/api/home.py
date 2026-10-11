@@ -23,7 +23,7 @@ class TotalsView(BaseModel):
     days: int  # since the first done workout
 
 
-class WeekView(BaseModel):
+class HomeWeekView(BaseModel):
     start: date  # Monday
     done: int
     planned: int
@@ -45,7 +45,7 @@ class RecentView(BaseModel):
 
 class HomeView(BaseModel):
     totals: TotalsView
-    week: WeekView
+    week: HomeWeekView
     progress: LadderView
     recent: list[RecentView]  # done in the last seven days, newest first
     today: str | None  # today's session; empty when done or rested
@@ -61,7 +61,7 @@ def home(request: Request, user: Owner) -> HomeView:
         found = service.home(session, on, settings.tz)
     return HomeView(
         totals=TotalsView(**vars(found.totals)),
-        week=WeekView(**vars(found.week)),
+        week=HomeWeekView(**vars(found.week)),
         progress=LadderView(**vars(found.progress)),
         recent=[RecentView(day=r.day, session=r.session) for r in found.recent],
         today=found.today,

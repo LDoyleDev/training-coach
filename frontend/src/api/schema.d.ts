@@ -962,7 +962,28 @@ export interface components {
             /** Today */
             today: string | null;
             totals: components["schemas"]["TotalsView"];
-            week: components["schemas"]["training_coach__api__home__WeekView"];
+            week: components["schemas"]["HomeWeekView"];
+        };
+        /** HomeWeekView */
+        HomeWeekView: {
+            /** Done */
+            done: number;
+            /** Extras */
+            extras: number;
+            /** Planned */
+            planned: number;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /** Zone2 Minutes */
+            zone2_minutes: number;
+            /** Zone2 Target */
+            zone2_target: [
+                number,
+                number
+            ] | null;
         };
         /** ItemView */
         ItemView: {
@@ -1067,7 +1088,7 @@ export interface components {
             next_session: string | null;
             /** Planned */
             planned: boolean;
-            week: components["schemas"]["training_coach__api__cardio__WeekView"];
+            week: components["schemas"]["WeekView"];
             /** Workout Id */
             workout_id: number;
         };
@@ -1118,7 +1139,7 @@ export interface components {
             /** Activities */
             activities: components["schemas"]["CardioActivity"][];
             planned: components["schemas"]["PlannedView"] | null;
-            week: components["schemas"]["training_coach__api__cardio__WeekView"];
+            week: components["schemas"]["WeekView"];
         };
         /** PasskeyView */
         PasskeyView: {
@@ -1515,34 +1536,13 @@ export interface components {
             sets: number;
         };
         /** WeekView */
-        training_coach__api__cardio__WeekView: {
+        WeekView: {
             /** Moderate */
             moderate: number;
             /** Zone2 */
             zone2: number;
             /** Zone2 Target */
             zone2_target: number[] | null;
-        };
-        /** WeekView */
-        training_coach__api__home__WeekView: {
-            /** Done */
-            done: number;
-            /** Extras */
-            extras: number;
-            /** Planned */
-            planned: number;
-            /**
-             * Start
-             * Format: date
-             */
-            start: string;
-            /** Zone2 Minutes */
-            zone2_minutes: number;
-            /** Zone2 Target */
-            zone2_target: [
-                number,
-                number
-            ] | null;
         };
     };
     responses: never;
