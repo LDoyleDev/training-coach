@@ -1,4 +1,4 @@
-"""Workouts from the band, offered in Telegram (ADR-0054): "Walk, 46 min, 38 in zone 2 - count
+"""Workouts from the band, offered in Telegram (ADR-0055): "Walk, 46 min, 38 in zone 2 - count
 it?" with Count it / Not this one.
 
 A job looks for new offers every few minutes and sends each once. Callback data is
@@ -70,12 +70,13 @@ class BandHandlers:
         return local_date(datetime.now(UTC), self.settings.tz)
 
     async def announce(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send each new offer once, unless paused."""
+        """Send each new offer once, unless paused. An offer is marked sent only after Telegram
+        took it, so a failed send is tried again on the next run (review of #226)."""
         try:
             with session_scope(self.sessions) as session:
                 if user_settings.load(session).paused:
                     return
-                found = band_cardio.unannounced(session, self._today(), datetime.now(UTC))
+                found = band_cardio.unannounced(session, self._today())
         except SQLAlchemyError as exc:
             log.error("bot.band_offer_failed", error=type(exc).__name__)
             return
@@ -83,7 +84,11 @@ class BandHandlers:
         assert owner is not None  # noqa: S101 - owner_only
         bot: Bot = context.bot
         for offer in found:
-            await self.send(bot, owner, offer.text, reply_markup=markup(offer))
+            if not await self.send(bot, owner, offer.text, reply_markup=markup(offer)):
+                log.warning("bot.band_offer_not_sent")
+                return  # Telegram is unreachable; the rest wait for the next run too
+            with session_scope(self.sessions) as session:
+                band_cardio.announced(session, offer.id, datetime.now(UTC))
             log.info("bot.band_offer_sent")
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:

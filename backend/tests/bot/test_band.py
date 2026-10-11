@@ -1,4 +1,4 @@
-"""Band workouts offered in Telegram (ADR-0054): Count it / Not this one, owner-only."""
+"""Band workouts offered in Telegram (ADR-0055): Count it / Not this one, owner-only."""
 
 from datetime import UTC, datetime, time, timedelta
 from types import SimpleNamespace
@@ -19,9 +19,9 @@ App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
 
 
-def _walk(sessions: Sessions) -> int:
-    on = local_date(datetime.now(UTC), SETTINGS.tz)
-    start = datetime.combine(on, time(7, 0), tzinfo=SETTINGS.tz).astimezone(UTC)
+def _walk(sessions: Sessions, days_ago: int = 0, hour: int = 7) -> int:
+    on = local_date(datetime.now(UTC), SETTINGS.tz) - timedelta(days=days_ago)
+    start = datetime.combine(on, time(hour, 0), tzinfo=SETTINGS.tz).astimezone(UTC)
     with sessions() as session:
         row = ImportedWorkout(
             source="com.mi.health",
@@ -71,6 +71,42 @@ async def test_each_new_offer_is_sent_once(seeded: Sessions) -> None:
     assert (chat, text) == (OWNER, "Walk, 46 min, 38 in zone 2 - count it?")
     buttons = [b.callback_data for b in markup.inline_keyboard[0]]
     assert buttons == [f"bc:{walk}", f"bx:{walk}"]
+
+
+async def test_a_failed_send_is_tried_again_next_run(seeded: Sessions) -> None:
+    # Review of #226: offers were marked sent before sending, so a failed send lost them.
+    walk = _walk(seeded)
+    results = [False, True]
+    sent: list[str] = []
+
+    async def send(_bot: object, _chat: int, text: str, **_kwargs: Any) -> bool:
+        sent.append(text)
+        return results.pop(0)
+
+    handlers = band_ui.BandHandlers(SETTINGS, seeded, send)
+    context = SimpleNamespace(bot=None)
+    await handlers.announce(context)  # type: ignore[arg-type]  # fake context
+    with seeded() as session:
+        assert session.get(ImportedWorkout, walk).announced_at is None  # type: ignore[union-attr]
+    await handlers.announce(context)  # type: ignore[arg-type]
+    await handlers.announce(context)  # type: ignore[arg-type]
+    assert len(sent) == 2  # failed, then sent; not again after that
+    with seeded() as session:
+        assert session.get(ImportedWorkout, walk).announced_at is not None  # type: ignore[union-attr]
+
+
+async def test_a_backlog_is_sent_a_few_at_a_time_and_only_recent(seeded: Sessions) -> None:
+    # Review of #226: the first run after a gap could send a week of offers at once.
+    _walk(seeded, days_ago=4)  # stays on Today in the app, never sent to Telegram
+    for hour in range(6, 6 + band_ui.band_cardio.ANNOUNCE_AT_ONCE + 1):
+        _walk(seeded, days_ago=1, hour=hour)
+    send = AsyncMock(return_value=True)
+    handlers = band_ui.BandHandlers(SETTINGS, seeded, send)
+    await handlers.announce(SimpleNamespace(bot=None))  # type: ignore[arg-type]  # fake context
+    assert send.await_count == band_ui.band_cardio.ANNOUNCE_AT_ONCE
+    await handlers.announce(SimpleNamespace(bot=None))  # type: ignore[arg-type]
+    await handlers.announce(SimpleNamespace(bot=None))  # type: ignore[arg-type]
+    assert send.await_count == band_ui.band_cardio.ANNOUNCE_AT_ONCE + 1
 
 
 async def test_nothing_is_sent_while_paused(seeded: Sessions) -> None:

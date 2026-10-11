@@ -1,4 +1,4 @@
-"""Counting a workout from the band as cardio, after one tap (ADR-0054, ADR-0007).
+"""Counting a workout from the band as cardio, after one tap (ADR-0055, ADR-0007).
 
 A cardio workout from the band, at least 10 minutes and from the last 7 days, is offered on
 Today and in Telegram until it is counted or turned down. Counting saves through the cardio
@@ -22,6 +22,8 @@ from training_coach.domain.enums import CardioActivity
 from training_coach.services import cardio, workout_log
 
 DAYS = 7  # offered for this many days, today included
+ANNOUNCE_DAYS = 2  # sent to Telegram for this many days: today and yesterday
+ANNOUNCE_AT_ONCE = 3  # at most this many each run; the rest go on the next one
 MIN_MINUTES = 10
 
 
@@ -92,19 +94,29 @@ def offers(session: Session, today: date) -> list[Offer]:
     return [o for o in map(_offer, rows) if o is not None]
 
 
-def unannounced(session: Session, today: date, now: datetime) -> list[Offer]:
-    """Offers not yet sent to Telegram, marked as sent."""
-    rows = list(
-        session.scalars(
-            select(ImportedWorkout)
-            .where(*_open(today), ImportedWorkout.announced_at.is_(None))
-            .order_by(ImportedWorkout.start_at)
+def unannounced(session: Session, today: date) -> list[Offer]:
+    """Offers not yet sent to Telegram, oldest first: from the last ``ANNOUNCE_DAYS`` days only
+    (an older one stays on Today in the app), at most ``ANNOUNCE_AT_ONCE``, so the first run
+    after a long gap doesn't send a week of them at once (review of #226). Nothing is marked;
+    the caller marks each one once it is sent."""
+    rows = session.scalars(
+        select(ImportedWorkout)
+        .where(
+            *_open(today),
+            ImportedWorkout.announced_at.is_(None),
+            ImportedWorkout.local_date > today - timedelta(days=ANNOUNCE_DAYS),
         )
+        .order_by(ImportedWorkout.start_at)
     )
-    for row in rows:
+    return [o for o in map(_offer, rows) if o is not None][:ANNOUNCE_AT_ONCE]
+
+
+def announced(session: Session, import_id: int, now: datetime) -> None:
+    """Mark an offer as sent to Telegram, so it isn't sent again."""
+    row = session.get(ImportedWorkout, import_id)
+    if row is not None:
         row.announced_at = now
-    session.flush()
-    return [o for o in map(_offer, rows) if o is not None]
+        session.flush()
 
 
 def count(
