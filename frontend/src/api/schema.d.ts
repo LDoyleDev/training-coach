@@ -444,6 +444,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/daily-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Daily Check */
+        get: operations["get_daily_check_api_daily_check_get"];
+        /**
+         * Put Daily Check
+         * @description Answer today's check; answering again the same day replaces the answers.
+         */
+        put: operations["put_daily_check_api_daily_check_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/home": {
         parameters: {
             query?: never;
@@ -903,6 +924,21 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Advice
+         * @enum {string}
+         */
+        Advice: "as_planned" | "lighter" | "rest";
+        /** AdviceView */
+        AdviceView: {
+            kind: components["schemas"]["Advice"];
+            /** Summary */
+            summary: string;
+            /** Text */
+            text: string;
+            /** Title */
+            title: string;
+        };
         /** AiView */
         AiView: {
             /** Available */
@@ -970,6 +1006,21 @@ export interface components {
             today: components["schemas"]["TodayView"];
             undo: components["schemas"]["UndoOfferView"] | null;
         };
+        /** CheckAnswers */
+        CheckAnswers: {
+            energy: components["schemas"]["Energy"];
+            sleep: components["schemas"]["Sleep"];
+            soreness: components["schemas"]["Soreness"];
+        };
+        /** CheckQuestionView */
+        CheckQuestionView: {
+            /** Key */
+            key: string;
+            /** Options */
+            options: components["schemas"]["OptionView"][];
+            /** Text */
+            text: string;
+        };
         /** ChoiceView */
         ChoiceView: {
             /** Name */
@@ -984,6 +1035,18 @@ export interface components {
             others: components["schemas"]["ChoiceView"][];
             /** Template Id */
             template_id: number;
+        };
+        /**
+         * DailyCheckView
+         * @description Today's check: the questions, and the answers with their advice once given.
+         */
+        DailyCheckView: {
+            advice: components["schemas"]["AdviceView"] | null;
+            answers: components["schemas"]["CheckAnswers"] | null;
+            /** Day */
+            day: string;
+            /** Questions */
+            questions: components["schemas"]["CheckQuestionView"][];
         };
         /** DeviceView */
         DeviceView: {
@@ -1034,6 +1097,11 @@ export interface components {
              */
             unit: "reps" | "seconds" | "minutes";
         };
+        /**
+         * Energy
+         * @enum {string}
+         */
+        Energy: "high" | "normal" | "low";
         /** EraseRequest */
         EraseRequest: {
             /**
@@ -1278,6 +1346,13 @@ export interface components {
             /** Value */
             value: number;
         };
+        /** OptionView */
+        OptionView: {
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+        };
         /** OptionsBody */
         OptionsBody: {
             /** Body */
@@ -1516,6 +1591,16 @@ export interface components {
             /** Passkeys */
             passkeys: components["schemas"]["PasskeyView"][];
         };
+        /**
+         * Sleep
+         * @enum {string}
+         */
+        Sleep: "good" | "ok" | "poor";
+        /**
+         * Soreness
+         * @enum {string}
+         */
+        Soreness: "none" | "some" | "a_lot";
         /** StandingView */
         StandingView: {
             /** Best Set */
@@ -1665,6 +1750,8 @@ export interface components {
          *     is where the person left off, to resume.
          */
         TodayView: {
+            /** Daily Check */
+            daily_check?: string | null;
             planned?: components["schemas"]["QueuedView"] | null;
             progress?: components["schemas"]["ProgressView"] | null;
             /** Readiness Note */
@@ -2401,6 +2488,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoggedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_daily_check_api_daily_check_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyCheckView"];
+                };
+            };
+        };
+    };
+    put_daily_check_api_daily_check_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckAnswers"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyCheckView"];
                 };
             };
             /** @description Validation Error */

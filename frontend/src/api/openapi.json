@@ -1,6 +1,42 @@
 {
   "components": {
     "schemas": {
+      "Advice": {
+        "enum": [
+          "as_planned",
+          "lighter",
+          "rest"
+        ],
+        "title": "Advice",
+        "type": "string"
+      },
+      "AdviceView": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/Advice"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "text",
+          "summary"
+        ],
+        "title": "AdviceView",
+        "type": "object"
+      },
       "AiView": {
         "properties": {
           "available": {
@@ -168,6 +204,52 @@
         "title": "ChangedView",
         "type": "object"
       },
+      "CheckAnswers": {
+        "properties": {
+          "energy": {
+            "$ref": "#/components/schemas/Energy"
+          },
+          "sleep": {
+            "$ref": "#/components/schemas/Sleep"
+          },
+          "soreness": {
+            "$ref": "#/components/schemas/Soreness"
+          }
+        },
+        "required": [
+          "sleep",
+          "soreness",
+          "energy"
+        ],
+        "title": "CheckAnswers",
+        "type": "object"
+      },
+      "CheckQuestionView": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OptionView"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "text",
+          "options"
+        ],
+        "title": "CheckQuestionView",
+        "type": "object"
+      },
       "ChoiceView": {
         "properties": {
           "name": {
@@ -216,6 +298,50 @@
           "others"
         ],
         "title": "ChoicesView",
+        "type": "object"
+      },
+      "DailyCheckView": {
+        "description": "Today's check: the questions, and the answers with their advice once given.",
+        "properties": {
+          "advice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdviceView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "answers": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckAnswers"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/CheckQuestionView"
+            },
+            "title": "Questions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "day",
+          "questions",
+          "answers",
+          "advice"
+        ],
+        "title": "DailyCheckView",
         "type": "object"
       },
       "DeviceView": {
@@ -354,6 +480,15 @@
         ],
         "title": "EarnedView",
         "type": "object"
+      },
+      "Energy": {
+        "enum": [
+          "high",
+          "normal",
+          "low"
+        ],
+        "title": "Energy",
+        "type": "string"
       },
       "EraseRequest": {
         "properties": {
@@ -1050,6 +1185,24 @@
         "title": "MeasurementView",
         "type": "object"
       },
+      "OptionView": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "OptionView",
+        "type": "object"
+      },
       "OptionsBody": {
         "properties": {
           "body": {
@@ -1688,6 +1841,24 @@
         "title": "SignIns",
         "type": "object"
       },
+      "Sleep": {
+        "enum": [
+          "good",
+          "ok",
+          "poor"
+        ],
+        "title": "Sleep",
+        "type": "string"
+      },
+      "Soreness": {
+        "enum": [
+          "none",
+          "some",
+          "a_lot"
+        ],
+        "title": "Soreness",
+        "type": "string"
+      },
       "StandingView": {
         "properties": {
           "best_set": {
@@ -2069,6 +2240,17 @@
       "TodayView": {
         "description": "``session`` is empty when nothing planned is left today (done or rested); ``progress``\nis where the person left off, to resume.",
         "properties": {
+          "daily_check": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Check"
+          },
           "planned": {
             "anyOf": [
               {
@@ -3135,6 +3317,67 @@
         "summary": "Log",
         "tags": [
           "cardio"
+        ]
+      }
+    },
+    "/api/daily-check": {
+      "get": {
+        "operationId": "get_daily_check_api_daily_check_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyCheckView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Daily Check",
+        "tags": [
+          "daily check"
+        ]
+      },
+      "put": {
+        "description": "Answer today's check; answering again the same day replaces the answers.",
+        "operationId": "put_daily_check_api_daily_check_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckAnswers"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyCheckView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Daily Check",
+        "tags": [
+          "daily check"
         ]
       }
     },

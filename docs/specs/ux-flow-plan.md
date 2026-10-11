@@ -139,5 +139,13 @@ and alerts. The web app becomes the place you work in.
   error, or no answer within 4 seconds: straight through, never blocked. `/signin` and
   `/readiness` open without it. The Readiness page stays, linked from Account and from Today's
   hard-day note, with no nav tab. Built in `frontend/src/readiness/ReadinessGate.tsx`, from what
-  `GET /api/readiness` already returns. A daily "up for training today?" check (sleep, soreness)
-  is a different feature: the product spec's phase-3 readiness check, not decided yet.
+  `GET /api/readiness` already returns.
+- **The daily check comes next on app load (ADR-0053).** After the readiness questions (when
+  due), if today's daily check isn't answered: full screen, three questions (sleep, soreness,
+  energy), one big tap each, then the advice: "Go as planned", "Go lighter today" or "Take a
+  rest day". Continue opens the page; on "Take a rest day" a one-tap Rest today rests today's
+  session (if someone already changed today, it says so and lets you through). "Not now" skips
+  it for this load. Same never-block rules as above (signed out, error, 4 seconds). Once
+  answered it isn't asked again that day; Today shows the answers and advice as one line.
+  Built in `frontend/src/readiness/DailyCheckGate.tsx` on `GET/PUT /api/daily-check`. The
+  morning Telegram message asks the same three questions until answered.

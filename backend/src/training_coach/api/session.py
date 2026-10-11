@@ -10,12 +10,14 @@ from sqlalchemy.orm import Session, sessionmaker
 from training_coach.api.auth import Owner
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.daily_check import summary as daily_summary
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import HARD_SESSIONS
 from training_coach.domain.readiness import note as readiness_note
 from training_coach.domain.stretching import HOLD_SECONDS
 from training_coach.services import (
+    daily_check,
     guided,
     queue_actions,
     readiness,
@@ -130,6 +132,8 @@ class TodayView(BaseModel):
     # On a hard day (HIIT or a test day): answer the readiness questions, or see a doctor first
     # (ADR-0046). Advice only.
     readiness_note: str | None = None
+    # Today's daily check, once answered (ADR-0053): "Slept OK, ...: go lighter today".
+    daily_check: str | None = None
 
 
 class KeepBody(BaseModel):
@@ -187,8 +191,10 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
         plan = guided.today(session, on, settings.tz, set(kept.first))
     hard = test_day is not None or (plan is not None and plan.slug in HARD_SESSIONS)
     caution = readiness_note(current, hard)
+    answers = daily_check.on(session, on)
+    daily = daily_summary(answers) if answers is not None else None
     if plan is None:
-        return TodayView(session=None, test_day=test_day, readiness_note=caution)
+        return TodayView(session=None, test_day=test_day, readiness_note=caution, daily_check=daily)
     queue = position(session)
     planned = None
     if queue is not None and queue.pointer != plan.template_id:
@@ -209,6 +215,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
         progress=progress,
         test_day=test_day,
         readiness_note=caution,
+        daily_check=daily,
         session=GuidedView(
             day=plan.day.isoformat(),
             template_id=plan.template_id,

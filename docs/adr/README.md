@@ -57,3 +57,4 @@ Code). Template: [template.md](template.md).
 | [0050](0050-share-as-a-picture.md) | Share progress as a picture, not a link | Accepted |
 | [0051](0051-hiit-timer-like-tabata-timer.md) | The HIIT timer works like Tabata Timer, with workouts saved in the browser | Accepted |
 | [0052](0052-changing-today-on-the-web.md) | Changing today on the web: Rest, Push, Swap and Undo | Accepted |
+| [0053](0053-daily-check-before-training.md) | A daily check before training: sleep, soreness, energy | Accepted |

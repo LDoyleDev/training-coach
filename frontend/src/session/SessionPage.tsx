@@ -72,6 +72,7 @@ export default function SessionPage() {
   const [signedOut, setSignedOut] = useState(false) // the sign-in ended on the page
   const [testDay, setTestDay] = useState<TestDayDue | null>(null) // due in front (ADR-0038)
   const [readinessNote, setReadinessNote] = useState<string | null>(null) // hard days (ADR-0046)
+  const [dailyCheck, setDailyCheck] = useState<string | null>(null) // today's answers (ADR-0053)
   // What Undo takes back: a change's answer, or undefined to ask the server (C3). The key
   // starts the Undo afresh whenever today changes.
   const [undoOffer, setUndoOffer] = useState<UndoOffer | null | undefined>(undefined)
@@ -125,6 +126,7 @@ export default function SessionPage() {
   const show = useCallback((today: TodayView) => {
     setTestDay(today.test_day ?? null)
     setReadinessNote(today.readiness_note ?? null)
+    setDailyCheck(today.daily_check ?? null)
     setPlanned(today.planned ?? null)
     // An empty order can't be guided; treat it like nothing planned.
     if (!today.session || today.session.order.length === 0) return setLoaded({ status: 'none' })
@@ -183,11 +185,15 @@ export default function SessionPage() {
       {note}
     </p>
   )
+  const dailyLine = dailyCheck && (
+    <p className="m-0 text-sm text-[var(--slate)]">Today's check: {dailyCheck}.</p>
+  )
 
   if (loaded.status !== 'ready')
     return (
       <AppShell>
         {loaded.status === 'none' && noteBar}
+        {loaded.status === 'none' && dailyLine}
         {loaded.status === 'none' && readinessNote && <ReadinessNotice text={readinessNote} />}
         {loaded.status === 'none' && testDay && <TestDayNotice due={testDay} />}
         <Status loaded={loaded} />
@@ -330,6 +336,7 @@ export default function SessionPage() {
 
       {stage === 'overview' && (
         <>
+          {dailyLine}
           {readinessNote && <ReadinessNotice text={readinessNote} />}
           {testDay && <TestDayNotice due={testDay} />}
           {pending.map((day) => (
