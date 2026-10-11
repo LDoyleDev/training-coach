@@ -88,7 +88,7 @@ def log(
     extra: bool = False,
 ) -> Logged | workout_log.Stale:
     """Save one cardio log for ``on``. The caller checks ``problem`` first. ``extra`` files it
-    as an extra whatever is planned (a band workout from an earlier day, ADR-0054)."""
+    as an extra whatever is planned (a band workout from an earlier day, ADR-0055)."""
     today = None if extra else planned(session, on, tz)
     is_planned = today is not None and today.kind == kind
     template = workout_log.target(session, on, tz) if is_planned else None

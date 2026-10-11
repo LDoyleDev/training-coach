@@ -1,4 +1,4 @@
-"""/api/account/heart-rate: the zones and what sets them (ADR-0054)."""
+"""/api/account/heart-rate: the zones and what sets them (ADR-0055)."""
 
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine

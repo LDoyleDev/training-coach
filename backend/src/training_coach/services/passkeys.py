@@ -37,7 +37,7 @@ from webauthn.helpers.structs import (
 
 from training_coach.db.models import Passkey, PasskeyChallenge, WebSession
 from training_coach.db.session import ALL_USERS, bound_user
-from training_coach.services import auth
+from training_coach.services import auth, mcp_tokens
 
 log = structlog.get_logger(__name__)
 
@@ -321,7 +321,7 @@ def confirm(
         return False
     passkey.sign_count = verified.new_sign_count
     passkey.last_used_at = now
-    return auth.confirm(session, token, user, now)
+    return auth.confirm(session, token, user, now, passkey.id)
 
 
 @dataclass(frozen=True)
@@ -354,5 +354,7 @@ def remove(session: Session, key_id: int, now: datetime, current: str = "") -> b
         )
     ):
         started.ended_at = now
+    # So do the AI apps it approved (ADR-0047 C).
+    mcp_tokens.revoke_approved_with(session, key_id, now)
     session.delete(row)
     return True

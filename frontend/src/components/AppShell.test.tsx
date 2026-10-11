@@ -20,7 +20,6 @@ test('the nav links every signed-in page and marks the one shown', () => {
     ['Home', '/'],
     ['Today', '/session'],
     ['Progress', '/progress'],
-    ['Plan', '/plan'],
     ['Tests', '/tests'],
     ['Body', '/body'],
     ['Account', '/account'],
@@ -28,9 +27,9 @@ test('the nav links every signed-in page and marks the one shown', () => {
   expect(screen.getByRole('link', { name: 'Tests' })).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('link', { name: 'Body' })).not.toHaveAttribute('aria-current')
   expect(screen.getByRole('link', { name: 'Training Coach' })).toHaveAttribute('href', '/')
-  // Six tabs fit a phone: Plan shows from 640px up, and Home links to it.
-  expect(screen.getByRole('link', { name: 'Plan' }).closest('li')).toHaveClass('hidden', 'sm:block')
+  // Six tabs, all on a phone too: Plan is a tab of Progress (ux-flow-plan D2).
   expect(screen.getByRole('link', { name: 'Home' }).closest('li')).not.toHaveClass('hidden')
+  expect(screen.queryByRole('link', { name: 'Plan' })).toBeNull()
   expect(screen.getByText('content')).toBeInTheDocument()
 })
 

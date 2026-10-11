@@ -1,4 +1,4 @@
-"""heart-rate zones (ADR-0054): zone minutes on imported workouts, birth year and own max HR
+"""heart-rate zones (ADR-0055): zone minutes on imported workouts, birth year and own max HR
 
 Autogenerate doesn't see check constraints on existing tables; they are added by hand and
 repeat the models' bounds.

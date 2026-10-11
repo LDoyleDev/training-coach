@@ -1,4 +1,4 @@
-"""Band data from Health Connect (ADR-0054): what the records mean, in plain numbers. Pure logic,
+"""Band data from Health Connect (ADR-0055): what the records mean, in plain numbers. Pure logic,
 no I/O.
 
 Health Connect names exercise types and sleep stages by AndroidX constants, sent as strings
@@ -133,7 +133,7 @@ MIN_COUNTED = 5  # minutes: less isn't worth offering
 def counted_as(
     activity: CardioActivity, minutes: int, zone_minutes: Sequence[int] | None
 ) -> tuple[str, int] | None:
-    """The cardio exercise a band workout counts as, and for how many minutes (ADR-0054).
+    """The cardio exercise a band workout counts as, and for how many minutes (ADR-0055).
 
     With heart rate: zone 2 when it spent at least as long in zone 2 as in zones 3-5, for its
     zone 2 minutes only; moderate otherwise, for all of it. Without: a run or stairs is

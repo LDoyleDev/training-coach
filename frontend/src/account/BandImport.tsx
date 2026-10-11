@@ -25,7 +25,7 @@ const when = (iso: string) =>
   })
 
 /**
- * Band import (ADR-0054): the secret the Health Connect Webhook app on the phone sends with
+ * Band import (ADR-0055): the secret the Health Connect Webhook app on the phone sends with
  * band data. Made here and shown once; the server keeps only its hash. Steps for the phone are
  * in docs/runbooks/band-import.md.
  */

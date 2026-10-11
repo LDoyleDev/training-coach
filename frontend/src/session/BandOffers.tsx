@@ -13,7 +13,7 @@ const day = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short' })
 
 /**
- * Workouts from the band, to count as cardio with one tap (ADR-0054): "Walk, 46 min, 38 in
+ * Workouts from the band, to count as cardio with one tap (ADR-0055): "Walk, 46 min, 38 in
  * zone 2 - count it?". Counting goes through the cardio log, so Undo takes it back.
  * ``onCounted`` hears what to say; the page then reloads today and the Undo bar.
  */

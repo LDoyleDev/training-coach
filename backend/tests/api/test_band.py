@@ -1,4 +1,4 @@
-"""/api/band/offers: band workouts counted as cardio after one tap (ADR-0054)."""
+"""/api/band/offers: band workouts counted as cardio after one tap (ADR-0055)."""
 
 from datetime import UTC, date, datetime, time, timedelta
 

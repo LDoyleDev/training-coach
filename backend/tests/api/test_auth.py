@@ -23,7 +23,17 @@ PUBLIC = {
     "/api/auth/signout",
     "/api/auth/passkeys/sign-in/options",
     "/api/auth/passkeys/sign-in",
-    "/api/ingest/health-connect",  # the ingest secret, not a cookie (ADR-0054)
+    "/api/ingest/health-connect",  # the ingest secret, not a cookie (ADR-0055)
+    # Connect my AI (ADR-0047 C): what an AI app calls before anyone has approved it, and the
+    # consent page's handle-gated reads (mcp-threat-model.md requirement 1).
+    "/.well-known/oauth-protected-resource",
+    "/.well-known/oauth-protected-resource/mcp",
+    "/.well-known/oauth-authorization-server",
+    "/oauth/register",
+    "/oauth/authorize",
+    "/oauth/token",
+    "/api/connect/details",
+    "/api/connect/deny",
 }
 
 

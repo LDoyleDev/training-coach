@@ -1,4 +1,4 @@
-"""The secret a person's phone sends band data with (ADR-0054).
+"""The secret a person's phone sends band data with (ADR-0055).
 
 32 random bytes, shown once when made and stored only as their SHA-256. One per person: making
 a new one replaces the old, removing it stops imports. Finding whose secret a request carries

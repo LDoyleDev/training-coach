@@ -1,4 +1,4 @@
-"""Workouts from the band to count as cardio, on Today (ADR-0054). Owner-only. Counting is one
+"""Workouts from the band to count as cardio, on Today (ADR-0055). Owner-only. Counting is one
 tap and goes through the cardio log, so it is idempotent and /undo takes it back."""
 
 from datetime import UTC, date, datetime

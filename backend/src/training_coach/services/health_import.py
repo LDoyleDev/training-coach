@@ -1,4 +1,4 @@
-"""Band data from Health Connect Webhook (ADR-0054): checking a payload record by record and
+"""Band data from Health Connect Webhook (ADR-0055): checking a payload record by record and
 storing what it says in our own tables. The payload itself is never kept or logged.
 
 The app sends one JSON object per sync: ``timestamp``, ``app_version`` and an array per data
@@ -255,7 +255,7 @@ def _day(session: Session, day: date) -> HealthDay:
 
 
 def _steps(session: Session, steps: list[tuple[datetime, int]], tz: ZoneInfo) -> None:
-    """A day keeps the larger of what it had and this sync's sum (ADR-0054)."""
+    """A day keeps the larger of what it had and this sync's sum (ADR-0055)."""
     for day, count in health.steps_by_day(steps, tz).items():
         row = _day(session, day)
         row.steps = max(row.steps or 0, min(count, 200_000))

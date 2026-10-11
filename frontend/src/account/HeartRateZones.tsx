@@ -14,7 +14,7 @@ function source(hr: HeartRate): string {
 }
 
 /**
- * Heart-rate zones (ADR-0054): Karvonen zones from resting heart rate (last week's nights) and
+ * Heart-rate zones (ADR-0055): Karvonen zones from resting heart rate (last week's nights) and
  * max heart rate (own number, else estimated from age and raised by hard workouts). Imported
  * workouts count minutes in these zones.
  */

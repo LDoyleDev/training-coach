@@ -1,4 +1,4 @@
-"""Storing Health Connect Webhook payloads (ADR-0054)."""
+"""Storing Health Connect Webhook payloads (ADR-0055)."""
 
 from datetime import date, datetime, timedelta
 from typing import Any

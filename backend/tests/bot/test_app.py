@@ -13,6 +13,7 @@ from telegram.warnings import PTBDeprecationWarning
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, command, run, texts
 from training_coach.bot.app import (
     MORNING_JOB,
+    RESCHEDULE,
     Handlers,
     build_bot,
     owner_only,
@@ -23,6 +24,7 @@ from training_coach.bot.messages import NO_PLAN, SOMETHING_WENT_WRONG
 from training_coach.config import Settings
 from training_coach.db.models import UserSettings
 from training_coach.db.session import make_session_factory
+from training_coach.services.user_settings import Prefs
 from training_coach.services.users import OWNER as OWNER_ID
 
 
@@ -140,6 +142,15 @@ def test_morning_uses_the_saved_time_and_reschedules(
 
     schedule_morning(application, Handlers(SETTINGS, seeded), time(8, 0))
     assert _next_run(application, after) == datetime(2026, 10, 7, 6, 0, tzinfo=UTC)
+
+
+def test_the_settings_page_moves_the_jobs_through_bot_data(
+    sessions: sessionmaker[Session],
+) -> None:
+    application = build_bot(SETTINGS, sessions)
+    application.bot_data[RESCHEDULE](Prefs(morning_time=time(9, 0)))
+    after = datetime(2026, 10, 6, 12, 0, tzinfo=UTC)
+    assert _next_run(application, after) == datetime(2026, 10, 7, 7, 0, tzinfo=UTC)
 
 
 def _context() -> SimpleNamespace:

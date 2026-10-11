@@ -1,4 +1,4 @@
-"""band offers announced in Telegram (ADR-0054)
+"""band offers announced in Telegram (ADR-0055)
 
 Revision ID: 5395d39ffac9
 Revises: 07d0d154d62c
