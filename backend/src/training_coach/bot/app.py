@@ -260,6 +260,7 @@ class Handlers:
                 paused = user_settings.load(session).paused
                 checked = daily_check.on(session, on) is not None
                 band = health_summary.morning_line(session, on)
+                suggested = health_summary.suggested_sleep(session, on)
             text, markup = self._today()
         except SQLAlchemyError as exc:
             log.error("bot.morning_failed", error=type(exc).__name__)
@@ -271,7 +272,8 @@ class Handlers:
             text = f"{text}\n\n{daily_ui.ASK}"
             if band is not None:  # what the band saw, for the sleep row (ADR-0055)
                 text = f"{text}\n{band}"
-            markup = daily_ui.with_check(markup, on)
+            sleep = suggested[0] if suggested is not None else None
+            markup = daily_ui.with_check(markup, on, sleep)
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
         if await send_with_retry(
             context.bot, self.settings.telegram_allowed_user_id, text, reply_markup=markup
