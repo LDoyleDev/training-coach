@@ -32,7 +32,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from training_coach.db.base import Base
 from training_coach.db.types import UTCDateTime, utcnow
 from training_coach.domain.blocks import BlockKind
-from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
+from training_coach.domain.enums import CardioActivity, ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.fitness_tests import TimeOfDay
 from training_coach.domain.habits import Habit
 from training_coach.domain.measurements import Kind as MeasurementKind
@@ -273,6 +273,7 @@ class Workout(Owned, Base):
     __table_args__ = (
         CheckConstraint(_in("status", WorkoutStatus), name="status_valid"),
         CheckConstraint(_in("block", BlockKind), name="block_valid"),
+        CheckConstraint(_in("activity", CardioActivity), name="activity_valid"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -287,6 +288,8 @@ class Workout(Owned, Base):
     # Set when a confirmed text/voice log is saved: one token per draft, so a repeated Save
     # can never create a second workout or advance the queue twice (step 1-E).
     log_token: Mapped[str | None] = mapped_column(String(32), unique=True)
+    # What a cardio log was (walk, bike...), from the web's Log activity; empty otherwise.
+    activity: Mapped[str | None] = mapped_column(String(16))
     # The plan version in force on local_date (ADR-0034), set on insert; empty only when
     # the plan has no versions yet (the seed fills those in once it has).
     plan_version_id: Mapped[int | None] = mapped_column(

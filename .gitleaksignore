@@ -1,0 +1,3 @@
+# False positives, one per line as gitleaks prints them (commit:file:rule:line).
+# A fake 32-hex log token in a test, since replaced (#202).
+58f8b3a09c9a07ab1200b86200dc24551fa3f834:backend/tests/api/test_cardio.py:generic-api-key:19

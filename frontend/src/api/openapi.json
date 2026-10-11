@@ -106,6 +106,22 @@
         "title": "BlockView",
         "type": "object"
       },
+      "CardioActivity": {
+        "description": "What a logged cardio session was (ux-flow-plan A1). Optional on a workout.",
+        "enum": [
+          "walk",
+          "hike",
+          "jog",
+          "run",
+          "bike",
+          "swim",
+          "row",
+          "stairs",
+          "other"
+        ],
+        "title": "CardioActivity",
+        "type": "string"
+      },
       "DeviceView": {
         "properties": {
           "created_at": {
@@ -473,7 +489,7 @@
             "$ref": "#/components/schemas/TotalsView"
           },
           "week": {
-            "$ref": "#/components/schemas/WeekView"
+            "$ref": "#/components/schemas/training_coach__api__home__WeekView"
           }
         },
         "required": [
@@ -718,6 +734,86 @@
         "title": "LadderView",
         "type": "object"
       },
+      "LogBody": {
+        "properties": {
+          "activity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardioActivity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "zone2",
+              "moderate-cardio",
+              "hiit"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "token": {
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Token",
+            "type": "string"
+          },
+          "value": {
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "token",
+          "kind",
+          "value"
+        ],
+        "title": "LogBody",
+        "type": "object"
+      },
+      "LoggedView": {
+        "properties": {
+          "already_saved": {
+            "title": "Already Saved",
+            "type": "boolean"
+          },
+          "next_session": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Session"
+          },
+          "planned": {
+            "title": "Planned",
+            "type": "boolean"
+          },
+          "week": {
+            "$ref": "#/components/schemas/training_coach__api__cardio__WeekView"
+          },
+          "workout_id": {
+            "title": "Workout Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "workout_id",
+          "already_saved",
+          "planned",
+          "next_session",
+          "week"
+        ],
+        "title": "LoggedView",
+        "type": "object"
+      },
       "Me": {
         "properties": {
           "user_id": {
@@ -823,6 +919,38 @@
           "readiness"
         ],
         "title": "OptionsBody",
+        "type": "object"
+      },
+      "OptionsView": {
+        "description": "``planned`` is today's session when it is a single cardio exercise: \"Done as planned\"\nsaves its target in one tap. Any other cardio is logged as an extra.",
+        "properties": {
+          "activities": {
+            "items": {
+              "$ref": "#/components/schemas/CardioActivity"
+            },
+            "title": "Activities",
+            "type": "array"
+          },
+          "planned": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlannedView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "week": {
+            "$ref": "#/components/schemas/training_coach__api__cardio__WeekView"
+          }
+        },
+        "required": [
+          "planned",
+          "activities",
+          "week"
+        ],
+        "title": "OptionsView",
         "type": "object"
       },
       "PasskeyView": {
@@ -952,6 +1080,34 @@
           "volume_target_max"
         ],
         "title": "PlanView",
+        "type": "object"
+      },
+      "PlannedView": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "zone2",
+              "moderate-cardio",
+              "hiit"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "session": {
+            "title": "Session",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "session",
+          "target"
+        ],
+        "title": "PlannedView",
         "type": "object"
       },
       "ProgressView": {
@@ -1877,7 +2033,40 @@
         "title": "VolumeView",
         "type": "object"
       },
-      "WeekView": {
+      "training_coach__api__cardio__WeekView": {
+        "properties": {
+          "moderate": {
+            "title": "Moderate",
+            "type": "integer"
+          },
+          "zone2": {
+            "title": "Zone2",
+            "type": "integer"
+          },
+          "zone2_target": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone2 Target"
+          }
+        },
+        "required": [
+          "zone2",
+          "moderate",
+          "zone2_target"
+        ],
+        "title": "WeekView",
+        "type": "object"
+      },
+      "training_coach__api__home__WeekView": {
         "properties": {
           "done": {
             "title": "Done",
@@ -2650,6 +2839,67 @@
         "summary": "Remove",
         "tags": [
           "body"
+        ]
+      }
+    },
+    "/api/cardio": {
+      "get": {
+        "operationId": "options_api_cardio_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Options",
+        "tags": [
+          "cardio"
+        ]
+      },
+      "post": {
+        "description": "Save one cardio log for today. 409 when today's session changed meanwhile.",
+        "operationId": "log_api_cardio_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoggedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Log",
+        "tags": [
+          "cardio"
         ]
       }
     },

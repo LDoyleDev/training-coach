@@ -423,6 +423,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cardio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Options */
+        get: operations["options_api_cardio_get"];
+        put?: never;
+        /**
+         * Log
+         * @description Save one cardio log for today. 409 when today's session changed meanwhile.
+         */
+        post: operations["log_api_cardio_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/home": {
         parameters: {
             query?: never;
@@ -801,6 +822,12 @@ export interface components {
             /** Week */
             week: number;
         };
+        /**
+         * CardioActivity
+         * @description What a logged cardio session was (ux-flow-plan A1). Optional on a workout.
+         * @enum {string}
+         */
+        CardioActivity: "walk" | "hike" | "jog" | "run" | "bike" | "swim" | "row" | "stairs" | "other";
         /** DeviceView */
         DeviceView: {
             /**
@@ -935,7 +962,7 @@ export interface components {
             /** Today */
             today: string | null;
             totals: components["schemas"]["TotalsView"];
-            week: components["schemas"]["WeekView"];
+            week: components["schemas"]["training_coach__api__home__WeekView"];
         };
         /** ItemView */
         ItemView: {
@@ -1019,6 +1046,31 @@ export interface components {
             /** Steps Climbed */
             steps_climbed: number;
         };
+        /** LogBody */
+        LogBody: {
+            activity?: components["schemas"]["CardioActivity"] | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "zone2" | "moderate-cardio" | "hiit";
+            /** Token */
+            token: string;
+            /** Value */
+            value: number;
+        };
+        /** LoggedView */
+        LoggedView: {
+            /** Already Saved */
+            already_saved: boolean;
+            /** Next Session */
+            next_session: string | null;
+            /** Planned */
+            planned: boolean;
+            week: components["schemas"]["training_coach__api__cardio__WeekView"];
+            /** Workout Id */
+            workout_id: number;
+        };
         /** Me */
         Me: {
             /** User Id */
@@ -1056,6 +1108,17 @@ export interface components {
             enabled: boolean;
             /** Readiness */
             readiness: boolean;
+        };
+        /**
+         * OptionsView
+         * @description ``planned`` is today's session when it is a single cardio exercise: "Done as planned"
+         *     saves its target in one tap. Any other cardio is logged as an extra.
+         */
+        OptionsView: {
+            /** Activities */
+            activities: components["schemas"]["CardioActivity"][];
+            planned: components["schemas"]["PlannedView"] | null;
+            week: components["schemas"]["training_coach__api__cardio__WeekView"];
         };
         /** PasskeyView */
         PasskeyView: {
@@ -1110,6 +1173,18 @@ export interface components {
             volume_target_max: number;
             /** Volume Target Min */
             volume_target_min: number;
+        };
+        /** PlannedView */
+        PlannedView: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "zone2" | "moderate-cardio" | "hiit";
+            /** Session */
+            session: string;
+            /** Target */
+            target: number;
         };
         /** ProgressView */
         ProgressView: {
@@ -1440,7 +1515,16 @@ export interface components {
             sets: number;
         };
         /** WeekView */
-        WeekView: {
+        training_coach__api__cardio__WeekView: {
+            /** Moderate */
+            moderate: number;
+            /** Zone2 */
+            zone2: number;
+            /** Zone2 Target */
+            zone2_target: number[] | null;
+        };
+        /** WeekView */
+        training_coach__api__home__WeekView: {
             /** Done */
             done: number;
             /** Extras */
@@ -2064,6 +2148,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    options_api_cardio_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OptionsView"];
+                };
+            };
+        };
+    };
+    log_api_cardio_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoggedView"];
+                };
             };
             /** @description Validation Error */
             422: {
