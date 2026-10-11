@@ -64,6 +64,26 @@ export async function approveConsent(
   return (await res.json()) as GoTo
 }
 
+export type Connection = Schemas['ConnectionView']
+
+/** The AI apps I've connected; null when not signed in. */
+export async function fetchConnections(signal?: AbortSignal): Promise<Connection[] | null> {
+  const res = await fetch('/api/account/connections', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Connection[]
+}
+
+/** Revoke a connected app: it can't read anything from now on. */
+export async function revokeConnection(id: number): Promise<void> {
+  const res = await fetch(`/api/account/connections/${id}`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  })
+  if (res.status !== 204 && res.status !== 404)
+    throw new Error(`The server answered ${res.status}.`)
+}
+
 /** Don't allow: where to send the person back; null when the request has already gone. */
 export async function denyConsent(handle: string): Promise<string | null> {
   const res = await post('/api/connect/deny', { handle })

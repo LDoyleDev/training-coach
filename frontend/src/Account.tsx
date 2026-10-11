@@ -1,4 +1,5 @@
 import AppShell from './components/AppShell'
+import AiApps from './account/AiApps'
 import AiComments from './account/AiComments'
 import CopyForAI from './account/CopyForAI'
 import Settings from './account/Settings'
@@ -244,6 +245,7 @@ export default function Account() {
 
           <CopyForAI />
           <AiComments />
+          <AiApps />
 
           <section aria-labelledby="erase" className={card}>
             <h2 id="erase" className="mb-2 text-xl">
