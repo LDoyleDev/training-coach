@@ -16,7 +16,7 @@ from training_coach.db.models import (
     SleepSession,
 )
 from training_coach.domain.measurements import Kind
-from training_coach.services import health_import, measurements
+from training_coach.services import health_import, measurements, zones
 
 BERLIN = ZoneInfo("Europe/Berlin")
 TODAY = date(2026, 10, 11)
@@ -58,7 +58,7 @@ def test_a_full_sync_lands_in_every_table(session: Session) -> None:
     (walk,) = session.scalars(select(ImportedWorkout))
     assert (walk.activity, walk.exercise_type, walk.minutes, walk.status) == ("walk", 79, 46, "new")
     assert walk.local_date == date(2026, 10, 10)
-    assert (walk.avg_hr, walk.max_hr) == (round((8 * 100 + 38 * 125) / 46), 128)
+    assert (walk.avg_hr, walk.max_hr) == (round((8 * 100 + 38 * 140) / 46), 143)
 
     assert measurements.history(session)[0].value == 81.5  # the first reading of the day
     assert session.scalar(select(HeartRateSample.id).limit(1)) is not None
@@ -90,7 +90,7 @@ def test_heart_rate_arriving_after_its_workout_fills_it_in(session: Session) -> 
     assert walk.avg_hr is None
     _store(session, {"heart_rate": hcw.walk_heart_rate()})
     session.refresh(walk)
-    assert walk.max_hr == 128
+    assert walk.max_hr == 143
 
 
 def test_a_resting_heart_rate_record_wins_over_the_derived_one(session: Session) -> None:
@@ -185,3 +185,32 @@ def test_a_later_higher_resting_record_keeps_the_days_low(session: Session) -> N
     day = _day(session, TODAY)
     assert day is not None
     assert (day.resting_hr, day.resting_source) == (48, "record")
+
+
+def _zone_minutes(walk: ImportedWorkout) -> list[int | None]:
+    return [walk.zone1_min, walk.zone2_min, walk.zone3_min, walk.zone4_min, walk.zone5_min]
+
+
+def test_a_workout_gets_its_zone_minutes(session: Session) -> None:
+    _store(session, hcw.full())
+    (walk,) = session.scalars(select(ImportedWorkout))
+    # Resting 48 from the night, max 190 without an age: 140 bpm is zone 2, 100 below zone 1.
+    assert _zone_minutes(walk) == [0, 38, 0, 0, 0]
+
+
+def test_changing_max_heart_rate_counts_zones_again(session: Session) -> None:
+    _store(session, hcw.full())
+    zones.save(session, None, 150)
+    health_import.rezone(session, TODAY, hcw.NOW)
+    (walk,) = session.scalars(select(ImportedWorkout))
+    assert _zone_minutes(walk) == [8, 0, 0, 0, 38]
+    # Once its heart rate has aged out, a workout keeps the minutes it had.
+    zones.save(session, None, None)
+    health_import.rezone(session, TODAY, hcw.NOW + timedelta(days=9))
+    assert _zone_minutes(walk) == [8, 0, 0, 0, 38]
+
+
+def test_a_workout_without_heart_rate_has_no_zones(session: Session) -> None:
+    _store(session, {"exercise": [hcw.walk()]})
+    (walk,) = session.scalars(select(ImportedWorkout))
+    assert _zone_minutes(walk) == [None] * 5
