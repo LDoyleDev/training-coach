@@ -17,6 +17,17 @@
   --cond: #7b93a7;
   --rec: #b4c3bb;
   --strength: var(--ink);
+  /* HIIT timer phases: a background and the ink that reads on it */
+  --hiit-prepare: #e9c46a;
+  --hiit-prepare-ink: #22282d;
+  --hiit-work: #a8325f;
+  --hiit-work-ink: #fdf6f8;
+  --hiit-rest: #2f7d6d;
+  --hiit-rest-ink: #f3faf7;
+  --hiit-set-rest: #33577a;
+  --hiit-set-rest-ink: #f2f6fa;
+  --hiit-cool-down: #5b5f97;
+  --hiit-cool-down-ink: #f5f5fb;
   --font: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
   color-scheme: light;
 }
@@ -32,6 +43,16 @@
     --bell-ink: #f19bb8;
     --cond: #8ea7ba;
     --rec: #6c7f76;
+    --hiit-prepare: #e2bf68;
+    --hiit-prepare-ink: #1b2024;
+    --hiit-work: #f19bb8;
+    --hiit-work-ink: #1b2024;
+    --hiit-rest: #7cc4b1;
+    --hiit-rest-ink: #1b2024;
+    --hiit-set-rest: #8fb4d9;
+    --hiit-set-rest-ink: #1b2024;
+    --hiit-cool-down: #b0b3e6;
+    --hiit-cool-down-ink: #1b2024;
     color-scheme: dark;
   }
 }

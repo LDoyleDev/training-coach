@@ -1,4 +1,4 @@
-# ADR-0051: Changing today on the web: Rest, Push, Swap and Undo
+# ADR-0052: Changing today on the web: Rest, Push, Swap and Undo
 
 - Status: Accepted
 - Date: 2026-10-11

@@ -9,7 +9,10 @@ vi.mock('../hiit/HiitTimer', () => ({
   default: ({ defaults, onFinish, onCancel }: HiitTimerProps) => (
     <div>
       <p>Timer for {defaults?.rounds ?? 8} rounds</p>
-      <button type="button" onClick={() => onFinish?.({ rounds: 6, work: 20, rest: 10 })}>
+      <button
+        type="button"
+        onClick={() => onFinish?.({ rounds: 6, work: 20, rest: 10, sets: 1, seconds: 230 })}
+      >
         Finish timer
       </button>
       <button type="button" onClick={() => onCancel?.()}>

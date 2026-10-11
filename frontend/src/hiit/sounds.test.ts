@@ -49,6 +49,36 @@ test('without Web Audio every sound is silent and nothing throws', async () => {
   }).not.toThrow()
 })
 
+test('without speech synthesis the voice is unsupported and speaking does nothing', async () => {
+  vi.stubGlobal('speechSynthesis', undefined)
+  const sounds = await import('./sounds')
+  expect(sounds.voiceSupported()).toBe(false)
+  expect(() => sounds.speak('Work')).not.toThrow()
+})
+
+test('a cue cuts off the one before it and is spoken', async () => {
+  const spoken: string[] = []
+  const synth = { cancel: vi.fn(), speak: vi.fn((u: { text: string }) => spoken.push(u.text)) }
+  class Utterance {
+    rate = 1
+    text: string
+    constructor(text: string) {
+      this.text = text
+    }
+  }
+  vi.stubGlobal('speechSynthesis', synth)
+  vi.stubGlobal('SpeechSynthesisUtterance', Utterance)
+  const sounds = await import('./sounds')
+  expect(sounds.voiceSupported()).toBe(true)
+  sounds.speak('Rest')
+  expect(synth.cancel).toHaveBeenCalledOnce()
+  expect(spoken).toEqual(['Rest'])
+  synth.speak.mockImplementation(() => {
+    throw new Error('no voices')
+  })
+  expect(() => sounds.speak('Done')).not.toThrow()
+})
+
 test('unlocking resumes a suspended context', async () => {
   const { resume } = fakeAudio()
   const sounds = await import('./sounds')
@@ -56,7 +86,7 @@ test('unlocking resumes a suspended context', async () => {
   expect(resume).toHaveBeenCalledOnce()
 })
 
-test('the beep is one 880 Hz tone; bells are four inharmonic partials, rest lower than work', async () => {
+test('the beep is one 880 Hz tone; work is a four-partial bell, rest a softer, lower chime', async () => {
   const { frequencies } = fakeAudio('running')
   const sounds = await import('./sounds')
   sounds.unlockAudio()
@@ -67,7 +97,7 @@ test('the beep is one 880 Hz tone; bells are four inharmonic partials, rest lowe
   expect(frequencies).toEqual([784, 1568, 784 * 2.76, 784 * 5.4])
   frequencies.length = 0
   sounds.playBell('rest')
-  expect(frequencies[0]).toBe(587)
+  expect(frequencies).toEqual([523, 784])
   frequencies.length = 0
   sounds.playFinished()
   expect(frequencies).toHaveLength(12)

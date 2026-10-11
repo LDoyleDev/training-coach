@@ -4,19 +4,13 @@ import AppShell from '../components/AppShell'
 import SignedOutNotice from '../components/SignedOutNotice'
 import { card, primary } from '../ui'
 import { RetryCard, SignInCard } from '../components/StateCards'
+import { CLEAR, SEE_DOCTOR } from './advice'
 
 type Loaded =
   | { status: 'loading' }
   | { status: 'signed-out' }
   | { status: 'error' }
   | { status: 'ready'; readiness: Readiness }
-
-const CLEAR =
-  "Thanks. Nothing in your answers says to hold back. You'll be asked again in about 6 months, " +
-  'or sooner if your health changes: answer again any time.'
-const SEE_DOCTOR =
-  'Check with a doctor before hard efforts: the High-intensity session and test days. Until ' +
-  'you have, the app reminds you on those days; keep them easy and stop well short of your limit.'
 
 const day = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
