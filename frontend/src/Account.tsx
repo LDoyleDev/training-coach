@@ -1,6 +1,7 @@
 import AppShell from './components/AppShell'
 import AiApps from './account/AiApps'
 import AiComments from './account/AiComments'
+import BandImport from './account/BandImport'
 import CopyForAI from './account/CopyForAI'
 import Settings from './account/Settings'
 import Toast from './components/Toast'
@@ -246,6 +247,7 @@ export default function Account() {
           <CopyForAI />
           <AiComments />
           <AiApps />
+          <BandImport />
 
           <section aria-labelledby="erase" className={card}>
             <h2 id="erase" className="mb-2 text-xl">

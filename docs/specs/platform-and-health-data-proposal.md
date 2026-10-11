@@ -230,6 +230,7 @@ Answered on 2026-10-07: 1, 2, 3 and 11 (section 0). Still open, plus new ones:
     party data), and turn on steps, sleep, heart rate, workouts and weight.
 14. Questions 4-10 above (sign-in, notifications, which data, cardio auto-logging, zones, bridge
     apps, where data lives) can wait until the web app and health-data phases are planned.
+    Answered 2026-10-11: 6-10, for band import; the answers and the design are in ADR-0055.
 
 ## Sources
 

@@ -1048,6 +1048,82 @@
         "title": "HomeWeekView",
         "type": "object"
       },
+      "IngestReceived": {
+        "description": "How many records of each type were stored, and skipped as not fitting.",
+        "properties": {
+          "skipped": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Skipped",
+            "type": "object"
+          },
+          "taken": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Taken",
+            "type": "object"
+          }
+        },
+        "required": [
+          "taken",
+          "skipped"
+        ],
+        "title": "IngestReceived",
+        "type": "object"
+      },
+      "IngestView": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "exists": {
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "exists",
+          "created_at",
+          "last_used_at",
+          "url"
+        ],
+        "title": "IngestView",
+        "type": "object"
+      },
       "ItemView": {
         "properties": {
           "baseline": {
@@ -1442,6 +1518,62 @@
           "value"
         ],
         "title": "MeasurementView",
+        "type": "object"
+      },
+      "NewSecret": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "exists": {
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "exists",
+          "created_at",
+          "last_used_at",
+          "url",
+          "secret"
+        ],
+        "title": "NewSecret",
         "type": "object"
       },
       "OptionView": {
@@ -3737,6 +3869,59 @@
         ]
       }
     },
+    "/api/account/ingest": {
+      "delete": {
+        "operationId": "remove_secret_api_account_ingest_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Remove Secret",
+        "tags": [
+          "account"
+        ]
+      },
+      "get": {
+        "operationId": "get_ingest_api_account_ingest_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Ingest",
+        "tags": [
+          "account"
+        ]
+      },
+      "post": {
+        "description": "A new secret for the phone, replacing any earlier one. Needs a recent sign-in and is\nalerted: whoever holds it can add health data.",
+        "operationId": "make_secret_api_account_ingest_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewSecret"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Make Secret",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/account/passkeys/{key_id}": {
       "delete": {
         "description": "Remove a passkey; like adding one, it needs a recent sign-in (ADR-0040).",
@@ -4541,6 +4726,28 @@
         "summary": "Home",
         "tags": [
           "home"
+        ]
+      }
+    },
+    "/api/ingest/health-connect": {
+      "post": {
+        "description": "Store a Health Connect Webhook payload for the person whose secret it carries.",
+        "operationId": "health_connect_api_ingest_health_connect_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestReceived"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Connect",
+        "tags": [
+          "ingest"
         ]
       }
     },

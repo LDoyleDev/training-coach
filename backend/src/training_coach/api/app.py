@@ -26,6 +26,8 @@ from training_coach.api.daily_check import router as daily_check_router
 from training_coach.api.fitness import router as fitness_router
 from training_coach.api.habits import router as habits_router
 from training_coach.api.home import router as home_router
+from training_coach.api.ingest import account_router as ingest_account_router
+from training_coach.api.ingest import router as ingest_router
 from training_coach.api.mcp import PER_CONNECTION
 from training_coach.api.mcp import router as mcp_router
 from training_coach.api.oauth import PER_ADDRESS
@@ -220,6 +222,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(progress_router)
     app.include_router(readiness_router)
     app.include_router(daily_check_router)
+    app.include_router(ingest_router)
+    app.include_router(ingest_account_router)
     app.include_router(habits_router)
     app.include_router(settings_router)
     app.include_router(review_router)

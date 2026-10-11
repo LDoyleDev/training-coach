@@ -761,3 +761,36 @@ export async function removeAiKey(): Promise<void> {
   if (res.status !== 204 && res.status !== 404)
     throw new Error(`The server answered ${res.status}.`)
 }
+
+// ------------------------------------------------------ band import secret (ADR-0055)
+
+export type BandImport = Schemas['IngestView']
+export type BandSecret = Schemas['NewSecret']
+
+/** Whether a band import secret exists, when it was last used and where the phone posts. */
+export async function fetchBandImport(signal?: AbortSignal): Promise<BandImport | null> {
+  const res = await fetch('/api/account/ingest', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as BandImport
+}
+
+/** A new secret for the phone, shown once. Needs a recent sign-in. */
+export const makeBandSecret = () => withFreshSignIn(makeBandSecretNow)
+
+async function makeBandSecretNow(): Promise<BandSecret> {
+  const res = signedIn(
+    await fetch('/api/account/ingest', { method: 'POST', credentials: 'same-origin' }),
+  )
+  if (res.status === 403) throw new StaleSignInError()
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as BandSecret
+}
+
+export async function removeBandSecret(): Promise<void> {
+  const res = signedIn(
+    await fetch('/api/account/ingest', { method: 'DELETE', credentials: 'same-origin' }),
+  )
+  if (res.status !== 204 && res.status !== 404)
+    throw new Error(`The server answered ${res.status}.`)
+}
