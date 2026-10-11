@@ -714,6 +714,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settings */
+        get: operations["get_settings_api_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Settings */
+        patch: operations["patch_settings_api_settings_patch"];
+        trace?: never;
+    };
     "/api/tests": {
         parameters: {
             query?: never;
@@ -1583,6 +1601,49 @@ export interface components {
             set_no: number;
             /** Target */
             target: number;
+        };
+        /**
+         * SettingsChange
+         * @description Only the fields sent change.
+         */
+        SettingsChange: {
+            /** Blocks */
+            blocks?: boolean | null;
+            /** Habits Enabled */
+            habits_enabled?: boolean | null;
+            /** Morning Time */
+            morning_time?: string | null;
+            /** Nudge Time */
+            nudge_time?: string | null;
+            /** Nudges Enabled */
+            nudges_enabled?: boolean | null;
+            /** Paused */
+            paused?: boolean | null;
+            /** Protein G */
+            protein_g?: number | null;
+            /** Review Time */
+            review_time?: string | null;
+        };
+        /** SettingsView */
+        SettingsView: {
+            /** Blocks Since */
+            blocks_since: string | null;
+            /** Habits Enabled */
+            habits_enabled: boolean;
+            /** Morning Time */
+            morning_time: string;
+            /** Nudge Time */
+            nudge_time: string;
+            /** Nudges Enabled */
+            nudges_enabled: boolean;
+            /** Paused */
+            paused: boolean;
+            /** Protein G */
+            protein_g: number | null;
+            /** Review Time */
+            review_time: string;
+            /** Timezone */
+            timezone: string;
         };
         /** SignIns */
         SignIns: {
@@ -2949,6 +3010,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TodayView"];
+                };
+            };
+        };
+    };
+    get_settings_api_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+        };
+    };
+    patch_settings_api_settings_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

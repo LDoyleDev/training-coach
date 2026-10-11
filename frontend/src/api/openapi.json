@@ -1817,6 +1817,168 @@
         "title": "SetView",
         "type": "object"
       },
+      "SettingsChange": {
+        "description": "Only the fields sent change.",
+        "properties": {
+          "blocks": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocks"
+          },
+          "habits_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Habits Enabled"
+          },
+          "morning_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Morning Time"
+          },
+          "nudge_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nudge Time"
+          },
+          "nudges_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nudges Enabled"
+          },
+          "paused": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused"
+          },
+          "protein_g": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protein G"
+          },
+          "review_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Time"
+          }
+        },
+        "title": "SettingsChange",
+        "type": "object"
+      },
+      "SettingsView": {
+        "properties": {
+          "blocks_since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocks Since"
+          },
+          "habits_enabled": {
+            "title": "Habits Enabled",
+            "type": "boolean"
+          },
+          "morning_time": {
+            "title": "Morning Time",
+            "type": "string"
+          },
+          "nudge_time": {
+            "title": "Nudge Time",
+            "type": "string"
+          },
+          "nudges_enabled": {
+            "title": "Nudges Enabled",
+            "type": "boolean"
+          },
+          "paused": {
+            "title": "Paused",
+            "type": "boolean"
+          },
+          "protein_g": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protein G"
+          },
+          "review_time": {
+            "title": "Review Time",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "morning_time",
+          "nudge_time",
+          "nudges_enabled",
+          "review_time",
+          "habits_enabled",
+          "protein_g",
+          "blocks_since",
+          "paused",
+          "timezone"
+        ],
+        "title": "SettingsView",
+        "type": "object"
+      },
       "SignIns": {
         "properties": {
           "devices": {
@@ -3900,6 +4062,66 @@
         "summary": "Today",
         "tags": [
           "session"
+        ]
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "operationId": "get_settings_api_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_settings_api_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Settings",
+        "tags": [
+          "settings"
         ]
       }
     },
