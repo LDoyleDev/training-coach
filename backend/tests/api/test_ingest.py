@@ -157,11 +157,24 @@ def test_too_many_calls_are_refused(phone: TestClient) -> None:
     assert limiter.allow("a", ingest.WINDOW + 1)  # the oldest call has aged out
 
 
-def test_the_limiter_forgets_everyone_rather_than_grow() -> None:
+def test_the_limiter_doesnt_grow_without_bound() -> None:
     limiter = ingest.Limiter()
     for n in range(ingest.MAX_ADDRESSES + 2):
         limiter.allow(str(n), 0.0)
-    assert len(limiter.calls) <= ingest.MAX_ADDRESSES + 1
+    assert len(limiter.calls) <= ingest.MAX_ADDRESSES
+    assert len(limiter.failures) <= ingest.MAX_ADDRESSES
+
+
+def test_many_addresses_dont_wipe_a_guessers_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Review of #224: a full table used to be cleared, resetting every wrong-secret count.
+    monkeypatch.setattr(ingest, "MAX_ADDRESSES", 5)
+    limiter = ingest.Limiter()
+    for _ in range(ingest.MAX_FAILURES):
+        assert limiter.allow("guesser", 0.0)
+        limiter.failed("guesser", 0.0)
+    for n in range(20):
+        limiter.allow(f"other{n}", 1.0)
+    assert not limiter.allow("guesser", 2.0)
 
 
 def test_bodies_past_the_cap_are_refused(signed_in: TestClient, phone: TestClient) -> None:

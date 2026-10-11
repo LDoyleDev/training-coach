@@ -31,7 +31,8 @@ async def security_headers_middleware(
 
 UNSAFE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 MAX_BODY = 64 * 1024  # every JSON body is far smaller; photos and band data have their own limits
-LARGE_BODIES = ("/api/photos/", "/api/ingest/")  # each reads up to its own cap
+LARGE_BODIES = ("/api/photos/",)  # each reads up to its own cap
+LARGE_BODY_PATHS = frozenset({"/api/ingest/health-connect"})  # exact path only (review of #224)
 CACHEABLE: tuple[str, ...] = ()  # everything under /api is personal now
 # Never stored by a browser or cache: personal answers, and every OAuth and MCP answer
 # (mcp-threat-model.md requirement 16).
@@ -63,7 +64,8 @@ def request_guard(
                 return JSONResponse({"detail": "cross-site request refused"}, status_code=403)
             if origin is None and site is not None and site not in ("same-origin", "none"):
                 return JSONResponse({"detail": "cross-site request refused"}, status_code=403)
-        if request.method in UNSAFE and not request.url.path.startswith(LARGE_BODIES):
+        large = request.url.path.startswith(LARGE_BODIES) or request.url.path in LARGE_BODY_PATHS
+        if request.method in UNSAFE and not large:
             length = request.headers.get("content-length")
             if length is None and request.headers.get("transfer-encoding"):
                 return JSONResponse({"detail": "length required"}, status_code=411)

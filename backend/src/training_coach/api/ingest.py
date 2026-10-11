@@ -32,7 +32,7 @@ MAX_BYTES = 5 * 1024 * 1024  # a first sync of 48 hours of per-minute heart rate
 WINDOW = 600.0  # seconds
 MAX_CALLS = 60  # per address per window; the app syncs at most every 15 minutes
 MAX_FAILURES = 10  # wrong secrets per address per window
-MAX_ADDRESSES = 10_000  # forget everyone rather than grow without bound
+MAX_ADDRESSES = 10_000  # then idle addresses are forgotten, so memory stays bounded
 
 
 class Limiter:
@@ -45,8 +45,13 @@ class Limiter:
 
     @staticmethod
     def _recent(seen: dict[str, deque[float]], address: str, now: float) -> deque[float]:
-        if len(seen) > MAX_ADDRESSES:
-            seen.clear()
+        if address not in seen and len(seen) >= MAX_ADDRESSES:
+            # Forget idle addresses only: clearing everything would let a caller with many
+            # addresses wipe its own wrong-secret count (review of #224).
+            for idle in [a for a, times in seen.items() if not times or now - times[-1] > WINDOW]:
+                del seen[idle]
+            if len(seen) >= MAX_ADDRESSES:
+                del seen[next(iter(seen))]
         times = seen.setdefault(address, deque())
         while times and now - times[0] > WINDOW:
             times.popleft()
@@ -54,10 +59,10 @@ class Limiter:
 
     def allow(self, address: str, now: float) -> bool:
         calls = self._recent(self.calls, address, now)
-        if (
-            len(calls) >= MAX_CALLS
-            or len(self._recent(self.failures, address, now)) >= MAX_FAILURES
-        ):
+        # Only addresses that sent a wrong secret are tracked as failures, so a flood of
+        # well-behaved addresses can't push a guesser's count out.
+        failed = address in self.failures and self._recent(self.failures, address, now)
+        if len(calls) >= MAX_CALLS or (failed and len(failed) >= MAX_FAILURES):
             return False
         calls.append(now)
         return True
