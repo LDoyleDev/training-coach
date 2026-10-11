@@ -46,3 +46,13 @@ def test_a_check_off_belongs_to_the_bound_user(session: Session) -> None:
     habits.toggle(session, MONDAY, M, MONDAY)
     row = session.scalars(select(HabitCheck)).one()
     assert row.user_id == session.info["user_id"]
+
+
+def test_marking_sets_the_state_and_repeating_it_changes_nothing(session: Session) -> None:
+    assert habits.mark(session, MONDAY, M, True, MONDAY) is True
+    assert habits.mark(session, MONDAY, M, True, MONDAY) is True  # a double tap stays ticked
+    assert habits.checked(session, MONDAY) == {M}
+    assert habits.mark(session, MONDAY, M, False, MONDAY) is False
+    assert habits.mark(session, MONDAY, M, False, MONDAY) is False
+    assert habits.checked(session, MONDAY) == frozenset()
+    assert habits.mark(session, MONDAY, M, True, MONDAY + timedelta(days=3)) is None
