@@ -103,10 +103,17 @@ def _recent(session: Session, on: date) -> list[Recent]:
         )
         .order_by(Workout.local_date.desc(), Workout.created_at.desc(), Workout.id.desc())
     )
-    return [
-        Recent(w.local_date, names.get(w.template_id, "Extra") if w.template_id else "Extra")
-        for w in workouts
-    ]
+    return [Recent(w.local_date, _label(w, names)) for w in workouts]
+
+
+def _label(workout: Workout, names: dict[int, str]) -> str:
+    """The session's name; a cardio log adds what it was: "Long zone 2: hike, 62 min", or
+    "Walk, 30 min" for an extra. Anything else unplanned is "Extra"."""
+    name = names.get(workout.template_id) if workout.template_id is not None else None
+    if workout.activity is None:
+        return name or "Extra"
+    detail = f"{workout.activity}, {sum(s.value for s in workout.sets)} min"
+    return f"{name}: {detail}" if name else detail.capitalize()
 
 
 def _today(session: Session, on: date, tz: ZoneInfo) -> str | None:
