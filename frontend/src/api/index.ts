@@ -420,6 +420,18 @@ export async function fetchProgress(signal?: AbortSignal): Promise<Standing[] | 
   return (await res.json()) as Standing[]
 }
 
+// ---------------------------------------------------------------- home (B1)
+
+export type Home = Schemas['HomeView']
+
+/** What has been done, this week, the ladders and today's session; null when not signed in. */
+export async function fetchHome(signal?: AbortSignal): Promise<Home | null> {
+  const res = await fetch('/api/home', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Home
+}
+
 // ---------------------------------------------------------------- your own AI (ADR-0047)
 
 export type SummaryPeriod = '4w' | '12w' | 'all'

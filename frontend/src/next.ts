@@ -3,7 +3,7 @@
  * for example by a tab or newline the URL parser strips ("/\t/evil.example"). */
 const PAGES = ['/session', '/progress', '/plan', '/tests', '/body', '/readiness', '/account']
 
-/** Where to go after signing in: ?next= if it names one of the app's pages, else Today. */
+/** Where to go after signing in: ?next= if it names one of the app's pages, else Home. */
 export function nextPage(search: string): string {
   const next = new URLSearchParams(search).get('next') ?? ''
   return PAGES.find((page) => page === next) ?? '/'
