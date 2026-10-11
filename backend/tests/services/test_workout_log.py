@@ -456,3 +456,24 @@ def test_cycling_is_logged_as_zone_2(session: Session) -> None:
     for word in ("Cycle", "Cycling", "cycled", "Bike"):
         draft = workout_log.draft(session, f"{word}: 60 min", TODAY, BERLIN)
         assert [(e.slug, e.sets) for e in draft.entries] == [("zone2", ((1, Side.BOTH, 60),))]
+
+
+@pytest.mark.parametrize(
+    ("text", "activity"),
+    [("walk 45", "walk"), ("bike 40", "bike"), ("zone 2 30", None)],
+)
+def test_a_cardio_log_keeps_what_it_was(session: Session, text: str, activity: str | None) -> None:
+    """ux-flow-plan A1: "walk 45" saves a walk, like the web's Log activity."""
+    apply_seed(session, load_plan())
+    draft = workout_log.draft(session, text, TODAY, BERLIN)
+    assert [e.slug for e in draft.entries] == ["zone2"]
+    saved = workout_log.save(session, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = session.get(Workout, saved.workout_id)
+    assert workout is not None
+    assert workout.activity == activity
+
+
+def test_strength_logs_carry_no_activity(seeded: Session) -> None:
+    """Only a log of one timed cardio exercise carries one: "run" here is not the zone2 slug."""
+    assert workout_log.draft(seeded, "pull-ups 8 8 7", TODAY, BERLIN).activity is None

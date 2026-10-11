@@ -501,3 +501,31 @@ test('confirming again after signing in clears the notice', async () => {
   expect(await screen.findByRole('button', { name: 'Skip rest' })).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: 'Sign in again' })).not.toBeInTheDocument()
 })
+
+test('a cardio day is logged in one step, not started set by set', async () => {
+  const zone2: Guided = {
+    ...SESSION,
+    name: 'Long zone 2',
+    kind: 'conditioning',
+    warm_up: false,
+    items: [{ ...SESSION.items[0], slug: 'zone2', name: 'Zone 2', unit: 'minutes', pair: null }],
+    order: [{ item: 0, set_no: 1, target: 45 }],
+  }
+  serve({ today: { session: zone2, progress: null } })
+  render(<SessionPage />)
+  // The cardio options failed to load here, so the card offers both ways in.
+  expect(await screen.findByRole('heading', { name: 'Cardio or HIIT' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Start session' })).not.toBeInTheDocument()
+})
+
+test('cardio and HIIT stay on offer under any session, and once the day is done', async () => {
+  serve()
+  const { unmount } = render(<SessionPage />)
+  expect(await screen.findByRole('button', { name: 'Start session' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Run a HIIT session' })).toBeInTheDocument()
+  unmount()
+  serve({ today: { session: null } })
+  render(<SessionPage />)
+  expect(await screen.findByText('Nothing left today')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Log cardio' })).toBeInTheDocument()
+})
