@@ -1,6 +1,7 @@
 import AppShell from './components/AppShell'
 import AiComments from './account/AiComments'
 import BandImport from './account/BandImport'
+import HeartRateZones from './account/HeartRateZones'
 import CopyForAI from './account/CopyForAI'
 import Toast from './components/Toast'
 import { InstallCard } from './pwa/InstallApp'
@@ -243,6 +244,7 @@ export default function Account() {
           <CopyForAI />
           <AiComments />
           <BandImport />
+          <HeartRateZones />
 
           <section aria-labelledby="erase" className={card}>
             <h2 id="erase" className="mb-2 text-xl">

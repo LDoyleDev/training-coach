@@ -51,8 +51,8 @@ def night_heart_rate() -> list[dict[str, Any]]:
 
 
 def walk_heart_rate(rates: list[int] | None = None) -> list[dict[str, Any]]:
-    """46 minutes: 8 at 100 bpm, then 38 at 125 bpm (zone 2 for a resting 50 and max 190)."""
-    rates = rates or [100] * 8 + [125] * 38
+    """46 minutes: 8 at 100 bpm, then 38 at 140 bpm (zone 2 for a resting 48 and max 190)."""
+    rates = rates or [100] * 8 + [140] * 38
     return [bucket(WALK_START + timedelta(minutes=n), bpm) for n, bpm in enumerate(rates)]
 
 

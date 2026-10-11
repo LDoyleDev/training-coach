@@ -20,9 +20,11 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import HealthDay, HeartRateSample, ImportedWorkout, SleepSession
 from training_coach.domain import health
+from training_coach.domain import zones as domain_zones
 from training_coach.domain.health import Minute, SleepMinutes
 from training_coach.domain.measurements import Kind
-from training_coach.services import measurements
+from training_coach.domain.zones import Zones
+from training_coach.services import measurements, zones
 
 MAX_AGE = timedelta(days=30)  # the app reads 48 hours back; anything far older is a mistake
 AHEAD = timedelta(minutes=10)  # a phone clock a little fast
@@ -209,7 +211,12 @@ def store(session: Session, batch: Batch, tz: ZoneInfo, now: datetime) -> None:
         _derive_resting(session, day, tz)
     for exercise in batch.exercise:
         _exercise(session, exercise, tz)
-    _refresh_workouts(session, batch)
+    touched = _refresh_workouts(session, batch)
+    session.flush()  # a new peak can raise max heart rate before zones are counted
+    if touched:
+        hr = zones.current(session, today).zones
+        for row in touched:
+            count_zones(session, row, hr)
     _weight(session, batch.weight, tz, today)
     session.flush()
 
@@ -326,13 +333,13 @@ def _exercise(session: Session, exercise: Exercise, tz: ZoneInfo) -> None:
     session.flush()
 
 
-def _refresh_workouts(session: Session, batch: Batch) -> None:
+def _refresh_workouts(session: Session, batch: Batch) -> list[ImportedWorkout]:
     """Heart-rate figures for workouts in this batch, and for any whose window this batch's
     heart rate reaches (it can arrive a sync later than the workout)."""
     spans = [(e.start, e.end) for e in batch.exercise]
     if batch.heart_rate:
         spans.append((batch.heart_rate[0].at, batch.heart_rate[-1].at))
-    seen: set[int] = set()
+    seen: dict[int, ImportedWorkout] = {}
     for start, end in spans:
         for row in session.scalars(
             select(ImportedWorkout).where(
@@ -340,8 +347,9 @@ def _refresh_workouts(session: Session, batch: Batch) -> None:
             )
         ):
             if row.id not in seen:
-                seen.add(row.id)
+                seen[row.id] = row
                 refresh(session, row)
+    return list(seen.values())
 
 
 def refresh(session: Session, row: ImportedWorkout) -> None:
@@ -351,6 +359,26 @@ def refresh(session: Session, row: ImportedWorkout) -> None:
         return
     row.avg_hr = round(sum(m.bpm for m in minutes) / len(minutes))
     row.max_hr = max(m.high for m in minutes)
+
+
+def count_zones(session: Session, row: ImportedWorkout, hr: Zones) -> None:
+    """Minutes in each zone from the heart rate kept for the workout's window; left as they
+    were once that heart rate is gone (after 8 days)."""
+    minutes = minutes_between(session, row.start_at, row.end_at)
+    if not minutes:
+        return
+    found = domain_zones.minutes([(m.at, m.bpm) for m in minutes], row.end_at, hr)
+    row.zone1_min, row.zone2_min, row.zone3_min, row.zone4_min, row.zone5_min = found
+
+
+def rezone(session: Session, today: date, now: datetime) -> None:
+    """Count zone minutes again with the zones as they are now, for every workout whose heart
+    rate is still kept: after the birth year or max heart rate changed."""
+    hr = zones.current(session, today).zones
+    recent = select(ImportedWorkout).where(ImportedWorkout.end_at >= now - KEEP_HEART_RATE)
+    for row in session.scalars(recent):
+        count_zones(session, row, hr)
+    session.flush()
 
 
 def _weight(

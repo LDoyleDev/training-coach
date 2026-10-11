@@ -123,9 +123,10 @@ and erasing everything removes them by the `user_id` cascade.
 - **Resting heart rate** for a night: the lowest per-minute average inside its sleep session,
   or, with no sleep session, between 00:00 and 06:00 local time. The value used for zones is
   the median of the last 7 nights that have one; with none, zones fall back to 60 bpm.
-- **Max heart rate:** Liam's own number when he types one in settings; otherwise the highest of
-  the estimate 208 - 0.7 x age (from an optional birth year in settings) and the highest
-  per-minute heart rate any imported workout reached; with neither, 190.
+- **Max heart rate:** Liam's own number when he types one in settings (120-230); otherwise the
+  higher of the estimate 208 - 0.7 x age (from an optional birth year in settings; 190 without
+  one) and the highest heart rate any imported workout reached. Changing either setting
+  recomputes the zone minutes of workouts whose heart rate is still kept.
 - Zone minutes of a workout: each minute with a sample in the workout's window counts toward
   the zone of that minute's average.
 

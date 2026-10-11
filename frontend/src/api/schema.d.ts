@@ -151,6 +151,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/heart-rate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Heart Rate */
+        get: operations["get_heart_rate_api_account_heart_rate_get"];
+        /**
+         * Set Heart Rate
+         * @description Save the birth year and own max (either empty), and count recent zone minutes again.
+         */
+        put: operations["set_heart_rate_api_account_heart_rate_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/account/ingest": {
         parameters: {
             query?: never;
@@ -1290,6 +1311,30 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** HeartRateBody */
+        HeartRateBody: {
+            /** Birth Year */
+            birth_year?: number | null;
+            /** Own Max */
+            own_max?: number | null;
+        };
+        /** HeartRateView */
+        HeartRateView: {
+            /** Birth Year */
+            birth_year: number | null;
+            /** Estimated Max */
+            estimated_max: number | null;
+            /** Max */
+            max: number;
+            /** Own Max */
+            own_max: number | null;
+            /** Peak */
+            peak: number | null;
+            /** Rest */
+            rest: number;
+            /** Zones */
+            zones: components["schemas"]["ZoneView"][];
+        };
         /** HomeView */
         HomeView: {
             progress: components["schemas"]["LadderView"];
@@ -1981,6 +2026,15 @@ export interface components {
             /** Zone2 Target */
             zone2_target: number[] | null;
         };
+        /** ZoneView */
+        ZoneView: {
+            /** High */
+            high: number;
+            /** Low */
+            low: number;
+            /** Zone */
+            zone: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -2221,6 +2275,59 @@ export interface operations {
                 };
                 content: {
                     "application/zip": unknown;
+                };
+            };
+        };
+    };
+    get_heart_rate_api_account_heart_rate_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeartRateView"];
+                };
+            };
+        };
+    };
+    set_heart_rate_api_account_heart_rate_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HeartRateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeartRateView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

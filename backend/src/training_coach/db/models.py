@@ -239,6 +239,10 @@ class UserSettings(Owned, Base):
         CheckConstraint(
             "protein_g IS NULL OR protein_g BETWEEN 40 AND 400", name="protein_g_range"
         ),
+        CheckConstraint(
+            "birth_year IS NULL OR birth_year BETWEEN 1920 AND 2020", name="birth_year_range"
+        ),
+        CheckConstraint("max_hr IS NULL OR max_hr BETWEEN 120 AND 230", name="max_hr_range"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -257,6 +261,9 @@ class UserSettings(Owned, Base):
     # Daily protein target in grams for the protein habit; empty shows the per-kg guide.
     protein_g: Mapped[int | None] = mapped_column(Integer)
     paused: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # Heart-rate zones (ADR-0054): the age for the max estimate, and a max of their own.
+    birth_year: Mapped[int | None] = mapped_column(Integer)
+    max_hr: Mapped[int | None] = mapped_column(Integer)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
@@ -667,6 +674,12 @@ class ImportedWorkout(Owned, Base):
         CheckConstraint("max_hr IS NULL OR max_hr BETWEEN 25 AND 250", name="max_hr_range"),
         CheckConstraint(_in("activity", CardioActivity), name="activity_valid"),
         CheckConstraint("status IN ('new', 'counted', 'dismissed')", name="status_valid"),
+        CheckConstraint(
+            "zone1_min IS NULL OR (zone1_min BETWEEN 0 AND 1440 AND zone2_min BETWEEN 0 AND 1440"
+            " AND zone3_min BETWEEN 0 AND 1440 AND zone4_min BETWEEN 0 AND 1440"
+            " AND zone5_min BETWEEN 0 AND 1440)",
+            name="zone_minutes_range",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -680,6 +693,12 @@ class ImportedWorkout(Owned, Base):
     minutes: Mapped[int] = mapped_column(Integer)
     avg_hr: Mapped[int | None] = mapped_column(Integer)
     max_hr: Mapped[int | None] = mapped_column(Integer)
+    # Minutes in Karvonen zones 1-5 (ADR-0054); empty without heart rate.
+    zone1_min: Mapped[int | None] = mapped_column(Integer)
+    zone2_min: Mapped[int | None] = mapped_column(Integer)
+    zone3_min: Mapped[int | None] = mapped_column(Integer)
+    zone4_min: Mapped[int | None] = mapped_column(Integer)
+    zone5_min: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(16), default="new", server_default="new")
     workout_id: Mapped[int | None] = mapped_column(ForeignKey("workouts.id", ondelete="SET NULL"))
 

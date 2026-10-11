@@ -773,6 +773,108 @@
         "title": "Health",
         "type": "object"
       },
+      "HeartRateBody": {
+        "properties": {
+          "birth_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Year"
+          },
+          "own_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Own Max"
+          }
+        },
+        "title": "HeartRateBody",
+        "type": "object"
+      },
+      "HeartRateView": {
+        "properties": {
+          "birth_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Year"
+          },
+          "estimated_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Max"
+          },
+          "max": {
+            "title": "Max",
+            "type": "integer"
+          },
+          "own_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Own Max"
+          },
+          "peak": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak"
+          },
+          "rest": {
+            "title": "Rest",
+            "type": "integer"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/components/schemas/ZoneView"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "birth_year",
+          "own_max",
+          "estimated_max",
+          "peak",
+          "rest",
+          "max",
+          "zones"
+        ],
+        "title": "HeartRateView",
+        "type": "object"
+      },
       "HomeView": {
         "properties": {
           "progress": {
@@ -2750,6 +2852,29 @@
         ],
         "title": "WeekView",
         "type": "object"
+      },
+      "ZoneView": {
+        "properties": {
+          "high": {
+            "title": "High",
+            "type": "integer"
+          },
+          "low": {
+            "title": "Low",
+            "type": "integer"
+          },
+          "zone": {
+            "title": "Zone",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "zone",
+          "low",
+          "high"
+        ],
+        "title": "ZoneView",
+        "type": "object"
       }
     }
   },
@@ -3037,6 +3162,67 @@
           }
         },
         "summary": "Export",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/heart-rate": {
+      "get": {
+        "operationId": "get_heart_rate_api_account_heart_rate_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeartRateView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Heart Rate",
+        "tags": [
+          "account"
+        ]
+      },
+      "put": {
+        "description": "Save the birth year and own max (either empty), and count recent zone minutes again.",
+        "operationId": "set_heart_rate_api_account_heart_rate_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeartRateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeartRateView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Heart Rate",
         "tags": [
           "account"
         ]

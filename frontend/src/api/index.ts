@@ -721,6 +721,37 @@ export async function removeAiKey(): Promise<void> {
     throw new Error(`The server answered ${res.status}.`)
 }
 
+// ------------------------------------------------------- heart-rate zones (ADR-0054)
+
+export type HeartRate = Schemas['HeartRateView']
+export type HeartRateBody = Schemas['HeartRateBody']
+
+/** My zones and what sets them; null when not signed in. */
+export async function fetchHeartRate(signal?: AbortSignal): Promise<HeartRate | null> {
+  const res = await fetch('/api/account/heart-rate', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as HeartRate
+}
+
+/** Save the birth year and own max heart rate; a string says what's wrong. */
+export async function saveHeartRate(body: HeartRateBody): Promise<HeartRate | string> {
+  const res = signedIn(
+    await fetch('/api/account/heart-rate', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 422) {
+    const detail = ((await res.json()) as { detail?: unknown }).detail
+    return typeof detail === 'string' ? detail : 'Check the numbers and try again.'
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as HeartRate
+}
+
 // ------------------------------------------------------ band import secret (ADR-0054)
 
 export type BandImport = Schemas['IngestView']

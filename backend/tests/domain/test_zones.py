@@ -1,0 +1,68 @@
+from datetime import UTC, datetime, timedelta
+
+import pytest
+
+from training_coach.domain import zones
+from training_coach.domain.zones import Zones
+
+T = datetime(2026, 10, 10, 15, 0, tzinfo=UTC)
+
+
+def test_karvonen_counts_from_the_heart_rate_reserve() -> None:
+    found = zones.karvonen(50, 190)  # reserve 140
+    assert found == Zones(50, 190, ((120, 134), (134, 148), (148, 162), (162, 176), (176, 190)))
+
+
+def test_a_max_at_or_below_rest_still_makes_zones() -> None:
+    assert zones.karvonen(60, 55).max == 61
+
+
+@pytest.mark.parametrize(
+    ("bpm", "zone"),
+    [(90, 0), (119.6, 0), (120, 1), (133, 1), (134, 2), (147, 2), (148, 3), (176, 5), (205, 5)],
+)
+def test_the_zone_of_a_heart_rate(bpm: float, zone: int) -> None:
+    assert zones.karvonen(50, 190).zone(bpm) == zone
+
+
+def test_max_estimated_from_age() -> None:
+    assert zones.estimated_max(40) == 180
+    assert zones.estimated_max(25) == 190  # 190.5 rounds to even
+
+
+def test_age_needs_a_believable_birth_year() -> None:
+    assert zones.age(1986, 2026) == 40
+    assert zones.age(None, 2026) is None
+    assert zones.age(2020, 2026) is None
+    assert zones.age(1900, 2026) is None
+
+
+def test_their_own_max_wins_then_the_higher_of_estimate_and_peak() -> None:
+    assert zones.max_heart_rate(own=175, years=40, peak=195) == 175
+    assert zones.max_heart_rate(own=None, years=40, peak=None) == 180
+    assert zones.max_heart_rate(own=None, years=40, peak=186) == 186  # a workout went higher
+    assert zones.max_heart_rate(own=None, years=40, peak=170) == 180
+    assert zones.max_heart_rate(own=None, years=None, peak=170) == zones.DEFAULT_MAX
+    assert zones.max_heart_rate(own=None, years=None, peak=196) == 196
+    assert zones.max_heart_rate(own=None, years=None, peak=None) == zones.DEFAULT_MAX
+
+
+def test_resting_is_the_median_of_the_last_seven_nights() -> None:
+    assert zones.resting([50, 52, 48, 70, 51, 49, 50, 90, 90]) == 50  # the 90s are too old
+    assert zones.resting([50, 53]) == 52  # 51.5 rounds to even
+    assert zones.resting([]) == zones.DEFAULT_REST
+
+
+def test_minutes_in_each_zone() -> None:
+    hr = zones.karvonen(50, 190)
+    readings = [(T + timedelta(minutes=n), 140) for n in range(38)]
+    readings = [(T - timedelta(minutes=8 - n), 100) for n in range(8)] + readings
+    assert zones.minutes(readings, T + timedelta(minutes=38), hr) == [0, 38, 0, 0, 0]
+
+
+def test_a_gap_counts_at_most_five_minutes_and_the_last_reading_runs_to_the_end() -> None:
+    hr = zones.karvonen(50, 190)
+    readings = [(T, 125), (T + timedelta(minutes=30), 165)]
+    assert zones.minutes(readings, T + timedelta(minutes=31), hr) == [5, 0, 0, 1, 0]
+    assert zones.minutes([(T, 125)], T - timedelta(minutes=1), hr) == [0, 0, 0, 0, 0]
+    assert zones.minutes([], T, hr) == [0, 0, 0, 0, 0]
