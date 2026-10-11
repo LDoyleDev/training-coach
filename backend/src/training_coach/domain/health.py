@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+from training_coach.domain.daily_check import Sleep
 from training_coach.domain.enums import CardioActivity
 
 # AndroidX ExerciseSessionRecord.EXERCISE_TYPE_* for the cardio this plan logs. Anything else
@@ -161,3 +162,20 @@ def offer_text(activity: CardioActivity, minutes: int, zone_minutes: Sequence[in
 def within(moment: datetime, now: datetime, back: timedelta, ahead: timedelta) -> bool:
     """Whether a record's time is believable: not older than ``back``, not ahead of ``now``."""
     return now - back <= moment <= now + ahead
+
+
+GOOD_SLEEP, OK_SLEEP = 7 * 60, 6 * 60  # minutes asleep
+
+
+def sleep_answer(asleep: int) -> Sleep:
+    """The daily check's sleep answer a night suggests (ADR-0054): 7 hours or more good, 6 to
+    7 OK, less poor. Only a suggestion: the person still taps it."""
+    if asleep >= GOOD_SLEEP:
+        return Sleep.GOOD
+    return Sleep.OK if asleep >= OK_SLEEP else Sleep.POOR
+
+
+def hours(minutes: int) -> str:
+    """440 -> "7 h 20 min"."""
+    h, m = divmod(minutes, 60)
+    return f"{h} h {m} min" if h and m else f"{h} h" if h else f"{m} min"

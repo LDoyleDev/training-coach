@@ -221,3 +221,23 @@ test('signed out while saving: through to the page', async () => {
   await answerAll()
   expect(await screen.findByText('the page')).toBeInTheDocument()
 })
+
+test('last night on the band pre-selects the sleep answer, still one tap to confirm', async () => {
+  const { sent } = serve(
+    { ...OPEN, suggested_sleep: 'good', band_asleep_min: 440 },
+    advised('as_planned', 'Go as planned'),
+  )
+  show()
+  expect(
+    await screen.findByText('Your band: 7 h 20 min asleep. Tap to confirm.'),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Good' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: 'OK' })).toHaveAttribute('aria-pressed', 'false')
+  expect(sent).toEqual([]) // nothing is answered until tapped
+  tap('Good')
+  expect(screen.queryByText(/Your band/)).not.toBeInTheDocument() // only on the sleep question
+  tap('Not sore')
+  tap('High')
+  await screen.findByRole('heading', { name: 'Go as planned' })
+  expect(sent).toEqual([{ sleep: 'good', soreness: 'none', energy: 'high' }])
+})
