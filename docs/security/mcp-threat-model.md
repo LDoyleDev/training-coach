@@ -116,7 +116,8 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11).** ADR
      client, or with another URI, is refused, with a test for each;
    - single use, expiring after 60 s, claimed by one conditional update;
    - two racing exchanges yield one token;
-   - reusing a code revokes the tokens issued from it.
+   - reusing a code revokes the tokens issued from it, also for 10 minutes after it expired
+     (used codes are kept that long), with a test.
 8. Registration limits. Refused with `429` or `400`:
    - more than 3 pending registrations from one client address (`_client()`);
    - a name over 60 characters;

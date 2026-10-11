@@ -67,6 +67,11 @@ def _connect(
 ) -> Connected:
     client = _client(engine, client_id)
     with session_scope(make_session_factory(engine, user_id=user)) as bound:
+        if passkey_id is None:  # every connection is approved with a passkey
+            key = Passkey(credential_id=f"key-{client_id}", public_key=b"k", name=client_id)
+            bound.add(key)
+            bound.flush()
+            passkey_id = key.id
         connection = mcp_tokens.create_connection(
             bound, client, "Claude", CALLBACK, list(scopes), passkey_id, NOW
         )
@@ -380,3 +385,15 @@ def test_erasing_everything_removes_every_connection(engine: Engine) -> None:
     with make_session_factory(engine)() as shared:
         assert shared.scalars(select(OAuthToken)).all() == []
         assert shared.scalars(select(McpConnection), execution_options=EVERYONE).all() == []
+
+
+def test_a_used_code_replayed_after_it_expired_still_revokes(engine: Engine) -> None:
+    c = _connect(engine)
+    tokens = _tokens(_exchange(engine, c))
+    late = NOW + mcp_tokens.CODE_TTL + timedelta(minutes=5)
+    other = _connect(engine, client_id="c2")  # issuing a code sweeps old ones
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
+        mcp_tokens.issue_code(bound, other.connection_id, CALLBACK, CHALLENGE.decode(), late)
+    replayed = _exchange(engine, c, now=late)
+    assert replayed == Refused(mcp_tokens.INVALID_GRANT, revoked=True)
+    assert _verify(engine, tokens.access_token, late) is None
