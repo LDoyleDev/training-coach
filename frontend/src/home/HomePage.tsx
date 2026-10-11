@@ -153,6 +153,12 @@ export default function HomePage() {
         <a href="/plan" className={secondary + ' flex items-center justify-center no-underline'}>
           Plan
         </a>
+        <a
+          href="/review"
+          className={secondary + ' col-span-2 flex items-center justify-center no-underline'}
+        >
+          This week's review
+        </a>
       </div>
     </AppShell>
   )

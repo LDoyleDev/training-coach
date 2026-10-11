@@ -291,7 +291,7 @@ class Handlers:
             context.bot,
             self.settings.telegram_allowed_user_id,
             text,
-            reply_markup=links.with_open(None, self.settings.public_url, links.PROGRESS),
+            reply_markup=links.with_open(None, self.settings.public_url, links.REVIEW),
         ):
             log.info("bot.review_sent")
         else:

@@ -30,6 +30,7 @@ from training_coach.api.photos import router as photos_router
 from training_coach.api.plan import router as plan_router
 from training_coach.api.progress import router as progress_router
 from training_coach.api.readiness import router as readiness_router
+from training_coach.api.review import router as review_router
 from training_coach.api.security import request_guard, security_headers_middleware
 from training_coach.api.session import router as session_router
 from training_coach.api.settings import Reschedule
@@ -105,6 +106,7 @@ SPA_PAGES = (
     "/progress",
     "/plan",
     "/readiness",
+    "/review",
 )
 
 
@@ -210,6 +212,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(daily_check_router)
     app.include_router(habits_router)
     app.include_router(settings_router)
+    app.include_router(review_router)
 
     # Mounted last so API routes always win over static files.
     dist = settings.web_dist_dir

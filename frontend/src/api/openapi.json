@@ -1713,6 +1713,242 @@
         "title": "Redeem",
         "type": "object"
       },
+      "ReviewBestView": {
+        "properties": {
+          "best_set": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Set"
+          },
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ExerciseKind"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "strength": {
+            "title": "Strength",
+            "type": "boolean"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "required": [
+          "exercise",
+          "step",
+          "kind",
+          "best_set",
+          "total",
+          "strength"
+        ],
+        "title": "ReviewBestView",
+        "type": "object"
+      },
+      "ReviewHabitView": {
+        "properties": {
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "done",
+          "days"
+        ],
+        "title": "ReviewHabitView",
+        "type": "object"
+      },
+      "ReviewSetsView": {
+        "properties": {
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "group",
+          "sets"
+        ],
+        "title": "ReviewSetsView",
+        "type": "object"
+      },
+      "ReviewWeekView": {
+        "properties": {
+          "ai_comments": {
+            "title": "Ai Comments",
+            "type": "boolean"
+          },
+          "bests": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewBestView"
+            },
+            "title": "Bests",
+            "type": "array"
+          },
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "extras": {
+            "title": "Extras",
+            "type": "integer"
+          },
+          "habits": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewHabitView"
+            },
+            "title": "Habits",
+            "type": "array"
+          },
+          "moderate_minutes": {
+            "title": "Moderate Minutes",
+            "type": "integer"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next"
+          },
+          "planned": {
+            "title": "Planned",
+            "type": "integer"
+          },
+          "previous": {
+            "title": "Previous",
+            "type": "string"
+          },
+          "ready": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ready",
+            "type": "array"
+          },
+          "rested": {
+            "title": "Rested",
+            "type": "integer"
+          },
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewSetsView"
+            },
+            "title": "Sets",
+            "type": "array"
+          },
+          "sets_target": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Sets Target",
+            "type": "array"
+          },
+          "start": {
+            "title": "Start",
+            "type": "string"
+          },
+          "strength_block": {
+            "title": "Strength Block",
+            "type": "boolean"
+          },
+          "zone2_minutes": {
+            "title": "Zone2 Minutes",
+            "type": "integer"
+          },
+          "zone2_target": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone2 Target"
+          }
+        },
+        "required": [
+          "start",
+          "current",
+          "previous",
+          "next",
+          "planned",
+          "done",
+          "rested",
+          "extras",
+          "sets",
+          "sets_target",
+          "zone2_minutes",
+          "zone2_target",
+          "moderate_minutes",
+          "bests",
+          "ready",
+          "strength_block",
+          "habits",
+          "ai_comments"
+        ],
+        "title": "ReviewWeekView",
+        "type": "object"
+      },
       "RoutineView": {
         "properties": {
           "hold_seconds": {
@@ -3980,6 +4216,56 @@
         "summary": "Put Readiness",
         "tags": [
           "readiness"
+        ]
+      }
+    },
+    "/api/review": {
+      "get": {
+        "operationId": "get_review_api_review_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "week",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Week"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewWeekView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Review",
+        "tags": [
+          "review"
         ]
       }
     },

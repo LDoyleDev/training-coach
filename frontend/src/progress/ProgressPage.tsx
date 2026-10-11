@@ -3,7 +3,7 @@ import { fetchProgress, type Standing } from '../api'
 import AppShell from '../components/AppShell'
 import Sparkline from '../components/Sparkline'
 import { amount } from './logic'
-import { card } from '../ui'
+import { card, secondary } from '../ui'
 import { RetryCard, SignInCard } from '../components/StateCards'
 
 type Loaded =
@@ -60,6 +60,9 @@ export default function ProgressPage() {
         Each exercise's current step, its last session and best set there.
         {ready > 0 && ` ${ready} ready to move up: you'll be asked after your next session.`}
       </p>
+      <a href="/review" className={secondary + ' inline-flex items-center self-start no-underline'}>
+        This week's review
+      </a>
       <ul className="flex flex-col gap-3">
         {loaded.standings.map((s) => {
           const status = STATUS[s.status]
