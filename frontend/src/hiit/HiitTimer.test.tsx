@@ -159,6 +159,40 @@ test('the screen is kept awake while running and released on stop', async () => 
   expect(release).toHaveBeenCalledOnce()
 })
 
+test('a wake lock granted after Stop is released at once', async () => {
+  const release = vi.fn().mockResolvedValue(undefined)
+  let grant: (lock: { release: typeof release }) => void = () => {}
+  const request = vi.fn(() => new Promise((resolve) => (grant = resolve)))
+  Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true })
+  start()
+  fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+  expect(release).not.toHaveBeenCalled()
+  await act(async () => grant({ release }))
+  expect(release).toHaveBeenCalledOnce()
+})
+
+test('the wake lock is asked for again when the page becomes visible while running', async () => {
+  const release = vi.fn().mockResolvedValue(undefined)
+  const request = vi.fn().mockResolvedValue({ release })
+  Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true })
+  const visibility = vi.spyOn(document, 'visibilityState', 'get')
+  start()
+  await act(async () => {})
+  expect(request).toHaveBeenCalledTimes(1)
+  visibility.mockReturnValue('hidden')
+  await act(async () => document.dispatchEvent(new Event('visibilitychange')))
+  expect(request).toHaveBeenCalledTimes(1)
+  visibility.mockReturnValue('visible')
+  await act(async () => document.dispatchEvent(new Event('visibilitychange')))
+  expect(request).toHaveBeenCalledTimes(2)
+  expect(release).toHaveBeenCalledOnce() // the old lock, replaced by the new one
+  fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+  expect(release).toHaveBeenCalledTimes(2)
+  await act(async () => document.dispatchEvent(new Event('visibilitychange')))
+  expect(request).toHaveBeenCalledTimes(2) // not running any more
+  visibility.mockRestore()
+})
+
 test('a refused wake lock does not stop the timer', async () => {
   const request = vi.fn().mockRejectedValue(new Error('denied'))
   Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true })

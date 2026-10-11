@@ -118,25 +118,48 @@ export default function HiitTimer({ defaults, onFinish, onCancel }: HiitTimerPro
   const since = useRef<number | null>(null)
   const lastSection = useRef(0)
   const lastBeep = useRef('')
-  const wakeLock = useRef<WakeLockSentinel | null>(null)
 
   const now = () =>
     (banked.current + (since.current === null ? 0 : Date.now() - since.current)) / 1000
 
-  const releaseWakeLock = () => {
-    wakeLock.current?.release().catch(() => {})
-    wakeLock.current = null
-  }
-
   const end = (done: HiitResult, early: boolean) => {
     since.current = null
-    releaseWakeLock()
     setResult({ done, early })
     setStage('finished')
     onFinish?.(done)
   }
 
-  useEffect(() => releaseWakeLock, [])
+  // Keep the screen awake while running. Browsers drop the lock when the page is hidden, so ask
+  // again when it is visible; a lock that arrives after stop, finish or unmount is let go at once.
+  useEffect(() => {
+    if (stage !== 'running') return
+    let live = true
+    let lock: WakeLockSentinel | null = null
+    const acquire = () => {
+      try {
+        navigator.wakeLock
+          ?.request('screen')
+          .then((next) => {
+            if (!live) return void next.release().catch(() => {})
+            lock?.release().catch(() => {})
+            lock = next
+          })
+          .catch(() => {})
+      } catch {
+        // no wake lock: the screen may dim, the timer still works
+      }
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') acquire()
+    }
+    acquire()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      live = false
+      document.removeEventListener('visibilitychange', onVisible)
+      lock?.release().catch(() => {})
+    }
+  }, [stage])
 
   // One tick: recompute everything from the elapsed time, and play what is due.
   const tick = () => {
@@ -186,16 +209,6 @@ export default function HiitTimer({ defaults, onFinish, onCancel }: HiitTimerPro
     setElapsed(0)
     setPaused(false)
     setStage('running')
-    try {
-      navigator.wakeLock
-        ?.request('screen')
-        .then((lock) => {
-          wakeLock.current = lock
-        })
-        .catch(() => {})
-    } catch {
-      // no wake lock: the screen may dim, the timer still works
-    }
   }
 
   const togglePause = () => {
@@ -215,7 +228,6 @@ export default function HiitTimer({ defaults, onFinish, onCancel }: HiitTimerPro
       return
     }
     since.current = null
-    releaseWakeLock()
     setStage('setup')
     onCancel?.()
   }
