@@ -626,6 +626,8 @@ class OAuthConsent(Base):
     state: Mapped[str | None] = mapped_column(String(500))
     code_challenge: Mapped[str] = mapped_column(String(128))
     resource: Mapped[str] = mapped_column(String(200))
+    # SHA-256 of the address that opened it, so open consent pages can be capped per client.
+    client_hash: Mapped[str] = mapped_column(String(64), index=True)
     web_session_id: Mapped[int | None] = mapped_column(
         ForeignKey("web_sessions.id", ondelete="CASCADE")
     )

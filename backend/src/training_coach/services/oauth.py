@@ -43,6 +43,8 @@ CONSENT_TTL = timedelta(minutes=10)
 MAX_PENDING = 20
 MAX_PENDING_PER_ADDRESS = 3
 MAX_OPEN_CONSENTS = 40  # open consent pages, overall: rows on the SD card
+MAX_OPEN_PER_CLIENT = 3  # per app: a new one replaces its oldest page nobody has opened yet
+MAX_OPEN_PER_ADDRESS = 3  # per caller address: more are refused
 NAME_LENGTH = 60
 MAX_REDIRECT_URIS = 5
 URI_LENGTH = 200
@@ -250,11 +252,12 @@ def error_redirect(uri: str, error: str, state: str | None, issuer: str) -> Erro
 
 
 def authorize(
-    session: Session, params: Mapping[str, str], server: Server, now: datetime
+    session: Session, params: Mapping[str, str], server: Server, address: str, now: datetime
 ) -> str | ErrorPage | ErrorRedirect:
     """Check an authorization request; the consent handle for its consent page, an error page,
-    or an error to send back to the app. ``session`` is unbound: nobody is signed in yet (the
-    SameSite=Strict cookie doesn't come on the AI app's cross-site link)."""
+    or an error to send back to the app. ``address`` is the caller's (stored hashed).
+    ``session`` is unbound: nobody is signed in yet (the SameSite=Strict cookie doesn't come
+    on the AI app's cross-site link)."""
     client = find_client(session, params.get("client_id", ""), now)
     if client is None:
         return ErrorPage("This app isn't registered, or its registration has expired.")
@@ -276,15 +279,15 @@ def authorize(
     if scopes is None:
         return error_redirect(redirect_uri, "invalid_scope", state, issuer)
     session.execute(delete(OAuthConsent).where(OAuthConsent.expires_at <= now))
-    live = select(func.count()).select_from(OAuthConsent).where(OAuthConsent.used_at.is_(None))
-    if (session.scalar(live) or 0) >= MAX_OPEN_CONSENTS:
-        log.warning("oauth.consents_capped")
-        return ErrorPage("Too many requests are waiting. Try again in a few minutes.", 429)
+    busy = _consent_room(session, client.id, hash_token(address))
+    if busy is not None:
+        return busy
     handle = mcp_tokens.new_secret()
     session.add(
         OAuthConsent(
             handle_hash=hash_token(handle),
             client_id=client.id,
+            client_hash=hash_token(address),
             redirect_uri=redirect_uri,
             scopes=[s.value for s in scopes],
             state=state,
@@ -296,6 +299,45 @@ def authorize(
     )
     session.flush()
     return handle
+
+
+def _consent_room(session: Session, client: int, address: str) -> ErrorPage | None:
+    """Make room for one more open consent page, or say why there is none (M11).
+
+    - Per address (``address`` is hashed): at most 3 open, then refused. One caller can't fill
+      the overall cap, nor keep more than 3 waiting registrations safe from eviction.
+    - Per app: at most 3 open; a new one replaces the app's oldest page that no browser has
+      bound yet (its person would start again from the AI app anyway). A page the person has
+      already proved their passkey on is never replaced: if all 3 are, the new one is refused.
+      Replacing rather than refusing means someone who knows an app's id can't block the
+      person's own new attempt by filling that app's slots.
+    - Overall: at most 40 open.
+    """
+    open_ = (OAuthConsent.used_at.is_(None),)
+    count = select(func.count()).select_from(OAuthConsent).where(*open_)
+    if (session.scalar(count.where(OAuthConsent.client_hash == address)) or 0) >= (
+        MAX_OPEN_PER_ADDRESS
+    ):
+        log.warning("oauth.consents_capped", scope="address")
+        return ErrorPage("Too many requests are waiting. Try again in a few minutes.", 429)
+    if (session.scalar(count.where(OAuthConsent.client_id == client)) or 0) >= (
+        MAX_OPEN_PER_CLIENT
+    ):
+        oldest = session.scalar(
+            select(OAuthConsent.id)
+            .where(*open_, OAuthConsent.client_id == client, OAuthConsent.web_session_id.is_(None))
+            .order_by(OAuthConsent.created_at, OAuthConsent.id)
+            .limit(1)
+        )
+        if oldest is None:
+            log.warning("oauth.consents_capped", scope="client")
+            return ErrorPage("Too many requests are waiting. Try again in a few minutes.", 429)
+        session.execute(delete(OAuthConsent).where(OAuthConsent.id == oldest))
+        log.info("oauth.consent_replaced")
+    if (session.scalar(count) or 0) >= MAX_OPEN_CONSENTS:
+        log.warning("oauth.consents_capped", scope="everyone")
+        return ErrorPage("Too many requests are waiting. Try again in a few minutes.", 429)
+    return None
 
 
 # ------------------------------------------------------------------ the consent page

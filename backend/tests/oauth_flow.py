@@ -64,7 +64,12 @@ def client_id(client: TestClient, address: str = ADDRESS) -> str:
     return found
 
 
-def authorize(client: TestClient, app: str, **changes: str | None) -> Response:
+BROWSER = "198.18.0.1"  # the person's phone (a benchmarking range: never a real caller)
+
+
+def authorize(
+    client: TestClient, app: str, browser: str = BROWSER, **changes: str | None
+) -> Response:
     params: dict[str, str | None] = {
         "response_type": "code",
         "client_id": app,
@@ -76,11 +81,16 @@ def authorize(client: TestClient, app: str, **changes: str | None) -> Response:
         "state": "st-1",
     } | changes
     query = {k: v for k, v in params.items() if v is not None}
-    return client.get("/oauth/authorize", params=query, follow_redirects=False)
+    return client.get(
+        "/oauth/authorize",
+        params=query,
+        headers={"cf-connecting-ip": browser},
+        follow_redirects=False,
+    )
 
 
-def handle(client: TestClient, app: str, **changes: str | None) -> str:
-    answer = authorize(client, app, **changes)
+def handle(client: TestClient, app: str, browser: str = BROWSER, **changes: str | None) -> str:
+    answer = authorize(client, app, browser, **changes)
     assert answer.status_code == 303, answer.text
     location = answer.headers["location"]
     assert location.startswith("/connect#")
