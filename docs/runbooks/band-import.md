@@ -65,7 +65,12 @@ Android 12 doesn't have Health Connect built in (it is part of Android from 14 o
    - "skipped" above 0 for a type: some records didn't make sense (a clock far off, an
      impossible value) and were left out; the rest arrived.
 3. In the coach, **Account** > **Band import** shows "Last data arrived ..." and, after a night
-   and a walk, Today shows last night's sleep and offers the walk to count.
+   and a walk:
+   - **Home** and **Progress** show last night's sleep, today's steps and resting heart rate;
+   - **Today** (and Telegram) offers the walk to count;
+   - the daily check has your sleep answer ready (still one tap on the web);
+   - a weigh-in on the scale appears under **Body** as that day's bodyweight, unless you
+     already typed one for that day.
 
 The app reads the last 48 hours on every sync and sends only what is new since its last good
 sync; a failed sync is sent again next time. If the phone was off for longer than 48 hours,

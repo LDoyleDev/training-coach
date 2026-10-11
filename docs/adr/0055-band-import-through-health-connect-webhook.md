@@ -151,10 +151,12 @@ and erasing everything removes them by the `user_id` cascade.
 
 ### Display
 
-- Today and Progress show last night's sleep, yesterday's steps and the resting heart rate
-  small, and the weight lands in Body by itself.
+- Home and Progress show last night's sleep, today's and yesterday's steps and the resting
+  heart rate (against the usual one) small, and the weight lands in Body by itself.
 - The daily check (ADR-0053) pre-selects the sleep answer from last night's imported sleep
-  (7 hours or more: good; 6 to 7: OK; less: poorly); Liam still taps to confirm.
+  (7 hours or more: good; 6 to 7: OK; less: poorly). On the web Liam still taps to confirm;
+  in the morning Telegram message the answer comes ticked under "Your band: 7 h 20 min asleep
+  last night." and another tap changes it.
 
 ## Options considered
 
