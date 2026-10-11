@@ -476,6 +476,17 @@ test('an easy day shows no readiness advice', async () => {
   expect(screen.queryByRole('link', { name: 'Readiness questions' })).not.toBeInTheDocument()
 })
 
+test("today's daily check shows as a line, with or without a session left", async () => {
+  const line = 'Slept OK, a bit sore, high energy: go lighter today'
+  serve({ today: { session: SESSION, progress: null, daily_check: line } })
+  const { unmount } = render(<SessionPage />)
+  expect(await screen.findByText(`Today's check: ${line}.`)).toBeInTheDocument()
+  unmount()
+  serve({ today: { session: null, progress: null, daily_check: line } })
+  render(<SessionPage />)
+  expect(await screen.findByText(`Today's check: ${line}.`)).toBeInTheDocument()
+})
+
 test('an ended sign-in while confirming a set points to sign in and keeps the set', async () => {
   serve({ keep: 'signed-out' })
   render(<SessionPage />)

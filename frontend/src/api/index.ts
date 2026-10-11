@@ -568,6 +568,34 @@ export async function saveReadiness(answers: Record<string, boolean>): Promise<R
   return ((await res.json()) as Schemas['ReadinessSavedView']).status
 }
 
+// ---------------------------------------------------------------- daily check (ADR-0053)
+
+export type DailyCheck = Schemas['DailyCheckView']
+export type DailyCheckAnswers = Schemas['CheckAnswers']
+
+/** Today's daily check: the questions, and the answers with advice once given; null when not
+ * signed in. */
+export async function fetchDailyCheck(signal?: AbortSignal): Promise<DailyCheck | null> {
+  const res = await fetch('/api/daily-check', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as DailyCheck
+}
+
+/** Answer today's check (again replaces); returns it with the advice. */
+export async function saveDailyCheck(answers: DailyCheckAnswers): Promise<DailyCheck> {
+  const res = signedIn(
+    await fetch('/api/daily-check', {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: json,
+      body: JSON.stringify(answers),
+    }),
+  )
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as DailyCheck
+}
+
 /** Everything stored about me, as a zip (needs a recent sign-in, like a passkey change). */
 export const downloadExport = () => withFreshSignIn(downloadExportNow)
 
