@@ -29,7 +29,8 @@ flowchart LR
 - **Log by voice**: Telegram -> bot handler -> Groq transcription -> rule parser (LLM fallback)
   -> confirmation message -> Save -> transaction (`workouts`, `set_logs`) -> queue advances ->
   feedback (bests, progression).
-- **Morning**: JobQueue -> queue.next() -> targets -> message with buttons.
+- **Morning**: JobQueue -> queue.next() -> targets -> message with buttons, plus an "Open in
+  app" link (`bot/links.py`, https `TC_PUBLIC_URL` only) that the button rows never remove.
 - **Weekly review and AI comment** (ADR-0047): JobQueue (Sunday) -> review text -> sent; then,
   if the person stored a Groq key, `services/ai_comment` opens it (`secret_box`, under
   `TC_SECRETS_KEY`), sends the 4-week `ai_summary` to Groq with their key, cleans the answer
