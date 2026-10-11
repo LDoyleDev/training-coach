@@ -49,7 +49,7 @@ test('totals first, then progress and the week, then the button to today', async
   expect(screen.getByText('1,234')).toBeInTheDocument()
   expect(screen.getByText('9,876')).toBeInTheDocument()
   expect(screen.getByText('cardio minutes')).toBeInTheDocument()
-  expect(screen.getByText(/Since Tue 1 Sept?, 40 days of training/)).toBeInTheDocument()
+  expect(screen.getByText(/Training since Tue 1 Sept?, 40 days ago/)).toBeInTheDocument()
   expect(screen.getByText('ladder steps climbed', { exact: false })).toBeInTheDocument()
   expect(screen.getByText('Ready to move up: Pull-up')).toBeInTheDocument()
   expect(screen.getByText('Personal bests this week: Dip (chairs)')).toBeInTheDocument()

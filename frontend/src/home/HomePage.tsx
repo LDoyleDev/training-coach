@@ -67,7 +67,7 @@ export default function HomePage() {
         </h1>
         {totals.first_day && (
           <p className="m-0 text-[var(--slate)]">
-            Since {day(totals.first_day)}, {count(totals.days)} days of training.
+            Training since {day(totals.first_day)}, {count(totals.days)} days ago.
           </p>
         )}
         <div className="grid grid-cols-2 gap-3">
