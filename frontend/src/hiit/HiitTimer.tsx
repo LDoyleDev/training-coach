@@ -1,131 +1,113 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { card, danger, primary, primaryInline, secondary, small } from '../ui'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { card, primary } from '../ui'
+import HiitSetup from './HiitSetup'
 import {
   DEFAULTS,
-  LIMITS,
+  activeSeconds,
   buildSchedule,
+  cueFor,
   formatClock,
   formatDuration,
-  parseSetting,
+  fromDraft,
   positionAt,
   roundsCompleted,
-  workoutSeconds,
+  sanitize,
+  skip,
+  toDraft,
+  totalSeconds,
+  type Draft,
   type HiitSettings,
   type Phase,
 } from './logic'
-import { playBeep, playBell, playFinished, unlockAudio } from './sounds'
+import { loadVoice, saveVoice } from './presets'
+import { playBeep, playBell, playFinished, speak, unlockAudio, voiceSupported } from './sounds'
 
-/** What `onFinish` gets: the rounds done (all of them, or fewer when stopped early). */
-export type HiitResult = HiitSettings
+/** What `onFinish` gets. `rounds` is the work intervals completed across all sets. */
+export type HiitResult = {
+  rounds: number
+  work: number
+  rest: number
+  sets: number
+  /** Seconds of workout done, without the prepare count. */
+  seconds: number
+}
 
 export type HiitTimerProps = {
-  /** Starting values for the setup step, e.g. the plan's target rounds. */
-  defaults?: Partial<HiitSettings>
+  /** Starting values for the setup step. `rounds` (e.g. the plan's target) sets the cycles. */
+  defaults?: Partial<HiitSettings> & { rounds?: number }
   /** Called once when the workout ends or is stopped after at least one round. */
   onFinish?: (result: HiitResult) => void
-  /** Called when the user leaves with nothing: Cancel in setup, or Stop before round 1 ends. */
+  /** Called when the user leaves with nothing: Cancel in setup, or Stop before a round is done. */
   onCancel?: () => void
 }
 
 const TICK_MS = 100
 
-const NAMES: Record<keyof HiitSettings, string> = {
-  rounds: 'Rounds',
-  work: 'Work (seconds)',
-  rest: 'Rest (seconds)',
+const LOOK: Record<Phase, { label: string; token: string }> = {
+  prepare: { label: 'Get ready', token: 'prepare' },
+  work: { label: 'Work', token: 'work' },
+  rest: { label: 'Rest', token: 'rest' },
+  setRest: { label: 'Rest between sets', token: 'set-rest' },
+  coolDown: { label: 'Cool down', token: 'cool-down' },
 }
 
-const LOOK: Record<Phase, { label: string; className: string }> = {
-  ready: { label: 'Get ready', className: 'bg-[var(--paper)] text-[var(--ink)]' },
-  work: { label: 'Work', className: 'bg-[var(--bell-ink)] text-[var(--chalk)]' },
-  rest: { label: 'Rest', className: 'bg-[var(--rec)] text-[var(--ink)]' },
-}
+/** Buttons on the phase colour: outlined in its ink, or filled with it. */
+const outline =
+  'min-h-14 rounded-2xl border-2 border-[var(--hiit-fg)] bg-transparent px-3 text-lg font-bold text-[var(--hiit-fg)]'
+const filled =
+  'min-h-14 rounded-2xl border-0 bg-[var(--hiit-fg)] px-3 text-lg font-bold text-[var(--hiit-bg)]'
 
 type Stage = 'setup' | 'running' | 'finished'
 
-function Stepper(props: {
-  name: keyof HiitSettings
-  value: string
-  /** What an empty or invalid field means: the same value Start would use. */
-  fallback: number
-  onChange: (value: string) => void
-}) {
-  const { name, value, fallback, onChange } = props
-  const { min, max, step } = LIMITS[name]
-  const id = `hiit-${name}`
-  const current = parseSetting(name, value, fallback)
-  const label = NAMES[name].split(' ')[0].toLowerCase()
-  return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="font-bold">
-        {NAMES[name]}
-      </label>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          className={small + ' min-w-11 text-xl'}
-          aria-label={`Less ${label}`}
-          disabled={current <= min}
-          onClick={() => onChange(String(Math.max(min, current - step)))}
-        >
-          −
-        </button>
-        <input
-          id={id}
-          type="number"
-          inputMode="numeric"
-          min={min}
-          max={max}
-          value={value}
-          className="min-w-0 flex-1 text-center text-xl font-bold"
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={() => onChange(String(current))}
-        />
-        <button
-          type="button"
-          className={small + ' min-w-11 text-xl'}
-          aria-label={`More ${label}`}
-          disabled={current >= max}
-          onClick={() => onChange(String(Math.min(max, current + step)))}
-        >
-          +
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/** A HIIT interval timer: choose rounds, work and rest, then follow the clock and the bells. */
+/** A Tabata-style interval timer: prepare, sets of work/rest cycles, cool down, with bells. */
 export default function HiitTimer({ defaults, onFinish, onCancel }: HiitTimerProps) {
-  const start = { ...DEFAULTS, ...defaults }
-  const [draft, setDraft] = useState({
-    rounds: String(start.rounds),
-    work: String(start.work),
-    rest: String(start.rest),
+  const [fallback] = useState(() => {
+    const { rounds, ...rest } = defaults ?? {}
+    return sanitize({ ...DEFAULTS, ...rest, ...(rounds === undefined ? {} : { cycles: rounds }) })
   })
-  const settings: HiitSettings = {
-    rounds: parseSetting('rounds', draft.rounds, start.rounds),
-    work: parseSetting('work', draft.work, start.work),
-    rest: parseSetting('rest', draft.rest, start.rest),
-  }
+  const [draft, setDraft] = useState<Draft>(() => toDraft(fallback))
+  const [voice, setVoice] = useState<boolean | null>(() => (voiceSupported() ? loadVoice() : null))
   const [stage, setStage] = useState<Stage>('setup')
-  const [running, setRunning] = useState<HiitSettings>(settings)
+  const [running, setRunning] = useState<HiitSettings>(fallback)
   const [paused, setPaused] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const [elapsed, setElapsed] = useState(0) // seconds, recomputed from timestamps
   const [result, setResult] = useState<{ done: HiitResult; early: boolean } | null>(null)
   const schedule = useMemo(() => buildSchedule(running), [running])
+  const total = totalSeconds(schedule)
 
-  // The clock: time banked before the last pause, plus time since the last (re)start.
+  // The clock: time banked before the last pause or skip, plus time since the last (re)start.
   const banked = useRef(0)
   const since = useRef<number | null>(null)
-  const lastSection = useRef(0)
+  const lastSection = useRef(-1)
   const lastBeep = useRef('')
+  const skipped = useRef(new Set<number>()) // work sections skipped, which don't count
+  const wasPaused = useRef(false)
 
   const now = () =>
     (banked.current + (since.current === null ? 0 : Date.now() - since.current)) / 1000
 
-  const end = (done: HiitResult, early: boolean) => {
+  const say = (text: string | null) => {
+    if (voice && text) speak(text)
+  }
+
+  /** End the run at `t`: a summary and onFinish with the rounds done, or back to setup if none. */
+  const end = (t: number, early: boolean) => {
     since.current = null
+    setConfirming(false)
+    const rounds = roundsCompleted(schedule, t, skipped.current)
+    if (rounds === 0) {
+      setStage('setup')
+      onCancel?.()
+      return
+    }
+    const done: HiitResult = {
+      rounds,
+      work: running.work,
+      rest: running.rest,
+      sets: running.sets,
+      seconds: activeSeconds(schedule, t),
+    }
     setResult({ done, early })
     setStage('finished')
     onFinish?.(done)
@@ -170,12 +152,16 @@ export default function HiitTimer({ defaults, onFinish, onCancel }: HiitTimerPro
     setElapsed(t)
     if (at.done) {
       playFinished()
-      end(running, false)
+      say('Done')
+      end(total, false)
       return
     }
     if (at.index !== lastSection.current) {
       lastSection.current = at.index
-      if (at.section.phase !== 'ready') playBell(at.section.phase)
+      const phase = at.section.phase
+      if (phase === 'work') playBell('work')
+      else if (phase !== 'prepare') playBell('rest')
+      say(cueFor(schedule, at.index))
     }
     const secs = Math.ceil(at.remaining)
     const beepKey = `${at.index}:${secs}`
@@ -198,109 +184,128 @@ export default function HiitTimer({ defaults, onFinish, onCancel }: HiitTimerPro
 
   const begin = () => {
     unlockAudio() // inside the click: browsers only allow audio after a gesture
+    const settings = fromDraft(draft, fallback)
     setRunning(settings)
-    setDraft({
-      rounds: String(settings.rounds),
-      work: String(settings.work),
-      rest: String(settings.rest),
-    })
+    setDraft(toDraft(settings))
     banked.current = 0
     since.current = Date.now()
-    lastSection.current = 0
+    lastSection.current = -1
     lastBeep.current = ''
+    skipped.current = new Set()
     setElapsed(0)
     setPaused(false)
+    setConfirming(false)
     setStage('running')
   }
 
-  const togglePause = () => {
-    if (paused) {
-      since.current = Date.now()
-    } else {
+  const pause = (on: boolean) => {
+    if (on === paused) return
+    if (on) {
       banked.current = now() * 1000
       since.current = null
+    } else {
+      since.current = Date.now()
     }
-    setPaused(!paused)
+    setPaused(on)
   }
 
-  const stop = () => {
-    const completed = roundsCompleted(schedule, now())
-    if (completed > 0) {
-      end({ ...running, rounds: completed }, true)
-      return
+  const jump = (direction: 'back' | 'forward') => {
+    const from = now()
+    const at = positionAt(schedule, from)
+    const to = skip(schedule, from, direction)
+    if (direction === 'forward' && !at.done && at.section.phase === 'work') {
+      skipped.current.add(at.index)
     }
-    since.current = null
-    setStage('setup')
-    onCancel?.()
+    if (direction === 'back') {
+      const index = positionAt(schedule, to).index
+      skipped.current = new Set([...skipped.current].filter((i) => i < index))
+    }
+    banked.current = to * 1000
+    since.current = paused ? null : Date.now()
+    lastSection.current = -1 // ring the bell for wherever we land
+    setElapsed(to)
+    if (!paused || to >= total) latestTick.current() // skipping past the end finishes, paused or not
+  }
+
+  const askStop = () => {
+    wasPaused.current = paused
+    pause(true)
+    setConfirming(true)
+  }
+
+  const keepGoing = () => {
+    setConfirming(false)
+    if (!wasPaused.current) pause(false)
   }
 
   if (stage === 'setup') {
     return (
-      <section aria-labelledby="hiit-title" className={card + ' flex flex-col gap-4'}>
-        <h2 id="hiit-title">HIIT timer</h2>
-        {(['rounds', 'work', 'rest'] as const).map((name) => (
-          <Stepper
-            key={name}
-            name={name}
-            value={draft[name]}
-            fallback={start[name]}
-            onChange={(value) => setDraft({ ...draft, [name]: value })}
-          />
-        ))}
-        <p className="text-[var(--slate)]">
-          Total{' '}
-          <span className="font-bold text-[var(--ink)]">
-            {formatDuration(workoutSeconds(settings))}
-          </span>
-        </p>
-        <button type="button" className={primary} onClick={begin}>
-          Start
-        </button>
-        {onCancel && (
-          <button type="button" className={secondary} onClick={onCancel}>
-            Cancel
-          </button>
-        )}
-      </section>
+      <HiitSetup
+        draft={draft}
+        fallback={fallback}
+        onDraft={setDraft}
+        voice={voice}
+        onVoice={(on) => {
+          setVoice(on)
+          saveVoice(on)
+        }}
+        onStart={begin}
+        onCancel={onCancel}
+      />
     )
   }
 
   if (stage === 'finished' && result) {
     const { done, early } = result
     return (
-      <section aria-labelledby="hiit-title" className={card + ' flex flex-col gap-2'}>
+      <section aria-labelledby="hiit-title" className={card + ' flex flex-col gap-3'}>
         <h2 id="hiit-title">{early ? 'Stopped early' : 'Done!'}</h2>
         <p className="text-xl font-bold">
-          {done.rounds} {done.rounds === 1 ? 'round' : 'rounds'} of {done.work} s on / {done.rest} s
-          off
+          {done.rounds} {done.rounds === 1 ? 'round' : 'rounds'} in {formatDuration(done.seconds)}
         </p>
+        <p className="text-[var(--slate)]">
+          {done.work} s on / {done.rest} s off
+          {done.sets > 1 ? `, ${done.sets} sets` : ''}
+        </p>
+        <button type="button" className={primary} onClick={() => setStage('setup')}>
+          Back to the timer
+        </button>
       </section>
     )
   }
 
   const at = positionAt(schedule, elapsed)
-  const { label, className } = LOOK[at.section.phase]
-  const total = schedule[schedule.length - 1].end
-  const progress = Math.min(100, Math.round((elapsed / total) * 100))
+  const { label, token } = LOOK[at.section.phase]
+  const progress = total ? Math.min(100, Math.round((elapsed / total) * 100)) : 100
+  const colours = {
+    '--hiit-bg': `var(--hiit-${token})`,
+    '--hiit-fg': `var(--hiit-${token}-ink)`,
+  } as CSSProperties
   return (
-    <section aria-label="HIIT timer" className="flex flex-col gap-3">
-      <div
-        className={`flex flex-col items-center gap-1 rounded-2xl border-2 border-[var(--line)] p-4 text-center ${className}`}
-      >
-        <p aria-live="polite" className="text-3xl font-extrabold tracking-wide uppercase">
-          {label}
+    <section
+      aria-label="HIIT timer"
+      style={colours}
+      className="fixed inset-0 z-50 flex flex-col gap-3 overflow-hidden bg-[var(--hiit-bg)] px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-[var(--hiit-fg)]"
+    >
+      <div className="flex items-baseline justify-between gap-2 text-lg font-bold">
+        <p>
+          Cycle {at.section.cycle}/{running.cycles}
+          {running.sets > 1 && ` · Set ${at.section.set}/${running.sets}`}
         </p>
-        <p className="text-lg font-bold">
-          Round {at.section.round} of {running.rounds}
+        <p className="num">{formatDuration(total - elapsed)} left</p>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
+        <p aria-live="polite" className="text-4xl font-extrabold tracking-wide uppercase">
+          {label}
         </p>
         <p
           role="timer"
           aria-label="Seconds left"
-          className="num text-[min(40vw,12rem)] leading-none font-extrabold [font-stretch:68%]"
+          className="num text-[min(44vw,34vh)] leading-none font-extrabold [font-stretch:68%]"
         >
           {formatClock(at.remaining)}
         </p>
-        {paused && <p className="font-bold">Paused</p>}
+        <p className={'text-xl font-bold' + (paused && !confirming ? '' : ' invisible')}>Paused</p>
       </div>
       <div
         role="progressbar"
@@ -308,18 +313,40 @@ export default function HiitTimer({ defaults, onFinish, onCancel }: HiitTimerPro
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={progress}
-        className="h-3 overflow-hidden rounded-full bg-[var(--line)]"
+        className="h-2 shrink-0 overflow-hidden rounded-full border border-[var(--hiit-fg)]"
       >
-        <div className="h-full bg-[var(--ink)]" style={{ width: `${progress}%` }} />
+        <div className="h-full bg-[var(--hiit-fg)]" style={{ width: `${progress}%` }} />
       </div>
-      <div className="flex gap-2">
-        <button type="button" className={primaryInline + ' min-h-14 flex-1'} onClick={togglePause}>
-          {paused ? 'Resume' : 'Pause'}
-        </button>
-        <button type="button" className={danger + ' min-h-14 flex-1'} onClick={stop}>
-          Stop
-        </button>
-      </div>
+      {confirming ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-center text-xl font-bold">Stop the workout?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" className={outline} onClick={keepGoing}>
+              Keep going
+            </button>
+            <button type="button" className={filled} onClick={() => end(now(), true)}>
+              Stop
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-[1fr_1.4fr_1fr] gap-2">
+            <button type="button" className={outline} onClick={() => jump('back')}>
+              Back
+            </button>
+            <button type="button" className={filled} onClick={() => pause(!paused)}>
+              {paused ? 'Resume' : 'Pause'}
+            </button>
+            <button type="button" className={outline} onClick={() => jump('forward')}>
+              Skip
+            </button>
+          </div>
+          <button type="button" className={outline} onClick={askStop}>
+            Stop
+          </button>
+        </div>
+      )}
     </section>
   )
 }
