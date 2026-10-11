@@ -35,6 +35,7 @@ from telegram.ext import (
 from telegram.warnings import PTBDeprecationWarning
 
 from training_coach.bot import buttons, links, logging_flow
+from training_coach.bot import daily_check as daily_ui
 from training_coach.bot import habits as habits_ui
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import settings as settings_ui
@@ -66,6 +67,7 @@ from training_coach.services import (
     ai_comment,
     auth,
     blocks,
+    daily_check,
     habits,
     passkeys,
     queue_actions,
@@ -98,7 +100,8 @@ HELP_TEXT = (
     "To log a past day, put its date on the first line, like: yesterday, Tue or 29 Sep. "
     "Add the session (Legs) or rest after the date if you like.\n\n"
     "The session for the day also arrives every morning, with buttons to start it, "
-    "take a rest day or swap it."
+    "take a rest day or swap it, and three taps on how you slept, how sore you are and your "
+    "energy, which say how hard to go today."
 )
 LOGIN_TEXT = "Sign in to Training Coach. The link works once, for 10 minutes:"
 LOGIN_PASSKEY = (
@@ -248,9 +251,11 @@ class Handlers:
             await update.effective_message.reply_text(text)
 
     async def morning(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        on = self._local_today()
         try:
             with session_scope(self.sessions) as session:
                 paused = user_settings.load(session).paused
+                checked = daily_check.on(session, on) is not None
             text, markup = self._today()
         except SQLAlchemyError as exc:
             log.error("bot.morning_failed", error=type(exc).__name__)
@@ -258,6 +263,9 @@ class Handlers:
         if paused:
             log.info("bot.morning_skipped", reason="paused")
             return
+        if markup is not None and not checked:  # the daily check, until answered (ADR-0053)
+            text = f"{text}\n\n{daily_ui.ASK}"
+            markup = daily_ui.with_check(markup, on)
         assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
         if await send_with_retry(
             context.bot, self.settings.telegram_allowed_user_id, text, reply_markup=markup
@@ -497,6 +505,10 @@ def build_bot(
         CallbackQueryHandler(habit_handlers.button, pattern=rf"^{habits_ui.PREFIX}:")
     )
     application.add_handler(CallbackQueryHandler(handlers.button, pattern=rf"^{buttons.PREFIX}:"))
+    daily_handlers = daily_ui.DailyCheckHandlers(settings, sessions)
+    application.add_handler(
+        CallbackQueryHandler(daily_handlers.button, pattern=rf"^{daily_ui.PREFIX}:")
+    )
     share_handlers = share_ui.ShareHandlers(settings, sessions)
     application.add_handler(CommandHandler("share", share_handlers.command, filters=allowed))
     undo_handlers = undo_ui.UndoHandlers(settings, sessions)

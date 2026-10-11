@@ -48,12 +48,17 @@ def parse(data: str | None) -> Press | None:
     return Press(parts[1], numbers[0], numbers[1] if len(numbers) == 2 else None)
 
 
+def rest_button(template_id: int) -> InlineKeyboardButton:
+    """Rest today for ``template_id``: also offered after a daily check says rest (ADR-0053)."""
+    return InlineKeyboardButton("Rest today", callback_data=_data("rest", template_id))
+
+
 def morning(template_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton("Start", callback_data=_data("start", template_id)),
-                InlineKeyboardButton("Rest today", callback_data=_data("rest", template_id)),
+                rest_button(template_id),
                 InlineKeyboardButton("Swap", callback_data=_data("swap", template_id)),
             ]
         ]
