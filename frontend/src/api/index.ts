@@ -596,6 +596,34 @@ export async function saveDailyCheck(answers: DailyCheckAnswers): Promise<DailyC
   return (await res.json()) as DailyCheck
 }
 
+// ---------------------------------------------------------------- settings (ux-flow-plan C6)
+
+export type MessageSettings = Schemas['SettingsView']
+export type SettingsChange = Schemas['SettingsChange']
+
+/** Message times, nudges, habits, protein, blocks and pause; null when not signed in. */
+export async function fetchSettings(signal?: AbortSignal): Promise<MessageSettings | null> {
+  const res = await fetch('/api/settings', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as MessageSettings
+}
+
+/** Change only what's given. 'invalid': the server refused a value (as the bot would). */
+export async function saveSettings(change: SettingsChange): Promise<MessageSettings | 'invalid'> {
+  const res = signedIn(
+    await fetch('/api/settings', {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: json,
+      body: JSON.stringify(change),
+    }),
+  )
+  if (res.status === 422) return 'invalid'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as MessageSettings
+}
+
 /** Everything stored about me, as a zip (needs a recent sign-in, like a passkey change). */
 export const downloadExport = () => withFreshSignIn(downloadExportNow)
 

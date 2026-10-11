@@ -86,7 +86,7 @@ only, and A4 later as the default with A1 as the fallback. After saving a cardio
 | C3 Undo on the web (built: "Undo: <what>" with a confirm tap after a change or a saved log, ADR-0052) | S |
 | C4 The weekly review on the web, with the AI comment under it | M |
 | C5 Habits on the web (tick today's habits on Today) | M |
-| C6 Settings on the web (message times, nudges, pause) | M |
+| C6 Settings on the web (built: "Messages and settings" on Account: message times, nudge and habit buttons on/off, protein target, training blocks, pause, with the bot's rules; a new time moves the bot's messages at once; `/api/settings`) | M |
 
 Telegram would then be for what it does best: the morning nudge, quick voice and text logs,
 and alerts. The web app becomes the place you work in.
