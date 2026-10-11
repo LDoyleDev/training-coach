@@ -104,3 +104,14 @@ def test_the_question() -> None:
         "Run, 32 min, 26 in zones 3-5 - count it?"
     )
     assert health.offer_text(CardioActivity.OTHER, 20, None) == "Cardio, 20 min - count it?"
+
+
+@pytest.mark.parametrize(
+    ("asleep", "answer"), [(480, "good"), (420, "good"), (419, "ok"), (360, "ok"), (359, "poor")]
+)
+def test_the_sleep_answer_a_night_suggests(asleep: int, answer: str) -> None:
+    assert health.sleep_answer(asleep) == answer
+
+
+def test_hours() -> None:
+    assert [health.hours(m) for m in (440, 420, 45, 0)] == ["7 h 20 min", "7 h", "45 min", "0 min"]

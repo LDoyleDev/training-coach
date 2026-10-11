@@ -571,6 +571,17 @@
               }
             ]
           },
+          "band_asleep_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band Asleep Min"
+          },
           "day": {
             "title": "Day",
             "type": "string"
@@ -581,6 +592,16 @@
             },
             "title": "Questions",
             "type": "array"
+          },
+          "suggested_sleep": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sleep"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1032,6 +1053,74 @@
           "bot_enabled"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "HealthView": {
+        "description": "Everything empty until band data arrives.",
+        "properties": {
+          "resting": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resting"
+          },
+          "sleep": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NightView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps_today": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps Today"
+          },
+          "steps_yesterday": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps Yesterday"
+          },
+          "usual_resting": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usual Resting"
+          }
+        },
+        "required": [
+          "sleep",
+          "steps_today",
+          "steps_yesterday",
+          "resting",
+          "usual_resting"
+        ],
+        "title": "HealthView",
         "type": "object"
       },
       "HeartRateBody": {
@@ -1758,6 +1847,51 @@
           "secret"
         ],
         "title": "NewSecret",
+        "type": "object"
+      },
+      "NightView": {
+        "properties": {
+          "asleep": {
+            "title": "Asleep",
+            "type": "integer"
+          },
+          "awake": {
+            "title": "Awake",
+            "type": "integer"
+          },
+          "deep": {
+            "title": "Deep",
+            "type": "integer"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          },
+          "light": {
+            "title": "Light",
+            "type": "integer"
+          },
+          "rem": {
+            "title": "Rem",
+            "type": "integer"
+          },
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "asleep",
+          "awake",
+          "light",
+          "deep",
+          "rem"
+        ],
+        "title": "NightView",
         "type": "object"
       },
       "OptionView": {
@@ -5087,6 +5221,27 @@
         "summary": "Put Habit",
         "tags": [
           "habits"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "get_health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Health",
+        "tags": [
+          "health"
         ]
       }
     },

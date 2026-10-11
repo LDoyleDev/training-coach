@@ -23,7 +23,7 @@ from training_coach.domain.daily_check import (
     summary,
 )
 from training_coach.domain.queue import local_date
-from training_coach.services import daily_check
+from training_coach.services import daily_check, health_summary
 
 router = APIRouter(prefix="/api/daily-check", tags=["daily check"])
 
@@ -63,6 +63,9 @@ class DailyCheckView(BaseModel):
     questions: list[CheckQuestionView]
     answers: CheckAnswers | None
     advice: AdviceView | None
+    # From last night's sleep on the band (ADR-0055): the answer to pre-select, still tapped.
+    suggested_sleep: Sleep | None = None
+    band_asleep_min: int | None = None
 
 
 def _view(day: str, answers: Answers | None) -> DailyCheckView:
@@ -93,7 +96,11 @@ def get_daily_check(request: Request, user: Owner) -> DailyCheckView:
     day = local_date(datetime.now(UTC), settings.tz)
     with session_scope(_bound(request, user)) as session:
         answers = daily_check.on(session, day)
-    return _view(day.isoformat(), answers)
+        band = health_summary.suggested_sleep(session, day)
+    view = _view(day.isoformat(), answers)
+    if band is not None:
+        view.suggested_sleep, view.band_asleep_min = band
+    return view
 
 
 @router.put("", response_model=DailyCheckView)
