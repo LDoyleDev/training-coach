@@ -44,9 +44,7 @@ def test_lists_every_habit_with_what_counts(signed_in: TestClient) -> None:
     assert (first["done"], first["week_done"]) == (False, 0)
 
 
-def test_the_protein_label_names_the_target_once_set(
-    signed_in: TestClient, engine: Engine
-) -> None:
+def test_the_protein_label_names_the_target_once_set(signed_in: TestClient, engine: Engine) -> None:
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         user_settings.update(mine, protein_g=165)
     protein = signed_in.get("/api/habits").json()["habits"][1]
