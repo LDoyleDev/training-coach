@@ -91,7 +91,8 @@ async def test_morning_message_carries_the_buttons(seeded: Sessions) -> None:
     bot = AsyncMock()
     await Handlers(SETTINGS, seeded).morning(type("Ctx", (), {"bot": bot})())  # type: ignore[arg-type]
     markup = bot.send_message.await_args.kwargs["reply_markup"]
-    assert markup == buttons.morning(_pointer(seeded))
+    # The daily check's rows follow until it's answered (ADR-0053, tests/bot/test_daily_check.py).
+    assert markup.inline_keyboard[0] == buttons.morning(_pointer(seeded)).inline_keyboard[0]
 
 
 @pytest.mark.parametrize(
