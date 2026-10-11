@@ -88,7 +88,7 @@ formats every file you edit (ADR-0021).
 - Never read, print, or commit `.env` or any secret. Never paste secrets into issues, PRs,
   commits, logs or test fixtures. Use obviously fake values in tests (`123456:TEST-TOKEN`).
 - Sharing is a picture the bot sends on `/share` (ADR-0050), with no public link; it never
-  shows measurements, readiness answers or photos.
+  shows measurements, readiness answers, daily checks or photos.
 - Web sign-in (ADR-0036): passkeys, a one-time bot link (hashed, single use, 10 minutes) to
   start or recover; session cookies HttpOnly, Secure, SameSite=Strict; every route declared
   public or owner-only, enforced by a test.
