@@ -35,10 +35,8 @@ app as it opens and the morning message on Telegram, and never stand in the way 
 - **When it's asked:** on the web, when the app opens and today isn't answered, after the
   6-monthly readiness questions if those are due; "Not now" skips it for that load; signed out,
   an error or no answer within 4 seconds lets the page through. In Telegram, the morning
-  message carries the three questions as rows of buttons until answered (`bot/daily_check.py`:
-  each button carries the answers so far and the day, so nothing is kept between taps and an
-  old message can't answer today); the third tap saves and replies with the advice, with
-  Rest today when it says rest. Today shows the day's answers and advice as one line.
+  message carries the three questions as buttons until answered (in a follow-up PR). Today
+  shows the day's answers and advice as one line.
 
 ## Options considered
 
@@ -54,4 +52,4 @@ app as it opens and the morning message on Telegram, and never stand in the way 
 - The privacy notice lists daily checks as health data under consent (draft in `docs/legal/`).
 - A later "go lighter" that adjusts targets, or sleep read from a band, would change this ADR.
 - Tests: `tests/domain/test_daily_check.py` (all 27 answers), `tests/api/test_daily_check.py`,
-  `frontend/src/readiness/DailyCheckGate.test.tsx`, `tests/bot/test_daily_check.py`.
+  `frontend/src/readiness/DailyCheckGate.test.tsx`.
