@@ -4,6 +4,28 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.29.0](https://github.com/LDoyleDev/training-coach/compare/v0.28.0...v0.29.0) (2026-10-12)
+
+
+### Features
+
+* **api:** ask before a log lands on a day that has its session ([#240](https://github.com/LDoyleDev/training-coach/issues/240)) ([e8fce94](https://github.com/LDoyleDev/training-coach/commit/e8fce94e60c30c48a135f57aabbc684133cc077c))
+* **bot:** ask in Telegram before a day gets two sessions ([#242](https://github.com/LDoyleDev/training-coach/issues/242)) ([4906487](https://github.com/LDoyleDev/training-coach/commit/4906487b7e0606b825df62bad6b5f1d0e2748f4f))
+* Claude can propose logs you confirm (MCP C2) ([#234](https://github.com/LDoyleDev/training-coach/issues/234)) ([97bae35](https://github.com/LDoyleDev/training-coach/commit/97bae355d462cace7022a35742a859dfd73fe4d3))
+* **web:** log another day, and ask before a day gets two sessions ([#241](https://github.com/LDoyleDev/training-coach/issues/241)) ([91f6fc1](https://github.com/LDoyleDev/training-coach/commit/91f6fc17f194dd483d92556a93fcec0b4fd97460))
+
+
+### Bug Fixes
+
+* **api:** alerts, message times and drafts go to their own person ([#236](https://github.com/LDoyleDev/training-coach/issues/236)) ([6aefdd8](https://github.com/LDoyleDev/training-coach/commit/6aefdd875372f1eae7a6bbc182c85d7bf31aa6f8))
+* **parser:** accept the activity word on a cardio log line ([#239](https://github.com/LDoyleDev/training-coach/issues/239)) ([75e6b86](https://github.com/LDoyleDev/training-coach/commit/75e6b86ebb4339f1ba4c708e68b1624607db09f1))
+
+
+### Documentation
+
+* multi-user steps 1-3 done; drop the fixed owner leaks ([#238](https://github.com/LDoyleDev/training-coach/issues/238)) ([11f5bc9](https://github.com/LDoyleDev/training-coach/commit/11f5bc9bd4ec838e0dc94bb3328ccd4e7a6756a9))
+* record multi-user decisions, ADR-0058 for invites and members ([#233](https://github.com/LDoyleDev/training-coach/issues/233)) ([131fde6](https://github.com/LDoyleDev/training-coach/commit/131fde6703337db725045ba6bd6d99df7072ee20))
+
 ## [0.28.0](https://github.com/LDoyleDev/training-coach/compare/v0.27.0...v0.28.0) (2026-10-12)
 
 
