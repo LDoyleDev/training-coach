@@ -17,6 +17,7 @@ from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.clock import parse_hhmm
 from training_coach.domain.habits import PROTEIN_GRAMS
 from training_coach.domain.queue import local_date
+from training_coach.domain.targets import Pace
 from training_coach.services import user_settings
 from training_coach.services.user_settings import Prefs
 
@@ -59,6 +60,7 @@ class SettingsView(BaseModel):
     habits_enabled: bool  # habit buttons in the evening message
     protein_g: int | None
     blocks_since: str | None  # training blocks on since this day (ADR-0028)
+    pace: Pace  # how big a step the targets take (ADR-0057)
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -73,6 +75,7 @@ class SettingsChange(BaseModel):
     habits_enabled: bool | None = None
     protein_g: Grams | None = None
     blocks: bool | None = None
+    pace: Pace | None = None
     paused: bool | None = None
 
 
@@ -90,6 +93,7 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
         habits_enabled=prefs.habits_enabled,
         protein_g=prefs.protein_g,
         blocks_since=started.isoformat() if started is not None else None,
+        pace=prefs.pace,
         paused=prefs.paused,
         timezone=settings.timezone,
     )
@@ -117,6 +121,7 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             habits_enabled=body.habits_enabled,
             protein_g=body.protein_g or None,
             clear_protein=body.protein_g == 0,
+            pace=body.pace,
             today=local_date(datetime.now(UTC), settings.tz),
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)

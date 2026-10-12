@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, FitnessTestDay, UserSettings, Workout
+from training_coach.domain.targets import Pace
 from training_coach.services import users
 
 DEFAULT_MORNING = time(7, 30)
@@ -24,6 +25,7 @@ class Prefs:
     blocks_started_on: date | None = None  # training blocks on since then (ADR-0028)
     habits_enabled: bool = True  # habit buttons in the evening message (D5)
     protein_g: int | None = None  # daily protein target for the habit
+    pace: Pace = Pace.STANDARD  # how big a step the targets take (ADR-0057)
 
 
 def load(session: Session) -> Prefs:
@@ -39,6 +41,7 @@ def load(session: Session) -> Prefs:
         row.blocks_started_on,
         row.habits_enabled,
         row.protein_g,
+        Pace(row.pace),
     )
 
 
@@ -54,6 +57,7 @@ def update(
     habits_enabled: bool | None = None,
     protein_g: int | None = None,
     clear_protein: bool = False,
+    pace: Pace | None = None,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
@@ -77,6 +81,7 @@ def update(
         blocks_started_on=started,
         habits_enabled=old.habits_enabled if habits_enabled is None else habits_enabled,
         protein_g=None if clear_protein else old.protein_g if protein_g is None else protein_g,
+        pace=old.pace if pace is None else pace,
     )
     changes: dict[str, str | bool | int] = {}
     if morning_time is not None:
@@ -95,6 +100,8 @@ def update(
         changes["habits_enabled"] = habits_enabled
     if protein_g is not None or clear_protein:
         changes["protein_g"] = protein_g or 0  # 0: cleared
+    if pace is not None:
+        changes["pace"] = pace.value
     row = users.settings_row(session)
     if row is None:
         row = UserSettings()
@@ -107,6 +114,7 @@ def update(
     row.blocks_started_on = prefs.blocks_started_on
     row.habits_enabled = prefs.habits_enabled
     row.protein_g = prefs.protein_g
+    row.pace = prefs.pace.value
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

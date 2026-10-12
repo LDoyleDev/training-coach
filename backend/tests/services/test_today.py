@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Exercise, PlanState, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
-from training_coach.services import users
+from training_coach.domain.targets import Pace
+from training_coach.services import user_settings, users
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.today import today, week
 
@@ -139,6 +140,26 @@ def test_targets_step_up_from_the_last_session_at_the_same_step(seeded: Session)
     assert pull_up.targets == (9, 8, 7)
     assert split_squat.targets == (11, 11)  # weaker side counts: 9/9 -> +2 each
     assert (pull_up.baseline, split_squat.baseline) == (False, False)
+
+
+@pytest.mark.parametrize(
+    ("pace", "pull_up", "split_squat"),
+    [(Pace.STEADY, (9, 8, 7), (10, 10)), (Pace.FAST, (10, 9, 8), (11, 11))],
+)
+def test_targets_take_the_persons_pace(
+    seeded: Session, pace: Pace, pull_up: tuple[int, ...], split_squat: tuple[int, ...]
+) -> None:
+    """ADR-0057: steady +1 everywhere, fast at least +2."""
+    _log(seeded, "pull-up", [(1, Side.BOTH, 8), (2, Side.BOTH, 7), (3, Side.BOTH, 6)])
+    _log(
+        seeded,
+        "split-squat",
+        [(1, Side.LEFT, 9), (1, Side.RIGHT, 9), (2, Side.LEFT, 9), (2, Side.RIGHT, 9)],
+    )
+    user_settings.update(seeded, pace=pace)
+    plan = today(seeded, DAY)
+    assert plan is not None
+    assert tuple(item.targets for item in plan.session.items) == (pull_up, split_squat)
 
 
 def test_latest_session_wins(seeded: Session) -> None:

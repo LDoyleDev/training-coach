@@ -55,6 +55,7 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "habits_enabled": True,
         "protein_g": None,
         "blocks_since": None,
+        "pace": "standard",
         "paused": False,
         "timezone": "Europe/Berlin",
     }
@@ -115,6 +116,13 @@ def test_habit_buttons_can_be_switched_off(signed_in: TestClient) -> None:
         signed_in.patch("/api/settings", json={"habits_enabled": False}).json()["habits_enabled"]
         is False
     )
+
+
+def test_the_pace_is_one_of_three(signed_in: TestClient, engine: Engine) -> None:
+    assert signed_in.patch("/api/settings", json={"pace": "fast"}).json()["pace"] == "fast"
+    assert _stored(engine).pace == "fast"
+    assert signed_in.patch("/api/settings", json={"pace": "turbo"}).status_code == 422
+    assert signed_in.get("/api/settings").json()["pace"] == "fast"
 
 
 def test_signed_out_gets_nothing(client: TestClient) -> None:

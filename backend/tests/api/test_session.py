@@ -10,9 +10,9 @@ from sqlalchemy import Engine, select
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, Workout
+from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, SetLog, Workout
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.domain.enums import WorkoutStatus
+from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.queue import local_date
 from training_coach.services import auth, users
 from training_coach.services.seed import apply_seed, load_plan
@@ -90,6 +90,52 @@ def test_nothing_to_guide_once_today_is_done(signed_in: TestClient, engine: Engi
         "readiness_note": None,
         "daily_check": None,
     }
+
+
+def _log_yesterday(engine: Engine, done: dict[str, int]) -> None:
+    """Every set of each exercise in ``done`` at that value, logged yesterday."""
+    yesterday = local_date(datetime.now(UTC), Settings().tz) - timedelta(days=1)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
+        workout = Workout(local_date=yesterday, status=WorkoutStatus.DONE)
+        for slug, value in done.items():
+            exercise = bound.scalars(select(Exercise).where(Exercise.slug == slug)).one()
+            state = users.exercise_state(bound, exercise.id)
+            assert state is not None
+            workout.sets += [
+                SetLog(
+                    exercise_id=exercise.id,
+                    ladder_step_id=state.ladder_step_id,
+                    set_no=n,
+                    side=Side.BOTH,
+                    value=value,
+                )
+                for n in (1, 2, 3)
+            ]
+        bound.add(workout)
+
+
+def _targets(client: TestClient, slug: str) -> list[int]:
+    items = client.get("/api/session/today").json()["session"]["items"]
+    targets: list[int] = next(i["targets"] for i in items if i["slug"] == slug)
+    return targets
+
+
+@pytest.mark.parametrize(
+    ("pace", "jump_squat", "tibialis"),
+    [
+        pytest.param("standard", [7, 7, 7], [21, 21, 21], id="standard"),  # +1 in 5-8, +3 in 15-25
+        pytest.param("steady", [7, 7, 7], [19, 19, 19], id="steady"),  # +1 everywhere
+        pytest.param("fast", [8, 8, 8], [21, 21, 21], id="fast"),  # at least +2
+    ],
+)
+def test_the_pace_setting_changes_the_next_targets(
+    signed_in: TestClient, engine: Engine, pace: str, jump_squat: list[int], tibialis: list[int]
+) -> None:
+    """ADR-0057: the session page's targets take the person's pace."""
+    _log_yesterday(engine, {"jump-squat": 6, "tibialis-raise": 18})
+    assert signed_in.patch("/api/settings", json={"pace": pace}).json()["pace"] == pace
+    assert _targets(signed_in, "jump-squat") == jump_squat
+    assert _targets(signed_in, "tibialis-raise") == tibialis
 
 
 # ------------------------------------------------------------------ progress and saving
