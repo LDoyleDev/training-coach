@@ -112,7 +112,7 @@ async def health_connect(request: Request) -> IngestReceived:
     now = datetime.now(UTC)
     shared: sessionmaker[Session] = request.app.state.shared_sessions
     with session_scope(shared) as session:
-        user = ingest_keys.owner_of(session, secret, now) if secret is not None else None
+        user = ingest_keys.owner_of(session, secret) if secret is not None else None
     if user is None:
         limiter.failed(address, clock)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "unknown ingest secret")
@@ -132,6 +132,7 @@ async def health_connect(request: Request) -> IngestReceived:
         batch = health_import.parse(body, now)
         with session_scope(bound) as session:
             health_import.store(session, batch, settings.tz, now)
+            ingest_keys.received(session, now, took=any(batch.taken.values()))
         return batch
 
     batch = await run_in_threadpool(parse_and_store)
@@ -145,7 +146,8 @@ async def health_connect(request: Request) -> IngestReceived:
 class IngestView(BaseModel):
     exists: bool
     created_at: datetime | None
-    last_used_at: datetime | None
+    last_used_at: datetime | None  # the last sync stored, to within an hour
+    last_taken_at: datetime | None  # the last sync that took a record: data actually arrived
     url: str | None  # where the phone posts; None until the server has TC_PUBLIC_URL
 
 

@@ -1439,6 +1439,18 @@
             "title": "Exists",
             "type": "boolean"
           },
+          "last_taken_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Taken At"
+          },
           "last_used_at": {
             "anyOf": [
               {
@@ -1467,6 +1479,7 @@
           "exists",
           "created_at",
           "last_used_at",
+          "last_taken_at",
           "url"
         ],
         "title": "IngestView",
@@ -2130,6 +2143,18 @@
             "title": "Exists",
             "type": "boolean"
           },
+          "last_taken_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Taken At"
+          },
           "last_used_at": {
             "anyOf": [
               {
@@ -2162,6 +2187,7 @@
           "exists",
           "created_at",
           "last_used_at",
+          "last_taken_at",
           "url",
           "secret"
         ],

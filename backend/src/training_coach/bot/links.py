@@ -17,6 +17,7 @@ SESSION = "/session"
 PROGRESS = "/progress"
 REVIEW = "/review"
 TESTS = "/tests"
+ACCOUNT = "/account"
 LOCAL_HOSTS = frozenset({"localhost"})
 
 

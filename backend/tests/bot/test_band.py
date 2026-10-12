@@ -3,9 +3,10 @@
 from datetime import UTC, datetime, time, timedelta
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
+import time_machine
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
@@ -14,7 +15,9 @@ from telegram.ext import Application
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, press, run, texts
 from training_coach.bot import band as band_ui
 from training_coach.db.models import ImportedWorkout, UserSettings, Workout
+from training_coach.domain.band_watch import Notice
 from training_coach.domain.queue import local_date
+from training_coach.services import ingest_keys
 
 App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
@@ -184,3 +187,121 @@ async def test_a_failed_save_keeps_the_buttons_and_says_so(
     assert texts(calls) == [band_ui.FAILED]
     assert "editMessageReplyMarkup" not in calls
     assert _workouts(seeded) == 0
+
+
+# ------------------------------------------------------------- band data stopping (ADR-0055)
+
+MADE = datetime(2026, 10, 12, 8, 0, tzinfo=UTC)  # 10:00 in Berlin
+HOUR = timedelta(hours=1)
+
+
+def _secret(sessions: Sessions, at: datetime = MADE) -> None:
+    with sessions() as session:
+        ingest_keys.make(session, at)
+        session.commit()
+
+
+def _sync(sessions: Sessions, at: datetime, took: bool = True) -> None:
+    with sessions() as session:
+        ingest_keys.received(session, at, took)
+        session.commit()
+
+
+async def _watch(handlers: band_ui.BandHandlers, at: datetime) -> None:
+    with time_machine.travel(at, tick=False):
+        await handlers.watch(SimpleNamespace(bot=None))  # type: ignore[arg-type]  # fake context
+
+
+def _sent(send: AsyncMock) -> list[str]:
+    return [call.args[2] for call in send.await_args_list]
+
+
+async def test_a_day_without_band_data_is_told_once_then_its_return(seeded: Sessions) -> None:
+    _secret(seeded)
+    _sync(seeded, MADE)
+    send = AsyncMock(return_value=True)
+    handlers = band_ui.BandHandlers(SETTINGS, seeded, send)
+    await _watch(handlers, MADE + 23 * HOUR)
+    await _watch(handlers, MADE + 25 * HOUR)
+    await _watch(handlers, MADE + 26 * HOUR)
+    assert _sent(send) == [band_ui.NOTICES[Notice.QUIET]]
+    assert send.await_args_list[0].args[1] == OWNER
+    _sync(seeded, MADE + 27 * HOUR)
+    await _watch(handlers, MADE + 28 * HOUR)
+    await _watch(handlers, MADE + 29 * HOUR)
+    assert _sent(send)[1:] == ["Band data is arriving again."]
+    await _watch(handlers, MADE + 52 * HOUR)  # a second gap is told again
+    assert _sent(send)[2:] == [band_ui.NOTICES[Notice.QUIET]]
+
+
+async def test_empty_syncs_get_the_empty_message(seeded: Sessions) -> None:
+    _secret(seeded)
+    _sync(seeded, MADE)
+    _sync(seeded, MADE + 20 * HOUR, took=False)
+    send = AsyncMock(return_value=True)
+    await _watch(band_ui.BandHandlers(SETTINGS, seeded, send), MADE + 25 * HOUR)
+    assert _sent(send) == [
+        "HC Webhook is syncing, but nothing new has come from the band for a day. Open Mi "
+        "Fitness to sync the band, and check that Mi Fitness still shares with Health Connect."
+    ]
+
+
+async def test_no_band_import_means_no_alert(seeded: Sessions) -> None:
+    send = AsyncMock(return_value=True)
+    await _watch(band_ui.BandHandlers(SETTINGS, seeded, send), MADE + 50 * HOUR)
+    send.assert_not_awaited()
+
+
+async def test_the_alert_waits_for_the_day_and_not_while_paused(seeded: Sessions) -> None:
+    _secret(seeded)
+    send = AsyncMock(return_value=True)
+    handlers = band_ui.BandHandlers(SETTINGS, seeded, send)
+    night = datetime(2026, 10, 14, 1, 0, tzinfo=UTC)  # 03:00 in Berlin
+    await _watch(handlers, night)
+    send.assert_not_awaited()
+    with seeded() as session:
+        session.scalars(select(UserSettings)).one().paused = True
+        session.commit()
+    await _watch(handlers, night + 8 * HOUR)
+    send.assert_not_awaited()
+    with seeded() as session:
+        session.scalars(select(UserSettings)).one().paused = False
+        session.commit()
+    await _watch(handlers, night + 8 * HOUR)
+    assert _sent(send) == [band_ui.NOTICES[Notice.QUIET]]
+
+
+async def test_a_failed_alert_is_tried_again_next_run(seeded: Sessions) -> None:
+    _secret(seeded)
+    send = AsyncMock(side_effect=[False, True, True])
+    handlers = band_ui.BandHandlers(SETTINGS, seeded, send)
+    await _watch(handlers, MADE + 25 * HOUR)
+    await _watch(handlers, MADE + 26 * HOUR)
+    await _watch(handlers, MADE + 27 * HOUR)
+    assert send.await_count == 2
+
+
+async def test_the_alert_links_to_account_when_there_is_an_address(seeded: Sessions) -> None:
+    _secret(seeded)
+    settings = SETTINGS.model_copy(update={"public_url": "https://coach.example.org"})
+    send = AsyncMock(return_value=True)
+    await _watch(band_ui.BandHandlers(settings, seeded, send), MADE + 25 * HOUR)
+    (button,) = send.await_args_list[0].kwargs["reply_markup"].inline_keyboard[0]
+    assert button.url == "https://coach.example.org/account"
+
+
+async def test_a_database_error_sends_nothing(seeded: Sessions) -> None:
+    _secret(seeded)
+    send = AsyncMock(return_value=True)
+    handlers = band_ui.BandHandlers(SETTINGS, seeded, send)
+    with patch.object(
+        band_ui.ingest_keys, "watch", side_effect=OperationalError("locked", None, Exception())
+    ):
+        await _watch(handlers, MADE + 25 * HOUR)
+    send.assert_not_awaited()
+
+
+def test_the_watch_runs_hourly(application: App) -> None:
+    assert application.job_queue is not None
+    (job,) = application.job_queue.get_jobs_by_name(band_ui.WATCH_JOB)
+    assert job.job.trigger.interval == band_ui.WATCH_EVERY
