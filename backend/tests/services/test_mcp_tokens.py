@@ -397,3 +397,12 @@ def test_a_used_code_replayed_after_it_expired_still_revokes(engine: Engine) -> 
     replayed = _exchange(engine, c, now=late)
     assert replayed == Refused(mcp_tokens.INVALID_GRANT, revoked=True)
     assert _verify(engine, tokens.access_token, late) is None
+
+
+def test_a_refresh_cannot_keep_proposing_without_training(engine: Engine) -> None:
+    """Review of #234: narrowing to ``log:propose`` alone is refused, as consent would drop it."""
+    c = _connect(engine, scopes=("training:read", "log:propose"))
+    first = _tokens(_exchange(engine, c))
+    assert _refresh(engine, first.refresh_token, scope="log:propose") == Refused("invalid_scope")
+    narrow = _tokens(_refresh(engine, first.refresh_token, scope="training:read"))
+    assert narrow.scope == "training:read"

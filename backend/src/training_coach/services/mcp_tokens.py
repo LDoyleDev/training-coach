@@ -257,7 +257,11 @@ def refresh(
     scopes = list(row.scopes)
     if scope is not None:
         asked = connections.parse(scope)
-        if asked is None or not set(asked) <= set(scopes):
+        if (
+            asked is None
+            or not set(asked) <= set(scopes)
+            or connections.grant(asked, asked) != asked  # log:propose without training:read
+        ):
             return Refused(INVALID_SCOPE)
         scopes = [s.value for s in asked]
     claimed = cast(

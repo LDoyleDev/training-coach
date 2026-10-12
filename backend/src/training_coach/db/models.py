@@ -891,6 +891,8 @@ class LogProposal(Owned, Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
     announced_at: Mapped[datetime | None] = mapped_column(UTCDateTime)  # sent to Telegram
+    # Telegram refused it for good (not a network failure): not tried again; Today still shows it.
+    announce_refused_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     resolved_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 

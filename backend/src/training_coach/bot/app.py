@@ -142,6 +142,9 @@ def _retry_seconds(exc: RetryAfter) -> float:
     return value.total_seconds() if isinstance(value, timedelta) else float(value)
 
 
+SENT, UNREACHABLE, REFUSED = "sent", "unreachable", "refused"
+
+
 async def send_with_retry(
     bot: Bot,
     chat_id: int,
@@ -153,6 +156,23 @@ async def send_with_retry(
 ) -> bool:
     """Send a scheduled message. Network errors are retried with backoff and flood control
     is waited out; any other Telegram error (blocked, bad chat) gives up. False if not sent."""
+    sent = await send_outcome(
+        bot, chat_id, text, reply_markup=reply_markup, attempts=attempts, backoff=backoff
+    )
+    return sent == SENT
+
+
+async def send_outcome(
+    bot: Bot,
+    chat_id: int,
+    text: str,
+    *,
+    reply_markup: InlineKeyboardMarkup | None = None,
+    attempts: int = 3,
+    backoff: float = 2.0,
+) -> str:
+    """``send_with_retry``, telling apart Telegram being unreachable (``UNREACHABLE``: worth
+    trying later) from it refusing this message (``REFUSED``: it would refuse it again)."""
     for attempt in range(1, attempts + 1):
         try:
             await bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
@@ -166,10 +186,10 @@ async def send_with_retry(
                 await asyncio.sleep(backoff * 2 ** (attempt - 1))
         except TelegramError as exc:
             log.warning("bot.send_failed", attempt=attempt, error=type(exc).__name__)
-            return False
+            return REFUSED
         else:
-            return True
-    return False
+            return SENT
+    return UNREACHABLE
 
 
 class Handlers:
@@ -530,7 +550,7 @@ def build_bot(
     jobs.run_repeating(band_handlers.announce, interval=band_ui.EVERY, name=band_ui.JOB)
     # Logs a connected AI proposed (ADR-0058): sent as they come, and checked every few
     # minutes for any whose send failed.
-    proposal_handlers = proposals_ui.ProposalHandlers(settings, sessions, send_with_retry)
+    proposal_handlers = proposals_ui.ProposalHandlers(settings, sessions, send_outcome)
     application.add_handler(
         CallbackQueryHandler(proposal_handlers.button, pattern=proposals_ui.PATTERN)
     )

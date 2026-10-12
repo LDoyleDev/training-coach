@@ -94,12 +94,16 @@ def handle(
     return _error(id_, NO_METHOD, "unknown method")
 
 
-def proposes(message: object) -> bool:
-    """Whether a message calls ``propose_log``: the person may have a proposal to hear about."""
+def proposed(message: object, answer: object) -> bool:
+    """Whether a message called ``propose_log`` and a proposal was made: only then is there
+    something for Telegram (a refusal, or any other call, sends nothing)."""
     if not isinstance(message, dict) or message.get("method") != "tools/call":
         return False
     params = message.get("params")
-    return isinstance(params, dict) and params.get("name") == mcp_tools.PROPOSE
+    if not isinstance(params, dict) or params.get("name") != mcp_tools.PROPOSE:
+        return False
+    result = answer.get("result") if isinstance(answer, dict) else None
+    return isinstance(result, dict) and result.get("isError") is False
 
 
 def _call(

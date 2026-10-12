@@ -44,8 +44,12 @@ def parse(text: str | None) -> list[Scope] | None:
 
 
 def grant(requested: Iterable[str], ticked: Iterable[str]) -> list[Scope]:
-    """What a connection gets: only scopes that were both asked for and ticked."""
+    """What a connection gets: only scopes that were both asked for and ticked, and
+    ``log:propose`` only with ``training:read`` (ADR-0058: a proposal's answers name exercises
+    and sessions)."""
     both = set(requested) & set(ticked)
+    if Scope.TRAINING not in both:
+        both.discard(Scope.PROPOSE)
     return [s for s in Scope if s.value in both]
 
 

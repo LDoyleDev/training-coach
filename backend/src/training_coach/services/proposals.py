@@ -19,16 +19,16 @@ import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Annotated, Any, Literal, get_args
+from typing import Annotated, Any, Literal, cast, get_args
 from zoneinfo import ZoneInfo
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, LogProposal, McpConnection
-from training_coach.db.session import ALL_USERS
+from training_coach.db.session import ALL_USERS, bound_user
 from training_coach.domain.dates import MAX_DAYS_BACK
 from training_coach.domain.enums import CardioActivity, ExerciseKind, Side
 from training_coach.domain.habits import LABELS as HABIT_LABELS
@@ -294,6 +294,22 @@ def sweep(session: Session, now: datetime) -> None:
     session.flush()
 
 
+def _user(session: Session) -> int:
+    user = bound_user(session)
+    if user is None:
+        raise PermissionError("proposals need a session bound to their person")
+    return user
+
+
+def _live(user: int, now: datetime) -> Any:
+    """The person's connections that still work: not revoked, not past their 90 days."""
+    return select(McpConnection.id).where(
+        McpConnection.user_id == user,
+        McpConnection.revoked_at.is_(None),
+        McpConnection.ends_at > now,
+    )
+
+
 def propose(
     session: Session,
     connection_id: int,
@@ -301,7 +317,25 @@ def propose(
     tz: ZoneInfo,
     now: datetime,
 ) -> Proposed | Refused:
-    """A proposal from a connection, waiting for the person; or why it was refused."""
+    """A proposal from a connection, waiting for the person; or why it was refused.
+
+    The first statement takes SQLite's write lock with a no-op update of the connection, which
+    also checks it is still live: calls at once then count and insert one after another, so
+    the cap holds, and a connection revoked since its token was checked proposes nothing."""
+    held = cast(
+        "CursorResult[object]",
+        session.execute(
+            update(McpConnection)
+            .where(
+                McpConnection.id.in_(_live(_user(session), now)), McpConnection.id == connection_id
+            )
+            .values(id=McpConnection.id)
+            .execution_options(synchronize_session=False),
+            execution_options={ALL_USERS: True},  # one row, named by the person's id above
+        ),
+    )
+    if held.rowcount != 1:
+        return Refused("this connection has ended: connect again")
     sweep(session, now)
     waiting = session.scalar(
         select(func.count())
@@ -343,10 +377,13 @@ class Pending:
     summary: str  # exactly what Save writes, in our words
     source: str  # the app's name as it claimed it, cut to NAME_LENGTH
     expires_at: datetime
+    # "Replaces the 78.4 kg saved that day": for the person only, never for the AI.
+    replaces: str | None = None
 
     @property
     def text(self) -> str:
-        return f"From “{self.source}”: {self.summary}"
+        replaces = f"\n{self.replaces}." if self.replaces else ""
+        return f"From “{self.source}”: {self.summary}{replaces}"
 
 
 def _source(name: str) -> str:
@@ -354,9 +391,33 @@ def _source(name: str) -> str:
     return clean if len(clean) <= NAME_LENGTH else clean[: NAME_LENGTH - 1] + "…"
 
 
-def _pending(row: LogProposal, name: str) -> Pending:
+def _replaces(session: Session, row: LogProposal) -> str | None:
+    """What a body proposal would overwrite that day, if anything."""
+    if row.kind != BODY:
+        return None
+    saved = measurements.on_day(session, row.local_date)
+    shown = []
+    for name in row.payload["measurements"]:
+        kind = Measure(name)
+        if kind in saved:
+            spec = SPECS[kind]
+            shown.append(f"{saved[kind]:.{spec.decimals}f} {spec.unit}")
+    if not shown:
+        return None
+    both = ", ".join(shown[:-1]) + " and " + shown[-1] if len(shown) > 1 else shown[0]
+    return f"Replaces the {both} saved that day"
+
+
+def _pending(session: Session, row: LogProposal, name: str) -> Pending:
     return Pending(
-        row.id, row.token, row.kind, row.local_date, row.summary, _source(name), row.expires_at
+        row.id,
+        row.token,
+        row.kind,
+        row.local_date,
+        row.summary,
+        _source(name),
+        row.expires_at,
+        _replaces(session, row),
     )
 
 
@@ -367,18 +428,33 @@ def pending(session: Session, now: datetime, *, unannounced: bool = False) -> li
     query = (
         select(LogProposal, McpConnection.client_name)
         .join(McpConnection, LogProposal.connection_id == McpConnection.id)
-        .where(LogProposal.status == PENDING)
+        .where(
+            LogProposal.status == PENDING,
+            McpConnection.revoked_at.is_(None),
+            McpConnection.ends_at > now,
+        )
         .order_by(LogProposal.id)
     )
     if unannounced:
-        query = query.where(LogProposal.announced_at.is_(None))
-    return [_pending(row, name) for row, name in session.execute(query)]
+        query = query.where(
+            LogProposal.announced_at.is_(None), LogProposal.announce_refused_at.is_(None)
+        )
+    return [_pending(session, row, name) for row, name in list(session.execute(query))]
 
 
 def announced(session: Session, proposal_id: int, now: datetime) -> None:
     row = session.get(LogProposal, proposal_id)
     if row is not None:
         row.announced_at = now
+        session.flush()
+
+
+def announce_refused(session: Session, proposal_id: int, now: datetime) -> None:
+    """Telegram turned this one down for good (not a network failure): it isn't tried again,
+    and stays on Today in the app."""
+    row = session.get(LogProposal, proposal_id)
+    if row is not None:
+        row.announce_refused_at = now
         session.flush()
 
 
@@ -417,9 +493,39 @@ class Discarded:
 Resolved = Saved | Discarded | Already | Gone | Changed
 
 
-def _find(session: Session, token: str, now: datetime) -> LogProposal | None:
+def _claim(
+    session: Session, token: str, status: str, now: datetime
+) -> LogProposal | Already | Gone:
+    """Take a waiting proposal for ``status`` in one conditional update, the transaction's first
+    write: of a Save and a Discard (or two Saves) tapped at once, here and in Telegram, only one
+    changes the row; the other waits for the write lock, then finds it taken. Nothing else is
+    written before the claim, and a failure after it rolls the claim back with everything else,
+    leaving the proposal waiting to be tried again."""
+    user = _user(session)
+    claimed = cast(
+        "CursorResult[object]",
+        session.execute(
+            update(LogProposal)
+            .where(
+                LogProposal.token == token,
+                LogProposal.user_id == user,
+                LogProposal.status == PENDING,
+                LogProposal.expires_at > now,
+                LogProposal.connection_id.in_(_live(user, now)),
+            )
+            .values(status=status, resolved_at=now)
+            .execution_options(synchronize_session=False),
+            execution_options={ALL_USERS: True},  # the person's own row, named above
+        ),
+    )
     sweep(session, now)
-    return session.scalar(select(LogProposal).where(LogProposal.token == token))
+    row = session.scalar(select(LogProposal).where(LogProposal.token == token))
+    if claimed.rowcount == 1 and row is not None:
+        session.refresh(row)
+        return row
+    if row is None or row.status == PENDING:  # expired, or its connection has ended
+        return Gone()
+    return Already(row.status)
 
 
 def _resolve(
@@ -434,7 +540,11 @@ def _resolve(
 def _write(session: Session, row: LogProposal, tz: ZoneInfo, today: date) -> str | None:
     """Save through the service of the proposal's kind; why not, when it no longer fits."""
     data, day = row.payload, row.local_date
+    if row.kind in (STRENGTH, CARDIO) and (today - day).days > MAX_DAYS_BACK:
+        return f"{_when(day)} is too long ago now"
     if row.kind == STRENGTH:
+        if not data["backdated"] and day < today:  # proposed for a today that has passed
+            return f"it was proposed for {_when(day)}, which has passed"
         if data["backdated"] and workout_log.day_saved(session, day):
             return f"a session was saved for {_when(day)} meanwhile"
         draft = workout_log.Draft(
@@ -479,11 +589,9 @@ def save(
     session: Session, token: str, tz: ZoneInfo, now: datetime, by: str
 ) -> Saved | Already | Gone | Changed:
     """Save a waiting proposal, once. ``by`` is where the person tapped (web or telegram)."""
-    row = _find(session, token, now)
-    if row is None:
-        return Gone()
-    if row.status != PENDING:
-        return Already(row.status)
+    row = _claim(session, token, SAVED, now)
+    if not isinstance(row, LogProposal):
+        return row
     problem = _write(session, row, tz, local_date(now, tz))
     if problem is not None:  # nothing was written: each service checks before it writes
         _resolve(session, row, DISCARDED, now, by, "changed")
@@ -493,11 +601,9 @@ def save(
 
 
 def discard(session: Session, token: str, now: datetime, by: str) -> Discarded | Already | Gone:
-    row = _find(session, token, now)
-    if row is None:
-        return Gone()
-    if row.status != PENDING:
-        return Already(row.status)
+    row = _claim(session, token, DISCARDED, now)
+    if not isinstance(row, LogProposal):
+        return row
     _resolve(session, row, DISCARDED, now, by)
     return Discarded()
 

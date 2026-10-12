@@ -15,7 +15,7 @@ from tests import oauth_flow as flow
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, press, run, texts
 from training_coach.bot import proposals as proposals_ui
 from training_coach.bot.app import ANNOUNCE
-from training_coach.db.models import HabitCheck, LogProposal, McpConnection, Workout
+from training_coach.db.models import HabitCheck, LogProposal, McpConnection, Measurement, Workout
 from training_coach.domain.queue import local_date
 from training_coach.services import proposals, workout_log
 
@@ -71,9 +71,9 @@ async def test_each_proposal_is_sent_once_naming_the_app(seeded: Sessions, engin
     token = _propose(seeded, engine)
     sent: list[tuple[int, str, Any]] = []
 
-    async def send(_bot: object, chat: int, text: str, **kwargs: Any) -> bool:
+    async def send(_bot: object, chat: int, text: str, **kwargs: Any) -> str:
         sent.append((chat, text, kwargs["reply_markup"]))
-        return True
+        return proposals_ui.SENT
 
     handlers = proposals_ui.ProposalHandlers(SETTINGS, seeded, send)
     await handlers.announce(None)  # type: ignore[arg-type]  # the fake send needs no bot
@@ -90,7 +90,7 @@ async def test_each_proposal_is_sent_once_naming_the_app(seeded: Sessions, engin
 
 async def test_a_failed_send_is_tried_again(seeded: Sessions, engine: Engine) -> None:
     _propose(seeded, engine)
-    send = AsyncMock(side_effect=[False, True])
+    send = AsyncMock(side_effect=[proposals_ui.UNREACHABLE, proposals_ui.SENT])
     handlers = proposals_ui.ProposalHandlers(SETTINGS, seeded, send)
     for _ in range(3):
         await handlers.announce(None)  # type: ignore[arg-type]
@@ -107,7 +107,7 @@ async def test_a_proposal_sent_but_not_marked_stops_the_run(
     _propose(seeded, engine)
     _propose(seeded, engine)
     monkeypatch.setattr(proposals_ui.proposals, "announced", _locked)
-    send = AsyncMock(return_value=True)
+    send = AsyncMock(return_value=proposals_ui.SENT)
     await proposals_ui.ProposalHandlers(SETTINGS, seeded, send).announce(None)  # type: ignore[arg-type]
     assert send.await_count == 1  # stopped, so nothing goes twice
 
@@ -116,7 +116,7 @@ async def test_an_unreadable_database_sends_nothing(
     seeded: Sessions, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(proposals_ui.proposals, "pending", _locked)
-    send = AsyncMock(return_value=True)
+    send = AsyncMock(return_value=proposals_ui.SENT)
     await proposals_ui.ProposalHandlers(SETTINGS, seeded, send).announce(None)  # type: ignore[arg-type]
     send.assert_not_awaited()
 
@@ -230,3 +230,37 @@ def test_the_app_hands_the_api_a_way_to_announce(application: App) -> None:
     assert callable(application.bot_data[ANNOUNCE])
     assert application.job_queue is not None
     assert application.job_queue.get_jobs_by_name(proposals_ui.JOB)
+
+
+async def test_one_telegram_refuses_does_not_hold_up_the_rest(
+    seeded: Sessions, engine: Engine
+) -> None:
+    """Review of #234: a message Telegram turned down for good stopped every later one."""
+    refused = _propose(seeded, engine)
+    later = _propose(seeded, engine, kind="habits", habits=["wind_down"])
+    send = AsyncMock(side_effect=[proposals_ui.REFUSED, proposals_ui.SENT])
+    handlers = proposals_ui.ProposalHandlers(SETTINGS, seeded, send)
+    await handlers.announce(None)  # type: ignore[arg-type]  # the fake send needs no bot
+    await handlers.announce(None)  # type: ignore[arg-type]
+    assert send.await_count == 2  # each once; the refused one isn't tried again
+    with seeded() as session:
+        rows = {r.token: r for r in session.scalars(select(LogProposal))}
+        assert rows[refused].announce_refused_at is not None
+        assert rows[refused].announced_at is None
+        assert rows[later].announced_at is not None
+    with seeded() as session:  # still on Today in the app
+        waiting = proposals.pending(session, datetime.now(UTC))
+    assert {p.token for p in waiting} == {refused, later}
+
+
+async def test_a_replaced_measurement_is_named_in_telegram(
+    seeded: Sessions, engine: Engine
+) -> None:
+    with seeded() as session:
+        session.add(Measurement(local_date=TODAY, kind="bodyweight", tenths=784))
+        session.commit()
+    _propose(seeded, engine, kind="body", measurements={"bodyweight": 82.4})
+    send = AsyncMock(return_value=proposals_ui.SENT)
+    await proposals_ui.ProposalHandlers(SETTINGS, seeded, send).announce(None)  # type: ignore[arg-type]
+    text = send.await_args.args[2]
+    assert "Bodyweight 82.4 kg\nReplaces the 78.4 kg saved that day." in text

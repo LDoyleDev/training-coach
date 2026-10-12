@@ -2,8 +2,11 @@
 Discard.
 
 Each proposal is sent once: at once after the AI proposes it, and by a check every few minutes
-for any whose send failed. Callback data is ``lp:save:<token>`` or ``lp:discard:<token>``; the
-service looks the token up, so an old or forged button can't save anything that isn't waiting.
+for any whose send failed because Telegram was unreachable. One Telegram refuses outright is
+not tried again and doesn't hold up the others; it stays on Today in the app.
+
+Callback data is ``lp:save:<token>`` or ``lp:discard:<token>``; the service looks the token up,
+so an old or forged button can't save anything that isn't waiting.
 Saving or discarding here or on Today resolves it in both places: a button pressed afterwards
 answers "already saved" or that it has gone.
 """
@@ -42,7 +45,9 @@ ALREADY = {
 }
 FAILED = "Couldn't save that just now. Try again, or use Today in the app."
 
-Send = Callable[..., Awaitable[bool]]
+# Like bot.app.send_outcome: SENT, UNREACHABLE (try again later) or REFUSED (never again).
+Send = Callable[..., Awaitable[str]]
+SENT, UNREACHABLE, REFUSED = "sent", "unreachable", "refused"
 
 
 @dataclass(frozen=True)
@@ -107,16 +112,22 @@ class ProposalHandlers:
             owner = self.settings.telegram_allowed_user_id
             assert owner is not None  # noqa: S101 - owner_only
             for one in found:
-                if not await self.send(bot, owner, text(one), reply_markup=markup(one.token)):
+                sent = await self.send(bot, owner, text(one), reply_markup=markup(one.token))
+                if sent == UNREACHABLE:
                     log.warning("bot.proposal_not_sent")
                     return  # Telegram is unreachable; the rest wait for the next check too
+                mark = proposals.announced if sent == SENT else proposals.announce_refused
                 try:
                     with session_scope(self.sessions) as session:
-                        proposals.announced(session, one.id, datetime.now(UTC))
-                except SQLAlchemyError as exc:  # sent but not marked: stop, so nothing goes twice
+                        mark(session, one.id, datetime.now(UTC))
+                except SQLAlchemyError as exc:
+                    # Sent but not marked: this one goes again on the next check, so stop
+                    # rather than send the rest unmarked too.
                     log.error("bot.proposal_unmarked", error=type(exc).__name__)
                     return
-                log.info("bot.proposal_sent")
+                # Refused for good (blocked, a bad message): logged, never retried, and the
+                # card on Today still shows it; the next one still goes.
+                log.info("bot.proposal_sent" if sent == SENT else "bot.proposal_refused")
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """Save or Discard. Strangers get nothing, not even an answer (T1)."""

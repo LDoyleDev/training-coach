@@ -18,6 +18,7 @@ from training_coach.bot.app import (
     build_bot,
     owner_only,
     schedule_morning,
+    send_outcome,
     send_with_retry,
 )
 from training_coach.bot.messages import NO_PLAN, SOMETHING_WENT_WRONG
@@ -208,6 +209,15 @@ async def test_send_gives_up_on_other_telegram_errors() -> None:
     bot = SimpleNamespace(send_message=AsyncMock(side_effect=Forbidden("blocked")))
     assert not await send_with_retry(bot, OWNER, "hi", backoff=0)  # type: ignore[arg-type]
     assert bot.send_message.await_count == 1
+
+
+async def test_send_outcome_tells_refused_from_unreachable() -> None:
+    blocked = SimpleNamespace(send_message=AsyncMock(side_effect=Forbidden("blocked")))
+    assert await send_outcome(blocked, OWNER, "hi", backoff=0) == "refused"  # type: ignore[arg-type]
+    down = SimpleNamespace(send_message=AsyncMock(side_effect=NetworkError("down")))
+    assert await send_outcome(down, OWNER, "hi", attempts=2, backoff=0) == "unreachable"  # type: ignore[arg-type]
+    fine = SimpleNamespace(send_message=AsyncMock(return_value=None))
+    assert await send_outcome(fine, OWNER, "hi") == "sent"  # type: ignore[arg-type]
 
 
 async def test_morning_survives_a_database_error(engine: Engine) -> None:

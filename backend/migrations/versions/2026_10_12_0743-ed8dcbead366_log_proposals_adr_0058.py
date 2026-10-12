@@ -34,6 +34,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("expires_at", sa.DateTime(), nullable=False),
         sa.Column("announced_at", sa.DateTime(), nullable=True),
+        sa.Column("announce_refused_at", sa.DateTime(), nullable=True),
         sa.Column("resolved_at", sa.DateTime(), nullable=True),
         sa.CheckConstraint(
             "kind IN ('strength', 'cardio', 'habits', 'body')",

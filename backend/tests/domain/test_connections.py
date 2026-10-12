@@ -31,3 +31,13 @@ def test_proposing_logs_is_opt_in_and_says_nothing_saves_without_a_tap() -> None
     """ADR-0058: like the health scopes, ``log:propose`` starts unticked."""
     assert {Scope.BODY, Scope.READINESS, Scope.PROPOSE} == OPT_IN
     assert "Nothing is saved until you tap Save" in LABELS[Scope.PROPOSE]
+
+
+def test_proposing_logs_needs_training() -> None:
+    """Review of #234: a proposal's answer names exercises and sessions, so ``log:propose`` is
+    granted only with ``training:read``."""
+    both = ["training:read", "log:propose"]
+    assert grant(both, ["log:propose"]) == []
+    assert grant(["log:propose"], ["log:propose", "training:read"]) == []
+    assert grant(both, both) == [Scope.TRAINING, Scope.PROPOSE]
+    assert grant(["body:read", "log:propose"], ["body:read", "log:propose"]) == [Scope.BODY]

@@ -101,7 +101,7 @@ async def mcp(request: Request, access: Connection, background: BackgroundTasks)
 
     result = await run_in_threadpool(answer)  # the summary's queries mustn't block the loop
     announce: Announce | None = getattr(request.app.state, "announce_proposals", None)
-    if announce is not None and mcp_server.proposes(message):
+    if announce is not None and mcp_server.proposed(message, result):
         background.add_task(announce)  # Telegram hears of it now, not at the next check
     if result is None:
         return Response(status_code=status.HTTP_202_ACCEPTED, headers=NO_STORE)

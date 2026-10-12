@@ -1,7 +1,10 @@
 """``propose_log`` (ADR-0058; mcp-threat-model.md M10 and requirement 15): what a connected AI
 may propose, that only the person's own Save stores it, and what is kept of it."""
 
-from collections.abc import Iterator
+import contextlib
+import threading
+from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -10,6 +13,7 @@ import time_machine
 from fastapi.testclient import TestClient
 from httpx import Response
 from sqlalchemy import Engine, select
+from sqlalchemy.exc import OperationalError
 from structlog.testing import capture_logs
 
 from tests import oauth_flow as flow
@@ -91,7 +95,11 @@ def _events(engine: Engine, prefix: str) -> list[dict[str, Any]]:
 
 
 def save(client: TestClient, proposal: str) -> Response:
-    return client.post(f"/api/proposals/{proposal}/save")
+    return client.post("/api/proposals/save", json={"token": proposal})
+
+
+def discard(client: TestClient, proposal: str) -> Response:
+    return client.post("/api/proposals/discard", json={"token": proposal})
 
 
 # --------------------------------------------------------------------------- strength
@@ -325,7 +333,10 @@ def test_no_token_can_save_or_discard(client: TestClient, engine: Engine, token:
     with flow.no_cookies(client):
         for action in ("save", "discard"):
             assert (
-                client.post(f"/api/proposals/{waiting}/{action}", headers=bearer).status_code == 401
+                client.post(
+                    f"/api/proposals/{action}", json={"token": waiting}, headers=bearer
+                ).status_code
+                == 401
             )
         assert client.get("/api/proposals", headers=bearer).status_code == 401
         for tool in ("save_log", "confirm_log", "discard_log"):
@@ -356,17 +367,19 @@ def test_discard_saves_nothing_and_resolves_it_everywhere(
     client: TestClient, engine: Engine, token: str
 ) -> None:
     waiting = proposed(client, token, kind="habits", habits=["protein"])
-    assert client.post(f"/api/proposals/{waiting}/discard").status_code == 204
+    assert discard(client, waiting).status_code == 204
     assert client.get("/api/proposals").json() == []
     assert save(client, waiting).json()["detail"] == "already_discarded"
-    assert client.post(f"/api/proposals/{waiting}/discard").status_code == 204
+    assert discard(client, waiting).status_code == 204
     assert _rows(engine, HabitCheck) == []
     saved = proposed(client, token, kind="habits", habits=["wind_down"])
     assert save(client, saved).status_code == 200
     assert save(client, saved).json()["detail"] == "already_saved"  # a second tap: once
     assert len(_rows(engine, HabitCheck)) == 1
     assert save(client, "ab" * 16).status_code == 404
-    assert client.post("/api/proposals/not-a-token/save").status_code == 422
+    assert save(client, "not-a-token").status_code == 422
+    # Review of #234: the token travels in the body, never in a URL a log could keep.
+    assert client.post(f"/api/proposals/{saved}/save").status_code in (404, 405)
 
 
 # ----------------------------------------------------------------- caps and lifetimes
@@ -381,7 +394,7 @@ def test_at_most_three_wait_per_connection(client: TestClient, engine: Engine, t
     other = flow.mint(engine, PROPOSE)  # another connection has its own three
     proposed(client, other, kind="habits", habits=["protein"])
     first = client.get("/api/proposals").json()[0]["token"]
-    assert client.post(f"/api/proposals/{first}/discard").status_code == 204
+    assert discard(client, first).status_code == 204
     proposed(client, token, kind="habits", habits=["protein"])  # room again
 
 
@@ -427,7 +440,7 @@ def test_events_and_logs_hold_no_content(client: TestClient, engine: Engine, tok
         saved = proposed(client, token, kind="body", measurements={"bodyweight": 82.4})
         save(client, saved)
         dropped = proposed(client, token, kind="strength", exercises=[PULL_UPS])
-        client.post(f"/api/proposals/{dropped}/discard")
+        discard(client, dropped)
         refused(client, token, kind="body", measurements={"bodyweight": 999})
     assert _events(engine, "mcp.call") == [
         {"kind": "mcp.call", "connection_id": 1, "tool": "propose_log", "outcome": outcome}
@@ -479,7 +492,7 @@ def test_telegram_hears_of_a_proposal_at_once(client: TestClient, token: str) ->
     proposed(client, token, kind="habits", habits=["protein"])
     refused(client, token, kind="habits", habits=[])
     rpc(client, token, "tools/list")
-    assert told == ["sent", "sent"]  # every propose_log call checks; the list doesn't
+    assert told == ["sent"]  # review of #234: only a proposal made, not a refusal or a list
 
 
 def test_a_proposal_too_big_to_show_is_refused(
@@ -489,3 +502,195 @@ def test_a_proposal_too_big_to_show_is_refused(
     monkeypatch.setattr(proposals, "SUMMARY_LENGTH", 40)
     every = [{"exercise": name, "sets": [8] * 20, "unit": ""} for name in ("Pull-up", "Push-up")]
     assert "split it into smaller ones" in refused(client, token, kind="strength", exercises=every)
+
+
+# ------------------------------------------------------------ review of #234: races and edges
+
+
+def _connection_id(engine: Engine) -> int:
+    with make_session_factory(engine, user_id=OWNER)() as mine:
+        return max(mine.scalars(select(McpConnection.id)))
+
+
+def _service_propose(engine: Engine, connection: int, habit: str = "protein") -> object:
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        return proposals.propose(
+            mine, connection, {"kind": "habits", "habits": [habit]}, BERLIN, datetime.now(UTC)
+        )
+
+
+def test_parallel_proposals_still_stop_at_three(
+    client: TestClient, engine: Engine, token: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every call counted before any inserted, so all five saw room. The count now happens
+    under the write lock, so only three get in."""
+    connection = _connection_id(engine)
+    barrier = threading.Barrier(5)
+    check = proposals.check
+
+    def counted_then_wait(*args: Any) -> object:
+        with contextlib.suppress(threading.BrokenBarrierError):
+            barrier.wait(timeout=1)  # all five past the count, if nothing holds them back
+        return check(*args)
+
+    monkeypatch.setattr(proposals, "check", counted_then_wait)
+    with ThreadPoolExecutor(5) as pool:
+        results = list(pool.map(lambda _: _service_propose(engine, connection), range(5)))
+    assert sum(isinstance(r, proposals.Proposed) for r in results) == 3
+    assert len(_rows(engine, LogProposal)) == 3
+
+
+def _tap_while_writing(monkeypatch: pytest.MonkeyPatch, tap: Callable[[], object]) -> list[object]:
+    """While Save writes, ``tap`` runs on another thread (the other surface); the list gets its
+    answer once it is done."""
+    write = proposals._write
+    answers: list[object] = []
+    threads: list[threading.Thread] = []
+
+    def writing(*args: Any) -> str | None:
+        racing = threading.Thread(target=lambda: answers.append(tap()))
+        racing.start()
+        racing.join(timeout=0.5)  # before the fix it finished here; now it waits for the save
+        threads.append(racing)
+        return write(*args)
+
+    monkeypatch.setattr(proposals, "_write", writing)
+    answers.append(threads)
+    return answers
+
+
+def _finish(answers: list[object]) -> list[object]:
+    threads = answers.pop(0)
+    assert isinstance(threads, list)
+    for racing in threads:
+        racing.join()
+    return answers
+
+
+def test_save_and_discard_at_once_resolve_it_once(
+    client: TestClient, engine: Engine, token: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Discard tapped while a Save was writing won too, leaving a saved log marked discarded;
+    the row is now claimed before anything is written."""
+    waiting = proposed(client, token, kind="body", measurements={"bodyweight": 82.4})
+
+    def discard_now() -> object:
+        with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+            return proposals.discard(mine, waiting, datetime.now(UTC), "telegram")
+
+    answers = _tap_while_writing(monkeypatch, discard_now)
+    assert save(client, waiting).status_code == 200
+    assert _finish(answers) == [proposals.Already("saved")]
+    assert [p.status for p in _rows(engine, LogProposal)] == ["saved"]
+    assert [e["kind"] for e in _events(engine, "mcp.draft_")] == ["mcp.draft_saved"]
+
+
+def test_two_saves_at_once_write_once(
+    client: TestClient, engine: Engine, token: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    waiting = proposed(client, token, kind="habits", habits=["protein"])
+
+    def save_now() -> object:
+        with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+            return proposals.save(mine, waiting, BERLIN, datetime.now(UTC), "telegram")
+
+    answers = _tap_while_writing(monkeypatch, save_now)
+    assert save(client, waiting).status_code == 200
+    assert _finish(answers) == [proposals.Already("saved")]
+    assert len(_rows(engine, HabitCheck)) == 1
+    assert [e["kind"] for e in _events(engine, "mcp.draft_")] == ["mcp.draft_saved"]
+
+
+def test_a_failed_write_leaves_it_waiting(
+    client: TestClient, engine: Engine, token: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    waiting = proposed(client, token, kind="habits", habits=["protein"])
+
+    def locked(*_args: object) -> None:
+        raise OperationalError("INSERT", {}, Exception("database is locked"))
+
+    monkeypatch.setattr(proposals, "_write", locked)
+    bound = make_session_factory(engine, user_id=OWNER)
+    with pytest.raises(OperationalError), session_scope(bound) as mine:
+        proposals.save(mine, waiting, BERLIN, datetime.now(UTC), "web")
+    assert [p.status for p in _rows(engine, LogProposal)] == ["pending"]
+
+
+def test_a_measurement_it_replaces_is_named_on_the_card_only(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    """Save replaces that day's value, so the card and Telegram say so; the AI is never told
+    what was there, or that anything was."""
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        mine.add(Measurement(local_date=_today(), kind="bodyweight", tenths=784))
+    result = propose(client, token, kind="body", measurements={"bodyweight": 82.4, "waist": 84})
+    answer = result["content"][0]["text"]
+    assert "78.4" not in answer
+    assert "Replaces" not in answer
+    (card,) = client.get("/api/proposals").json()
+    assert card["replaces"] == "Replaces the 78.4 kg saved that day"
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        mine.add(Measurement(local_date=_today(), kind="waist", tenths=850))
+    (card,) = client.get("/api/proposals").json()
+    assert card["replaces"] == "Replaces the 78.4 kg and 85.0 cm saved that day"
+    proposed(client, token, kind="habits", habits=["protein"])
+    assert client.get("/api/proposals").json()[1]["replaces"] is None
+
+
+def test_an_ended_connection_proposes_nothing_and_its_cards_go(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    """Revoked between the token check and the insert, or past its 90 days."""
+    connection = _connection_id(engine)
+    waiting = proposed(client, token, kind="habits", habits=["protein"])
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        mine.get_one(McpConnection, connection).ends_at = datetime.now(UTC) - timedelta(seconds=1)
+    assert client.get("/api/proposals").json() == []
+    assert save(client, waiting).status_code == 404
+    found = _service_propose(engine, connection, "wind_down")
+    assert isinstance(found, proposals.Refused)
+    assert "connection has ended" in found.reason
+    other = flow.mint(engine, PROPOSE)
+    connection = _connection_id(engine)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        assert mcp_tokens.revoke(mine, connection, datetime.now(UTC))
+    assert isinstance(_service_propose(engine, connection), proposals.Refused)
+    assert other
+    assert len(_rows(engine, LogProposal)) == 1
+
+
+EVENING = datetime(2026, 10, 20, 23, 30, tzinfo=BERLIN)
+
+
+def test_todays_strength_saved_after_midnight_has_changed(
+    client: TestClient, engine: Engine
+) -> None:
+    with time_machine.travel(EVENING, tick=False):
+        token = flow.mint(engine, PROPOSE)
+        waiting = proposed(client, token, kind="strength", exercises=[PULL_UPS])
+    with time_machine.travel(EVENING + timedelta(hours=1), tick=False):
+        answer = save(client, waiting)
+    assert answer.status_code == 409
+    assert "has passed" in answer.json()["detail"]
+    assert _rows(engine, Workout) == []
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        {"kind": "strength", "exercises": [PULL_UPS]},
+        {"kind": "cardio", "cardio": "zone2", "minutes": 40},
+    ],
+)
+def test_a_day_too_long_ago_by_save_time_is_not_saved(
+    client: TestClient, engine: Engine, arguments: dict[str, Any]
+) -> None:
+    oldest = (EVENING.date() - timedelta(days=14)).isoformat()
+    with time_machine.travel(EVENING, tick=False):
+        token = flow.mint(engine, PROPOSE)
+        waiting = proposed(client, token, day=oldest, **arguments)
+    with time_machine.travel(EVENING + timedelta(hours=1), tick=False):
+        answer = save(client, waiting)
+    assert answer.status_code == 409
+    assert "too long ago" in answer.json()["detail"]
+    assert _rows(engine, Workout) == []
