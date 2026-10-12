@@ -1,7 +1,7 @@
 # Invite-only multi-user (L2): a plan with options
 
 Status: **decided 2026-10-12**: the owner answered every question (below, under Decided), and
-[ADR-0058](../adr/0058-invites-and-members.md) records the decisions. Written 2026-10-12 from an
+[ADR-0059](../adr/0059-invites-and-members.md) records the decisions. Written 2026-10-12 from an
 audit of the code on `main` at 0.27.0. It builds on L2 in
 [platform-and-health-data-proposal.md](platform-and-health-data-proposal.md) and the direction
 in [ADR-0026](../adr/0026-multi-user-direction.md): built for the owner first, public in the end,

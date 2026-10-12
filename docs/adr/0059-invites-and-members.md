@@ -1,4 +1,4 @@
-# ADR-0058: Invite-only members, behind a switch that is off by default
+# ADR-0059: Invite-only members, behind a switch that is off by default
 
 - Status: Accepted (2026-10-12)
 - Date: 2026-10-12
