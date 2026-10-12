@@ -216,3 +216,59 @@ def test_a_step_after_a_bracketed_name_is_still_a_note() -> None:
     hiit = Known("hiit", ("High-intensity intervals (20 s all-out / 10 s easy)",), REPS, False)
     line = "High-intensity intervals (20 s all-out / 10 s easy) (8 rounds): 8"
     assert parse_log(line, (*KNOWN, hiit)).entries == (Entry("hiit", both(8)),)
+
+
+# ------------------------------------------- the activity on a timed cardio line (ux-flow-plan A1)
+
+CARDIO = (
+    *KNOWN,
+    Known("moderate-cardio", ("Moderate cardio (~75-80% effort)", "cardio"), MINUTES, False),
+    Known("hiit", ("HIIT",), REPS, False),
+)
+
+
+@pytest.mark.parametrize(
+    ("text", "entry"),
+    [
+        pytest.param("Moderate cardio 45 min run", Entry("moderate-cardio", both(45)), id="after"),
+        pytest.param("Moderate cardio run 45 min", Entry("moderate-cardio", both(45)), id="before"),
+        pytest.param("Zone 2 60 min walk", Entry("zone2", both(60)), id="zone2-after"),
+        pytest.param("Zone 2 walk 60", Entry("zone2", both(60)), id="zone2-before"),
+        pytest.param("zone 2 1h cycling", Entry("zone2", both(60)), id="synonym"),
+        pytest.param(
+            "moderate cardio, 45 minutes, run.", Entry("moderate-cardio", both(45)), id="spoken"
+        ),
+    ],
+)
+def test_a_cardio_line_takes_one_activity_word(text: str, entry: Entry) -> None:
+    """'Moderate cardio 45 min run' was refused: "I don't understand 'run'" (2026-10-12)."""
+    result = parse_log(text, CARDIO)
+    assert result.entries == (entry,)
+    assert result.problems == ()
+
+
+def test_a_piece_with_its_own_number_is_never_merged_as_an_activity_word() -> None:
+    """Review of #239: "walk 30" was glued onto "zone 2 45" because only its letters counted,
+    so a second value slipped in silently instead of being asked about."""
+    result = parse_log("zone 2 45, walk 30", CARDIO)
+    assert result.entries == (Entry("zone2", both(45)),)
+    assert result.problems == ("I don't know the exercise 'walk'",)
+
+
+@pytest.mark.parametrize(
+    ("text", "problem"),
+    [
+        pytest.param("zone 2 60 walk run", "I don't understand 'run'", id="two-after"),
+        pytest.param("zone 2 walk 60 run", "I don't understand 'run'", id="before-and-after"),
+        pytest.param("run 45 walk", "I don't understand 'walk'", id="name-is-an-activity"),
+        pytest.param("zone 2 60 swam laps", "I don't understand 'laps'", id="unknown-word"),
+        pytest.param("dips 10 run", "I don't understand 'run'", id="strength-after"),
+        pytest.param("dips, run", "no numbers for 'dips run'", id="strength-spoken"),
+        pytest.param("hiit 10 bike", "I don't understand 'bike'", id="hiit-counts-rounds"),
+        pytest.param("run", "no numbers for 'run'", id="activity-alone"),
+    ],
+)
+def test_other_words_on_a_cardio_line_are_still_problems(text: str, problem: str) -> None:
+    result = parse_log(text, CARDIO)
+    assert result.entries == ()
+    assert any(problem in p for p in result.problems), result.problems
