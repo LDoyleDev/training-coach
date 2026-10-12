@@ -7,7 +7,9 @@ confirmation message (ADR-0007: nothing is saved without "Save").
 Formats per entry: plain numbers (``8 8 7``, ``8/8/7``), ``3x8`` (three sets of eight),
 seconds (``30s``, ``1:30``, ``2 min``), minutes (``45``, ``45 min``, ``1h``, ``1:15``), and for
 one-sided exercises ``each side`` (default) or ``left 10 9 right 9 9``. Lines copied from the
-bot's own message work too: ``- Pistol squat (Sit to chair): 7, 7, 7 per side``.
+bot's own message work too: ``- Pistol squat (Sit to chair): 7, 7, 7 per side``. A timed cardio
+line may name what it was, once, before or after the minutes: ``zone 2 walk 60``,
+``moderate cardio 45 min run`` (ux-flow-plan A1; ``services.workout_log`` keeps it).
 """
 
 import re
@@ -15,6 +17,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
+from training_coach.domain.cardio import TIMED, WORDS
 from training_coach.domain.enums import ExerciseKind, Side
 
 MAX_TEXT = 2000
@@ -74,6 +77,7 @@ TOKEN = re.compile(
 )
 SIDE_WORDS = {"left": Side.LEFT, "l": Side.LEFT, "right": Side.RIGHT, "r": Side.RIGHT}
 EACH_WORDS = frozenset({"each", "per", "side", "sides", "leg", "legs", "arm", "arms"})
+ACTIVITY_WORDS = frozenset().union(*WORDS.values())  # "walk", "ran", "cycling"...
 
 
 @dataclass(frozen=True)
@@ -188,6 +192,16 @@ def _split(text: str, start: int) -> tuple[str, str]:
     return phrase, rest
 
 
+def _words(text: str) -> set[str]:
+    return set(re.findall(r"[a-z]+", text.lower()))
+
+
+def _drop_activity(phrase: str) -> str:
+    """A name without the activity word after it: "zone 2 walk" is Zone 2, done walking."""
+    last = re.search(r"([a-z]+)\W*$", phrase.lower())
+    return phrase[: last.start()] if last and last.group(1) in ACTIVITY_WORDS else phrase
+
+
 def _entry(text: str, known: Sequence[Known]) -> tuple[Known, list[tuple[Side | None, int]]] | str:
     """One exercise and its values in order (side None = not given), or a problem."""
     starts = [m.start() for m in re.finditer(r"(?<![a-z0-9])\d", text.lower())]
@@ -196,8 +210,16 @@ def _entry(text: str, known: Sequence[Known]) -> tuple[Known, list[tuple[Side | 
     # A name can contain a number ("zone 2 45"): prefer the split where the whole name
     # matches exactly, otherwise the numbers start at the first number.
     exact = {form for exercise in known for name in exercise.names for form in _forms(name)}
+    timed = {form for e in known if e.slug in TIMED for name in e.names for form in _forms(name)}
     splits = [_split(text, start) for start in starts]
-    phrase, rest = next((s for s in splits if _normal(s[0]) in exact), splits[0])
+    whole = next((s for s in splits if _normal(s[0]) in exact), None)
+    # Failing that, a timed cardio name with what it was after it: "zone 2 walk 60".
+    cut = next(
+        ((_drop_activity(p), r) for p, r in splits if _normal(_drop_activity(p)) in timed), None
+    )
+    phrase, rest = whole or cut or splits[0]
+    # A timed cardio line takes one activity word: in the name part ("walk 45") or by the minutes.
+    activity = bool(ACTIVITY_WORDS & _words(text[: len(text) - len(rest)]))
     exercise = _match(phrase, known)
     if isinstance(exercise, str):
         return exercise
@@ -233,6 +255,8 @@ def _entry(text: str, known: Sequence[Known]) -> tuple[Known, list[tuple[Side | 
             side = SIDE_WORDS[token["word"]]
         elif token["word"] in EACH_WORDS or token["word"] in FILLER:
             continue
+        elif token["word"] in ACTIVITY_WORDS and exercise.slug in TIMED and not activity:
+            activity = True
         else:
             return f"I don't understand {_quote(token['word'])} in {_quote(text)}"
         if len(values) > MAX_SETS:
@@ -305,7 +329,13 @@ def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
         return ParseResult(
             (), (f"That's too long to read: keep a log under {MAX_TEXT} characters.",)
         )
-    chunks = [c for c in SPLIT_ENTRIES.split(tidy(text)) if c.strip()]
+    chunks: list[str] = []
+    for chunk in (c for c in SPLIT_ENTRIES.split(tidy(text)) if c.strip()):
+        # "moderate cardio, 45 minutes, run": a spoken activity word ends the entry before it.
+        if chunks and _words(chunk) and _words(chunk) <= ACTIVITY_WORDS:
+            chunks[-1] += f" {chunk}"
+        else:
+            chunks.append(chunk)
     if not chunks:
         return ParseResult((), ("There's nothing to log in that message.",))
     if len(chunks) > MAX_ENTRIES:
