@@ -99,6 +99,7 @@ HELP_TEXT = (
     "/recover - sign in without your passkey (lost phone); signs out other devices\n"
     "/help - this message\n\n"
     "Log a workout by sending it as a message, like: pull-ups 8 8 7, dips 12 11 10. "
+    "For cardio, add what it was if you like: zone 2 walk 60, or moderate cardio 45 min run. "
     "A voice note works too. I'll show what I understood before saving anything.\n\n"
     "To log a past day, put its date on the first line, like: yesterday, Tue or 29 Sep. "
     "Add the session (Legs) or rest after the date if you like.\n\n"
