@@ -70,6 +70,7 @@ from training_coach.services import (
     auth,
     blocks,
     daily_check,
+    day_clash,
     habits,
     health_summary,
     passkeys,
@@ -283,6 +284,7 @@ class Handlers:
         on = self._local_today()
         try:
             with session_scope(self.sessions) as session:
+                day_clash.sweep(session, datetime.now(UTC))  # also on days with no save
                 paused = user_settings.load(session).paused
                 checked = daily_check.on(session, on) is not None
                 band = health_summary.morning_line(session, on)

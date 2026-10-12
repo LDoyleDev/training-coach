@@ -361,6 +361,7 @@ def _commit(
     A planned session or rest day for a day that already has one is a clash (ADR-0060):
     nothing is written until ``answer`` says what to do with what is there. A replace or a
     move settles the queue by ADR-0033's catching-up rule; otherwise ``rule`` moves it."""
+    day_clash.sweep(session, datetime.now(UTC))  # every save, not only a replace
     plan = users.plan_state(session)
     queue_before = undo.snapshot(session)
     resolved: Resolved | None = None
@@ -390,7 +391,6 @@ def _commit(
                     if current is not None
                     else None
                 )
-                day_clash.sweep(session, datetime.now(UTC) - undo.WINDOW)
             else:
                 moved = rule()
             if plan is not None and moved is not None:

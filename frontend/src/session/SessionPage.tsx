@@ -337,14 +337,19 @@ export default function SessionPage() {
     try {
       const result = await saveSession(day.day, answer)
       if (asked(result, day)) return
+      if (result !== 'stale' && 'problem' in result) {
+        // Refused, with the reason: still offered, and any question stays to answer otherwise.
+        setNote(`${day.session} wasn't saved: ${result.problem}.`)
+        return
+      }
       setQuestion(null)
       setNote(
-        result === 'stale' || 'problem' in result
+        result === 'stale'
           ? `${day.session} couldn't be saved: that day changed.`
           : `Saved ${day.session} for ${day.day}.`,
       )
-      if (result !== 'stale' && !('problem' in result)) refreshUndo()
-      setPending((days) => days.filter((p) => p.day !== day.day)) // settled either way
+      if (result !== 'stale') refreshUndo()
+      setPending((days) => days.filter((p) => p.day !== day.day)) // settled: saved or stale
     } catch (error) {
       if (error instanceof SignedOutError) setSignedOut(true)
       else setNote("Couldn't save. Check your connection and try again.") // still offered
@@ -360,8 +365,12 @@ export default function SessionPage() {
     try {
       const result = await saveSession(undefined, answer)
       if (asked(result)) return
+      if (result !== 'stale' && 'problem' in result) {
+        setNote(`Not saved: ${result.problem}.`) // the reason; any question stays to answer
+        return
+      }
       setQuestion(null)
-      if (result === 'stale' || 'problem' in result) {
+      if (result === 'stale') {
         setNote("Today's session changed (a rest, swap or another log), so this wasn't saved.")
         return
       }

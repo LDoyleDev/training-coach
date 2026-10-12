@@ -10,7 +10,7 @@ transaction.
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -27,7 +27,7 @@ from training_coach.services import day_clash, users
 
 UNDOABLE = ("queue.rest", "queue.pushed", "queue.swapped", "workout.logged")
 UNDONE = "undo.applied"
-WINDOW = timedelta(hours=24)
+WINDOW = day_clash.KEPT  # 24 hours
 
 
 @dataclass(frozen=True)

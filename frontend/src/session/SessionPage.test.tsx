@@ -61,6 +61,7 @@ type Server = {
   pending?: Pending[]
   saveEarlier?: 'fail'
   clash?: Clash // answered to a save until it carries a resolution (ADR-0060)
+  problem?: string // a 422: why the save was refused
 }
 
 /** A fake API; returns the bodies sent, by method and path. */
@@ -84,6 +85,7 @@ function serve(server: Server = {}) {
     }
     if (path === '/api/session/pending') return Response.json(server.pending ?? [])
     if (path === '/api/session/save') {
+      if (server.problem) return Response.json({ detail: server.problem }, { status: 422 })
       if (server.clash && !String(init?.body).includes('resolution'))
         return Response.json({ detail: server.clash }, { status: 409 })
       if (server.saveEarlier === 'fail' && init?.body !== '{}')
@@ -397,6 +399,48 @@ test("today's session on a day that has one asks at Check and save", async () =>
   click('Replace it')
   expect(await screen.findByRole('heading', { name: 'Legs done' })).toBeInTheDocument()
   expect(sent['POST /api/session/save']?.[1]).toEqual({ resolution: 'replace', seen: [4] })
+})
+
+test('a refused save of an earlier day says why and keeps it offered', async () => {
+  // Review of #241: a 422 read as "that day changed" and dropped the day.
+  serve({
+    pending: [{ day: '2026-10-11', session: 'Torso + neck', sets: 5 }],
+    problem: 'Sun 11 Oct is more than 14 days ago',
+  })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Save it' }))
+  expect(
+    await screen.findByText("Torso + neck wasn't saved: Sun 11 Oct is more than 14 days ago."),
+  ).toBeInTheDocument()
+  expect(screen.queryByText(/that day changed/)).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save it' })).toBeInTheDocument()
+})
+
+test("a refused save of today's session says why, not that today changed", async () => {
+  const progress: Kept = {
+    template_id: 3,
+    position: 3,
+    first: [],
+    sets: [{ item: 0, set_no: 1, left: 6, right: null }],
+    saved: false,
+    revision: 3,
+  }
+  serve({ today: { session: SESSION, progress }, problem: 'no sets recorded' })
+  render(<SessionPage />)
+  click(await screen.findByText('Start session').then(() => 'Start session'))
+  click('Save session')
+  expect(await screen.findByText('Not saved: no sets recorded.')).toBeInTheDocument()
+  expect(screen.queryByText(/Today's session changed/)).not.toBeInTheDocument()
+})
+
+test('an earlier day that changed since is settled and says so', async () => {
+  serve({ pending: [{ day: '2026-10-11', session: 'Torso + neck', sets: 5 }], save: 'stale' })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Save it' }))
+  expect(
+    await screen.findByText("Torso + neck couldn't be saved: that day changed."),
+  ).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Save it' })).not.toBeInTheDocument()
 })
 
 test('a failed save of an earlier day keeps it offered', async () => {

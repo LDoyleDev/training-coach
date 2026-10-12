@@ -429,9 +429,28 @@ def test_replaced_workouts_are_forgotten_after_a_day(seeded: Session) -> None:
         draft = _past(seeded, days, "rest")
         _saved(seeded, draft, Resolution(day_clash.REPLACE, _clash(seeded, draft).ids))
     assert len(seeded.scalars(select(ReplacedWorkout)).all()) == 2
-    day_clash.sweep(seeded, datetime.now(UTC) + timedelta(seconds=1))
+    day_clash.sweep(seeded, datetime.now(UTC) + day_clash.KEPT + timedelta(seconds=1))
     assert seeded.scalars(select(ReplacedWorkout)).all() == []
     assert seeded.scalars(select(SetLog)).all() == []
+
+
+def test_any_save_forgets_replaced_workouts_past_the_undo_window(seeded: Session) -> None:
+    """Review of #240: the sweep ran only inside another replace or move, so a replaced
+    workout and its sets could stay (and be exported) for weeks."""
+    _saved(seeded, _past(seeded, 3, "Upper\npull-ups 8"))
+    draft = _past(seeded, 3, "rest")
+    _saved(seeded, draft, Resolution(day_clash.REPLACE, _clash(seeded, draft).ids))
+    with time_machine.travel(NOON + day_clash.KEPT + timedelta(minutes=1), tick=False):
+        _saved(seeded, _past(seeded, 1, "Zone 2\nzone 2 run 30"))  # an unrelated save
+    assert seeded.scalars(select(ReplacedWorkout)).all() == []
+
+
+def test_a_save_within_the_undo_window_keeps_it(seeded: Session) -> None:
+    _saved(seeded, _past(seeded, 3, "Upper\npull-ups 8"))
+    draft = _past(seeded, 3, "rest")
+    _saved(seeded, draft, Resolution(day_clash.REPLACE, _clash(seeded, draft).ids))
+    _saved(seeded, _past(seeded, 1, "Zone 2\nzone 2 run 30"))
+    assert len(seeded.scalars(select(ReplacedWorkout)).all()) == 1
 
 
 # ------------------------------------------------------- naming today's session (ADR-0060)
