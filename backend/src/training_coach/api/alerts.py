@@ -7,6 +7,9 @@ from collections.abc import Awaitable, Callable
 
 import structlog
 from fastapi import BackgroundTasks, Request
+from sqlalchemy import Engine
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.concurrency import run_in_threadpool
 
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import users
@@ -29,7 +32,21 @@ def alert(request: Request, background: BackgroundTasks, user: int, kind: str, t
     send: Send | None = getattr(request.app.state, "send", None)
     if send is None:
         return
-    with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
-        chat = users.telegram_chat(session, user)
+    background.add_task(_tell, request.app.state.engine, send, user, kind, text)
+
+
+def _chat(engine: Engine, user: int) -> int | None:
+    with session_scope(make_session_factory(engine, user_id=user)) as session:
+        return users.telegram_chat(session, user)
+
+
+async def _tell(engine: Engine, send: Send, user: int, kind: str, text: str) -> None:
+    """After the response: finding the chat can fail (a locked database), and then the alert is
+    lost with a warning rather than failing the sign-in, export or erase it was about."""
+    try:
+        chat = await run_in_threadpool(_chat, engine, user)
+    except SQLAlchemyError:
+        log.warning("auth.alert_lookup_failed", kind=kind)
+        return
     if chat is not None:
-        background.add_task(send, chat, text)
+        await send(chat, text)

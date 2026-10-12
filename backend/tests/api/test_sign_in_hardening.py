@@ -8,6 +8,7 @@ import pytest
 import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
+from sqlalchemy.exc import OperationalError
 
 from tests.alerts import capture
 from tests.api.test_passkeys import ORIGIN, RP_ID, _options, _passkeys, _register, _sign_in
@@ -16,7 +17,7 @@ from training_coach.api.app import create_app
 from training_coach.config import Settings
 from training_coach.db.models import Passkey, WebSession
 from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
-from training_coach.services import auth
+from training_coach.services import auth, users
 from training_coach.services.users import OWNER
 
 
@@ -121,6 +122,17 @@ def test_signing_out_a_device_alerts(client: TestClient, engine: Engine, sent: l
         ).one()
     assert client.delete(f"/api/account/devices/{old}").status_code == 204
     assert sent[-1] == "A device was signed out of Training Coach."
+
+
+def test_a_failed_alert_lookup_never_fails_the_sign_in(
+    client: TestClient, engine: Engine, sent: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def locked(*_: object) -> None:
+        raise OperationalError("SELECT", {}, Exception("database is locked"))
+
+    monkeypatch.setattr(users, "telegram_chat", locked)
+    assert _redeem(client, _link(engine)) == 204
+    assert sent == []
 
 
 def test_without_the_bot_alerts_are_only_logged(engine: Engine) -> None:
