@@ -16,8 +16,13 @@ const CONSENT = {
   redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
   redirect_host: 'claude.ai',
   scopes: [
-    { scope: 'training:read', label: 'Your plan and workouts', health: false },
-    { scope: 'body:read', label: 'Your body measurements (health data)', health: true },
+    { scope: 'training:read', label: 'Your plan and workouts', opt_in: false },
+    { scope: 'body:read', label: 'Your body measurements (health data)', opt_in: true },
+    {
+      scope: 'log:propose',
+      label: 'Suggest logs. Nothing is saved until you tap Save',
+      opt_in: true,
+    },
   ],
 }
 const BACK = 'https://claude.ai/api/mcp/auth_callback?code=c&state=s'
@@ -54,7 +59,7 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals())
 
-test('it names the app as a claim, where it goes back, and ticks no health data', async () => {
+test('it names the app as a claim, where it goes back, and ticks no health data or proposing', async () => {
   server({ '/api/connect/details': [200, CONSENT] })
   render(<ConnectPage />)
   expect(await screen.findByText('“Claude”')).toBeInTheDocument()
@@ -64,6 +69,10 @@ test('it names the app as a claim, where it goes back, and ticks no health data'
   expect(
     screen.getByRole('checkbox', { name: 'Your body measurements (health data)' }),
   ).not.toBeChecked()
+  expect(
+    screen.getByRole('checkbox', { name: /Nothing is saved until you tap Save/ }),
+  ).not.toBeChecked()
+  expect(screen.getByText(/each one waits for you to tap Save or Discard/)).toBeInTheDocument()
   expect(window.location.hash).toBe('')
 })
 

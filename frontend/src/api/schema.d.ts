@@ -940,6 +940,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Waiting */
+        get: operations["waiting_api_proposals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposals/{token}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard
+         * @description Discard it; nothing is saved. Discarding one already dealt with changes nothing.
+         */
+        post: operations["discard_api_proposals__token__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposals/{token}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save
+         * @description Save it. 404 when it has expired or never was; 409 with ``already_saved`` or
+         *     ``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason
+         *     when it no longer fits (it is discarded then).
+         */
+        post: operations["save_api_proposals__token__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/readiness": {
         parameters: {
             query?: never;
@@ -1578,10 +1637,10 @@ export interface components {
         };
         /** ConsentScopeView */
         ConsentScopeView: {
-            /** Health */
-            health: boolean;
             /** Label */
             label: string;
+            /** Opt In */
+            opt_in: boolean;
             /** Scope */
             scope: string;
         };
@@ -2161,6 +2220,34 @@ export interface components {
             sets: components["schemas"]["DoneView"][];
             /** Template Id */
             template_id: number;
+        };
+        /** ProposalSaved */
+        ProposalSaved: {
+            /** Summary */
+            summary: string;
+            /** Workout */
+            workout: boolean;
+        };
+        /** ProposalView */
+        ProposalView: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Kind */
+            kind: string;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Source */
+            source: string;
+            /** Summary */
+            summary: string;
+            /** Token */
+            token: string;
         };
         /** QuestionView */
         QuestionView: {
@@ -4115,6 +4202,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StandingView"][];
+                };
+            };
+        };
+    };
+    waiting_api_proposals_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalView"][];
+                };
+            };
+        };
+    };
+    discard_api_proposals__token__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_api_proposals__token__save_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalSaved"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -19,7 +19,8 @@ const PROBLEMS: Record<string, string> = {
 
 /**
  * /connect#<handle> (ADR-0047 C): an AI app asks to read your data. Shows who it says it is,
- * where it sends you back, and what it may read (health data unticked), and asks for your
+ * where it sends you back, and what it may read or propose (health data and proposing logs
+ * unticked, ADR-0058), and asks for your
  * passkey before anything is shared. The handle is in the fragment, never sent to a server
  * except in the requests below, and cleared from the address bar.
  */
@@ -35,7 +36,7 @@ export default function ConnectPage() {
     fetchConsent(handle)
       .then((consent) => {
         if (!consent) return setState({ status: 'gone' })
-        setTicked(consent.scopes.filter((s) => !s.health).map((s) => s.scope))
+        setTicked(consent.scopes.filter((s) => !s.opt_in).map((s) => s.scope))
         setState({ status: 'ready', consent })
       })
       .catch(() => setState({ status: 'error' }))
@@ -105,7 +106,7 @@ export default function ConnectPage() {
               this. When you're done, you go back to <strong>{state.consent.redirect_host}</strong>.
             </p>
             <fieldset className={card}>
-              <legend className="font-bold">What it may read</legend>
+              <legend className="font-bold">What it may do</legend>
               {state.consent.scopes.map((s) => (
                 <label key={s.scope} className="flex min-h-11 items-center gap-3">
                   <input
@@ -120,9 +121,10 @@ export default function ConnectPage() {
             </fieldset>
             <p className="m-0 text-sm">
               What it reads goes to that app's company, under your account there. It can't change
-              anything here. If your AI also has other tools, such as web search, it could pass on
-              what it reads. The connection ends after 90 days, or when you revoke it on the Account
-              page.
+              anything here: if you let it suggest logs, each one waits for you to tap Save or
+              Discard, in the app or on Telegram. If your AI also has other tools, such as web
+              search, it could pass on what it reads. The connection ends after 90 days, or when you
+              revoke it on the Account page.
             </p>
             {problem && (
               <p className="status status-error" role="alert">

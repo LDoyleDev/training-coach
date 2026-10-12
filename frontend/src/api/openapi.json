@@ -142,7 +142,7 @@
             "items": {
               "type": "string"
             },
-            "maxItems": 3,
+            "maxItems": 4,
             "title": "Scopes",
             "type": "array"
           }
@@ -491,13 +491,13 @@
       },
       "ConsentScopeView": {
         "properties": {
-          "health": {
-            "title": "Health",
-            "type": "boolean"
-          },
           "label": {
             "title": "Label",
             "type": "string"
+          },
+          "opt_in": {
+            "title": "Opt In",
+            "type": "boolean"
           },
           "scope": {
             "title": "Scope",
@@ -507,7 +507,7 @@
         "required": [
           "scope",
           "label",
-          "health"
+          "opt_in"
         ],
         "title": "ConsentScopeView",
         "type": "object"
@@ -2184,6 +2184,64 @@
           "revision"
         ],
         "title": "ProgressView",
+        "type": "object"
+      },
+      "ProposalSaved": {
+        "properties": {
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "workout": {
+            "title": "Workout",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "summary",
+          "workout"
+        ],
+        "title": "ProposalSaved",
+        "type": "object"
+      },
+      "ProposalView": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "kind",
+          "on",
+          "source",
+          "summary",
+          "expires_at"
+        ],
+        "title": "ProposalView",
         "type": "object"
       },
       "QuestionView": {
@@ -5490,6 +5548,112 @@
         "summary": "Standings",
         "tags": [
           "progress"
+        ]
+      }
+    },
+    "/api/proposals": {
+      "get": {
+        "operationId": "waiting_api_proposals_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProposalView"
+                  },
+                  "title": "Response Waiting Api Proposals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Waiting",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/api/proposals/{token}/discard": {
+      "post": {
+        "description": "Discard it; nothing is saved. Discarding one already dealt with changes nothing.",
+        "operationId": "discard_api_proposals__token__discard_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discard",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/api/proposals/{token}/save": {
+      "post": {
+        "description": "Save it. 404 when it has expired or never was; 409 with ``already_saved`` or\n``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason\nwhen it no longer fits (it is discarded then).",
+        "operationId": "save_api_proposals__token__save_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalSaved"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save",
+        "tags": [
+          "proposals"
         ]
       }
     },

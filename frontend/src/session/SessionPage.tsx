@@ -36,6 +36,7 @@ import ChangeToday from './ChangeToday'
 import HabitsCard from './Habits'
 import Undo from './Undo'
 import BandOffers from './BandOffers'
+import Proposals from './Proposals'
 import { card, primary, primaryInline, secondary } from '../ui'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
@@ -186,7 +187,12 @@ export default function SessionPage() {
     refreshUndo()
     load()
   }
-  const bandOffers = <BandOffers onCounted={counted} />
+  const bandOffers = (
+    <>
+      <Proposals onSaved={counted} />
+      <BandOffers onCounted={counted} />
+    </>
+  )
 
   const undoBar = !cardioSaved && <Undo key={undoKey} offer={undoOffer} onUndone={undone} />
   const noteBar = note && (
