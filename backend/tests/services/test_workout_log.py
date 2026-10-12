@@ -474,6 +474,45 @@ def test_a_cardio_log_keeps_what_it_was(session: Session, text: str, activity: s
     assert workout.activity == activity
 
 
+@pytest.mark.parametrize(
+    ("text", "slug", "activity"),
+    [
+        ("Moderate cardio 45 min run", "moderate-cardio", "run"),
+        ("Moderate cardio run 45 min", "moderate-cardio", "run"),
+        ("Zone 2 60 min walk", "zone2", "walk"),
+        ("Zone 2 walk 60", "zone2", "walk"),
+        ("moderate cardio, 45 minutes, run", "moderate-cardio", "run"),
+    ],
+)
+def test_the_activity_word_on_a_cardio_line_is_saved(
+    session: Session, text: str, slug: str, activity: str
+) -> None:
+    """'Moderate cardio 45 min run' was refused: "I don't understand 'run'" (2026-10-12)."""
+    apply_seed(session, load_plan())
+    draft = workout_log.draft(session, text, TODAY, BERLIN)
+    assert draft.problems == ()
+    assert [e.slug for e in draft.entries] == [slug]
+    saved = workout_log.save(session, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = session.get(Workout, saved.workout_id)
+    assert workout is not None
+    assert workout.activity == activity
+
+
+def test_a_past_cardio_line_keeps_its_activity(session: Session) -> None:
+    """A date line on top (ADR-0033) reads the cardio line below it the same way."""
+    apply_seed(session, load_plan())
+    draft = workout_log.draft(
+        session, f"{_ago(2):%Y-%m-%d}{NL}Moderate cardio 45 min run", TODAY, BERLIN
+    )
+    assert (draft.on, draft.backdated, draft.problems) == (_ago(2), True, ())
+    saved = workout_log.save(session, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = session.get(Workout, saved.workout_id)
+    assert workout is not None
+    assert workout.activity == "run"
+
+
 def test_strength_logs_carry_no_activity(seeded: Session) -> None:
     """Only a log of one timed cardio exercise carries one: "run" here is not the zone2 slug."""
     assert workout_log.draft(seeded, "pull-ups 8 8 7", TODAY, BERLIN).activity is None
