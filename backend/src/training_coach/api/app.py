@@ -40,13 +40,14 @@ from training_coach.api.passkeys import router as passkeys_router
 from training_coach.api.photos import router as photos_router
 from training_coach.api.plan import router as plan_router
 from training_coach.api.progress import router as progress_router
+from training_coach.api.proposals import router as proposals_router
 from training_coach.api.readiness import router as readiness_router
 from training_coach.api.review import router as review_router
 from training_coach.api.security import request_guard, security_headers_middleware
 from training_coach.api.session import router as session_router
 from training_coach.api.settings import Reschedule
 from training_coach.api.settings import router as settings_router
-from training_coach.bot.app import RESCHEDULE, build_bot, send_with_retry
+from training_coach.bot.app import ANNOUNCE, RESCHEDULE, build_bot, send_with_retry
 from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.domain.rate_limit import RateLimit
@@ -189,6 +190,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             _on_loop(bot.bot_data[RESCHEDULE], owner) if bot is not None else None
         )
         app.state.send = _sender(bot.bot if bot else None)  # sign-in alerts (ADR-0040)
+        # Proposals from a connected AI go to Telegram as they come (ADR-0058).
+        app.state.announce_proposals = bot.bot_data[ANNOUNCE] if bot is not None else None
         notify = _owner_notifier(settings, bot.bot if bot else None)
         app.state.notify = notify  # ops: a failed backup
         nightly = _start_backups(settings, notify)
@@ -255,6 +258,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(oauth_router)
     app.include_router(mcp_router)
     app.include_router(connections_router)
+    app.include_router(proposals_router)
 
     # Mounted last so API routes always win over static files.
     dist = settings.web_dist_dir

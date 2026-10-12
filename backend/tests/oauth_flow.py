@@ -32,7 +32,7 @@ CALLBACK = "https://claude.ai/api/mcp/auth_callback"
 VERIFIER = "ab" * 22
 CHALLENGE = base64.urlsafe_b64encode(hashlib.sha256(VERIFIER.encode()).digest()).rstrip(b"=")
 ADDRESS = "203.0.113.5"  # the AI app's servers (TEST-NET-3)
-ALL = ["training:read", "body:read", "readiness:read"]
+ALL = ["training:read", "body:read", "readiness:read", "log:propose"]
 
 
 @contextmanager

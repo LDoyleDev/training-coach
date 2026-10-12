@@ -300,7 +300,7 @@ class ConsentHandle(BaseModel):
 class ConsentScopeView(BaseModel):
     scope: str
     label: str
-    health: bool  # starts unticked
+    opt_in: bool  # starts unticked: health data, and proposing logs (ADR-0058)
 
 
 class ConsentView(BaseModel):

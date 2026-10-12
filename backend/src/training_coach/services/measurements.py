@@ -82,6 +82,12 @@ def _put(session: Session, on: date, kind: Kind, tenths: int) -> None:
     session.flush()
 
 
+def on_day(session: Session, on: date) -> dict[Kind, float]:
+    """The values saved for ``on``, by kind."""
+    rows = session.scalars(select(Measurement).where(Measurement.local_date == on))
+    return {Kind(r.kind): from_tenths(r.tenths) for r in rows}
+
+
 def history(session: Session) -> list[Entry]:
     """Every measurement, newest day first, in the kinds' order within a day."""
     order = list(Kind)

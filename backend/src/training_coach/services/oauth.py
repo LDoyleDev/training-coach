@@ -32,7 +32,7 @@ from sqlalchemy.sql.expression import Exists
 from training_coach.db.models import OAuthClient, OAuthConsent
 from training_coach.db.session import bound_user
 from training_coach.domain import connections
-from training_coach.domain.connections import HEALTH, LABELS, Scope
+from training_coach.domain.connections import LABELS, OPT_IN, Scope
 from training_coach.services import mcp_tokens
 from training_coach.services.mcp_tokens import hash_token
 
@@ -347,7 +347,7 @@ def _consent_room(session: Session, client: int, address: str) -> ErrorPage | No
 class ScopeView:
     scope: str
     label: str
-    health: bool
+    opt_in: bool  # starts unticked: health data, and proposing logs
 
 
 @dataclass(frozen=True)
@@ -385,7 +385,7 @@ def details(session: Session, handle: str, now: datetime) -> ConsentView | None:
         client.name,
         consent.redirect_uri,
         urlsplit(consent.redirect_uri).hostname or "",
-        [ScopeView(s, LABELS[Scope(s)], Scope(s) in HEALTH) for s in consent.scopes],
+        [ScopeView(s, LABELS[Scope(s)], Scope(s) in OPT_IN) for s in consent.scopes],
     )
 
 

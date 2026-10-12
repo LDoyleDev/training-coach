@@ -39,6 +39,7 @@ from training_coach.bot import buttons, links, logging_flow
 from training_coach.bot import daily_check as daily_ui
 from training_coach.bot import habits as habits_ui
 from training_coach.bot import progress as progress_ui
+from training_coach.bot import proposals as proposals_ui
 from training_coach.bot import settings as settings_ui
 from training_coach.bot import share as share_ui
 from training_coach.bot import stretching as stretching_ui
@@ -120,6 +121,7 @@ MORNING_JOB = "morning"
 NUDGE_JOB = "nudge"
 REVIEW_JOB = "weekly-review"
 RESCHEDULE = "reschedule"  # bot_data key: the settings page moves the jobs through this
+ANNOUNCE = "announce_proposals"  # bot_data key: /mcp sends a fresh proposal through this
 SUNDAY = 0  # PTB counts days from Sunday (0) to Saturday (6)
 Job = Callable[[ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
 
@@ -140,6 +142,9 @@ def _retry_seconds(exc: RetryAfter) -> float:
     return value.total_seconds() if isinstance(value, timedelta) else float(value)
 
 
+SENT, UNREACHABLE, REFUSED = "sent", "unreachable", "refused"
+
+
 async def send_with_retry(
     bot: Bot,
     chat_id: int,
@@ -151,6 +156,23 @@ async def send_with_retry(
 ) -> bool:
     """Send a scheduled message. Network errors are retried with backoff and flood control
     is waited out; any other Telegram error (blocked, bad chat) gives up. False if not sent."""
+    sent = await send_outcome(
+        bot, chat_id, text, reply_markup=reply_markup, attempts=attempts, backoff=backoff
+    )
+    return sent == SENT
+
+
+async def send_outcome(
+    bot: Bot,
+    chat_id: int,
+    text: str,
+    *,
+    reply_markup: InlineKeyboardMarkup | None = None,
+    attempts: int = 3,
+    backoff: float = 2.0,
+) -> str:
+    """``send_with_retry``, telling apart Telegram being unreachable (``UNREACHABLE``: worth
+    trying later) from it refusing this message (``REFUSED``: it would refuse it again)."""
     for attempt in range(1, attempts + 1):
         try:
             await bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
@@ -164,10 +186,10 @@ async def send_with_retry(
                 await asyncio.sleep(backoff * 2 ** (attempt - 1))
         except TelegramError as exc:
             log.warning("bot.send_failed", attempt=attempt, error=type(exc).__name__)
-            return False
+            return REFUSED
         else:
-            return True
-    return False
+            return SENT
+    return UNREACHABLE
 
 
 class Handlers:
@@ -526,6 +548,18 @@ def build_bot(
     assert jobs is not None  # noqa: S101 - the job-queue extra is a dependency
     # Band workouts to count (ADR-0055): checked every few minutes, each offered once.
     jobs.run_repeating(band_handlers.announce, interval=band_ui.EVERY, name=band_ui.JOB)
+    # Logs a connected AI proposed (ADR-0058): sent as they come, and checked every few
+    # minutes for any whose send failed.
+    proposal_handlers = proposals_ui.ProposalHandlers(settings, sessions, send_outcome)
+    application.add_handler(
+        CallbackQueryHandler(proposal_handlers.button, pattern=proposals_ui.PATTERN)
+    )
+    jobs.run_repeating(proposal_handlers.job, interval=proposals_ui.EVERY, name=proposals_ui.JOB)
+
+    async def announce() -> None:
+        await proposal_handlers.announce(application.bot)
+
+    application.bot_data[ANNOUNCE] = announce
     undo_handlers = undo_ui.UndoHandlers(settings, sessions)
     application.add_handler(CommandHandler("undo", undo_handlers.command, filters=allowed))
     application.add_handler(

@@ -863,6 +863,39 @@ class OAuthToken(Base):
     used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
+class LogProposal(Owned, Base):
+    """A log a connected AI proposed (ADR-0058): checked like a typed log, then waiting for the
+    person's Save or Discard, on Today or in Telegram. ``payload`` holds what saving writes and
+    ``summary`` says it in our own words; both were built from validated values, never from the
+    AI's text. Gone 24 hours after it was proposed, saved or not."""
+
+    __tablename__ = "log_proposals"
+    __table_args__ = (
+        CheckConstraint("kind IN ('strength', 'cardio', 'habits', 'body')", name="kind_valid"),
+        CheckConstraint("status IN ('pending', 'saved', 'discarded')", name="status_valid"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    connection_id: Mapped[int] = mapped_column(
+        ForeignKey("mcp_connections.id", ondelete="CASCADE"), index=True
+    )
+    # Random, in the Telegram buttons and the web's calls; for a workout it is also the log's
+    # token, so saving twice saves once.
+    token: Mapped[str] = mapped_column(String(32), unique=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    local_date: Mapped[date] = mapped_column(Date)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+    summary: Mapped[str] = mapped_column(String(1000))
+    status: Mapped[str] = mapped_column(String(16), default="pending", server_default="pending")
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+    announced_at: Mapped[datetime | None] = mapped_column(UTCDateTime)  # sent to Telegram
+    # Telegram refused it for good (not a network failure): not tried again; Today still shows it.
+    announce_refused_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    resolved_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
 class Event(Owned, Base):
     """Audit log. Payloads must never contain secrets, transcripts or measurements.
     ``user_id`` is empty for system events such as ``seed.applied``."""
@@ -890,6 +923,7 @@ __all__ = [
     "ImportedWorkout",
     "IngestKey",
     "LadderStep",
+    "LogProposal",
     "LoginLink",
     "McpConnection",
     "OAuthClient",

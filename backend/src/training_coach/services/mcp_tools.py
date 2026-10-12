@@ -1,9 +1,11 @@
-"""The read-only tools a connected AI may call (ADR-0047 C1, mcp-threat-model.md M7-M9).
+"""The tools a connected AI may call (ADR-0047 C, mcp-threat-model.md M7-M10).
 
-Each tool reuses the summary for "Copy for my AI" (``ai_summary``), from a session bound to the
-token's person, and needs its scope: health data only with ``body:read`` or ``readiness:read``,
-photos never. Every answer names the guide version and puts the data between markers, so the
-AI reading it can tell data from instructions; it is cut at a fixed size.
+The read tools reuse the summary for "Copy for my AI" (``ai_summary``), from a session bound to
+the token's person, and each needs its scope: health data only with ``body:read`` or
+``readiness:read``, photos never. Every answer names the guide version and puts the data between
+markers, so the AI reading it can tell data from instructions; it is cut at a fixed size.
+``propose_log`` (``log:propose``) is the one tool that writes, and what it writes is only a
+proposal the person saves or discards themselves (``services.proposals``, ADR-0058).
 """
 
 import re
@@ -17,7 +19,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from training_coach.domain.connections import Scope
-from training_coach.services import ai_summary
+from training_coach.services import ai_summary, proposals
 from training_coach.services.ai_summary import GUIDE_URL, GUIDE_VERSION, Options
 
 MAX_DATA = 40_000  # characters of data in one answer: about 10k tokens
@@ -57,13 +59,21 @@ class Tool:
     input_schema: Mapping[str, Any]
 
     def listing(self) -> dict[str, Any]:
+        reads = self.name != PROPOSE
         return {
             "name": self.name,
             "title": self.title,
             "description": self.description,
             "inputSchema": self.input_schema,
-            "annotations": {"readOnlyHint": True, "openWorldHint": False},
+            "annotations": {
+                "readOnlyHint": reads,
+                "openWorldHint": False,
+                **({} if reads else {"destructiveHint": False, "idempotentHint": False}),
+            },
         }
+
+
+PROPOSE = "propose_log"
 
 
 TOOLS = (
@@ -116,6 +126,18 @@ TOOLS = (
         "The readiness answers and the daily checks of the last 4 weeks (health data).",
         Scope.READINESS,
         _NOTHING,
+    ),
+    Tool(
+        PROPOSE,
+        "Propose a log",
+        "Propose something for the person to log: strength sets (exercise names as in the "
+        "plan, one number per set), cardio (zone2 or moderate-cardio minutes), habits done, or "
+        "body weight and girths, for today or an earlier day. Nothing is saved: the person sees "
+        "it in the app and on Telegram and taps Save or Discard. It is checked like a typed "
+        "log, and refused with a reason if it doesn't fit. At most 3 wait at once; each "
+        "expires after 24 hours.",
+        Scope.PROPOSE,
+        proposals.INPUT_SCHEMA,
     ),
 )
 BY_NAME = {t.name: t for t in TOOLS}

@@ -1,6 +1,6 @@
 """Scopes for connecting your own AI (ADR-0047 C, mcp-threat-model.md M7)."""
 
-from training_coach.domain.connections import HEALTH, LABELS, Scope, grant, parse, text
+from training_coach.domain.connections import HEALTH, LABELS, OPT_IN, Scope, grant, parse, text
 
 
 def test_scopes_are_parsed_in_a_fixed_order() -> None:
@@ -10,7 +10,7 @@ def test_scopes_are_parsed_in_a_fixed_order() -> None:
 
 
 def test_an_unknown_scope_refuses_the_lot() -> None:
-    assert parse("training:read log:propose") is None
+    assert parse("training:read log:write") is None
     assert parse("offline_access") is None
 
 
@@ -25,3 +25,19 @@ def test_health_scopes_are_named_as_health_data() -> None:
     assert {Scope.BODY, Scope.READINESS} == HEALTH
     assert all("health data" in LABELS[s] for s in HEALTH)
     assert "health" not in LABELS[Scope.TRAINING]
+
+
+def test_proposing_logs_is_opt_in_and_says_nothing_saves_without_a_tap() -> None:
+    """ADR-0058: like the health scopes, ``log:propose`` starts unticked."""
+    assert {Scope.BODY, Scope.READINESS, Scope.PROPOSE} == OPT_IN
+    assert "Nothing is saved until you tap Save" in LABELS[Scope.PROPOSE]
+
+
+def test_proposing_logs_needs_training() -> None:
+    """Review of #234: a proposal's answer names exercises and sessions, so ``log:propose`` is
+    granted only with ``training:read``."""
+    both = ["training:read", "log:propose"]
+    assert grant(both, ["log:propose"]) == []
+    assert grant(["log:propose"], ["log:propose", "training:read"]) == []
+    assert grant(both, both) == [Scope.TRAINING, Scope.PROPOSE]
+    assert grant(["body:read", "log:propose"], ["body:read", "log:propose"]) == [Scope.BODY]

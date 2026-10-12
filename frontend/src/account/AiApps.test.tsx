@@ -6,7 +6,7 @@ const APP = {
   id: 7,
   client_name: 'Claude',
   redirect_host: 'claude.ai',
-  scopes: ['training:read', 'body:read'],
+  scopes: ['training:read', 'body:read', 'log:propose'],
   created_at: '2026-10-11T12:00:00Z',
   last_used_at: null,
   ends_at: '2027-01-09T12:00:00Z',
@@ -30,7 +30,7 @@ test('a connected app shows its claimed name, host and what it reads', async () 
   render(<AiApps />)
   const item = await screen.findByText(/Calls itself “Claude”/)
   expect(item).toHaveTextContent('claude.ai')
-  expect(item).toHaveTextContent('reads training, body measurements')
+  expect(item).toHaveTextContent('reads training, body measurements, proposes logs for you to save')
   expect(item).toHaveTextContent('not used yet')
 })
 

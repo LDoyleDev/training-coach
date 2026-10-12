@@ -6,6 +6,7 @@ const LABELS: Record<string, string> = {
   'training:read': 'training',
   'body:read': 'body measurements',
   'readiness:read': 'readiness and daily checks',
+  'log:propose': 'proposes logs for you to save',
 }
 
 const day = (iso: string) =>

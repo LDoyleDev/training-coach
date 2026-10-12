@@ -300,6 +300,49 @@ export async function dismissBandOffer(id: number): Promise<void> {
     throw new Error(`The server answered ${res.status}.`)
 }
 
+export type Proposal = Schemas['ProposalView']
+export type ProposalSaved = Schemas['ProposalSaved']
+
+/** Logs a connected AI proposed, waiting for Save or Discard (ADR-0058); none when signed out. */
+export async function fetchProposals(signal?: AbortSignal): Promise<Proposal[]> {
+  const res = await fetch('/api/proposals', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return []
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Proposal[]
+}
+
+/** The token goes in the body, never in a URL an access log could keep (review of #234). */
+const postToken = (path: string, token: string) =>
+  fetch(path, {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify({ token }),
+    credentials: 'same-origin',
+  })
+
+/** Save one. 'gone': expired or its app disconnected; 'saved' / 'discarded': already dealt
+ * with (here or in Telegram); any other text: why it no longer fits (it was discarded). */
+export async function saveProposal(
+  token: string,
+): Promise<ProposalSaved | 'gone' | 'saved' | 'discarded' | { changed: string }> {
+  const res = signedIn(await postToken('/api/proposals/save', token))
+  if (res.status === 404) return 'gone'
+  if (res.status === 409) {
+    const detail = ((await res.json()) as { detail?: string }).detail ?? ''
+    if (detail === 'already_saved') return 'saved'
+    if (detail === 'already_discarded') return 'discarded'
+    return { changed: detail }
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as ProposalSaved
+}
+
+export async function discardProposal(token: string): Promise<void> {
+  const res = signedIn(await postToken('/api/proposals/discard', token))
+  if (res.status !== 204 && res.status !== 404)
+    throw new Error(`The server answered ${res.status}.`)
+}
+
 export type Changed = Schemas['ChangedView']
 export type Choices = Schemas['ChoicesView']
 export type Queued = Schemas['QueuedView']

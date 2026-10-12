@@ -18,6 +18,7 @@ from training_coach.bot.app import (
     build_bot,
     owner_only,
     schedule_morning,
+    send_outcome,
     send_with_retry,
 )
 from training_coach.bot.messages import NO_PLAN, SOMETHING_WENT_WRONG
@@ -63,10 +64,10 @@ def test_every_command_is_restricted_to_owner(application: Application) -> None:
         assert filters.ChatType.PRIVATE in parts
     # Button presses can't carry a filter and typed text combines filters; test_buttons.py,
     # test_settings.py, test_logging_flow.py, test_progress.py, test_habits.py,
-    # test_stretching.py, test_undo.py, test_daily_check.py and test_band.py prove strangers
-    # are ignored by behaviour instead.
+    # test_stretching.py, test_undo.py, test_daily_check.py, test_band.py and
+    # test_proposals.py prove strangers are ignored by behaviour instead.
     others = [type(h) for h in handlers if not isinstance(h, CommandHandler)]
-    assert others == [CallbackQueryHandler] * 9 + [MessageHandler] * 2
+    assert others == [CallbackQueryHandler] * 10 + [MessageHandler] * 2
 
 
 async def _replies(application: Application, text: str, sender: int) -> list[str]:  # type: ignore[type-arg]
@@ -208,6 +209,15 @@ async def test_send_gives_up_on_other_telegram_errors() -> None:
     bot = SimpleNamespace(send_message=AsyncMock(side_effect=Forbidden("blocked")))
     assert not await send_with_retry(bot, OWNER, "hi", backoff=0)  # type: ignore[arg-type]
     assert bot.send_message.await_count == 1
+
+
+async def test_send_outcome_tells_refused_from_unreachable() -> None:
+    blocked = SimpleNamespace(send_message=AsyncMock(side_effect=Forbidden("blocked")))
+    assert await send_outcome(blocked, OWNER, "hi", backoff=0) == "refused"  # type: ignore[arg-type]
+    down = SimpleNamespace(send_message=AsyncMock(side_effect=NetworkError("down")))
+    assert await send_outcome(down, OWNER, "hi", attempts=2, backoff=0) == "unreachable"  # type: ignore[arg-type]
+    fine = SimpleNamespace(send_message=AsyncMock(return_value=None))
+    assert await send_outcome(fine, OWNER, "hi") == "sent"  # type: ignore[arg-type]
 
 
 async def test_morning_survives_a_database_error(engine: Engine) -> None:

@@ -1,7 +1,8 @@
 """What a connected AI may read (ADR-0047 C, docs/security/mcp-threat-model.md).
 
-C1 is read-only: training, and two health scopes that start unticked on the consent page, so
-each connection opts in to them. ``log:propose`` comes with C2.
+C1 reads: training, and two health scopes. C2 adds ``log:propose``: proposing a log the person
+then saves or discards themselves (ADR-0058). The health scopes and ``log:propose`` start
+unticked on the consent page, so each connection opts in to them.
 """
 
 from collections.abc import Iterable
@@ -12,15 +13,22 @@ class Scope(StrEnum):
     TRAINING = "training:read"
     BODY = "body:read"
     READINESS = "readiness:read"
+    PROPOSE = "log:propose"
 
 
 HEALTH = frozenset({Scope.BODY, Scope.READINESS})
+# Unticked on the consent page until the person ticks them.
+OPT_IN = HEALTH | {Scope.PROPOSE}
 
 # In plain words, for the consent page and the Account page.
 LABELS = {
     Scope.TRAINING: "Your plan, workouts, sets, test days, habits and progress",
     Scope.BODY: "Your body measurements (health data)",
     Scope.READINESS: "Your readiness answers and daily checks (health data)",
+    Scope.PROPOSE: (
+        "Suggest workouts, cardio, habits and measurements to log. Nothing is saved until you "
+        "tap Save"
+    ),
 }
 
 
@@ -36,8 +44,12 @@ def parse(text: str | None) -> list[Scope] | None:
 
 
 def grant(requested: Iterable[str], ticked: Iterable[str]) -> list[Scope]:
-    """What a connection gets: only scopes that were both asked for and ticked."""
+    """What a connection gets: only scopes that were both asked for and ticked, and
+    ``log:propose`` only with ``training:read`` (ADR-0058: a proposal's answers name exercises
+    and sessions)."""
     both = set(requested) & set(ticked)
+    if Scope.TRAINING not in both:
+        both.discard(Scope.PROPOSE)
     return [s for s in Scope if s.value in both]
 
 

@@ -28,6 +28,7 @@ from training_coach.db.models import (
     ImportedWorkout,
     IngestKey,
     LadderStep,
+    LogProposal,
     McpConnection,
     Measurement,
     Passkey,
@@ -60,6 +61,7 @@ TABLES: dict[str, type] = {
     "ai_connections": AiConnection,  # the key itself is binary, so left out
     "ai_comments": AiComment,  # kept 7 days (ADR-0056)
     "connected_ai_apps": McpConnection,
+    "ai_log_proposals": LogProposal,  # kept 24 hours (ADR-0058)
     "progress_photos": ProgressPhoto,
     "habit_checks": HabitCheck,
     "settings": UserSettings,

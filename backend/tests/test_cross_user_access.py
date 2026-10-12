@@ -37,6 +37,17 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("services.mcp_tokens::_revoke", ALL): "the tokens of one named connection",
     ("services.mcp_tokens::revoke_all", ALL): "/recover: the named user's connections only",
     ("services.ingest_keys::owner_of", ALL): "whose band secret is this",
+    # ADR-0058: the guard refuses bulk updates of per-person rows in a bound session, so these
+    # opt out and name the person by hand.
+    ("services.proposals::propose", ALL): (
+        "write-lock touch of one connection, by its id and the bound user's id"
+    ),
+    ("services.proposals::_claim", ALL): (
+        "conditional claim of one proposal, by its token and the bound user's id"
+    ),
+    ("services.proposals::discard_for", ALL): (
+        "revoke (maybe unbound, /recover): one named connection's waiting proposals"
+    ),
     ("services.seed::_preflight", ALL): "is this ladder step in anyone's history",
     ("services.seed::_tests_preflight", ALL): "does anyone have results for this test",
     ("services.seed::_versions_preflight", ALL): "does anyone's history use this version",

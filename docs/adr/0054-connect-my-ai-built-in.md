@@ -1,6 +1,6 @@
 # ADR-0054: Connect my AI with a hand-written MCP and OAuth server in the app
 
-- Status: Proposed
+- Status: Accepted (2026-10-12)
 - Date: 2026-10-11
 - Deciders: Liam
 
