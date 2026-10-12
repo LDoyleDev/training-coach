@@ -75,6 +75,7 @@ class Refused:
     error: str
     # Set when the refusal revoked a connection (a stolen refresh token): alert the person.
     revoked: bool = False
+    user_id: int | None = None  # whose connection was revoked: the alert goes to them
 
 
 @dataclass(frozen=True)
@@ -194,7 +195,7 @@ def exchange_code(
     if row.used_at is not None:
         log.warning("mcp.code_reused", connection_id=connection.id)
         _revoke(session, connection, now)
-        return Refused(INVALID_GRANT, revoked=True)
+        return Refused(INVALID_GRANT, revoked=True, user_id=connection.user_id)
     # Claimed in one conditional statement: of two racing exchanges, only one changes the row.
     claimed = cast(
         "CursorResult[object]",
@@ -245,7 +246,7 @@ def refresh(
     if owner != client_id:  # only a stolen token is presented by another client
         log.warning("mcp.refresh_wrong_client", connection_id=connection.id)
         _revoke(session, connection, now)
-        return Refused(INVALID_GRANT, revoked=True)
+        return Refused(INVALID_GRANT, revoked=True, user_id=connection.user_id)
     if row.used_at is not None:
         return _reused(session, connection, now)
     # A request this token can't satisfy is refused before it is used up: a client's mistake
@@ -276,7 +277,7 @@ def _reused(session: Session, connection: McpConnection, now: datetime) -> Refus
     """A used refresh token presented again: a copy, or a retry after a lost answer."""
     log.warning("mcp.refresh_reused", connection_id=connection.id)
     _revoke(session, connection, now)
-    return Refused(INVALID_GRANT, revoked=True)
+    return Refused(INVALID_GRANT, revoked=True, user_id=connection.user_id)
 
 
 def verify(session: Session, token: str, resource: str, now: datetime) -> Access | None:

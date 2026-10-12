@@ -25,8 +25,8 @@ log = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-# Set by the app's lifespan when the bot runs: moves its morning, nudge and review jobs.
-Reschedule = Callable[[Prefs], None]
+# Set by the app's lifespan when the bot runs: moves the person's morning, nudge and review jobs.
+Reschedule = Callable[[int, Prefs], None]
 
 
 def _bound(request: Request, user: int) -> sessionmaker[Session]:
@@ -127,6 +127,6 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)
     reschedule: Reschedule | None = getattr(request.app.state, "reschedule", None)
     if moved and reschedule is not None:
-        reschedule(prefs)
+        reschedule(user, prefs)
     log.info("api.settings_changed", what=sorted(body.model_dump(exclude_none=True)))
     return _view(prefs, settings)

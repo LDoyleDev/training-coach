@@ -184,7 +184,7 @@ def test_a_wrong_attempt_uses_the_code_up(engine: Engine) -> None:
 def test_a_code_presented_again_revokes_what_it_bought(engine: Engine) -> None:
     c = _connect(engine)
     tokens = _tokens(_exchange(engine, c))
-    assert _exchange(engine, c) == Refused("invalid_grant", revoked=True)
+    assert _exchange(engine, c) == Refused("invalid_grant", revoked=True, user_id=OWNER)
     assert _verify(engine, tokens.access_token) is None
     assert _connection(engine, c.connection_id).revoked_at is not None
 
@@ -240,7 +240,9 @@ def test_a_used_refresh_token_revokes_the_connection(engine: Engine) -> None:
     first = _tokens(_exchange(engine, c))
     second = _tokens(_refresh(engine, first.refresh_token))
     with capture_logs() as logs:
-        assert _refresh(engine, first.refresh_token) == Refused("invalid_grant", revoked=True)
+        assert _refresh(engine, first.refresh_token) == Refused(
+            "invalid_grant", revoked=True, user_id=OWNER
+        )
     assert _verify(engine, second.access_token, NOW + timedelta(minutes=55)) is None
     assert _refresh(engine, second.refresh_token) == Refused("invalid_grant")
     assert _connection(engine, c.connection_id).revoked_at is not None
@@ -253,7 +255,7 @@ def test_a_refresh_by_another_client_revokes_and_issues_nothing(engine: Engine) 
     _connect(engine, client_id="client-two")
     first = _tokens(_exchange(engine, c))
     assert _refresh(engine, first.refresh_token, client_id="client-two") == Refused(
-        "invalid_grant", revoked=True
+        "invalid_grant", revoked=True, user_id=OWNER
     )
     assert _verify(engine, first.access_token) is None
     with make_session_factory(engine)() as shared:
@@ -395,5 +397,5 @@ def test_a_used_code_replayed_after_it_expired_still_revokes(engine: Engine) -> 
     with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
         mcp_tokens.issue_code(bound, other.connection_id, CALLBACK, CHALLENGE.decode(), late)
     replayed = _exchange(engine, c, now=late)
-    assert replayed == Refused(mcp_tokens.INVALID_GRANT, revoked=True)
+    assert replayed == Refused(mcp_tokens.INVALID_GRANT, revoked=True, user_id=OWNER)
     assert _verify(engine, tokens.access_token, late) is None

@@ -8,34 +8,31 @@ import pytest
 import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
+from sqlalchemy.exc import OperationalError
 
+from tests.alerts import capture
 from tests.api.test_passkeys import ORIGIN, RP_ID, _options, _passkeys, _register, _sign_in
 from tests.passkey_device import Device
 from training_coach.api.app import create_app
 from training_coach.config import Settings
 from training_coach.db.models import Passkey, WebSession
 from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
-from training_coach.services import auth
+from training_coach.services import auth, users
 from training_coach.services.users import OWNER
 
 
 @pytest.fixture
-def sent() -> list[str]:
-    return []
-
-
-@pytest.fixture
-def client(engine: Engine, sent: list[str]) -> Iterator[TestClient]:
+def client(engine: Engine) -> Iterator[TestClient]:
     settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
     with TestClient(
         create_app(settings), base_url=ORIGIN, client=("172.17.0.1", 50000)
     ) as test_client:
-
-        async def notify(text: str) -> None:
-            sent.append(text)
-
-        test_client.app.state.notify = notify  # type: ignore[attr-defined]  # a FastAPI app
         yield test_client
+
+
+@pytest.fixture
+def sent(client: TestClient) -> list[str]:
+    return capture(client)
 
 
 def _link(engine: Engine, purpose: str = auth.START) -> str:
@@ -127,10 +124,21 @@ def test_signing_out_a_device_alerts(client: TestClient, engine: Engine, sent: l
     assert sent[-1] == "A device was signed out of Training Coach."
 
 
+def test_a_failed_alert_lookup_never_fails_the_sign_in(
+    client: TestClient, engine: Engine, sent: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def locked(*_: object) -> None:
+        raise OperationalError("SELECT", {}, Exception("database is locked"))
+
+    monkeypatch.setattr(users, "telegram_chat", locked)
+    assert _redeem(client, _link(engine)) == 204
+    assert sent == []
+
+
 def test_without_the_bot_alerts_are_only_logged(engine: Engine) -> None:
     settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
     with TestClient(create_app(settings), base_url=ORIGIN) as quiet:
-        assert quiet.app.state.notify is None  # type: ignore[attr-defined]  # a FastAPI app
+        assert quiet.app.state.send is None  # type: ignore[attr-defined]  # a FastAPI app
         assert _redeem(quiet, _link(engine)) == 204
 
 

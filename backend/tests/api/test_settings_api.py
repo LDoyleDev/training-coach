@@ -1,7 +1,7 @@
 """/api/settings (ux-flow-plan C6): the bot's /settings on the web, same rules, owner-only."""
 
 from collections.abc import Iterator
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +9,7 @@ from sqlalchemy import Engine
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
+from training_coach.db.models import User
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
 from training_coach.services import auth, user_settings
@@ -16,6 +17,7 @@ from training_coach.services.user_settings import Prefs
 from training_coach.services.users import OWNER
 
 ORIGIN = "https://coach.example.com"
+OTHER = 2  # a second person, as invites will add
 
 
 @pytest.fixture
@@ -33,7 +35,12 @@ def signed_in(engine: Engine) -> Iterator[TestClient]:
 def moved(signed_in: TestClient) -> list[Prefs]:
     """The settings the bot's jobs were moved to, as the lifespan's hook would."""
     calls: list[Prefs] = []
-    signed_in.app.state.reschedule = calls.append  # type: ignore[attr-defined]  # Starlette app
+
+    def reschedule(user: int, prefs: Prefs) -> None:
+        assert user == OWNER  # whoever is signed in: here the owner
+        calls.append(prefs)
+
+    signed_in.app.state.reschedule = reschedule  # type: ignore[attr-defined]  # Starlette app
     return calls
 
 
@@ -81,6 +88,23 @@ def test_a_switch_leaves_the_jobs_where_they_are(
     assert _stored(engine).paused is True
     resumed = signed_in.patch("/api/settings", json={"paused": False}).json()
     assert resumed["paused"] is False
+
+
+def test_a_second_persons_new_time_moves_only_their_own_jobs(engine: Engine) -> None:
+    """Before, the web moved the bot's jobs (the owner's) whoever changed their times."""
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=OTHER))
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as bound:
+        token = auth.create_link(bound, datetime.now(UTC))
+    settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+    with TestClient(create_app(settings), base_url=ORIGIN) as other:
+        assert other.post("/api/auth/redeem", json={"token": token}).status_code == 204
+        calls: list[tuple[int, Prefs]] = []
+        other.app.state.reschedule = lambda user, prefs: calls.append((user, prefs))  # type: ignore[attr-defined]  # Starlette app
+        assert other.patch("/api/settings", json={"morning_time": "05:00"}).status_code == 200
+    ((user, prefs),) = calls
+    assert (user, prefs.morning_time) == (OTHER, time(5))
+    assert _stored(engine).morning_time == time(7, 30)  # the owner's is untouched
 
 
 @pytest.mark.parametrize("bad", ["7:5", "24:00", "07:60", "seven", ""])
