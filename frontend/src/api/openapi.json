@@ -418,6 +418,81 @@
         "title": "ChoicesView",
         "type": "object"
       },
+      "ClashConflict": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClashView"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ClashConflict",
+        "type": "object"
+      },
+      "ClashReply": {
+        "description": "The person's answer to a clash: ``replace``, ``add`` or ``move:YYYY-MM-DD``, with the ids\nof the workouts they were shown. Left out on the first try.",
+        "properties": {
+          "resolution": {
+            "anyOf": [
+              {
+                "pattern": "^(?:replace|add|move:\\d{4}-\\d{2}-\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "seen": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "title": "Seen",
+            "type": "array"
+          }
+        },
+        "title": "ClashReply",
+        "type": "object"
+      },
+      "ClashView": {
+        "description": "What is already saved for ``day``. ``moving``: it is the day the old workout would have\nmoved to, which holds a session too: pick another day.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "moving": {
+            "title": "Moving",
+            "type": "boolean"
+          },
+          "recorded": {
+            "items": {
+              "$ref": "#/components/schemas/RecordedView"
+            },
+            "title": "Recorded",
+            "type": "array"
+          }
+        },
+        "required": [
+          "day",
+          "recorded",
+          "moving"
+        ],
+        "title": "ClashView",
+        "type": "object"
+      },
       "ConnectionView": {
         "properties": {
           "client_name": {
@@ -1650,6 +1725,26 @@
             "title": "Kind",
             "type": "string"
           },
+          "resolution": {
+            "anyOf": [
+              {
+                "pattern": "^(?:replace|add|move:\\d{4}-\\d{2}-\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "seen": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "title": "Seen",
+            "type": "array"
+          },
           "token": {
             "pattern": "^[0-9a-f]{32}$",
             "title": "Token",
@@ -1668,6 +1763,230 @@
           "value"
         ],
         "title": "LogBody",
+        "type": "object"
+      },
+      "LogChoiceView": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "strength",
+              "conditioning",
+              "recovery"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "name",
+          "kind"
+        ],
+        "title": "LogChoiceView",
+        "type": "object"
+      },
+      "LogDayBody": {
+        "properties": {
+          "activity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardioActivity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cardio": {
+            "anyOf": [
+              {
+                "enum": [
+                  "zone2",
+                  "moderate-cardio",
+                  "hiit"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cardio"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "pattern": "^(?:replace|add|move:\\d{4}-\\d{2}-\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "seen": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "title": "Seen",
+            "type": "array"
+          },
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/DoneView"
+            },
+            "maxItems": 200,
+            "title": "Sets",
+            "type": "array"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id"
+          },
+          "token": {
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Token",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maximum": 600.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "what": {
+            "enum": [
+              "session",
+              "extra",
+              "rest",
+              "cardio"
+            ],
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "day",
+          "what"
+        ],
+        "title": "LogDayBody",
+        "type": "object"
+      },
+      "LogOptionsView": {
+        "description": "What a log can be: every session, and what cardio was. The days are today back to 14\ndays ago (``domain.dates.MAX_DAYS_BACK``); the browser lists them, the save checks them.",
+        "properties": {
+          "activities": {
+            "items": {
+              "$ref": "#/components/schemas/CardioActivity"
+            },
+            "title": "Activities",
+            "type": "array"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/LogChoiceView"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessions",
+          "activities"
+        ],
+        "title": "LogOptionsView",
+        "type": "object"
+      },
+      "LogPlanView": {
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "template_id",
+          "name",
+          "items"
+        ],
+        "title": "LogPlanView",
+        "type": "object"
+      },
+      "LoggedDayView": {
+        "properties": {
+          "already_saved": {
+            "title": "Already Saved",
+            "type": "boolean"
+          },
+          "next_session": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Session"
+          },
+          "workout_id": {
+            "title": "Workout Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "workout_id",
+          "already_saved",
+          "next_session"
+        ],
+        "title": "LoggedDayView",
         "type": "object"
       },
       "LoggedView": {
@@ -2421,6 +2740,29 @@
         "title": "RecentView",
         "type": "object"
       },
+      "RecordedView": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "workout_id": {
+            "title": "Workout Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "workout_id",
+          "name",
+          "summary"
+        ],
+        "title": "RecordedView",
+        "type": "object"
+      },
       "Redeem": {
         "properties": {
           "token": {
@@ -2770,6 +3112,26 @@
               }
             ],
             "title": "Day"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "pattern": "^(?:replace|add|move:\\d{4}-\\d{2}-\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "seen": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "title": "Seen",
+            "type": "array"
           }
         },
         "title": "SaveBody",
@@ -4762,7 +5124,7 @@
     },
     "/api/band/offers/{import_id}/count": {
       "post": {
-        "description": "Count a band workout as cardio. 404 when it isn't on offer; 409 when today's session\nchanged in a way that makes it stale (count it again).",
+        "description": "Count a band workout as cardio. 404 when it isn't on offer; 409 when today's session\nchanged in a way that makes it stale (count it again), or with what is saved already when\nthe day has its session (ADR-0060): count it again with the answer.",
         "operationId": "count_api_band_offers__import_id__count_post",
         "parameters": [
           {
@@ -4775,6 +5137,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ClashReply"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -4785,6 +5164,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClashConflict"
+                }
+              }
+            },
+            "description": "The day already has its session (a ClashView), or today changed"
           },
           "422": {
             "content": {
@@ -4997,7 +5386,7 @@
         ]
       },
       "post": {
-        "description": "Save one cardio log for today. 409 when today's session changed meanwhile.",
+        "description": "Save one cardio log for today. 409 when today's session changed meanwhile, or with\nwhat is saved already when the day has its session (ADR-0060).",
         "operationId": "log_api_cardio_post",
         "requestBody": {
           "content": {
@@ -5019,6 +5408,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClashConflict"
+                }
+              }
+            },
+            "description": "The day already has its session (a ClashView), or today changed"
           },
           "422": {
             "content": {
@@ -5394,6 +5793,130 @@
         "summary": "Health Connect",
         "tags": [
           "ingest"
+        ]
+      }
+    },
+    "/api/log": {
+      "get": {
+        "operationId": "options_api_log_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogOptionsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Options",
+        "tags": [
+          "log"
+        ]
+      },
+      "post": {
+        "description": "Save what was done on a day. 409 with what is there when the day already has its\nsession; 422 with the reason when it can't be saved.",
+        "operationId": "log_api_log_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogDayBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoggedDayView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClashConflict"
+                }
+              }
+            },
+            "description": "The day already has its session (a ClashView), or today changed"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Log",
+        "tags": [
+          "log"
+        ]
+      }
+    },
+    "/api/log/plan": {
+      "get": {
+        "description": "A session's exercises and targets, to enter what was done on ``day``.",
+        "operationId": "plan_api_log_plan_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "title": "Template Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogPlanView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Plan",
+        "tags": [
+          "log"
         ]
       }
     },
@@ -5884,7 +6407,7 @@
     },
     "/api/session/save": {
       "post": {
-        "description": "Save the guided session as a workout: today's, or an earlier day's left unsaved.",
+        "description": "Save the guided session as a workout: today's, or an earlier day's left unsaved. 409\nwith what is saved already when that day has its session (ADR-0060).",
         "operationId": "save_api_session_save_post",
         "requestBody": {
           "content": {
@@ -5906,6 +6429,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClashConflict"
+                }
+              }
+            },
+            "description": "The day already has its session (a ClashView), or today changed"
           },
           "422": {
             "content": {

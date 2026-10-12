@@ -19,7 +19,7 @@ from training_coach.bot.buttons import edit_quietly, row_id
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import band_cardio, cardio, user_settings, workout_log
+from training_coach.services import band_cardio, cardio, user_settings
 
 log = structlog.get_logger(__name__)
 
@@ -118,7 +118,7 @@ class BandHandlers:
                     result = band_cardio.count(session, import_id, today, self.settings.tz)
                     if isinstance(result, band_cardio.Gone):
                         reply = GONE
-                    elif isinstance(result, workout_log.Stale):
+                    elif not isinstance(result, band_cardio.Counted):  # a clash (ADR-0060)
                         reply = STALE
                     else:
                         reply = counted_text(cardio.week(session, today), result.planned)

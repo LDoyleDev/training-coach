@@ -22,6 +22,7 @@ from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.parser import LIMITS, Entry
 from training_coach.domain.work_order import work_order
 from training_coach.services import blocks, workout_log
+from training_coach.services.day_clash import Clash, Refused, Resolution
 from training_coach.services.today import ItemPlan, position, session_plan
 
 REST_SECONDS = 60  # after each set, adjustable during the rest (D1)
@@ -166,7 +167,7 @@ def kept(session: Session, day: date) -> Kept | None:
     return _kept(row) if row is not None else None
 
 
-def _sets_problem(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> str | None:
+def sets_problem(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> str | None:
     """What's wrong with ``sets`` against the plan's items, or None: each set is one the plan
     has, recorded once, with values in range and sides only where the exercise has them."""
     seen: set[tuple[int, int]] = set()
@@ -194,7 +195,7 @@ def _problem(plan: Guided, position: int, first: Sequence[int], sets: Sequence[D
     pairs = {item.pair for item in plan.items if item.pair is not None}
     if any(number not in pairs for number in first):
         return "no such pair"
-    return _sets_problem(plan.items, sets)
+    return sets_problem(plan.items, sets)
 
 
 STALE = "this session changed on another device; reload it"
@@ -249,7 +250,7 @@ def keep(
     return row.revision
 
 
-def _entries(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> tuple[Entry, ...]:
+def entries(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> tuple[Entry, ...]:
     """The confirmed sets as log entries, per exercise in set order and numbered from 1. A
     skipped set isn't logged, so sets 1 and 3 done become sets 1 and 2 of the log."""
     by_item: dict[int, list[Done]] = {}
@@ -270,11 +271,15 @@ def _entries(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> tuple[Entry, 
 
 
 def save(
-    session: Session, day: date, today: date, tz: ZoneInfo
-) -> workout_log.Saved | workout_log.Stale | str:
+    session: Session,
+    day: date,
+    today: date,
+    tz: ZoneInfo,
+    answer: Resolution | None = None,
+) -> workout_log.Saved | workout_log.Stale | Clash | Refused | str:
     """Save ``day``'s guided session as a workout, through the same checks as a typed log. A
     past day (one left unsaved) is saved as a past-day log (ADR-0033). A problem message when
-    there is nothing to save."""
+    there is nothing to save; a clash with the day's session asks first (ADR-0060)."""
     row = _row(session, day)
     if row is None or not row.sets:
         return "no sets recorded"
@@ -282,19 +287,19 @@ def save(
     plan = session_plan(session, template.id, blocks.current(session, day, tz))
     assert plan is not None  # noqa: S101 - the template exists
     sets = tuple(Done(**s) for s in row.sets)
-    if _sets_problem(plan.items, sets) is not None:  # checked again: the plan may have changed
+    if sets_problem(plan.items, sets) is not None:  # checked again: the plan may have changed
         return "the plan changed since these sets were recorded"
     draft = workout_log.Draft(
         token=row.token,
         on=day,
         template_id=template.id,
         session_name=template.name,
-        entries=_entries(plan.items, sets),
+        entries=entries(plan.items, sets),
         problems=(),
         strength=workout_log.strength_on(session, day, tz, template),
         backdated=day < today,
     )
-    result = workout_log.save(session, draft, tz)
+    result = workout_log.save(session, draft, tz, answer)
     if isinstance(result, workout_log.Saved):
         row.saved_workout_id = result.workout_id
     return result if result is not None else "no sets recorded"

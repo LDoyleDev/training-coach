@@ -534,7 +534,8 @@ export interface paths {
         /**
          * Count
          * @description Count a band workout as cardio. 404 when it isn't on offer; 409 when today's session
-         *     changed in a way that makes it stale (count it again).
+         *     changed in a way that makes it stale (count it again), or with what is saved already when
+         *     the day has its session (ADR-0060): count it again with the answer.
          */
         post: operations["count_api_band_offers__import_id__count_post"];
         delete?: never;
@@ -633,7 +634,8 @@ export interface paths {
         put?: never;
         /**
          * Log
-         * @description Save one cardio log for today. 409 when today's session changed meanwhile.
+         * @description Save one cardio log for today. 409 when today's session changed meanwhile, or with
+         *     what is saved already when the day has its session (ADR-0060).
          */
         post: operations["log_api_cardio_post"];
         delete?: never;
@@ -833,6 +835,48 @@ export interface paths {
          * @description Store a Health Connect Webhook payload for the person whose secret it carries.
          */
         post: operations["health_connect_api_ingest_health_connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Options */
+        get: operations["options_api_log_get"];
+        put?: never;
+        /**
+         * Log
+         * @description Save what was done on a day. 409 with what is there when the day already has its
+         *     session; 422 with the reason when it can't be saved.
+         */
+        post: operations["log_api_log_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/log/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Plan
+         * @description A session's exercises and targets, to enter what was done on ``day``.
+         */
+        get: operations["plan_api_log_plan_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1089,7 +1133,8 @@ export interface paths {
         put?: never;
         /**
          * Save
-         * @description Save the guided session as a workout: today's, or an earlier day's left unsaved.
+         * @description Save the guided session as a workout: today's, or an earlier day's left unsaved. 409
+         *     with what is saved already when that day has its session (ADR-0060).
          */
         post: operations["save_api_session_save_post"];
         delete?: never;
@@ -1607,6 +1652,38 @@ export interface components {
             /** Template Id */
             template_id: number;
         };
+        /** ClashConflict */
+        ClashConflict: {
+            /** Detail */
+            detail: components["schemas"]["ClashView"] | string;
+        };
+        /**
+         * ClashReply
+         * @description The person's answer to a clash: ``replace``, ``add`` or ``move:YYYY-MM-DD``, with the ids
+         *     of the workouts they were shown. Left out on the first try.
+         */
+        ClashReply: {
+            /** Resolution */
+            resolution?: string | null;
+            /** Seen */
+            seen?: number[];
+        };
+        /**
+         * ClashView
+         * @description What is already saved for ``day``. ``moving``: it is the day the old workout would have
+         *     moved to, which holds a session too: pick another day.
+         */
+        ClashView: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Moving */
+            moving: boolean;
+            /** Recorded */
+            recorded: components["schemas"]["RecordedView"][];
+        };
         /** ConnectionView */
         ConnectionView: {
             /** Client Name */
@@ -2024,10 +2101,88 @@ export interface components {
              * @enum {string}
              */
             kind: "zone2" | "moderate-cardio" | "hiit";
+            /** Resolution */
+            resolution?: string | null;
+            /** Seen */
+            seen?: number[];
             /** Token */
             token: string;
             /** Value */
             value: number;
+        };
+        /** LogChoiceView */
+        LogChoiceView: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "strength" | "conditioning" | "recovery";
+            /** Name */
+            name: string;
+            /** Template Id */
+            template_id: number;
+        };
+        /** LogDayBody */
+        LogDayBody: {
+            activity?: components["schemas"]["CardioActivity"] | null;
+            /** Cardio */
+            cardio?: ("zone2" | "moderate-cardio" | "hiit") | null;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Resolution */
+            resolution?: string | null;
+            /** Seen */
+            seen?: number[];
+            /** Sets */
+            sets?: components["schemas"]["DoneView"][];
+            /** Template Id */
+            template_id?: number | null;
+            /** Token */
+            token: string;
+            /** Value */
+            value?: number | null;
+            /**
+             * What
+             * @enum {string}
+             */
+            what: "session" | "extra" | "rest" | "cardio";
+        };
+        /**
+         * LogOptionsView
+         * @description What a log can be: every session, and what cardio was. The days are today back to 14
+         *     days ago (``domain.dates.MAX_DAYS_BACK``); the browser lists them, the save checks them.
+         */
+        LogOptionsView: {
+            /** Activities */
+            activities: components["schemas"]["CardioActivity"][];
+            /** Sessions */
+            sessions: components["schemas"]["LogChoiceView"][];
+        };
+        /** LogPlanView */
+        LogPlanView: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Items */
+            items: components["schemas"]["ItemView"][];
+            /** Name */
+            name: string;
+            /** Template Id */
+            template_id: number;
+        };
+        /** LoggedDayView */
+        LoggedDayView: {
+            /** Already Saved */
+            already_saved: boolean;
+            /** Next Session */
+            next_session: string | null;
+            /** Workout Id */
+            workout_id: number;
         };
         /** LoggedView */
         LoggedView: {
@@ -2315,6 +2470,15 @@ export interface components {
             /** Session */
             session: string;
         };
+        /** RecordedView */
+        RecordedView: {
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string;
+            /** Workout Id */
+            workout_id: number;
+        };
         /** Redeem */
         Redeem: {
             /** Token */
@@ -2425,6 +2589,10 @@ export interface components {
         SaveBody: {
             /** Day */
             day?: string | null;
+            /** Resolution */
+            resolution?: string | null;
+            /** Seen */
+            seen?: number[];
         };
         /** SavedPhoto */
         SavedPhoto: {
@@ -3566,7 +3734,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ClashReply"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -3575,6 +3747,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BandCounted"];
+                };
+            };
+            /** @description The day already has its session (a ClashView), or today changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClashConflict"];
                 };
             };
             /** @description Validation Error */
@@ -3758,6 +3939,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoggedView"];
+                };
+            };
+            /** @description The day already has its session (a ClashView), or today changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClashConflict"];
                 };
             };
             /** @description Validation Error */
@@ -4065,6 +4255,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IngestReceived"];
+                };
+            };
+        };
+    };
+    options_api_log_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogOptionsView"];
+                };
+            };
+        };
+    };
+    log_api_log_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogDayBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoggedDayView"];
+                };
+            };
+            /** @description The day already has its session (a ClashView), or today changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClashConflict"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plan_api_log_plan_get: {
+        parameters: {
+            query: {
+                day: string;
+                template_id: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPlanView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4462,6 +4746,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SavedView"];
+                };
+            };
+            /** @description The day already has its session (a ClashView), or today changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClashConflict"];
                 };
             };
             /** @description Validation Error */

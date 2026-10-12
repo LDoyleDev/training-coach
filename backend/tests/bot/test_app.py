@@ -1,10 +1,10 @@
 import warnings
-from datetime import UTC, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.error import Forbidden, NetworkError, RetryAfter, TimedOut
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
@@ -23,7 +23,7 @@ from training_coach.bot.app import (
 )
 from training_coach.bot.messages import NO_PLAN, SOMETHING_WENT_WRONG
 from training_coach.config import Settings
-from training_coach.db.models import UserSettings
+from training_coach.db.models import ReplacedWorkout, UserSettings
 from training_coach.db.session import make_session_factory
 from training_coach.services.user_settings import Prefs
 from training_coach.services.users import OWNER as OWNER_ID
@@ -165,6 +165,24 @@ async def test_morning_sends_today_to_the_owner(seeded: sessionmaker[Session]) -
     kwargs = context.bot.send_message.await_args.kwargs
     assert kwargs["chat_id"] == OWNER
     assert kwargs["text"].startswith("Today: ")
+
+
+async def test_morning_forgets_replaced_workouts_past_the_undo_window(
+    seeded: sessionmaker[Session],
+) -> None:
+    """Review of #240: kept for /undo for 24 hours (ADR-0060), then gone even with no save."""
+    with seeded() as session:
+        session.add(
+            ReplacedWorkout(
+                local_date=date(2026, 10, 1),
+                data={"sets": []},
+                created_at=datetime.now(UTC) - timedelta(days=2),
+            )
+        )
+        session.commit()
+    await Handlers(SETTINGS, seeded).morning(_context())  # type: ignore[arg-type]
+    with seeded() as session:
+        assert session.scalars(select(ReplacedWorkout)).all() == []
 
 
 async def test_morning_without_a_plan_says_so(sessions: sessionmaker[Session]) -> None:

@@ -1,6 +1,7 @@
 # ADR-0033: A past day is logged with a date line, and catching up moves the queue
 
-- Status: Accepted
+- Status: Accepted; extended by ADR-0060 (a day that already has its session asks first; the web
+  logs any day; a line naming a session names today's)
 - Date: 2026-10-08
 - Deciders: Liam (#104)
 

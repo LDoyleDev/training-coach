@@ -325,6 +325,21 @@ def _plan_version(_mapper: object, _connection: object, workout: Workout) -> Non
         workout.plan_version_id = version_on(workout.local_date)
 
 
+class ReplacedWorkout(Owned, Base):
+    """A workout a log replaced (ADR-0060), kept so /undo can put it back: the row's values,
+    its sets and what pointed at it, as written by ``services.day_clash``. It comes back as a
+    new row, since SQLite may have given its id to the workout that replaced it. Gone after the
+    undo window (24 hours) or once it is put back."""
+
+    __tablename__ = "replaced_workouts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    local_date: Mapped[date] = mapped_column(Date)
+    data: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+
+
 class SetLog(Owned, Base):
     """One logged set. ``value`` is reps, seconds or minutes depending on the exercise kind.
 

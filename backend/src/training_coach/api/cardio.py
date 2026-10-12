@@ -7,10 +7,12 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from training_coach.api.auth import Owner
+from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import CardioActivity
 from training_coach.domain.queue import local_date
 from training_coach.services import cardio, workout_log
+from training_coach.services.day_clash import Clash, Refused
 
 router = APIRouter(prefix="/api/cardio", tags=["cardio"])
 
@@ -38,7 +40,7 @@ class OptionsView(BaseModel):
     week: WeekView
 
 
-class LogBody(BaseModel):
+class LogBody(ClashReply):
     token: str = Field(pattern="^[0-9a-f]{32}$")  # one per log: a repeated save changes nothing
     kind: Kind
     value: int = Field(ge=1, le=cardio.MAX_MINUTES)  # minutes, or rounds for HIIT
@@ -72,17 +74,27 @@ def options(request: Request, user: Owner) -> OptionsView:
     )
 
 
-@router.post("", response_model=LoggedView)
+@router.post("", response_model=LoggedView, responses=CLASH)
 def log(body: LogBody, request: Request, user: Owner) -> LoggedView:
-    """Save one cardio log for today. 409 when today's session changed meanwhile."""
+    """Save one cardio log for today. 409 when today's session changed meanwhile, or with
+    what is saved already when the day has its session (ADR-0060)."""
     if (problem := cardio.problem(body.kind, body.value)) is not None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, problem)
     settings = request.app.state.settings
     on = local_date(datetime.now(UTC), settings.tz)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         result = cardio.log(
-            session, on, settings.tz, body.kind, body.value, body.activity, body.token
+            session,
+            on,
+            settings.tz,
+            body.kind,
+            body.value,
+            body.activity,
+            body.token,
+            answer=resolution(body),
         )
+        if isinstance(result, Clash | Refused):
+            raise conflict(result)
         if isinstance(result, workout_log.Stale):
             raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
         return LoggedView(

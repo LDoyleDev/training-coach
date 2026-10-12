@@ -9,7 +9,7 @@ A swap queues sessions ahead of the cycle: when the pointer moves it takes the f
 session, and the cycle resumes once the queue is empty.
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
@@ -67,6 +67,42 @@ def caught_up(order: Sequence[int], template_id: int) -> Position:
     (#104, ADR-0033): the session after it, with any swap dropped. Catching up in date order
     leaves the queue after the last session actually done, whatever order they came in."""
     return Position(next_in_cycle(order, template_id))
+
+
+@dataclass(frozen=True)
+class DoneOn:
+    """A planned session done or rested on a day; ``workout_id`` orders two on one day."""
+
+    day: date
+    template_id: int
+    workout_id: int
+
+
+def latest(done: Iterable[DoneOn]) -> DoneOn | None:
+    """The planned session done last by date, the later-logged one first on the same day."""
+    return max(done, key=lambda d: (d.day, d.workout_id), default=None)
+
+
+def resettled(
+    order: Sequence[int], position: Position, before: DoneOn | None, after: DoneOn | None
+) -> Position:
+    """The position after a log replaced or moved a day's session (ADR-0060), given the
+    latest planned session done before and after the change.
+
+    It is ADR-0033's rule applied to the result: when the latest session changed, the queue
+    catches up to the session after the new latest one, with any swap dropped, as if the days
+    had been logged in date order. When the change left the latest one alone, an older day
+    changed and that adds history only. When no planned session is left at all, the one that
+    was latest is next again, as it no longer counts as done. A session no longer in the plan
+    leaves the position alone."""
+    if before == after:
+        return position
+    if after is None:
+        assert before is not None  # noqa: S101 - they differ, so one of them is set
+        return Position(before.template_id) if before.template_id in order else position
+    if after.template_id not in order:
+        return position
+    return caught_up(order, after.template_id)
 
 
 def swap_with_next(order: Sequence[int], position: Position) -> Position:
