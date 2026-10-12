@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 import time_machine
-from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
+from tests.routes import api_routes
 from training_coach.api.app import create_app
 from training_coach.api.auth import COOKIE, owner
 from training_coach.api.mcp import connection
@@ -86,15 +86,15 @@ def test_every_route_is_public_or_owner_only(engine: Engine) -> None:
     ``owner`` (a session cookie), or behind ``connection`` (an AI app's bearer token, ADR-0047
     C), never both. Pages of the web app (no schema) only serve the static index."""
     app = create_app(Settings(environment="test", database_url=str(engine.url)))
-    for route in app.routes:
-        if not isinstance(route, APIRoute) or not route.include_in_schema:
-            continue
+    routes = [(path, route) for path, route in api_routes(app) if route.include_in_schema]
+    assert len(routes) > 50  # the routers' routes, not just the app's own
+    for path, route in routes:
         calls = {dep.call for dep in route.dependant.dependencies}
         guarded = owner in calls or connection in calls
-        assert route.path in PUBLIC or guarded, f"{route.path} declares no access"
-        assert not (route.path in PUBLIC and guarded), f"{route.path} is listed as public"
-        assert not (owner in calls and connection in calls), f"{route.path} takes both"
-        assert (connection in calls) == (route.path == "/mcp"), route.path
+        assert path in PUBLIC or guarded, f"{path} declares no access"
+        assert not (path in PUBLIC and guarded), f"{path} is listed as public"
+        assert not (owner in calls and connection in calls), f"{path} takes both"
+        assert (connection in calls) == (path == "/mcp"), path
 
 
 def test_the_signin_page_serves_the_web_app(engine: Engine, tmp_path: Path) -> None:

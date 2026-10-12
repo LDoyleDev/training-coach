@@ -69,7 +69,9 @@ def remove_passkey(
         removed = passkeys.remove(session, key_id, datetime.now(UTC), current)
     if not removed:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such passkey")
-    alert(request, background, "passkey_removed", "A passkey was removed from Training Coach.")
+    alert(
+        request, background, user, "passkey_removed", "A passkey was removed from Training Coach."
+    )
 
 
 @router.delete("/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -80,7 +82,9 @@ def sign_out_device(
         ended = auth.end_device(session, device_id, datetime.now(UTC))
     if not ended:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such signed-in device")
-    alert(request, background, "device_signed_out", "A device was signed out of Training Coach.")
+    alert(
+        request, background, user, "device_signed_out", "A device was signed out of Training Coach."
+    )
 
 
 @router.get(
@@ -98,6 +102,7 @@ def export(request: Request, background: BackgroundTasks, user: Owner, _fresh: F
     alert(
         request,
         background,
+        user,
         "data_exported",
         "All your Training Coach data was downloaded. Not you? Sign that device out on the "
         "Account page, or send /recover.",
@@ -163,6 +168,7 @@ def erase_my_data(
     alert(
         request,
         background,
+        user,
         "data_erased",
         "All your Training Coach data was erased. Backups age out within 5 weeks.",
     )

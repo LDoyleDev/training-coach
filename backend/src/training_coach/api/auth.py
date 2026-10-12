@@ -81,6 +81,7 @@ def redeem(body: Redeem, request: Request, response: Response, background: Backg
         alert(
             request,
             background,
+            redeemed.user_id,
             "recovered",
             f"Recovery sign-in to Training Coach on {device(request)}. Every other device was "
             "signed out and every passkey removed. If this wasn't you, send /recover yourself "
@@ -90,6 +91,7 @@ def redeem(body: Redeem, request: Request, response: Response, background: Backg
         alert(
             request,
             background,
+            redeemed.user_id,
             "link_sign_in",
             f"New sign-in to Training Coach with a link from the bot, on {device(request)}. "
             "Not you? Sign it out on the Account page.",

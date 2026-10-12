@@ -17,6 +17,7 @@ from telegram import Bot
 from training_coach import __version__
 from training_coach.api.account import router as account_router
 from training_coach.api.ai import router as ai_router
+from training_coach.api.alerts import Send
 from training_coach.api.auth import router as auth_router
 from training_coach.api.band import router as band_router
 from training_coach.api.body import router as body_router
@@ -63,6 +64,17 @@ class Health(BaseModel):
     bot_enabled: bool
 
 
+def _sender(telegram: Bot | None) -> Send | None:
+    """Messages to a person's own chat: the alerts about their sign-ins (ADR-0040)."""
+    if telegram is None:
+        return None
+
+    async def send(chat: int, text: str) -> bool:
+        return await send_with_retry(telegram, chat, text)
+
+    return send
+
+
 def _owner_notifier(settings: Settings, telegram: Bot | None) -> backup.Notify | None:
     """A failed backup is worth a message, to the owner only (ADR-0009)."""
     owner = settings.telegram_allowed_user_id
@@ -75,12 +87,15 @@ def _owner_notifier(settings: Settings, telegram: Bot | None) -> backup.Notify |
     return notify
 
 
-def _on_loop(reschedule: Callable[[Prefs], None]) -> Reschedule:
+def _on_loop(reschedule: Callable[[Prefs], None], jobs_for: int) -> Reschedule:
     """The settings page moves the bot's jobs on the bot's own event loop: sync routes run in
-    worker threads, and the job queue isn't thread-safe."""
+    worker threads, and the job queue isn't thread-safe. The bot's jobs are ``jobs_for``'s
+    (the owner's) until each person has their own, so anyone else's change moves nothing."""
     loop = asyncio.get_running_loop()
 
-    def call(prefs: Prefs) -> None:
+    def call(user: int, prefs: Prefs) -> None:
+        if user != jobs_for:
+            return
         loop.call_soon_threadsafe(reschedule, prefs)
 
     return call
@@ -153,6 +168,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         bot = None
+        owner = users.OWNER  # whose jobs the bot runs (set again by link_owner)
         if settings.bot_enabled:
             # bot_enabled means the token and the allowed account are both set.
             allowed = settings.telegram_allowed_user_id
@@ -170,11 +186,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             log.info("bot.started")
         else:
             log.warning("bot.disabled", reason="telegram token or allowed user id not set")
-        app.state.reschedule = _on_loop(bot.bot_data[RESCHEDULE]) if bot is not None else None
+        app.state.reschedule = (
+            _on_loop(bot.bot_data[RESCHEDULE], owner) if bot is not None else None
+        )
+        app.state.send = _sender(bot.bot if bot else None)  # sign-in alerts (ADR-0040)
         # Proposals from a connected AI go to Telegram as they come (ADR-0058).
         app.state.announce_proposals = bot.bot_data[ANNOUNCE] if bot is not None else None
         notify = _owner_notifier(settings, bot.bot if bot else None)
-        app.state.notify = notify  # sign-in alerts (ADR-0040)
+        app.state.notify = notify  # ops: a failed backup
         nightly = _start_backups(settings, notify)
         try:
             yield
