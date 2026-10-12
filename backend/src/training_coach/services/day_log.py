@@ -10,14 +10,14 @@ save (same token) changes nothing. The caller owns the transaction.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import SessionTemplate
-from training_coach.domain.dates import MAX_DAYS_BACK, day_problem
+from training_coach.domain.dates import day_problem
 from training_coach.domain.enums import CardioActivity
 from training_coach.services import blocks, cardio, guided, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
@@ -35,11 +35,6 @@ class Choice:
     template_id: int
     name: str
     kind: str  # strength | conditioning | recovery
-
-
-def days(today: date) -> list[date]:
-    """The days a log can be for, today first."""
-    return [today - timedelta(days=n) for n in range(MAX_DAYS_BACK + 1)]
 
 
 def choices(session: Session) -> list[Choice]:

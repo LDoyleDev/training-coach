@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.auth import Owner
-from training_coach.api.clash import CLASH, Answer, conflict, resolution
+from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.daily_check import summary as daily_summary
@@ -146,7 +146,7 @@ class KeepBody(BaseModel):
     sets: list[DoneView] = Field(default_factory=list, max_length=200)
 
 
-class SaveBody(Answer):
+class SaveBody(ClashReply):
     day: date | None = None  # empty: today; an earlier day saves one left unsaved
 
 

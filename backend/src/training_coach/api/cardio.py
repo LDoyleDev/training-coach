@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from training_coach.api.auth import Owner
-from training_coach.api.clash import CLASH, Answer, conflict, resolution
+from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import CardioActivity
 from training_coach.domain.queue import local_date
@@ -40,7 +40,7 @@ class OptionsView(BaseModel):
     week: WeekView
 
 
-class LogBody(Answer):
+class LogBody(ClashReply):
     token: str = Field(pattern="^[0-9a-f]{32}$")  # one per log: a repeated save changes nothing
     kind: Kind
     value: int = Field(ge=1, le=cardio.MAX_MINUTES)  # minutes, or rounds for HIIT

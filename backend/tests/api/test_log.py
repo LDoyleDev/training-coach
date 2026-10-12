@@ -91,10 +91,8 @@ def _rest(client: TestClient, day: date, n: int, **more: Any) -> Any:
     return client.post("/api/log", json=body)
 
 
-def test_the_options_are_two_weeks_of_days_and_every_session(signed_in: TestClient) -> None:
+def test_the_options_are_every_session_and_activity(signed_in: TestClient) -> None:
     body = signed_in.get("/api/log").json()
-    assert body["days"][0] == TODAY.isoformat()
-    assert body["days"][-1] == _ago(14).isoformat()
     assert [s["name"] for s in body["sessions"]][:2] == ["Legs", "Recovery + posture"]
     assert "walk" in body["activities"]
 
