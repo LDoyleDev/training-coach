@@ -63,10 +63,10 @@ def test_every_command_is_restricted_to_owner(application: Application) -> None:
         assert filters.ChatType.PRIVATE in parts
     # Button presses can't carry a filter and typed text combines filters; test_buttons.py,
     # test_settings.py, test_logging_flow.py, test_progress.py, test_habits.py,
-    # test_stretching.py, test_undo.py, test_daily_check.py and test_band.py prove strangers
-    # are ignored by behaviour instead.
+    # test_stretching.py, test_undo.py, test_daily_check.py, test_band.py and
+    # test_proposals.py prove strangers are ignored by behaviour instead.
     others = [type(h) for h in handlers if not isinstance(h, CommandHandler)]
-    assert others == [CallbackQueryHandler] * 9 + [MessageHandler] * 2
+    assert others == [CallbackQueryHandler] * 10 + [MessageHandler] * 2
 
 
 async def _replies(application: Application, text: str, sender: int) -> list[str]:  # type: ignore[type-arg]

@@ -158,7 +158,9 @@ def _reason(error: ValidationError) -> str:
     found = error.errors(include_url=False, include_input=False, include_context=False)
     parts = []
     for item in found[:REASONS]:
-        where = ".".join(str(p) for p in item["loc"] if p not in (STRENGTH, CARDIO, HABITS, BODY))
+        loc = item["loc"]
+        loc = loc[1:] if loc[:1] in ((STRENGTH,), (CARDIO,), (HABITS,), (BODY,)) else loc
+        where = ".".join(str(p) for p in loc)  # without the kind pydantic puts first
         parts.append(f"{where}: {item['msg']}" if where else str(item["msg"]))
     return "; ".join(parts)
 

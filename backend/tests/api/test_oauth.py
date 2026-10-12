@@ -269,7 +269,7 @@ def test_a_hostile_name_is_escaped_on_the_error_page(client: TestClient) -> None
         ({"code_challenge": "too-short"}, "invalid_request"),
         ({"resource": None}, "invalid_target"),
         ({"resource": "https://other.example/mcp"}, "invalid_target"),
-        ({"scope": "training:read log:propose"}, "invalid_scope"),
+        ({"scope": "training:read log:write"}, "invalid_scope"),
         ({"response_type": "token"}, "unsupported_response_type"),
     ],
 )
@@ -308,19 +308,12 @@ def test_the_consent_page_names_the_app_as_a_claim_and_where_it_goes(client: Tes
         "redirect_uri": CALLBACK,
         "redirect_host": "claude.ai",
         "scopes": [
-            {
-                "scope": "training:read",
-                "label": details.json()["scopes"][0]["label"],
-                "health": False,
-            },
-            {"scope": "body:read", "label": details.json()["scopes"][1]["label"], "health": True},
-            {
-                "scope": "readiness:read",
-                "label": details.json()["scopes"][2]["label"],
-                "health": True,
-            },
+            {"scope": s, "label": details.json()["scopes"][n]["label"], "opt_in": n > 0}
+            for n, s in enumerate(ALL)
         ],
     }
+    # ADR-0058: proposing logs starts unticked like health data, and says nothing saves alone.
+    assert "Nothing is saved until you tap Save" in details.json()["scopes"][3]["label"]
     gone = client.post("/api/connect/details", json={"handle": "x" * 43})
     assert gone.status_code == 404
 
@@ -336,7 +329,7 @@ def test_approving_sends_the_code_state_and_issuer_back(proved: TestClient) -> N
     assert (sent["state"], sent["iss"]) == ("st-1", ORIGIN)
 
 
-def test_health_scopes_are_granted_only_when_ticked(proved: TestClient) -> None:
+def test_opt_in_scopes_are_granted_only_when_ticked(proved: TestClient) -> None:
     app = flow.client_id(proved)
     approved = flow.approve(proved, flow.handle(proved, app), app, ["training:read"])
     code = flow.query(approved.json()["redirect"])["code"]
