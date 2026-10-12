@@ -125,6 +125,17 @@ def test_a_new_secret_starts_the_clock_again(engine: Engine) -> None:
     assert _watch(engine, timedelta(days=3, hours=1)) is Notice.QUIET
 
 
+def test_a_secret_made_while_the_alert_was_sent_keeps_its_clock(engine: Engine) -> None:
+    _make(engine)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        assert ingest_keys.watch(mine, NOW + timedelta(hours=25)) is Notice.QUIET
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        ingest_keys.make(mine, NOW + timedelta(hours=25, seconds=1))
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        ingest_keys.told(mine, Notice.QUIET, NOW + timedelta(hours=25))
+    assert _watch(engine, timedelta(hours=50)) is Notice.QUIET
+
+
 def test_a_sync_after_the_secret_was_removed_is_ignored(engine: Engine) -> None:
     _received(engine, timedelta(0))  # no row: nothing to note, nothing fails
     assert _status(engine) == ingest_keys.Status(False, None, None, None)

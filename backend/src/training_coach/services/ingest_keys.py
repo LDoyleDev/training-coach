@@ -107,7 +107,8 @@ def watch(session: Session, now: datetime) -> Notice | None:
 
 
 def told(session: Session, notice: Notice, now: datetime) -> None:
-    """``notice`` reached the person: a gap is not told again until data flows again."""
+    """``notice`` reached the person: a gap is not told again until data flows again. A secret
+    made since ``now`` keeps its fresh clock."""
     row = session.scalar(select(IngestKey))
-    if row is not None:
+    if row is not None and row.created_at <= now:
         row.alerted_at = None if notice is Notice.BACK else now
