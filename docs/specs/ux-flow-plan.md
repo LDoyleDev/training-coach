@@ -87,6 +87,7 @@ only, and A4 later as the default with A1 as the fallback. After saving a cardio
 | C4 The weekly review on the web, with the AI comment under it (built: `/review`, linked from Home and Progress and from the bot's review, this week so far and earlier weeks, `/api/review` on the bot's review service. The AI comment is made once per review and sent on Telegram; it is kept 7 days (ADR-0056), so the page shows it under its week as plain text, without another call) | M |
 | C5 Habits on the web (built: "Habits today" on the session page, one tap ticks and another unticks, with what counts and days done this week; `/api/habits` on the bot's habit service, so a tick shows on both) | M |
 | C6 Settings on the web (built: "Messages and settings" on Account: message times, nudge and habit buttons on/off, protein target, training blocks, pace (ADR-0057), pause, with the bot's rules; a new time moves the bot's messages at once; `/api/settings`) | M |
+| C7 Log any day on the web (built: "Log another day" on the session page: a day back to two weeks, any session at that day's targets, an extra, cardio or an earlier rest day; a day that already has its session asks to replace, move or add first, here and when saving an earlier guided session, ADR-0060; `/api/log`) | M |
 
 Telegram would then be for what it does best: the morning nudge, quick voice and text logs,
 and alerts. The web app becomes the place you work in.

@@ -7,6 +7,8 @@ import {
   keepProgress,
   saveSession,
   SignedOutError,
+  type Answer,
+  type Clash,
   type Guided,
   type Pending,
   type Queued,
@@ -37,6 +39,8 @@ import HabitsCard from './Habits'
 import Undo from './Undo'
 import BandOffers from './BandOffers'
 import Proposals from './Proposals'
+import LogDay from './LogDay'
+import ClashQuestion from './ClashQuestion'
 import { card, primary, primaryInline, secondary } from '../ui'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
@@ -82,6 +86,13 @@ export default function SessionPage() {
   const [undoKey, setUndoKey] = useState(0)
   const [cardioSaved, setCardioSaved] = useState(false) // its own screen offers Undo then
   const [planned, setPlanned] = useState<Queued | null>(null) // still next, after a pick
+  // A save that found its day already has a session (ADR-0060): asked before anything saves.
+  // ``day`` is the earlier day being saved; empty for today's session.
+  const [question, setQuestion] = useState<{
+    clash: Clash
+    taken: Clash | null
+    day?: Pending
+  } | null>(null)
 
   const running = watchFrom !== null
   const resting = stage === 'rest'
@@ -215,6 +226,7 @@ export default function SessionPage() {
         {loaded.status === 'none' && bandOffers}
         {loaded.status === 'none' && undoBar}
         {loaded.status === 'none' && <Cardio featured={false} onChange={cardioChange} />}
+        {loaded.status === 'none' && <LogDay onSaved={counted} />}
         {loaded.status === 'none' && <HabitsCard />}
       </AppShell>
     )
@@ -306,18 +318,38 @@ export default function SessionPage() {
     setWatchFrom(null)
   }
 
-  const saveEarlier = async (day: Pending) => {
+  /** A save answered with a clash: ask, keeping the first question when only the day to move
+   * to was taken. True when there is a question to answer. */
+  const asked = (
+    result: Saved | 'stale' | { clash: Clash } | { problem: string },
+    day?: Pending,
+  ): result is { clash: Clash } => {
+    if (result === 'stale' || !('clash' in result)) return false
+    if (result.clash.moving && question) setQuestion({ ...question, taken: result.clash })
+    else setQuestion({ clash: result.clash, taken: null, day })
+    return true
+  }
+
+  const saveEarlier = async (day: Pending, answer?: Answer) => {
     if (saving.includes(day.day)) return
     setSaving((days) => [...days, day.day])
     setSignedOut(false) // a retry after signing in again
     try {
-      const result = await saveSession(day.day)
+      const result = await saveSession(day.day, answer)
+      if (asked(result, day)) return
+      if (result !== 'stale' && 'problem' in result) {
+        // Refused, with the reason: still offered, and any question stays to answer otherwise.
+        setNote(`${day.session} wasn't saved: ${result.problem}.`)
+        return
+      }
+      setQuestion(null)
       setNote(
         result === 'stale'
           ? `${day.session} couldn't be saved: that day changed.`
           : `Saved ${day.session} for ${day.day}.`,
       )
-      setPending((days) => days.filter((p) => p.day !== day.day)) // settled either way
+      if (result !== 'stale') refreshUndo()
+      setPending((days) => days.filter((p) => p.day !== day.day)) // settled: saved or stale
     } catch (error) {
       if (error instanceof SignedOutError) setSignedOut(true)
       else setNote("Couldn't save. Check your connection and try again.") // still offered
@@ -326,12 +358,18 @@ export default function SessionPage() {
     }
   }
 
-  const save = async () => {
+  const save = async (answer?: Answer) => {
     setNote(null)
     setSignedOut(false) // a retry after signing in again
     setBusy(true)
     try {
-      const result = await saveSession()
+      const result = await saveSession(undefined, answer)
+      if (asked(result)) return
+      if (result !== 'stale' && 'problem' in result) {
+        setNote(`Not saved: ${result.problem}.`) // the reason; any question stays to answer
+        return
+      }
+      setQuestion(null)
       if (result === 'stale') {
         setNote("Today's session changed (a rest, swap or another log), so this wasn't saved.")
         return
@@ -357,6 +395,15 @@ export default function SessionPage() {
           {readinessNote && <ReadinessNotice text={readinessNote} />}
           {testDay && <TestDayNotice due={testDay} />}
           {bandOffers}
+          {question?.day && (
+            <ClashQuestion
+              clash={question.clash}
+              taken={question.taken}
+              busy={saving.length > 0}
+              onAnswer={(answer) => question.day && saveEarlier(question.day, answer)}
+              onCancel={() => setQuestion(null)}
+            />
+          )}
           {pending.map((day) => (
             <p key={day.day} className={card}>
               {day.session} on {day.day} wasn't saved ({day.sets} sets).{' '}
@@ -391,6 +438,7 @@ export default function SessionPage() {
           )}
           {undoBar}
           {!isCardio(session) && <Cardio featured={false} onChange={cardioChange} />}
+          <LogDay onSaved={counted} />
           <HabitsCard />
         </>
       )}
@@ -552,11 +600,20 @@ export default function SessionPage() {
               </li>
             ))}
           </ul>
+          {question && !question.day && (
+            <ClashQuestion
+              clash={question.clash}
+              taken={question.taken}
+              busy={busy}
+              onAnswer={save}
+              onCancel={() => setQuestion(null)}
+            />
+          )}
           <div className="flex gap-3">
             <button type="button" className={secondary} onClick={() => goTo('set', total - 1)}>
               Back
             </button>
-            <button type="button" className={primary} disabled={busy} onClick={save}>
+            <button type="button" className={primary} disabled={busy} onClick={() => save()}>
               Save session
             </button>
           </div>
