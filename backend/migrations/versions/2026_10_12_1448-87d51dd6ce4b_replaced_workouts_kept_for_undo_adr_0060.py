@@ -1,8 +1,8 @@
 """replaced workouts kept for undo (ADR-0060)
 
-Revision ID: 59aab94a38ed
+Revision ID: 87d51dd6ce4b
 Revises: ed8dcbead366
-Create Date: 2026-10-12 14:35:58.781907
+Create Date: 2026-10-12 14:48:49.187093
 
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "59aab94a38ed"
+revision: str = "87d51dd6ce4b"
 down_revision: str | Sequence[str] | None = "ed8dcbead366"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -24,7 +24,6 @@ def upgrade() -> None:
         "replaced_workouts",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
-        sa.Column("workout_id", sa.Integer(), nullable=False),
         sa.Column("local_date", sa.Date(), nullable=False),
         sa.Column("data", sa.JSON(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),

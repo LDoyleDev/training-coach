@@ -152,7 +152,7 @@ def recorded(session: Session, day: date, *, moving: bool = False) -> Clash | No
     )
     if not workouts:
         return None
-    names = dict(session.execute(select(SessionTemplate.id, SessionTemplate.name)).tuples())
+    names = dict(session.execute(select(SessionTemplate.id, SessionTemplate.name)).all())
     kinds = {e.id: (e.name, ExerciseKind(e.kind)) for e in session.scalars(select(Exercise))}
     found = tuple(
         Recorded(
@@ -224,7 +224,6 @@ def _set_aside(session: Session, workout: Workout) -> int:
         select(ImportedWorkout.id).where(ImportedWorkout.workout_id == workout.id)
     )
     kept = ReplacedWorkout(
-        workout_id=workout.id,
         local_date=workout.local_date,
         data={
             "template_id": workout.template_id,
@@ -250,25 +249,29 @@ def _set_aside(session: Session, workout: Workout) -> int:
 # ---------------------------------------------------------------------- for /undo
 
 
+def _exists(session: Session, where: Any) -> bool:
+    """Asked of the database: a workout deleted in this transaction is still in the session."""
+    return session.scalar(select(Workout.id).where(where).limit(1)) is not None
+
+
 def can_put_back(session: Session, undo: dict[str, Any]) -> bool:
     """Whether what a log replaced or moved can still be put back as it was."""
     for kept_id in undo.get("removed", []):
         kept = session.get(ReplacedWorkout, kept_id)
-        if kept is None or session.get(Workout, kept.workout_id) is not None:
+        if kept is None:
             return False
         token = kept.data["log_token"]
-        if token is not None and session.scalar(
-            select(Workout.id).where(Workout.log_token == token)
-        ):
+        if token is not None and _exists(session, Workout.log_token == token):
             return False
         steps = {(e, s) for e, s, *_ in kept.data["sets"]}
-        found = set(
-            session.execute(
+        found = {
+            (e, s)
+            for e, s in session.execute(
                 select(LadderStep.exercise_id, LadderStep.id).where(
                     LadderStep.id.in_({s for _, s in steps})
                 )
-            ).tuples()
-        )
+            )
+        }
         if not steps <= found:  # the plan changed since: a set's step is gone
             return False
     moved = undo.get("moved")
@@ -292,7 +295,6 @@ def put_back(session: Session, undo: dict[str, Any]) -> None:
         kept = session.get_one(ReplacedWorkout, kept_id)
         data = kept.data
         workout = Workout(
-            id=kept.workout_id,
             local_date=kept.local_date,
             template_id=data["template_id"],
             status=data["status"],

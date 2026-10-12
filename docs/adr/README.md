@@ -37,7 +37,7 @@ Code). Template: [template.md](template.md).
 | [0030](0030-deploy-releases-from-a-timer.md) | The Pi deploys new releases itself, from a timer | Accepted |
 | [0031](0031-exercise-pairs-and-work-order.md) | Resistance sessions are done in fixed pairs, listed set by set | Accepted |
 | [0032](0032-stretching-after-resistance.md) | Stretching after a resistance session is chosen for the muscles worked | Accepted |
-| [0033](0033-logging-a-past-day.md) | A past day is logged with a date line, and catching up moves the queue | Accepted |
+| [0033](0033-logging-a-past-day.md) | A past day is logged with a date line, and catching up moves the queue | Accepted; extended by 0060 |
 | [0034](0034-plan-changes-keep-history-per-exercise.md) | Plan changes keep history per exercise | Accepted |
 | [0035](0035-web-app-first-telegram-for-reminders.md) | The web app is the main surface; Telegram is for reminders | Accepted |
 | [0036](0036-sign-in-with-passkeys-and-a-telegram-link.md) | Sign in with passkeys, started and recovered with a Telegram link | Accepted |
@@ -64,3 +64,4 @@ Code). Template: [template.md](template.md).
 | [0057](0057-pace-setting.md) | A pace setting for how big a step the targets take | Accepted |
 | [0058](0058-ai-proposes-logs-you-confirm.md) | A connected AI proposes logs; you save or discard them | Accepted |
 | [0059](0059-invites-and-members.md) | Invite-only members, behind a switch that is off by default | Accepted |
+| [0060](0060-log-any-day-and-ask-before-overwriting.md) | Log any day, any session, and ask before a day gets two | Accepted |
