@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 from httpx import Response
 from sqlalchemy import Engine
 
+from tests.alerts import capture
 from tests.passkey_device import Device
 from training_coach.api.app import create_app
 from training_coach.config import Settings
@@ -43,13 +44,7 @@ def app_client(engine: Engine) -> Iterator[TestClient]:
 
 
 def alerts(client: TestClient) -> list[str]:
-    sent: list[str] = []
-
-    async def notify(text: str) -> None:
-        sent.append(text)
-
-    client.app.state.notify = notify  # type: ignore[attr-defined]  # a FastAPI app
-    return sent
+    return capture(client)
 
 
 def register(client: TestClient, address: str = ADDRESS, **metadata: Any) -> Response:

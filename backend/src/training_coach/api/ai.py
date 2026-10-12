@@ -92,7 +92,7 @@ async def store_key(
     await _check(key)
     with session_scope(_bound(request, user)) as session:
         ai_key.store(session, box, key)
-    alert(request, background, "ai_key_stored", "An AI key was added to Training Coach.")
+    alert(request, background, user, "ai_key_stored", "An AI key was added to Training Coach.")
     return _view(request, user)
 
 
@@ -103,7 +103,9 @@ def remove_key(request: Request, background: BackgroundTasks, user: Owner) -> No
     with session_scope(_bound(request, user)) as session:
         if not ai_key.remove(session):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "no AI key stored")
-    alert(request, background, "ai_key_removed", "Your AI key was removed from Training Coach.")
+    alert(
+        request, background, user, "ai_key_removed", "Your AI key was removed from Training Coach."
+    )
 
 
 @router.put("", response_model=AiView)

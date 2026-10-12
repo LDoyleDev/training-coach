@@ -34,6 +34,13 @@ def link_owner(session: Session, telegram_user_id: int) -> int:
     return owner.id
 
 
+def telegram_chat(session: Session, user_id: int) -> int | None:
+    """The private chat to message ``user_id`` in, or None if they have no Telegram linked.
+    Any session may ask: users aren't per-person rows."""
+    user = session.get(User, user_id)
+    return user.telegram_user_id if user is not None else None
+
+
 def plan_state(session: Session) -> PlanState | None:
     return session.scalar(select(PlanState))
 

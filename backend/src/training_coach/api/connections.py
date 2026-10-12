@@ -46,6 +46,7 @@ def revoke_connection(
     alert(
         request,
         background,
+        user,
         "mcp_revoked",
         "An AI app's connection to Training Coach was revoked. It can't read anything now.",
     )

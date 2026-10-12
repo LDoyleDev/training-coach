@@ -9,6 +9,7 @@ import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 
+from tests.alerts import capture
 from tests.api.test_passkeys import ORIGIN, RP_ID, _options, _passkeys, _register, _sign_in
 from tests.passkey_device import Device
 from training_coach.api.app import create_app
@@ -20,22 +21,17 @@ from training_coach.services.users import OWNER
 
 
 @pytest.fixture
-def sent() -> list[str]:
-    return []
-
-
-@pytest.fixture
-def client(engine: Engine, sent: list[str]) -> Iterator[TestClient]:
+def client(engine: Engine) -> Iterator[TestClient]:
     settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
     with TestClient(
         create_app(settings), base_url=ORIGIN, client=("172.17.0.1", 50000)
     ) as test_client:
-
-        async def notify(text: str) -> None:
-            sent.append(text)
-
-        test_client.app.state.notify = notify  # type: ignore[attr-defined]  # a FastAPI app
         yield test_client
+
+
+@pytest.fixture
+def sent(client: TestClient) -> list[str]:
+    return capture(client)
 
 
 def _link(engine: Engine, purpose: str = auth.START) -> str:
@@ -130,7 +126,7 @@ def test_signing_out_a_device_alerts(client: TestClient, engine: Engine, sent: l
 def test_without_the_bot_alerts_are_only_logged(engine: Engine) -> None:
     settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
     with TestClient(create_app(settings), base_url=ORIGIN) as quiet:
-        assert quiet.app.state.notify is None  # type: ignore[attr-defined]  # a FastAPI app
+        assert quiet.app.state.send is None  # type: ignore[attr-defined]  # a FastAPI app
         assert _redeem(quiet, _link(engine)) == 204
 
 

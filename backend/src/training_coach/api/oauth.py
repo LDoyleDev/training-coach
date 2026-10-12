@@ -267,10 +267,11 @@ async def token(request: Request, background: BackgroundTasks) -> JSONResponse:
         else:
             return _token_error("unsupported_grant_type")
     if isinstance(result, Refused):
-        if result.revoked:
+        if result.revoked and result.user_id is not None:
             alert(
                 request,
                 background,
+                result.user_id,
                 "mcp_token_reused",
                 "A connected AI app's sign-in was used twice, so its connection to Training "
                 "Coach was ended. If you still use it, connect it again; if not, someone may "
@@ -374,6 +375,7 @@ def consent_approve(
     alert(
         request,
         background,
+        user,
         "mcp_connected",
         f'An AI app was connected to Training Coach. It calls itself "{result.client_name}" '
         f"and sends you back to {result.redirect_host}. It may read: "

@@ -135,6 +135,7 @@ def register(
     alert(
         request,
         background,
+        user,
         "passkey_added",
         f"A passkey was added to Training Coach on {device(request)}. Not you? Remove it on "
         "the Account page, or send /recover.",
@@ -162,18 +163,19 @@ def sign_in(
     party, handle = _party(request), _handle(request)
     label = request.headers.get("user-agent", "")
     with session_scope(_shared(request)) as session:
-        cookie = passkeys.sign_in(
+        signed = passkeys.sign_in(
             session, party, handle, answer.credential, datetime.now(UTC), label
         )
-    if cookie is None:
+    if signed is None:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, "that passkey wasn't accepted", headers=_cleared()
         )
     response.headers.update(_cleared())
-    set_session_cookie(response, cookie)
+    set_session_cookie(response, signed.cookie)
     alert(
         request,
         background,
+        signed.user_id,
         "passkey_sign_in",
         f"New sign-in to Training Coach with your passkey, on {device(request)}.",
     )

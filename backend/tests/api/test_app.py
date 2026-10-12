@@ -12,12 +12,14 @@ from training_coach.api.app import (
     _on_loop,
     _owner_notifier,
     _report_death,
+    _sender,
     _start_backups,
     create_app,
 )
 from training_coach.api.security import SECURITY_HEADERS
 from training_coach.config import Settings
 from training_coach.services.user_settings import Prefs
+from training_coach.services.users import OWNER
 
 
 def test_healthz_reports_ok(client: TestClient) -> None:
@@ -121,7 +123,34 @@ async def test_a_dead_backup_loop_is_reported() -> None:
 
 async def test_settings_from_a_worker_thread_reach_the_bot_on_its_loop() -> None:
     seen: list[tuple[Prefs, asyncio.AbstractEventLoop]] = []
-    call = _on_loop(lambda prefs: seen.append((prefs, asyncio.get_running_loop())))
-    await asyncio.to_thread(call, Prefs(paused=True))  # as a sync route would
+    call = _on_loop(lambda prefs: seen.append((prefs, asyncio.get_running_loop())), OWNER)
+    await asyncio.to_thread(call, OWNER, Prefs(paused=True))  # as a sync route would
     await asyncio.sleep(0)  # let the loop run the scheduled call
     assert seen == [(Prefs(paused=True), asyncio.get_running_loop())]
+
+
+async def test_only_the_owners_changes_move_the_bots_jobs() -> None:
+    """The bot's jobs are the owner's until each person has their own (multi-user plan step 9):
+    another person's new times never move them."""
+    seen: list[Prefs] = []
+    call = _on_loop(seen.append, OWNER)
+    call(OWNER + 1, Prefs(paused=True))
+    call(OWNER, Prefs(paused=False))
+    await asyncio.sleep(0)
+    assert seen == [Prefs(paused=False)]
+
+
+async def test_alerts_are_sent_to_the_chat_they_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    sent: list[tuple[object, int, str]] = []
+
+    async def fake_send(bot: object, chat_id: int, text: str) -> bool:
+        sent.append((bot, chat_id, text))
+        return True
+
+    monkeypatch.setattr(api_app, "send_with_retry", fake_send)
+    telegram = object()
+    send = _sender(telegram)  # type: ignore[arg-type]  # a stand-in bot
+    assert send is not None
+    await send(777, "New sign-in")
+    assert sent == [(telegram, 777, "New sign-in")]
+    assert _sender(None) is None  # no bot
