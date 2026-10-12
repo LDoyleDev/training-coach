@@ -88,9 +88,6 @@ options they choose between are below.
 | `api/app.py` lifespan, `users.link_owner` | The bot gets **one** sessionmaker bound to the owner at start-up; every handler class holds it | A session bound per update, to whoever sent it |
 | `bot/app.py::schedule_jobs` | One `morning`, `nudge` and `weekly-review` job, from the owner's settings, sent to `telegram_allowed_user_id` | Jobs per person, sent to that person's chat |
 | `bot/band.py::announce` | Band workouts are offered to the owner's chat only | Loop over people with Telegram linked |
-| `api/settings.py:123` | Changing message times on the web moves the bot's jobs, which are the owner's, **whoever changed them**. Harmless while only the owner can sign in | Move only that person's jobs |
-| `api/alerts.py`, `api/app.py::_owner_notifier` | Sign-in, passkey, export and erase alerts go to the owner's Telegram, whoever did it | Alerts go to the person they're about (or nowhere if they have no Telegram); only ops alerts go to the owner |
-| `bot/logging_flow.py:113` | Drafts are one in-memory dict, capped at 10, shared by everyone | Drafts keyed and capped per person, and a draft only saved by its own author |
 | `services/erase.py` | Erase means a fresh start under the same id and Telegram link (ADR-0044) | Members can also leave: delete without recreating (ADR-0044 expects a successor) |
 | `services/users.py::link_owner` | Moves the owner to whatever Telegram id is configured; a member holding that id would make start-up fail on the unique constraint (ADR-0029 says the invites ADR must settle it) | Bootstrap only; never take a member's link |
 | `seed/plan.toml`, `session_templates.position` and `.slug` unique | One plan for everyone; each person has their own place in it and their own ladder steps | See D |
@@ -98,6 +95,10 @@ options they choose between are below.
 | `config.py::groq_api_key` | The app's Groq key transcribes and reads logs for whoever uses the bot; no per-person cap | A per-person daily cap |
 | `services/backup.py`, `scripts/offsite-backup.sh` | One database, everyone in it | Restoring brings back people who left (see J) |
 | `__main__.py::notify`, the heartbeat, deploy alerts | Ops messages go to the owner | Unchanged: the owner runs the Pi |
+
+Fixed in step 3 (#236): alerts go to the person they are about, and only ops alerts go to the
+owner; changing message times on the web moves the bot's jobs only when the owner changes them
+(jobs per person come with step 9); Telegram drafts are kept and capped per sender.
 
 ### How sign-in works now (ADR-0036, ADR-0040)
 
@@ -338,12 +339,13 @@ guards, cheapest first:
 
 ## Suggested order (small PRs, all behind `TC_MULTI_USER` off)
 
-1. **ADR** for invites and members (supersedes ADR-0009's single allowed user; settles
-   ADR-0029's relink point), and threat-model rows for invites, linking and admin.
-2. **Guards first:** the cross-user allowlist test and the two-person canary test (L1, L2).
-   Tests only.
-3. **Fix the owner leaks** that don't need a second person to fix: alerts to the person they're
-   about, settings moving only that person's jobs, drafts per person.
+1. **Done (#233, ADR-0059).** **ADR** for invites and members (supersedes ADR-0009's single
+   allowed user; settles ADR-0029's relink point), and threat-model rows for invites, linking
+   and admin.
+2. **Done (#235).** **Guards first:** the cross-user allowlist test and the two-person canary
+   test (L1, L2). Tests only.
+3. **Done (#236).** **Fix the owner leaks** that don't need a second person to fix: alerts to
+   the person they're about, settings moving only that person's jobs, drafts per person.
 4. `users.role` and `label`, `TC_MULTI_USER` and `TC_MAX_MEMBERS`, the `Admin` dependency and
    the route test's fourth kind.
 5. **Invites:** table, make and revoke on Account ("People"), `/join` with notice, adult check
