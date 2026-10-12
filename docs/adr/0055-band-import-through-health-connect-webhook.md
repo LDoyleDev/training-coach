@@ -179,6 +179,16 @@ and erasing everything removes them by the `user_id` cascade.
 - Health data is personal (GDPR Art. 9): never logged, never on the `/share` picture, in the
   export, erased with everything; the privacy notice draft lists it.
 - If the app ever sends record ids in JSON, they become the identity instead of source + start.
+- **Band data stopping is told on Telegram** (approved 2026-10-12). Every stored sync is noted
+  on the person's `ingest_keys` row (`last_used_at`; a refused sync is not), and so is the last
+  sync that took at least one record (`last_taken_at`), each at most hourly on its own clock.
+  An hourly job tells the person once per gap: "no band data for a day" when no sync got
+  through for 24 hours, or "syncing, but nothing new" when syncs get through but none took a
+  record for 24 hours; then "arriving again" once records follow. `alerted_at` holds the gap
+  told. A new secret starts the clock again; no secret, no alerts. Messages go 08:00-21:00
+  local time only and not while paused, and carry no health values. Account shows "Last data
+  arrived" from `last_taken_at`. What each message means and what to do:
+  `docs/runbooks/band-import.md`.
 - Built as four PRs: ingest and schema; zones; count it; display and runbook.
 
 [mcnaveen/health-connect-webhook]: https://github.com/mcnaveen/health-connect-webhook

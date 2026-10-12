@@ -76,9 +76,29 @@ The app reads the last 48 hours on every sync and sends only what is new since i
 sync; a failed sync is sent again next time. If the phone was off for longer than 48 hours,
 older data doesn't come across.
 
+## When the coach says band data stopped
+
+The coach checks every hour and tells you once per gap, in Telegram, between 08:00 and 21:00
+(not while paused). The rules are in ADR-0055, Consequences.
+
+- **"No band data has arrived for a day."** No sync has reached the coach for 24 hours: the
+  phone, HC Webhook or the address. Open Mi Fitness and sync the band, then in HC Webhook tap
+  **Sync Now** and read **Webhook Log** (step 6 above lists what 401, 413 and 429 mean). No
+  entries at all: HC Webhook isn't running, so check its battery setting (step 3.4). Still
+  failing: make a new secret on **Account** > **Band import** and enter it again (step 5).
+- **"HC Webhook is syncing, but nothing new has come from the band for a day."** The syncs
+  arrive (log entries are 200) but carry no records: the band isn't reaching Health Connect.
+  Open Mi Fitness and sync the band; check that Mi Fitness still shares with Health Connect
+  (step 2) and that Health Connect still lets HC Webhook read (step 3.2). Taking the band off
+  for a day causes this too.
+- **"Band data is arriving again."** Records came in after one of those; nothing to do.
+
+**Account** > **Band import** shows when data last arrived and, if later, the last sync.
+
 ## Stopping or moving phones
 
-- Stop: **Account** > **Band import** > **Stop band import**. The phone's next sync gets 401.
+- Stop: **Account** > **Band import** > **Stop band import**. The phone's next sync gets 401,
+  and the coach stops checking for gaps.
 - New phone: repeat steps 1-5 there, then **Make a new secret** so the old phone can't send.
 - Remove data already imported: there is no per-type delete yet; **Account** > erase removes
   everything (ADR-0044).

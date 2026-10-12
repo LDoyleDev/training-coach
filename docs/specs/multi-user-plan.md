@@ -354,7 +354,8 @@ guards, cheapest first:
 7. **Leave, remove a member, admin recovery link** (ADR succeeding ADR-0044) and the restore
    runbook step.
 8. **Telegram for members:** connect link, the members filter, a session per update.
-9. **Schedules per person** and band offers per person.
+9. **Schedules per person**, and band offers and band data alerts per person (the alert
+   state is already per person, on `ingest_keys`).
 10. **Groq cap per person.**
 11. **Legal before the first invite:** notice published in the app, DPIA written, then
     `TC_MULTI_USER` on. Members stay training-only until a lawyer has reviewed the notice,
