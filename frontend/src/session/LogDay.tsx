@@ -14,7 +14,7 @@ import {
 } from '../api'
 import SignedOutNotice from '../components/SignedOutNotice'
 import ClashQuestion from './ClashQuestion'
-import { dayText, stepOf, unitText } from './logic'
+import { dayText, recentDays, stepOf, unitText } from './logic'
 import { actions, card, primary, secondary } from '../ui'
 
 type Kind = CardioKind
@@ -61,9 +61,9 @@ export default function LogDay({ onSaved }: { onSaved: (text: string) => void })
   // with an answer), reuses it, so it saves once.
   const sent = useRef<{ token: string; log: string } | null>(null)
 
-  const today = options?.days[0]
-  const label = (d: string) =>
-    d === today ? 'today' : d === options?.days[1] ? 'yesterday' : dayText(d)
+  const days = recentDays() // today back two weeks; the server checks the day again
+  const today = days[0]
+  const label = (d: string) => (d === today ? 'today' : d === days[1] ? 'yesterday' : dayText(d))
 
   const close = () => {
     setOpen(false)
@@ -240,9 +240,9 @@ export default function LogDay({ onSaved }: { onSaved: (text: string) => void })
           </h2>
           {options && (
             <div className={actions}>
-              {options.days.map((d) => (
+              {days.map((d) => (
                 <button key={d} type="button" className={chip(false)} onClick={() => setDay(d)}>
-                  {d === today ? 'Today' : d === options.days[1] ? 'Yesterday' : dayText(d)}
+                  {d === today ? 'Today' : d === days[1] ? 'Yesterday' : dayText(d)}
                 </button>
               ))}
             </div>

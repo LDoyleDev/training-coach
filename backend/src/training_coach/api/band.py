@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from training_coach.api.auth import Owner
 from training_coach.api.cardio import WeekView, week_view
-from training_coach.api.clash import CLASH, Answer, conflict, resolution
+from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import CardioActivity
@@ -50,7 +50,9 @@ def offers(request: Request, user: Owner) -> list[BandOfferView]:
 
 
 @router.post("/{import_id}/count", response_model=BandCounted, responses=CLASH)
-def count(import_id: int, request: Request, user: Owner, body: Answer | None = None) -> BandCounted:
+def count(
+    import_id: int, request: Request, user: Owner, body: ClashReply | None = None
+) -> BandCounted:
     """Count a band workout as cardio. 404 when it isn't on offer; 409 when today's session
     changed in a way that makes it stale (count it again), or with what is saved already when
     the day has its session (ADR-0060): count it again with the answer."""

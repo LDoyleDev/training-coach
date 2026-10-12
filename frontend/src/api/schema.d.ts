@@ -1530,6 +1530,16 @@ export interface components {
             /** Readiness */
             readiness: boolean;
         };
+        /**
+         * Answer
+         * @description The browser's answer to a ceremony: WebAuthn JSON, checked by the library.
+         */
+        Answer: {
+            /** Credential */
+            credential: {
+                [key: string]: unknown;
+            };
+        };
         /** AnswersBody */
         AnswersBody: {
             /** Answers */
@@ -1642,10 +1652,21 @@ export interface components {
             /** Template Id */
             template_id: number;
         };
-        /** ClashAnswer */
-        ClashAnswer: {
+        /** ClashConflict */
+        ClashConflict: {
             /** Detail */
             detail: components["schemas"]["ClashView"] | string;
+        };
+        /**
+         * ClashReply
+         * @description The person's answer to a clash: ``replace``, ``add`` or ``move:YYYY-MM-DD``, with the ids
+         *     of the workouts they were shown. Left out on the first try.
+         */
+        ClashReply: {
+            /** Resolution */
+            resolution?: string | null;
+            /** Seen */
+            seen?: number[];
         };
         /**
          * ClashView
@@ -2129,12 +2150,14 @@ export interface components {
              */
             what: "session" | "extra" | "rest" | "cardio";
         };
-        /** LogOptionsView */
+        /**
+         * LogOptionsView
+         * @description What a log can be: every session, and what cardio was. The days are today back to 14
+         *     days ago (``domain.dates.MAX_DAYS_BACK``); the browser lists them, the save checks them.
+         */
         LogOptionsView: {
             /** Activities */
             activities: components["schemas"]["CardioActivity"][];
-            /** Days */
-            days: string[];
             /** Sessions */
             sessions: components["schemas"]["LogChoiceView"][];
         };
@@ -2947,27 +2970,6 @@ export interface components {
             /** Zone */
             zone: number;
         };
-        /**
-         * Answer
-         * @description The person's answer to a clash: ``replace``, ``add`` or ``move:YYYY-MM-DD``, with the ids
-         *     of the workouts they were shown. Left out on the first try.
-         */
-        training_coach__api__clash__Answer: {
-            /** Resolution */
-            resolution?: string | null;
-            /** Seen */
-            seen?: number[];
-        };
-        /**
-         * Answer
-         * @description The browser's answer to a ceremony: WebAuthn JSON, checked by the library.
-         */
-        training_coach__api__passkeys__Answer: {
-            /** Credential */
-            credential: {
-                [key: string]: unknown;
-            };
-        };
     };
     responses: never;
     parameters: never;
@@ -3510,7 +3512,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["training_coach__api__passkeys__Answer"];
+                "application/json": components["schemas"]["Answer"];
             };
         };
         responses: {
@@ -3561,7 +3563,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["training_coach__api__passkeys__Answer"];
+                "application/json": components["schemas"]["Answer"];
             };
         };
         responses: {
@@ -3612,7 +3614,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["training_coach__api__passkeys__Answer"];
+                "application/json": components["schemas"]["Answer"];
             };
         };
         responses: {
@@ -3734,7 +3736,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["training_coach__api__clash__Answer"] | null;
+                "application/json": components["schemas"]["ClashReply"] | null;
             };
         };
         responses: {
@@ -3753,7 +3755,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClashAnswer"];
+                    "application/json": components["schemas"]["ClashConflict"];
                 };
             };
             /** @description Validation Error */
@@ -3945,7 +3947,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClashAnswer"];
+                    "application/json": components["schemas"]["ClashConflict"];
                 };
             };
             /** @description Validation Error */
@@ -4305,7 +4307,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClashAnswer"];
+                    "application/json": components["schemas"]["ClashConflict"];
                 };
             };
             /** @description Validation Error */
@@ -4752,7 +4754,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClashAnswer"];
+                    "application/json": components["schemas"]["ClashConflict"];
                 };
             };
             /** @description Validation Error */

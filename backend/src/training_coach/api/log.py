@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.auth import Owner
-from training_coach.api.clash import CLASH, Answer, conflict, resolution
+from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
 from training_coach.api.session import UNITS, DoneView, ItemView
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
@@ -42,7 +42,9 @@ class LogChoiceView(BaseModel):
 
 
 class LogOptionsView(BaseModel):
-    days: list[date]  # today first, back to 14 days ago
+    """What a log can be: every session, and what cardio was. The days are today back to 14
+    days ago (``domain.dates.MAX_DAYS_BACK``); the browser lists them, the save checks them."""
+
     sessions: list[LogChoiceView]
     activities: list[CardioActivity]
 
@@ -54,7 +56,7 @@ class LogPlanView(BaseModel):
     items: list[ItemView]  # in plan order, with that day's targets
 
 
-class LogDayBody(Answer):
+class LogDayBody(ClashReply):
     token: str = Field(pattern="^[0-9a-f]{32}$")  # one per log: a repeated save changes nothing
     day: date
     what: Literal["session", "extra", "rest", "cardio"]
@@ -73,11 +75,9 @@ class LoggedDayView(BaseModel):
 
 @router.get("", response_model=LogOptionsView)
 def options(request: Request, user: Owner) -> LogOptionsView:
-    _, today = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         found = day_log.choices(session)
     return LogOptionsView(
-        days=day_log.days(today),
         sessions=[LogChoiceView.model_validate(vars(c)) for c in found],
         activities=list(CardioActivity),
     )

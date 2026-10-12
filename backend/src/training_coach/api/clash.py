@@ -29,20 +29,20 @@ class ClashView(BaseModel):
     moving: bool
 
 
-class ClashAnswer(BaseModel):
+class ClashConflict(BaseModel):
     detail: ClashView | str  # a ClashView when the day already has its session
 
 
 # For the API types: a save's 409 may carry what is already saved that day.
 CLASH: dict[int | str, dict[str, Any]] = {
     status.HTTP_409_CONFLICT: {
-        "model": ClashAnswer,
+        "model": ClashConflict,
         "description": "The day already has its session (a ClashView), or today changed",
     }
 }
 
 
-class Answer(BaseModel):
+class ClashReply(BaseModel):
     """The person's answer to a clash: ``replace``, ``add`` or ``move:YYYY-MM-DD``, with the ids
     of the workouts they were shown. Left out on the first try."""
 
@@ -52,7 +52,7 @@ class Answer(BaseModel):
     seen: list[int] = Field(default_factory=list, max_length=20)
 
 
-def resolution(body: Answer) -> day_clash.Resolution | None:
+def resolution(body: ClashReply) -> day_clash.Resolution | None:
     """The answer for the service, or None when there is none. 422 for a date that isn't one."""
     if body.resolution is None:
         return None

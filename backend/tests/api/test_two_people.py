@@ -169,7 +169,10 @@ OTHERS: dict[str, str] = {
     "/api/session/stretching/{workout_id}": "workout_id",
     "/api/photos/{photo_id}": "photo_id",
 }
-QUERIES: dict[str, dict[str, str]] = {"/api/session/stretching/{workout_id}": {"minutes": "10"}}
+QUERIES: dict[str, dict[str, str]] = {
+    "/api/session/stretching/{workout_id}": {"minutes": "10"},
+    "/api/log/plan": {"day": datetime.now(UTC).date().isoformat(), "template_id": "1"},
+}
 
 
 def _readable(response: Response) -> bytes:
