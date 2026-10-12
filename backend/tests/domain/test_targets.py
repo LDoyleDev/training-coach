@@ -123,7 +123,11 @@ def test_step_per_pace(item: Prescription, steady: int, standard: int, fast: int
         ),
         # Set 2 missed its held target of 10: held, while the others step from what they did.
         pytest.param(
-            Pace.FAST, PULL_UPS, [[10, 8, 8, 7], [8, 8, 6, 5]], (12, 10, 10, 9), id="fast-miss-holds"
+            Pace.FAST,
+            PULL_UPS,
+            [[10, 8, 8, 7], [8, 8, 6, 5]],
+            (12, 10, 10, 9),
+            id="fast-miss-holds",
         ),
         pytest.param(
             Pace.FAST,

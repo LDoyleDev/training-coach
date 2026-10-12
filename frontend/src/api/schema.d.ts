@@ -2074,6 +2074,12 @@ export interface components {
             planned: components["schemas"]["PlannedView"] | null;
             week: components["schemas"]["WeekView"];
         };
+        /**
+         * Pace
+         * @description How big a step each set aims for (ADR-0057). A per-person setting.
+         * @enum {string}
+         */
+        Pace: "steady" | "standard" | "fast";
         /** PasskeyView */
         PasskeyView: {
             /**
@@ -2415,6 +2421,7 @@ export interface components {
             nudge_time?: string | null;
             /** Nudges Enabled */
             nudges_enabled?: boolean | null;
+            pace?: components["schemas"]["Pace"] | null;
             /** Paused */
             paused?: boolean | null;
             /** Protein G */
@@ -2434,6 +2441,7 @@ export interface components {
             nudge_time: string;
             /** Nudges Enabled */
             nudges_enabled: boolean;
+            pace: components["schemas"]["Pace"];
             /** Paused */
             paused: boolean;
             /** Protein G */

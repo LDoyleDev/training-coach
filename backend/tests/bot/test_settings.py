@@ -28,6 +28,7 @@ from training_coach.bot.messages import NUDGE, SOMETHING_WENT_WRONG
 from training_coach.db.models import Workout
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
+from training_coach.domain.targets import Pace
 from training_coach.services import ai_comment, ai_key, user_settings
 from training_coach.services.secret_box import SecretBox
 from training_coach.services.user_settings import Prefs
@@ -68,6 +69,8 @@ def _next_run(application: App, name: str) -> datetime:
         ("s:nudges:off", settings_ui.Press("nudges", on=False)),
         ("s:pause:on", settings_ui.Press("pause", on=True)),
         ("s:habits:off", settings_ui.Press("habits", on=False)),
+        ("s:pace:fast", settings_ui.Press("pace", pace=Pace.FAST)),
+        ("s:pace:turbo", None),
         ("s:pause", None),
         ("s:pause:maybe", None),
         ("s:morning:2560", None),
@@ -91,6 +94,7 @@ def test_text_and_keyboard_show_the_current_values() -> None:
         "Habit buttons in the evening: on",
         "Protein target: not set (1.6-2.2 g per kg)",
         "Training blocks: off",
+        "Pace: standard (about a tenth of the range at a time)",
         "Paused: yes, no messages until you resume",
     ]
     labels = [b.text for row in settings_ui.keyboard(prefs).inline_keyboard for b in row]
@@ -102,6 +106,13 @@ def test_text_and_keyboard_show_the_current_values() -> None:
     assert "Turn nudges on" in labels
     assert "Turn habits off" in labels
     assert "Resume" in labels
+    pace_row = settings_ui.keyboard(prefs).inline_keyboard[-2]
+    assert [b.text for b in pace_row] == ["Steady", "• Standard", "Fast"]
+    assert [b.callback_data for b in pace_row] == [
+        "s:pace:steady",
+        "s:pace:standard",
+        "s:pace:fast",
+    ]
 
 
 # ------------------------------------------------------------------ through the bot
@@ -126,6 +137,7 @@ async def test_settings_command_is_owner_only(application: App, sender: int, rep
         "s:ask-review",
         "s:blocks:on",
         "s:blocks:off",
+        "s:pace:fast",
         "s:x",
     ],
 )
@@ -407,6 +419,15 @@ async def test_training_blocks_turn_on_from_today_and_off(
 async def test_strangers_cannot_turn_blocks_on(application: App, seeded: Sessions) -> None:
     assert await run(application, press("s:blocks:on", STRANGER)) == {}
     assert _prefs(seeded).blocks_started_on is None
+
+
+async def test_the_pace_is_chosen_with_a_button(application: App, seeded: Sessions) -> None:
+    """ADR-0057: the pressed pace is marked and saved; strangers change nothing."""
+    assert await run(application, press("s:pace:fast", STRANGER)) == {}
+    assert _prefs(seeded).pace is Pace.STANDARD
+    calls = await run(application, press("s:pace:steady", OWNER))
+    assert _prefs(seeded).pace is Pace.STEADY
+    assert "Pace: steady (one rep at a time)" in calls["editMessageText"][0]["text"]
 
 
 # ------------------------------------------------------------------ protein target
