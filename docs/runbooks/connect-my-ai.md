@@ -2,7 +2,7 @@
 
 How to connect Claude.ai to Training Coach, what to set up first, and how to check and undo a
 connection. The design is ADR-0047 C and ADR-0054; the security spec is
-`docs/security/mcp-threat-model.md`. Phase C1 is read-only.
+`docs/security/mcp-threat-model.md`. Proposing logs (C2) is ADR-0058.
 
 ## Before the first connection (once, on the Pi side)
 
@@ -35,8 +35,9 @@ connection. The design is ADR-0047 C and ADR-0054; the security spec is
    "Claude"** and sends you back to **claude.ai**. Claude's callback is
    `https://claude.ai/api/mcp/auth_callback`; Anthropic says it may move to `claude.com`, which
    the page would then show.
-4. Tick what it may read. Training is ticked; body measurements and readiness (health data) are
-   not, and stay off unless you tick them.
+4. Tick what it may do. Training is ticked; body measurements and readiness (health data) and
+   proposing logs are not, and stay off unless you tick them. A connection made before
+   proposing existed doesn't gain it: add the connector again to tick it.
 5. **Allow with your fingerprint.** You're sent back to Claude, and a Telegram message confirms
    the new connection with the name and the host.
 
@@ -48,6 +49,13 @@ after Claude made it; if either runs out, add the connector again.
 Ask Claude about your training. It calls `get_guide` first, then `get_summary`,
 `get_exercise`, `get_tests`, and `get_body` or `get_readiness` if you shared them. Every call is
 an `mcp.call` event (connection, tool, outcome: no data) in the export.
+
+With proposing ticked, ask it to log something ("log 3 sets of pull-ups, 8 8 7"). It calls
+`propose_log`; a card appears on Today and a Telegram message arrives, both with **Save** and
+**Discard**. Nothing is saved until you tap Save, in either place; the other then says it's
+already done. A proposal waits 24 hours, at most 3 at a time per connection; /undo takes a saved
+workout back. If Claude says it was refused, the reason is in its answer (an unknown exercise,
+a future day, a day already saved).
 
 ## Revoking, and when it ends by itself
 
@@ -67,3 +75,5 @@ an `mcp.call` event (connection, tool, outcome: no data) in the export.
 | "That didn't confirm it's you" | No passkey on this device, or the fingerprint was cancelled; a bot link session doesn't count |
 | Registration answers 429 | Three registrations from that address are waiting (Claude's egress is shared): wait up to 15 minutes |
 | Claude stops working after a while | The connection ended (90 days, revoked, refresh reused): look for the Telegram message, then reconnect |
+| Claude can't propose logs | Proposing wasn't ticked, or the connection is older than proposing: add the connector again and tick it |
+| A proposal says "today's session changed" on Save | Today was logged, rested or swapped after it was proposed: ask Claude again |

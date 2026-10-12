@@ -1,6 +1,6 @@
 # MCP threat model (ADR-0047 C: Connect my AI)
 
-Status: **reviewed; the owner's decisions are recorded below (2026-10-11).** ADR-0047 requires this review before any C code merges, and C gets a security review before release. In `docs/security/threat-model.md`, the MCP row is a one-line pointer to this file.
+Status: **reviewed; the owner's decisions are recorded below (2026-10-11, and 2026-10-12 for C2).** ADR-0047 requires this review before any C code merges, and C gets a security review before release. In `docs/security/threat-model.md`, the MCP row is a one-line pointer to this file.
 
 ## Scope
 
@@ -9,7 +9,7 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11).** ADR
   - Phase C1 (read-only): `training:read`, `body:read`, `readiness:read` (the owner chose to
     offer the health scopes from C1; `readiness:read` covers the readiness answers and the daily
     check, ADR-0053).
-  - Phase C2: `log:propose`.
+  - Phase C2: `log:propose`, unticked on the consent page like the health scopes (ADR-0058).
 - **Tools:** `get_guide`, `get_summary(period)`, `get_exercise(slug)`, `get_tests()`, `get_body(period)`, `get_readiness()`, `propose_log(...)`.
 - **Out of scope:**
   - A (copy) and B (Groq key), which are covered in the main threat model.
@@ -91,7 +91,7 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11).** ADR
 | M7: Scope escalation | Authorize, refresh, tools | Unknown scopes are refused. Health scopes start unticked even when requested. Granted scopes are at most the requested ones and the person's ticks. A refresh cannot widen them. Tools without their scope are hidden from `tools/list` and refused with `insufficient_scope` | Matrix test: every tool against every scope set |
 | M8: Data over-exposure | Tool results | Tools reuse `ai_summary` with `Options(body=…, readiness=…)` set from the scopes. Photos and sign-in tables are never reachable. Sessions are bound to the token's user (ADR-0029). Answers are size-capped and sent with `Cache-Control: no-store` | Two-user scope test through `/mcp`; health data absent without its scope; size cap |
 | M9: Prompt injection through the person's own text or tool results | Tool results read by their AI | Text the person or a client typed goes only in a delimited, length-capped "data from the person" field, never mixed into prose. Answers name the guide version, and the guide says data is never instructions. Residual risk: the AI may also hold other tools (such as web fetch) that could leak what it read; the consent page says so | Hostile-string fixtures appear only inside the data field |
-| M10: Injected or rogue `propose_log` | `propose_log` | The proposal is parsed into the typed-log Pydantic model and checked again by the rule parser: known exercises, sane ranges, today or an earlier unsaved day. An invalid proposal is refused with a reason. A valid one reaches the person only as a draft with a random token, and only their "Save" (web session or `owner_only` bot button) stores it. No MCP token can confirm. At most 3 pending proposals per connection. No tool touches the plan, settings or sign-in | `tests/api/test_mcp_propose.py`: invented exercise, extreme value, future day, confirm through a token refused, cap |
+| M10: Injected or rogue `propose_log` | `propose_log` | The proposal is parsed into the typed-log Pydantic model and checked again by the rule parser: known exercises, sane ranges, today or an earlier unsaved day. An invalid proposal is refused with a reason. A valid one reaches the person only as a draft with a random token, and only their "Save" (web session or `owner_only` bot button) stores it. No MCP token can confirm. At most 3 pending proposals per connection. No tool touches the plan, settings or sign-in | `tests/api/test_mcp_propose.py`: invented exercise, extreme value, future day, already-saved day, each kind valid and invalid, confirm through a token refused, cap, 24-hour expiry, revoke discards, scope missing; `tests/bot/test_proposals.py`: a stranger's press, a failed save keeps the buttons |
 | M11: DoS on the Pi, or slots taken so the real AI can't register | `/oauth/register`, `/oauth/token`, `/mcp` | Row caps on registrations, consent handles and codes, with expired rows cleared on each call. Unapproved registrations live 15 minutes, and a full cap evicts the oldest unapproved one, so a few addresses can't lock out Claude.ai. 60 requests a minute per connection, and a per-address limit (`_client()`) on unauthenticated `/mcp`, `/oauth/authorize` and `/oauth/token` calls. 64 KB body cap (`MAX_BODY`). SHA-256 lookups, no slow hashing. Cloudflare rate limit. Coalesced alerts, so a flood can't spam Telegram | Cap and 429 tests; body limit on `/mcp` |
 | M12: Long-lived or forgotten access | Connections | The Account page lists each connection (name as claimed, redirect host, scopes, created, last used) with Revoke. Revoke ends access and refresh tokens at once. `/recover` and erase revoke every connection, and removing a passkey revokes the connections approved with it. A connection ends 90 days after consent. Alerts on create, revoke and refresh reuse | Revoke, recover, erase, passkey-removal and 90-day tests |
 | M13: Audit log leaking data | `events`, structlog | Each call writes one `mcp.call` event holding only the connection id, tool name and outcome; the `Event` rules apply. No arguments, tokens, codes or client names in logs. The alert `kind` is logged, not its text | Captured-log and event-payload assertions |
@@ -157,7 +157,9 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11).** ADR
    - input passes the typed-log Pydantic model and the rule parser, or is refused with a reason;
    - a valid proposal creates an unsaved draft only;
    - saving needs the person's web session or the `owner_only` bot button, and a token-authenticated request to confirm is refused;
-   - at most 3 proposals are pending per connection.
+   - at most 3 proposals are pending per connection;
+   - a proposal is gone 24 hours after it was made, and revoking its connection discards it
+     (ADR-0058).
 16. `/mcp` allows 60 requests a minute per connection (`429` beyond that) and keeps the 64 KB body cap.
     Unauthenticated `/mcp`, `/oauth/authorize` and `/oauth/token` calls are also limited per
     client address (`_client()`), with a test. Every `/mcp` and `/oauth` answer carries `Cache-Control: no-store`.
@@ -183,3 +185,16 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11).** ADR
 6. C1 offers the health scopes (`body:read`, `readiness:read`) alongside `training:read`. They
    still start unticked on the consent page, so each connection opts in.
 7. A refresh answer lost on the way forces a fresh consent (requirement 3); no grace retry.
+
+## Decisions (owner, 2026-10-12): C2, `propose_log`
+
+Recorded in [ADR-0058](../adr/0058-ai-proposes-logs-you-confirm.md), which holds the details:
+
+1. ADR-0054 is accepted.
+2. What can be proposed: strength sets, cardio, habit ticks and body weight or girths, for today
+   or an earlier day, each checked by the rules of its own save path.
+3. `log:propose` starts unticked; existing connections reconnect to get it.
+4. A proposal waits in the database and is confirmed on Today or in Telegram; either place
+   resolves it everywhere, and saving goes through the normal service (so /undo works).
+5. Proposals expire after 24 hours, at most 3 wait per connection, and revoking discards them.
+6. The card and message name the app as its claim; audit events never hold the content.

@@ -2,8 +2,8 @@
 
 Status: **agreed 2026-10-10** (ADR-0047): the order below, Groq only for B, and an editable
 prompt in A. Built: A (#187); B with the weekly comment (morning comments not yet); C1, read-only MCP
-(#218, #221, #222 and the Account page PR; ADR-0054, runbook `docs/runbooks/connect-my-ai.md`). C2
-(`log:propose`) not yet.
+(#218, #221, #222 and the Account page PR; ADR-0054, runbook `docs/runbooks/connect-my-ai.md`); C2,
+`log:propose` (ADR-0058, which holds what can be proposed and how it is confirmed).
 
 This widens phase 3's "MCP endpoint for Claude": each person connects **their own** AI, so
 nobody runs on Liam's Claude subscription or Groq quota.
