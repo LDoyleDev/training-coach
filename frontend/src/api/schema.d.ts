@@ -1989,9 +1989,13 @@ export interface components {
         };
         /**
          * IngestReceived
-         * @description How many records of each type were stored, and skipped as not fitting.
+         * @description How many records of each type were stored, and skipped as not fitting. A press of the
+         *     app's Test button also gets ``test`` and a ``note`` saying nothing was stored, so its log
+         *     shows it; a real sync gets neither.
          */
         IngestReceived: {
+            /** Note */
+            note?: string | null;
             /** Skipped */
             skipped: {
                 [key: string]: number;
@@ -2000,6 +2004,8 @@ export interface components {
             taken: {
                 [key: string]: number;
             };
+            /** Test */
+            test?: boolean | null;
         };
         /** IngestView */
         IngestView: {

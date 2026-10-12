@@ -1397,8 +1397,19 @@
         "type": "object"
       },
       "IngestReceived": {
-        "description": "How many records of each type were stored, and skipped as not fitting.",
+        "description": "How many records of each type were stored, and skipped as not fitting. A press of the\napp's Test button also gets ``test`` and a ``note`` saying nothing was stored, so its log\nshows it; a real sync gets neither.",
         "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
           "skipped": {
             "additionalProperties": {
               "type": "integer"
@@ -1412,6 +1423,17 @@
             },
             "title": "Taken",
             "type": "object"
+          },
+          "test": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test"
           }
         },
         "required": [
