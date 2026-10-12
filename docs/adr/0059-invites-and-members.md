@@ -21,10 +21,19 @@ plan keeps the options and the build order.
 ## Decision
 
 **A switch.** `TC_MULTI_USER`, off by default, is the kill switch. Off: invites can't be made or
-redeemed, only the owner can sign in or use the bot, and only the owner's jobs run; members'
-data is kept, untouched. Every L2 change merges behind it, so nothing changes for the owner
-until it is turned on. Turning it off with members still there: tell them, keep their data 30
-days for export, then erase it.
+redeemed, members get no messages or bot replies, and only the owner's jobs run, except the
+member wind-down below. Every L2 change merges behind it, so nothing changes for the owner until
+it is turned on. Turning it off with members still there:
+- Members are told (Telegram if linked, and a notice on their next sign-in) that the app is
+  closing to them, with the date their data will be erased: 30 days from the switch going off,
+  recorded per member as `closing_on`.
+- For those 30 days a member can still sign in with their passkey, but only to an export-only
+  Account page: download the export, or leave now (erase at once). Every other route refuses
+  them. The owner never runs or receives a member's export.
+- A daily wind-down job runs whatever the switch says. It erases each member whose `closing_on`
+  has passed (the same cascade as leaving) and does nothing else. With no members it does
+  nothing.
+- Turning the switch back on within the 30 days clears `closing_on` and restores access.
 
 **Who.** At most 5 members besides the owner (`TC_MAX_MEMBERS`), adults only (checked at sign-up).
 
