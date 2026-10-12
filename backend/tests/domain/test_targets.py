@@ -1,9 +1,10 @@
-"""Targets (ADR-0027): a step of about 10% of the range; a miss holds; two misses ease."""
+"""Targets (ADR-0027): a step of about 10% of the range; a miss holds; two misses ease.
+Pace (ADR-0057): steady and fast change only the step."""
 
 import pytest
 
 from training_coach.domain.enums import ExerciseKind
-from training_coach.domain.targets import Prescription, step, targets
+from training_coach.domain.targets import Pace, Prescription, step, targets
 
 PULL_UPS = Prescription(sets=4, rep_min=5, rep_max=12)  # step 1
 DIPS = Prescription(sets=3, rep_min=8, rep_max=15)  # step 2
@@ -82,6 +83,78 @@ def test_timed_and_duration_steps() -> None:
     assert targets(plank, [[40, 35]]) == (45, 40)
     zone2 = Prescription(sets=1, rep_min=30, rep_max=40, kind=ExerciseKind.DURATION_MIN)
     assert targets(zone2, [[32]]) == (33,)
+
+
+SECONDS = ExerciseKind.SECONDS
+MINUTES = ExerciseKind.DURATION_MIN
+
+
+@pytest.mark.parametrize(
+    ("item", "steady", "standard", "fast"),
+    [
+        pytest.param(Prescription(3, 4, 8), 1, 1, 2, id="4-8"),
+        pytest.param(PULL_UPS, 1, 1, 2, id="5-12"),
+        pytest.param(DIPS, 1, 2, 2, id="8-15"),
+        pytest.param(TIBIALIS, 1, 3, 3, id="15-25"),
+        pytest.param(Prescription(3, 30, 40), 1, 4, 4, id="30-40"),
+        pytest.param(Prescription(3, 20, 60, SECONDS), 5, 5, 10, id="seconds-60"),
+        pytest.param(Prescription(3, 30, 90, SECONDS), 5, 10, 10, id="seconds-90"),
+        pytest.param(Prescription(3, 60, 180, SECONDS), 5, 20, 20, id="seconds-180"),
+        pytest.param(Prescription(1, 30, 40, MINUTES), 1, 1, 2, id="minutes"),
+    ],
+)
+def test_step_per_pace(item: Prescription, steady: int, standard: int, fast: int) -> None:
+    assert step(item, Pace.STEADY) == steady
+    assert step(item, Pace.STANDARD) == standard == step(item)  # standard is the default
+    assert step(item, Pace.FAST) == fast
+
+
+@pytest.mark.parametrize(
+    ("pace", "item", "history", "expected"),
+    [
+        pytest.param(Pace.STEADY, DIPS, [], (8, 8, 8), id="steady-no-history-bottom"),
+        pytest.param(Pace.FAST, DIPS, [], (8, 8, 8), id="fast-no-history-bottom"),
+        pytest.param(Pace.STEADY, DIPS, [[10, 9, 8]], (11, 10, 9), id="steady-plus-one"),
+        pytest.param(Pace.FAST, PULL_UPS, [[8, 7, 6, 5]], (10, 9, 8, 7), id="fast-plus-two"),
+        pytest.param(Pace.FAST, TIBIALIS, [[18, 16, 15]], (21, 19, 18), id="fast-keeps-three"),
+        pytest.param(Pace.FAST, PULL_UPS, [[11, 12, 10, 9]], (12, 12, 12, 11), id="fast-capped"),
+        pytest.param(
+            Pace.STEADY, TIBIALIS, [[24, 25, 25]], (25, 25, 25), id="steady-capped-at-top"
+        ),
+        # Set 2 missed its held target of 10: held, while the others step from what they did.
+        pytest.param(
+            Pace.FAST, PULL_UPS, [[10, 8, 8, 7], [8, 8, 6, 5]], (12, 10, 10, 9), id="fast-miss-holds"
+        ),
+        pytest.param(
+            Pace.FAST,
+            PULL_UPS,
+            [[10, 8, 8, 7], [10, 8, 8, 7], [8, 8, 6, 5]],
+            (12, 9, 10, 9),
+            id="fast-two-misses-ease-by-one",
+        ),
+        pytest.param(
+            Pace.STEADY, PULL_UPS, [[3, 2, 2, 1]], (4, 3, 3, 2), id="steady-below-range-baseline"
+        ),
+        pytest.param(
+            Pace.STEADY,
+            Prescription(2, 20, 60, SECONDS),
+            [[40, 35]],
+            (45, 40),
+            id="steady-seconds",
+        ),
+        pytest.param(
+            Pace.FAST, Prescription(2, 20, 60, SECONDS), [[40, 35]], (50, 45), id="fast-seconds"
+        ),
+        pytest.param(
+            Pace.STEADY, Prescription(1, 30, 40, MINUTES), [[32]], (33,), id="steady-minutes"
+        ),
+        pytest.param(Pace.FAST, Prescription(1, 30, 40, MINUTES), [[32]], (34,), id="fast-minutes"),
+    ],
+)
+def test_targets_per_pace(
+    pace: Pace, item: Prescription, history: list[list[int]], expected: tuple[int, ...]
+) -> None:
+    assert targets(item, history, pace) == expected
 
 
 @pytest.mark.parametrize(
