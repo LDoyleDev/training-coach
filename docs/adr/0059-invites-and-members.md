@@ -63,6 +63,17 @@ member; above it, "type it instead". AI comments stay on each person's own key (
 
 **Recovery.** An admin-issued recovery link (single use, 24 hours, the same rules as `/recover`:
 signs out other browsers, removes passkeys, alerts), plus `/recover` for members with Telegram.
+Whoever holds the link can register a new passkey, so an admin could mint one and use it to sign
+in as the member. The controls make that visible rather than impossible:
+- The admin hands the link to the member themselves, the way the invite went. A browser signed in
+  as an admin can't redeem a recovery link (it says to open it on the member's device).
+- The member is told on Telegram (if linked) when a link is made for them and again when it is
+  used, so an unexpected link is noticed before or as it happens.
+- After a recovery, Account shows the member "Your account was recovered with a link from the
+  admin on <date>" for 30 days; it can't be dismissed, so an admin who signed in that way can't
+  hide it. Making and using a link are events in the member's own sign-in history.
+- Residual risk, said plainly in the privacy notice next to the Pi and database note: the admin
+  can take over a member's account with a recovery link; the member would see it afterwards.
 
 **Leaving and removing.** A member can leave at once (a recent sign-in and the word typed, like
 erase): their user row is deleted and everything cascades, with no fresh start. An admin can
