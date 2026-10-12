@@ -182,7 +182,7 @@ def make_secret(
     with session_scope(_bound(request, user)) as session:
         secret = ingest_keys.make(session, datetime.now(UTC))
         found = ingest_keys.status(session)
-    alert(request, background, "ingest_key_made", "A new band import secret was made.")
+    alert(request, background, user, "ingest_key_made", "A new band import secret was made.")
     return NewSecret(**_view(request, found).model_dump(), secret=secret)
 
 
@@ -192,4 +192,4 @@ def remove_secret(request: Request, background: BackgroundTasks, user: Owner) ->
         removed = ingest_keys.remove(session)
     if not removed:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no band import secret")
-    alert(request, background, "ingest_key_removed", "The band import secret was removed.")
+    alert(request, background, user, "ingest_key_removed", "The band import secret was removed.")

@@ -5,9 +5,18 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.error import TimedOut
-from telegram.ext import Application
+from telegram.ext import Application, CallbackQueryHandler, MessageHandler, filters
 
-from tests.bot.fakes import OWNER, STRANGER, button_data, press, run, text_message, texts
+from tests.bot.fakes import (
+    OWNER,
+    SETTINGS,
+    STRANGER,
+    button_data,
+    press,
+    run,
+    text_message,
+    texts,
+)
 from training_coach.bot import logging_flow
 from training_coach.bot.messages import (
     LOG_CANCELLED,
@@ -186,6 +195,21 @@ async def test_only_the_latest_drafts_are_kept(application: App, seeded: Session
     for _ in range(logging_flow.MAX_DRAFTS):
         await run(application, text_message(LOG, OWNER))
     assert texts(await run(application, press(f"l:save:{oldest}", OWNER))) == [LOG_EXPIRED]
+
+
+async def test_one_persons_drafts_never_push_out_anothers(seeded: Sessions) -> None:
+    """Drafts were one dict shared by everyone, capped at 10: a second person's logs expired
+    the owner's unsaved one. Now each person keeps their own latest drafts."""
+    application = Application.builder().token("123456:TEST-TOKEN").build()
+    handlers = logging_flow.LogHandlers(SETTINGS, seeded)
+    # No owner filter here: a second person writing, as linked members will (plan step 8).
+    application.add_handler(MessageHandler(filters.TEXT, handlers.message))
+    application.add_handler(CallbackQueryHandler(handlers.button))
+    mine = _token(await run(application, text_message(LOG, OWNER)))
+    for _ in range(logging_flow.MAX_DRAFTS):
+        await run(application, text_message(LOG, STRANGER))
+    assert texts(await run(application, press(f"l:save:{mine}", OWNER))) != [LOG_EXPIRED]
+    assert _count(seeded, Workout) == 1
 
 
 async def test_a_pending_settings_question_wins_over_logging(

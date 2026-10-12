@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import Engine, select
 
+from tests.alerts import capture
 from tests.api.test_erase import ORIGIN, TELEGRAM
 from training_coach.api.app import create_app
 from training_coach.config import Settings
@@ -59,13 +60,7 @@ def signed_in(engine: Engine) -> Iterator[TestClient]:
 
 @pytest.fixture
 def alerts(signed_in: TestClient) -> list[str]:
-    sent: list[str] = []
-
-    async def notify(text: str) -> None:
-        sent.append(text)
-
-    signed_in.app.state.notify = notify  # type: ignore[attr-defined]  # a FastAPI app
-    return sent
+    return capture(signed_in)
 
 
 def test_nothing_stored_at_first(signed_in: TestClient) -> None:

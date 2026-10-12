@@ -1,7 +1,8 @@
 """Typed workout logs: parse, confirm, save (step 1-E; ADR-0007).
 
-Drafts stay in the bot's memory keyed by their random token; buttons carry only
-``l:<action>:<token>``, never ids, so a forged press can at most name a draft that exists.
+Drafts stay in the bot's memory, kept per person (their Telegram id) and keyed by their random
+token; buttons carry only ``l:<action>:<token>``, never ids, so a forged press can at most name
+a draft that exists, and only among the presser's own.
 A restart forgets drafts: the user is asked to send the log again.
 """
 
@@ -50,7 +51,7 @@ log = structlog.get_logger(__name__)
 
 PREFIX = "l"
 ACTIONS = frozenset({"save", "edit", "cancel"})
-MAX_DRAFTS = 10  # bounded memory: only the most recent drafts can be saved
+MAX_DRAFTS = 10  # per person, bounded memory: only their most recent drafts can be saved
 TOKEN_LENGTH = 32
 MAX_VOICE_SECONDS = 120
 MAX_VOICE_BYTES = 5 * 1024 * 1024
@@ -110,15 +111,17 @@ class LogHandlers:
         self.settings = settings
         self.sessions = sessions
         self.groq = groq  # None until TC_GROQ_API_KEY is set: voice notes get the typed fallback
-        self.drafts: OrderedDict[str, Draft] = OrderedDict()
+        # Telegram id -> that person's drafts: one person's logs never push out another's.
+        self.drafts: dict[int, OrderedDict[str, Draft]] = {}
 
     def _today(self) -> date:
         return local_date(datetime.now(UTC), self.settings.tz)
 
-    def _remember(self, draft: Draft) -> None:
-        self.drafts[draft.token] = draft
-        while len(self.drafts) > MAX_DRAFTS:
-            self.drafts.popitem(last=False)
+    def _remember(self, author: int, draft: Draft) -> None:
+        mine = self.drafts.setdefault(author, OrderedDict())
+        mine[draft.token] = draft
+        while len(mine) > MAX_DRAFTS:
+            mine.popitem(last=False)
 
     async def message(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """Plain text from the owner (the handler's filter already checked the sender)."""
@@ -195,8 +198,8 @@ class LogHandlers:
             ):
                 draft, assisted = model_draft, True
         markup = None
-        if draft.entries or (draft.rest and not draft.problems):
-            self._remember(draft)
+        if message.from_user is not None and (draft.entries or (draft.rest and not draft.problems)):
+            self._remember(message.from_user.id, draft)
             markup = keyboard(draft.token)
         log.info(
             "bot.log_drafted",
@@ -257,12 +260,13 @@ class LogHandlers:
             return
         # Saved drafts stay (bounded by MAX_DRAFTS) so a second Save tap answers "already
         # saved" from the database instead of "expired", which would invite a duplicate.
-        draft = self.drafts.get(press.token)
+        mine = self.drafts.get(user.id, OrderedDict())
+        draft = mine.get(press.token)
         markup = None
         if press.action == "save":
             reply, markup = (LOG_EXPIRED, None) if draft is None else self._save(draft)
         else:
-            self.drafts.pop(press.token, None)
+            mine.pop(press.token, None)
             reply = LOG_CANCELLED if press.action == "cancel" else LOG_EDIT
         # Act first, then retire the buttons: if the edit fails, the outcome already stands
         # and a retry answers "already saved".

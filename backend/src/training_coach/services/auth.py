@@ -56,8 +56,13 @@ def has_passkeys(session: Session, user_id: int) -> bool:
 
 
 @dataclass(frozen=True)
-class Redeemed:
+class SignedIn:
     cookie: str
+    user_id: int  # whose session it is: sign-in alerts go to them
+
+
+@dataclass(frozen=True)
+class Redeemed(SignedIn):
     recovered: bool  # a recovery link: every other browser was signed out
 
 
@@ -96,10 +101,10 @@ def redeem_link(session: Session, token: str, now: datetime, label: str) -> Rede
         session.execute(delete(Passkey).where(Passkey.user_id == user), execution_options=EVERYONE)
         # So are connected AI apps: Telegram access alone never keeps a data channel open.
         mcp_tokens.revoke_all(session, user, now)
-        return Redeemed(start_session(session, user, now, label), recovered=True)
+        return Redeemed(start_session(session, user, now, label), user, recovered=True)
     if has_passkeys(session, user):
         return NEEDS_PASSKEY
-    return Redeemed(start_session(session, user, now, label), recovered=False)
+    return Redeemed(start_session(session, user, now, label), user, recovered=False)
 
 
 def start_session(

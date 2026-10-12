@@ -225,8 +225,8 @@ def sign_in(
     credential: dict[str, Any],
     now: datetime,
     label: str,
-) -> str | None:
-    """A session cookie token if the device proved it holds a registered passkey, else None.
+) -> auth.SignedIn | None:
+    """A new session if the device proved it holds a registered passkey, else None.
     ``session`` is unbound: the passkey says whose it is."""
     challenge = _take(session, handle, SIGN_IN, None, now)
     if challenge is None:
@@ -257,7 +257,8 @@ def sign_in(
         return None
     passkey.sign_count = verified.new_sign_count
     passkey.last_used_at = now
-    return auth.start_session(session, passkey.user_id, now, label, passkey_id=passkey.id)
+    cookie = auth.start_session(session, passkey.user_id, now, label, passkey_id=passkey.id)
+    return auth.SignedIn(cookie, passkey.user_id)
 
 
 def confirmation(session: Session, party: Party, now: datetime) -> Ceremony | None:
