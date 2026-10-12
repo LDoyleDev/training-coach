@@ -45,7 +45,8 @@ block kind):
   rewritten for the new rule.
 - Exercises reach the top of their range sooner, so the progression prompt (ADR-0016, ADR-0025)
   comes earlier; its rule is unchanged.
-- A pace setting (steady +1, standard as above, fast with at least +2) is left for later.
+- A pace setting (steady +1, standard as above, fast with at least +2) was left for later;
+  built in ADR-0057.
 - History is every session at the step, whichever planned session it was logged in, judged
   against today's prescription. An exercise with different ranges in two sessions can see a
   target held or eased against the "other" range; blocks will add the block kind to the scope.

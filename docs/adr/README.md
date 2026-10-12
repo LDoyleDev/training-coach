@@ -61,4 +61,5 @@ Code). Template: [template.md](template.md).
 | [0054](0054-connect-my-ai-built-in.md) | Connect my AI with a hand-written MCP and OAuth server in the app | Accepted |
 | [0055](0055-band-import-through-health-connect-webhook.md) | Band data through Health Connect Webhook | Accepted |
 | [0056](0056-keep-the-weekly-ai-comment-7-days.md) | Keep the weekly AI comment 7 days, for the web review | Accepted |
+| [0057](0057-pace-setting.md) | A pace setting for how big a step the targets take | Accepted |
 | [0058](0058-ai-proposes-logs-you-confirm.md) | A connected AI proposes logs; you save or discard them | Accepted |

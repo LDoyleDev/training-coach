@@ -1,7 +1,7 @@
 """log proposals (ADR-0058)
 
 Revision ID: ed8dcbead366
-Revises: 7281a9439e79
+Revises: fb6987816a99
 Create Date: 2026-10-12 07:43:34.136939
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "ed8dcbead366"
-down_revision: str | Sequence[str] | None = "7281a9439e79"
+down_revision: str | Sequence[str] | None = "fb6987816a99"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -1,4 +1,4 @@
-"""/settings: message times, nudges and habit buttons on/off, training blocks, pause.
+"""/settings: message times, nudges and habit buttons on/off, training blocks, pace, pause.
 
 Callback data is ``s:<what>[:<HHMM>]``. A typed time (after "Other time...") is only read
 while the bot is waiting for one; otherwise plain text is left for logging (step 1-E).
@@ -19,6 +19,7 @@ from training_coach.db.session import session_scope
 from training_coach.domain.clock import parse_hhmm
 from training_coach.domain.habits import PROTEIN_GRAMS, protein_grams
 from training_coach.domain.queue import local_date
+from training_coach.domain.targets import Pace
 from training_coach.services import user_settings
 from training_coach.services.user_settings import Prefs
 
@@ -31,6 +32,12 @@ REVIEW_PRESETS = (time(18, 0), time(19, 0), time(20, 0))  # Sundays
 TIMES = ("morning", "nudge", "review")
 ASKS = (*TIMES, "protein")  # settings answered by typing
 TOGGLES = frozenset({"nudges", "habits", "blocks", "pause"})
+# How each pace reads in /settings (ADR-0057), the same words as on the web.
+PACES = {
+    Pace.STEADY: "one rep at a time",
+    Pace.STANDARD: "about a tenth of the range at a time",
+    Pace.FAST: "at least two reps at a time",
+}
 AWAITING = "awaiting_time"  # key in context.user_data: one of ASKS
 BAD_TIME = "That isn't a time like 07:30. Send it again, or /settings to cancel."
 PROTEIN_ASK = (
@@ -48,9 +55,10 @@ Reschedule = Callable[[ContextTypes.DEFAULT_TYPE, Prefs], None]
 @dataclass(frozen=True)
 class Press:
     what: str  # morning | nudge | review | ask-<one of those> | nudges | habits | blocks
-    # | pause
+    # | pause | pace
     at: time | None = None
     on: bool | None = None  # the value a toggle (nudges, habits, blocks, pause) sets
+    pace: Pace | None = None
 
 
 def _hhmm(t: time) -> str:
@@ -72,6 +80,8 @@ def parse(data: str | None) -> Press | None:
     if len(parts) == 3 and parts[0] == PREFIX and parts[1] in TOGGLES:
         # Toggles carry their target, so a button on an old message sets what it says.
         return Press(parts[1], on=parts[2] == "on") if parts[2] in ("on", "off") else None
+    if len(parts) == 3 and parts[0] == PREFIX and parts[1] == "pace":
+        return Press("pace", pace=Pace(parts[2])) if parts[2] in set(Pace) else None
     if len(parts) == 3 and parts[0] == PREFIX and parts[1] in TIMES:
         at = parse_hhmm(f"{parts[2][:2]}:{parts[2][2:]}") if len(parts[2]) == 4 else None
         return Press(parts[1], at) if at is not None else None
@@ -91,6 +101,7 @@ def text(prefs: Prefs) -> str:
             "Protein target: "
             + (f"{prefs.protein_g} g a day" if prefs.protein_g else "not set (1.6-2.2 g per kg)"),
             *_blocks_line(prefs),
+            f"Pace: {prefs.pace} ({PACES[prefs.pace]})",
             f"Paused: {'yes, no messages until you resume' if prefs.paused else 'no'}",
         ]
     )
@@ -144,6 +155,13 @@ def keyboard(prefs: Prefs) -> InlineKeyboardMarkup:
                 )
             ],
             *_blocks_row(prefs),
+            [
+                button(
+                    f"{'• ' if pace is prefs.pace else ''}{pace.capitalize()}",
+                    callback_data=f"{PREFIX}:pace:{pace}",
+                )
+                for pace in Pace
+            ],
             [
                 button(
                     "Resume" if prefs.paused else "Pause",
@@ -209,6 +227,7 @@ class SettingsHandlers:
                 paused=press.on if press.what == "pause" else None,
                 blocks=press.on if press.what == "blocks" else None,
                 habits_enabled=press.on if press.what == "habits" else None,
+                pace=press.pace,
                 today=local_date(datetime.now(UTC), self.settings.tz),
             )
         if press.what in TIMES:

@@ -1967,6 +1967,16 @@
         "title": "OptionsView",
         "type": "object"
       },
+      "Pace": {
+        "description": "How big a step each set aims for (ADR-0057). A per-person setting.",
+        "enum": [
+          "steady",
+          "standard",
+          "fast"
+        ],
+        "title": "Pace",
+        "type": "string"
+      },
       "PasskeyView": {
         "properties": {
           "created_at": {
@@ -3013,6 +3023,16 @@
             ],
             "title": "Nudges Enabled"
           },
+          "pace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Pace"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "paused": {
             "anyOf": [
               {
@@ -3079,6 +3099,9 @@
             "title": "Nudges Enabled",
             "type": "boolean"
           },
+          "pace": {
+            "$ref": "#/components/schemas/Pace"
+          },
           "paused": {
             "title": "Paused",
             "type": "boolean"
@@ -3111,6 +3134,7 @@
           "habits_enabled",
           "protein_g",
           "blocks_since",
+          "pace",
           "paused",
           "timezone"
         ],
