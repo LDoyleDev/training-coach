@@ -37,7 +37,7 @@ from training_coach.domain.measurements import SPECS, to_tenths
 from training_coach.domain.measurements import Kind as Measure
 from training_coach.domain.parser import Entry, sets_text
 from training_coach.domain.queue import local_date
-from training_coach.services import cardio, habits, measurements, workout_log
+from training_coach.services import cardio, day_clash, habits, measurements, workout_log
 from training_coach.services.cardio import MAX_MINUTES
 from training_coach.services.groq import Rewrite, RewriteLine
 
@@ -139,6 +139,10 @@ class Refused:
     reason: str  # short, for the AI to read and fix
 
 
+# A day that already has its session doesn't refuse a proposal: saving it asks the person
+# first (ADR-0060), as any log for that day would.
+
+
 @dataclass(frozen=True)
 class Proposed:
     id: int
@@ -186,8 +190,6 @@ def _strength(
         return Refused("every exercise needs at least one set")
     if any(not line.exercise.isprintable() for line in found.exercises):
         return Refused("exercise names are plain text on one line")
-    if day < today and workout_log.day_saved(session, day):
-        return Refused(f"a session is already saved for {_when(day)}")
     # Always under a date line of our own (ADR-0033: today's date on top is an ordinary log),
     # so nothing the AI wrote can be read as one.
     text = f"{day.isoformat()}\n{workout_log.rewrite_text(Rewrite(lines=found.exercises))}"
@@ -537,16 +539,21 @@ def _resolve(
     session.flush()
 
 
-def _write(session: Session, row: LogProposal, tz: ZoneInfo, today: date) -> str | None:
-    """Save through the service of the proposal's kind; why not, when it no longer fits."""
+def _write(
+    session: Session,
+    row: LogProposal,
+    tz: ZoneInfo,
+    today: date,
+    answer: day_clash.Resolution | None,
+) -> str | day_clash.Clash | day_clash.Refused | None:
+    """Save through the service of the proposal's kind; why not, when it no longer fits; or the
+    question, when the day already has its session (ADR-0060)."""
     data, day = row.payload, row.local_date
     if row.kind in (STRENGTH, CARDIO) and (today - day).days > MAX_DAYS_BACK:
         return f"{_when(day)} is too long ago now"
     if row.kind == STRENGTH:
         if not data["backdated"] and day < today:  # proposed for a today that has passed
             return f"it was proposed for {_when(day)}, which has passed"
-        if data["backdated"] and workout_log.day_saved(session, day):
-            return f"a session was saved for {_when(day)} meanwhile"
         draft = workout_log.Draft(
             token=row.token,
             on=day,
@@ -560,7 +567,9 @@ def _write(session: Session, row: LogProposal, tz: ZoneInfo, today: date) -> str
             strength=data["strength"],
             backdated=data["backdated"],
         )
-        result = workout_log.save(session, draft, tz)
+        result = workout_log.save(session, draft, tz, answer)
+        if isinstance(result, day_clash.Clash | day_clash.Refused):
+            return result
         return None if isinstance(result, workout_log.Saved) else "today's session changed"
     if row.kind == CARDIO:
         activity = CardioActivity(data["activity"]) if data["activity"] else None
@@ -573,7 +582,10 @@ def _write(session: Session, row: LogProposal, tz: ZoneInfo, today: date) -> str
             activity,
             row.token,
             extra=day != today,
+            answer=answer,
         )
+        if isinstance(logged, day_clash.Clash | day_clash.Refused):
+            return logged
         return "today's session changed" if isinstance(logged, workout_log.Stale) else None
     if row.kind == HABITS:
         if not can_change(day, today):
@@ -586,13 +598,26 @@ def _write(session: Session, row: LogProposal, tz: ZoneInfo, today: date) -> str
 
 
 def save(
-    session: Session, token: str, tz: ZoneInfo, now: datetime, by: str
-) -> Saved | Already | Gone | Changed:
-    """Save a waiting proposal, once. ``by`` is where the person tapped (web or telegram)."""
+    session: Session,
+    token: str,
+    tz: ZoneInfo,
+    now: datetime,
+    by: str,
+    answer: day_clash.Resolution | None = None,
+) -> Saved | Already | Gone | Changed | day_clash.Clash | day_clash.Refused:
+    """Save a waiting proposal, once. ``by`` is where the person tapped (web or telegram).
+
+    When its day already has its session, nothing is saved and it keeps waiting: the person
+    is asked (``Clash``) and saves again with ``answer`` (ADR-0060)."""
     row = _claim(session, token, SAVED, now)
     if not isinstance(row, LogProposal):
         return row
-    problem = _write(session, row, tz, local_date(now, tz))
+    problem = _write(session, row, tz, local_date(now, tz), answer)
+    if isinstance(problem, day_clash.Clash | day_clash.Refused):
+        # Nothing was written but the claim: it waits again, for the answer.
+        row.status, row.resolved_at = PENDING, None
+        session.flush()
+        return problem
     if problem is not None:  # nothing was written: each service checks before it writes
         _resolve(session, row, DISCARDED, now, by, "changed")
         return Changed(problem)

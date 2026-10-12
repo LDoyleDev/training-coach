@@ -1,8 +1,9 @@
 """A date on the first line of a log, for logging a past day (#104, ADR-0033). Pure logic.
 
 Accepted: ``yesterday``, a weekday (the most recent one before today), ``29 Sep`` or
-``Tue 29 Sep`` (the most recent such date), ``29/9`` (day/month) and ``2026-09-29``. Whatever
-follows the date on that line ("Legs", "rest", "- Day 1 Legs") is returned for the caller.
+``Tue 29 Sep`` (the most recent such date), ``29/9`` (day/month) and ``2026-09-29``; and
+``today``, to name today's session (ADR-0060). Whatever follows the date on that line ("Legs",
+"rest", "- Day 1 Legs") is returned for the caller.
 """
 
 import re
@@ -26,7 +27,8 @@ _DATE = (
 )
 DATE = re.compile(_DATE, re.IGNORECASE)
 WORD = re.compile(
-    rf"^\s*(?:(?P<yesterday>yesterday)|{_WEEKDAY})(?P<rest>(?:\W.*)?)$", re.IGNORECASE
+    rf"^\s*(?:(?P<today>today)|(?P<yesterday>yesterday)|{_WEEKDAY})(?P<rest>(?:\W.*)?)$",
+    re.IGNORECASE,
 )
 LEAD = re.compile(r"^[\s:,\-\u2013\u2014]+")  # separators after the date, dashes too
 
@@ -59,6 +61,8 @@ def date_line(line: str, today: date) -> DateLine | str | None:
     if word is not None:
         if any(c.isdigit() for c in rest):  # "sun salutation 5" is a log, not Sunday
             return None
+        if word["today"]:  # names today's session: "today Arms" (ADR-0060)
+            return DateLine(today, rest)
         if word["yesterday"]:
             return DateLine(today - timedelta(days=1), rest)
         back = (today.weekday() - WEEKDAYS.index(str(named))) % 7 or 7

@@ -171,7 +171,7 @@ def test_a_future_day_is_refused_for_every_kind(client: TestClient, token: str) 
         assert "hasn't happened yet" in refused(client, token, day=tomorrow, **arguments)
 
 
-def test_an_earlier_day_is_proposed_until_its_session_is_saved(
+def test_an_earlier_day_is_proposed_and_saved_there(
     client: TestClient, engine: Engine, token: str
 ) -> None:
     yesterday = _today() - timedelta(days=1)
@@ -184,31 +184,54 @@ def test_an_earlier_day_is_proposed_until_its_session_is_saved(
     assert save(client, first).status_code == 200
     (workout,) = _rows(engine, Workout)
     assert workout.local_date == yesterday
-    reason = refused(
-        client, token, kind="strength", day=yesterday.isoformat(), exercises=[PULL_UPS]
-    )
-    assert "already saved" in reason
     too_old = (_today() - timedelta(days=15)).isoformat()
     assert "more than 14 days ago" in refused(
         client, token, kind="strength", day=too_old, exercises=[PULL_UPS]
     )
 
 
-def test_a_day_saved_meanwhile_is_not_saved_twice(
+def test_a_day_that_has_its_session_asks_at_save_time(
     client: TestClient, engine: Engine, token: str
 ) -> None:
+    """ADR-0060 replaces ADR-0058's refusal: the proposal waits, and Save asks first."""
     yesterday = _today() - timedelta(days=1)
-    waiting = proposed(
-        client, token, kind="strength", day=yesterday.isoformat(), exercises=[PULL_UPS]
-    )
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         typed = workout_log.draft(mine, f"{yesterday.isoformat()}\npull-ups 5", _today(), BERLIN)
         assert isinstance(workout_log.save(mine, typed, BERLIN), workout_log.Saved)
+    waiting = proposed(
+        client, token, kind="strength", day=yesterday.isoformat(), exercises=[PULL_UPS]
+    )
     answer = save(client, waiting)
     assert answer.status_code == 409
-    assert "saved for" in answer.json()["detail"]
-    assert len(_rows(engine, Workout)) == 1
-    assert client.get("/api/proposals").json() == []  # it can't fit any more: discarded
+    clash = answer.json()["detail"]
+    assert clash["day"] == yesterday.isoformat()
+    assert [r["summary"] for r in clash["recorded"]] == ["1 sets: Pull-up"]
+    assert len(client.get("/api/proposals").json()) == 1  # still waiting
+    seen = [r["workout_id"] for r in clash["recorded"]]
+    replaced = client.post(
+        "/api/proposals/save", json={"token": waiting, "resolution": "replace", "seen": seen}
+    )
+    assert replaced.status_code == 200, replaced.text
+    assert sorted(s.value for s in _rows(engine, SetLog)) == [7, 8, 8]
+    assert client.get("/api/proposals").json() == []
+    assert save(client, waiting).json()["detail"] == "already_saved"
+
+
+def test_a_move_answer_that_cant_be_done_keeps_it_waiting(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    yesterday = _today() - timedelta(days=1)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        typed = workout_log.draft(mine, f"{yesterday.isoformat()}\npull-ups 5", _today(), BERLIN)
+        assert isinstance(workout_log.save(mine, typed, BERLIN), workout_log.Saved)
+    waiting = proposed(
+        client, token, kind="strength", day=yesterday.isoformat(), exercises=[PULL_UPS]
+    )
+    seen = [r["workout_id"] for r in save(client, waiting).json()["detail"]["recorded"]]
+    body = {"token": waiting, "resolution": f"move:{yesterday.isoformat()}", "seen": seen}
+    refused_move = client.post("/api/proposals/save", json=body)
+    assert refused_move.status_code == 422
+    assert len(client.get("/api/proposals").json()) == 1
 
 
 def test_today_changed_meanwhile_is_stale(client: TestClient, engine: Engine, token: str) -> None:
