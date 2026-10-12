@@ -63,6 +63,7 @@ def test_a_secret_is_shown_once_and_kept_hashed(
         "exists": False,
         "created_at": None,
         "last_used_at": None,
+        "last_taken_at": None,
         "url": f"{ORIGIN}{PATH}",
     }
     made = signed_in.post("/api/account/ingest").json()
@@ -104,7 +105,27 @@ def test_a_payload_is_stored_for_the_secrets_owner(
     flat = json.dumps(logs, default=str)
     for value in ("81.46", "2026-10-11T05:00", "com.mi.health"):
         assert value not in flat
-    assert signed_in.get("/api/account/ingest").json()["last_used_at"] is not None
+    status = signed_in.get("/api/account/ingest").json()
+    assert status["last_used_at"] == status["last_taken_at"] == "2026-10-11T08:00:00Z"
+
+
+def test_an_empty_sync_is_noted_but_isnt_data_arriving(
+    signed_in: TestClient, phone: TestClient
+) -> None:
+    secret = _secret(signed_in)
+    empty = {"timestamp": hcw.iso(hcw.NOW), "app_version": "1.9.22"}
+    assert _post(phone, secret, empty).json() == {"taken": {}, "skipped": {}}
+    status = signed_in.get("/api/account/ingest").json()
+    assert status["last_used_at"] is not None
+    assert status["last_taken_at"] is None
+
+
+def test_a_refused_sync_isnt_noted(signed_in: TestClient, phone: TestClient) -> None:
+    # Only a stored sync counts as one getting through: a sync refused forever is a gap.
+    secret = _secret(signed_in)
+    assert _post(phone, secret, [1, 2]).status_code == 422
+    status = signed_in.get("/api/account/ingest").json()
+    assert status["last_used_at"] is None
 
 
 def test_a_new_secret_replaces_the_old_one(signed_in: TestClient, phone: TestClient) -> None:
