@@ -26,10 +26,11 @@ from training_coach.db.models import (
     HeartRateSample,
     ImportedWorkout,
     IngestKey,
+    Measurement,
     SleepSession,
 )
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.services import health_import
+from training_coach.services import health_import, ingest_keys
 from training_coach.services.users import OWNER
 
 PATH = "/api/ingest/health-connect"
@@ -264,3 +265,79 @@ def test_parsing_and_storing_run_off_the_event_loop(
     monkeypatch.setattr(health_import, "store", store)
     assert _post(phone, secret).status_code == 200
     assert loops == [False]
+
+
+def _stored(engine: Engine) -> dict[str, int]:
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        found = {
+            model.__name__: len(list(mine.scalars(select(model.id))))
+            for model in (HealthDay, HeartRateSample, SleepSession, ImportedWorkout)
+        }
+        found["weight"] = len(list(mine.scalars(select(Measurement.id))))
+    return found
+
+
+def test_the_apps_test_button_stores_nothing(
+    signed_in: TestClient, phone: TestClient, engine: Engine
+) -> None:
+    # Found on live data: the Test button's made-up records (16,864 steps, resting 58 and 57,
+    # 75.4 kg) were stored as the band's.
+    secret = _secret(signed_in)
+    with capture_logs() as logs:
+        answer = _post(phone, secret, hcw.mock())
+    assert answer.status_code == 200
+    assert answer.json() == {
+        "test": True,
+        "taken": {},
+        "skipped": {},
+        "note": "test received; nothing stored",
+    }
+    assert _stored(engine) == {
+        "HealthDay": 0,
+        "HeartRateSample": 0,
+        "SleepSession": 0,
+        "ImportedWorkout": 0,
+        "weight": 0,
+    }
+    assert [entry["event"] for entry in logs if entry["event"].startswith("ingest.")] == [
+        "ingest.test"
+    ]
+    # It proves the address and the secret work: a sync got through, but no data arrived.
+    status = signed_in.get("/api/account/ingest").json()
+    assert status["last_used_at"] == "2026-10-11T08:00:00Z"
+    assert status["last_taken_at"] is None
+
+
+def test_a_test_with_a_wrong_secret_is_refused(phone: TestClient) -> None:
+    wrong = {"Authorization": "Bearer tci_" + "ab" * 16}
+    assert phone.post(PATH, json=hcw.mock(), headers=wrong).status_code == 401
+
+
+@pytest.mark.parametrize("flag", [False, None, "true", 1], ids=["false", "null", "text", "one"])
+def test_only_test_true_is_a_test(
+    signed_in: TestClient, phone: TestClient, engine: Engine, flag: object
+) -> None:
+    # Real syncs never send the flag; anything but a JSON true is stored as usual.
+    body = {**hcw.mock(), "test": flag}
+    answer = _post(phone, _secret(signed_in), body)
+    assert answer.json() == {
+        "taken": {"steps": 2, "heart_rate": 2, "resting_heart_rate": 2, "weight": 1},
+        "skipped": {},
+    }
+    assert _stored(engine)["weight"] == 1
+
+
+def test_a_test_doesnt_end_a_gap_already_told(
+    signed_in: TestClient, phone: TestClient, engine: Engine
+) -> None:
+    secret = _secret(signed_in)
+    told = hcw.NOW - timedelta(hours=2)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        row = mine.scalars(select(IngestKey)).one()
+        row.last_taken_at, row.alerted_at = hcw.NOW - timedelta(days=2), told
+    _post(phone, secret, hcw.mock())
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        row = mine.scalars(select(IngestKey)).one()
+        assert row.last_taken_at == hcw.NOW - timedelta(days=2)
+        assert row.alerted_at == told
+        assert ingest_keys.watch(mine, hcw.NOW + timedelta(minutes=5)) is None  # not "back"

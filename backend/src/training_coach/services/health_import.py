@@ -6,6 +6,9 @@ type with records (docs/webhook.md in mcnaveen/health-connect-webhook). Records 
 one is known by where it came from (``metadata.data_origin``) and when it started. A record that
 doesn't fit is skipped and counted; the rest are stored. The caller owns the transaction and
 passes a session bound to the person the secret belongs to.
+
+The app's Test button posts made-up records for yesterday (``MockPayloadBuilder.build``) with a
+top-level ``"test": true`` that real syncs never send: those are never parsed or stored.
 """
 
 from collections import Counter, defaultdict
@@ -135,6 +138,11 @@ def _when(record: _Record) -> datetime:
         if (value := getattr(record, name, None)) is not None:
             return value  # type: ignore[no-any-return]  # one of the AwareDatetime fields
     raise AssertionError(record)  # pragma: no cover - every model has one
+
+
+def is_test(body: dict[str, Any]) -> bool:
+    """Whether this is the app's Test button: only a JSON ``true`` counts."""
+    return body.get("test") is True
 
 
 def parse(body: dict[str, Any], now: datetime) -> Batch:
