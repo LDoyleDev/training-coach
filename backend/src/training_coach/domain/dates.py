@@ -80,8 +80,14 @@ def date_line(line: str, today: date) -> DateLine | str | None:
         return f"'{shown}' isn't a date I can read"
     if named is not None and WEEKDAYS[day.weekday()] != named:
         return f"{day:%d %b} was a {day:%A}, not what '{shown}' says"
+    problem = day_problem(day, today)
+    return problem if problem is not None else DateLine(day, rest)
+
+
+def day_problem(day: date, today: date) -> str | None:
+    """Why a log can't be for ``day``: it is in the future or too long ago (ADR-0033)."""
     if day > today:
         return f"{day:%a %d %b} hasn't happened yet"
     if (today - day).days > MAX_DAYS_BACK:
         return f"{day:%a %d %b} is more than {MAX_DAYS_BACK} days ago"
-    return DateLine(day, rest)
+    return None

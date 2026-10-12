@@ -20,6 +20,7 @@ from training_coach.db.models import ImportedWorkout
 from training_coach.domain import health
 from training_coach.domain.enums import CardioActivity
 from training_coach.services import cardio, workout_log
+from training_coach.services.day_clash import Clash, Refused, Resolution
 
 DAYS = 7  # offered for this many days, today included
 ANNOUNCE_DAYS = 2  # sent to Telegram for this many days: today and yesterday
@@ -120,9 +121,10 @@ def announced(session: Session, import_id: int, now: datetime) -> None:
 
 
 def count(
-    session: Session, import_id: int, today: date, tz: ZoneInfo
-) -> Counted | Gone | workout_log.Stale:
-    """Save an offer as cardio. Counting one already counted changes nothing."""
+    session: Session, import_id: int, today: date, tz: ZoneInfo, answer: Resolution | None = None
+) -> Counted | Gone | workout_log.Stale | Clash | Refused:
+    """Save an offer as cardio. Counting one already counted changes nothing. When it would
+    complete today's session on a day that already has one, it asks first (ADR-0060)."""
     row = session.get(ImportedWorkout, import_id)
     if row is None or row.status == "dismissed":
         return Gone()
@@ -140,8 +142,9 @@ def count(
         offer.activity,
         token(row.id),
         extra=offer.on != today,
+        answer=answer,
     )
-    if isinstance(logged, workout_log.Stale):
+    if not isinstance(logged, cardio.Logged):
         return logged
     row.status, row.workout_id = "counted", logged.saved.workout_id
     session.flush()

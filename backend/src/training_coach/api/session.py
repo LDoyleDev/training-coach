@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.auth import Owner
+from training_coach.api.clash import CLASH, Answer, conflict, resolution
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.daily_check import summary as daily_summary
@@ -26,6 +27,7 @@ from training_coach.services import (
     workout_log,
 )
 from training_coach.services import progress as feedback
+from training_coach.services.day_clash import Clash, Refused
 from training_coach.services.today import position
 
 router = APIRouter(prefix="/api/session", tags=["session"])
@@ -144,7 +146,7 @@ class KeepBody(BaseModel):
     sets: list[DoneView] = Field(default_factory=list, max_length=200)
 
 
-class SaveBody(BaseModel):
+class SaveBody(Answer):
     day: date | None = None  # empty: today; an earlier day saves one left unsaved
 
 
@@ -270,15 +272,18 @@ def keep(body: KeepBody, request: Request, user: Owner) -> KeptView:
     return KeptView(revision=result)
 
 
-@router.post("/save", response_model=SavedView)
+@router.post("/save", response_model=SavedView, responses=CLASH)
 def save(body: SaveBody, request: Request, user: Owner) -> SavedView:
-    """Save the guided session as a workout: today's, or an earlier day's left unsaved."""
+    """Save the guided session as a workout: today's, or an earlier day's left unsaved. 409
+    with what is saved already when that day has its session (ADR-0060)."""
     settings, today = _settings_and_day(request)
     day = body.day or today
     if day > today:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "that day hasn't happened yet")
     with session_scope(_bound(request, user)) as session:
-        result = guided.save(session, day, today, settings.tz)
+        result = guided.save(session, day, today, settings.tz, resolution(body))
+        if isinstance(result, Clash | Refused):
+            raise conflict(result)
         if isinstance(result, str):
             raise HTTPException(status.HTTP_400_BAD_REQUEST, result)
         if isinstance(result, workout_log.Stale):

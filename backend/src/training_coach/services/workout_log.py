@@ -8,6 +8,7 @@ The caller owns the transaction.
 
 import re
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
@@ -29,8 +30,16 @@ from training_coach.domain.cardio import TIMED, activity_in
 from training_coach.domain.dates import DateLine, date_line
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.parser import Entry, Known, ParseResult, normalise_name, parse_log
-from training_coach.domain.queue import ADVANCING, Position, caught_up, complete
-from training_coach.services import blocks, undo, users
+from training_coach.domain.queue import (
+    ADVANCING,
+    Position,
+    caught_up,
+    complete,
+    local_date,
+    resettled,
+)
+from training_coach.services import blocks, day_clash, undo, users
+from training_coach.services.day_clash import Clash, Refused, Resolution, Resolved
 from training_coach.services.groq import Rewrite
 from training_coach.services.today import position
 
@@ -59,6 +68,9 @@ class Draft:
     # today's session is a different one): never completes it, never moves the queue.
     extra: bool = False
     activity: str | None = None  # CardioActivity, for a cardio log
+    # Today's log of a session named on purpose ("today Arms", or picked on the web), whatever
+    # the queue offers (ADR-0060): done out of turn, it leaves the queue where it is (ADR-0016).
+    chosen: bool = False
 
 
 @dataclass(frozen=True)
@@ -291,15 +303,54 @@ def _file(
         )
 
 
-def _commit(session: Session, workout: Workout, confirmed: Draft, moved: Position | None) -> Saved:
-    """Add the workout and the queue move in one savepoint, then log the event."""
+Saving = Saved | Stale | Clash | Refused | None
+
+
+def _commit(
+    session: Session,
+    workout: Workout,
+    confirmed: Draft,
+    rule: Callable[[], Position | None],
+    answer: Resolution | None,
+    tz: ZoneInfo,
+) -> Saved | Clash | Refused:
+    """Add the workout and the queue move in one savepoint, then log the event.
+
+    A planned session or rest day for a day that already has one is a clash (ADR-0060):
+    nothing is written until ``answer`` says what to do with what is there. A replace or a
+    move settles the queue by ADR-0033's catching-up rule; otherwise ``rule`` moves it."""
     plan = users.plan_state(session)
     queue_before = undo.snapshot(session)
+    resolved: Resolved | None = None
     try:
         # A racing duplicate save (same token) rolls both back together, so the queue can
         # never move twice.
         with session.begin_nested():
+            clash = (
+                day_clash.recorded(session, confirmed.on)
+                if day_clash.can_clash(confirmed.template_id, confirmed.rest)
+                else None
+            )
+            latest = day_clash.latest_done(session)
+            if clash is not None:
+                if answer is None:
+                    return clash
+                found = day_clash.resolve(session, clash, answer, local_date(datetime.now(UTC), tz))
+                if not isinstance(found, Resolved):
+                    return found  # nothing was written
+                resolved = found
             session.add(workout)
+            session.flush()
+            if resolved is not None and resolved.action != day_clash.ADD:
+                current = position(session)
+                moved = (
+                    resettled(_order(session), current, latest, day_clash.latest_done(session))
+                    if current is not None
+                    else None
+                )
+                day_clash.sweep(session, datetime.now(UTC) - undo.WINDOW)
+            else:
+                moved = rule()
             if plan is not None and moved is not None:
                 plan.next_template_id = moved.pointer
                 plan.queued = list(moved.queued)
@@ -310,6 +361,7 @@ def _commit(session: Session, workout: Workout, confirmed: Draft, moved: Positio
         if before is None:
             raise
         return before
+    record = undo.record(queue_before, undo.snapshot(session), workout)
     session.add(
         Event(
             kind="workout.logged",
@@ -319,7 +371,8 @@ def _commit(session: Session, workout: Workout, confirmed: Draft, moved: Positio
                 "exercises": len(confirmed.entries),
                 "sets": len(workout.sets),
                 **({"day": confirmed.on.isoformat()} if confirmed.backdated else {}),
-                "undo": undo.record(queue_before, undo.snapshot(session), workout),
+                **({"resolved": resolved.action} if resolved is not None else {}),
+                "undo": {**record, **(resolved.undo() if resolved is not None else {})},
             },
         )
     )
@@ -330,22 +383,35 @@ def _order(session: Session) -> list[int]:
     return list(session.scalars(select(SessionTemplate.id).order_by(SessionTemplate.position)))
 
 
-def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | None:
+def save(
+    session: Session, confirmed: Draft, tz: ZoneInfo, answer: Resolution | None = None
+) -> Saving:
     """Write the workout, its sets at the current ladder steps and the queue move.
 
     Nothing in the draft is trusted beyond what is re-checked here: a draft saved before
     returns that workout with ``already_saved``; one whose target session or exercises no
-    longer fit returns ``Stale``; one with no entries returns None. None of them write.
+    longer fit returns ``Stale``; one with no entries returns None; one for a day that already
+    has its session returns the ``Clash`` to ask about, until ``answer`` resolves it (or
+    ``Refused`` when the answer can't be carried out). None of those write.
     """
     if (before := _saved_before(session, confirmed.token)) is not None:
         return before
     if confirmed.backdated:
-        return _save_past(session, confirmed, tz)
+        return _save_past(session, confirmed, tz, answer)
     if not confirmed.entries:
         return None
-    now = None if confirmed.extra else target(session, confirmed.on, tz)
-    if (now.id if now is not None else None) != confirmed.template_id:
-        return Stale()
+    if confirmed.chosen:
+        now = (
+            session.get(SessionTemplate, confirmed.template_id)
+            if confirmed.template_id is not None
+            else None
+        )
+        if now is None:
+            return Stale()
+    else:
+        now = None if confirmed.extra else target(session, confirmed.on, tz)
+        if (now.id if now is not None else None) != confirmed.template_id:
+            return Stale()
     exercises = _exercises(session, confirmed)
     if exercises is None:
         return Stale()
@@ -362,16 +428,20 @@ def save(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | No
         activity=confirmed.activity,
     )
     _file(session, workout, confirmed, exercises, strength, tz)
-    current = position(session)
-    moved = (
-        complete(_order(session), current, confirmed.template_id, WorkoutStatus.DONE)
-        if current is not None
-        else None
-    )
-    return _commit(session, workout, confirmed, moved)
+
+    def rule() -> Position | None:
+        # At the pointer it moves on; a session chosen out of turn leaves it (ADR-0016).
+        current = position(session)
+        if current is None:
+            return None
+        return complete(_order(session), current, confirmed.template_id, WorkoutStatus.DONE)
+
+    return _commit(session, workout, confirmed, rule, answer, tz)
 
 
-def _save_past(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stale | None:
+def _save_past(
+    session: Session, confirmed: Draft, tz: ZoneInfo, answer: Resolution | None
+) -> Saving:
     """A past day logged late (#104, ADR-0033): filed under that day; the queue moves to the
     session after it only when it's a planned session and nothing later is logged."""
     if (not confirmed.entries and not confirmed.rest) or (confirmed.rest and confirmed.problems):
@@ -395,9 +465,12 @@ def _save_past(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stal
         activity=confirmed.activity,
     )
     _file(session, workout, confirmed, exercises, strength, tz)
-    later = session.scalar(select(Workout.id).where(Workout.local_date > confirmed.on).limit(1))
-    moved = caught_up(_order(session), template.id) if template and later is None else None
-    return _commit(session, workout, confirmed, moved)
+
+    def rule() -> Position | None:
+        later = session.scalar(select(Workout.id).where(Workout.local_date > confirmed.on).limit(1))
+        return caught_up(_order(session), template.id) if template and later is None else None
+
+    return _commit(session, workout, confirmed, rule, answer, tz)
 
 
 def day_saved(session: Session, on: date) -> bool:

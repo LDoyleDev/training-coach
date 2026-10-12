@@ -8,11 +8,13 @@ from pydantic import BaseModel
 
 from training_coach.api.auth import Owner
 from training_coach.api.cardio import WeekView, week_view
+from training_coach.api.clash import CLASH, Answer, conflict, resolution
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import CardioActivity
 from training_coach.domain.queue import local_date
 from training_coach.services import band_cardio, cardio, workout_log
+from training_coach.services.day_clash import Clash, Refused
 
 router = APIRouter(prefix="/api/band/offers", tags=["band"])
 
@@ -47,14 +49,18 @@ def offers(request: Request, user: Owner) -> list[BandOfferView]:
     return [BandOfferView.model_validate(vars(o)) for o in found]
 
 
-@router.post("/{import_id}/count", response_model=BandCounted)
-def count(import_id: int, request: Request, user: Owner) -> BandCounted:
+@router.post("/{import_id}/count", response_model=BandCounted, responses=CLASH)
+def count(import_id: int, request: Request, user: Owner, body: Answer | None = None) -> BandCounted:
     """Count a band workout as cardio. 404 when it isn't on offer; 409 when today's session
-    changed in a way that makes it stale (count it again)."""
+    changed in a way that makes it stale (count it again), or with what is saved already when
+    the day has its session (ADR-0060): count it again with the answer."""
     settings: Settings = request.app.state.settings
     today = _today(request)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
-        result = band_cardio.count(session, import_id, today, settings.tz)
+        answer = resolution(body) if body is not None else None
+        result = band_cardio.count(session, import_id, today, settings.tz, answer)
+        if isinstance(result, Clash | Refused):
+            raise conflict(result)
         if isinstance(result, band_cardio.Gone):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "that workout isn't on offer")
         if isinstance(result, workout_log.Stale):

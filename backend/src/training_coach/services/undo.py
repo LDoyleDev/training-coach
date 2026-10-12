@@ -2,20 +2,28 @@
 saved workout log.
 
 Each of those records, in its event, the queue before and after it and the workout row it
-added. Undoing puts the queue back and removes that workout, but only while nothing has moved
-since: the queue must still be where the change left it. One step only: after an undo there is
-nothing left to undo until the next change. The caller owns the transaction.
+added; a log that replaced or moved a day's session (ADR-0060) also what it set aside or moved,
+which undoing puts back. Undoing puts the queue back and removes that workout, but only while
+nothing has moved since: the queue must still be where the change left it. One step only:
+after an undo there is nothing left to undo until the next change. The caller owns the
+transaction.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Event, SessionProgress, SessionTemplate, Workout
-from training_coach.services import users
+from training_coach.db.models import (
+    Event,
+    ReplacedWorkout,
+    SessionProgress,
+    SessionTemplate,
+    Workout,
+)
+from training_coach.services import day_clash, users
 
 UNDOABLE = ("queue.rest", "queue.pushed", "queue.swapped", "workout.logged")
 UNDONE = "undo.applied"
@@ -76,7 +84,25 @@ def _describe(session: Session, event: Event) -> str:
     workout = session.get(Workout, workout_id) if isinstance(workout_id, int) else None
     day = f"{workout.local_date:%a %d %b}" if workout is not None else "that day"
     session_name = _name(session, p.get("template_id")) if p.get("template_id") else "extra"
-    return f"the {session_name} log for {day} ({p.get('sets', 0)} sets)"
+    return f"the {session_name} log for {day} ({p.get('sets', 0)} sets){_put_back(session, p)}"
+
+
+def _put_back(session: Session, payload: dict[str, Any]) -> str:
+    """ ", which replaced Legs" or ", which moved Legs to Tue 06 Oct" (ADR-0060)."""
+    undo = payload.get("undo", {})
+    names = []
+    for kept_id in undo.get("removed", []):
+        kept = session.get(ReplacedWorkout, kept_id)
+        template_id = kept.data.get("template_id") if kept is not None else None
+        names.append(_name(session, template_id) if template_id else "a rest day")
+    if names:
+        return f", which replaced {' and '.join(names)}"
+    moved = undo.get("moved")
+    if moved is None:
+        return ""
+    found = [session.get(Workout, i) for i in moved["ids"]]
+    shown = [_name(session, w.template_id) if w and w.template_id else "a rest day" for w in found]
+    return f", which moved {' and '.join(shown)} to {date.fromisoformat(moved['to']):%a %d %b}"
 
 
 def _latest(session: Session) -> Event | None:
@@ -97,6 +123,8 @@ def last(session: Session, now: datetime) -> Undoable | Blocked:
         return Blocked(CHANGED)
     workout_id = undo.get("workout_id")
     if workout_id is not None and session.get(Workout, workout_id) is None:
+        return Blocked(CHANGED)
+    if not day_clash.can_put_back(session, undo):
         return Blocked(CHANGED)
     return Undoable(event.id, _describe(session, event))
 
@@ -123,6 +151,8 @@ def apply(session: Session, event_id: int, now: datetime) -> Undone | Blocked:
         ):
             progress.saved_workout_id = None
         session.delete(session.get_one(Workout, workout_id))
+        session.flush()
+    day_clash.put_back(session, undo)
     session.add(Event(kind=UNDONE, payload={"event_id": event_id, "kind": event.kind}))
     session.flush()
     pointer = state.next_template_id if state is not None else None

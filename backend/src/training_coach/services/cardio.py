@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from training_coach.domain.enums import CardioActivity, Side
 from training_coach.domain.parser import Entry
 from training_coach.services import guided, review, workout_log
+from training_coach.services.day_clash import Clash, Refused, Resolution
 from training_coach.services.seed import bundled_plan
 
 ZONE2 = review.ZONE2
@@ -86,9 +87,11 @@ def log(
     token: str,
     *,
     extra: bool = False,
-) -> Logged | workout_log.Stale:
+    answer: Resolution | None = None,
+) -> Logged | workout_log.Stale | Clash | Refused:
     """Save one cardio log for ``on``. The caller checks ``problem`` first. ``extra`` files it
-    as an extra whatever is planned (a band workout from an earlier day, ADR-0055)."""
+    as an extra whatever is planned (a band workout from an earlier day, ADR-0055). Today's
+    planned session asks first when the day already has its session (ADR-0060)."""
     today = None if extra else planned(session, on, tz)
     is_planned = today is not None and today.kind == kind
     template = workout_log.target(session, on, tz) if is_planned else None
@@ -103,7 +106,9 @@ def log(
         extra=not is_planned,
         activity=activity.value if activity is not None else None,
     )
-    result = workout_log.save(session, draft, tz)
+    result = workout_log.save(session, draft, tz, answer)
     if result is None or isinstance(result, workout_log.Stale):
         return workout_log.Stale()
+    if not isinstance(result, workout_log.Saved):
+        return result
     return Logged(result, is_planned and not result.already_saved)

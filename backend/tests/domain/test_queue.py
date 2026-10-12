@@ -5,11 +5,14 @@ import pytest
 
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import (
+    DoneOn,
     Position,
     caught_up,
     complete,
+    latest,
     local_date,
     next_in_cycle,
+    resettled,
     swap_with_next,
     upcoming,
 )
@@ -154,3 +157,66 @@ def test_swap_needs_two_sessions() -> None:
 def test_catching_up_points_after_the_session_logged_and_drops_any_swap() -> None:
     assert caught_up([1, 2, 3], 2) == Position(3)
     assert caught_up([1, 2, 3], 3) == Position(1)
+
+
+# ------------------------------------------------- replacing or moving a day (ADR-0060)
+
+
+def on(day: int, template_id: int, workout_id: int) -> DoneOn:
+    return DoneOn(date(2026, 10, day), template_id, workout_id)
+
+
+@pytest.mark.parametrize(
+    ("done", "expected"),
+    [
+        pytest.param([], None, id="nothing"),
+        pytest.param([on(7, 10, 2), on(8, 20, 1)], on(8, 20, 1), id="later-day-wins"),
+        pytest.param([on(8, 10, 1), on(8, 20, 3), on(7, 30, 9)], on(8, 20, 3), id="same-day"),
+    ],
+)
+def test_latest_is_by_date_then_by_log_order(done: list[DoneOn], expected: DoneOn | None) -> None:
+    assert latest(done) == expected
+
+
+@pytest.mark.parametrize(
+    ("position", "before", "after", "expected"),
+    [
+        # 8 Oct: Legs live on day N (pointer moved to zone 2), Legs backdated to N-1, then rest
+        # on N replaces N's Legs: the latest is now N-1's Legs, so zone 2 is next, once.
+        pytest.param(Position(20), on(8, 10, 1), on(7, 10, 2), Position(20), id="8-oct-replace"),
+        # Moving N's Legs to N-2 instead leaves N-1's Legs the latest: the same answer.
+        pytest.param(Position(20), on(8, 10, 1), on(7, 10, 2), Position(20), id="8-oct-move"),
+        # An older day changed: history only, the swap is kept.
+        pytest.param(
+            Position(20, (10,)),
+            on(8, 30, 5),
+            on(8, 30, 5),
+            Position(20, (10,)),
+            id="older-day-keeps-queue",
+        ),
+        # Today's session replaced by another one: the queue follows the one now done.
+        pytest.param(Position(20), on(8, 10, 1), on(8, 40, 2), Position(50), id="today-replaced"),
+        # The latest day's session moved earlier than another: the later one leads.
+        pytest.param(Position(40), on(8, 30, 3), on(7, 20, 4), Position(30), id="moved-back"),
+        # Moved forward past the others: catching up drops the swap.
+        pytest.param(
+            Position(20, (30,)),
+            on(6, 10, 1),
+            on(8, 50, 2),
+            Position(60),
+            id="moved-forward-drops-swap",
+        ),
+        # The only planned session replaced by a rest day: it is next again.
+        pytest.param(Position(20), on(8, 10, 1), None, Position(10), id="nothing-left"),
+        # From nothing to something (a rest day replaced by a session).
+        pytest.param(Position(10), None, on(8, 10, 1), Position(20), id="first-session"),
+        pytest.param(Position(70), on(8, 70, 1), on(8, 10, 2), Position(20), id="wraps"),
+        # Sessions gone from the plan since: nothing to catch up to.
+        pytest.param(Position(20), on(8, 10, 1), on(8, 99, 2), Position(20), id="after-unknown"),
+        pytest.param(Position(20), on(8, 99, 1), None, Position(20), id="before-unknown"),
+    ],
+)
+def test_resettled_catches_up_only_when_the_latest_session_changed(
+    position: Position, before: DoneOn | None, after: DoneOn | None, expected: Position
+) -> None:
+    assert resettled(ORDER, position, before, after) == expected
