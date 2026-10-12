@@ -1,6 +1,6 @@
 # ADR-0029: Per-person data is scoped by binding the session to a user
 
-- Status: Accepted
+- Status: Accepted; the relinking point is settled by ADR-0059
 - Date: 2026-10-07
 - Deciders: Liam (direction, ADR-0026); implementation choice in #72
 

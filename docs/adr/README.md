@@ -13,7 +13,7 @@ Code). Template: [template.md](template.md).
 | [0006](0006-session-queue-scheduling.md) | The plan is an ordered queue; missed sessions shift back | Accepted |
 | [0007](0007-llm-output-is-untrusted-data.md) | LLM output is untrusted data, never an action | Accepted |
 | [0008](0008-groq-transcription-and-parsing.md) | Groq for transcription and fallback parsing | Accepted |
-| [0009](0009-telegram-long-polling-owner-only.md) | Telegram via long polling, owner-only | Accepted |
+| [0009](0009-telegram-long-polling-owner-only.md) | Telegram via long polling, owner-only | Accepted; single allowed user superseded by 0059 |
 | [0010](0010-sqlite-on-sd-card.md) | SQLite on the SD card, with nightly backups | Accepted |
 | [0011](0011-claude-github-action-subscription.md) | Claude GitHub Action on the owner's subscription | Accepted |
 | [0012](0012-dashboard-auth-and-share-links.md) | Dashboard auth via Telegram, read-only share links | Accepted; sign-in superseded by 0036, share links by 0050 |
@@ -62,3 +62,4 @@ Code). Template: [template.md](template.md).
 | [0055](0055-band-import-through-health-connect-webhook.md) | Band data through Health Connect Webhook | Accepted |
 | [0056](0056-keep-the-weekly-ai-comment-7-days.md) | Keep the weekly AI comment 7 days, for the web review | Accepted |
 | [0057](0057-pace-setting.md) | A pace setting for how big a step the targets take | Accepted |
+| [0059](0059-invites-and-members.md) | Invite-only members, behind a switch that is off by default | Accepted |
