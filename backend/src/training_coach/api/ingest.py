@@ -81,10 +81,17 @@ def _limiter(request: Request) -> Limiter:
 
 
 class IngestReceived(BaseModel):
-    """How many records of each type were stored, and skipped as not fitting."""
+    """How many records of each type were stored, and skipped as not fitting. A press of the
+    app's Test button also gets ``test`` and a ``note`` saying nothing was stored, so its log
+    shows it; a real sync gets neither."""
 
+    test: bool | None = None
     taken: dict[str, int]
     skipped: dict[str, int]
+    note: str | None = None
+
+
+TESTED = IngestReceived(test=True, taken={}, skipped={}, note="test received; nothing stored")
 
 
 def _secret(request: Request) -> str | None:
@@ -101,7 +108,7 @@ async def _body(request: Request) -> bytes:
     return bytes(data)
 
 
-@router.post("/health-connect", response_model=IngestReceived)
+@router.post("/health-connect", response_model=IngestReceived, response_model_exclude_none=True)
 async def health_connect(request: Request) -> IngestReceived:
     """Store a Health Connect Webhook payload for the person whose secret it carries."""
     address, clock = _client(request), time.monotonic()
@@ -120,15 +127,21 @@ async def health_connect(request: Request) -> IngestReceived:
     settings: Settings = request.app.state.settings
     bound = make_session_factory(request.app.state.engine, user_id=user)
 
-    def parse_and_store() -> health_import.Batch:
+    def parse_and_store() -> health_import.Batch | None:
         """Parsing up to 5 MB and the SQLite writes block: off the event loop, so a first sync
-        can't stall the bot and the web app."""
+        can't stall the bot and the web app. None for the app's Test button."""
         try:
             body = json.loads(raw)
         except (ValueError, RecursionError) as exc:  # bad UTF-8 or JSON, or nested too deep
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "not JSON") from exc
         if not isinstance(body, dict):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "not a JSON object")
+        if health_import.is_test(body):
+            # The address and the secret work, so the sync got through; its records are made
+            # up, so no data arrived and the band watch isn't told it did.
+            with session_scope(bound) as session:
+                ingest_keys.received(session, now, took=False)
+            return None
         batch = health_import.parse(body, now)
         with session_scope(bound) as session:
             health_import.store(session, batch, settings.tz, now)
@@ -136,6 +149,9 @@ async def health_connect(request: Request) -> IngestReceived:
         return batch
 
     batch = await run_in_threadpool(parse_and_store)
+    if batch is None:
+        log.info("ingest.test")
+        return TESTED
     log.info("ingest.stored", **health_import.counts(batch))
     return IngestReceived(taken=dict(batch.taken), skipped=dict(batch.skipped))
 

@@ -120,3 +120,38 @@ def full() -> dict[str, Any]:
         ],
         "distance": [{"meters": 4120.5, "start_time": iso(WALK_START), "end_time": iso(WALK_END)}],
     }
+
+
+PIXEL = {
+    "data_origin": "com.google.android.apps.fitness",
+    "recording_method": "automatically_recorded",
+    "device": {"manufacturer": "Google", "model": "Pixel Watch", "type": 1},
+}
+
+
+def mock() -> dict[str, Any]:
+    """What the app's Test button sends (``MockPayloadBuilder.build``), abbreviated: made-up
+    records for yesterday from a Pixel Watch, and a top-level ``"test": true``."""
+    yesterday = datetime(2026, 10, 10, tzinfo=UTC)
+
+    def at(hours: int, minutes: int = 0) -> str:
+        return iso(yesterday + timedelta(hours=hours, minutes=minutes))
+
+    return {
+        "timestamp": iso(NOW),
+        "app_version": "1.9.22",
+        "test": True,
+        "steps": [
+            {"count": 1240, "start_time": at(0), "end_time": at(6), "metadata": PIXEL},
+            {"count": 8432, "start_time": at(0), "end_time": at(10, 30), "metadata": PIXEL},
+        ],
+        "heart_rate": [
+            {"bpm": 62, "time": at(6, 5), "metadata": PIXEL},
+            {"bpm": 155, "time": at(8, 50), "metadata": PIXEL},
+        ],
+        "resting_heart_rate": [
+            {"bpm": 58, "time": at(6), "metadata": PIXEL},
+            {"bpm": 57, "time": iso(yesterday - timedelta(hours=18)), "metadata": PIXEL},
+        ],
+        "weight": [{"kilograms": 75.4, "time": iso(NOW - timedelta(hours=1)), "metadata": PIXEL}],
+    }

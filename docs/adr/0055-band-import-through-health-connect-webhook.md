@@ -7,10 +7,10 @@
 ## Context
 
 Liam wears a Xiaomi Smart Band 9 and weighs himself on a Xiaomi scale, both in Mi Fitness on a
-Poco X3 NFC (Android 12). Mi Fitness can share steps, sleep, heart rate, workouts and weight
-with Health Connect, which has no cloud API: something on the phone has to send the data to the
-Pi. The platform proposal (`docs/specs/platform-and-health-data-proposal.md`, sections 3, 4
-and 7) and `ux-flow-plan.md` (A4) set the direction. Liam's answers (2026-10-11):
+Poco X3 NFC (Android 12). Mi Fitness can share steps, sleep, heart rate and workouts with
+Health Connect (not weight, it turned out: `docs/runbooks/band-import.md`), which has no
+cloud API: something on the phone has to send the data to the Pi. The platform proposal
+(`docs/specs/platform-and-health-data-proposal.md`, sections 3, 4 and 7) and `ux-flow-plan.md` (A4) set the direction. Liam's answers (2026-10-11):
 
 - **Data (Q6):** workouts with heart-rate zones; sleep (times and stages); steps and resting
   heart rate (derived from overnight heart rate); weight from the scale.
@@ -34,6 +34,9 @@ Health Connect Webhook ([mcnaveen/health-connect-webhook], v1.9.22, AGPL-3.0; ch
   `timestamp`, `app_version`, then one array per data type that has records in this batch
   (`steps`, `sleep`, `heart_rate`, `resting_heart_rate`, `exercise`, `weight` and 25 more).
   Empty arrays are left out, never sent.
+- The **Test** button posts made-up records (`MockPayloadBuilder.build`) with a top-level
+  `"test": true` that real syncs never send. The ingest checks the secret, notes the sync as
+  one that got through (`last_used_at`, not `last_taken_at`) and stores none of it.
 - **No built-in authentication:** each webhook can carry custom headers, which is how a secret
   is sent.
 - **Schedule:** an interval (at least 15 minutes, WorkManager) or fixed times of day
@@ -164,7 +167,7 @@ and erasing everything removes them by the `user_id` cascade.
 
 | Option | Pros | Cons |
 | --- | --- | --- |
-| Health Connect Webhook to an ingest endpoint on the Pi (chosen) | Free, open source, no cloud account, the data goes phone to Pi only | A third-party app on the phone; Android only; no record ids in JSON |
+| Health Connect Webhook to an ingest endpoint on the Pi (chosen) | Open source, no cost from its GitHub releases (runbook step 3), no cloud account, the data goes phone to Pi only | A third-party app on the phone; Android only; no record ids in JSON |
 | Our own Android app writing to the same endpoint | Full control, record ids | An app to build, sign and maintain; later (L3) |
 | Google Health API (cloud) | No phone app | Doesn't cover Mi Fitness; restricted scopes need Google's verification; 7-day tokens when unverified |
 | Protobuf/gRPC delivery from the same app | Record ids and time zones | gRPC through the Cloudflare tunnel and a second protocol stack for one user |
