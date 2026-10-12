@@ -13,6 +13,7 @@ from tests.bot.test_band import _walk
 from tests.bot.test_proposals import _propose
 from training_coach.bot import band as band_ui
 from training_coach.bot import clash as clash_ui
+from training_coach.bot import logging_flow
 from training_coach.bot import proposals as proposals_ui
 from training_coach.bot.messages import LOG_CANCELLED, LOG_EXPIRED
 from training_coach.db.models import LogProposal, PlanState, SessionTemplate, Workout
@@ -169,6 +170,22 @@ async def test_cancel_saves_nothing_and_an_unknown_question_has_expired(
     assert texts(await run(application, press(f"l:cancel:{token}", OWNER))) == [LOG_CANCELLED]
     assert texts(await run(application, press(f"l:replace:{token}", OWNER))) == [LOG_EXPIRED]
     assert _days(seeded)[_ago(1)] == [("legs", "done")]
+
+
+async def test_cancel_forgets_the_question_too(application: App, seeded: Sessions) -> None:
+    """Review of #242: Cancel dropped the draft but kept its question until a restart."""
+    handlers = next(
+        h.callback.__self__
+        for group in application.handlers.values()
+        for h in group
+        if isinstance(getattr(h.callback, "__self__", None), logging_flow.LogHandlers)
+    )
+    await _log(application, "yesterday " + LEGS)
+    asked = await _log(application, "yesterday rest")
+    token = _answers(asked)[0].split(":")[2]
+    assert token in handlers.asked[OWNER]
+    await run(application, press(f"l:cancel:{token}", OWNER))
+    assert token not in handlers.asked[OWNER]
 
 
 def test_answers_read_from_buttons_and_typed_dates() -> None:

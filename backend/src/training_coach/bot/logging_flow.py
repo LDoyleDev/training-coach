@@ -313,6 +313,7 @@ class LogHandlers:
         else:
             self.moving.pop(user.id, None)
             mine.pop(press.token, None)
+            self.asked.get(user.id, {}).pop(press.token, None)
             reply = LOG_CANCELLED if press.action == "cancel" else LOG_EDIT
         # Act first, then retire the buttons: if the edit fails, the outcome already stands
         # and a retry answers "already saved".

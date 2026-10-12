@@ -45,7 +45,7 @@ from training_coach.services.today import position
 
 EXTRA = "Extra session"
 REST_WORD = re.compile(r"\brest\b", re.IGNORECASE)
-TODAY_WORD = re.compile(r"^today\b\s*")  # on a normalised line: lower case already
+TODAY_WORD = re.compile(r"^\s*today\b", re.IGNORECASE)
 REST_HAS_SETS = "A rest day has no sets: send the rest day and the sets separately."
 
 
@@ -183,7 +183,9 @@ def draft(session: Session, text: str, on: date, tz: ZoneInfo) -> Draft:
     if dated is not None and dated.day < on:
         return _draft_past(session, dated, body, tz)
     named = _named(session, dated.rest) if dated is not None else _session_line(session, first)
-    if dated is not None or named is not None:  # today's date or a session on top
+    if _today_words(first, dated, named):  # "today, rest of the legs": the words are the log's
+        text = f"{dated.rest}\n{body}" if dated is not None else text
+    elif dated is not None or named is not None:  # today's date or a session on top
         text = body
     if named is not None:
         return _draft_named(session, named, text, on, tz)
@@ -225,7 +227,7 @@ def _named(session: Session, words: str) -> SessionTemplate | None:
 def _session_line(session: Session, line: str) -> SessionTemplate | None:
     """The session a first line is just the name of, after an optional ``today`` ("Arms",
     "today Zone 2"), if any. Only the whole line counts: "Legs 3x10" is a log."""
-    wanted = TODAY_WORD.sub("", normalise_name(line))
+    wanted = normalise_name(TODAY_WORD.sub("", line))
     if not wanted:
         return None
     for template in session.scalars(select(SessionTemplate).order_by(SessionTemplate.position)):
@@ -234,10 +236,27 @@ def _session_line(session: Session, line: str) -> SessionTemplate | None:
     return None
 
 
+def _today_words(first: str, dated: DateLine | None, named: SessionTemplate | None) -> bool:
+    """``today`` followed by words that name no session ("today, rest of the legs"): not a
+    heading, as ``today`` starts sentences far more often than a date does (review of #242)."""
+    return (
+        dated is not None
+        and named is None
+        and bool(dated.rest)
+        and TODAY_WORD.match(first) is not None
+    )
+
+
 def heading(session: Session, line: str, on: date) -> bool:
     """Whether a log's first line is a date or a session's name: the model then reads only the
     lines under it, and its reading goes back under the same line (#104, ADR-0060)."""
-    return date_line(line, on) is not None or _session_line(session, line) is not None
+    dated = date_line(line, on)
+    named = _session_line(session, line)
+    if isinstance(dated, DateLine) and named is None:
+        named = _named(session, dated.rest)
+        if _today_words(line, dated, named):
+            return False
+    return dated is not None or named is not None
 
 
 def _draft_named(
