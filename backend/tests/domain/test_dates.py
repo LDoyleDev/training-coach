@@ -21,6 +21,8 @@ THU = date(2026, 10, 8)  # a Thursday
         ("Mon, 5 Oct: Arms", date(2026, 10, 5), "Arms"),
         ("2026-09-29", date(2026, 9, 29), ""),
         ("8 Oct", THU, ""),  # today: the caller treats it as an ordinary log
+        ("today Arms", THU, "Arms"),  # names today's session (ADR-0060)
+        ("Today", THU, ""),
     ],
 )
 def test_reads_a_date_and_keeps_the_rest_of_the_line(line: str, day: date, rest: str) -> None:

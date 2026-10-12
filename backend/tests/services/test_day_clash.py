@@ -432,3 +432,51 @@ def test_replaced_workouts_are_forgotten_after_a_day(seeded: Session) -> None:
     day_clash.sweep(seeded, datetime.now(UTC) + timedelta(seconds=1))
     assert seeded.scalars(select(ReplacedWorkout)).all() == []
     assert seeded.scalars(select(SetLog)).all() == []
+
+
+# ------------------------------------------------------- naming today's session (ADR-0060)
+
+
+@pytest.mark.parametrize(
+    "first",
+    ["Zone 2", "today Zone 2", "Today: zone2", f"{TODAY:%Y-%m-%d} Zone 2"],
+)
+def test_a_session_named_on_top_is_todays_out_of_turn(seeded: Session, first: str) -> None:
+    ids = _ids(seeded)
+    draft = workout_log.draft(seeded, f"{first}\nzone 2 run 40", TODAY, BERLIN)
+    assert (draft.template_id, draft.chosen, draft.backdated, draft.on) == (
+        ids["zone2"],
+        True,
+        False,
+        TODAY,
+    )
+    assert workout_log.heading(seeded, first, TODAY)
+    _saved(seeded, draft)
+    assert _pointer(seeded) == ids["upper"]  # out of turn: Upper is still next
+
+
+def test_naming_the_queues_session_moves_it_on(seeded: Session) -> None:
+    ids = _ids(seeded)
+    _saved(seeded, workout_log.draft(seeded, "Upper\npull-ups 8", TODAY, BERLIN))
+    assert _pointer(seeded) == ids["zone2"]
+
+
+@pytest.mark.parametrize("first", ["pull-ups 8 8", "Upper 3x10", "today", "Push day"])
+def test_a_first_line_that_names_no_session_is_an_ordinary_log(seeded: Session, first: str) -> None:
+    draft = workout_log.draft(seeded, f"{first}\npull-ups 8", TODAY, BERLIN)
+    assert not draft.chosen
+    assert workout_log.heading(seeded, first, TODAY) is (first == "today")
+
+
+def test_a_named_session_for_a_day_that_has_one_asks(seeded: Session) -> None:
+    _saved(seeded, workout_log.draft(seeded, "pull-ups 8", TODAY, BERLIN))  # Upper, live
+    draft = workout_log.draft(seeded, "today Zone 2\nzone 2 run 40", TODAY, BERLIN)
+    found = _clash(seeded, draft)
+    _saved(seeded, draft, Resolution(day_clash.ADD, found.ids))
+    assert len(_on(seeded, TODAY)) == 2
+
+
+def test_a_chosen_session_gone_from_the_plan_is_stale(seeded: Session) -> None:
+    draft = workout_log.draft(seeded, "Zone 2\nzone 2 run 40", TODAY, BERLIN)
+    gone = workout_log.Draft(**{**vars(draft), "template_id": None})
+    assert workout_log.save(seeded, gone, BERLIN) == workout_log.Stale()

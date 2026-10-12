@@ -4,14 +4,18 @@ replace it, move it or add to that day; and a session named on the first line is
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
 from tests.bot.fakes import OWNER, STRANGER, button_data, press, run, text_message, texts
+from tests.bot.test_band import _walk
+from tests.bot.test_proposals import _propose
+from training_coach.bot import band as band_ui
 from training_coach.bot import clash as clash_ui
+from training_coach.bot import proposals as proposals_ui
 from training_coach.bot.messages import LOG_CANCELLED, LOG_EXPIRED
-from training_coach.db.models import PlanState, SessionTemplate, Workout
+from training_coach.db.models import LogProposal, PlanState, SessionTemplate, Workout
 from training_coach.domain.queue import local_date
 from training_coach.services.day_clash import Clash, Recorded, Resolution
 
@@ -181,3 +185,87 @@ def test_answers_read_from_buttons_and_typed_dates() -> None:
     two = Clash(_ago(1), (Recorded(7, "Legs", "3 sets"), Recorded(8, "Rest day", "rested")))
     assert "Legs (3 sets) and Rest day (rested)" in clash_ui.text(two)
     assert clash_ui.text(two).count("them") == 2
+
+
+# ------------------------------------------------------------- AI proposals and the band
+
+
+async def test_a_proposal_for_a_day_with_its_session_asks_in_telegram(
+    application: App, seeded: Sessions, engine: Engine
+) -> None:
+    await _log(application, "yesterday " + LEGS)
+    pull_ups = {"exercise": "Pull-up", "sets": [8, 8], "unit": ""}
+    token = _propose(seeded, engine, kind="strength", day=_ago(1).isoformat(), exercises=[pull_ups])
+    for data in (f"lp:replace:{token}", f"lp:move:{token}"):
+        assert await run(application, press(data, STRANGER)) == {}
+    asked = await run(application, press(f"lp:save:{token}", OWNER))
+    assert texts(asked)[0].startswith(f"{_ago(1):%a %d %b} already has Legs")
+    assert [a.split(":")[1] for a in _answers(asked)] == ["replace", "move", "add", "cancel"]
+    days = await run(application, press(f"lp:move:{token}", OWNER))
+    assert texts(days) == [clash_ui.MOVE_ASK_BUTTONS]
+    await _log(application, f"{_ago(3):%Y-%m-%d} " + LEGS)  # that day gets taken meanwhile
+    taken = await run(application, press(f"lp:m3:{token}", OWNER))
+    assert texts(taken)[0].startswith(f"{_ago(3):%a %d %b} has Legs")
+    moved = await run(application, press(f"lp:m4:{token}", OWNER))
+    assert texts(moved)[0].startswith("Saved: ")
+    assert _days(seeded)[_ago(4)] == [("legs", "done")]
+    assert [s for s, _ in _days(seeded)[_ago(1)]] == ["torso"]  # the proposal's session
+
+
+async def test_a_proposals_question_can_be_cancelled_and_left_waiting(
+    application: App, seeded: Sessions, engine: Engine
+) -> None:
+    await _log(application, "yesterday " + LEGS)
+    pull_ups = {"exercise": "Pull-up", "sets": [8], "unit": ""}
+    token = _propose(seeded, engine, kind="strength", day=_ago(1).isoformat(), exercises=[pull_ups])
+    await run(application, press(f"lp:save:{token}", OWNER))
+    cancelled = await run(application, press(f"lp:cancel:{token}", OWNER))
+    assert texts(cancelled) == [proposals_ui.WAITING]
+    assert [a.split(":")[1] for a in _answers(cancelled)] == ["save", "discard"]
+    unknown = await run(application, press(f"lp:add:{token}", OWNER))  # no question asked now
+    assert texts(unknown) == [proposals_ui.WAITING]
+    with seeded() as session:
+        assert session.scalars(select(LogProposal.status)).one() == "pending"
+
+
+def _rest_today_and_zone2_next(sessions: Sessions) -> None:
+    with sessions() as session:
+        zone2 = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "zone2"))
+        session.get_one(PlanState, 1).next_template_id = zone2.one().id
+        session.add(Workout(local_date=TODAY, status="rest"))
+        session.commit()
+
+
+async def test_counting_a_band_workout_into_a_day_with_its_session_asks(
+    application: App, seeded: Sessions
+) -> None:
+    _rest_today_and_zone2_next(seeded)
+    walk = _walk(seeded)
+    for data in (f"ba:add:{walk}", f"ba:move:{walk}"):
+        assert await run(application, press(data, STRANGER)) == {}
+    asked = await run(application, press(f"bc:{walk}", OWNER))
+    assert texts(asked)[0].startswith(f"{TODAY:%a %d %b} already has Rest day (rested).")
+    assert _answers(asked)[0].split(":")[:2] == ["ba", "replace"]
+    days = await run(application, press(f"ba:move:{walk}", OWNER))
+    assert texts(days) == [clash_ui.MOVE_ASK_BUTTONS]
+    refused = await run(application, press(f"ba:m0:{walk}", OWNER))  # the same day
+    assert texts(refused)[0].startswith("pick a different day")
+    added = await run(application, press(f"ba:add:{walk}", OWNER))
+    assert texts(added)[0].startswith("Counted, and today's session is done.")
+    assert _days(seeded)[TODAY] == [(None, "rest"), ("zone2", "done")]
+
+
+async def test_a_band_question_cancelled_or_forgotten_leaves_it_on_offer(
+    application: App, seeded: Sessions
+) -> None:
+    _rest_today_and_zone2_next(seeded)
+    walk = _walk(seeded)
+    await run(application, press(f"bc:{walk}", OWNER))
+    cancelled = await run(application, press(f"ba:cancel:{walk}", OWNER))
+    assert texts(cancelled) == [band_ui.NOT_COUNTED]
+    assert _answers(cancelled) == [f"bc:{walk}", f"bx:{walk}"]
+    forgotten = await run(application, press(f"ba:replace:{walk}", OWNER))
+    assert texts(forgotten) == [band_ui.NOT_COUNTED]
+    assert _days(seeded) == {TODAY: [(None, "rest")]}
+    assert band_ui.parse(f"ba:m3:{walk}") == ("m3", walk)
+    assert band_ui.parse(f"ba:dance:{walk}") is None

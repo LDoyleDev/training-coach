@@ -45,6 +45,7 @@ from training_coach.services.today import position
 
 EXTRA = "Extra session"
 REST_WORD = re.compile(r"\brest\b", re.IGNORECASE)
+TODAY_WORD = re.compile(r"^today\b\s*")  # on a normalised line: lower case already
 REST_HAS_SETS = "A rest day has no sets: send the rest day and the sets separately."
 
 
@@ -222,10 +223,10 @@ def _named(session: Session, words: str) -> SessionTemplate | None:
 
 
 def _session_line(session: Session, line: str) -> SessionTemplate | None:
-    """The session a first line is just the name of ("Arms", "Legs"), if any. A line with a
-    number in it is a log ("Legs 3x10" is not a session's name)."""
-    wanted = normalise_name(line)
-    if not wanted or any(c.isdigit() for c in line):
+    """The session a first line is just the name of, after an optional ``today`` ("Arms",
+    "today Zone 2"), if any. Only the whole line counts: "Legs 3x10" is a log."""
+    wanted = TODAY_WORD.sub("", normalise_name(line))
+    if not wanted:
         return None
     for template in session.scalars(select(SessionTemplate).order_by(SessionTemplate.position)):
         if wanted in (normalise_name(template.name), normalise_name(template.slug)):

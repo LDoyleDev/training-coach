@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
+  type Answer,
+  type Clash,
   discardProposal,
   fetchProposals,
   type Proposal,
@@ -7,6 +9,7 @@ import {
   SignedOutError,
 } from '../api'
 import SignedOutNotice from '../components/SignedOutNotice'
+import ClashQuestion from './ClashQuestion'
 import { actions, card, primaryInline, secondary } from '../ui'
 
 const GONE = 'That proposal has gone: it expired after 24 hours, or its app was disconnected.'
@@ -17,6 +20,7 @@ const GONE = 'That proposal has gone: it expired after 24 hours, or its app was 
  * app's name is its own claim, shown as text. A body measurement it would overwrite is named
  * here (and in Telegram), never to the AI. Saving goes through the normal log, so Undo
  * takes a workout back: ``onSaved`` hears what to say and the page reloads today and Undo.
+ * One for a day that already has its session asks first (ADR-0060); it waits until answered.
  */
 export default function Proposals({ onSaved }: { onSaved: (text: string) => void }) {
   const [proposals, setProposals] = useState<Proposal[]>([])
@@ -24,6 +28,11 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
   const [note, setNote] = useState<string | null>(null)
   const [signedOut, setSignedOut] = useState(false)
   const [loads, setLoads] = useState(0)
+  const [question, setQuestion] = useState<{
+    token: string
+    clash: Clash
+    taken: Clash | null
+  } | null>(null)
 
   useEffect(() => {
     const abort = new AbortController()
@@ -33,7 +42,7 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
     return () => abort.abort()
   }, [loads])
 
-  const answer = async (proposal: Proposal, save: boolean) => {
+  const answer = async (proposal: Proposal, save: boolean, reply?: Answer) => {
     setBusy(proposal.token)
     setNote(null)
     setSignedOut(false)
@@ -42,7 +51,17 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
         await discardProposal(proposal.token)
         setNote('Discarded. Nothing was saved.')
       } else {
-        const result = await saveProposal(proposal.token)
+        const result = await saveProposal(proposal.token, reply)
+        if (typeof result === 'object' && 'clash' in result) {
+          if (result.clash.moving && question) setQuestion({ ...question, taken: result.clash })
+          else setQuestion({ token: proposal.token, clash: result.clash, taken: null })
+          return
+        }
+        if (typeof result === 'object' && 'problem' in result) {
+          setNote(result.problem) // the question stays: pick another answer
+          return
+        }
+        setQuestion(null)
         if (result === 'gone') setNote(GONE)
         else if (result === 'saved') setNote('That was already saved.')
         else if (result === 'discarded') setNote('That was already discarded. Nothing was saved.')
@@ -68,6 +87,17 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
             From <strong>“{proposal.source}”</strong>: {proposal.summary}
           </p>
           {proposal.replaces && <p className="m-0 mt-1 font-bold">{proposal.replaces}.</p>}
+          {question?.token === proposal.token && (
+            <div className="mt-2">
+              <ClashQuestion
+                clash={question.clash}
+                taken={question.taken}
+                busy={busy !== null}
+                onAnswer={(reply) => void answer(proposal, true, reply)}
+                onCancel={() => setQuestion(null)}
+              />
+            </div>
+          )}
           <p className="m-0 mt-1 text-sm text-[var(--slate)]">
             Nothing is saved until you tap Save.
           </p>

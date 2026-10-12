@@ -2515,6 +2515,41 @@
         "title": "ProgressView",
         "type": "object"
       },
+      "ProposalSave": {
+        "description": "The token, and the answer when the day already has its session (ADR-0060).",
+        "properties": {
+          "resolution": {
+            "anyOf": [
+              {
+                "pattern": "^(?:replace|add|move:\\d{4}-\\d{2}-\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "seen": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "title": "Seen",
+            "type": "array"
+          },
+          "token": {
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "ProposalSave",
+        "type": "object"
+      },
       "ProposalSaved": {
         "properties": {
           "summary": {
@@ -6186,13 +6221,13 @@
     },
     "/api/proposals/save": {
       "post": {
-        "description": "Save it. 404 when it has expired or never was; 409 with ``already_saved`` or\n``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason\nwhen it no longer fits (it is discarded then).",
+        "description": "Save it. 404 when it has expired or never was; 409 with ``already_saved`` or\n``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason\nwhen it no longer fits (it is discarded then); 409 with what is saved already when its\nday has its session (it keeps waiting: save it again with the answer, ADR-0060).",
         "operationId": "save_api_proposals_save_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProposalToken"
+                "$ref": "#/components/schemas/ProposalSave"
               }
             }
           },
@@ -6208,6 +6243,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClashConflict"
+                }
+              }
+            },
+            "description": "The day already has its session (a ClashView), or today changed"
           },
           "422": {
             "content": {

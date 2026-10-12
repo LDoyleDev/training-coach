@@ -341,13 +341,22 @@ export async function fetchBandOffers(signal?: AbortSignal): Promise<BandOffer[]
   return (await res.json()) as BandOffer[]
 }
 
-/** Count one. 'gone': no longer on offer; 'stale': today's session changed meanwhile. */
-export async function countBandOffer(id: number): Promise<BandCounted | 'gone' | 'stale'> {
+/** Count one. 'gone': no longer on offer; 'stale': today's session changed meanwhile; a
+ * clash: the day already has its session, so ask and count it again with the answer. */
+export async function countBandOffer(
+  id: number,
+  answer?: Answer,
+): Promise<BandCounted | 'gone' | 'stale' | { clash: Clash } | { problem: string }> {
   const res = signedIn(
-    await fetch(`/api/band/offers/${id}/count`, { method: 'POST', credentials: 'same-origin' }),
+    await fetch(`/api/band/offers/${id}/count`, {
+      method: 'POST',
+      ...(answer ? { headers: json, body: JSON.stringify(answer) } : {}),
+      credentials: 'same-origin',
+    }),
   )
   if (res.status === 404) return 'gone'
-  if (res.status === 409) return 'stale'
+  const refused = await refusal(res)
+  if (refused) return refused
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as BandCounted
 }
@@ -372,26 +381,41 @@ export async function fetchProposals(signal?: AbortSignal): Promise<Proposal[]> 
 }
 
 /** The token goes in the body, never in a URL an access log could keep (review of #234). */
-const postToken = (path: string, token: string) =>
+const postToken = (path: string, token: string, answer?: Answer) =>
   fetch(path, {
     method: 'POST',
     headers: json,
-    body: JSON.stringify({ token }),
+    body: JSON.stringify({ token, ...answer }),
     credentials: 'same-origin',
   })
 
 /** Save one. 'gone': expired or its app disconnected; 'saved' / 'discarded': already dealt
- * with (here or in Telegram); any other text: why it no longer fits (it was discarded). */
+ * with (here or in Telegram); any other text: why it no longer fits (it was discarded); a
+ * clash: its day already has its session, so ask and save again with the answer (it waits). */
 export async function saveProposal(
   token: string,
-): Promise<ProposalSaved | 'gone' | 'saved' | 'discarded' | { changed: string }> {
-  const res = signedIn(await postToken('/api/proposals/save', token))
+  answer?: Answer,
+): Promise<
+  | ProposalSaved
+  | 'gone'
+  | 'saved'
+  | 'discarded'
+  | { changed: string }
+  | { clash: Clash }
+  | { problem: string }
+> {
+  const res = signedIn(await postToken('/api/proposals/save', token, answer))
   if (res.status === 404) return 'gone'
+  if (res.status === 422) {
+    const detail = ((await res.json()) as { detail?: unknown }).detail
+    return { problem: typeof detail === 'string' ? detail : 'That can’t be saved.' }
+  }
   if (res.status === 409) {
-    const detail = ((await res.json()) as { detail?: string }).detail ?? ''
+    const detail = ((await res.json()) as { detail?: unknown }).detail ?? ''
+    if (typeof detail === 'object' && detail !== null) return { clash: detail as Clash }
     if (detail === 'already_saved') return 'saved'
     if (detail === 'already_discarded') return 'discarded'
-    return { changed: detail }
+    return { changed: String(detail) }
   }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as ProposalSaved
