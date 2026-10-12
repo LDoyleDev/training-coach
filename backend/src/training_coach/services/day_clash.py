@@ -15,7 +15,7 @@ transaction.
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import or_, select
@@ -40,6 +40,7 @@ REPLACE, MOVE, ADD = "replace", "move", "add"
 ANSWER = re.compile(r"^(?:(replace|add)|move:(\d{4}-\d{2}-\d{2}))$")
 SAME_DAY = "pick a different day to move it to"
 SHOWN = 3  # exercises named in a summary
+KEPT = timedelta(hours=24)  # a replaced workout, for /undo: the undo window (ADR-0048)
 
 
 @dataclass(frozen=True)
@@ -319,7 +320,9 @@ def put_back(session: Session, undo: dict[str, Any]) -> None:
     session.flush()
 
 
-def sweep(session: Session, before: datetime) -> None:
-    """Forget replaced workouts set aside before ``before``: past the undo window."""
-    for kept in session.scalars(select(ReplacedWorkout).where(ReplacedWorkout.created_at < before)):
+def sweep(session: Session, now: datetime) -> None:
+    """Forget replaced workouts past the undo window: nothing can put them back any more. Runs on
+    every save and every morning, so none outstays its 24 hours by much (review of #240)."""
+    old = select(ReplacedWorkout).where(ReplacedWorkout.created_at < now - KEPT)
+    for kept in session.scalars(old):
         session.delete(kept)

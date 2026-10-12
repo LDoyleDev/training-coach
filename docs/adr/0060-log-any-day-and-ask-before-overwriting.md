@@ -67,8 +67,10 @@ logging the days in date order would give. Add follows the usual rules.
 **One undo.** Each outcome is one `workout.logged` event that /undo takes back (ADR-0048):
 undoing a replace removes the new workout and puts the old one back, sets and all; undoing a
 move puts it back on its day. A replaced workout is kept in `replaced_workouts` for the undo
-window (24 hours), because an event carries ids and dates only. It comes back as a new row:
-SQLite may already have given its id to the workout that replaced it.
+window (24 hours), because an event carries ids and dates only, and is deleted after it: every
+save and the morning message sweep the table, so a replaced workout isn't kept (or exported)
+past its day. It comes back as a new row: SQLite may already have given its id to the workout
+that replaced it.
 
 **API.** A save that clashes answers 409 with `detail` = what is there (`day`, `recorded`,
 `moving`); the browser asks and sends the same save again with `resolution` = `replace`, `add`
