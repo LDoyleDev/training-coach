@@ -2007,6 +2007,8 @@ export interface components {
             created_at: string | null;
             /** Exists */
             exists: boolean;
+            /** Last Taken At */
+            last_taken_at: string | null;
             /** Last Used At */
             last_used_at: string | null;
             /** Url */
@@ -2232,6 +2234,8 @@ export interface components {
             created_at: string | null;
             /** Exists */
             exists: boolean;
+            /** Last Taken At */
+            last_taken_at: string | null;
             /** Last Used At */
             last_used_at: string | null;
             /** Secret */

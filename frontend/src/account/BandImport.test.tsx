@@ -3,7 +3,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import BandImport from './BandImport'
 
 const URL = 'https://coach.example.com/api/ingest/health-connect'
-const NONE = { exists: false, created_at: null, last_used_at: null, url: URL }
+const NONE = { exists: false, created_at: null, last_used_at: null, last_taken_at: null, url: URL }
 const MADE = { ...NONE, exists: true, created_at: '2026-10-11T08:00:00Z' }
 const SECRET = 'tci_' + 'ab'.repeat(16)
 
@@ -47,17 +47,35 @@ test('a secret is made and shown once, with the address to post to', async () =>
 test('when data last arrived, and stopping the import', async () => {
   const asked = serve({
     'GET /api/account/ingest': [
-      { status: 200, body: { ...MADE, last_used_at: '2026-10-11T09:30:00Z' } },
+      {
+        status: 200,
+        body: {
+          ...MADE,
+          last_used_at: '2026-10-11T09:30:00Z',
+          last_taken_at: '2026-10-11T09:30:00Z',
+        },
+      },
     ],
     'DELETE /api/account/ingest': [{ status: 204 }],
   })
   render(<BandImport />)
   expect(await screen.findByText(/Last data arrived/)).toBeInTheDocument()
+  expect(screen.queryByText(/Last sync/)).not.toBeInTheDocument()
   expect(screen.getByText(/A new secret replaces the old one/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Stop band import' }))
   expect(await screen.findByText(/can’t send band data/)).toBeInTheDocument()
   expect(asked).toContain('DELETE /api/account/ingest')
   expect(screen.queryByRole('button', { name: 'Stop band import' })).not.toBeInTheDocument()
+})
+
+test('syncs that bring nothing new show apart from data arriving', async () => {
+  serve({
+    'GET /api/account/ingest': [
+      { status: 200, body: { ...MADE, last_used_at: '2026-10-12T09:30:00Z' } },
+    ],
+  })
+  render(<BandImport />)
+  expect(await screen.findByText(/No data has arrived yet\. Last sync/)).toBeInTheDocument()
 })
 
 test('without a public address it says so', async () => {

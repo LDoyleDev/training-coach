@@ -27,7 +27,8 @@ const when = (iso: string) =>
 /**
  * Band import (ADR-0055): the secret the Health Connect Webhook app on the phone sends with
  * band data. Made here and shown once; the server keeps only its hash. Steps for the phone are
- * in docs/runbooks/band-import.md.
+ * in docs/runbooks/band-import.md. "Last data arrived" is the last sync that brought a record,
+ * not just the last call: the two drift apart when the band stops syncing to the phone.
  */
 export default function BandImport() {
   const [status, setStatus] = useState<Status | null>(null)
@@ -60,7 +61,13 @@ export default function BandImport() {
     setSecret(null)
     try {
       await removeBandSecret()
-      setStatus({ ...status, exists: false, created_at: null, last_used_at: null })
+      setStatus({
+        ...status,
+        exists: false,
+        created_at: null,
+        last_used_at: null,
+        last_taken_at: null,
+      })
       setNote('Removed. The phone can’t send band data until you make a new secret.')
     } catch (error) {
       setNote(failure(error))
@@ -85,9 +92,12 @@ export default function BandImport() {
       )}
       {status.exists && (
         <p>
-          {status.last_used_at
-            ? `Last data arrived ${when(status.last_used_at)}.`
+          {status.last_taken_at
+            ? `Last data arrived ${when(status.last_taken_at)}.`
             : 'No data has arrived yet.'}
+          {status.last_used_at &&
+            status.last_used_at !== status.last_taken_at &&
+            ` Last sync ${when(status.last_used_at)}.`}
         </p>
       )}
       {secret && (
