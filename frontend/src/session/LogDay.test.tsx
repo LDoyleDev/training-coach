@@ -1,10 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Clash, LogOptions, LogPlan } from '../api'
 import LogDay from './LogDay'
 
 const OPTIONS: LogOptions = {
-  days: ['2026-10-12', '2026-10-11', '2026-10-10'],
   sessions: [
     { template_id: 1, name: 'Legs', kind: 'strength' },
     { template_id: 7, name: 'Long zone 2', kind: 'conditioning' },
@@ -59,7 +58,16 @@ function serve(posts: Answer[] = [], options: Answer = Response.json(OPTIONS)) {
   return sent
 }
 
-afterEach(() => vi.unstubAllGlobals())
+// The days offered are today back two weeks, by the phone's clock.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 9, 12, 12))
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
 
 const click = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }))
 const conflict = (detail: unknown) => Response.json({ detail }, { status: 409 })
