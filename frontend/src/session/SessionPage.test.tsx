@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { Guided, Kept, Pending, Saved, TodayView } from '../api'
+import type { Clash, Guided, Kept, Pending, Saved, TodayView } from '../api'
 import SessionPage from './SessionPage'
 
 const SESSION: Guided = {
@@ -60,6 +60,7 @@ type Server = {
   save?: Saved | 'stale'
   pending?: Pending[]
   saveEarlier?: 'fail'
+  clash?: Clash // answered to a save until it carries a resolution (ADR-0060)
 }
 
 /** A fake API; returns the bodies sent, by method and path. */
@@ -83,6 +84,8 @@ function serve(server: Server = {}) {
     }
     if (path === '/api/session/pending') return Response.json(server.pending ?? [])
     if (path === '/api/session/save') {
+      if (server.clash && !String(init?.body).includes('resolution'))
+        return Response.json({ detail: server.clash }, { status: 409 })
       if (server.saveEarlier === 'fail' && init?.body !== '{}')
         return new Response(null, { status: 500 })
       const save = server.save ?? SAVED
@@ -339,6 +342,61 @@ test("an earlier day's unsaved session can be saved from the overview", async ()
   expect(await screen.findByText('Saved Torso + neck for 2026-10-11.')).toBeInTheDocument()
   expect(sent['POST /api/session/save']?.[0]).toEqual({ day: '2026-10-11' })
   expect(screen.queryByRole('button', { name: 'Save it' })).not.toBeInTheDocument()
+})
+
+const CLASH: Clash = {
+  day: '2026-10-11',
+  moving: false,
+  recorded: [{ workout_id: 4, name: 'Rest day', summary: 'rested' }],
+}
+
+test("an earlier day that got its session since asks before it's saved", async () => {
+  const sent = serve({
+    pending: [{ day: '2026-10-11', session: 'Torso + neck', sets: 5 }],
+    clash: CLASH,
+  })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Save it' }))
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('Rest day: rested')
+  click('Add to that day')
+  expect(await screen.findByText('Saved Torso + neck for 2026-10-11.')).toBeInTheDocument()
+  expect(sent['POST /api/session/save']?.[1]).toEqual({
+    day: '2026-10-11',
+    resolution: 'add',
+    seen: [4],
+  })
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+})
+
+test('cancelling the question saves nothing and keeps the day offered', async () => {
+  serve({ pending: [{ day: '2026-10-11', session: 'Torso + neck', sets: 5 }], clash: CLASH })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Save it' }))
+  click(await screen.findByRole('button', { name: 'Cancel' }).then(() => 'Cancel'))
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save it' })).toBeInTheDocument()
+})
+
+test("today's session on a day that has one asks at Check and save", async () => {
+  const progress: Kept = {
+    template_id: 3,
+    position: 3,
+    first: [],
+    sets: [{ item: 0, set_no: 1, left: 6, right: null }],
+    saved: false,
+    revision: 3,
+  }
+  const sent = serve({
+    today: { session: SESSION, progress },
+    clash: { ...CLASH, day: '2026-10-12' },
+  })
+  render(<SessionPage />)
+  click(await screen.findByText('Start session').then(() => 'Start session'))
+  click('Save session')
+  expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+  click('Replace it')
+  expect(await screen.findByRole('heading', { name: 'Legs done' })).toBeInTheDocument()
+  expect(sent['POST /api/session/save']?.[1]).toEqual({ resolution: 'replace', seen: [4] })
 })
 
 test('a failed save of an earlier day keeps it offered', async () => {

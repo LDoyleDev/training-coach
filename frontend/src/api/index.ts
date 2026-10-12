@@ -226,19 +226,79 @@ export async function keepProgress(body: KeepBody): Promise<number | 'stale'> {
   return ((await res.json()) as { revision: number }).revision
 }
 
-/** Save the session as a workout: today's, or an earlier day's. 'stale': today changed. */
-export async function saveSession(day?: string): Promise<Saved | 'stale'> {
+/** Save the session as a workout: today's, or an earlier day's. 'stale': today changed;
+ * a clash: that day already has its session, so ask and save again with the answer. */
+export async function saveSession(
+  day?: string,
+  answer?: Answer,
+): Promise<Saved | 'stale' | { clash: Clash } | { problem: string }> {
   const res = signedIn(
     await fetch('/api/session/save', {
       method: 'POST',
       headers: json,
-      body: JSON.stringify(day ? { day } : {}),
+      body: JSON.stringify({ ...(day ? { day } : {}), ...answer }),
       credentials: 'same-origin',
     }),
   )
-  if (res.status === 409) return 'stale'
+  const refused = await refusal(res)
+  if (refused) return refused
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Saved
+}
+
+export type Clash = Schemas['ClashView']
+/** The person's answer to a clash (ADR-0060), sent with the same save again. */
+export type Answer = { resolution: string; seen: number[] }
+
+/** What a save that didn't happen says: a clash (the day already has its session), 'stale'
+ * (today changed), a problem (422, why not), or null when it did happen. */
+async function refusal(
+  res: Response,
+): Promise<'stale' | { clash: Clash } | { problem: string } | null> {
+  if (res.status !== 409 && res.status !== 422) return null
+  const detail = ((await res.json().catch(() => ({}))) as { detail?: unknown }).detail
+  if (res.status === 409)
+    return typeof detail === 'object' && detail !== null ? { clash: detail as Clash } : 'stale'
+  return { problem: typeof detail === 'string' ? detail : 'That can’t be saved.' }
+}
+
+export type LogOptions = Schemas['LogOptionsView']
+export type LogPlan = Schemas['LogPlanView']
+export type LogDay = Schemas['LogDayBody']
+export type LoggedDay = Schemas['LoggedDayView']
+
+/** The days a log can be for and every session (ADR-0060); null when signed out. */
+export async function fetchLogOptions(signal?: AbortSignal): Promise<LogOptions | null> {
+  const res = await fetch('/api/log', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as LogOptions
+}
+
+/** A session's exercises with that day's targets. */
+export async function fetchLogPlan(day: string, templateId: number): Promise<LogPlan> {
+  const query = new URLSearchParams({ day, template_id: String(templateId) })
+  const res = signedIn(await fetch(`/api/log/plan?${query}`, { credentials: 'same-origin' }))
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as LogPlan
+}
+
+/** Save what was done on a day. A clash: ask, then send it again with the answer. */
+export async function logDay(
+  body: LogDay,
+): Promise<LoggedDay | 'stale' | { clash: Clash } | { problem: string }> {
+  const res = signedIn(
+    await fetch('/api/log', {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+  const refused = await refusal(res)
+  if (refused) return refused
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as LoggedDay
 }
 
 export type CardioOptions = Schemas['OptionsView']

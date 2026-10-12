@@ -77,3 +77,22 @@ export function partnerOf(session: Guided, item: number): GuidedItem | null {
 /** The cardio exercises logged in one step (ux-flow-plan A1): HIIT counts rounds, the others
  * minutes. */
 export const CARDIO: string[] = ['zone2', 'moderate-cardio', 'hiit']
+
+/** "Thu 08 Oct" for an ISO date, read as a calendar day (no time zone shift). */
+export function dayText(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+  })
+}
+
+/** Today and the 14 days before it, as ISO dates, today first. */
+export function recentDays(now: Date = new Date()): string[] {
+  return Array.from({ length: 15 }, (_, n) => {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - n)
+    const pad = (v: number) => String(v).padStart(2, '0')
+    return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`
+  })
+}
