@@ -283,6 +283,7 @@ def test_every_per_person_table_is_covered() -> None:
         "mcp_connections",
         "ai_comments",
         "log_proposals",
+        "replaced_workouts",
     }
 
 

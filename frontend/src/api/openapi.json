@@ -87,6 +87,22 @@
         "title": "AiView",
         "type": "object"
       },
+      "Answer": {
+        "description": "The browser's answer to a ceremony: WebAuthn JSON, checked by the library.",
+        "properties": {
+          "credential": {
+            "additionalProperties": true,
+            "maxProperties": 20,
+            "title": "Credential",
+            "type": "object"
+          }
+        },
+        "required": [
+          "credential"
+        ],
+        "title": "Answer",
+        "type": "object"
+      },
       "AnswersBody": {
         "properties": {
           "answers": {
@@ -402,7 +418,7 @@
         "title": "ChoicesView",
         "type": "object"
       },
-      "ClashAnswer": {
+      "ClashConflict": {
         "properties": {
           "detail": {
             "anyOf": [
@@ -419,7 +435,34 @@
         "required": [
           "detail"
         ],
-        "title": "ClashAnswer",
+        "title": "ClashConflict",
+        "type": "object"
+      },
+      "ClashReply": {
+        "description": "The person's answer to a clash: ``replace``, ``add`` or ``move:YYYY-MM-DD``, with the ids\nof the workouts they were shown. Left out on the first try.",
+        "properties": {
+          "resolution": {
+            "anyOf": [
+              {
+                "pattern": "^(?:replace|add|move:\\d{4}-\\d{2}-\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "seen": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "title": "Seen",
+            "type": "array"
+          }
+        },
+        "title": "ClashReply",
         "type": "object"
       },
       "ClashView": {
@@ -1860,20 +1903,13 @@
         "type": "object"
       },
       "LogOptionsView": {
+        "description": "What a log can be: every session, and what cardio was. The days are today back to 14\ndays ago (``domain.dates.MAX_DAYS_BACK``); the browser lists them, the save checks them.",
         "properties": {
           "activities": {
             "items": {
               "$ref": "#/components/schemas/CardioActivity"
             },
             "title": "Activities",
-            "type": "array"
-          },
-          "days": {
-            "items": {
-              "format": "date",
-              "type": "string"
-            },
-            "title": "Days",
             "type": "array"
           },
           "sessions": {
@@ -1885,7 +1921,6 @@
           }
         },
         "required": [
-          "days",
           "sessions",
           "activities"
         ],
@@ -4238,49 +4273,6 @@
         ],
         "title": "ZoneView",
         "type": "object"
-      },
-      "training_coach__api__clash__Answer": {
-        "description": "The person's answer to a clash: ``replace``, ``add`` or ``move:YYYY-MM-DD``, with the ids\nof the workouts they were shown. Left out on the first try.",
-        "properties": {
-          "resolution": {
-            "anyOf": [
-              {
-                "pattern": "^(?:replace|add|move:\\d{4}-\\d{2}-\\d{2})$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Resolution"
-          },
-          "seen": {
-            "items": {
-              "type": "integer"
-            },
-            "maxItems": 20,
-            "title": "Seen",
-            "type": "array"
-          }
-        },
-        "title": "Answer",
-        "type": "object"
-      },
-      "training_coach__api__passkeys__Answer": {
-        "description": "The browser's answer to a ceremony: WebAuthn JSON, checked by the library.",
-        "properties": {
-          "credential": {
-            "additionalProperties": true,
-            "maxProperties": 20,
-            "title": "Credential",
-            "type": "object"
-          }
-        },
-        "required": [
-          "credential"
-        ],
-        "title": "Answer",
-        "type": "object"
       }
     }
   },
@@ -4900,7 +4892,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/training_coach__api__passkeys__Answer"
+                "$ref": "#/components/schemas/Answer"
               }
             }
           },
@@ -4954,7 +4946,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/training_coach__api__passkeys__Answer"
+                "$ref": "#/components/schemas/Answer"
               }
             }
           },
@@ -5008,7 +5000,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/training_coach__api__passkeys__Answer"
+                "$ref": "#/components/schemas/Answer"
               }
             }
           },
@@ -5151,7 +5143,7 @@
               "schema": {
                 "anyOf": [
                   {
-                    "$ref": "#/components/schemas/training_coach__api__clash__Answer"
+                    "$ref": "#/components/schemas/ClashReply"
                   },
                   {
                     "type": "null"
@@ -5177,7 +5169,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClashAnswer"
+                  "$ref": "#/components/schemas/ClashConflict"
                 }
               }
             },
@@ -5421,7 +5413,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClashAnswer"
+                  "$ref": "#/components/schemas/ClashConflict"
                 }
               }
             },
@@ -5852,7 +5844,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClashAnswer"
+                  "$ref": "#/components/schemas/ClashConflict"
                 }
               }
             },
@@ -6442,7 +6434,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClashAnswer"
+                  "$ref": "#/components/schemas/ClashConflict"
                 }
               }
             },
