@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.28.0](https://github.com/LDoyleDev/training-coach/compare/v0.27.0...v0.28.0) (2026-10-12)
+
+
+### Features
+
+* pace setting for progression steps ([#231](https://github.com/LDoyleDev/training-coach/issues/231)) ([fe1102b](https://github.com/LDoyleDev/training-coach/commit/fe1102be4db49f207695b7e1c25f5aecba45b13a))
+
+
+### Documentation
+
+* plan for invite-only multi-user (L2) ([#230](https://github.com/LDoyleDev/training-coach/issues/230)) ([aeb734b](https://github.com/LDoyleDev/training-coach/commit/aeb734b4d33a41a995a5921175b754966992f045))
+
 ## [0.27.0](https://github.com/LDoyleDev/training-coach/compare/v0.26.0...v0.27.0) (2026-10-11)
 
 
