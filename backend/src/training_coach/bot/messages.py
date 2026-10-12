@@ -3,10 +3,10 @@
 from datetime import date
 
 from training_coach.domain.blocks import WEEKS
-from training_coach.domain.enums import ExerciseKind, Side
+from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.habits import WEEK_DAYS
-from training_coach.domain.parser import Entry
+from training_coach.domain.parser import sets_text
 from training_coach.domain.progression import Progress
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS
 from training_coach.domain.work_order import work_order
@@ -180,23 +180,6 @@ def heard_text(heard: str) -> str:
     return f'I heard: "{clean}"'
 
 
-def _sets_text(entry: Entry, kind: ExerciseKind) -> str:
-    unit = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: "s", ExerciseKind.DURATION_MIN: " min"}
-    by_side: dict[Side, list[int]] = {}
-    for _, side, value in sorted(entry.sets):
-        by_side.setdefault(side, []).append(value)
-
-    def join(values: list[int]) -> str:
-        return " / ".join(f"{v}{unit[kind]}" for v in values)
-
-    if set(by_side) == {Side.BOTH}:
-        return join(by_side[Side.BOTH])
-    left, right = by_side.get(Side.LEFT, []), by_side.get(Side.RIGHT, [])
-    if left == right:
-        return f"{join(left)} each side"
-    return f"left {join(left)}, right {join(right)}"
-
-
 def log_text(draft: Draft, exercises: dict[str, tuple[str, ExerciseKind]]) -> str:
     """What the bot understood, for the user to confirm (ADR-0007). Plain text only."""
     lines: list[str] = []
@@ -208,7 +191,7 @@ def log_text(draft: Draft, exercises: dict[str, tuple[str, ExerciseKind]]) -> st
         lines += [f"Log for {draft.session_name}{when}:", ""]
         for entry in draft.entries:
             name, kind = exercises[entry.slug]
-            lines.append(f"- {name}: {_sets_text(entry, kind)}")
+            lines.append(f"- {name}: {sets_text(entry, kind)}")
     if draft.problems:
         if lines:
             lines.append("")

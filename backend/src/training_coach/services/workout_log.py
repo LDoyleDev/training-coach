@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -398,6 +398,23 @@ def _save_past(session: Session, confirmed: Draft, tz: ZoneInfo) -> Saved | Stal
     later = session.scalar(select(Workout.id).where(Workout.local_date > confirmed.on).limit(1))
     moved = caught_up(_order(session), template.id) if template and later is None else None
     return _commit(session, workout, confirmed, moved)
+
+
+def day_saved(session: Session, on: date) -> bool:
+    """Whether a planned session or a rest day is already saved for ``on``: a log a connected
+    AI proposes for an earlier day is refused then (ADR-0058), as the day is already told."""
+    found = session.scalar(
+        select(Workout.id)
+        .where(
+            Workout.local_date == on,
+            or_(
+                Workout.template_id.is_not(None) & Workout.status.in_(ADVANCING),
+                Workout.status == WorkoutStatus.REST,
+            ),
+        )
+        .limit(1)
+    )
+    return found is not None
 
 
 def strength_on(session: Session, on: date, tz: ZoneInfo, template: SessionTemplate | None) -> bool:

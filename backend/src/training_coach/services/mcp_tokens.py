@@ -5,7 +5,8 @@ handed out once and stored only as SHA-256 (like sign-in links); they are opaque
 connection takes effect at once. Access tokens last an hour; refresh tokens 30 days, single
 use, rotated on every refresh. A connection ends 90 days after the person approved it,
 whatever the refreshes, or when revoked: on the Account page, by ``/recover``, by erasing
-everything, or by removing the passkey that approved it.
+everything, or by removing the passkey that approved it. Revoking also discards the logs it
+proposed that are still waiting (ADR-0058).
 
 A refresh token presented twice, or by a client it wasn't issued to, can only be a stolen
 copy (or a retry after a lost answer, which is accepted to cost a new approval): the whole
@@ -32,6 +33,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import McpConnection, OAuthClient, OAuthCode, OAuthToken
 from training_coach.db.session import ALL_USERS
 from training_coach.domain import connections
+from training_coach.services import proposals
 
 log = structlog.get_logger(__name__)
 
@@ -300,8 +302,10 @@ def verify(session: Session, token: str, resource: str, now: datetime) -> Access
 
 
 def _revoke(session: Session, connection: McpConnection, now: datetime) -> None:
+    """End a connection: its tokens go, and logs it proposed that wait are discarded."""
     if connection.revoked_at is None:
         connection.revoked_at = now
+    proposals.discard_for(session, connection.id, now)
     session.execute(
         delete(OAuthToken).where(OAuthToken.connection_id == connection.id),
         execution_options=EVERYONE,

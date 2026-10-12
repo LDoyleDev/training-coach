@@ -9,17 +9,17 @@ is refused outright (DNS rebinding). GET has no event stream to offer, so only P
 
 import json
 import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from training_coach.api.oauth import MCP_PATH, NO_STORE, limited, server
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.domain.queue import local_date
 from training_coach.domain.rate_limit import RateLimit
 from training_coach.services import mcp_server, mcp_tokens
 from training_coach.services.mcp_tokens import Access
@@ -73,6 +73,9 @@ def connection(request: Request) -> Access:
 
 
 Connection = Annotated[Access, Depends(connection)]
+# Sends proposals waiting for the person to Telegram (bot.proposals, ADR-0058); None without
+# the bot.
+Announce = Callable[[], Awaitable[None]]
 
 
 @router.post(
@@ -80,7 +83,7 @@ Connection = Annotated[Access, Depends(connection)]
     response_model=None,
     responses={200: {"description": "A JSON-RPC answer"}, 202: {}, 401: {}, 403: {}},
 )
-async def mcp(request: Request, access: Connection) -> Response:
+async def mcp(request: Request, access: Connection, background: BackgroundTasks) -> Response:
     """One JSON-RPC message (MCP Streamable HTTP, stateless, JSON answers)."""
     version = request.headers.get("mcp-protocol-version")
     if version is not None and version not in mcp_server.VERSIONS:
@@ -90,14 +93,16 @@ async def mcp(request: Request, access: Connection) -> Response:
     except (ValueError, RecursionError):  # deep nesting fits under the body cap
         return JSONResponse(mcp_server.parse_error(), 400, NO_STORE)
     settings: Settings = request.app.state.settings
-    today = local_date(datetime.now(UTC), settings.tz)
     bound = make_session_factory(request.app.state.engine, user_id=access.user_id)
 
     def answer() -> dict[str, object] | mcp_server.NeedsScope | None:
         with session_scope(bound) as session:  # ADR-0029: only this person's rows
-            return mcp_server.handle(session, access, message, today)
+            return mcp_server.handle(session, access, message, settings.tz, datetime.now(UTC))
 
     result = await run_in_threadpool(answer)  # the summary's queries mustn't block the loop
+    announce: Announce | None = getattr(request.app.state, "announce_proposals", None)
+    if announce is not None and mcp_server.proposes(message):
+        background.add_task(announce)  # Telegram hears of it now, not at the next check
     if result is None:
         return Response(status_code=status.HTTP_202_ACCEPTED, headers=NO_STORE)
     if isinstance(result, mcp_server.NeedsScope):

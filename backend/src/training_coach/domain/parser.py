@@ -336,3 +336,21 @@ def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
         else:
             entries.append(Entry(slug, _sets(exercise, values)))
     return ParseResult(tuple(entries), tuple(problems))
+
+
+def sets_text(entry: Entry, kind: ExerciseKind) -> str:
+    """An entry's sets as shown back for confirming: "8 / 8 / 7", "30s / 30s each side"."""
+    unit = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: "s", ExerciseKind.DURATION_MIN: " min"}
+    by_side: dict[Side, list[int]] = {}
+    for _, side, value in sorted(entry.sets):
+        by_side.setdefault(side, []).append(value)
+
+    def join(values: list[int]) -> str:
+        return " / ".join(f"{v}{unit[kind]}" for v in values)
+
+    if set(by_side) == {Side.BOTH}:
+        return join(by_side[Side.BOTH])
+    left, right = by_side.get(Side.LEFT, []), by_side.get(Side.RIGHT, [])
+    if left == right:
+        return f"{join(left)} each side"
+    return f"left {join(left)}, right {join(right)}"
