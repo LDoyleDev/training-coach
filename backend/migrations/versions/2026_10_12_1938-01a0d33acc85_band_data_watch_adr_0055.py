@@ -1,7 +1,9 @@
 """band data watch (ADR-0055)
 
 The last sync that took a record, and when a gap in band data was told. A secret already in
-use is taken to have had data at its last sync, so nobody is told of a gap on the first run.
+use is taken to have had data at its last sync, so a secret used within the last day isn't
+told of a gap on the first run. One whose last sync was over a day ago, or that was made over
+a day ago and never used, is told on the first daytime run: that gap is real.
 
 Revision ID: 01a0d33acc85
 Revises: 87d51dd6ce4b
