@@ -31,6 +31,9 @@ Anything else is refused with a short reason the AI can read and fix.
 
 **Scope** (owner): `log:propose` is unticked on the consent page, like the health scopes, and
 says nothing is saved without your tap. Existing connections don't gain it; reconnecting does.
+It comes only with `training:read` (owner, after review): a proposal's answers and refusals
+name exercises and sessions. The server drops it from a grant without `training:read` and
+refuses a refresh that narrows to it alone; the consent page ticks training with it.
 
 **Confirming** (owner): a valid proposal is a row in `log_proposals` (not the bot's in-memory
 drafts) with a random token. It shows as a card on Today and as a Telegram message, both with
@@ -42,8 +45,10 @@ log, so /undo takes a workout back. No request with an MCP token can save or dis
 ignores bearer tokens and no tool does it.
 
 **Lifetime** (owner): 24 hours, then the row is deleted whether saved or not (cleared whenever
-proposals are read or written). At most 3 wait per connection; a 4th is refused with a reason.
-Revoking the connection discards what waits.
+proposals are read or written), so a button pressed after that says it has gone rather than
+"already saved". At most 3 wait per connection; a 4th is refused with a reason. Revoking the
+connection discards what waits, and a connection past its 90 days shows none and proposes
+nothing.
 
 **Audit** (owner): one `mcp.call` event per call (connection, tool, outcome), and
 `mcp.draft_saved`, `mcp.draft_discarded` and `mcp.draft_expired` events naming only the
@@ -60,10 +65,27 @@ Also decided while building it:
   idempotency token, and doubles as that token, so saving twice saves once. It only names the
   proposal for someone who is already signed in or is the bot's owner, so it is no credential.
 - **Telegram at once, then every 5 minutes.** After each `propose_log` call the bot sends what
-  waits unsent; a check every 5 minutes retries a failed send. A proposal is marked sent only
-  after Telegram took it, one sender at a time, so nothing goes twice.
+  waits unsent; a check every 5 minutes retries a send that found Telegram unreachable. A
+  proposal is marked sent only after Telegram took it, one sender at a time.
 - **Habits are ticks only.** An AI can't untick one. Resting heart rate isn't proposable: it is
   not a body weight or girth, and the band brings it (ADR-0055).
+- **A measurement it replaces is named** (owner, after review). Saving a body proposal
+  replaces that day's value of the same kind, as the Body page does. The card and the Telegram
+  message say "Replaces the 78.4 kg saved that day"; the AI's answer never says whether
+  anything was there.
+- **One at a time** (review of #234). `propose_log` takes SQLite's write lock first (a no-op
+  update of its connection, which also checks the connection is still live), so calls at once
+  count and insert in turn and the cap holds. Save and Discard claim the row with one
+  conditional update before writing anything, like the OAuth code claim; it is the one
+  per-person bulk update, scoped to the person by hand. Of two taps at once only one acts, and
+  a failed save rolls the claim back, so the proposal waits to be tried again.
+- **Save re-checks the day.** A strength proposal for a today that has passed by Save, or a
+  strength or cardio day now more than 14 days back, is discarded with a reason.
+- **Telegram's refusals don't block.** A message Telegram turns down outright (not a network
+  failure) is marked, logged and not tried again; the card on Today still shows it, and the
+  next one still goes. Telegram hears only of proposals made, not of refusals.
+- **The token travels in a body**, `POST /api/proposals/save` or `/discard` with `{token}`,
+  never in a URL an access log could keep.
 - **Too big is refused, not cut.** A proposal whose summary would pass 1,000 characters is
   refused, so the card always shows all that Save writes.
 
