@@ -11,14 +11,31 @@ step, so nothing but the logged sets is needed. The first session there is the b
 never counts as a miss.
 
 Example: last 8/7/6/5 in a 5-12 range, all targets met -> 9/8/7/6.
+
+The person's pace (ADR-0057) changes only the step: steady is the smallest step of each kind,
+fast at least twice that, standard the 10% rule above.
 """
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 
 from training_coach.domain.enums import ExerciseKind
 
 MISSES_BEFORE_EASING = 2
+
+
+class Pace(StrEnum):
+    """How big a step each set aims for (ADR-0057). A per-person setting."""
+
+    STEADY = "steady"
+    STANDARD = "standard"
+    FAST = "fast"
+
+
+# The step at a steady pace, and the least step at a fast pace, per kind (ADR-0057).
+STEADY_STEP = {ExerciseKind.REPS: 1, ExerciseKind.SECONDS: 5, ExerciseKind.DURATION_MIN: 1}
+FAST_STEP = {ExerciseKind.REPS: 2, ExerciseKind.SECONDS: 10, ExerciseKind.DURATION_MIN: 2}
 
 
 @dataclass(frozen=True)
@@ -35,8 +52,17 @@ class Prescription:
             raise ValueError(f"invalid prescription: {self}")
 
 
-def step(item: Prescription) -> int:
-    """How much more each set aims for: about 10% of the top of the range."""
+def step(item: Prescription, pace: Pace = Pace.STANDARD) -> int:
+    """How much more each set aims for: about 10% of the top of the range at the standard
+    pace; the smallest step at a steady pace; at least twice that at a fast pace."""
+    if pace is Pace.STEADY:
+        return STEADY_STEP[item.kind]
+    standard = _standard_step(item)
+    # Timed steps stay whole 5 s steps: both values already are.
+    return max(FAST_STEP[item.kind], standard) if pace is Pace.FAST else standard
+
+
+def _standard_step(item: Prescription) -> int:
     tenth = (item.rep_max + 5) // 10  # 10%, halves rounding up
     if item.kind is ExerciseKind.SECONDS:
         return max(5, (tenth + 2) // 5 * 5)  # whole 5 s steps
@@ -57,9 +83,12 @@ def _performed(item: Prescription, values: Sequence[int]) -> list[int]:
     return done + [min(done)] * (item.sets - len(done))
 
 
-def targets(item: Prescription, history: Sequence[Sequence[int]]) -> tuple[int, ...]:
-    """Target value per planned set. ``history`` holds every session's per-set values at this
-    ladder step, newest first (as ``progression.assess`` takes them)."""
+def targets(
+    item: Prescription, history: Sequence[Sequence[int]], pace: Pace = Pace.STANDARD
+) -> tuple[int, ...]:
+    """Target value per planned set at the person's ``pace``. ``history`` holds every
+    session's per-set values at this ladder step, newest first (as ``progression.assess``
+    takes them)."""
     given = [item.rep_min] * item.sets
     misses = [0] * item.sets
     for index, values in enumerate(reversed(history)):
@@ -70,7 +99,7 @@ def targets(item: Prescription, history: Sequence[Sequence[int]]) -> tuple[int, 
             given = list(done)
         for n in range(item.sets):
             if done[n] >= given[n]:
-                given[n], misses[n] = _cap(done[n] + step(item), item), 0
+                given[n], misses[n] = _cap(done[n] + step(item, pace), item), 0
             elif misses[n] + 1 >= MISSES_BEFORE_EASING:
                 given[n], misses[n] = _cap(done[n] + 1, item), 0
             else:

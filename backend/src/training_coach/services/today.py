@@ -22,8 +22,8 @@ from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import ADVANCING, Position, advance
 from training_coach.domain.retests import PastTest
-from training_coach.domain.targets import targets
-from training_coach.services import blocks, retests, users
+from training_coach.domain.targets import Pace, targets
+from training_coach.services import blocks, retests, user_settings, users
 from training_coach.services.progress import sessions_at_step
 from training_coach.services.seed import bundled_plan
 
@@ -95,9 +95,10 @@ def _summaries() -> dict[str, str]:
     return {e.slug: e.summary for e in bundled_plan().exercises if e.summary}
 
 
-def _item_plan(session: Session, item: TemplateItem, strength: bool) -> ItemPlan:
+def _item_plan(session: Session, item: TemplateItem, strength: bool, pace: Pace) -> ItemPlan:
     """One exercise: its step, cue and targets, under the strength prescription if it applies
-    (ADR-0028), with targets from the matching block's history (ADR-0027)."""
+    (ADR-0028), with targets from the matching block's history (ADR-0027) at the person's
+    ``pace`` (ADR-0057)."""
     plan = blocks.assign(session, item, strength)
     history = [
         v
@@ -113,7 +114,7 @@ def _item_plan(session: Session, item: TemplateItem, strength: bool) -> ItemPlan
         summary=summary(item.exercise.slug),
         slug=item.exercise.slug,
         per_side=item.per_side,
-        targets=targets(plan.prescription, history),
+        targets=targets(plan.prescription, history, pace),
         pair=item.pair,
         baseline=not history,
     )
@@ -130,13 +131,14 @@ def session_plan(
     )
     if template is None:
         return None
+    pace = user_settings.load(session).pace
     return SessionPlan(
         template_id=template.id,
         name=template.name,
         focus=template.focus,
         optional=template.is_rest_optional,
         items=tuple(
-            _item_plan(session, item, blocks.strength_applies(block, template.kind))
+            _item_plan(session, item, blocks.strength_applies(block, template.kind), pace)
             for item in template.items
         ),
         kind=template.kind,

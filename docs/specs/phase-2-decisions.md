@@ -36,8 +36,8 @@ Rules around the step:
 - **Moving up is unchanged** (only ADR-0016's target rule is replaced, not its progression
   rule): every set at the top of the range in two sessions in a row, then
   Move up / Not yet (ADR-0016, ADR-0025). Bigger steps simply get you there sooner.
-- **Pace setting (optional, later):** "steady" (+1 everywhere), "standard" (the table above,
-  the default), "fast" (+2 minimum). Worth having once other people use the app.
+- **Pace setting: built** (steady, standard as above and the default, fast); the steps and
+  rules are in ADR-0057.
 
 Recorded in ADR-0027, which supersedes ADR-0016's target rules. Code: `domain/targets.py` and its
 table-driven tests (pure code, 100% covered).

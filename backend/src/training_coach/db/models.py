@@ -38,6 +38,7 @@ from training_coach.domain.fitness_tests import TimeOfDay
 from training_coach.domain.habits import Habit
 from training_coach.domain.measurements import Kind as MeasurementKind
 from training_coach.domain.photos import Pose
+from training_coach.domain.targets import Pace
 
 
 def _in(column: str, values: type[StrEnum]) -> str:
@@ -243,6 +244,7 @@ class UserSettings(Owned, Base):
             "birth_year IS NULL OR birth_year BETWEEN 1920 AND 2020", name="birth_year_range"
         ),
         CheckConstraint("max_hr IS NULL OR max_hr BETWEEN 120 AND 230", name="max_hr_range"),
+        CheckConstraint(_in("pace", Pace), name="pace_valid"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -264,6 +266,8 @@ class UserSettings(Owned, Base):
     # Heart-rate zones (ADR-0055): the age for the max estimate, and a max of their own.
     birth_year: Mapped[int | None] = mapped_column(Integer)
     max_hr: Mapped[int | None] = mapped_column(Integer)
+    # How big a step the targets take (ADR-0057).
+    pace: Mapped[str] = mapped_column(String(16), server_default=Pace.STANDARD.value)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

@@ -11,6 +11,7 @@ const PREFS: MessageSettings = {
   habits_enabled: true,
   protein_g: null,
   blocks_since: null,
+  pace: 'standard',
   paused: false,
   timezone: 'Europe/Berlin',
 }
@@ -88,6 +89,25 @@ test('switches send the opposite of what is on', async () => {
     { paused: true },
     { blocks: true },
   ])
+})
+
+test('the pace is one of three, with a line saying what each means', async () => {
+  const sent = serve()
+  render(<Settings />)
+  const standard = await screen.findByRole('button', { name: /^Standard/ })
+  expect(standard).toHaveAttribute('aria-pressed', 'true')
+  expect(standard).toHaveTextContent('About a tenth of the range at a time.')
+  fireEvent.click(standard) // already chosen: nothing to save
+  const steady = button(/^Steady/)
+  expect(steady).toHaveTextContent('One rep at a time.')
+  fireEvent.click(steady)
+  expect(await screen.findByText('Pace: steady.')).toBeInTheDocument()
+  expect(button(/^Steady/)).toHaveAttribute('aria-pressed', 'true')
+  expect(button(/^Standard/)).toHaveAttribute('aria-pressed', 'false')
+  fireEvent.click(button(/^Fast/))
+  expect(await screen.findByText('Pace: fast.')).toBeInTheDocument()
+  expect(button(/^Fast/)).toHaveTextContent('At least two reps at a time.')
+  expect(sent).toEqual([{ pace: 'steady' }, { pace: 'fast' }])
 })
 
 test('the protein target is set and cleared', async () => {

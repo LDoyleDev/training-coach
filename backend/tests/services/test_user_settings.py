@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, UserSettings, Workout
 from training_coach.domain.enums import WorkoutStatus
+from training_coach.domain.targets import Pace
 from training_coach.services import user_settings
 from training_coach.services.user_settings import Prefs
 
@@ -47,3 +48,14 @@ def test_no_event_when_nothing_changes(session: Session) -> None:
     session.flush()
     kinds = session.scalars(select(Event.kind).where(Event.kind == "settings.changed"))
     assert len(list(kinds)) == 1
+
+
+def test_the_pace_is_standard_until_changed_and_logged(session: Session) -> None:
+    session.add(UserSettings())  # a row made by another setting: the column default applies
+    session.flush()
+    assert user_settings.load(session).pace is Pace.STANDARD
+    assert user_settings.update(session, pace=Pace.STEADY).pace is Pace.STEADY
+    session.flush()
+    assert user_settings.load(session) == Prefs(pace=Pace.STEADY)
+    payloads = session.scalars(select(Event.payload).where(Event.kind == "settings.changed"))
+    assert list(payloads) == [{"pace": "steady"}]

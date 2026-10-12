@@ -9,6 +9,7 @@ import {
 import { card, primaryInline, secondary } from '../ui'
 
 type TimeKey = 'morning_time' | 'nudge_time' | 'review_time'
+type Pace = MessageSettings['pace']
 type Note = { at: string; text: string }
 
 const TIMES: { key: TimeKey; label: string }[] = [
@@ -16,6 +17,19 @@ const TIMES: { key: TimeKey; label: string }[] = [
   { key: 'nudge_time', label: 'Evening nudge' },
   { key: 'review_time', label: 'Weekly review, Sundays' },
 ]
+
+/** How much each set aims for next time (ADR-0057); the bot's /settings uses the same words. */
+const PACES: { pace: Pace; label: string; line: string }[] = [
+  { pace: 'steady', label: 'Steady', line: 'One rep at a time.' },
+  { pace: 'standard', label: 'Standard', line: 'About a tenth of the range at a time.' },
+  { pace: 'fast', label: 'Fast', line: 'At least two reps at a time.' },
+]
+
+const choice = (on: boolean) =>
+  'min-h-11 w-full rounded-xl border-2 px-4 py-2 text-left font-bold disabled:opacity-60 ' +
+  (on
+    ? 'border-[var(--bell-ink)] bg-[var(--bell-ink)] text-[var(--chalk)]'
+    : 'border-[var(--ink)] text-[var(--ink)]')
 
 const field = 'min-h-11 rounded-xl border-2 border-[var(--line)] px-3'
 const row = 'flex flex-wrap items-center gap-2'
@@ -225,6 +239,27 @@ export default function Settings() {
       {toggle('blocks', prefs.blocks_since !== null, ['Train in blocks', 'Stop training blocks'], {
         blocks: prefs.blocks_since === null,
       })}
+
+      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend className="mb-2 font-bold">Pace: how much each set aims for next time</legend>
+        {PACES.map(({ pace, label, line }) => (
+          <button
+            key={pace}
+            type="button"
+            aria-pressed={prefs.pace === pace}
+            className={choice(prefs.pace === pace)}
+            disabled={busy}
+            onClick={() =>
+              prefs.pace !== pace &&
+              save('pace', { pace }, `Pace: ${label.toLowerCase()}.`, "That couldn't be saved.")
+            }
+          >
+            {label}
+            <span className="block font-normal">{line}</span>
+          </button>
+        ))}
+        {noteAt('pace')}
+      </fieldset>
 
       <p className="m-0 text-sm text-[var(--slate)]">Times are {prefs.timezone} time.</p>
     </section>
