@@ -124,3 +124,32 @@ test('nothing shows without offers, signed out or on errors', async () => {
     unmount()
   }
 })
+
+test('counting into a day that has its session asks first', async () => {
+  const counted = vi.fn()
+  const clash = {
+    day: today,
+    moving: false,
+    recorded: [{ workout_id: 4, name: 'Long zone 2', summary: '45 min' }],
+  }
+  serve({
+    'GET /api/band/offers': [{ status: 200, body: [WALK] }],
+    'POST /api/band/offers/5/count': [
+      { status: 409, body: { detail: clash } },
+      { status: 409, body: { detail: { ...clash, day: '2026-10-01', moving: true } } },
+      { status: 422, body: { detail: 'pick a different day to move it to' } },
+      { status: 200, body: COUNTED },
+    ],
+  })
+  render(<BandOffers onCounted={counted} />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Count it' }))
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('Long zone 2: 45 min')
+  fireEvent.click(screen.getByRole('button', { name: 'Move it to another day' }))
+  fireEvent.click(screen.getAllByRole('button', { name: /\d{2} \w{3}$/ })[0])
+  expect(await screen.findByText(/has Long zone 2 \(45 min\) too/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Replace it' }))
+  expect(await screen.findByText('pick a different day to move it to')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Add to that day' }))
+  await vi.waitFor(() => expect(counted).toHaveBeenCalled())
+})

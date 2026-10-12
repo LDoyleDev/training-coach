@@ -1,6 +1,7 @@
 # ADR-0058: A connected AI proposes logs; you save or discard them
 
-- Status: Accepted
+- Status: Accepted; an earlier day that has its session asks at Save time instead of refusing
+  (ADR-0060, see History)
 - Date: 2026-10-12
 - Deciders: Liam
 
@@ -21,8 +22,8 @@ long it waits and what is kept of it were open. Liam decided them on 2026-10-12.
 - **Strength sets**: exercises by their plan name, one number per set, in reps or seconds. They
   go through the typed-log model (`groq.Rewrite`) and the rule parser under a date line of the
   app's own (ADR-0033), so they are judged exactly as a typed log: known exercises, the
-  parser's ranges, at most 20 sets. An earlier day is refused once a planned session or rest day
-  is saved for it.
+  parser's ranges, at most 20 sets. A day that already has its session is asked about at Save
+  time (ADR-0060).
 - **Cardio**: zone 2 or moderate cardio, minutes and what it was, the shape of `/api/cardio`.
 - **Habit ticks**, as on `/api/habits`: today and the two days before.
 - **Body weight and girths**, as on the Body page, with its ranges.
@@ -59,8 +60,9 @@ Also decided while building it:
 - **Saved values, not the AI's words.** The row keeps what the checks produced (exercise slugs,
   sets, minutes, habits, measurements) and a summary written by the app from those values.
   Saving re-checks through the normal service; if today's session changed meanwhile (a log, a
-  rest, a swap) or an earlier day got its session, the proposal is discarded with a reason and
-  nothing is written.
+  rest, a swap), the proposal is discarded with a reason and nothing is written. If its day has
+  its session, Save asks (replace, move or add, ADR-0060) and the proposal keeps waiting until
+  it is answered.
 - **Plain token, not a hash.** The token is a 32-hex-character random value like a log's
   idempotency token, and doubles as that token, so saving twice saves once. It only names the
   proposal for someone who is already signed in or is the bot's owner, so it is no credential.
@@ -104,3 +106,10 @@ Also decided while building it:
 - The export lists waiting and resolved proposals of the last 24 hours (`ai_log_proposals`).
 - A proposal for today's planned session goes stale if today changes before Save; the person
   asks the AI again.
+
+## History
+
+- 2026-10-12, ADR-0060: a strength proposal for an earlier day that already has its session is
+  no longer refused, and saving one is no longer discarded when that day got its session
+  meanwhile. Save asks, on the card and in Telegram, as for any log of that day; the proposal
+  waits for the answer. `workout_log.day_saved` is gone.

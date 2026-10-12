@@ -4,6 +4,10 @@ Drafts stay in the bot's memory, kept per person (their Telegram id) and keyed b
 token; buttons carry only ``l:<action>:<token>``, never ids, so a forged press can at most name
 a draft that exists, and only among the presser's own.
 A restart forgets drafts: the user is asked to send the log again.
+
+A draft for a day that already has its session gets the question first (ADR-0060,
+``bot.clash``): its buttons are ``l:<answer>:<token>`` and the answer names the workouts shown.
+After Move, a typed date answers it too.
 """
 
 import warnings
@@ -19,6 +23,7 @@ from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 from telegram.warnings import PTBDeprecationWarning
 
+from training_coach.bot import clash as clash_ui
 from training_coach.bot import links
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import stretching as stretching_ui
@@ -44,6 +49,7 @@ from training_coach.domain.dates import date_line
 from training_coach.domain.parser import MAX_TEXT, SPLIT_ENTRIES
 from training_coach.domain.queue import local_date
 from training_coach.services import progress, stretching, workout_log
+from training_coach.services.day_clash import MOVE, Clash, Refused, Resolution
 from training_coach.services.groq import GroqClient, GroqUnavailableError
 from training_coach.services.workout_log import Draft, Saved, Stale
 
@@ -84,7 +90,9 @@ class Press:
 
 def parse(data: str | None) -> Press | None:
     parts = (data or "").split(":")
-    if len(parts) != 3 or parts[0] != PREFIX or parts[1] not in ACTIONS:
+    if len(parts) != 3 or parts[0] != PREFIX:
+        return None
+    if parts[1] not in ACTIONS and not clash_ui.is_answer(parts[1]):
         return None
     token = parts[2]
     if len(token) != TOKEN_LENGTH or any(c not in "0123456789abcdef" for c in token):
@@ -113,6 +121,10 @@ class LogHandlers:
         self.groq = groq  # None until TC_GROQ_API_KEY is set: voice notes get the typed fallback
         # Telegram id -> that person's drafts: one person's logs never push out another's.
         self.drafts: dict[int, OrderedDict[str, Draft]] = {}
+        # Telegram id -> draft token -> the clash shown for it, and a day to move to that was
+        # found taken (ADR-0060); and the draft waiting for a typed date after Move.
+        self.asked: dict[int, dict[str, tuple[Clash, date | None]]] = {}
+        self.moving: dict[int, str] = {}
 
     def _today(self) -> date:
         return local_date(datetime.now(UTC), self.settings.tz)
@@ -121,14 +133,39 @@ class LogHandlers:
         mine = self.drafts.setdefault(author, OrderedDict())
         mine[draft.token] = draft
         while len(mine) > MAX_DRAFTS:
-            mine.popitem(last=False)
+            gone, _ = mine.popitem(last=False)
+            self.asked.get(author, {}).pop(gone, None)
 
     async def message(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """Plain text from the owner (the handler's filter already checked the sender)."""
         message = update.effective_message
         if message is None or not message.text:
             return
+        if message.from_user is not None and await self._typed_move(
+            message, message.from_user.id, message.text
+        ):
+            return
         await self._draft_and_confirm(message, message.text)
+
+    async def _typed_move(self, message: Message, author: int, text: str) -> bool:
+        """A date sent after Move answers the question; anything else is a new log."""
+        token = self.moving.pop(author, None)
+        if token is None:
+            return False
+        draft = self.drafts.get(author, OrderedDict()).get(token)
+        asked = self.asked.get(author, {}).get(token)
+        if draft is None or asked is None:
+            return False
+        found = clash_ui.typed_move(text, asked[0], self._today())
+        if found is None:
+            return False
+        if isinstance(found, str):
+            self.moving[author] = token  # still waiting for a date
+            await message.reply_text(f"{found}. Send another date, or tap a day.")
+            return True
+        reply, markup = self._save(author, draft, found)
+        await message.reply_text(reply, reply_markup=markup)
+        return True
 
     async def voice(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """A voice note from the owner: transcribe, then the same confirm flow as text.
@@ -179,6 +216,8 @@ class LogHandlers:
         # put back under the same line. A refused date isn't sent at all (#104).
         first, _, body = text.partition("\n")
         dated = date_line(first, self._today())
+        with session_scope(self.sessions) as session:  # a date or a session's name on top
+            head = workout_log.heading(session, first, self._today())
         if (
             draft.problems
             and len(text) <= MAX_TEXT
@@ -186,9 +225,9 @@ class LogHandlers:
             and not isinstance(dated, str)
         ):
             model_draft = await self._model_reading(
-                body if dated else text,
+                body if head else text,
                 [name for name, _ in names.values()],
-                heading=first if dated else None,
+                heading=first if head else None,
             )
             # Exact rule readings are never overwritten: the model may only fill the gaps.
             if (
@@ -264,22 +303,67 @@ class LogHandlers:
         draft = mine.get(press.token)
         markup = None
         if press.action == "save":
-            reply, markup = (LOG_EXPIRED, None) if draft is None else self._save(draft)
+            reply, markup = (LOG_EXPIRED, None) if draft is None else self._save(user.id, draft)
+        elif press.action != "cancel" and clash_ui.is_answer(press.action):
+            found = self.asked.get(user.id, {}).get(press.token)
+            if draft is None or found is None:
+                reply = LOG_EXPIRED
+            else:
+                reply, markup = self._answer(user.id, draft, press.action, found)
         else:
+            self.moving.pop(user.id, None)
             mine.pop(press.token, None)
+            self.asked.get(user.id, {}).pop(press.token, None)
             reply = LOG_CANCELLED if press.action == "cancel" else LOG_EDIT
         # Act first, then retire the buttons: if the edit fails, the outcome already stands
         # and a retry answers "already saved".
         await edit_quietly(query.edit_message_reply_markup(None))
         await query.message.reply_text(reply, reply_markup=markup)
 
-    def _save(self, draft: Draft) -> tuple[str, InlineKeyboardMarkup | None]:
+    def _answer(
+        self, author: int, draft: Draft, action: str, found: tuple[Clash, date | None]
+    ) -> tuple[str, InlineKeyboardMarkup | None]:
+        """An answer to the question: Move shows the days to pick; the rest save with it."""
+        clash, taken = found
+        if action == MOVE:
+            self.moving[author] = draft.token
+            keyboard = clash_ui.days_keyboard(PREFIX, draft.token, clash, self._today(), taken)
+            return clash_ui.MOVE_ASK, keyboard
+        answer = clash_ui.resolution(action, clash, self._today())
+        return self._save(author, draft, answer)
+
+    def _asked(
+        self, author: int, draft: Draft, result: Clash | Refused, answer: Resolution | None
+    ) -> tuple[str, InlineKeyboardMarkup]:
+        """The question (again), or the days to move to when the one picked was taken."""
+        mine = self.asked.setdefault(author, {})
+        shown = mine.get(draft.token)
+        if isinstance(result, Refused) or result.moving:
+            assert shown is not None  # noqa: S101 - only an answer to a question gets these
+            taken = result.day if isinstance(result, Clash) else shown[1]
+            mine[draft.token] = (shown[0], taken)
+            self.moving[author] = draft.token
+            keyboard = clash_ui.days_keyboard(PREFIX, draft.token, shown[0], self._today(), taken)
+            why = clash_ui.taken_text(result) if isinstance(result, Clash) else result.reason
+            return f"{why}\n\n{clash_ui.MOVE_ASK}", keyboard
+        mine[draft.token] = (result, None)
+        one = len(result.recorded) == 1
+        reply = clash_ui.text(result)
+        if answer is not None:
+            reply = f"{clash_ui.CHANGED}\n\n{reply}"
+        return reply, clash_ui.keyboard(PREFIX, draft.token, one)
+
+    def _save(
+        self, author: int, draft: Draft, answer: Resolution | None = None
+    ) -> tuple[str, InlineKeyboardMarkup | None]:
         """The saved reply, with bests, any "ready to progress" prompts (1-G) and "Open in
-        app" (C1)."""
-        markup = None
+        app" (C1); or the question, when the day already has its session (ADR-0060)."""
+        markup: InlineKeyboardMarkup | None = None
         with session_scope(self.sessions) as session:
-            result = workout_log.save(session, draft, self.settings.tz)
-            if isinstance(result, Saved) and not result.already_saved:
+            result = workout_log.save(session, draft, self.settings.tz, answer)
+            if isinstance(result, Clash | Refused):
+                text, markup = self._asked(author, draft, result, answer)
+            elif isinstance(result, Saved) and not result.already_saved:
                 text = log_saved_text(
                     sets=sum(len(e.sets) for e in draft.entries),
                     exercises=len(draft.entries),
@@ -303,5 +387,8 @@ class LogHandlers:
                 text = LOG_STALE
             else:  # nothing to save; the draft had no entries (no buttons are sent for those)
                 text = LOG_EXPIRED
+        if not isinstance(result, Clash | Refused):
+            self.asked.get(author, {}).pop(draft.token, None)
+            self.moving.pop(author, None)
         log.info("bot.log_saved", outcome=type(result).__name__)
         return text, markup

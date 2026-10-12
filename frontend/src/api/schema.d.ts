@@ -1034,7 +1034,8 @@ export interface paths {
          * Save
          * @description Save it. 404 when it has expired or never was; 409 with ``already_saved`` or
          *     ``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason
-         *     when it no longer fits (it is discarded then).
+         *     when it no longer fits (it is discarded then); 409 with what is saved already when its
+         *     day has its session (it keeps waiting: save it again with the answer, ADR-0060).
          */
         post: operations["save_api_proposals_save_post"];
         delete?: never;
@@ -2381,6 +2382,18 @@ export interface components {
             sets: components["schemas"]["DoneView"][];
             /** Template Id */
             template_id: number;
+        };
+        /**
+         * ProposalSave
+         * @description The token, and the answer when the day already has its session (ADR-0060).
+         */
+        ProposalSave: {
+            /** Resolution */
+            resolution?: string | null;
+            /** Seen */
+            seen?: number[];
+            /** Token */
+            token: string;
         };
         /** ProposalSaved */
         ProposalSaved: {
@@ -4565,7 +4578,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ProposalToken"];
+                "application/json": components["schemas"]["ProposalSave"];
             };
         };
         responses: {
@@ -4576,6 +4589,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProposalSaved"];
+                };
+            };
+            /** @description The day already has its session (a ClashView), or today changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClashConflict"];
                 };
             };
             /** @description Validation Error */

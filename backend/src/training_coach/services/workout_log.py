@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -45,6 +45,7 @@ from training_coach.services.today import position
 
 EXTRA = "Extra session"
 REST_WORD = re.compile(r"\brest\b", re.IGNORECASE)
+TODAY_WORD = re.compile(r"^\s*today\b", re.IGNORECASE)
 REST_HAS_SETS = "A rest day has no sets: send the rest day and the sets separately."
 
 
@@ -172,15 +173,22 @@ def _strength(session: Session, on: date, tz: ZoneInfo, template: SessionTemplat
 def draft(session: Session, text: str, on: date, tz: ZoneInfo) -> Draft:
     """Parse a message into something to confirm. Never writes.
 
-    A date on the first line (``domain.dates``) makes it a log for that past day (#104)."""
+    A date on the first line (``domain.dates``) makes it a log for that past day (#104). A
+    session named on the first line, alone or after ``today``, makes it today's log of that
+    session, whatever the queue offers (ADR-0060)."""
     first, _, body = text.partition("\n")
     dated = date_line(first, on)
     if isinstance(dated, str):
         return Draft(secrets.token_hex(16), on, None, EXTRA, (), (dated,))
     if dated is not None and dated.day < on:
         return _draft_past(session, dated, body, tz)
-    if dated is not None:  # today's date on top: an ordinary log
+    named = _named(session, dated.rest) if dated is not None else _session_line(session, first)
+    if _today_words(first, dated, named):  # "today, rest of the legs": the words are the log's
+        text = f"{dated.rest}\n{body}" if dated is not None else text
+    elif dated is not None or named is not None:  # today's date or a session on top
         text = body
+    if named is not None:
+        return _draft_named(session, named, text, on, tz)
     template = target(session, on, tz)
     parsed: ParseResult = parse_log(text, catalogue(session, template))
     return Draft(
@@ -214,6 +222,59 @@ def _named(session: Session, words: str) -> SessionTemplate | None:
             if normal and f" {normal} " in wanted and (best is None or len(normal) > best[0]):
                 best = (len(normal), template)
     return best[1] if best is not None else None
+
+
+def _session_line(session: Session, line: str) -> SessionTemplate | None:
+    """The session a first line is just the name of, after an optional ``today`` ("Arms",
+    "today Zone 2"), if any. Only the whole line counts: "Legs 3x10" is a log."""
+    wanted = normalise_name(TODAY_WORD.sub("", line))
+    if not wanted:
+        return None
+    for template in session.scalars(select(SessionTemplate).order_by(SessionTemplate.position)):
+        if wanted in (normalise_name(template.name), normalise_name(template.slug)):
+            return template
+    return None
+
+
+def _today_words(first: str, dated: DateLine | None, named: SessionTemplate | None) -> bool:
+    """``today`` followed by words that name no session ("today, rest of the legs"): not a
+    heading, as ``today`` starts sentences far more often than a date does (review of #242)."""
+    return (
+        dated is not None
+        and named is None
+        and bool(dated.rest)
+        and TODAY_WORD.match(first) is not None
+    )
+
+
+def heading(session: Session, line: str, on: date) -> bool:
+    """Whether a log's first line is a date or a session's name: the model then reads only the
+    lines under it, and its reading goes back under the same line (#104, ADR-0060)."""
+    dated = date_line(line, on)
+    named = _session_line(session, line)
+    if isinstance(dated, DateLine) and named is None:
+        named = _named(session, dated.rest)
+        if _today_words(line, dated, named):
+            return False
+    return dated is not None or named is not None
+
+
+def _draft_named(
+    session: Session, template: SessionTemplate, body: str, on: date, tz: ZoneInfo
+) -> Draft:
+    """Today's log of a session named on purpose: done out of turn unless the queue is on it."""
+    parsed = parse_log(body, catalogue(session, template))
+    return Draft(
+        token=secrets.token_hex(16),
+        on=on,
+        template_id=template.id,
+        session_name=template.name,
+        entries=parsed.entries,
+        problems=parsed.problems,
+        strength=_strength(session, on, tz, template),
+        activity=_activity(body, parsed.entries),
+        chosen=True,
+    )
 
 
 def _inferred(session: Session, entries: tuple[Entry, ...]) -> SessionTemplate | None:
@@ -471,23 +532,6 @@ def _save_past(
         return caught_up(_order(session), template.id) if template and later is None else None
 
     return _commit(session, workout, confirmed, rule, answer, tz)
-
-
-def day_saved(session: Session, on: date) -> bool:
-    """Whether a planned session or a rest day is already saved for ``on``: a log a connected
-    AI proposes for an earlier day is refused then (ADR-0058), as the day is already told."""
-    found = session.scalar(
-        select(Workout.id)
-        .where(
-            Workout.local_date == on,
-            or_(
-                Workout.template_id.is_not(None) & Workout.status.in_(ADVANCING),
-                Workout.status == WorkoutStatus.REST,
-            ),
-        )
-        .limit(1)
-    )
-    return found is not None
 
 
 def strength_on(session: Session, on: date, tz: ZoneInfo, template: SessionTemplate | None) -> bool:

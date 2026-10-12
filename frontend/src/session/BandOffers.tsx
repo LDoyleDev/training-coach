@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import {
+  type Answer,
   type BandOffer,
+  type Clash,
   countBandOffer,
   dismissBandOffer,
   fetchBandOffers,
   SignedOutError,
 } from '../api'
 import SignedOutNotice from '../components/SignedOutNotice'
+import ClashQuestion from './ClashQuestion'
 import { actions, card, primaryInline, secondary } from '../ui'
 
 const day = (iso: string) =>
@@ -24,6 +27,12 @@ export default function BandOffers({ onCounted }: { onCounted: (text: string) =>
   const [note, setNote] = useState<string | null>(null)
   const [signedOut, setSignedOut] = useState(false)
   const [loads, setLoads] = useState(0)
+  // Counting it would complete a session on a day that has one (ADR-0060): asked first.
+  const [question, setQuestion] = useState<{
+    id: number
+    clash: Clash
+    taken: Clash | null
+  } | null>(null)
 
   useEffect(() => {
     const abort = new AbortController()
@@ -33,7 +42,7 @@ export default function BandOffers({ onCounted }: { onCounted: (text: string) =>
     return () => abort.abort()
   }, [loads])
 
-  const answer = async (offer: BandOffer, count: boolean) => {
+  const answer = async (offer: BandOffer, count: boolean, reply?: Answer) => {
     setBusy(offer.id)
     setNote(null)
     setSignedOut(false)
@@ -43,7 +52,17 @@ export default function BandOffers({ onCounted }: { onCounted: (text: string) =>
         setOffers((all) => all.filter((o) => o.id !== offer.id))
         return
       }
-      const result = await countBandOffer(offer.id)
+      const result = await countBandOffer(offer.id, reply)
+      if (typeof result === 'object' && 'clash' in result) {
+        if (result.clash.moving && question) setQuestion({ ...question, taken: result.clash })
+        else setQuestion({ id: offer.id, clash: result.clash, taken: null })
+        return
+      }
+      if (typeof result === 'object' && 'problem' in result) {
+        setNote(result.problem) // the question stays: pick another answer
+        return
+      }
+      setQuestion(null)
       if (result === 'gone') setNote('That workout isn’t on offer any more.')
       else if (result === 'stale') setNote('Today’s session changed meanwhile. Try again.')
       else {
@@ -69,6 +88,17 @@ export default function BandOffers({ onCounted }: { onCounted: (text: string) =>
             {offer.on === today ? '' : `${day(offer.on)}: `}
             {offer.text}
           </p>
+          {question?.id === offer.id && (
+            <div className="mt-2">
+              <ClashQuestion
+                clash={question.clash}
+                taken={question.taken}
+                busy={busy !== null}
+                onAnswer={(reply) => void answer(offer, true, reply)}
+                onCancel={() => setQuestion(null)}
+              />
+            </div>
+          )}
           <p className={`${actions} mt-2 mb-0`}>
             <button
               type="button"

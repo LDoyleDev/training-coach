@@ -140,3 +140,47 @@ test('a measurement it would replace is named', async () => {
   render(<Proposals onSaved={vi.fn()} />)
   expect(await screen.findByText('Replaces the 78.4 kg saved that day.')).toBeInTheDocument()
 })
+
+const CLASH = {
+  day: '2026-10-11',
+  moving: false,
+  recorded: [{ workout_id: 3, name: 'Torso + neck', summary: '5 sets: Pull-up' }],
+}
+
+test('one for a day that has its session asks first, and saves with the answer', async () => {
+  const saved = vi.fn()
+  const asked = serve({
+    'GET /api/proposals': waiting([PROPOSAL]),
+    ['POST /api/proposals/save']: [
+      { status: 409, body: { detail: CLASH } },
+      { status: 409, body: { detail: { ...CLASH, day: '2026-10-10', moving: true } } },
+      { status: 422, body: { detail: 'Sun 27 Sep is more than 14 days ago' } },
+      { status: 200, body: { summary: PROPOSAL.summary, workout: true } },
+    ],
+  })
+  render(<Proposals onSaved={saved} />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Save' }))
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('Torso + neck: 5 sets: Pull-up')
+  fireEvent.click(screen.getByRole('button', { name: 'Move it to another day' }))
+  fireEvent.click(screen.getAllByRole('button', { name: /\d{2} \w{3}$/ })[0])
+  expect(await screen.findByText(/has Torso \+ neck \(5 sets: Pull-up\) too/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Replace it' }))
+  expect(await screen.findByText('Sun 27 Sep is more than 14 days ago')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Add to that day' }))
+  await vi.waitFor(() => expect(saved).toHaveBeenCalledWith(`Saved: ${PROPOSAL.summary}.`))
+  expect(asked.filter((a) => a.startsWith('POST'))).toContain(
+    `POST /api/proposals/save {"token":"${TOKEN}","resolution":"replace","seen":[3]}`,
+  )
+})
+
+test('cancelling the question saves nothing', async () => {
+  serve({
+    'GET /api/proposals': waiting([PROPOSAL]),
+    ['POST /api/proposals/save']: [{ status: 409, body: { detail: CLASH } }],
+  })
+  render(<Proposals onSaved={vi.fn()} />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Save' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+})

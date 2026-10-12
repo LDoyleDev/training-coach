@@ -8,13 +8,15 @@ not tried again and doesn't hold up the others; it stays on Today in the app.
 Callback data is ``lp:save:<token>`` or ``lp:discard:<token>``; the service looks the token up,
 so an old or forged button can't save anything that isn't waiting.
 Saving or discarding here or on Today resolves it in both places: a button pressed afterwards
-answers "already saved" or that it has gone.
+answers "already saved" or that it has gone. Saving one for a day that already has its session
+asks first (ADR-0060, ``bot.clash``), with ``lp:<answer>:<token>`` buttons; it keeps waiting
+until it is answered.
 """
 
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
@@ -22,11 +24,14 @@ from sqlalchemy.orm import Session, sessionmaker
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
+from training_coach.bot import clash as clash_ui
 from training_coach.bot import links
 from training_coach.bot.buttons import edit_quietly
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
+from training_coach.domain.queue import local_date
 from training_coach.services import proposals
+from training_coach.services.day_clash import MOVE, Clash, Refused, Resolution
 
 log = structlog.get_logger(__name__)
 
@@ -44,6 +49,7 @@ ALREADY = {
     proposals.DISCARDED: "Already discarded. Nothing was saved.",
 }
 FAILED = "Couldn't save that just now. Try again, or use Today in the app."
+WAITING = "Not saved: it's still waiting for Save or Discard."
 
 # Like bot.app.send_outcome: SENT, UNREACHABLE (try again later) or REFUSED (never again).
 Send = Callable[..., Awaitable[str]]
@@ -58,7 +64,9 @@ class Press:
 
 def parse(data: str | None) -> Press | None:
     parts = (data or "").split(":")
-    if len(parts) != 3 or parts[0] != PREFIX or parts[1] not in ACTIONS:
+    if len(parts) != 3 or parts[0] != PREFIX:
+        return None
+    if parts[1] not in ACTIONS and not clash_ui.is_answer(parts[1]):
         return None
     token = parts[2]
     if len(token) != TOKEN_LENGTH or any(c not in "0123456789abcdef" for c in token):
@@ -95,6 +103,8 @@ class ProposalHandlers:
         # The check and a fresh proposal can both reach for the same one: one sender at a time,
         # so nothing goes twice.
         self.sending = asyncio.Lock()
+        # Token -> the clash shown for it, and a day to move to found taken (ADR-0060).
+        self.asked: dict[str, tuple[Clash, date | None]] = {}
 
     async def job(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         await self.announce(context.bot)
@@ -141,16 +151,38 @@ class ProposalHandlers:
             return
         now = datetime.now(UTC)
         reply_markup = None
-        result: proposals.Resolved
+        asked = self.asked.get(press.token)
+        if press.action == "cancel" or (press.action == MOVE and asked is not None):
+            await edit_quietly(query.edit_message_reply_markup(None))
+            if press.action == "cancel":
+                self.asked.pop(press.token, None)
+                await query.message.reply_text(WAITING, reply_markup=markup(press.token))
+            else:
+                assert asked is not None  # noqa: S101 - checked above
+                today = local_date(now, self.settings.tz)
+                days = clash_ui.days_keyboard(PREFIX, press.token, asked[0], today, asked[1])
+                await query.message.reply_text(clash_ui.MOVE_ASK_BUTTONS, reply_markup=days)
+            return
+        answer = None
+        if press.action not in ACTIONS:  # an answer to the question
+            if asked is None:
+                await query.message.reply_text(WAITING, reply_markup=markup(press.token))
+                return
+            answer = clash_ui.resolution(press.action, asked[0], local_date(now, self.settings.tz))
+        result: proposals.Resolved | Clash | Refused
         try:
             with session_scope(self.sessions) as session:
                 if press.action == "discard":
                     result = proposals.discard(session, press.token, now, "telegram")
                     reply = DISCARDED if isinstance(result, proposals.Discarded) else ""
                 else:
-                    result = proposals.save(session, press.token, self.settings.tz, now, "telegram")
+                    result = proposals.save(
+                        session, press.token, self.settings.tz, now, "telegram", answer
+                    )
                     reply = ""
-                    if isinstance(result, proposals.Saved):
+                    if isinstance(result, Clash | Refused):
+                        reply, reply_markup = self._ask(press.token, result, answer, now)
+                    elif isinstance(result, proposals.Saved):
                         reply = saved_text(result)
                         reply_markup = links.with_open(None, self.settings.public_url, links.HOME)
                     elif isinstance(result, proposals.Changed):
@@ -159,6 +191,8 @@ class ProposalHandlers:
             log.error("bot.proposal_failed", error=type(exc).__name__)
             await query.message.reply_text(FAILED)
             return
+        if not isinstance(result, Clash | Refused):
+            self.asked.pop(press.token, None)
         if isinstance(result, proposals.Already):
             reply = ALREADY[result.status]
         elif isinstance(result, proposals.Gone):
@@ -166,3 +200,22 @@ class ProposalHandlers:
         await edit_quietly(query.edit_message_reply_markup(None))
         await query.message.reply_text(reply, reply_markup=reply_markup)
         log.info("bot.proposal_answered", action=press.action, outcome=type(result).__name__)
+
+    def _ask(
+        self, token: str, result: Clash | Refused, answer: Resolution | None, now: datetime
+    ) -> tuple[str, InlineKeyboardMarkup]:
+        """The question (again), or the days to move to when the one picked was taken."""
+        shown = self.asked.get(token)
+        if shown is not None and (isinstance(result, Refused) or result.moving):
+            taken = result.day if isinstance(result, Clash) else shown[1]
+            self.asked[token] = (shown[0], taken)
+            today = local_date(now, self.settings.tz)
+            days = clash_ui.days_keyboard(PREFIX, token, shown[0], today, taken)
+            why = clash_ui.taken_text(result) if isinstance(result, Clash) else result.reason
+            return f"{why}\n\n{clash_ui.MOVE_ASK_BUTTONS}", days
+        assert isinstance(result, Clash)  # noqa: S101 - a refusal only answers a move
+        self.asked[token] = (result, None)
+        reply = clash_ui.text(result)
+        if answer is not None:
+            reply = f"{clash_ui.CHANGED}\n\n{reply}"
+        return reply, clash_ui.keyboard(PREFIX, token, len(result.recorded) == 1)

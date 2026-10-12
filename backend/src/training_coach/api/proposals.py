@@ -9,9 +9,10 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from training_coach.api.auth import Owner
+from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.services import proposals
+from training_coach.services import day_clash, proposals
 
 router = APIRouter(prefix="/api/proposals", tags=["proposals"])
 
@@ -27,6 +28,12 @@ class ProposalView(BaseModel):
 
 
 class ProposalToken(BaseModel):
+    token: str = Field(pattern="^[0-9a-f]{32}$")
+
+
+class ProposalSave(ClashReply):
+    """The token, and the answer when the day already has its session (ADR-0060)."""
+
     token: str = Field(pattern="^[0-9a-f]{32}$")
 
 
@@ -53,14 +60,18 @@ def waiting(request: Request, user: Owner) -> list[ProposalView]:
     ]
 
 
-@router.post("/save", response_model=ProposalSaved)
-def save(body: ProposalToken, request: Request, user: Owner) -> ProposalSaved:
+@router.post("/save", response_model=ProposalSaved, responses=CLASH)
+def save(body: ProposalSave, request: Request, user: Owner) -> ProposalSaved:
     """Save it. 404 when it has expired or never was; 409 with ``already_saved`` or
     ``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason
-    when it no longer fits (it is discarded then)."""
+    when it no longer fits (it is discarded then); 409 with what is saved already when its
+    day has its session (it keeps waiting: save it again with the answer, ADR-0060)."""
     settings: Settings = request.app.state.settings
+    answer = resolution(body)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
-        result = proposals.save(session, body.token, settings.tz, datetime.now(UTC), "web")
+        result = proposals.save(session, body.token, settings.tz, datetime.now(UTC), "web", answer)
+    if isinstance(result, day_clash.Clash | day_clash.Refused):
+        raise conflict(result)
     if isinstance(result, proposals.Gone):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "that proposal has gone")
     if isinstance(result, proposals.Already):

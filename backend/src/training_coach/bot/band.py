@@ -3,7 +3,9 @@ it?" with Count it / Not this one.
 
 A job looks for new offers every few minutes and sends each once. Callback data is
 ``bc:<import id>`` to count it or ``bx:<import id>`` to turn it down; the service re-checks the
-import, so an old or forged button can't count anything that isn't offered.
+import, so an old or forged button can't count anything that isn't offered. Counting one that
+would complete a session on a day that already has one asks first (ADR-0060, ``bot.clash``),
+with ``ba:<answer>:<import id>`` buttons.
 """
 
 from collections.abc import Awaitable, Callable
@@ -15,41 +17,49 @@ from sqlalchemy.orm import Session, sessionmaker
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
+from training_coach.bot import clash as clash_ui
 from training_coach.bot.buttons import edit_quietly, row_id
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import band_cardio, cardio, user_settings
+from training_coach.services import band_cardio, cardio, user_settings, workout_log
+from training_coach.services.day_clash import MOVE, Clash, Refused, Resolution
 
 log = structlog.get_logger(__name__)
 
-COUNT, SKIP = "bc", "bx"
-PATTERN = rf"^({COUNT}|{SKIP}):"
+COUNT, SKIP, ANSWER = "bc", "bx", "ba"
+PATTERN = rf"^({COUNT}|{SKIP}|{ANSWER}):"
 EVERY = timedelta(minutes=10)
 JOB = "band.offers"
 GONE = "That workout isn't on offer any more."
 STALE = "Today's session changed meanwhile. Open Today in the app to count it."
 SKIPPED = "Left out."
 FAILED = "Couldn't save that just now. Try again, or count it on Today in the app."
+NOT_COUNTED = "Not counted. It's still on offer."
 
 Send = Callable[..., Awaitable[bool]]
 
 
 def parse(data: str | None) -> tuple[str, int] | None:
-    """What a button asks and the import it names, or None for anything malformed."""
+    """What a button asks and the import it names, or None for anything malformed. An answer
+    to the question comes back as its answer (``replace``, ``m3``...)."""
     parts = (data or "").split(":")
+    if len(parts) == 3 and parts[0] == ANSWER and clash_ui.is_answer(parts[1]):
+        found = row_id(parts[2])
+        return (parts[1], found) if found is not None else None
     if len(parts) != 2 or parts[0] not in (COUNT, SKIP):
         return None
     found = row_id(parts[1])
     return (parts[0], found) if found is not None else None
 
 
-def markup(offer: band_cardio.Offer) -> InlineKeyboardMarkup:
+def markup(offer: band_cardio.Offer | int) -> InlineKeyboardMarkup:
+    offer_id = offer if isinstance(offer, int) else offer.id
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("Count it", callback_data=f"{COUNT}:{offer.id}"),
-                InlineKeyboardButton("Not this one", callback_data=f"{SKIP}:{offer.id}"),
+                InlineKeyboardButton("Count it", callback_data=f"{COUNT}:{offer_id}"),
+                InlineKeyboardButton("Not this one", callback_data=f"{SKIP}:{offer_id}"),
             ]
         ]
     )
@@ -66,6 +76,8 @@ class BandHandlers:
         self.settings = settings
         self.sessions = sessions
         self.send = send
+        # Import id -> the clash shown for it, and a day to move to found taken (ADR-0060).
+        self.asked: dict[int, tuple[Clash, date | None]] = {}
 
     def _today(self) -> date:
         return local_date(datetime.now(UTC), self.settings.tz)
@@ -109,23 +121,58 @@ class BandHandlers:
         await query.answer()
         action, import_id = pressed
         today = self._today()
+        asked = self.asked.get(import_id)
+        keyboard: InlineKeyboardMarkup | None = None
+        if action in ("cancel", MOVE) or (action not in (COUNT, SKIP) and asked is None):
+            await edit_quietly(query.edit_message_reply_markup(None))
+            if action == MOVE and asked is not None:
+                days = clash_ui.days_keyboard(ANSWER, str(import_id), asked[0], today, asked[1])
+                await query.message.reply_text(clash_ui.MOVE_ASK_BUTTONS, reply_markup=days)
+            else:  # Cancel, or an answer to a question asked before a restart
+                self.asked.pop(import_id, None)
+                await query.message.reply_text(NOT_COUNTED, reply_markup=markup(import_id))
+            return
+        answer = clash_ui.resolution(action, asked[0], today) if asked is not None else None
         try:
             with session_scope(self.sessions) as session:
                 if action == SKIP:
                     band_cardio.dismiss(session, import_id)
                     reply = SKIPPED
                 else:
-                    result = band_cardio.count(session, import_id, today, self.settings.tz)
+                    result = band_cardio.count(session, import_id, today, self.settings.tz, answer)
                     if isinstance(result, band_cardio.Gone):
                         reply = GONE
-                    elif not isinstance(result, band_cardio.Counted):  # a clash (ADR-0060)
+                    elif isinstance(result, workout_log.Stale):
                         reply = STALE
+                    elif isinstance(result, Clash | Refused):
+                        reply, keyboard = self._ask(import_id, result, answer, today)
                     else:
                         reply = counted_text(cardio.week(session, today), result.planned)
         except SQLAlchemyError as exc:  # keep the buttons, so it can be pressed again
             log.error("bot.band_offer_failed", error=type(exc).__name__)
             await query.message.reply_text(FAILED)
             return
+        if keyboard is None:
+            self.asked.pop(import_id, None)
         await edit_quietly(query.edit_message_reply_markup(None))
-        await query.message.reply_text(reply)
+        await query.message.reply_text(reply, reply_markup=keyboard)
         log.info("bot.band_offer_answered", action=action)
+
+    def _ask(
+        self, import_id: int, result: Clash | Refused, answer: Resolution | None, today: date
+    ) -> tuple[str, InlineKeyboardMarkup]:
+        """The question (again), or the days to move to when the one picked was taken."""
+        shown = self.asked.get(import_id)
+        ref = str(import_id)
+        if shown is not None and (isinstance(result, Refused) or result.moving):
+            taken = result.day if isinstance(result, Clash) else shown[1]
+            self.asked[import_id] = (shown[0], taken)
+            days = clash_ui.days_keyboard(ANSWER, ref, shown[0], today, taken)
+            why = clash_ui.taken_text(result) if isinstance(result, Clash) else result.reason
+            return f"{why}\n\n{clash_ui.MOVE_ASK_BUTTONS}", days
+        assert isinstance(result, Clash)  # noqa: S101 - a refusal only answers a move
+        self.asked[import_id] = (result, None)
+        reply = clash_ui.text(result)
+        if answer is not None:
+            reply = f"{clash_ui.CHANGED}\n\n{reply}"
+        return reply, clash_ui.keyboard(ANSWER, ref, len(result.recorded) == 1)
