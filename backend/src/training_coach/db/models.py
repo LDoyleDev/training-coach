@@ -608,7 +608,10 @@ class IngestKey(Owned, Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     key_hash: Mapped[str] = mapped_column(String(64), unique=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
-    last_used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    last_used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)  # last sync stored
+    # The last sync that took a record, and when a gap in band data was told (ADR-0055).
+    last_taken_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    alerted_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class HealthDay(Owned, Base):

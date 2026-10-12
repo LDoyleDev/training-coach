@@ -555,6 +555,8 @@ def build_bot(
     assert jobs is not None  # noqa: S101 - the job-queue extra is a dependency
     # Band workouts to count (ADR-0055): checked every few minutes, each offered once.
     jobs.run_repeating(band_handlers.announce, interval=band_ui.EVERY, name=band_ui.JOB)
+    # And whether band data stopped arriving: checked hourly, told once per gap.
+    jobs.run_repeating(band_handlers.watch, interval=band_ui.WATCH_EVERY, name=band_ui.WATCH_JOB)
     # Logs a connected AI proposed (ADR-0058): sent as they come, and checked every few
     # minutes for any whose send failed.
     proposal_handlers = proposals_ui.ProposalHandlers(settings, sessions, send_outcome)

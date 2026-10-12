@@ -6,6 +6,9 @@ A job looks for new offers every few minutes and sends each once. Callback data 
 import, so an old or forged button can't count anything that isn't offered. Counting one that
 would complete a session on a day that already has one asks first (ADR-0060, ``bot.clash``),
 with ``ba:<answer>:<import id>`` buttons.
+
+A second job tells the person when band data stops arriving for a day, once per gap, and when
+it arrives again (``domain.band_watch``). The messages carry no health values.
 """
 
 from collections.abc import Awaitable, Callable
@@ -18,11 +21,14 @@ from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Message, U
 from telegram.ext import ContextTypes
 
 from training_coach.bot import clash as clash_ui
+from training_coach.bot import links
 from training_coach.bot.buttons import edit_quietly, row_id
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
+from training_coach.domain import band_watch
+from training_coach.domain.band_watch import Notice
 from training_coach.domain.queue import local_date
-from training_coach.services import band_cardio, cardio, user_settings, workout_log
+from training_coach.services import band_cardio, cardio, ingest_keys, user_settings, workout_log
 from training_coach.services.day_clash import MOVE, Clash, Refused, Resolution
 
 log = structlog.get_logger(__name__)
@@ -36,6 +42,19 @@ STALE = "Today's session changed meanwhile. Open Today in the app to count it."
 SKIPPED = "Left out."
 FAILED = "Couldn't save that just now. Try again, or count it on Today in the app."
 NOT_COUNTED = "Not counted. It's still on offer."
+WATCH_EVERY = timedelta(hours=1)
+WATCH_JOB = "band.watch"
+NOTICES = {
+    Notice.QUIET: (
+        "No band data has arrived for a day. Open Mi Fitness to sync the band, and check HC "
+        "Webhook's log. Band import: Account → Band import."
+    ),
+    Notice.EMPTY: (
+        "HC Webhook is syncing, but nothing new has come from the band for a day. Open Mi "
+        "Fitness to sync the band, and check that Mi Fitness still shares with Health Connect."
+    ),
+    Notice.BACK: "Band data is arriving again.",
+}
 
 Send = Callable[..., Awaitable[bool]]
 
@@ -107,6 +126,38 @@ class BandHandlers:
                 log.error("bot.band_offer_unmarked", error=type(exc).__name__)
                 return
             log.info("bot.band_offer_sent")
+
+    async def watch(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Tell the person when band data stopped a day ago, or arrives again after that: in the
+        day only (08:00-21:00 local), never while paused, and noted only after Telegram took
+        it, so a failed send is tried again on the next run."""
+        now = datetime.now(UTC)
+        if not band_watch.daytime(now, self.settings.tz):
+            return
+        try:
+            with session_scope(self.sessions) as session:
+                if user_settings.load(session).paused:
+                    return
+                notice = ingest_keys.watch(session, now)
+        except SQLAlchemyError as exc:
+            log.error("bot.band_watch_failed", error=type(exc).__name__)
+            return
+        if notice is None:
+            return
+        owner = self.settings.telegram_allowed_user_id
+        assert owner is not None  # noqa: S101 - owner_only
+        account = links.with_open(None, self.settings.public_url, links.ACCOUNT)
+        markup = None if notice is Notice.BACK else account
+        if not await self.send(context.bot, owner, NOTICES[notice], reply_markup=markup):
+            log.warning("bot.band_watch_not_sent", notice=notice.value)
+            return
+        try:
+            with session_scope(self.sessions) as session:
+                ingest_keys.told(session, notice, now)
+        except SQLAlchemyError as exc:  # sent but not noted: it may be sent again next hour
+            log.error("bot.band_watch_unnoted", error=type(exc).__name__)
+            return
+        log.info("bot.band_watch_sent", notice=notice.value)
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """Count it or Not this one. Strangers get nothing, not even an answer (T1)."""
