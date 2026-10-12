@@ -1,7 +1,7 @@
 # Runbook: band import on the Poco X3
 
-How the Xiaomi Smart Band 9 and the Xiaomi scale reach the coach (ADR-0055):
-band and scale -> Mi Fitness -> Health Connect -> Health Connect Webhook -> the Pi.
+How the Xiaomi Smart Band 9 reaches the coach (ADR-0055):
+band -> Mi Fitness -> Health Connect -> Health Connect Webhook -> the Pi.
 About 20 minutes, once. Everything happens on the phone except step 4.
 
 ## 1. Health Connect
@@ -16,15 +16,21 @@ Android 12 doesn't have Health Connect built in (it is part of Android from 14 o
 
 1. Open **Mi Fitness**, sync the band so recent data is on the phone.
 2. **Profile** > **Third-party data** (on some versions **Health Connect**) > turn it on.
-3. Allow at least: **Steps, Sleep, Heart rate, Exercise (workouts), Weight**. Resting heart rate
-   too if it is offered (the coach otherwise works it out from your overnight heart rate).
+3. Allow at least: **Steps, Sleep, Heart rate, Exercise (workouts)**. Resting heart rate too if
+   it is offered (the coach otherwise works it out from your overnight heart rate).
+   Mi Fitness doesn't offer to write **Weight** to Health Connect, so weigh-ins on the Xiaomi
+   scale don't arrive this way: type them under **Body**.
 4. In Health Connect, **App permissions > Mi Fitness** should now show those types as allowed
    to write.
 
 ## 3. Health Connect Webhook
 
-1. Install **HC Webhook** (Health Connect Webhook, `com.hcwebhook.app`) from the Play Store.
-   It is open source: github.com/mcnaveen/health-connect-webhook.
+1. Install **HC Webhook** (Health Connect Webhook, `com.hcwebhook.app`). It is open source:
+   github.com/mcnaveen/health-connect-webhook.
+   - The Play Store version, listed by "Naveen MC", costs €9.99.
+   - The same app is free from the author's GitHub releases: install **Obtainium**, add
+     `github.com/mcnaveen/health-connect-webhook`, and it installs and updates the app.
+   - Not the "Health Connect Webhook App" by Wonkru: that is a different app.
 2. Open it, tap **Grant Permissions** and allow reading: **Steps, Sleep, Heart rate, Exercise,
    Weight** (and Resting heart rate if listed). Nothing else is needed; the coach ignores other
    types.
@@ -55,7 +61,14 @@ Android 12 doesn't have Health Connect built in (it is part of Android from 14 o
 
 ## 6. Check that data arrives
 
-1. In HC Webhook, tap **Sync Now**.
+The webhook's **Test** button only checks the connection: its sample data (made-up steps,
+heart rate and weight) is not stored. Its log entry is **200** with
+`{"test": true, "taken": {}, "skipped": {}, "note": "test received; nothing stored"}`, or
+**401** if the header is wrong (below).
+
+1. The real check: on HC Webhook's **Home** tab, tap **Sync Now**. If Health Connect has
+   nothing new since the last good sync, the app says "No new data", sends nothing and logs
+   nothing: sync the band in Mi Fitness first, then try again.
 2. Menu > **Webhook Log**: the newest entry should be **200** with a body like
    `{"taken": {"steps": 2, "heart_rate": 1400, ...}, "skipped": {}}`.
    - **401**: the header is wrong. Check `Authorization` and `Bearer <secret>` with one space,
@@ -69,8 +82,8 @@ Android 12 doesn't have Health Connect built in (it is part of Android from 14 o
    - **Home** and **Progress** show last night's sleep, today's steps and resting heart rate;
    - **Today** (and Telegram) offers the walk to count;
    - the daily check has your sleep answer ready (still one tap on the web);
-   - a weigh-in on the scale appears under **Body** as that day's bodyweight, unless you
-     already typed one for that day.
+   - a weight that another app wrote to Health Connect appears under **Body** as that day's
+     bodyweight, unless you already typed one for that day (not the Xiaomi scale: step 2).
 
 The app reads the last 48 hours on every sync and sends only what is new since its last good
 sync; a failed sync is sent again next time. If the phone was off for longer than 48 hours,

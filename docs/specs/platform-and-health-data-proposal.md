@@ -18,14 +18,15 @@ it becomes an ADR.
 What follows from that:
 - Build the web app (L1) now, but **multi-user ready** (L2's `users` table and per-user scoping)
   from the first schema change, since L3 is the goal. Cheaper now than retrofitting.
-- **Health data at zero cost on Android:** Mi Fitness writes to Health Connect on the phone; the free, open-source Health Connect Webhook app posts it to the Pi.
+- **Health data at zero cost on Android:** Mi Fitness writes to Health Connect on the phone; the open-source Health Connect Webhook app (no cost from its GitHub releases: `docs/runbooks/band-import.md`) posts it to the Pi.
   iPhone users later need our own app (Apple's developer fee) or a paid bridge, so iPhone waits
   until there is a budget.
 - **Your band: a Xiaomi Smart Band 9 with the Mi Fitness app** (and the scale in the same app).
   - The band records 24/7 heart rate (as often as every minute, continuous during workouts),
     heart rate and zone during workouts, sleep stages (light, deep, REM), SpO2, stress and
     steps, with 150+ workout modes.
-  - Mi Fitness can share steps, sleep, heart rate, workouts and weight with Health Connect;
+  - Mi Fitness can share steps, sleep, heart rate and workouts with Health Connect (not weight,
+    it turned out: `docs/runbooks/band-import.md`);
     you choose the types in its settings. That covers almost everything in section 3, including
     **heart-rate zones**, which we compute ourselves from the workout's heart-rate samples and
     your max heart rate, so they don't depend on Xiaomi's zone model.
