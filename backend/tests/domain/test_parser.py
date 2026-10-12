@@ -247,6 +247,14 @@ def test_a_cardio_line_takes_one_activity_word(text: str, entry: Entry) -> None:
     assert result.problems == ()
 
 
+def test_a_piece_with_its_own_number_is_never_merged_as_an_activity_word() -> None:
+    """Review of #239: "walk 30" was glued onto "zone 2 45" because only its letters counted,
+    so a second value slipped in silently instead of being asked about."""
+    result = parse_log("zone 2 45, walk 30", CARDIO)
+    assert result.entries == (Entry("zone2", both(45)),)
+    assert result.problems == ("I don't know the exercise 'walk'",)
+
+
 @pytest.mark.parametrize(
     ("text", "problem"),
     [

@@ -323,6 +323,10 @@ def tidy(text: str) -> str:
     return GLUED_SIDE.sub(" ", text)
 
 
+def _only_words(chunk: str) -> bool:
+    return bool(_words(chunk)) and not any(c.isdigit() for c in chunk)
+
+
 def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
     """Every entry the text names, and every problem found. Never raises on user input."""
     if len(text) > MAX_TEXT:
@@ -332,7 +336,8 @@ def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
     chunks: list[str] = []
     for chunk in (c for c in SPLIT_ENTRIES.split(tidy(text)) if c.strip()):
         # "moderate cardio, 45 minutes, run": a spoken activity word ends the entry before it.
-        if chunks and _words(chunk) and _words(chunk) <= ACTIVITY_WORDS:
+        # A piece with a number of its own ("zone 2 45, run 30") is an entry, never merged.
+        if chunks and _words(chunk) <= ACTIVITY_WORDS and _only_words(chunk):
             chunks[-1] += f" {chunk}"
         else:
             chunks.append(chunk)
