@@ -957,7 +957,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/proposals/{token}/discard": {
+    "/api/proposals/discard": {
         parameters: {
             query?: never;
             header?: never;
@@ -970,14 +970,14 @@ export interface paths {
          * Discard
          * @description Discard it; nothing is saved. Discarding one already dealt with changes nothing.
          */
-        post: operations["discard_api_proposals__token__discard_post"];
+        post: operations["discard_api_proposals_discard_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/proposals/{token}/save": {
+    "/api/proposals/save": {
         parameters: {
             query?: never;
             header?: never;
@@ -992,7 +992,7 @@ export interface paths {
          *     ``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason
          *     when it no longer fits (it is discarded then).
          */
-        post: operations["save_api_proposals__token__save_post"];
+        post: operations["save_api_proposals_save_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2234,6 +2234,11 @@ export interface components {
             /** Workout */
             workout: boolean;
         };
+        /** ProposalToken */
+        ProposalToken: {
+            /** Token */
+            token: string;
+        };
         /** ProposalView */
         ProposalView: {
             /**
@@ -2248,6 +2253,8 @@ export interface components {
              * Format: date
              */
             on: string;
+            /** Replaces */
+            replaces: string | null;
             /** Source */
             source: string;
             /** Summary */
@@ -4234,16 +4241,18 @@ export interface operations {
             };
         };
     };
-    discard_api_proposals__token__discard_post: {
+    discard_api_proposals_discard_post: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                token: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalToken"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -4263,16 +4272,18 @@ export interface operations {
             };
         };
     };
-    save_api_proposals__token__save_post: {
+    save_api_proposals_save_post: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                token: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalToken"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

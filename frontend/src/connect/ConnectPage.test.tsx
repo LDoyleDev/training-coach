@@ -200,3 +200,25 @@ test('a server it cannot reach is said plainly', async () => {
   render(<ConnectPage />)
   expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't reach the server")
 })
+
+test('a scope that doesn’t say it is opt-in starts unticked', async () => {
+  const unsure = { ...CONSENT, scopes: [{ scope: 'readiness:read', label: 'Readiness' }] }
+  server({ '/api/connect/details': [200, unsure] })
+  render(<ConnectPage />)
+  expect(await screen.findByRole('checkbox', { name: 'Readiness' })).not.toBeChecked()
+})
+
+test('proposing logs comes with reading the training', async () => {
+  server({ '/api/connect/details': [200, CONSENT] })
+  render(<ConnectPage />)
+  const training = await screen.findByRole('checkbox', { name: 'Your plan and workouts' })
+  const propose = screen.getByRole('checkbox', { name: /Nothing is saved until you tap Save/ })
+  fireEvent.click(training)
+  expect(training).not.toBeChecked()
+  fireEvent.click(propose)
+  expect(propose).toBeChecked()
+  expect(training).toBeChecked()
+  fireEvent.click(training)
+  expect(training).not.toBeChecked()
+  expect(propose).not.toBeChecked()
+})

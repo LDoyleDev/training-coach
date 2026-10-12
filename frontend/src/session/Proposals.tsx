@@ -14,7 +14,8 @@ const GONE = 'That proposal has gone: it expired after 24 hours, or its app was 
 /**
  * Logs a connected AI proposed (ADR-0058): "From “Claude”: ..." with Save and Discard. Nothing
  * is saved until Save; the same proposal in Telegram is then answered "already saved". The
- * app's name is its own claim, shown as text. Saving goes through the normal log, so Undo
+ * app's name is its own claim, shown as text. A body measurement it would overwrite is named
+ * here (and in Telegram), never to the AI. Saving goes through the normal log, so Undo
  * takes a workout back: ``onSaved`` hears what to say and the page reloads today and Undo.
  */
 export default function Proposals({ onSaved }: { onSaved: (text: string) => void }) {
@@ -66,6 +67,7 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
           <p className="m-0 break-words">
             From <strong>“{proposal.source}”</strong>: {proposal.summary}
           </p>
+          {proposal.replaces && <p className="m-0 mt-1 font-bold">{proposal.replaces}.</p>}
           <p className="m-0 mt-1 text-sm text-[var(--slate)]">
             Nothing is saved until you tap Save.
           </p>

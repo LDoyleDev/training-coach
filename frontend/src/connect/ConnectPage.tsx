@@ -10,6 +10,9 @@ type State =
   | { status: 'working'; consent: ConsentView }
   | { status: 'leaving'; host: string }
 
+const TRAINING = 'training:read'
+const PROPOSE = 'log:propose'
+
 const PROBLEMS: Record<string, string> = {
   passkey:
     'That didn’t confirm it’s you. Try again with your fingerprint or face. No passkey yet? ' +
@@ -36,7 +39,8 @@ export default function ConnectPage() {
     fetchConsent(handle)
       .then((consent) => {
         if (!consent) return setState({ status: 'gone' })
-        setTicked(consent.scopes.filter((s) => !s.opt_in).map((s) => s.scope))
+        // Only a scope the server says isn't opt-in starts ticked: a missing flag means unticked.
+        setTicked(consent.scopes.filter((s) => s.opt_in === false).map((s) => s.scope))
         setState({ status: 'ready', consent })
       })
       .catch(() => setState({ status: 'error' }))
@@ -68,8 +72,16 @@ export default function ConnectPage() {
       .catch(() => setState({ status: 'error' }))
   }
 
+  // Proposing logs comes with reading the training (ADR-0058): ticking it ticks training, and
+  // unticking training unticks it. The server drops it without training anyway.
   const toggle = (scope: string) =>
-    setTicked((now) => (now.includes(scope) ? now.filter((s) => s !== scope) : [...now, scope]))
+    setTicked((now) => {
+      if (now.includes(scope))
+        return now.filter((s) => s !== scope && !(scope === TRAINING && s === PROPOSE))
+      return scope === PROPOSE && !now.includes(TRAINING)
+        ? [...now, scope, TRAINING]
+        : [...now, scope]
+    })
 
   return (
     <div className="page">

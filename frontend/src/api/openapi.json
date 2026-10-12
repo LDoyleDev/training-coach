@@ -2214,6 +2214,20 @@
         "title": "ProposalSaved",
         "type": "object"
       },
+      "ProposalToken": {
+        "properties": {
+          "token": {
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "ProposalToken",
+        "type": "object"
+      },
       "ProposalView": {
         "properties": {
           "expires_at": {
@@ -2229,6 +2243,17 @@
             "format": "date",
             "title": "On",
             "type": "string"
+          },
+          "replaces": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces"
           },
           "source": {
             "title": "Source",
@@ -2249,6 +2274,7 @@
           "on",
           "source",
           "summary",
+          "replaces",
           "expires_at"
         ],
         "title": "ProposalView",
@@ -5600,22 +5626,20 @@
         ]
       }
     },
-    "/api/proposals/{token}/discard": {
+    "/api/proposals/discard": {
       "post": {
         "description": "Discard it; nothing is saved. Discarding one already dealt with changes nothing.",
-        "operationId": "discard_api_proposals__token__discard_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "pattern": "^[0-9a-f]{32}$",
-              "title": "Token",
-              "type": "string"
+        "operationId": "discard_api_proposals_discard_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalToken"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
           "204": {
             "description": "Successful Response"
@@ -5637,22 +5661,20 @@
         ]
       }
     },
-    "/api/proposals/{token}/save": {
+    "/api/proposals/save": {
       "post": {
         "description": "Save it. 404 when it has expired or never was; 409 with ``already_saved`` or\n``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason\nwhen it no longer fits (it is discarded then).",
-        "operationId": "save_api_proposals__token__save_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "pattern": "^[0-9a-f]{32}$",
-              "title": "Token",
-              "type": "string"
+        "operationId": "save_api_proposals_save_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalToken"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
