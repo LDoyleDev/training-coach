@@ -1,11 +1,45 @@
 # Invite-only multi-user (L2): a plan with options
 
-Status: **proposal, for review** (written 2026-10-12, from an audit of the code on `main` at
-0.27.0). Nothing here is decided. It builds on L2 in
+Status: **decided 2026-10-12**: the owner answered every question (below, under Decided), and
+[ADR-0058](../adr/0058-invites-and-members.md) records the decisions. Written 2026-10-12 from an
+audit of the code on `main` at 0.27.0. It builds on L2 in
 [platform-and-health-data-proposal.md](platform-and-health-data-proposal.md) and the direction
 in [ADR-0026](../adr/0026-multi-user-direction.md): built for the owner first, public in the end,
 Android first, zero spend, a fitness app and not a medical one, GDPR and Germany. Numbers marked
 *verify* are not checked against the provider today.
+
+## Decided (2026-10-12)
+
+The owner's answers to the 16 questions this plan asked; all as recommended except 7. The
+options they choose between are below.
+
+1. **When:** build steps 1-3 (guards and fixes) now; the rest when there is a first person in mind.
+2. **How many:** at most 5 members (`TC_MAX_MEMBERS`), adults only; raise it later.
+3. **Invites:** a one-time link (A1), valid 72 hours, revocable, with an optional label.
+4. **Who can invite:** admins only.
+5. **Roles:** a role column (B1); the owner is the only admin.
+6. **What the owner sees:** counts, plus each member's label and join day, nothing of their data
+   (C1); no "last active".
+7. **Plans:** D1 to start: everyone on the owner's plan with their own progress. **Each person
+   having their own plan** (a D3-style copy they can change) is the goal for later, not built
+   now. Until then, new code takes the person's plan where it can as cheaply as assuming one
+   global plan, so the later change is not made harder.
+8. **Telegram:** optional for members, one bot, linked from Account (E1); members without
+   Telegram get no reminders until Web Push.
+9. **Voice:** the app's Groq key with a cap of 20 a day per member (H1); AI comments on each
+   person's own key, as now.
+10. **Recovery:** an admin-issued recovery link, plus `/recover` for members with Telegram (I1).
+11. **Leaving:** a member can leave at once, erasing everything; the owner can remove a member
+    after telling them and offering the export.
+12. **Switching back off:** with members still there, tell them, keep their data 30 days for
+    export, then erase it.
+13. **Time zone:** Europe/Berlin for everyone; per-person time zones only if someone lives
+    elsewhere.
+14. **Legal:** no one else's health data before a lawyer has reviewed the notice, consent and
+    DPIA. Members start training-only: the health categories (body, readiness, daily check,
+    band) are off for members until then.
+15. **Controller:** the owner personally, as the legal drafts say, until the lawyer advises.
+16. **iPhone members:** band import is Android-only; that is fine.
 
 ## What's true today
 
@@ -21,10 +55,12 @@ Android first, zero spend, a fitness app and not a medical one, GDPR and Germany
   heart_rate_samples, sleep_sessions, imported_workouts, ai_connections, ai_comments,
   mcp_connections. `tests/db/test_user_scope.py::test_every_per_person_table_is_covered` pins
   the list.
-- **Shared, with no `user_id`:** the plan (exercises, ladder_steps, plan_versions,
+- **Shared, not `Owned`:** the plan (exercises, ladder_steps, plan_versions,
   session_templates, template_items), passkey_challenges (a sign-in belongs to nobody yet),
-  and the OAuth tables (oauth_clients, oauth_consents, oauth_codes, oauth_tokens), which reach a
-  person only through their `mcp_connections` row.
+  and the OAuth tables. oauth_clients belong to nobody; oauth_codes and oauth_tokens reach a
+  person only through their `mcp_connections` row; oauth_consents carries its own nullable
+  `user_id` (and `web_session_id`), set once the person proves their passkey on the consent
+  page, with `ON DELETE CASCADE` but outside the run-time binding.
 - **Scoping is enforced at run time, not by hand** (ADR-0029, `db/session.py`). A session made
   with `make_session_factory(engine, user_id=...)` adds `user_id == user` to every select and
   delete on every owned model, stamps new rows, and refuses writing another user's row, a set on
@@ -181,6 +217,8 @@ tests and blocks. 31 of 32 exercises start at the easiest step.
 | D2 A starter plan or a picker | A second bundled plan (say 3 days a week); each person picks one | Fits beginners | A `plans` table and `plan_id` on sessions and versions; `position` and `slug` stop being unique; seed loads several files. Medium to large |
 | D3 Each person's own copy of `plan.toml` | Copy yours, then edit | Most flexible | Needs a plan editor and per-person plan tables; every plan query changes. Large; more L3 |
 
+Decided (7): D1 to start; each person's own plan, D3-style, is the goal for later.
+
 ### E. Telegram for members
 
 | Option | What | Pros | Cons |
@@ -251,8 +289,8 @@ ADR-0040: Telegram-only recovery is too weak for a public app. For a handful of 
 - Off: invites can't be made or redeemed; the admin page shows nothing; only the owner can sign
   in or use the bot; only the owner's jobs run. Members' data is kept, untouched.
 - On: the above opens up, to at most `TC_MAX_MEMBERS` people.
-- Turning it off with members still there: they are locked out but not erased (see question 12
-  for what happens to their data).
+- Turning it off with members still there: they are locked out but not erased, then erased
+  after 30 days (Decided, 12).
 - A test runs the whole app with the flag off and a member in the database, and proves the
   member can't sign in, link Telegram or get messages.
 
@@ -316,41 +354,13 @@ guards, cheapest first:
 8. **Telegram for members:** connect link, the members filter, a session per update.
 9. **Schedules per person** and band offers per person.
 10. **Groq cap per person.**
-11. **Legal before the first invite:** notice published in the app, DPIA written, lawyer review
-    as you decide (question 14), then `TC_MULTI_USER` on.
+11. **Legal before the first invite:** notice published in the app, DPIA written, then
+    `TC_MULTI_USER` on. Members stay training-only until a lawyer has reviewed the notice,
+    consent and DPIA (Decided, 14).
 
 Steps 1-3 are worth doing even if L2 waits: they make the single-user app safer and cost little.
 
-## Questions for you
+## Questions
 
-1. **When:** build the guards and fixes (steps 1-3) now and the rest when you have a first person
-   in mind? *Recommendation: yes.*
-2. **How many:** a cap of 5 members, adults only? *Recommendation: yes; raise it later.*
-3. **Invites:** a one-time link (A1), valid 72 hours, revocable, with an optional label?
-   *Recommendation: yes.*
-4. **Who can invite:** only you? *Recommendation: yes, admins only.*
-5. **Roles:** a role column (B1) with you as the only admin? *Recommendation: yes.*
-6. **What you see:** counts, plus each member's label and join day, and nothing of their data
-   (C1)? Do you want "last active" too? *Recommendation: C1, no "last active".*
-7. **Plans:** everyone on your plan with their own progress (D1), a starter plan later if
-   someone needs it? *Recommendation: yes.*
-8. **Telegram:** optional for members, one bot, linked from Account (E1)? And is it OK that
-   members without Telegram get no reminders until Web Push? *Recommendation: yes to both.*
-9. **Voice:** members use the app's Groq key with a daily cap per person (H1), AI comments on
-   their own key as now? *Recommendation: yes, cap 20 a day.*
-10. **Recovery:** you issue a recovery link, plus `/recover` for those with Telegram (I1)?
-    *Recommendation: yes.*
-11. **Leaving:** a member can leave at once (erasing everything); you can remove a member after
-    telling them and offering the export? *Recommendation: yes.*
-12. **Switching back off:** if you turn `TC_MULTI_USER` off with members still there, keep their
-    data 30 days for export, then erase? *Recommendation: yes, and tell them first.*
-13. **Time zone:** everyone on Europe/Berlin for now? *Recommendation: yes; per-person time zones
-    only if someone lives elsewhere (it touches 27 files).*
-14. **Legal:** the legal drafts defer the lawyer to launch, but you'd hold other people's health
-    data from the first invite. Lawyer review of notice, consent and DPIA before the first
-    invite (a cost), or invite with the health categories (body, readiness, daily check, band)
-    switched off for members until then? *Recommendation: no one else's health data before a
-    review; training-only members are a zero-spend way to start.*
-15. **Controller:** you personally for L2, or wait for the UG? *Recommendation: a question for
-    the lawyer; until then, you as the drafts say.*
-16. **iPhone members:** fine that band import is Android-only? *Recommendation: yes.*
+All 16 questions were answered on 2026-10-12; the answers are under Decided, at the top. The
+questions as asked are in the history of this file (#230).

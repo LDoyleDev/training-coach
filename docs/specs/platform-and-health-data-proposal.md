@@ -84,7 +84,8 @@ Each level builds on the previous one; we can stop at any of them.
 
 ### L2. Invite-only multi-user
 
-Plan with options and questions, from an audit of the code: [multi-user-plan.md](multi-user-plan.md).
+Plan with options and the owner's answers (2026-10-12), from an audit of the code:
+[multi-user-plan.md](multi-user-plan.md); decisions in ADR-0058.
 
 - Every table gets a `user_id`, and every query is scoped by it (tests enforce it, the way
   import-linter enforces layering). Plans become per user (each person can have their own

@@ -1,6 +1,6 @@
 # ADR-0009: Telegram via long polling, owner-only
 
-- Status: Accepted
+- Status: Accepted; the single allowed user is superseded by ADR-0058 (invited members)
 - Date: 2026-09-29
 - Deciders: Liam
 
