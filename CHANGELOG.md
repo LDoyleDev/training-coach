@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.30.0](https://github.com/LDoyleDev/training-coach/compare/v0.29.0...v0.30.0) (2026-10-13)
+
+
+### Features
+
+* tell me when band data stops arriving ([#243](https://github.com/LDoyleDev/training-coach/issues/243)) ([5b7c476](https://github.com/LDoyleDev/training-coach/commit/5b7c476f92a769ab6e77b9289880202cc8b54e54))
+
+
+### Bug Fixes
+
+* **api:** ignore HC Webhook test payloads ([#245](https://github.com/LDoyleDev/training-coach/issues/245)) ([ebcc972](https://github.com/LDoyleDev/training-coach/commit/ebcc97288c907fa2cbcc5fe3e7587440af4d7f68))
+
 ## [0.29.0](https://github.com/LDoyleDev/training-coach/compare/v0.28.0...v0.29.0) (2026-10-12)
 
 
