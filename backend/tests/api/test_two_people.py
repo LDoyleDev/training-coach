@@ -171,7 +171,7 @@ OTHERS: dict[str, str] = {
 }
 QUERIES: dict[str, dict[str, str]] = {
     "/api/session/stretching/{workout_id}": {"minutes": "10"},
-    "/api/log/plan": {"day": datetime.now(UTC).date().isoformat(), "template_id": "1"},
+    "/api/log/plan": {"day": NOW.date().isoformat(), "template_id": "1"},
 }
 
 
