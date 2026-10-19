@@ -145,7 +145,8 @@ async def health_connect(request: Request) -> IngestReceived:
         batch = health_import.parse(body, now)
         with session_scope(bound) as session:
             health_import.store(session, batch, settings.tz, now)
-            ingest_keys.received(session, now, took=any(batch.taken.values()))
+            kinds = [kind for kind, n in batch.taken.items() if n]
+            ingest_keys.received(session, now, took=bool(kinds), kinds=kinds)
         return batch
 
     batch = await run_in_threadpool(parse_and_store)

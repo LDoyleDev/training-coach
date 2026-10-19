@@ -32,8 +32,10 @@ Android 12 doesn't have Health Connect built in (it is part of Android from 14 o
      `github.com/mcnaveen/health-connect-webhook`, and it installs and updates the app.
    - Not the "Health Connect Webhook App" by Wonkru: that is a different app.
 2. Open it, tap **Grant Permissions** and allow reading: **Steps, Sleep, Heart rate, Exercise,
-   Weight** (and Resting heart rate if listed). Nothing else is needed; the coach ignores other
-   types.
+   Weight** (and Resting heart rate if listed), plus reading in the background and past data.
+   Allow nothing else: the coach ignores other types, and HC Webhook's dashboard reads every
+   type it may read each time it opens, which uses up Health Connect's read quota and makes
+   syncs fail.
 3. Per-type settings:
    - **Steps resolution: Daily.** One total per day; other settings can undercount a day.
    - **Heart rate resolution: 1 minute** (the default).
@@ -105,6 +107,15 @@ The coach checks every hour and tells you once per gap, in Telegram, between 08:
   (step 2) and that Health Connect still lets HC Webhook read (step 3.2). Taking the band off
   for a day causes this too.
 - **"Band data is arriving again."** Records came in after one of those; nothing to do.
+- **"No sleep or heart-rate data has come from the band for two days, though other band data
+  has."** (or steps): syncs carry some kinds but not these. In HC Webhook, check they're ticked
+  under **Data Types**, and look under **Sync Now** for "Sync failed: SLEEP: ... Rate limited
+  request quota has been exceeded" or the like. That is Health Connect's read quota: HC
+  Webhook's dashboard reads every type it is allowed to read each time the app opens, so allow
+  it only the six types in step 3.2 plus background and past data, open it rarely, and keep to
+  two scheduled syncs a day. If it still fails, untick Heart rate, the heaviest read. Workouts
+  and weight aren't checked: they come when they happen.
+- **"Sleep data is arriving again."** (or steps, heart rate): that kind came back.
 
 **Account** > **Band import** shows when data last arrived and, if later, the last sync.
 
