@@ -192,6 +192,15 @@ and erasing everything removes them by the `user_id` cascade.
   local time only and not while paused, and carry no health values. Account shows "Last data
   arrived" from `last_taken_at`. What each message means and what to do:
   `docs/runbooks/band-import.md`.
+- **So is one kind stopping while the rest flows** (approved 2026-10-19). Steps, sleep and heart
+  rate come every day the band is worn; HC Webhook can drop one it can't read in time
+  (Health Connect's read quota) while still sending the others. Each has a `band_feeds` row:
+  the last sync that took a record of it, at most hourly, and when its gap was told. A kind
+  missing for 48 hours is told once, so one night without the band isn't a gap, then told
+  again when it comes back. Never while a gap in all band data is due or told: that message
+  covers every kind. A kind never seen counts from when the secret was made; a new or removed
+  secret drops the rows. Workouts, weight and resting heart rate aren't watched: the first two
+  come when they happen, and resting heart rate is derived from heart rate when it's missing.
 - Built as four PRs: ingest and schema; zones; count it; display and runbook.
 
 [mcnaveen/health-connect-webhook]: https://github.com/mcnaveen/health-connect-webhook

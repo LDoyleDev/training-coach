@@ -3,10 +3,11 @@ and the syncs noted on it, which tell when band data stops arriving."""
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
 
+from training_coach.db.models import BandFeed
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.domain.band_watch import Notice
+from training_coach.domain.band_watch import Feed, FeedNotices, Notice
 from training_coach.services import ingest_keys
 from training_coach.services.users import OWNER
 
@@ -145,3 +146,76 @@ def test_removing_when_there_is_none(engine: Engine) -> None:
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         assert ingest_keys.remove(mine) is False
         assert ingest_keys.status(mine) == ingest_keys.Status(False, None, None, None)
+
+
+# ------------------------------------------------------------- one kind stopping
+
+STEPS_ONLY = ("steps", "weight")  # weight comes when it comes: never watched
+
+
+def _sync(engine: Engine, at: timedelta, kinds: tuple[str, ...]) -> None:
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        ingest_keys.received(mine, NOW + at, bool(kinds), kinds)
+
+
+def _watch_feeds(engine: Engine, at: timedelta) -> FeedNotices:
+    """The bot's check at NOW + ``at`` once all band data is flowing, noting what it sends."""
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        found = ingest_keys.watch_feeds(mine, NOW + at)
+        if found:
+            ingest_keys.told_feeds(mine, found, NOW + at)
+        return found
+
+
+def _feeds(engine: Engine) -> dict[str, tuple[datetime | None, datetime | None]]:
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        rows = mine.scalars(select(BandFeed))
+        return {row.feed: (row.last_taken_at, row.alerted_at) for row in rows}
+
+
+def test_each_kind_is_noted_at_most_hourly_and_only_the_daily_ones(engine: Engine) -> None:
+    _make(engine)
+    _sync(engine, timedelta(0), STEPS_ONLY)
+    _sync(engine, timedelta(minutes=30), ("steps", "sleep"))
+    assert _feeds(engine) == {
+        "steps": (NOW, None),
+        "sleep": (NOW + timedelta(minutes=30), None),
+    }
+    _sync(engine, timedelta(minutes=61), ("steps", "steps"))
+    assert _feeds(engine)["steps"] == (NOW + timedelta(minutes=61), None)
+
+
+def test_a_kind_that_stops_is_told_once_and_its_return_once(engine: Engine) -> None:
+    _make(engine)
+    for hours in range(0, 50, 12):  # steps keep coming; sleep came once, heart rate never
+        _sync(engine, timedelta(hours=hours), ("steps", "sleep") if hours == 0 else STEPS_ONLY)
+    assert not _watch_feeds(engine, timedelta(hours=47))
+    assert _watch_feeds(engine, timedelta(hours=49)) == FeedNotices((Feed.SLEEP, Feed.HEART_RATE))
+    assert not _watch_feeds(engine, timedelta(hours=50))
+    _sync(engine, timedelta(hours=51), ("steps", "sleep"))
+    assert _watch_feeds(engine, timedelta(hours=52)) == FeedNotices(back=(Feed.SLEEP,))
+    assert not _watch_feeds(engine, timedelta(hours=53))
+    assert _feeds(engine)["heart_rate"] == (None, NOW + timedelta(hours=49))
+
+
+def test_a_new_or_removed_secret_forgets_the_kinds(engine: Engine) -> None:
+    _make(engine)
+    _sync(engine, timedelta(0), ("steps",))
+    _watch_feeds(engine, timedelta(hours=49))
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        ingest_keys.make(mine, NOW + timedelta(days=3))
+    assert _feeds(engine) == {}
+    _sync(engine, timedelta(days=3), ("steps",))
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        ingest_keys.remove(mine)
+    assert _feeds(engine) == {}
+    assert not _watch_feeds(engine, timedelta(days=9))
+
+
+def test_a_secret_made_while_a_kind_was_told_keeps_its_clock(engine: Engine) -> None:
+    _make(engine)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        ingest_keys.make(mine, NOW + timedelta(hours=49, seconds=1))
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        ingest_keys.told_feeds(mine, FeedNotices((Feed.SLEEP,)), NOW + timedelta(hours=49))
+    assert _feeds(engine) == {}
