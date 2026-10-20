@@ -1,6 +1,6 @@
 [project]
 name = "training-coach"
-version = "0.29.0"
+version = "0.31.0"
 description = "Self-hosted training coach: Telegram bot, logging and dashboard API"
 authors = [{ name = "Liam Doyle" }]
 requires-python = ">=3.12"
@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.8.17,<0.13.0"]
+requires = ["uv_build>=0.8.17,<0.14.0"]
 build-backend = "uv_build"
 
 [dependency-groups]

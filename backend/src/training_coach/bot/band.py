@@ -8,7 +8,8 @@ would complete a session on a day that already has one asks first (ADR-0060, ``b
 with ``ba:<answer>:<import id>`` buttons.
 
 A second job tells the person when band data stops arriving for a day, once per gap, and when
-it arrives again (``domain.band_watch``). The messages carry no health values.
+it arrives again; and, while it flows, when steps, sleep or heart rate alone stop for two days
+(``domain.band_watch``). The messages carry no health values.
 """
 
 from collections.abc import Awaitable, Callable
@@ -26,7 +27,7 @@ from training_coach.bot.buttons import edit_quietly, row_id
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain import band_watch
-from training_coach.domain.band_watch import Notice
+from training_coach.domain.band_watch import Feed, FeedNotices, Notice
 from training_coach.domain.queue import local_date
 from training_coach.services import band_cardio, cardio, ingest_keys, user_settings, workout_log
 from training_coach.services.day_clash import MOVE, Clash, Refused, Resolution
@@ -55,6 +56,7 @@ NOTICES = {
     ),
     Notice.BACK: "Band data is arriving again.",
 }
+FEED_NAMES = {Feed.STEPS: "step", Feed.SLEEP: "sleep", Feed.HEART_RATE: "heart-rate"}
 
 Send = Callable[..., Awaitable[bool]]
 
@@ -82,6 +84,27 @@ def markup(offer: band_cardio.Offer | int) -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+
+def _names(feeds: tuple[Feed, ...], joiner: str) -> str:
+    names = [FEED_NAMES[feed] for feed in feeds]
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} {joiner} {names[-1]}"
+
+
+def feeds_text(notices: FeedNotices) -> str:
+    """The message for kinds of band data that stopped or came back."""
+    lines = []
+    if notices.stopped:
+        lines.append(
+            f"No {_names(notices.stopped, 'or')} data has come from the band for two days, "
+            "though other band data has. In HC Webhook, check Data Types, and look under Sync "
+            "Now for an error."
+        )
+    if notices.back:
+        names = _names(notices.back, "and")
+        verb = "is" if len(notices.back) == 1 else "are"
+        lines.append(f"{names[0].upper()}{names[1:]} data {verb} arriving again.")
+    return "\n\n".join(lines)
 
 
 def counted_text(week: cardio.Week, planned: bool) -> str:
@@ -128,9 +151,9 @@ class BandHandlers:
             log.info("bot.band_offer_sent")
 
     async def watch(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Tell the person when band data stopped a day ago, or arrives again after that: in the
-        day only (08:00-21:00 local), never while paused, and noted only after Telegram took
-        it, so a failed send is tried again on the next run."""
+        """Tell the person when band data stopped a day ago, or one kind of it two days ago,
+        or arrives again after that: in the day only (08:00-21:00 local), never while paused,
+        and noted only after Telegram took it, so a failed send is tried again next run."""
         now = datetime.now(UTC)
         if not band_watch.daytime(now, self.settings.tz):
             return
@@ -139,25 +162,32 @@ class BandHandlers:
                 if user_settings.load(session).paused:
                     return
                 notice = ingest_keys.watch(session, now)
+                feeds = ingest_keys.watch_feeds(session, now)
         except SQLAlchemyError as exc:
             log.error("bot.band_watch_failed", error=type(exc).__name__)
             return
-        if notice is None:
+        if notice is not None:
+            text, stopped, kind = NOTICES[notice], notice is not Notice.BACK, notice.value
+        elif feeds:
+            text, stopped, kind = feeds_text(feeds), bool(feeds.stopped), "feeds"
+        else:
             return
         owner = self.settings.telegram_allowed_user_id
         assert owner is not None  # noqa: S101 - owner_only
         account = links.with_open(None, self.settings.public_url, links.ACCOUNT)
-        markup = None if notice is Notice.BACK else account
-        if not await self.send(context.bot, owner, NOTICES[notice], reply_markup=markup):
-            log.warning("bot.band_watch_not_sent", notice=notice.value)
+        if not await self.send(context.bot, owner, text, reply_markup=account if stopped else None):
+            log.warning("bot.band_watch_not_sent", notice=kind)
             return
         try:
             with session_scope(self.sessions) as session:
-                ingest_keys.told(session, notice, now)
+                if notice is not None:
+                    ingest_keys.told(session, notice, now)
+                else:
+                    ingest_keys.told_feeds(session, feeds, now)
         except SQLAlchemyError as exc:  # sent but not noted: it may be sent again next hour
             log.error("bot.band_watch_unnoted", error=type(exc).__name__)
             return
-        log.info("bot.band_watch_sent", notice=notice.value)
+        log.info("bot.band_watch_sent", notice=kind)
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         """Count it or Not this one. Strangers get nothing, not even an answer (T1)."""
