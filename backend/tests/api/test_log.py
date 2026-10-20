@@ -306,3 +306,20 @@ def test_saving_an_earlier_guided_session_asks_too(signed_in: TestClient, engine
     body = {"day": _ago(1).isoformat(), "resolution": "add", "seen": seen}
     assert signed_in.post("/api/session/save", json=body).status_code == 200
     assert _days(engine)[_ago(1)] == [(None, "rest"), ("legs", "done")]
+
+
+def test_a_day_logged_afterwards_keeps_no_set_times(signed_in: TestClient, engine: Engine) -> None:
+    """Only a guided session times its sets (ADR-0061); times sent with a log are ignored."""
+    at = datetime.now(UTC).isoformat()
+    body = {
+        "token": _token(1),
+        "day": _ago(2).isoformat(),
+        "what": "session",
+        "template_id": _ids(engine)["legs"],
+        "sets": [{"item": 0, "set_no": 1, "left": 5, "started_at": at, "done_at": at}],
+    }
+    answer = signed_in.post("/api/log", json=body)
+    assert answer.status_code == 200, answer.text
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        workout = bound.scalars(select(Workout)).one()
+        assert [(s.started_at, s.done_at) for s in workout.sets] == [(None, None)]

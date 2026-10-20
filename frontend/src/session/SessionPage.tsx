@@ -25,6 +25,7 @@ import {
   partnerOf,
   stepOf,
   summary,
+  timed,
   toDone,
   unitText,
   valueFor,
@@ -74,6 +75,7 @@ export default function SessionPage() {
   const [now, setNow] = useState(() => Date.now())
   const [restUntil, setRestUntil] = useState(0)
   const [watchFrom, setWatchFrom] = useState<number | null>(null) // stopwatch start while running
+  const [shownAt, setShownAt] = useState(() => Date.now()) // when this set's screen appeared
   const [pending, setPending] = useState<Pending[]>([])
   const [saving, setSaving] = useState<string[]>([]) // earlier days being saved
   const [signedOut, setSignedOut] = useState(false) // the sign-in ended on the page
@@ -101,9 +103,11 @@ export default function SessionPage() {
     const tick = () => {
       const at = Date.now()
       setNow(at)
-      // The rest is over: the phone buzzes and the next set shows.
+      // The rest is over: the phone buzzes and the next set shows, timed from the rest's end
+      // (the same on every tick that sees it, ADR-0061).
       if (resting && at >= restUntil) {
         navigator.vibrate?.(300)
+        setShownAt(restUntil)
         setStage('set')
       }
     }
@@ -272,7 +276,8 @@ export default function SessionPage() {
 
   const confirm = async () => {
     // Confirming with the clock running takes its reading.
-    const done = watch === null ? value : { ...value, left: watch, right: watch }
+    const reading = watch === null ? value : { ...value, left: watch, right: watch }
+    const done = timed(reading, shownAt, Date.now())
     const nextValues = { ...values, [key(step.item, step.set_no)]: done }
     const next = Math.max(position + 1, furthest) // a corrected set returns to where you were
     if (await keep(next, nextValues)) {
@@ -304,11 +309,13 @@ export default function SessionPage() {
     if (await keep(position, values, nextFirst)) load()
   }
 
-  /** Moving to another set or screen stops the clock: it belongs to the set it started on. */
+  /** Moving to another set or screen stops the clock: it belongs to the set it started on. A
+   * set's time starts when its screen appears (ADR-0061). */
   const goTo = (nextStage: Stage, nextPosition: number = position) => {
     setNote(null)
     setWatchFrom(null)
     setPosition(nextPosition)
+    if (nextStage === 'set') setShownAt(Date.now())
     setStage(nextStage)
   }
 
@@ -423,7 +430,7 @@ export default function SessionPage() {
             <Overview
               session={session}
               resumeAt={position > 0 && position < total ? position : null}
-              onStart={() => setStage(position >= total ? 'check' : 'set')}
+              onStart={() => goTo(position >= total ? 'check' : 'set')}
             />
           )}
           {!cardioSaved && (
@@ -572,7 +579,7 @@ export default function SessionPage() {
             <button type="button" className={secondary} onClick={() => startRest(restLeft + 15)}>
               + 15 s
             </button>
-            <button type="button" className={primary} onClick={() => setStage('set')}>
+            <button type="button" className={primary} onClick={() => goTo('set')}>
               Skip rest
             </button>
           </div>

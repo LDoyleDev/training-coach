@@ -1772,8 +1772,12 @@ export interface components {
         /**
          * DoneView
          * @description A confirmed set; ``right`` only for one-sided exercises (empty: same as left).
+         *     ``started_at`` and ``done_at``: when the set's screen appeared and when it was confirmed,
+         *     from the phone's clock (ADR-0061); kept only when both are there and plausible.
          */
         DoneView: {
+            /** Done At */
+            done_at?: string | null;
             /** Item */
             item: number;
             /** Left */
@@ -1782,6 +1786,8 @@ export interface components {
             right?: number | null;
             /** Set No */
             set_no: number;
+            /** Started At */
+            started_at?: string | null;
         };
         /** EarnedView */
         EarnedView: {
