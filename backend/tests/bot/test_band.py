@@ -15,7 +15,7 @@ from telegram.ext import Application
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, press, run, texts
 from training_coach.bot import band as band_ui
 from training_coach.db.models import ImportedWorkout, UserSettings, Workout
-from training_coach.domain.band_watch import Notice
+from training_coach.domain.band_watch import Feed, FeedNotices, Notice
 from training_coach.domain.queue import local_date
 from training_coach.services import ingest_keys
 
@@ -305,3 +305,52 @@ def test_the_watch_runs_hourly(application: App) -> None:
     assert application.job_queue is not None
     (job,) = application.job_queue.get_jobs_by_name(band_ui.WATCH_JOB)
     assert job.job.trigger.interval == band_ui.WATCH_EVERY
+
+
+def _kinds(sessions: Sessions, at: datetime, *kinds: str) -> None:
+    with sessions() as session:
+        ingest_keys.received(session, at, True, kinds)
+        session.commit()
+
+
+async def test_kinds_that_stop_while_steps_flow_are_told_then_their_return(
+    seeded: Sessions,
+) -> None:
+    _secret(seeded)
+    for hours in (0, 24, 48):
+        _kinds(seeded, MADE + hours * HOUR, "steps")
+    settings = SETTINGS.model_copy(update={"public_url": "https://coach.example.org"})
+    send = AsyncMock(return_value=True)
+    handlers = band_ui.BandHandlers(settings, seeded, send)
+    await _watch(handlers, MADE + 47 * HOUR)
+    await _watch(handlers, MADE + 49 * HOUR)
+    await _watch(handlers, MADE + 50 * HOUR)
+    assert _sent(send) == [
+        "No sleep or heart-rate data has come from the band for two days, though other band "
+        "data has. In HC Webhook, check Data Types, and look under Sync Now for an error."
+    ]
+    assert send.await_args_list[0].kwargs["reply_markup"] is not None
+    _kinds(seeded, MADE + 51 * HOUR, "steps", "sleep", "heart_rate")
+    await _watch(handlers, MADE + 52 * HOUR)
+    assert _sent(send)[1:] == ["Sleep and heart-rate data are arriving again."]
+    assert send.await_args_list[1].kwargs["reply_markup"] is None
+
+
+def test_the_kinds_message_names_each_one() -> None:
+    every = FeedNotices((Feed.STEPS, Feed.SLEEP, Feed.HEART_RATE), (Feed.STEPS,))
+    assert band_ui.feeds_text(every).split("\n\n") == [
+        "No step, sleep or heart-rate data has come from the band for two days, though other "
+        "band data has. In HC Webhook, check Data Types, and look under Sync Now for an error.",
+        "Step data is arriving again.",
+    ]
+
+
+async def test_a_failed_kinds_alert_is_tried_again_next_run(seeded: Sessions) -> None:
+    _secret(seeded)
+    _kinds(seeded, MADE + 48 * HOUR, "steps", "heart_rate")
+    send = AsyncMock(side_effect=[False, True, True])
+    handlers = band_ui.BandHandlers(SETTINGS, seeded, send)
+    await _watch(handlers, MADE + 49 * HOUR)
+    await _watch(handlers, MADE + 50 * HOUR)
+    await _watch(handlers, MADE + 51 * HOUR)
+    assert send.await_count == 2

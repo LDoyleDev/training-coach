@@ -4,6 +4,13 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.31.0](https://github.com/LDoyleDev/training-coach/compare/v0.30.0...v0.31.0) (2026-10-19)
+
+
+### Features
+
+* tell me when steps, sleep or heart rate stop on their own ([#257](https://github.com/LDoyleDev/training-coach/issues/257)) ([aec4cd3](https://github.com/LDoyleDev/training-coach/commit/aec4cd3ef553ae1d18958db58407bb344f24338a))
+
 ## [0.30.0](https://github.com/LDoyleDev/training-coach/compare/v0.29.0...v0.30.0) (2026-10-13)
 
 
