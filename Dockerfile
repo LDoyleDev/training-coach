@@ -7,7 +7,7 @@
 # set on the runner's Docker (ci.yml), which serves the same digests.
 
 # --- 1. Dashboard ---------------------------------------------------------
-FROM docker.io/library/node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS web
+FROM docker.io/library/node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5 AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
