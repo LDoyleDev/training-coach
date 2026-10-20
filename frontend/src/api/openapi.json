@@ -1017,6 +1017,17 @@
             "title": "Template Id",
             "type": "integer"
           },
+          "usual_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usual Minutes"
+          },
           "warm_up": {
             "title": "Warm Up",
             "type": "boolean"
@@ -3285,6 +3296,16 @@
             "title": "Stretching",
             "type": "boolean"
           },
+          "timing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimingView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "workout_id": {
             "title": "Workout Id",
             "type": "integer"
@@ -3379,6 +3400,40 @@
           "authorization_response_iss_parameter_supported"
         ],
         "title": "ServerMetadata",
+        "type": "object"
+      },
+      "SessionTimeView": {
+        "description": "A session's times in whole minutes, from its timed guided sessions (ADR-0061).",
+        "properties": {
+          "fastest": {
+            "title": "Fastest",
+            "type": "integer"
+          },
+          "last": {
+            "title": "Last",
+            "type": "integer"
+          },
+          "session": {
+            "title": "Session",
+            "type": "string"
+          },
+          "timed": {
+            "title": "Timed",
+            "type": "integer"
+          },
+          "usual": {
+            "title": "Usual",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session",
+          "usual",
+          "last",
+          "fastest",
+          "timed"
+        ],
+        "title": "SessionTimeView",
         "type": "object"
       },
       "SessionView": {
@@ -4054,6 +4109,35 @@
           "high"
         ],
         "title": "TestView",
+        "type": "object"
+      },
+      "TimingView": {
+        "description": "How long a timed session took, in whole minutes (ADR-0061): ``minutes`` is its sets and\nthe rests between them; breaks (gaps over 10 minutes) are counted apart.",
+        "properties": {
+          "breaks": {
+            "title": "Breaks",
+            "type": "integer"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "on_sets": {
+            "title": "On Sets",
+            "type": "integer"
+          },
+          "resting": {
+            "title": "Resting",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "minutes",
+          "on_sets",
+          "resting",
+          "breaks"
+        ],
+        "title": "TimingView",
         "type": "object"
       },
       "TodayView": {
@@ -6226,6 +6310,32 @@
           }
         },
         "summary": "Standings",
+        "tags": [
+          "progress"
+        ]
+      }
+    },
+    "/api/progress/times": {
+      "get": {
+        "description": "Each session that has been timed, in plan order: how long it usually takes.",
+        "operationId": "times_api_progress_times_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SessionTimeView"
+                  },
+                  "title": "Response Times Api Progress Times Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Times",
         "tags": [
           "progress"
         ]

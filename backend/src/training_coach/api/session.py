@@ -16,6 +16,7 @@ from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import HARD_SESSIONS
 from training_coach.domain.readiness import note as readiness_note
+from training_coach.domain.session_times import Timing, minutes
 from training_coach.domain.stretching import HOLD_SECONDS
 from training_coach.services import (
     daily_check,
@@ -23,6 +24,7 @@ from training_coach.services import (
     queue_actions,
     readiness,
     retests,
+    session_times,
     stretching,
     workout_log,
 )
@@ -81,7 +83,8 @@ class GuidedView(BaseModel):
     kind: Literal["strength", "conditioning", "recovery"]
     warm_up: bool
     block: BlockView | None
-    minutes: int
+    minutes: int  # the plan's estimate
+    usual_minutes: int | None = None  # how long this session usually takes (ADR-0061)
     rest_seconds: int
     items: list[ItemView]
     order: list[SetView]
@@ -162,12 +165,34 @@ class EarnedView(BaseModel):
     next_step: str | None  # ready to move up to this
 
 
+class TimingView(BaseModel):
+    """How long a timed session took, in whole minutes (ADR-0061): ``minutes`` is its sets and
+    the rests between them; breaks (gaps over 10 minutes) are counted apart."""
+
+    minutes: int
+    on_sets: int
+    resting: int
+    breaks: int
+
+
+def timing_view(found: Timing | None) -> TimingView | None:
+    if found is None:
+        return None
+    return TimingView(
+        minutes=minutes(found.total),
+        on_sets=minutes(found.on_sets),
+        resting=minutes(found.resting),
+        breaks=found.breaks,
+    )
+
+
 class SavedView(BaseModel):
     workout_id: int
     already_saved: bool
     next_session: str | None
     earned: list[EarnedView]
     stretching: bool  # offered after a resistance session (ADR-0032)
+    timing: TimingView | None = None  # empty when the sets weren't timed
 
 
 class PendingView(BaseModel):
@@ -233,6 +258,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
             if plan.block is not None
             else None,
             minutes=plan.minutes,
+            usual_minutes=session_times.usual_minutes(session, plan.template_id),
             rest_seconds=plan.rest_seconds,
             items=[
                 ItemView(
@@ -315,6 +341,7 @@ def save(body: SaveBody, request: Request, user: Owner) -> SavedView:
                 if e.bests or e.next_step
             ],
             stretching=day == today and stretching.offered(session, result.workout_id),
+            timing=timing_view(session_times.of_workout(session, result.workout_id)),
         )
 
 

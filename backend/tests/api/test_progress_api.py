@@ -49,3 +49,4 @@ def test_progress_needs_a_signed_in_browser(engine: Engine) -> None:
     settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
     with TestClient(create_app(settings), base_url=ORIGIN) as stranger:
         assert stranger.get("/api/progress").status_code == 401
+        assert stranger.get("/api/progress/times").status_code == 401

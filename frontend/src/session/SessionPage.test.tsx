@@ -696,3 +696,55 @@ test('a set fixed with Back keeps the times of its first confirm', async () => {
     sets: [{ item: 0, set_no: 1, left: 5, right: null, ...at }],
   })
 })
+
+test('the overview says how long this session usually takes, once it has been timed', async () => {
+  serve({ today: { session: { ...SESSION, usual_minutes: 38 }, progress: null } })
+  render(<SessionPage />)
+  expect(await screen.findByText('Usually 38 min')).toBeInTheDocument()
+})
+
+test("before any timed session, the overview gives the plan's estimate", async () => {
+  serve()
+  render(<SessionPage />)
+  expect(await screen.findByText('About 45 min')).toBeInTheDocument()
+})
+
+test.each([
+  [0, 'Took 41 min: 22 on sets, 19 resting.'],
+  [1, 'Took 41 min: 22 on sets, 19 resting, plus 1 break.'],
+  [2, 'Took 41 min: 22 on sets, 19 resting, plus 2 breaks.'],
+])('the saved screen says how long it took (%i breaks)', async (breaks, text) => {
+  const progress: Kept = {
+    template_id: 3,
+    position: 3,
+    first: [],
+    sets: [],
+    saved: false,
+    revision: 1,
+  }
+  serve({
+    today: { session: SESSION, progress },
+    save: { ...SAVED, timing: { minutes: 41, on_sets: 22, resting: 19, breaks } },
+  })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Save session')
+  expect(await screen.findByText(text)).toBeInTheDocument()
+})
+
+test('an untimed save says nothing about time', async () => {
+  const progress: Kept = {
+    template_id: 3,
+    position: 3,
+    first: [],
+    sets: [],
+    saved: false,
+    revision: 1,
+  }
+  serve({ today: { session: SESSION, progress } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Save session')
+  expect(await screen.findByRole('heading', { name: 'Legs done' })).toBeInTheDocument()
+  expect(screen.queryByText(/^Took /)).not.toBeInTheDocument()
+})
