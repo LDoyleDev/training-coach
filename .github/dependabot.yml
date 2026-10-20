@@ -26,6 +26,10 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly, day: monday }
+    # init, analyze and upload-sarif must share a version, or the analyze step fails.
+    groups:
+      codeql:
+        patterns: ["github/codeql-action*"]
     commit-message: { prefix: ci }
 
   # Python and Node versions are pinned by ADR-0002/0004; only patch-level image updates.
