@@ -22,6 +22,7 @@ from training_coach.api import ingest
 from training_coach.api.app import create_app
 from training_coach.config import Settings
 from training_coach.db.models import (
+    BandFeed,
     HealthDay,
     HeartRateSample,
     ImportedWorkout,
@@ -341,3 +342,13 @@ def test_a_test_doesnt_end_a_gap_already_told(
         assert row.last_taken_at == hcw.NOW - timedelta(days=2)
         assert row.alerted_at == told
         assert ingest_keys.watch(mine, hcw.NOW + timedelta(minutes=5)) is None  # not "back"
+
+
+def test_a_sync_notes_each_daily_kind_it_took(
+    signed_in: TestClient, phone: TestClient, engine: Engine
+) -> None:
+    body = {key: value for key, value in hcw.full().items() if key != "sleep"}
+    _post(phone, _secret(signed_in), body)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        noted = {row.feed: row.last_taken_at for row in mine.scalars(select(BandFeed))}
+    assert noted == {"steps": hcw.NOW, "heart_rate": hcw.NOW}  # workouts and weight aren't watched
