@@ -14,6 +14,7 @@ import {
   type Queued,
   type Saved,
   type TestDayDue,
+  type Timing,
   type TodayView,
   type Undone,
   type UndoOffer,
@@ -633,6 +634,7 @@ export default function SessionPage() {
           <h1 id="saved" className="text-4xl font-extrabold">
             {session.name} done
           </h1>
+          {saved.timing && <p>{took(saved.timing)}</p>}
           {saved.next_session && <p>Next up: {saved.next_session}.</p>}
           {saved.earned.length > 0 && (
             <ul className={card}>
@@ -665,6 +667,13 @@ export default function SessionPage() {
       )}
     </AppShell>
   )
+}
+
+/** "Took 41 min: 22 on sets, 19 resting", and any breaks, which aren't in the total. */
+function took(timing: Timing): string {
+  const breaks =
+    timing.breaks === 0 ? '' : `, plus ${timing.breaks} break${timing.breaks === 1 ? '' : 's'}`
+  return `Took ${timing.minutes} min: ${timing.on_sets} on sets, ${timing.resting} resting${breaks}.`
 }
 
 /** Today's session is a single cardio exercise: logged in one step, not set by set. */
@@ -732,7 +741,11 @@ function Overview({
 }) {
   return (
     <section aria-labelledby="session" className="flex flex-col gap-4">
-      <p className="text-sm text-[var(--slate)]">About {session.minutes} min</p>
+      <p className="text-sm text-[var(--slate)]">
+        {session.usual_minutes
+          ? `Usually ${session.usual_minutes} min` // from earlier timed sessions (ADR-0061)
+          : `About ${session.minutes} min`}
+      </p>
       <h1 id="session" className="text-5xl font-extrabold">
         {session.name}
       </h1>

@@ -45,8 +45,10 @@ future (a minute's slack) and both are from the last 36 hours. Times failing tha
 and the set is kept: a phone with a wrong clock never stops a log.
 
 **Showing it** (#266): the saved screen says how long the session took, split into sets and
-rests, the overview before Start says how long this session usually takes, and Progress
-shows the usual time per session.
+rests, plus any breaks ("Took 41 min: 22 on sets, 19 resting"). The overview before Start says
+how long this session usually takes in place of the plan's estimate, and Progress lists each
+timed session's usual, last and fastest time. "Usually" is the median of the session's last
+five timed totals, so one slow day doesn't move it much. All are whole minutes.
 
 ## Options considered
 
