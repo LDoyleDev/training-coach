@@ -5,7 +5,16 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from training_coach.domain.band_watch import Notice, Seen, daytime, notice
+from training_coach.domain.band_watch import (
+    Feed,
+    FeedNotices,
+    FeedSeen,
+    Notice,
+    Seen,
+    daytime,
+    feed_notices,
+    notice,
+)
 
 MADE = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)
 NOW = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
@@ -76,3 +85,46 @@ def test_records_after_the_alert_mean_data_is_back() -> None:
 )
 def test_messages_wait_for_the_local_day_across_dst(moment: datetime, expected: bool) -> None:
     assert daytime(moment, BERLIN) is expected
+
+
+# ------------------------------------------------------------- one kind stopping
+
+FLOWING = _seen(timedelta(hours=1), timedelta(hours=1))
+TWO_DAYS = timedelta(hours=48)
+
+
+def _feeds(**ago: timedelta | tuple[timedelta, timedelta]) -> dict[Feed, FeedSeen]:
+    """Each kind's last record as how long before NOW, or (that, when its gap was told)."""
+    found = {}
+    for name, value in ago.items():
+        taken, alerted = value if isinstance(value, tuple) else (value, None)
+        found[Feed(name)] = FeedSeen(NOW - taken, None if alerted is None else NOW - alerted)
+    return found
+
+
+def test_a_kind_missing_for_two_days_is_told_while_the_rest_flows() -> None:
+    feeds = _feeds(steps=timedelta(hours=1), sleep=TWO_DAYS + timedelta(minutes=1))
+    feeds[Feed.HEART_RATE] = FeedSeen(None, None)  # never came: counts from the secret
+    assert feed_notices(FLOWING, feeds, NOW) == FeedNotices((Feed.SLEEP, Feed.HEART_RATE))
+
+
+def test_two_days_exactly_and_a_new_secret_are_not_yet_a_gap() -> None:
+    feeds = _feeds(steps=TWO_DAYS, sleep=TWO_DAYS, heart_rate=TWO_DAYS)
+    assert not feed_notices(FLOWING, feeds, NOW)
+    fresh = Seen(NOW - timedelta(hours=47), NOW, NOW, None)
+    assert not feed_notices(fresh, {}, NOW)
+
+
+def test_no_kind_is_told_while_all_band_data_is_missing() -> None:
+    old = _feeds(steps=DAY * 3, sleep=DAY * 3, heart_rate=DAY * 3)
+    assert not feed_notices(_seen(DAY * 3, DAY * 3), old, NOW)  # the day's gap is due
+    assert not feed_notices(_seen(DAY * 3, DAY * 3, alerted=DAY * 2), old, NOW)  # told
+
+
+def test_a_told_kind_waits_for_its_return_then_says_so() -> None:
+    told = _feeds(steps=timedelta(hours=1), sleep=(DAY * 3, DAY), heart_rate=timedelta(hours=1))
+    assert not feed_notices(FLOWING, told, NOW)
+    back = _feeds(steps=timedelta(hours=1), sleep=(timedelta(hours=1), DAY))
+    back[Feed.HEART_RATE] = FeedSeen(NOW - timedelta(hours=1), None)
+    assert feed_notices(FLOWING, back, NOW) == FeedNotices(back=(Feed.SLEEP,))
+    assert feed_notices(FLOWING, back, NOW)

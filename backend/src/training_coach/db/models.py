@@ -31,6 +31,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from training_coach.db.base import Base
 from training_coach.db.types import UTCDateTime, utcnow
+from training_coach.domain.band_watch import Feed
 from training_coach.domain.blocks import BlockKind
 from training_coach.domain.daily_check import Energy, Sleep, Soreness
 from training_coach.domain.enums import CardioActivity, ExerciseKind, Side, WorkoutStatus
@@ -610,6 +611,23 @@ class IngestKey(Owned, Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     last_used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)  # last sync stored
     # The last sync that took a record, and when a gap in band data was told (ADR-0055).
+    last_taken_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    alerted_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class BandFeed(Owned, Base):
+    """One daily kind of band data (steps, sleep, heart rate): the last sync that took a record
+    of it, and when a gap in it was told (ADR-0055). Gone with the secret that fed it."""
+
+    __tablename__ = "band_feeds"
+    __table_args__ = (
+        UniqueConstraint("user_id", "feed"),
+        CheckConstraint(_in("feed", Feed), name="feed_valid"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    feed: Mapped[str] = mapped_column(String(16))
     last_taken_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     alerted_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
