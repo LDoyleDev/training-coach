@@ -127,7 +127,7 @@ jobs:
           ghcr.io/aquasecurity/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
           image --format sarif --output /out/trivy.sarif
           --severity HIGH,CRITICAL --ignore-unfixed training-coach:ci
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+      - uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         # Only when the scan wrote a report. Dependabot's PRs get a read-only token, so the
         # upload can fail there; the scan on main reports for them.
         if: hashFiles('trivy.sarif') != ''
