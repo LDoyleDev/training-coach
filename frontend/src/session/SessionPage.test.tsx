@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { Clash, Guided, Kept, Pending, Saved, TodayView } from '../api'
+import type { Clash, Done, Guided, Kept, Pending, Saved, TodayView } from '../api'
 import SessionPage from './SessionPage'
 
 const SESSION: Guided = {
@@ -644,4 +644,55 @@ test('cardio and HIIT stay on offer under any session, and once the day is done'
   render(<SessionPage />)
   expect(await screen.findByText('Nothing left today')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Log cardio' })).toBeInTheDocument()
+})
+
+test('each set is sent with when its screen appeared and when it was confirmed', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  vi.setSystemTime(new Date('2026-10-20T16:00:00Z'))
+  const sent = serve()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const shown = Date.now()
+  act(() => vi.advanceTimersByTime(40_000))
+  click('Confirm set')
+  await screen.findByText('1:00')
+  act(() => vi.advanceTimersByTime(60_000)) // the rest runs out: the next set shows
+  expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
+  act(() => vi.advanceTimersByTime(30_000))
+  click('Confirm set')
+  await screen.findByText('1:00')
+  const [first, second] = (sent['PUT /api/session/progress'] ?? []) as { sets: Done[] }[]
+  const [jump] = first.sets
+  expect(Date.parse(jump.started_at ?? '')).toBeGreaterThanOrEqual(shown - 1000)
+  expect(Date.parse(jump.started_at ?? '')).toBeLessThanOrEqual(shown)
+  expect(Date.parse(jump.done_at ?? '') - Date.parse(jump.started_at ?? '')).toBeGreaterThanOrEqual(
+    40_000,
+  )
+  expect(second.sets[0]).toEqual(jump) // the first set's times don't change
+  // The next set is timed from the rest's end: a minute after the confirm.
+  const rest = Date.parse(second.sets[1].started_at ?? '') - Date.parse(jump.done_at ?? '')
+  expect(rest).toBeGreaterThanOrEqual(60_000)
+  expect(rest).toBeLessThan(61_000)
+})
+
+test('a set fixed with Back keeps the times of its first confirm', async () => {
+  const at = { started_at: '2026-10-20T16:00:00.000Z', done_at: '2026-10-20T16:00:40.000Z' }
+  const progress: Kept = {
+    template_id: 3,
+    position: 1,
+    first: [],
+    sets: [{ item: 0, set_no: 1, left: 6, right: null, ...at }],
+    saved: false,
+    revision: 2,
+  }
+  const sent = serve({ today: { session: SESSION, progress } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Resume: set 2 of 3' }))
+  click('Back')
+  click('1 fewer')
+  click('Confirm set')
+  await screen.findByText('1:00')
+  expect(sent['PUT /api/session/progress']?.[0]).toMatchObject({
+    sets: [{ item: 0, set_no: 1, left: 5, right: null, ...at }],
+  })
 })

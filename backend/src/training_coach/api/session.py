@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.auth import Owner
@@ -88,12 +88,16 @@ class GuidedView(BaseModel):
 
 
 class DoneView(BaseModel):
-    """A confirmed set; ``right`` only for one-sided exercises (empty: same as left)."""
+    """A confirmed set; ``right`` only for one-sided exercises (empty: same as left).
+    ``started_at`` and ``done_at``: when the set's screen appeared and when it was confirmed,
+    from the phone's clock (ADR-0061); kept only when both are there and plausible."""
 
     item: int = Field(ge=0, le=100)
     set_no: int = Field(ge=1, le=50)
     left: int = Field(ge=0, le=3600)
     right: int | None = Field(default=None, ge=0, le=3600)
+    started_at: AwareDatetime | None = None
+    done_at: AwareDatetime | None = None
 
 
 class ProgressView(BaseModel):
@@ -264,7 +268,9 @@ def keep(body: KeepBody, request: Request, user: Owner) -> KeptView:
         if plan is None or plan.template_id != body.template_id:
             raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
         sets = [guided.Done(**d.model_dump()) for d in body.sets]
-        result = guided.keep(session, plan, body.revision, body.position, body.first, sets)
+        result = guided.keep(
+            session, plan, body.revision, body.position, body.first, sets, now=datetime.now(UTC)
+        )
     if result == guided.STALE:
         raise HTTPException(status.HTTP_409_CONFLICT, result)
     if isinstance(result, str):

@@ -1,7 +1,7 @@
 """GET /api/session/today (#117): today's guided session, owner-only."""
 
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -371,3 +371,46 @@ def test_stretching_needs_a_signed_in_browser(engine: Engine) -> None:
     with TestClient(create_app(settings), base_url=ORIGIN) as stranger:
         assert stranger.get("/api/session/stretching/1", params={"minutes": 10}).status_code == 401
         assert stranger.post("/api/session/stretching/1", json={"minutes": 10}).status_code == 401
+
+
+def test_set_times_are_kept_resumed_and_saved(signed_in: TestClient, engine: Engine) -> None:
+    """The phone's times for each set (ADR-0061), with its own offset, come back on resume
+    and end up on the saved sets."""
+    session = _today_view(signed_in)["session"]
+    start = datetime.now(UTC) - timedelta(minutes=10)
+    sets = []
+    for n, s in enumerate(session["order"][:2]):
+        at = start + timedelta(minutes=2 * n)
+        sets.append(
+            {
+                "item": s["item"],
+                "set_no": s["set_no"],
+                "left": s["target"],
+                "started_at": at.astimezone(timezone(timedelta(hours=2))).isoformat(),
+                "done_at": (at + timedelta(seconds=45)).isoformat(),
+            }
+        )
+    body = {"template_id": session["template_id"], "position": 2, "sets": sets}
+    assert signed_in.put("/api/session/progress", json=body).status_code == 200
+    kept = _today_view(signed_in)["progress"]["sets"]
+    assert [datetime.fromisoformat(s["started_at"]) for s in kept] == [
+        start,
+        start + timedelta(minutes=2),
+    ]
+    workout_id = signed_in.post("/api/session/save", json={}).json()["workout_id"]
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        rows = bound.get_one(Workout, workout_id).sets
+        times = sorted((r.started_at, r.done_at) for r in rows)
+    assert times == [
+        (start, start + timedelta(seconds=45)),
+        (start + timedelta(minutes=2), start + timedelta(minutes=2, seconds=45)),
+    ]
+
+
+def test_a_set_time_without_an_offset_is_refused(signed_in: TestClient) -> None:
+    session = _today_view(signed_in)["session"]
+    step = session["order"][0]
+    naive = datetime.now(UTC).replace(tzinfo=None).isoformat()
+    done = {"item": step["item"], "set_no": 1, "left": 5, "started_at": naive, "done_at": naive}
+    body = {"template_id": session["template_id"], "position": 1, "sets": [done]}
+    assert signed_in.put("/api/session/progress", json=body).status_code == 422
