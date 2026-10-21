@@ -33,12 +33,13 @@ updates:
     commit-message: { prefix: ci }
 
   # Python and Node versions are pinned by ADR-0002/0004; only patch-level image updates.
+  # By update type: version ranges don't match suffixed tags like 3.14-slim (#260, #261).
   - package-ecosystem: docker
     directory: /
     schedule: { interval: monthly }
     ignore:
       - dependency-name: python
-        versions: [">=3.13"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: node
-        versions: [">=23"]
+        update-types: ["version-update:semver-major"]
     commit-message: { prefix: build }
