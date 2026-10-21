@@ -82,7 +82,7 @@ actually spent moving (paused and skipped time left out), with the set's `starte
 
 ## Consequences
 
-- The guided session shows a flow player for the mobility item (a following PR); the bot
+- The guided session shows a flow player for the mobility item; the bot
   still shows the summary.
 - A setting for the sound needs a column and a migration (a following PR).
 - The player shows each movement's mannequin moving from its start to its end, keyed by slug
