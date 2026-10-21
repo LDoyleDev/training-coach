@@ -1,6 +1,6 @@
 """The home screen (B1): all-time totals, this week, ladder progress, recent days and today."""
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -122,3 +122,48 @@ def test_a_test_day_due_is_today(plan: Session, monkeypatch: pytest.MonkeyPatch)
     due = retests.TestDayDue(day=1, name="Retest, day 1", tests=("Max pull-ups",))
     monkeypatch.setattr(retests, "due", lambda *_: due)
     assert home(plan, SUNDAY, TZ).today == "Retest, day 1"
+    assert home(plan, SUNDAY, TZ).today_minutes is None  # a test day has no estimate
+
+
+def _timed(session: Session, template: int, on: date, minutes: int) -> None:
+    """A done workout of ``template`` whose one set took ``minutes`` (ADR-0061)."""
+    exercise = session.scalars(select(Exercise).where(Exercise.slug == "pull-up")).one()
+    state = users.exercise_state(session, exercise.id)
+    assert state is not None
+    start = datetime(on.year, on.month, on.day, 16, 0, tzinfo=UTC)
+    session.add(
+        Workout(
+            local_date=on,
+            template_id=template,
+            status=WorkoutStatus.DONE,
+            sets=[
+                SetLog(
+                    exercise_id=exercise.id,
+                    ladder_step_id=state.ladder_step_id,
+                    set_no=1,
+                    side=Side.BOTH,
+                    value=5,
+                    started_at=start,
+                    done_at=start + timedelta(minutes=minutes),
+                )
+            ],
+        )
+    )
+    session.flush()
+
+
+def test_today_says_how_long_from_the_plan_until_it_is_timed(plan: Session) -> None:
+    found = home(plan, SUNDAY, TZ)
+    assert found.today_minutes is not None
+    assert found.today_minutes > 0
+    assert found.today_usual_minutes is None
+
+
+def test_today_says_how_long_it_usually_takes(plan: Session) -> None:
+    today = home(plan, SUNDAY, TZ).today
+    template = plan.scalars(select(SessionTemplate.id).where(SessionTemplate.name == today)).one()
+    for weeks, minutes in [(3, 40), (2, 30), (1, 35)]:
+        _timed(plan, template, SUNDAY - timedelta(weeks=weeks), minutes)
+    found = home(plan, SUNDAY, TZ)
+    assert found.today == today  # earlier weeks don't move today's session
+    assert found.today_usual_minutes == 35  # the median of the timed ones

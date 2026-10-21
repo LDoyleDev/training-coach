@@ -59,6 +59,10 @@ export default function HomePage() {
     )
 
   const { totals, week, progress, recent, today } = loaded.home
+  const usual = loaded.home.today_usual_minutes
+  const about = loaded.home.today_minutes
+  // how long it takes, to make starting easier: earlier timed sessions first (ADR-0061)
+  const length = usual ? ` · usually ${usual} min` : about ? ` · about ${about} min` : ''
   const target = week.zone2_target?.[0] ?? null
   const zone2 = target ? Math.min(100, Math.round((week.zone2_minutes / target) * 100)) : 0
   return (
@@ -144,7 +148,7 @@ export default function HomePage() {
       <InstallHint />
 
       <a href="/session" className={primary + ' flex items-center justify-center no-underline'}>
-        {today ? `Today: ${today}` : 'Go to today'}
+        {today ? `Today: ${today}${length}` : 'Go to today'}
       </a>
       <div className="grid grid-cols-2 gap-2">
         <a

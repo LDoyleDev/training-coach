@@ -1991,6 +1991,10 @@ export interface components {
             recent: components["schemas"]["RecentView"][];
             /** Today */
             today: string | null;
+            /** Today Minutes */
+            today_minutes: number | null;
+            /** Today Usual Minutes */
+            today_usual_minutes: number | null;
             totals: components["schemas"]["TotalsView"];
             week: components["schemas"]["HomeWeekView"];
         };
