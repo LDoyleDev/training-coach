@@ -50,7 +50,7 @@ Missed session: the order is kept; everything shifts back one day (ADR-0006).
 | MCP endpoint for Claude (read, log, propose plan changes) | 3 |
 | Daily check (sleep, soreness, energy) that advises as planned, lighter or rest (ADR-0053, built early) | 3 |
 
-Deliberately out of scope: exercise video library (link per exercise instead), social feed,
+Deliberately out of scope: exercise video library (each exercise gets a drawn start-and-end figure instead, ADR-0063), social feed,
 AI-generated daily workouts (the plan is fixed and edited deliberately).
 
 ## Progression rule (default)
