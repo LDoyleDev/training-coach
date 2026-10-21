@@ -945,6 +945,32 @@
         "title": "ExerciseView",
         "type": "object"
       },
+      "FlowView": {
+        "properties": {
+          "moves": {
+            "items": {
+              "$ref": "#/components/schemas/MoveView"
+            },
+            "title": "Moves",
+            "type": "array"
+          },
+          "safety": {
+            "title": "Safety",
+            "type": "string"
+          },
+          "seconds": {
+            "title": "Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seconds",
+          "safety",
+          "moves"
+        ],
+        "title": "FlowView",
+        "type": "object"
+      },
       "GoTo": {
         "properties": {
           "redirect": {
@@ -1583,6 +1609,16 @@
             ],
             "title": "Cue"
           },
+          "flow": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FlowView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -2204,6 +2240,73 @@
           "value"
         ],
         "title": "MeasurementView",
+        "type": "object"
+      },
+      "MoveView": {
+        "description": "One movement of the guided mobility flow (ADR-0062).",
+        "properties": {
+          "breathing": {
+            "title": "Breathing",
+            "type": "string"
+          },
+          "cues": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cues",
+            "type": "array"
+          },
+          "easier": {
+            "title": "Easier",
+            "type": "string"
+          },
+          "end": {
+            "title": "End",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pacing": {
+            "title": "Pacing",
+            "type": "string"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "seconds": {
+            "title": "Seconds",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "start": {
+            "title": "Start",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "seconds",
+          "per_side",
+          "target",
+          "start",
+          "end",
+          "cues",
+          "breathing",
+          "easier",
+          "pacing"
+        ],
+        "title": "MoveView",
         "type": "object"
       },
       "NewSecret": {

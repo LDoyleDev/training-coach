@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import date
 from functools import lru_cache
 from importlib.resources import files
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -42,6 +42,7 @@ from training_coach.db.models import (
 from training_coach.db.session import ALL_USERS
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.fitness_tests import DAYS, FitnessTest, Unit
+from training_coach.domain.mobility_flow import Flow, Move
 from training_coach.domain.parser import normalise_name
 from training_coach.domain.stretching import Stretch
 
@@ -145,6 +146,60 @@ class StretchSeed(_Strict):
         return Stretch(self.slug, self.name, frozenset(self.muscles), self.per_side, self.cue)
 
 
+class FlowMoveSeed(_Strict):
+    """One movement of the mobility flow (ADR-0062). ``seconds`` is per side when one-sided."""
+
+    slug: str = Field(pattern=SLUG, max_length=64)
+    name: str = Field(min_length=1, max_length=80)
+    seconds: int = Field(ge=15, le=300)
+    per_side: bool = False
+    target: str = Field(min_length=1, max_length=80)
+    start: str = Field(min_length=1, max_length=200)
+    end: str = Field(min_length=1, max_length=200)
+    cues: list[Annotated[str, Field(min_length=1, max_length=120)]] = Field(
+        min_length=1, max_length=2
+    )
+    breathing: str = Field(min_length=1, max_length=120)
+    easier: str = Field(min_length=1, max_length=200)
+    pacing: str = Field(min_length=1, max_length=120)
+
+    def move(self) -> Move:
+        return Move(
+            self.slug,
+            self.name,
+            self.seconds,
+            self.per_side,
+            self.target,
+            self.start,
+            self.end,
+            tuple(self.cues),
+            self.breathing,
+            self.easier,
+            self.pacing,
+        )
+
+
+class MobilitySeed(_Strict):
+    """The guided mobility flow and the exercise it is logged as (ADR-0062)."""
+
+    exercise: str = Field(pattern=SLUG, max_length=64)
+    safety: str = Field(min_length=1, max_length=200)
+    moves: list[FlowMoveSeed] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _whole(self) -> Self:
+        slugs = [m.slug for m in self.moves]
+        if len(slugs) != len(set(slugs)):
+            raise ValueError("duplicate flow movement slug")
+        total = self.flow().seconds
+        if total % 60:  # it is logged in whole minutes
+            raise ValueError(f"the mobility flow must last whole minutes, not {total} s")
+        return self
+
+    def flow(self) -> Flow:
+        return Flow(self.exercise, self.safety, tuple(m.move() for m in self.moves))
+
+
 class TestSeed(_Strict):
     """A baseline test (2-A, #94). Read from the bundled plan; results name it by slug."""
 
@@ -187,6 +242,7 @@ class PlanSeed(_Strict):
     versions: list[VersionSeed] = Field(default_factory=list)  # oldest first
     tests: list[TestSeed] = Field(default_factory=list)
     targets: TargetsSeed | None = None
+    mobility: MobilitySeed | None = None
 
     @model_validator(mode="after")
     def _references(self) -> Self:
@@ -222,6 +278,13 @@ class PlanSeed(_Strict):
             if unknown:  # a typo would quietly never match a session's muscles
                 raise ValueError(f"stretch {stretch.slug}: no exercise works {unknown}")
         known = set(slugs)
+        if self.mobility is not None:
+            logged = next((e for e in self.exercises if e.slug == self.mobility.exercise), None)
+            if logged is None or logged.kind is not ExerciseKind.DURATION_MIN:
+                raise ValueError(
+                    f"the mobility flow is logged as {self.mobility.exercise}, "
+                    "which must be an exercise counted in minutes"
+                )
         retired = {e.slug for e in self.exercises if e.retired}
         for session in self.sessions:
             for item in session.items:

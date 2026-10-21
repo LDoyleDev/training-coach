@@ -451,3 +451,36 @@ def test_today_says_how_long_this_session_usually_takes(
         ]
         bound.add(workout)
     assert _today_view(signed_in)["session"]["usual_minutes"] == 40
+
+
+def test_the_mobility_item_comes_with_its_guided_flow(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0062: the Recovery day's mobility is eight timed movements, ten minutes in all."""
+    legs = signed_in.get("/api/session/today").json()["session"]["items"]
+    assert all(i["flow"] is None for i in legs)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
+        recovery = bound.scalars(
+            select(SessionTemplate.id).where(SessionTemplate.slug == "recovery")
+        )
+        state = users.plan_state(bound)
+        assert state is not None
+        state.next_template_id = recovery.one()
+    items = signed_in.get("/api/session/today").json()["session"]["items"]
+    flow = next(i for i in items if i["slug"] == "mobility")["flow"]
+    assert flow["seconds"] == 600
+    assert flow["safety"].startswith("If something hurts")
+    assert [m["slug"] for m in flow["moves"]] == [
+        "y-reach",
+        "hip-hinge",
+        "half-kneeling-hip-flexor",
+        "kneeling-lunge-rotation",
+        "cat-cow",
+        "quadruped-t-spine-rotation",
+        "hamstring-floss",
+        "glute-bridge",
+    ]
+    lunge = flow["moves"][3]
+    assert (lunge["seconds"], lunge["per_side"]) == (45, True)
+    assert all(lunge[k] for k in ("start", "end", "cues", "breathing", "easier", "pacing"))
+    assert all(i["flow"] is None for i in items if i["slug"] != "mobility")

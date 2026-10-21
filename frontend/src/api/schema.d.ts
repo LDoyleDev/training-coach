@@ -1866,6 +1866,15 @@ export interface components {
             /** Start Step */
             start_step: number;
         };
+        /** FlowView */
+        FlowView: {
+            /** Moves */
+            moves: components["schemas"]["MoveView"][];
+            /** Safety */
+            safety: string;
+            /** Seconds */
+            seconds: number;
+        };
         /** GoTo */
         GoTo: {
             /** Redirect */
@@ -2058,6 +2067,7 @@ export interface components {
             baseline: boolean;
             /** Cue */
             cue: string | null;
+            flow?: components["schemas"]["FlowView"] | null;
             /** Name */
             name: string;
             /** Pair */
@@ -2265,6 +2275,34 @@ export interface components {
             on: string;
             /** Value */
             value: number;
+        };
+        /**
+         * MoveView
+         * @description One movement of the guided mobility flow (ADR-0062).
+         */
+        MoveView: {
+            /** Breathing */
+            breathing: string;
+            /** Cues */
+            cues: string[];
+            /** Easier */
+            easier: string;
+            /** End */
+            end: string;
+            /** Name */
+            name: string;
+            /** Pacing */
+            pacing: string;
+            /** Per Side */
+            per_side: boolean;
+            /** Seconds */
+            seconds: number;
+            /** Slug */
+            slug: string;
+            /** Start */
+            start: string;
+            /** Target */
+            target: string;
         };
         /** NewSecret */
         NewSecret: {
