@@ -109,14 +109,20 @@ function twoBone(root: Vec, target: Vec, a: number, b: number, bend: number) {
 const inFrame = (origin: Vec, dir: number, [forward, up]: Vec): Vec =>
   along(along(origin, dir - 90, forward), dir, up)
 
-/** Blend two poses of the same shape: numbers are interpolated, anything else comes from ``a``. */
+/** Blend two poses: numbers are interpolated, a number one pose leaves out counts as 0 (as
+ * ``spine`` and ``neck`` do), and anything else comes from ``a``, or ``b`` if ``a`` lacks it. */
 export function blend<T>(a: T, b: T, t: number): T {
   if (typeof a === 'number' && typeof b === 'number') return (a + (b - a) * t) as T
   if (Array.isArray(a) && Array.isArray(b)) return a.map((v, i) => blend(v, b[i], t)) as T
   if (a && b && typeof a === 'object') {
-    const out: Record<string, unknown> = {}
+    const one = a as Record<string, unknown>
     const other = b as Record<string, unknown>
-    for (const [k, v] of Object.entries(a)) out[k] = k in other ? blend(v, other[k], t) : v
+    const out: Record<string, unknown> = {}
+    for (const k of new Set([...Object.keys(one), ...Object.keys(other)])) {
+      const [x, y] = [one[k], other[k]]
+      if (typeof x === 'number' || typeof y === 'number') out[k] = blend(x ?? 0, y ?? 0, t)
+      else out[k] = x !== undefined && y !== undefined ? blend(x, y, t) : (x ?? y)
+    }
     return out as T
   }
   return a

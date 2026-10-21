@@ -91,6 +91,13 @@ test('an arm out of reach points at its target, straight', () => {
   expect(j.armF.wrist[0] - j.shoulder[0]).toBeGreaterThan(0)
 })
 
+test('a movement ends exactly on its end pose, and starts on its start pose', () => {
+  for (const [slug, figure] of Object.entries(FIGURES)) {
+    expect(solve(blend(figure.start, figure.end, 1)), slug).toEqual(solve(figure.end))
+    expect(solve(blend(figure.start, figure.end, 0)), slug).toEqual(solve(figure.start))
+  }
+})
+
 test('blending moves numbers and keeps everything else from the start', () => {
   const a = { lean: 0, hip: [0, 10], from: 'waist', only: 1 }
   const b = { lean: 10, hip: [10, 20], from: 'head' }
@@ -98,8 +105,13 @@ test('blending moves numbers and keeps everything else from the start', () => {
     lean: 5,
     hip: [5, 15],
     from: 'waist',
-    only: 1,
+    only: 0.5, // a number one pose leaves out counts as 0
   })
+  expect(blend({ lean: 0 }, { lean: 10, spine: 8 } as { lean: number }, 0.5)).toEqual({
+    lean: 5,
+    spine: 4,
+  })
+  expect(blend({ at: undefined }, { at: 'waist' } as { at?: string }, 0.2)).toEqual({ at: 'waist' })
 })
 
 test('the movement goes there, holds, comes back and rests', () => {
