@@ -2843,6 +2843,16 @@ export interface components {
              */
             unit: "reps" | "seconds" | "minutes";
         };
+        /** StandingsView */
+        StandingsView: {
+            /** Standings */
+            standings: components["schemas"]["StandingView"][];
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
+        };
         /** StretchBody */
         StretchBody: {
             /** Minutes */
@@ -4599,7 +4609,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StandingView"][];
+                    "application/json": components["schemas"]["StandingsView"];
                 };
             };
         };

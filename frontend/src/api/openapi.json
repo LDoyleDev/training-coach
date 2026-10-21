@@ -3862,6 +3862,28 @@
         "title": "StandingView",
         "type": "object"
       },
+      "StandingsView": {
+        "properties": {
+          "standings": {
+            "items": {
+              "$ref": "#/components/schemas/StandingView"
+            },
+            "title": "Standings",
+            "type": "array"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          }
+        },
+        "required": [
+          "today",
+          "standings"
+        ],
+        "title": "StandingsView",
+        "type": "object"
+      },
       "StretchBody": {
         "properties": {
           "minutes": {
@@ -6346,11 +6368,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/StandingView"
-                  },
-                  "title": "Response Standings Api Progress Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/StandingsView"
                 }
               }
             },

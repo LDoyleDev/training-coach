@@ -19,7 +19,8 @@ export interface Chart {
   start: Date // the window's first day
 }
 
-function local(iso: string): Date {
+/** A date from the server ("2026-10-21") as local midnight. */
+export function local(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number)
   return new Date(y, m - 1, d)
 }

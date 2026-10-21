@@ -659,13 +659,14 @@ export async function deletePhoto(id: number): Promise<void> {
 // ---------------------------------------------------------------- progress
 
 export type Standing = Schemas['StandingView']
+export type StandingsList = Schemas['StandingsView']
 
 /** Each exercise's standing; null when not signed in. */
-export async function fetchProgress(signal?: AbortSignal): Promise<Standing[] | null> {
+export async function fetchProgress(signal?: AbortSignal): Promise<StandingsList | null> {
   const res = await fetch('/api/progress', { signal, credentials: 'same-origin' })
   if (res.status === 401) return null
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
-  return (await res.json()) as Standing[]
+  return (await res.json()) as StandingsList
 }
 
 export type SessionTime = Schemas['SessionTimeView']

@@ -28,7 +28,7 @@ function serve(answer: Standing[] | 401 | 500) {
       if (path === '/api/progress/times') return Response.json([]) // SessionTimes' own tests
       return typeof answer === 'number'
         ? new Response(null, { status: answer })
-        : Response.json(answer)
+        : Response.json({ today: '2026-10-21', standings: answer })
     }),
   )
 }
@@ -101,6 +101,16 @@ test('the graph puts sessions on their dates over six weeks, best set up the sid
   expect(found!.weeks).toHaveLength(7) // six weeks of gridlines, both ends
   expect(found!.moves).toEqual([])
   expect(chart([], today)).toBeNull()
+  // Two sessions on one day share an x, the better one higher.
+  const twice = chart(
+    [
+      { day: '2026-10-20', best: 6, step_number: 1 },
+      { day: '2026-10-20', best: 9, step_number: 1 },
+    ],
+    today,
+  )!.dots
+  expect(twice[0].x).toBe(twice[1].x)
+  expect(twice[1].y).toBeLessThan(twice[0].y)
   // One value sits in the middle rather than on the floor.
   expect(chart([{ day: '2026-10-20', best: 5, step_number: 1 }], today)!.dots[0].y).toBe(46)
 })

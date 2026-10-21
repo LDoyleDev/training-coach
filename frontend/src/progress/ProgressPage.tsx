@@ -5,6 +5,7 @@ import AppShell from '../components/AppShell'
 import BandSummary from '../components/BandSummary'
 import SessionTimes from './SessionTimes'
 import TrendChart from './TrendChart'
+import { local } from './chart'
 import { amount } from './logic'
 import { card, secondary } from '../ui'
 import { RetryCard, SignInCard } from '../components/StateCards'
@@ -72,11 +73,11 @@ function Standings() {
 
   useEffect(() => {
     fetchProgress()
-      .then((standings) =>
+      .then((found) =>
         setLoaded(
-          standings === null
+          found === null
             ? { status: 'signed-out' }
-            : { status: 'ready', standings, today: new Date() },
+            : { status: 'ready', standings: found.standings, today: local(found.today) },
         ),
       )
       .catch(() => setLoaded({ status: 'error' }))

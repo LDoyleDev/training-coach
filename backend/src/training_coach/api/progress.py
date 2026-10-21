@@ -41,28 +41,38 @@ class StandingView(BaseModel):
     trend: list[PointView]  # the last six weeks, oldest first, across ladder steps
 
 
-@router.get("", response_model=list[StandingView])
-def standings(request: Request, user: Owner) -> list[StandingView]:
+class StandingsView(BaseModel):
+    today: date  # the trends' last day, so the graphs use the server's window, not the device's
+    standings: list[StandingView]
+
+
+@router.get("", response_model=StandingsView)
+def standings(request: Request, user: Owner) -> StandingsView:
     """Every exercise in plan order: its step, last session, best set and whether it's ready."""
     settings: Settings = request.app.state.settings
     on = local_date(datetime.now(UTC), settings.tz)
     with session_scope(_bound(request, user)) as session:
         found = progress.overview(session, on)
-    return [
-        StandingView(
-            exercise=s.exercise,
-            unit=UNITS[s.kind],
-            step=s.step,
-            step_number=s.step_number,
-            steps=s.steps,
-            last=list(s.last),
-            best_set=s.best_set,
-            status=s.status.value,
-            retired=s.retired,
-            trend=[PointView(day=p.day, best=p.best, step_number=p.step_number) for p in s.trend],
-        )
-        for s in found
-    ]
+    return StandingsView(
+        today=on,
+        standings=[
+            StandingView(
+                exercise=s.exercise,
+                unit=UNITS[s.kind],
+                step=s.step,
+                step_number=s.step_number,
+                steps=s.steps,
+                last=list(s.last),
+                best_set=s.best_set,
+                status=s.status.value,
+                retired=s.retired,
+                trend=[
+                    PointView(day=p.day, best=p.best, step_number=p.step_number) for p in s.trend
+                ],
+            )
+            for s in found
+        ],
+    )
 
 
 class SessionTimeView(BaseModel):
