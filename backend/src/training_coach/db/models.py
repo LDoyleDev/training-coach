@@ -373,6 +373,10 @@ class SetLog(Owned, Base):
     set_no: Mapped[int] = mapped_column(Integer)
     value: Mapped[int] = mapped_column(Integer)
     side: Mapped[str] = mapped_column(String(8), default=Side.BOTH, server_default=Side.BOTH.value)
+    # When a guided session showed the set and when it was confirmed (ADR-0061); both sides of
+    # a one-sided set share them. Empty for every other way of logging.
+    started_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    done_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
     workout: Mapped[Workout] = relationship(back_populates="sets")
 

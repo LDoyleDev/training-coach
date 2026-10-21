@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.auth import Owner
@@ -16,6 +16,7 @@ from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import HARD_SESSIONS
 from training_coach.domain.readiness import note as readiness_note
+from training_coach.domain.session_times import Timing, minutes
 from training_coach.domain.stretching import HOLD_SECONDS
 from training_coach.services import (
     daily_check,
@@ -23,6 +24,7 @@ from training_coach.services import (
     queue_actions,
     readiness,
     retests,
+    session_times,
     stretching,
     workout_log,
 )
@@ -81,19 +83,24 @@ class GuidedView(BaseModel):
     kind: Literal["strength", "conditioning", "recovery"]
     warm_up: bool
     block: BlockView | None
-    minutes: int
+    minutes: int  # the plan's estimate
+    usual_minutes: int | None = None  # how long this session usually takes (ADR-0061)
     rest_seconds: int
     items: list[ItemView]
     order: list[SetView]
 
 
 class DoneView(BaseModel):
-    """A confirmed set; ``right`` only for one-sided exercises (empty: same as left)."""
+    """A confirmed set; ``right`` only for one-sided exercises (empty: same as left).
+    ``started_at`` and ``done_at``: when the set's screen appeared and when it was confirmed,
+    from the phone's clock (ADR-0061); kept only when both are there and plausible."""
 
     item: int = Field(ge=0, le=100)
     set_no: int = Field(ge=1, le=50)
     left: int = Field(ge=0, le=3600)
     right: int | None = Field(default=None, ge=0, le=3600)
+    started_at: AwareDatetime | None = None
+    done_at: AwareDatetime | None = None
 
 
 class ProgressView(BaseModel):
@@ -158,12 +165,34 @@ class EarnedView(BaseModel):
     next_step: str | None  # ready to move up to this
 
 
+class TimingView(BaseModel):
+    """How long a timed session took, in whole minutes (ADR-0061): ``minutes`` is its sets and
+    the rests between them; breaks (gaps over 10 minutes) are counted apart."""
+
+    minutes: int
+    on_sets: int
+    resting: int
+    breaks: int
+
+
+def timing_view(found: Timing | None) -> TimingView | None:
+    if found is None:
+        return None
+    return TimingView(
+        minutes=minutes(found.total),
+        on_sets=minutes(found.on_sets),
+        resting=minutes(found.resting),
+        breaks=found.breaks,
+    )
+
+
 class SavedView(BaseModel):
     workout_id: int
     already_saved: bool
     next_session: str | None
     earned: list[EarnedView]
     stretching: bool  # offered after a resistance session (ADR-0032)
+    timing: TimingView | None = None  # empty when the sets weren't timed
 
 
 class PendingView(BaseModel):
@@ -229,6 +258,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
             if plan.block is not None
             else None,
             minutes=plan.minutes,
+            usual_minutes=session_times.usual_minutes(session, plan.template_id),
             rest_seconds=plan.rest_seconds,
             items=[
                 ItemView(
@@ -264,7 +294,9 @@ def keep(body: KeepBody, request: Request, user: Owner) -> KeptView:
         if plan is None or plan.template_id != body.template_id:
             raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
         sets = [guided.Done(**d.model_dump()) for d in body.sets]
-        result = guided.keep(session, plan, body.revision, body.position, body.first, sets)
+        result = guided.keep(
+            session, plan, body.revision, body.position, body.first, sets, now=datetime.now(UTC)
+        )
     if result == guided.STALE:
         raise HTTPException(status.HTTP_409_CONFLICT, result)
     if isinstance(result, str):
@@ -309,6 +341,7 @@ def save(body: SaveBody, request: Request, user: Owner) -> SavedView:
                 if e.bests or e.next_step
             ],
             stretching=day == today and stretching.offered(session, result.workout_id),
+            timing=timing_view(session_times.of_workout(session, result.workout_id)),
         )
 
 

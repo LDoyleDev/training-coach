@@ -510,3 +510,33 @@ def test_a_chosen_session_gone_from_the_plan_is_stale(seeded: Session) -> None:
     draft = workout_log.draft(seeded, "Zone 2\nzone 2 run 40", TODAY, BERLIN)
     gone = workout_log.Draft(**{**vars(draft), "template_id": None})
     assert workout_log.save(seeded, gone, BERLIN) == workout_log.Stale()
+
+
+def test_undoing_a_replace_brings_back_the_set_times(seeded: Session) -> None:
+    """A guided session's set times (ADR-0061) come back with its sets."""
+    old = _saved(seeded, _past(seeded, 2, "Upper\npull-ups 8 7"))
+    start = NOON - timedelta(days=2)
+    for n, row in enumerate(seeded.get_one(Workout, old).sets):
+        row.started_at = start + timedelta(minutes=3 * n)
+        row.done_at = row.started_at + timedelta(seconds=40)
+    times = sorted((s.set_no, s.started_at, s.done_at) for s in seeded.get_one(Workout, old).sets)
+    draft = _past(seeded, 2, "Zone 2\nzone 2 run 40")
+    _saved(seeded, draft, Resolution(day_clash.REPLACE, _clash(seeded, draft).ids))
+    _undo(seeded)
+    back = seeded.scalars(select(Workout).where(Workout.local_date == _ago(2))).one()
+    assert sorted((s.set_no, s.started_at, s.done_at) for s in back.sets) == times
+
+
+def test_a_replace_kept_before_set_times_still_comes_back(seeded: Session) -> None:
+    _saved(seeded, _past(seeded, 2, "Upper\npull-ups 8 7"))
+    draft = _past(seeded, 2, "Zone 2\nzone 2 run 40")
+    _saved(seeded, draft, Resolution(day_clash.REPLACE, _clash(seeded, draft).ids))
+    kept = seeded.scalars(select(ReplacedWorkout)).one()
+    kept.data = {**kept.data, "sets": [s[:5] for s in kept.data["sets"]]}  # [e, s, n, side, v]
+    seeded.flush()
+    _undo(seeded)
+    back = seeded.scalars(select(Workout).where(Workout.local_date == _ago(2))).one()
+    assert [(s.set_no, s.started_at) for s in sorted(back.sets, key=lambda s: s.set_no)] == [
+        (1, None),
+        (2, None),
+    ]

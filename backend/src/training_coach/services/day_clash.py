@@ -219,6 +219,15 @@ def _drop_progress(session: Session, workout_id: int) -> None:
         session.delete(progress)
 
 
+def _times(log: SetLog) -> list[str | None]:
+    """A set's times (ADR-0061) as kept for /undo."""
+    return [t.isoformat() if t is not None else None for t in (log.started_at, log.done_at)]
+
+
+def _time(text: str | None) -> datetime | None:
+    return datetime.fromisoformat(text) if text is not None else None
+
+
 def _set_aside(session: Session, workout: Workout) -> int:
     """Delete ``workout``, keeping what /undo needs to put it back as it was."""
     imports = session.scalars(
@@ -235,7 +244,8 @@ def _set_aside(session: Session, workout: Workout) -> int:
             "plan_version_id": workout.plan_version_id,
             "created_at": workout.created_at.isoformat(),
             "sets": [
-                [s.exercise_id, s.ladder_step_id, s.set_no, s.side, s.value] for s in workout.sets
+                [s.exercise_id, s.ladder_step_id, s.set_no, s.side, s.value, *_times(s)]
+                for s in workout.sets
             ],
             "imports": list(imports),
         },
@@ -305,9 +315,18 @@ def put_back(session: Session, undo: dict[str, Any]) -> None:
             plan_version_id=data["plan_version_id"],
             created_at=datetime.fromisoformat(data["created_at"]).astimezone(UTC),
         )
+        # Kept before ADR-0061, a set has no times: [e, s, n, side, v].
         workout.sets.extend(
-            SetLog(exercise_id=e, ladder_step_id=s, set_no=n, side=side, value=v)
-            for e, s, n, side, v in data["sets"]
+            SetLog(
+                exercise_id=e,
+                ladder_step_id=s,
+                set_no=n,
+                side=side,
+                value=v,
+                started_at=_time(times[0]) if times else None,
+                done_at=_time(times[1]) if times else None,
+            )
+            for e, s, n, side, v, *times in data["sets"]
         )
         session.add(workout)
         session.flush()

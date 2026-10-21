@@ -1,6 +1,16 @@
 import { expect, test } from 'vitest'
 import type { Guided, GuidedItem } from '../api'
-import { fromKept, partnerOf, stepOf, summary, toDone, unitText, valueFor, versus } from './logic'
+import {
+  fromKept,
+  partnerOf,
+  stepOf,
+  summary,
+  timed,
+  toDone,
+  unitText,
+  valueFor,
+  versus,
+} from './logic'
 
 const item = (over: Partial<GuidedItem>): GuidedItem => ({
   slug: 'x',
@@ -84,4 +94,42 @@ test('the summary shows what was done against each target', () => {
 test('a paired exercise knows its partner', () => {
   expect(partnerOf(session, 0)?.name).toBe('B')
   expect(partnerOf(session, 2)).toBeNull()
+})
+
+test('set times go to the server and come back with the set (ADR-0061)', () => {
+  const at = { started_at: '2026-10-20T16:00:00.000Z', done_at: '2026-10-20T16:00:40.000Z' }
+  const done = toDone(session, {
+    '0:1': { left: 6, right: 6, split: false, ...at },
+    '1:1': { left: 5, right: 5, split: false, started_at: at.started_at }, // half: not sent
+  })
+  expect(done).toEqual([
+    { item: 0, set_no: 1, left: 6, right: null, ...at },
+    { item: 1, set_no: 1, left: 5, right: null },
+  ])
+  const values = fromKept({
+    template_id: 1,
+    position: 1,
+    first: [],
+    revision: 1,
+    saved: false,
+    sets: [{ item: 0, set_no: 1, left: 6, right: null, ...at }],
+  })
+  expect(values['0:1']).toEqual({ left: 6, right: 6, split: false, ...at })
+})
+
+test('a set is timed from its screen to its confirm, and keeps its first times', () => {
+  const shown = Date.parse('2026-10-20T16:00:00Z')
+  const first = timed({ left: 6, right: 6, split: false }, shown, shown + 40_000)
+  expect(first).toMatchObject({
+    started_at: '2026-10-20T16:00:00.000Z',
+    done_at: '2026-10-20T16:00:40.000Z',
+  })
+  expect(timed({ ...first, left: 5 }, shown + 90_000, shown + 99_000)).toEqual({
+    ...first,
+    left: 5,
+  })
+  // A screen time after the confirm (a clock change) never makes a negative set.
+  expect(timed({ left: 6, right: 6, split: false }, shown, shown - 5_000).started_at).toBe(
+    '2026-10-20T15:59:55.000Z',
+  )
 })

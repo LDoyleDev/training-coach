@@ -668,6 +668,17 @@ export async function fetchProgress(signal?: AbortSignal): Promise<Standing[] | 
   return (await res.json()) as Standing[]
 }
 
+export type SessionTime = Schemas['SessionTimeView']
+export type Timing = Schemas['TimingView']
+
+/** How long each timed session takes (ADR-0061); null when not signed in. */
+export async function fetchSessionTimes(signal?: AbortSignal): Promise<SessionTime[] | null> {
+  const res = await fetch('/api/progress/times', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as SessionTime[]
+}
+
 // ---------------------------------------------------------------- home (B1)
 
 export type Home = Schemas['HomeView']

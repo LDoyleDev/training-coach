@@ -23,9 +23,12 @@ const make = (over: Partial<Standing>): Standing => ({
 function serve(answer: Standing[] | 401 | 500) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () =>
-      typeof answer === 'number' ? new Response(null, { status: answer }) : Response.json(answer),
-    ),
+    vi.fn(async (path: string) => {
+      if (path === '/api/progress/times') return Response.json([]) // SessionTimes' own tests
+      return typeof answer === 'number'
+        ? new Response(null, { status: answer })
+        : Response.json(answer)
+    }),
   )
 }
 

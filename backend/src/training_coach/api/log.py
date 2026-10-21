@@ -148,7 +148,8 @@ def log(body: LogDayBody, request: Request, user: Owner) -> LoggedDayView:
                 today,
                 settings.tz,
                 body.template_id,
-                [guided.Done(**d.model_dump()) for d in body.sets],
+                # A day logged afterwards has no set times (ADR-0061).
+                [guided.Done(**d.model_dump(exclude={"started_at", "done_at"})) for d in body.sets],
                 body.token,
                 extra=body.what == "extra",
                 answer=answer,

@@ -1,4 +1,5 @@
-"""Each exercise's standing for the web Progress page, as /progress in the bot. Owner-only."""
+"""Each exercise's standing for the web Progress page, as /progress in the bot, and how long each
+session takes (ADR-0061). Owner-only."""
 
 from typing import Literal
 
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from training_coach.api.auth import Owner
 from training_coach.api.session import UNITS
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.services import progress
+from training_coach.services import progress, session_times
 
 router = APIRouter(prefix="/api/progress", tags=["progress"])
 
@@ -50,4 +51,27 @@ def standings(request: Request, user: Owner) -> list[StandingView]:
             recent=list(s.recent),
         )
         for s in found
+    ]
+
+
+class SessionTimeView(BaseModel):
+    """A session's times in whole minutes, from its timed guided sessions (ADR-0061)."""
+
+    session: str
+    usual: int  # the median of the last five
+    last: int
+    fastest: int
+    timed: int  # how many were timed
+
+
+@router.get("/times", response_model=list[SessionTimeView])
+def times(request: Request, user: Owner) -> list[SessionTimeView]:
+    """Each session that has been timed, in plan order: how long it usually takes."""
+    with session_scope(_bound(request, user)) as session:
+        found = session_times.by_session(session)
+    return [
+        SessionTimeView(
+            session=t.session, usual=t.usual, last=t.last, fastest=t.fastest, timed=t.timed
+        )
+        for t in found
     ]

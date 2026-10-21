@@ -1,7 +1,14 @@
 import type { Done, Guided, GuidedItem, Kept } from '../api'
 
-/** One confirmed set as the screen holds it: `split` means left and right differ. */
-export type Value = { left: number; right: number; split: boolean }
+/** One confirmed set as the screen holds it: `split` means left and right differ. A confirmed
+ * set also has when its screen appeared and when it was confirmed (ADR-0061). */
+export type Value = {
+  left: number
+  right: number
+  split: boolean
+  started_at?: string
+  done_at?: string
+}
 export type Values = Record<string, Value>
 
 export const key = (item: number, setNo: number) => `${item}:${setNo}`
@@ -11,7 +18,10 @@ export function fromKept(kept: Kept | null | undefined): Values {
   const values: Values = {}
   for (const d of kept?.sets ?? []) {
     const right = d.right ?? d.left
-    values[key(d.item, d.set_no)] = { left: d.left, right, split: right !== d.left }
+    const value: Value = { left: d.left, right, split: right !== d.left }
+    if (d.started_at && d.done_at)
+      Object.assign(value, { started_at: d.started_at, done_at: d.done_at })
+    values[key(d.item, d.set_no)] = value
   }
   return values
 }
@@ -23,8 +33,28 @@ export function toDone(session: Guided, values: Values): Done[] {
     const v = values[key(s.item, s.set_no)]
     if (!v) return []
     const sided = session.items[s.item].per_side && v.split
-    return [{ item: s.item, set_no: s.set_no, left: v.left, right: sided ? v.right : null }]
+    const done: Done = {
+      item: s.item,
+      set_no: s.set_no,
+      left: v.left,
+      right: sided ? v.right : null,
+    }
+    if (v.started_at && v.done_at)
+      Object.assign(done, { started_at: v.started_at, done_at: v.done_at })
+    return [done]
   })
+}
+
+/** A set as confirmed now: with the times of its first confirm, or else from when its screen
+ * appeared (`shownAt`) until now. A set fixed with Back keeps its first times (ADR-0061). */
+export function timed(value: Value, shownAt: number, now: number): Value {
+  if (value.started_at && value.done_at) return value
+  const started = Math.min(shownAt, now)
+  return {
+    ...value,
+    started_at: new Date(started).toISOString(),
+    done_at: new Date(now).toISOString(),
+  }
 }
 
 /** The value a set starts at: what was confirmed, else its target. */
