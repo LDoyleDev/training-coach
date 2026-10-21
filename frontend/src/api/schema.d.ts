@@ -2812,6 +2812,7 @@ export interface components {
             protein_g?: number | null;
             /** Review Time */
             review_time?: string | null;
+            sound?: components["schemas"]["Sound"] | null;
         };
         /** SettingsView */
         SettingsView: {
@@ -2832,6 +2833,7 @@ export interface components {
             protein_g: number | null;
             /** Review Time */
             review_time: string;
+            sound: components["schemas"]["Sound"];
             /** Timezone */
             timezone: string;
         };
@@ -2852,6 +2854,12 @@ export interface components {
          * @enum {string}
          */
         Soreness: "none" | "some" | "a_lot";
+        /**
+         * Sound
+         * @description What a guided timer plays at each change (ADR-0062). A per-person setting.
+         * @enum {string}
+         */
+        Sound: "chime" | "beep" | "wood" | "bell" | "none";
         /** StandingView */
         StandingView: {
             /** Best Set */

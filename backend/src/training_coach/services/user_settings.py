@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, FitnessTestDay, UserSettings, Workout
+from training_coach.domain.enums import Sound
 from training_coach.domain.targets import Pace
 from training_coach.services import users
 
@@ -26,6 +27,7 @@ class Prefs:
     habits_enabled: bool = True  # habit buttons in the evening message (D5)
     protein_g: int | None = None  # daily protein target for the habit
     pace: Pace = Pace.STANDARD  # how big a step the targets take (ADR-0057)
+    sound: Sound = Sound.CHIME  # what the guided timers play at each change (ADR-0062)
 
 
 def load(session: Session) -> Prefs:
@@ -42,6 +44,7 @@ def load(session: Session) -> Prefs:
         row.habits_enabled,
         row.protein_g,
         Pace(row.pace),
+        Sound(row.sound),
     )
 
 
@@ -58,6 +61,7 @@ def update(
     protein_g: int | None = None,
     clear_protein: bool = False,
     pace: Pace | None = None,
+    sound: Sound | None = None,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
@@ -82,6 +86,7 @@ def update(
         habits_enabled=old.habits_enabled if habits_enabled is None else habits_enabled,
         protein_g=None if clear_protein else old.protein_g if protein_g is None else protein_g,
         pace=old.pace if pace is None else pace,
+        sound=old.sound if sound is None else sound,
     )
     changes: dict[str, str | bool | int] = {}
     if morning_time is not None:
@@ -102,6 +107,8 @@ def update(
         changes["protein_g"] = protein_g or 0  # 0: cleared
     if pace is not None:
         changes["pace"] = pace.value
+    if sound is not None:
+        changes["sound"] = sound.value
     row = users.settings_row(session)
     if row is None:
         row = UserSettings()
@@ -115,6 +122,7 @@ def update(
     row.habits_enabled = prefs.habits_enabled
     row.protein_g = prefs.protein_g
     row.pace = prefs.pace.value
+    row.sound = prefs.sound.value
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

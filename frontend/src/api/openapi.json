@@ -3766,6 +3766,16 @@
               }
             ],
             "title": "Review Time"
+          },
+          "sound": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sound"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "title": "SettingsChange",
@@ -3822,6 +3832,9 @@
             "title": "Review Time",
             "type": "string"
           },
+          "sound": {
+            "$ref": "#/components/schemas/Sound"
+          },
           "timezone": {
             "title": "Timezone",
             "type": "string"
@@ -3836,6 +3849,7 @@
           "protein_g",
           "blocks_since",
           "pace",
+          "sound",
           "paused",
           "timezone"
         ],
@@ -3882,6 +3896,18 @@
           "a_lot"
         ],
         "title": "Soreness",
+        "type": "string"
+      },
+      "Sound": {
+        "description": "What a guided timer plays at each change (ADR-0062). A per-person setting.",
+        "enum": [
+          "chime",
+          "beep",
+          "wood",
+          "bell",
+          "none"
+        ],
+        "title": "Sound",
         "type": "string"
       },
       "StandingView": {

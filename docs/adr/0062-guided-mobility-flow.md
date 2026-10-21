@@ -84,7 +84,8 @@ actually spent moving (paused and skipped time left out), with the set's `starte
 
 - The guided session shows a flow player for the mobility item; the bot
   still shows the summary.
-- A setting for the sound needs a column and a migration (a following PR).
+- The sound is a per-person setting (`settings.sound`, chime to start), chosen in Settings,
+  where tapping one plays it.
 - The player shows each movement's mannequin moving from its start to its end, keyed by slug
   (ADR-0063).
 - Changing the flow is a plan edit with a review, like any other plan change.

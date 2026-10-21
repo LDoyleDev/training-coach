@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, UserSettings, Workout
-from training_coach.domain.enums import WorkoutStatus
+from training_coach.domain.enums import Sound, WorkoutStatus
 from training_coach.domain.targets import Pace
 from training_coach.services import user_settings
 from training_coach.services.user_settings import Prefs
@@ -59,3 +59,14 @@ def test_the_pace_is_standard_until_changed_and_logged(session: Session) -> None
     assert user_settings.load(session) == Prefs(pace=Pace.STEADY)
     payloads = session.scalars(select(Event.payload).where(Event.kind == "settings.changed"))
     assert list(payloads) == [{"pace": "steady"}]
+
+
+def test_the_sound_is_a_chime_until_changed_and_logged(session: Session) -> None:
+    session.add(UserSettings())  # a row made by another setting: the column default applies
+    session.flush()
+    assert user_settings.load(session).sound is Sound.CHIME
+    assert user_settings.update(session, sound=Sound.BELL).sound is Sound.BELL
+    session.flush()
+    assert user_settings.load(session) == Prefs(sound=Sound.BELL)
+    payloads = session.scalars(select(Event.payload).where(Event.kind == "settings.changed"))
+    assert list(payloads) == [{"sound": "bell"}]

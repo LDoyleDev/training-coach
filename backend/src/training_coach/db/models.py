@@ -34,7 +34,7 @@ from training_coach.db.types import UTCDateTime, utcnow
 from training_coach.domain.band_watch import Feed
 from training_coach.domain.blocks import BlockKind
 from training_coach.domain.daily_check import Energy, Sleep, Soreness
-from training_coach.domain.enums import CardioActivity, ExerciseKind, Side, WorkoutStatus
+from training_coach.domain.enums import CardioActivity, ExerciseKind, Side, Sound, WorkoutStatus
 from training_coach.domain.fitness_tests import TimeOfDay
 from training_coach.domain.habits import Habit
 from training_coach.domain.measurements import Kind as MeasurementKind
@@ -246,6 +246,7 @@ class UserSettings(Owned, Base):
         ),
         CheckConstraint("max_hr IS NULL OR max_hr BETWEEN 120 AND 230", name="max_hr_range"),
         CheckConstraint(_in("pace", Pace), name="pace_valid"),
+        CheckConstraint(_in("sound", Sound), name="sound_valid"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -269,6 +270,8 @@ class UserSettings(Owned, Base):
     max_hr: Mapped[int | None] = mapped_column(Integer)
     # How big a step the targets take (ADR-0057).
     pace: Mapped[str] = mapped_column(String(16), server_default=Pace.STANDARD.value)
+    # What the guided timers play at each change (ADR-0062).
+    sound: Mapped[str] = mapped_column(String(16), server_default=Sound.CHIME.value)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

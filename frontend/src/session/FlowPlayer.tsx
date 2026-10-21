@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Flow } from '../api'
+import { type Flow, fetchSettings } from '../api'
 import Figure from '../figures/Figure'
-import { playBeep, playBell, playFinished, unlockAudio } from '../hiit/sounds'
+import { type Sound, playChange, unlockAudio } from '../hiit/sounds'
 import { card, primary, secondary } from '../ui'
 import { type Cue, at, clock, cues, jump, minutesDone, schedule, totalSeconds } from './flow'
 
@@ -10,20 +10,17 @@ const CATCH_UP = 2 // seconds: after a longer gap (screen locked) only the lates
 
 type Stage = 'ready' | 'running' | 'finished'
 
-function play(cue: Cue): void {
-  if (cue === 'count') {
-    playBeep()
-    navigator.vibrate?.(60)
-  } else if (cue === 'switch') {
-    playBell('rest')
-    navigator.vibrate?.([200, 100, 200])
-  } else if (cue === 'next') {
-    playBell('work')
-    navigator.vibrate?.(400)
-  } else {
-    playFinished()
-    navigator.vibrate?.([300, 100, 300])
-  }
+const BUZZ: Record<Cue, number | number[]> = {
+  count: 60,
+  switch: [200, 100, 200],
+  next: 400,
+  finish: [300, 100, 300],
+}
+
+/** The chosen sound for a change, and a buzz where the phone has one (ADR-0062). */
+function play(sound: Sound, cue: Cue): void {
+  playChange(sound, cue)
+  navigator.vibrate?.(BUZZ[cue])
 }
 
 /** The mobility flow, one movement at a time (ADR-0062): a countdown per movement or side, a
@@ -43,6 +40,15 @@ export default function FlowPlayer({
   const [paused, setPaused] = useState(false)
   const [t, setT] = useState(0) // where the flow is, in seconds
   const [moved, setMoved] = useState(0) // seconds actually moving, once finished
+  const [sound, setSound] = useState<Sound>('chime') // the person's choice, from Settings
+
+  useEffect(() => {
+    const ask = new AbortController()
+    fetchSettings(ask.signal)
+      .then((found) => found && setSound(found.sound))
+      .catch(() => {}) // the default chime still plays
+    return () => ask.abort()
+  }, [])
 
   // Wall-clock times, not tick counts (a phone throttles timers): time run before the last
   // pause plus time since. Skip and Back move the flow without adding to the time moved.
@@ -66,7 +72,7 @@ export default function FlowPlayer({
   const tick = () => {
     const now = position()
     const due = cues(sections, last.current, now)
-    for (const cue of now - last.current > CATCH_UP ? due.slice(-1) : due) play(cue)
+    for (const cue of now - last.current > CATCH_UP ? due.slice(-1) : due) play(sound, cue)
     last.current = now
     setT(now)
     if (now >= total) finish()
