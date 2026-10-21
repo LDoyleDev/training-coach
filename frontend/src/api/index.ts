@@ -180,6 +180,8 @@ export async function signOut(): Promise<void> {
 export type TodayView = Schemas['TodayView']
 export type Guided = Schemas['GuidedView']
 export type GuidedItem = Schemas['ItemView']
+export type Flow = Schemas['FlowView'] // the mobility flow (ADR-0062)
+export type FlowMove = Schemas['MoveView']
 export type GuidedSet = Schemas['SetView']
 export type Done = Schemas['DoneView']
 export type Kept = Schemas['ProgressView']

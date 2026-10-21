@@ -378,7 +378,7 @@ ladder = ["5 s hold", "10 s hold", "Lying, head lifted 1 cm, 10 s hold"]
 [[exercises]]
 slug = "mobility"
 name = "Mobility flow (hip flexors, thoracic spine, hamstrings)"
-summary = "Eight slow movements in 10 minutes, standing to lying, for the upper back, hips and hamstrings. Move gently and breathe; nothing should hurt."
+summary = "Eight slow movements in 10 minutes, standing to lying, for the upper back, hips and hamstrings. The app times each one. Move gently and breathe; nothing should hurt."
 kind = "duration_min"
 muscle_groups = ["mobility"]
 aliases = ["mobility", "stretch", "stretching"]
