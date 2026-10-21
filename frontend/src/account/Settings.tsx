@@ -6,6 +6,7 @@ import {
   type SettingsChange,
   SignedOutError,
 } from '../api'
+import { type Sound, playChange, unlockAudio } from '../hiit/sounds'
 import { card, primaryInline, secondary } from '../ui'
 
 type TimeKey = 'morning_time' | 'nudge_time' | 'review_time'
@@ -24,6 +25,22 @@ const PACES: { pace: Pace; label: string; line: string }[] = [
   { pace: 'standard', label: 'Standard', line: 'About a tenth of the range at a time.' },
   { pace: 'fast', label: 'Fast', line: 'At least two reps at a time.' },
 ]
+
+/** What the mobility flow plays at each change (ADR-0062). */
+const SOUNDS: { sound: Sound; label: string }[] = [
+  { sound: 'chime', label: 'Chime' },
+  { sound: 'beep', label: 'Beep' },
+  { sound: 'wood', label: 'Wood block' },
+  { sound: 'bell', label: 'Bell' },
+  { sound: 'none', label: 'No sound' },
+]
+
+/** A sound's switch and next-movement change, a moment apart, to hear before choosing. */
+function preview(sound: Sound) {
+  unlockAudio() // inside the tap: browsers only allow sound after a gesture
+  playChange(sound, 'switch')
+  window.setTimeout(() => playChange(sound, 'next'), 900)
+}
 
 const choice = (on: boolean) =>
   'min-h-11 w-full rounded-xl border-2 px-4 py-2 text-left font-bold disabled:opacity-60 ' +
@@ -259,6 +276,37 @@ export default function Settings() {
           </button>
         ))}
         {noteAt('pace')}
+      </fieldset>
+
+      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend className="mb-2 font-bold">Timer sound: at each change in the mobility flow</legend>
+        <div className="grid grid-cols-2 gap-2">
+          {SOUNDS.map(({ sound, label }) => (
+            <button
+              key={sound}
+              type="button"
+              aria-pressed={prefs.sound === sound}
+              className={choice(prefs.sound === sound)}
+              disabled={busy}
+              onClick={() => {
+                if (sound !== 'none') preview(sound)
+                if (prefs.sound !== sound)
+                  save(
+                    'sound',
+                    { sound },
+                    `Timer sound: ${label.toLowerCase()}.`,
+                    "That couldn't be saved.",
+                  )
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="m-0 text-sm text-[var(--slate)]">
+          Tap one to hear it. The phone also buzzes where it can.
+        </p>
+        {noteAt('sound')}
       </fieldset>
 
       <p className="m-0 text-sm text-[var(--slate)]">Times are {prefs.timezone} time.</p>

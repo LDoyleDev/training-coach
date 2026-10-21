@@ -1,15 +1,16 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Flow, FlowMove } from '../api'
-import { playBeep, playBell, playFinished, unlockAudio } from '../hiit/sounds'
+import { playChange, unlockAudio } from '../hiit/sounds'
 import FlowPlayer from './FlowPlayer'
 
 vi.mock('../hiit/sounds', () => ({
   unlockAudio: vi.fn(),
-  playBeep: vi.fn(),
-  playBell: vi.fn(),
-  playFinished: vi.fn(),
+  playChange: vi.fn(),
 }))
+
+const played = (change: string) =>
+  vi.mocked(playChange).mock.calls.filter(([, c]) => c === change).length
 
 const move = (slug: string, name: string, seconds: number, per_side = false): FlowMove => ({
   slug,
@@ -34,14 +35,26 @@ const FLOW: Flow = {
 
 const vibrate = vi.fn()
 
+let chosen: string | number = 'chime' // what /api/settings answers: a sound, or a status
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
+  chosen = 'chime'
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      typeof chosen === 'number'
+        ? new Response(null, { status: chosen })
+        : Response.json({ sound: chosen }),
+    ),
+  )
   Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true })
 })
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllGlobals()
   Reflect.deleteProperty(navigator, 'vibrate')
   Reflect.deleteProperty(navigator, 'wakeLock')
 })
@@ -77,10 +90,10 @@ test('one movement at a time: countdown, cues, then the next starts by itself', 
   advance(55_200)
   expect(screen.getByRole('status')).toHaveTextContent('Next: Kneeling lunge')
   advance(1_900)
-  expect(playBeep).toHaveBeenCalledTimes(1) // 3 s left
+  expect(played('count')).toBe(1) // 3 s left
   advance(3_000)
-  expect(playBeep).toHaveBeenCalledTimes(3)
-  expect(playBell).toHaveBeenCalledWith('work') // the next movement
+  expect(played('count')).toBe(3)
+  expect(playChange).toHaveBeenLastCalledWith('chime', 'next') // the next movement
   expect(vibrate).toHaveBeenCalledWith(400)
   expect(screen.getByRole('heading', { name: 'Kneeling lunge' })).toBeInTheDocument()
   expect(screen.getByText('First side')).toBeInTheDocument()
@@ -90,7 +103,7 @@ test('one movement at a time: countdown, cues, then the next starts by itself', 
 test('a one-sided movement switches sides halfway with its own sound and buzz', () => {
   start()
   advance(105_200)
-  expect(playBell).toHaveBeenCalledWith('rest')
+  expect(playChange).toHaveBeenLastCalledWith('chime', 'switch')
   expect(vibrate).toHaveBeenCalledWith([200, 100, 200])
   expect(screen.getByText('Second side')).toBeInTheDocument()
   expect(timer()).toBe('0:45')
@@ -100,7 +113,7 @@ test('at the end it finishes and logs the minutes moved, from when it started', 
   const started = Date.now()
   const onDone = start()
   advance(150_400)
-  expect(playFinished).toHaveBeenCalled()
+  expect(playChange).toHaveBeenLastCalledWith('chime', 'finish')
   expect(screen.getByText('Flow done: 3 min of moving.')).toBeInTheDocument()
   click('Log 3 min')
   expect(onDone).toHaveBeenCalledWith(3, started)
@@ -153,9 +166,8 @@ test('a long gap (a locked screen) plays only the latest sound', () => {
     vi.setSystemTime(Date.now() + 105_000) // the timer was throttled meanwhile
     document.dispatchEvent(new Event('visibilitychange'))
   })
-  expect(playBeep).not.toHaveBeenCalled() // the counts and the next movement are past
-  expect(playBell).toHaveBeenCalledTimes(1)
-  expect(playBell).toHaveBeenCalledWith('rest') // the latest: switch sides
+  expect(playChange).toHaveBeenCalledTimes(1) // the counts and the next movement are past
+  expect(playChange).toHaveBeenCalledWith('chime', 'switch') // the latest: switch sides
   expect(screen.getByText('Second side')).toBeInTheDocument()
 })
 
@@ -169,4 +181,20 @@ test('the screen is kept on while it runs and let go after', async () => {
   click('Finish early')
   await act(async () => {})
   expect(release).toHaveBeenCalled()
+})
+
+test('it plays the sound chosen in Settings', async () => {
+  chosen = 'wood'
+  start()
+  await act(async () => {}) // the settings arrive
+  advance(60_100)
+  expect(playChange).toHaveBeenLastCalledWith('wood', 'next')
+})
+
+test('settings it cannot read leave the chime', async () => {
+  chosen = 500
+  start()
+  await act(async () => {})
+  advance(60_100)
+  expect(playChange).toHaveBeenLastCalledWith('chime', 'next')
 })

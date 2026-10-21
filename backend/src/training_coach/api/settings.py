@@ -15,6 +15,7 @@ from training_coach.api.auth import Owner
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.clock import parse_hhmm
+from training_coach.domain.enums import Sound
 from training_coach.domain.habits import PROTEIN_GRAMS
 from training_coach.domain.queue import local_date
 from training_coach.domain.targets import Pace
@@ -61,6 +62,7 @@ class SettingsView(BaseModel):
     protein_g: int | None
     blocks_since: str | None  # training blocks on since this day (ADR-0028)
     pace: Pace  # how big a step the targets take (ADR-0057)
+    sound: Sound  # what the guided timers play at each change (ADR-0062)
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -76,6 +78,7 @@ class SettingsChange(BaseModel):
     protein_g: Grams | None = None
     blocks: bool | None = None
     pace: Pace | None = None
+    sound: Sound | None = None
     paused: bool | None = None
 
 
@@ -94,6 +97,7 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
         protein_g=prefs.protein_g,
         blocks_since=started.isoformat() if started is not None else None,
         pace=prefs.pace,
+        sound=prefs.sound,
         paused=prefs.paused,
         timezone=settings.timezone,
     )
@@ -122,6 +126,7 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             protein_g=body.protein_g or None,
             clear_protein=body.protein_g == 0,
             pace=body.pace,
+            sound=body.sound,
             today=local_date(datetime.now(UTC), settings.tz),
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)

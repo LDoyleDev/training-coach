@@ -102,3 +102,18 @@ test('the beep is one 880 Hz tone; work is a four-partial bell, rest a softer, l
   sounds.playFinished()
   expect(frequencies).toHaveLength(12)
 })
+
+test('each timer sound plays every change, and none plays nothing', async () => {
+  const { frequencies } = fakeAudio('running')
+  const sounds = await import('./sounds')
+  for (const sound of ['chime', 'beep', 'wood', 'bell'] as const) {
+    for (const change of ['count', 'switch', 'next', 'finish'] as const) {
+      const before = frequencies.length
+      sounds.playChange(sound, change)
+      expect(frequencies.length, `${sound} ${change}`).toBeGreaterThan(before)
+    }
+  }
+  const before = frequencies.length
+  sounds.playChange('none', 'next')
+  expect(frequencies).toHaveLength(before)
+})
