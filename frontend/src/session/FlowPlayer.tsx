@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type Flow, fetchSettings } from '../api'
+import Figure from '../figures/Figure'
 import { type Sound, playChange, unlockAudio } from '../hiit/sounds'
 import { card, primary, secondary } from '../ui'
 import { type Cue, at, clock, cues, jump, minutesDone, schedule, totalSeconds } from './flow'
-import MovePicture from './MovePicture'
 
 const TICK_MS = 200
 const CATCH_UP = 2 // seconds: after a longer gap (screen locked) only the latest sound plays
@@ -221,7 +221,7 @@ export default function FlowPlayer({
         aria-label="Flow progress"
         className="w-full"
       />
-      <MovePicture slug={current.slug} />
+      <Figure key={current.slug} slug={current.slug} name={current.name} />
       <div>
         <h2 id="move" className="m-0 text-3xl font-extrabold">
           {current.name}
