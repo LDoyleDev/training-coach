@@ -2,9 +2,10 @@
 
 Status: **decided 2026-10-21**: the owner answered every question (below, under Decided);
 step 1's ADRs record the decisions. Written from the code on `main` at 0.32.0 and the owner's
-answers in chat on 2026-10-21 (below, under Asked for). The muscle counts, bands and gym
-catalogue come from a review of the research (Sources, at the end); where the evidence is thin
-it says so.
+answers in chat on 2026-10-21 (below, under Asked for). The muscle weights, bands, caps, gym
+catalogue and starters come from a review of the research in
+[program-builder-research.md](program-builder-research.md), which holds the evidence, the weight
+of every exercise for every muscle, and the coverage tables; this file holds the decisions.
 
 ## Asked for (2026-10-21)
 
@@ -29,27 +30,16 @@ are below.
 1. **Changing your own plan: both.** You edit your plan in the app, like anyone; `plan.toml` can
    still be imported into your plan for a bulk change. An import is a plan edit like any other:
    it shows what would change, and Save makes a plan version (A).
-2. **Secondary muscles: fractional counting.** A set counts **1** for each primary muscle,
-   **0.5** for a meaningful synergist and **0** for stabilisers. A 2026 meta-regression found
-   this fit muscle growth better than counting every muscle fully or not at all (Pelland 2026).
-   Two exceptions from muscle-growth studies: **glutes count 1** in deep squats and split squats
-   (Kubo 2019, Plotkin 2023); **hamstrings count 0** in squats, leg press and hip thrusts (they
-   did not grow). **Neck counts 0** from every compound (Conley 1997), and trunk work during
-   squats and deadlifts counts 0.
-
-   | Pattern | Counts 0.5 |
-   | --- | --- |
-   | Horizontal press | triceps, front delts |
-   | Overhead press | triceps, side delts |
-   | Rows | biceps, rear delts |
-   | Pulldowns and pull-ups | biceps, upper back, rear delts |
-   | Squat, lunge, leg press | adductors (leg press: glutes too) |
-   | RDL and other hinges | glutes, lower back, forearms (grip) |
-   | Fly | front delts |
-   | Hammer curl | biceps (forearms count 1) |
-
-   Strength may gain less than half from indirect sets (about 39% in an exploratory fit); 0.5 is
-   for coverage, which is what the map shows.
+2. **Secondary muscles: fractional counting.** A set counts **1** for each prime mover, **0.5**
+   for a meaningful synergist, **0.25** for a small part and **0** for stabilisers (Pelland 2026).
+   Where growth studies measured a pairing, the weight follows them: glutes count 1 in deep
+   squats and the leg press (and, as an estimate, split squats); adductors 1 in deep squats; hamstrings 0 in squats,
+   leg press and hip thrusts; triceps 0.5 from pressing, biceps 0.5 from pulls. Neck, trunk
+   bracing and posture drills count 0. Every exercise's weights, and which are estimates, are in
+   the research file (Weights by exercise).
+   - **Muscle parts compounds miss** get a flag on the map even when the muscle is green: the
+     triceps **long head** (it needs an overhead extension) and the **rectus femoris** (a leg
+     extension).
 3. **Targets: the science, per muscle.** Six colour bands, in fractional hard sets a week:
 
    | Band | Sets a week | Means |
@@ -61,18 +51,30 @@ are below.
    | Blue | 20-30 | High, for advanced people; diminishing returns |
    | Warning | over 30 | Past the point where more showed no extra growth (Pelland 2026) |
 
-   Green also needs the muscle on **at least two days a week** (ACSM 2026). A session with more
-   than about **11 fractional sets** for one muscle gets a warning (the per-session plateau in a
-   2025 preprint). Smaller muscles have their own green band, each marked **low evidence** in
-   the app except calves:
+   Green also needs the muscle on **at least two days a week** (ACSM 2026). Smaller muscles have
+   their own green band, each marked **low evidence** in the app except calves:
 
    | Muscle | Green (sets a week) | Evidence |
    | --- | --- | --- |
-   | Neck | 3-9 per direction (flexion, extension); lateral 2-6 per side | Low: one growth trial (Conley 1997), one pain trial (Ylinen 2003); the concussion link is an association only |
-   | Tibialis | 2-6; shown as covered or not | Very low: no volume data |
-   | Forearms | 4-10 (hinges 0.5; carries and wrist curls 1) | Low; grip strength predicts mortality (Leong 2015, observational) |
-   | Calves | 8-16, standing and bent-knee | Moderate (Kassiano 2023) |
-   | Side and rear delts | 8-20 | Low: no delt-specific volume trials. Side delts need direct raises |
+   | Neck | 3-9 per direction (flexion, extension); lateral 2-6 per side | Low |
+   | Tibialis | 2-6; shown as covered or not | Very low |
+   | Forearms | 4-10 | Low |
+   | Calves | 8-16, standing and bent-knee | Moderate |
+   | Side and rear delts | 8-20 | Low |
+   | Front delts | Covered at 4 or more; no direct work suggested | Low: presses cover them |
+
+   **Caps and warnings** (the evidence is in the research file, Overload):
+
+   | Warning | When |
+   | --- | --- |
+   | Too much in one session | More than **11 fractional sets** for one muscle in one session (a preprint's plateau) |
+   | Too much in a week | Over 30 fractional sets (the warning band) |
+   | No rest between | **4 or more** fractional sets for one muscle on two days in a row |
+   | Spine loading | More than **8 spine-loading hard sets** in one session (squats, hinges, swings, back extensions, carries, bent-over rows), or heavy hinges on two days in a row |
+   | Grip | More than about 8 grip-heavy sets in a session: suggest straps or a grip-free option |
+   | Redundant | Direct front-delt work when presses already cover them; any exercise whose muscles are all green already |
+
+   The spine, grip and rest-day warnings have no study behind them; the app says so.
 
 4. **Home or gym on the day:** the last place used, with the switch on Today to change it (E).
 5. **Gym exercises first:** the 29-exercise catalogue below, chosen from the research and
@@ -80,61 +82,66 @@ are below.
    first, which grew more muscle in head-to-head trials: overhead triceps extension, seated leg
    curl, Romanian deadlift, deep split squat, calf raises paused in the stretch (Maeo 2021, Maeo
    2023, Kassiano 2023). Huberman's protocol also pairs each muscle with a shortened-position
-   exercise; that pick has the weakest support.
+   exercise; that pick has the weakest support, except the leg extension, the only way to train
+   the rectus femoris. Each exercise's muscle weights are in the research file.
 
-   | # | Exercise | Pattern | Primary (1) | Secondary (0.5) | Equipment | Simpler option |
-   | --- | --- | --- | --- | --- | --- | --- |
-   | 1 | Back or hack squat | squat | quads, glutes | adductors | barbell / machine | goblet squat |
-   | 2 | Bulgarian split squat | lunge | quads, glutes | adductors | dumbbells | split squat |
-   | 3 | Leg press | squat | quads | glutes, adductors | machine | wall sit |
-   | 4 | Leg extension | knee extension | quads | - | machine | reverse Nordic |
-   | 5 | Romanian deadlift | hinge | hamstrings | glutes, lower back, forearms | barbell / dumbbells | single-leg DB RDL |
-   | 6 | Seated leg curl | knee flexion | hamstrings | - | machine | slider curl / Nordic |
-   | 7 | Hip thrust | hip extension | glutes | - | barbell / machine | glute bridge |
-   | 8 | 45° back extension | hinge | lower back | glutes, hamstrings | bench | bird-dog |
-   | 9 | Copenhagen plank | adduction | adductors | obliques | bench | side-lying adduction |
-   | 10 | Standing calf raise, paused in the stretch | plantarflexion | calves | - | machine / step | single-leg on a step |
-   | 11 | Seated calf raise | plantarflexion | calves (soleus) | - | machine | bent-knee DB raise |
-   | 12 | Tibialis raise | dorsiflexion | tibialis | - | tib bar | wall tib raise |
-   | 13 | DB bench press | horizontal push | chest | front delts, triceps | dumbbells | push-up |
-   | 14 | Incline DB press | incline push | chest (upper) | front delts, triceps | dumbbells | feet-elevated push-up |
-   | 15 | Cable fly / pec deck | fly | chest | front delts | cable / machine | band fly |
-   | 16 | Seated DB overhead press | vertical push | front delts | side delts, triceps | dumbbells | pike push-up |
-   | 17 | Cable lateral raise | abduction | side delts | - | cable | band raise |
-   | 18 | Lat pulldown / pull-up | vertical pull | lats | biceps, upper back, rear delts | machine / bar | band pulldown |
-   | 19 | Chest-supported row | horizontal pull | upper back, lats | biceps, rear delts | machine / dumbbells | inverted row |
-   | 20 | Reverse pec deck / face pull | horizontal abduction | rear delts | upper back | machine / cable | band pull-apart |
-   | 21 | Incline DB curl | elbow flexion | biceps | forearms | dumbbells | band curl |
-   | 22 | Hammer curl | elbow flexion | forearms (brachioradialis) | biceps | dumbbells | band hammer curl |
-   | 23 | Overhead cable triceps extension | elbow extension | triceps | - | cable / dumbbell | band overhead extension |
-   | 24 | Wrist curl / reverse wrist curl | wrist | forearms | - | dumbbell | towel wring |
-   | 25 | Farmer carry | carry | forearms, upper traps | obliques, abs | dumbbells | suitcase carry |
-   | 26 | Neck flexion / extension | neck | neck (flexors / extensors) | - | plate / harness | manual isometrics |
-   | 27 | Neck lateral flexion | neck | neck (lateral) | - | plate / band | manual isometrics |
-   | 28 | Cable crunch / hanging knee raise | trunk flexion | abs | - | cable / bar | dead bug |
-   | 29 | Pallof press / side plank | anti-rotation | obliques | abs | cable / band | side plank |
+   | # | Exercise | Pattern | Equipment | Simpler option |
+   | --- | --- | --- | --- | --- |
+   | 1 | Back or hack squat | squat | barbell / machine | goblet squat |
+   | 2 | Bulgarian split squat | lunge | dumbbells | split squat |
+   | 3 | Leg press | squat | machine | wall sit |
+   | 4 | Leg extension | knee extension | machine | reverse Nordic |
+   | 5 | Romanian deadlift | hinge | barbell / dumbbells | single-leg DB RDL |
+   | 6 | Seated leg curl | knee flexion | machine | slider curl / Nordic |
+   | 7 | Hip thrust | hip extension | barbell / machine | glute bridge |
+   | 8 | 45° back extension | hinge | bench | bird-dog |
+   | 9 | Copenhagen plank | adduction | bench | side-lying adduction |
+   | 10 | Standing calf raise, paused in the stretch | plantarflexion | machine / step | single-leg on a step |
+   | 11 | Seated calf raise | plantarflexion | machine | bent-knee DB raise |
+   | 12 | Tibialis raise | dorsiflexion | tib bar | wall tib raise |
+   | 13 | DB bench press | horizontal push | dumbbells | push-up |
+   | 14 | Incline DB press | incline push | dumbbells | feet-elevated push-up |
+   | 15 | Cable fly / pec deck | fly | cable / machine | band fly |
+   | 16 | Seated DB overhead press | vertical push | dumbbells | pike push-up |
+   | 17 | Cable lateral raise | abduction | cable | band raise |
+   | 18 | Lat pulldown / pull-up | vertical pull | machine / bar | band pulldown |
+   | 19 | Chest-supported row | horizontal pull | machine / dumbbells | inverted row |
+   | 20 | Reverse pec deck / face pull | horizontal abduction | machine / cable | band pull-apart |
+   | 21 | Incline DB curl | elbow flexion | dumbbells | band curl |
+   | 22 | Hammer curl | elbow flexion | dumbbells | band hammer curl |
+   | 23 | Overhead cable triceps extension | elbow extension | cable / dumbbell | band overhead extension |
+   | 24 | Wrist curl / reverse wrist curl | wrist | dumbbell | towel wring |
+   | 25 | Farmer carry | carry | dumbbells | suitcase carry |
+   | 26 | Neck flexion / extension | neck | plate / harness | manual isometrics |
+   | 27 | Neck lateral flexion | neck | plate / band | manual isometrics |
+   | 28 | Cable crunch / hanging knee raise | trunk flexion | cable / bar | dead bug |
+   | 29 | Pallof press / side plank | anti-rotation | cable / band | side plank |
 
    Rows 5, 6, 10, 21 and 23 are the lengthened-position picks, with deep range on 1 and 2. Home
-   exercises already in the plan (pull-ups, split squats, tibialis raises, neck work) stay as
-   they are and gain the same muscle weights. The research didn't verify an incline-curl trial,
-   and found no growth data on front-delt volume.
+   exercises already in the plan stay as they are and gain muscle weights; the home catalogue
+   gains an **overhead kettlebell triceps extension**, the one home exercise for the long head.
 6. **Weights:** kg only. Default increments barbell 2.5 kg, dumbbells 2 kg per hand, machines
    5 kg; each person can change theirs (D). Pounds when someone needs them.
-7. **Starters for new people:** the 7-day cycle, plus 3-day and 4-day full-body starters (H).
+7. **Starters for new people:** the 7-day cycle, plus a 3-day full-body and a 4-day
+   upper/lower starter (H). Both are in the research file (Coverage): about 80 sets a week in
+   19-22 exercises, every main muscle green on two or more days, at most 6 fractional sets for a
+   muscle in one session. Beginners start one set lower per exercise for four weeks.
 8. **A gym is complete:** every gym has everything in the catalogue, for now (C).
 9. **No custom exercises at first:** only catalogue exercises, each with pictures, checked
    muscles and kit. People ask for additions to the catalogue instead.
 10. **No "away" place:** travelling is Home, with whatever kit is there, or bodyweight only.
 
-**What this means for the current plan.** Huberman's protocol, as reconstructed by a third
-party, gives about 6-9 fractional sets per muscle a week. The current plan has the same shape
-(`docs/specs/training-plan.md` already counts only 9 sets for hamstrings and chest and 6 for
-calves, with every tag counted fully), so expect much of the map light green, not green, until
-sets are added. The 7-day shape stays on offer as a template, with that said. Monthly
-alternation between heavier and lighter schedules is harmless but not reliably better (ACSM
-2026), so it stays optional. **Later options**, not in these steps: a strength mode (about 3-6
-sets of the target lift a week over 2-3 days, at about 80% of a one-rep max) and a maintenance
-mode (about a third of the building volume, at the same intensity).
+**What this means for the current plan.** Counted with the weights above, the current plan's
+78 sets a week turn 3 of the 10 main muscles green (glutes, lats, upper back). Legs are trained
+on one day, so quads, glutes and hamstrings fail the two-day rule, and glutes reach the
+per-session cap on Legs. Triceps get 6 sets with no long-head work; side delts 5.5. The research
+file (Coverage) lists three changes with the home kit that make 8 of the 10 green at 93 sets;
+they are a suggestion, and nothing changes until the owner says so. Huberman's shape (each
+muscle twice a week, a compound plus a lengthened exercise, under an hour) stays; what the
+evidence adds is sets. Monthly alternation between heavier and lighter schedules is harmless but
+not reliably better (ACSM 2026), so it stays optional. **Later options**, not in these steps: a
+strength mode (about 3-6 sets of the target lift a week over 2-3 days, at about 80% of a one-rep
+max) and a maintenance mode (about a third of the building volume, at the same intensity).
 
 ## What's true today
 
@@ -198,8 +205,9 @@ and the starters, and can still be imported into the owner's plan as one version
 
 Each exercise in the catalogue gains:
 
-- **Muscles from a fixed list**, each with its weight (1 or 0.5, Decided 2), replacing the free
-  tags: `muscles = { quads = 1, glutes = 1, adductors = 0.5 }`. About 21: neck, chest, front
+- **Muscles from a fixed list**, each with its weight (1, 0.5 or 0.25, Decided 2), replacing the
+  free tags: `muscles = { quads = 1, glutes = 1, adductors = 1 }`, plus the muscle parts it
+  reaches (`parts = ["triceps long head"]`) for the flags. About 21: neck, chest, front
   delts, side delts, rear delts, upper back, upper traps, lats, biceps, triceps, forearms, abs,
   obliques, lower back, glutes, hip flexors, adductors, quads, hamstrings, calves, tibialis.
   "shoulders", "core" and "grip" map onto these; posture, power, mobility and conditioning
@@ -207,6 +215,7 @@ Each exercise in the catalogue gains:
   bands (Decided 3) live with the list.
 - **A movement pattern:** squat, hinge, lunge, horizontal push, vertical push, horizontal pull,
   vertical pull, carry, core, isolation, mobility, cardio. Swap offers the same pattern first.
+- **Whether it loads the spine or the grip**, for the shared-stress warnings (Decided 3).
 - **What it needs, per ladder step:** for example `needs = ["kettlebell:16"]` or
   `["pull-up bar"]` or `["barbell", "rack"]`. Bodyweight steps need nothing.
 - **How it gets harder:** `ladder` (bodyweight or fixed kit, as today) or `load` (a barbell,
@@ -278,9 +287,9 @@ home stays a ladder step, because 8 to 16 kg is a different exercise, not a smal
   (defaults from the catalogue), and the starting level (G).
 - **Editing a session:** add, swap, remove, reorder, pair (ADR-0031), sets and range. Nothing
   changes until **Save**, which makes a plan version; the map updates as you edit.
-- **Warnings, not rules:** a region left grey; a muscle on only one day a week; over about 11
-  fractional sets for one muscle in one session; the same muscle hard on two days in a row; a
-  session that will take over an hour (from the timings, ADR-0061); pushing without pulling.
+- **Warnings, not rules:** the caps in Decided 3, plus a region left grey, a muscle on only one
+  day a week, a flagged muscle part, a session that will take over an hour (from the timings,
+  ADR-0061), and pushing without pulling.
 - **Lengthened-position options first** in the picker's list where a muscle has one (Decided 5).
 
 ### G. Choosing the starting level
@@ -365,50 +374,14 @@ return and should wait until 2-4 have settled.
 - **Volume numbers move** when secondary muscles count half: the weekly review and the Plan tab
   will show lower numbers for the same plan, much of it light green (see "What this means for
   the current plan" under Decided). Say so in the release notes.
-- **Thin evidence:** the small-muscle bands are reasoned defaults more than findings. Keep them
-  in one place so a better study changes one number.
+- **Thin evidence:** the small-muscle bands, the 0.25 weights and the spine, grip and rest-day
+  warnings are reasoned defaults more than findings, and two key figures (the weekly curve, the
+  11-set session cap) rest on summaries of papers that couldn't be fetched. Keep each in one
+  place, the catalogue and the band list, so a better study changes one number.
 - **Size:** about ten PRs, several of them near the 400-line limit. The catalogue (step 2) and
   the gym exercises (step 8) are mostly data and review time.
 
 ## Sources
 
-Read as abstracts and summaries rather than full texts; a few primary PDFs could not be fetched.
-
-- Pelland, Remmert, Robinson, Hinson & Zourdos 2026, *Sports Medicine* 56:481-505: fractional
-  counting fits best; no extra growth seen beyond about 31 fractional sets a week.
-  https://doi.org/10.1007/s40279-025-02344-w
-- Remmert et al. 2025, preprint: about 11 fractional sets per muscle per session; indirect sets
-  worth about 39% for strength (exploratory). https://sportrxiv.org/index.php/server/preprint/view/460
-- Mannarino 2021: curls grew the biceps about twice as much as rows.
-  https://paulogentil.com/pdf/Single-Joint%20Exercise%20Results%20in%20Higher%20Hypertrophy%20of%20Elbow%20Flexors%20Than%20Multijoint%20Exercise.pdf
-- Kubo 2019: full squats grew the glutes and adductors; the hamstrings did not grow.
-  https://doi.org/10.1007/s00421-019-04181-y
-- Plotkin 2023: squats and hip thrusts grew the glutes alike.
-  https://www.frontiersin.org/journals/physiology/articles/10.3389/fphys.2023.1279170/full
-- Maeo 2023, *European Journal of Sport Science*: overhead triceps extensions grew every head
-  more. The pressing finding (Wakahara 2013) is from a secondary report.
-- Maeo 2021: seated leg curls grew the hamstrings more than prone.
-  https://pubmed.ncbi.nlm.nih.gov/33009197/
-- Kassiano 2023: calf raises in the stretched position. https://pubmed.ncbi.nlm.nih.gov/37015016/
-- Schoenfeld, Ogborn & Krieger 2017: graded gains up to 10 or more sets a week.
-  https://researchgate.net/publication/305455324
-- Baz-Valle 2022: 12-20 sets as good as more than 20 in trained men, except triceps.
-  https://pmc.ncbi.nlm.nih.gov/articles/PMC8884877/
-- ACSM 2026 position stand, from its announcement: 10 or more sets per muscle, each muscle twice
-  a week.
-  https://www.newswise.com/articles/acsm-unveils-landmark-2026-resistance-training-guidelines-first-update-in-17-years
-- Iversen 2021: at least 4 sets a week. https://pmc.ncbi.nlm.nih.gov/articles/PMC8449772
-- Bickel 2011, maintenance: https://pubmed.ncbi.nlm.nih.gov/21131862/; Spiering 2021:
-  https://pubmed.ncbi.nlm.nih.gov/33629972/
-- Conley 1997: neck growth from neck work only. https://pubmed.ncbi.nlm.nih.gov/9189733
-- Ylinen 2003, *JAMA*: neck strengthening and chronic neck pain.
-  https://doi.org/10.1001/jama.289.19.2509
-- Elliott 2021 and Daly 2021: neck strength and concussion, an association only.
-  https://pmc.ncbi.nlm.nih.gov/articles/PMC7838928/
-- Winters 2013: no shin-splint treatment proven better than another.
-  https://www.springermedicine.com/treatment-of-medial-tibial-stress-syndrome-a-systematic-review/22253724
-- Leong 2015, *Lancet*: grip strength and mortality (observational).
-  https://doi.org/10.1016/S0140-6736(14)62000-6
-- Huberman, Foundational Fitness Protocol:
-  https://hubermanlab.com/newsletter/foundational-fitness-protocol; a third-party
-  reconstruction: https://www.boostcamp.app/users/andrew-huberman-foundational-fitness-protocol
+In [program-builder-research.md](program-builder-research.md), each marked with how far it was
+read.
