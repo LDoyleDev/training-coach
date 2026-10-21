@@ -984,6 +984,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/progress/times": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Times
+         * @description Each session that has been timed, in plan order: how long it usually takes.
+         */
+        get: operations["times_api_progress_times_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/proposals": {
         parameters: {
             query?: never;
@@ -1772,8 +1792,12 @@ export interface components {
         /**
          * DoneView
          * @description A confirmed set; ``right`` only for one-sided exercises (empty: same as left).
+         *     ``started_at`` and ``done_at``: when the set's screen appeared and when it was confirmed,
+         *     from the phone's clock (ADR-0061); kept only when both are there and plausible.
          */
         DoneView: {
+            /** Done At */
+            done_at?: string | null;
             /** Item */
             item: number;
             /** Left */
@@ -1782,6 +1806,8 @@ export interface components {
             right?: number | null;
             /** Set No */
             set_no: number;
+            /** Started At */
+            started_at?: string | null;
         };
         /** EarnedView */
         EarnedView: {
@@ -1869,6 +1895,8 @@ export interface components {
             rest_seconds: number;
             /** Template Id */
             template_id: number;
+            /** Usual Minutes */
+            usual_minutes?: number | null;
             /** Warm Up */
             warm_up: boolean;
         };
@@ -2632,6 +2660,7 @@ export interface components {
             next_session: string | null;
             /** Stretching */
             stretching: boolean;
+            timing?: components["schemas"]["TimingView"] | null;
             /** Workout Id */
             workout_id: number;
         };
@@ -2659,6 +2688,22 @@ export interface components {
             token_endpoint: string;
             /** Token Endpoint Auth Methods Supported */
             token_endpoint_auth_methods_supported: string[];
+        };
+        /**
+         * SessionTimeView
+         * @description A session's times in whole minutes, from its timed guided sessions (ADR-0061).
+         */
+        SessionTimeView: {
+            /** Fastest */
+            fastest: number;
+            /** Last */
+            last: number;
+            /** Session */
+            session: string;
+            /** Timed */
+            timed: number;
+            /** Usual */
+            usual: number;
         };
         /** SessionView */
         SessionView: {
@@ -2895,6 +2940,21 @@ export interface components {
              * @enum {string}
              */
             unit: "reps" | "seconds" | "metres" | "cm";
+        };
+        /**
+         * TimingView
+         * @description How long a timed session took, in whole minutes (ADR-0061): ``minutes`` is its sets and
+         *     the rests between them; breaks (gaps over 10 minutes) are counted apart.
+         */
+        TimingView: {
+            /** Breaks */
+            breaks: number;
+            /** Minutes */
+            minutes: number;
+            /** On Sets */
+            on_sets: number;
+            /** Resting */
+            resting: number;
         };
         /**
          * TodayView
@@ -4524,6 +4584,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StandingView"][];
+                };
+            };
+        };
+    };
+    times_api_progress_times_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionTimeView"][];
                 };
             };
         };

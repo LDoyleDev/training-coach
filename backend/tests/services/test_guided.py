@@ -1,6 +1,6 @@
 """The guided session's view of today (#117), against the bundled plan."""
 
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import Engine, select
@@ -227,3 +227,92 @@ def test_a_day_logged_another_way_is_not_pending(session: Session) -> None:
     seeded.add(Workout(local_date=DAY, template_id=plan.template_id, status=WorkoutStatus.DONE))
     seeded.flush()
     assert guided.pending(seeded, DAY.replace(day=DAY.day + 1)) == []
+
+
+# ------------------------------------------------------------- set times (ADR-0061)
+
+NOW = datetime(2026, 10, 12, 16, 30, tzinfo=UTC)
+AT = NOW - timedelta(minutes=20)  # a set's screen appeared
+
+
+def _timed(item: int, set_no: int, value: int, start: datetime, seconds: int) -> guided.Done:
+    return guided.Done(
+        item, set_no, value, started_at=start, done_at=start + timedelta(seconds=seconds)
+    )
+
+
+def test_set_times_are_kept_in_utc_and_come_back_on_resume(session: Session) -> None:
+    seeded = _seeded(session)
+    plan = _plan(seeded)
+    local = AT.astimezone(BERLIN)  # a phone sends its own offset
+    assert guided.keep(seeded, plan, 0, 1, [], [_timed(0, 1, 5, local, 40)], now=NOW) == 1
+    kept = guided.kept(seeded, DAY)
+    assert kept is not None
+    (done,) = kept.sets
+    assert (done.started_at, done.done_at) == (AT, AT + timedelta(seconds=40))
+    assert done.started_at is not None
+    assert done.started_at.tzinfo == UTC
+
+
+def test_implausible_set_times_are_dropped_but_the_set_kept(session: Session) -> None:
+    seeded = _seeded(session)
+    plan = _plan(seeded)
+    future = NOW + timedelta(minutes=5)
+    sets = [
+        _timed(0, 1, 5, future, 40),  # a phone clock running ahead
+        guided.Done(0, 2, 6, started_at=AT),  # only one of the two
+    ]
+    assert guided.keep(seeded, plan, 0, 2, [], sets, now=NOW) == 1
+    kept = guided.kept(seeded, DAY)
+    assert kept is not None
+    assert [(d.set_no, d.left, d.started_at, d.done_at) for d in kept.sets] == [
+        (1, 5, None, None),
+        (2, 6, None, None),
+    ]
+
+
+def test_progress_kept_before_set_times_still_loads(session: Session) -> None:
+    seeded = _seeded(session)
+    plan = _plan(seeded)
+    guided.keep(seeded, plan, 0, 1, [], [guided.Done(0, 1, 5)], now=NOW)
+    row = seeded.scalars(select(SessionProgress)).one()
+    row.sets = [{"item": 0, "set_no": 1, "left": 5, "right": None}]  # as kept until ADR-0061
+    seeded.flush()
+    kept = guided.kept(seeded, DAY)
+    assert kept is not None
+    assert kept.sets == (guided.Done(0, 1, 5),)
+
+
+def test_saving_puts_each_sets_times_on_its_rows(session: Session) -> None:
+    """Numbered as the log numbers them (a skipped set closes the gap), both sides of a
+    one-sided set sharing the set's times."""
+    seeded = _seeded(session)
+    plan = _plan(seeded)
+    side = next(i for i, item in enumerate(plan.items) if item.per_side)
+    first, third, one_sided = AT, AT + timedelta(minutes=4), AT + timedelta(minutes=8)
+    sets = [
+        _timed(0, 1, 6, first, 30),
+        _timed(0, 3, 4, third, 35),  # set 2 skipped: logged as set 2
+        _timed(side, 1, 8, one_sided, 60),
+    ]
+    guided.keep(seeded, plan, 0, 3, [], sets, now=NOW)
+    saved = guided.save(seeded, DAY, DAY, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    rows = seeded.get_one(Workout, saved.workout_id).sets
+    jump = [r for r in rows if r.side == "both"]
+    assert sorted((r.set_no, r.started_at, r.done_at) for r in jump) == [
+        (1, first, first + timedelta(seconds=30)),
+        (2, third, third + timedelta(seconds=35)),
+    ]
+    sides = [(r.side, r.started_at, r.done_at) for r in rows if r.side != "both"]
+    end = one_sided + timedelta(seconds=60)
+    assert sorted(sides) == [("left", one_sided, end), ("right", one_sided, end)]
+
+
+def test_sets_without_times_save_without_them(session: Session) -> None:
+    seeded = _seeded(session)
+    guided.keep(seeded, _plan(seeded), 0, 1, [], [guided.Done(0, 1, 5)], now=NOW)
+    saved = guided.save(seeded, DAY, DAY, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    (row,) = seeded.get_one(Workout, saved.workout_id).sets
+    assert (row.started_at, row.done_at) == (None, None)
