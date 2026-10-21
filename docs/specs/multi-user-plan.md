@@ -219,6 +219,8 @@ tests and blocks. 31 of 32 exercises start at the easiest step.
 | D3 Each person's own copy of `plan.toml` | Copy yours, then edit | Most flexible | Needs a plan editor and per-person plan tables; every plan query changes. Large; more L3 |
 
 Decided (7): D1 to start; each person's own plan, D3-style, is the goal for later.
+Planned in [program-builder.md](program-builder.md) (draft, 2026-10-21), which proposes building
+it now for the owner alone, ahead of the other multi-user steps.
 
 ### E. Telegram for members
 
