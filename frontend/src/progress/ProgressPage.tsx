@@ -3,6 +3,7 @@ import { fetchProgress, type Standing } from '../api'
 import PlanView from '../App'
 import AppShell from '../components/AppShell'
 import BandSummary from '../components/BandSummary'
+import SessionTimes from './SessionTimes'
 import Sparkline from '../components/Sparkline'
 import { amount } from './logic'
 import { card, secondary } from '../ui'
@@ -98,6 +99,7 @@ function Standings() {
         This week's review
       </a>
       <BandSummary />
+      <SessionTimes />
       <ul className="flex flex-col gap-3">
         {loaded.standings.map((s) => {
           const status = STATUS[s.status]

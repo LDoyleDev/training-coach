@@ -7,19 +7,21 @@ today, or held for tomorrow (Rest today or Push), there is none. Sets come in wo
 """
 
 import secrets
-from collections.abc import Collection, Sequence
-from dataclasses import dataclass
-from datetime import date
+from collections.abc import Collection, Iterator, Sequence
+from dataclasses import dataclass, replace
+from datetime import UTC, date, datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import SessionProgress, SessionTemplate, Workout
+from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, Workout
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.parser import LIMITS, Entry
+from training_coach.domain.session_times import plausible
 from training_coach.domain.work_order import work_order
 from training_coach.services import blocks, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
@@ -119,12 +121,56 @@ def held_today(session: Session, on: date) -> bool:
 
 @dataclass(frozen=True)
 class Done:
-    """A confirmed set: ``right`` only for one-sided exercises (None means the same as left)."""
+    """A confirmed set: ``right`` only for one-sided exercises (None means the same as left).
+    ``started_at`` and ``done_at``: when its screen appeared and when it was confirmed
+    (ADR-0061), both or neither."""
 
     item: int
     set_no: int
     left: int
     right: int | None = None
+    started_at: datetime | None = None
+    done_at: datetime | None = None
+
+
+def _stored(done: Done) -> dict[str, Any]:
+    """``done`` as kept in ``session_progress.sets`` (JSON), times as ISO text."""
+    row: dict[str, Any] = {
+        "item": done.item,
+        "set_no": done.set_no,
+        "left": done.left,
+        "right": done.right,
+    }
+    if done.started_at is not None and done.done_at is not None:
+        row["started_at"] = done.started_at.isoformat()
+        row["done_at"] = done.done_at.isoformat()
+    return row
+
+
+def _done(row: dict[str, Any]) -> Done:
+    """A kept set back; rows kept before ADR-0061 have no times."""
+    started, ended = row.get("started_at"), row.get("done_at")
+    return Done(
+        item=row["item"],
+        set_no=row["set_no"],
+        left=row["left"],
+        right=row.get("right"),
+        started_at=datetime.fromisoformat(started) if started else None,
+        done_at=datetime.fromisoformat(ended) if ended else None,
+    )
+
+
+def _timed(done: Done, now: datetime) -> Done:
+    """``done`` with its times in UTC, if both are there and plausible; without them otherwise."""
+    if (
+        done.started_at is None
+        or done.done_at is None
+        or not plausible(done.started_at, done.done_at, now)
+    ):
+        return replace(done, started_at=None, done_at=None)
+    return replace(
+        done, started_at=done.started_at.astimezone(UTC), done_at=done.done_at.astimezone(UTC)
+    )
 
 
 @dataclass(frozen=True)
@@ -155,7 +201,7 @@ def _kept(row: SessionProgress) -> Kept:
         template_id=row.template_id,
         position=row.position,
         first=tuple(row.first),
-        sets=tuple(Done(**s) for s in row.sets),
+        sets=tuple(_done(s) for s in row.sets),
         saved=row.saved_workout_id is not None,
         revision=row.revision,
     )
@@ -208,12 +254,14 @@ def keep(
     position: int,
     first: Sequence[int],
     sets: Sequence[Done],
+    now: datetime | None = None,
 ) -> int | str:
     """Keep where the person is in today's guided session: the new revision, or a problem.
 
     Every value is checked against the plan: nothing from the browser is trusted. The browser
     names the ``revision`` it last saw (0 before any); if the kept one is newer (another device
-    moved on), nothing is written and ``STALE`` is returned."""
+    moved on), nothing is written and ``STALE`` is returned. A set's times are kept only when
+    plausible at ``now`` (default: the clock's now; ADR-0061)."""
     problem = _problem(plan, position, first, sets)
     if problem is not None:
         return problem
@@ -243,24 +291,31 @@ def keep(
             row.revision += 1
             row.position = position
             row.first = sorted(set(first))
-            row.sets = [vars(done) for done in sets]
+            at = now or datetime.now(UTC)
+            row.sets = [_stored(_timed(done, at)) for done in sets]
             session.flush()
     except IntegrityError:
         return STALE
     return row.revision
 
 
-def entries(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> tuple[Entry, ...]:
-    """The confirmed sets as log entries, per exercise in set order and numbered from 1. A
+def _numbered(sets: Sequence[Done]) -> Iterator[tuple[int, list[tuple[int, Done]]]]:
+    """Each exercise's confirmed sets in set order, numbered from 1 as the log numbers them. A
     skipped set isn't logged, so sets 1 and 3 done become sets 1 and 2 of the log."""
     by_item: dict[int, list[Done]] = {}
     for done in sorted(sets, key=lambda d: (d.item, d.set_no)):
         by_item.setdefault(done.item, []).append(done)
-    entries = []
     for index, dones in by_item.items():
+        yield index, list(enumerate(dones, start=1))
+
+
+def entries(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> tuple[Entry, ...]:
+    """The confirmed sets as log entries, per exercise in set order and numbered from 1."""
+    entries = []
+    for index, numbered in _numbered(sets):
         item = items[index]
         rows: list[tuple[int, Side, int]] = []
-        for number, done in enumerate(dones, start=1):
+        for number, done in numbered:
             if item.per_side:
                 right = done.left if done.right is None else done.right
                 rows += [(number, Side.LEFT, done.left), (number, Side.RIGHT, right)]
@@ -268,6 +323,21 @@ def entries(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> tuple[Entry, .
                 rows.append((number, Side.BOTH, done.left))
         entries.append(Entry(item.slug, tuple(rows)))
     return tuple(entries)
+
+
+def _stamp(
+    session: Session, workout_id: int, items: tuple[ItemPlan, ...], sets: Sequence[Done]
+) -> None:
+    """Put each confirmed set's times on its rows in the saved workout (ADR-0061)."""
+    ids = dict(session.execute(select(Exercise.slug, Exercise.id)).all())
+    times: dict[tuple[int, int], Done] = {}
+    for index, numbered in _numbered(sets):
+        for number, done in numbered:
+            times[(ids[items[index].slug], number)] = done
+    for log in session.get_one(Workout, workout_id).sets:
+        found = times.get((log.exercise_id, log.set_no))
+        if found is not None:
+            log.started_at, log.done_at = found.started_at, found.done_at
 
 
 def save(
@@ -286,7 +356,7 @@ def save(
     template = session.get_one(SessionTemplate, row.template_id)  # cascades with its progress
     plan = session_plan(session, template.id, blocks.current(session, day, tz))
     assert plan is not None  # noqa: S101 - the template exists
-    sets = tuple(Done(**s) for s in row.sets)
+    sets = tuple(_done(s) for s in row.sets)
     if sets_problem(plan.items, sets) is not None:  # checked again: the plan may have changed
         return "the plan changed since these sets were recorded"
     draft = workout_log.Draft(
@@ -302,6 +372,8 @@ def save(
     result = workout_log.save(session, draft, tz, answer)
     if isinstance(result, workout_log.Saved):
         row.saved_workout_id = result.workout_id
+        if not result.already_saved:
+            _stamp(session, result.workout_id, plan.items, sets)
     return result if result is not None else "no sets recorded"
 
 
