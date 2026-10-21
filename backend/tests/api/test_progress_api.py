@@ -34,7 +34,7 @@ def test_every_planned_exercise_is_listed_with_its_step(signed_in: TestClient) -
     standings = signed_in.get("/api/progress").json()
     assert standings[0]["exercise"] == "Jump squat"  # the first in the Legs session
     first = standings[0]
-    assert (first["step_number"], first["last"], first["best_set"], first["recent"]) == (
+    assert (first["step_number"], first["last"], first["best_set"], first["trend"]) == (
         1,
         [],
         None,

@@ -2410,6 +2410,18 @@ export interface components {
             /** Target */
             target: number;
         };
+        /** PointView */
+        PointView: {
+            /** Best */
+            best: number;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Step Number */
+            step_number: number;
+        };
         /** ProgressView */
         ProgressView: {
             /** First */
@@ -2810,8 +2822,6 @@ export interface components {
             exercise: string;
             /** Last */
             last: number[];
-            /** Recent */
-            recent: number[];
             /** Retired */
             retired: boolean;
             /**
@@ -2825,6 +2835,8 @@ export interface components {
             step_number: number;
             /** Steps */
             steps: number;
+            /** Trend */
+            trend: components["schemas"]["PointView"][];
             /**
              * Unit
              * @enum {string}

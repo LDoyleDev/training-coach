@@ -7,7 +7,7 @@ transaction.
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
@@ -300,6 +300,15 @@ def not_yet(session: Session, exercise_id: int, step_id: int) -> str | None:
 
 
 @dataclass(frozen=True)
+class Point:
+    """One session on a Progress graph."""
+
+    day: date
+    best: int  # the session's best set, as "best" counts it
+    step_number: int  # 1-based, so the graph can mark a move up
+
+
+@dataclass(frozen=True)
 class Standing:
     """One exercise in /progress."""
 
@@ -314,16 +323,56 @@ class Standing:
     best_set: int | None
     status: Progress
     retired: bool = False  # out of the plan (#107): shown for its history, never ready
-    # The best set of each session at this step, newest first (up to RECENT), for a trend.
-    recent: tuple[int, ...] = ()
+    trend: tuple[Point, ...] = ()  # the last TREND_WEEKS, oldest first; only with ``on``
 
 
-RECENT = 12
+TREND_WEEKS = 6  # the Progress graphs' window: long enough to see a change, short enough to feel it
 
 
-def overview(session: Session) -> list[Standing]:
+def _trend(
+    session: Session, exercise_id: int, per_side: bool, block: BlockKind | None, since: date
+) -> tuple[Point, ...]:
+    """The best set of each done session since ``since``, oldest first, across ladder steps."""
+    query = (
+        select(
+            SetLog.workout_id,
+            Workout.local_date,
+            LadderStep.position,
+            SetLog.set_no,
+            SetLog.side,
+            SetLog.value,
+        )
+        .join(Workout)
+        .join(LadderStep, LadderStep.id == SetLog.ladder_step_id)
+        .where(
+            Workout.status == WorkoutStatus.DONE,
+            SetLog.exercise_id == exercise_id,
+            Workout.local_date >= since,
+        )
+        .order_by(Workout.local_date, Workout.created_at, Workout.id)
+    )
+    if block is BlockKind.STRENGTH:
+        query = query.where(Workout.block == BlockKind.STRENGTH)
+    elif block is BlockKind.HYPERTROPHY:
+        query = query.where(or_(Workout.block.is_(None), Workout.block != BlockKind.STRENGTH))
+    days: dict[int, date] = {}
+    steps: dict[int, int] = {}
+    sets: dict[int, list[tuple[int, Side, int]]] = {}
+    for workout_id, on, position, set_no, side, value in session.execute(query):
+        days[workout_id] = on
+        steps[workout_id] = max(steps.get(workout_id, 0), position)
+        sets.setdefault(workout_id, []).append((set_no, Side(side), value))
+    return tuple(
+        Point(days[w], max(combine_sides(sets[w], unilateral=per_side), default=0), steps[w] + 1)
+        for w in days
+    )
+
+
+def overview(session: Session, on: date | None = None) -> list[Standing]:
     """Every exercise in plan order (first session it appears in), then any the plan doesn't
-    use. Ready means ready under at least one of its prescriptions, as Move up checks."""
+    use. Ready means ready under at least one of its prescriptions, as Move up checks. With
+    ``on`` (today), each also has its trend over the last TREND_WEEKS."""
+    since = on - timedelta(weeks=TREND_WEEKS) + timedelta(days=1) if on is not None else None
     order: dict[int, None] = {}
     for item in session.scalars(
         select(TemplateItem)
@@ -366,7 +415,9 @@ def overview(session: Session) -> list[Standing]:
                 best_set=max((max(v, default=0) for v in history), default=None),
                 status=status,
                 retired=exercise.retired,
-                recent=tuple(max(v, default=0) for v in history[:RECENT]),
+                trend=_trend(session, exercise_id, per_side, block, since)
+                if since is not None
+                else (),
             )
         )
     return result

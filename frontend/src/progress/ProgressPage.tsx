@@ -4,7 +4,7 @@ import PlanView from '../App'
 import AppShell from '../components/AppShell'
 import BandSummary from '../components/BandSummary'
 import SessionTimes from './SessionTimes'
-import Sparkline from '../components/Sparkline'
+import TrendChart from './TrendChart'
 import { amount } from './logic'
 import { card, secondary } from '../ui'
 import { RetryCard, SignInCard } from '../components/StateCards'
@@ -13,7 +13,7 @@ type Loaded =
   | { status: 'loading' }
   | { status: 'signed-out' }
   | { status: 'error' }
-  | { status: 'ready'; standings: Standing[] }
+  | { status: 'ready'; standings: Standing[]; today: Date }
 
 type Tab = 'progress' | 'plan'
 
@@ -65,15 +65,19 @@ export default function ProgressPage() {
   )
 }
 
-/** Every exercise's step, last session, best set and trend (as /progress in the bot). Moving
- * up stays with the prompt after a saved session. */
+/** Every exercise's step, last session, best set and six weeks of trend (as /progress in the
+ * bot, which has no graph). Moving up stays with the prompt after a saved session. */
 function Standings() {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
 
   useEffect(() => {
     fetchProgress()
       .then((standings) =>
-        setLoaded(standings === null ? { status: 'signed-out' } : { status: 'ready', standings }),
+        setLoaded(
+          standings === null
+            ? { status: 'signed-out' }
+            : { status: 'ready', standings, today: new Date() },
+        ),
       )
       .catch(() => setLoaded({ status: 'error' }))
   }, [])
@@ -104,7 +108,7 @@ function Standings() {
         {loaded.standings.map((s) => {
           const status = STATUS[s.status]
           return (
-            <li key={s.exercise} className={card + ' flex items-center justify-between gap-3'}>
+            <li key={s.exercise} className={card + ' flex flex-col gap-3'}>
               <div className="flex flex-col gap-1">
                 <span className="font-bold">
                   {s.exercise}
@@ -121,7 +125,7 @@ function Standings() {
                 </span>
                 {status && <span className="font-bold text-[var(--bell-ink)]">{status}</span>}
               </div>
-              <Sparkline values={s.recent} label={`Best set, last ${s.recent.length} sessions`} />
+              <TrendChart standing={s} today={loaded.today} />
             </li>
           )
         })}
