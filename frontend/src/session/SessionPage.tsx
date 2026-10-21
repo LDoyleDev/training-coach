@@ -34,6 +34,7 @@ import {
   type Value,
   type Values,
 } from './logic'
+import FlowPlayer from './FlowPlayer'
 import Stretching from './Stretching'
 import Cardio, { type CardioChange } from './Cardio'
 import ChangeToday from './ChangeToday'
@@ -275,10 +276,11 @@ export default function SessionPage() {
   const value = valueFor(values, step.item, step.set_no, step.target)
   const change = (v: Value) => setValues({ ...values, [key(step.item, step.set_no)]: v })
 
-  const confirm = async () => {
-    // Confirming with the clock running takes its reading.
-    const reading = watch === null ? value : { ...value, left: watch, right: watch }
-    const done = timed(reading, shownAt, Date.now())
+  /** Confirm this set: the counter's value, or the clock's reading when it runs; the mobility
+   * flow passes its minutes and when it started (ADR-0062). */
+  const confirm = async (given?: Value, from: number = shownAt) => {
+    const reading = given ?? (watch === null ? value : { ...value, left: watch, right: watch })
+    const done = timed(reading, from, Date.now())
     const nextValues = { ...values, [key(step.item, step.set_no)]: done }
     const next = Math.max(position + 1, furthest) // a corrected set returns to where you were
     if (await keep(next, nextValues)) {
@@ -491,74 +493,91 @@ export default function SessionPage() {
               </p>
             )}
           </div>
-          {partner && !pairStarted && (
-            <button
-              type="button"
-              className="min-h-11 rounded-xl border-2 border-dashed border-[var(--bell-ink)] font-bold text-[var(--bell-ink)]"
-              onClick={swap}
-            >
-              Do {partner.name} first
-            </button>
-          )}
-          {item.summary && <p className={card}>{item.summary}</p>}
-          {item.unit === 'seconds' && (
-            <div className={card + ' flex flex-col items-center gap-2'}>
-              <span aria-live="polite" className="text-6xl font-extrabold">
-                {running ? watch : value.left} s
-              </span>
-              <button type="button" className={primary} onClick={running ? stopWatch : startWatch}>
-                {running ? 'Stop' : 'Start clock'}
-              </button>
-            </div>
-          )}
-          <div className="flex items-baseline justify-between">
-            <span className="text-lg font-bold">
-              Set {step.set_no} of {item.targets.length}
-            </span>
-            <span className="text-[var(--slate)]">
-              Target {unitText(item, step.target)}
-              {item.per_side ? ' each side' : ''}
-            </span>
-          </div>
-          {item.per_side && value.split ? (
-            <>
-              <Counter
-                label="Left"
-                value={value.left}
-                step={stepOf(item)}
-                target={step.target}
-                onChange={(left) => change({ ...value, left })}
-              />
-              <Counter
-                label="Right"
-                value={value.right}
-                step={stepOf(item)}
-                target={step.target}
-                onChange={(right) => change({ ...value, right })}
-              />
-            </>
-          ) : (
-            <Counter
-              label={item.per_side ? 'Each side' : item.unit === 'reps' ? 'Reps' : item.unit}
-              value={value.left}
-              step={stepOf(item)}
-              target={step.target}
-              onChange={(v) => change({ ...value, left: v, right: v })}
+          {item.flow ? (
+            <FlowPlayer
+              key={position}
+              flow={item.flow}
+              busy={busy}
+              onDone={(minutes, startedAt) =>
+                confirm({ left: minutes, right: minutes, split: false }, startedAt)
+              }
             />
+          ) : (
+            <>
+              {partner && !pairStarted && (
+                <button
+                  type="button"
+                  className="min-h-11 rounded-xl border-2 border-dashed border-[var(--bell-ink)] font-bold text-[var(--bell-ink)]"
+                  onClick={swap}
+                >
+                  Do {partner.name} first
+                </button>
+              )}
+              {item.summary && <p className={card}>{item.summary}</p>}
+              {item.unit === 'seconds' && (
+                <div className={card + ' flex flex-col items-center gap-2'}>
+                  <span aria-live="polite" className="text-6xl font-extrabold">
+                    {running ? watch : value.left} s
+                  </span>
+                  <button
+                    type="button"
+                    className={primary}
+                    onClick={running ? stopWatch : startWatch}
+                  >
+                    {running ? 'Stop' : 'Start clock'}
+                  </button>
+                </div>
+              )}
+              <div className="flex items-baseline justify-between">
+                <span className="text-lg font-bold">
+                  Set {step.set_no} of {item.targets.length}
+                </span>
+                <span className="text-[var(--slate)]">
+                  Target {unitText(item, step.target)}
+                  {item.per_side ? ' each side' : ''}
+                </span>
+              </div>
+              {item.per_side && value.split ? (
+                <>
+                  <Counter
+                    label="Left"
+                    value={value.left}
+                    step={stepOf(item)}
+                    target={step.target}
+                    onChange={(left) => change({ ...value, left })}
+                  />
+                  <Counter
+                    label="Right"
+                    value={value.right}
+                    step={stepOf(item)}
+                    target={step.target}
+                    onChange={(right) => change({ ...value, right })}
+                  />
+                </>
+              ) : (
+                <Counter
+                  label={item.per_side ? 'Each side' : item.unit === 'reps' ? 'Reps' : item.unit}
+                  value={value.left}
+                  step={stepOf(item)}
+                  target={step.target}
+                  onChange={(v) => change({ ...value, left: v, right: v })}
+                />
+              )}
+              {item.per_side && (
+                <button
+                  type="button"
+                  aria-pressed={value.split}
+                  className="min-h-11 font-bold text-[var(--bell-ink)] underline"
+                  onClick={() => change({ ...value, split: !value.split, right: value.left })}
+                >
+                  {value.split ? 'Same on both sides' : 'Left and right differ'}
+                </button>
+              )}
+              <button type="button" className={primary} disabled={busy} onClick={() => confirm()}>
+                Confirm set
+              </button>
+            </>
           )}
-          {item.per_side && (
-            <button
-              type="button"
-              aria-pressed={value.split}
-              className="min-h-11 font-bold text-[var(--bell-ink)] underline"
-              onClick={() => change({ ...value, split: !value.split, right: value.left })}
-            >
-              {value.split ? 'Same on both sides' : 'Left and right differ'}
-            </button>
-          )}
-          <button type="button" className={primary} disabled={busy} onClick={confirm}>
-            Confirm set
-          </button>
         </section>
       )}
 
