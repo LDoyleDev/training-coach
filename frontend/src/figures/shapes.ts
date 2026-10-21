@@ -1,0 +1,204 @@
+/**
+ * The mannequin as SVG shapes: rounded, tapered limbs with ball joints and a faceless head, like
+ * an artist's wooden figure (ADR-0063). Shapes are in SVG units (cm, y down), so the viewBox is
+ * the exercise's view with y flipped.
+ */
+import {
+  along,
+  heading,
+  solve,
+  type ArmJoints,
+  type Joints,
+  type LegJoints,
+  type Pose,
+  type Vec,
+} from './body'
+
+export type Tone = 'near' | 'far' | 'prop' | 'bell'
+
+export type Shape =
+  | { kind: 'path'; d: string; tone: Tone }
+  | { kind: 'ball'; c: Vec; r: number; tone: Tone }
+  | { kind: 'ring'; c: Vec; r: number; width: number; tone: Tone }
+  | { kind: 'mat'; x: number; y: number; width: number; height: number }
+
+export type Part = 'armN' | 'armF' | 'legN' | 'legF' | 'torso' | 'head' | 'bell'
+
+export interface Props {
+  mat?: readonly [number, number] // from x to x, on the floor
+  chair?: { x0: number; x1: number; seat: number }
+  bell?: boolean // a kettlebell in both hands
+}
+
+/** Radii in cm: [at the first joint, at the second]. */
+const SIZE = {
+  pelvis: [12.5, 11],
+  chestLow: [11, 13.5],
+  chestHigh: [13.5, 9],
+  neck: [4.6, 4.2],
+  head: [9, 11.5],
+  upperArm: [5.2, 4],
+  forearm: [4, 3],
+  hand: [2.9, 2.3],
+  thigh: [8.2, 5.6],
+  shin: [5.4, 3.8],
+  joint: { shoulder: 6.4, elbow: 4.1, wrist: 2.9, hip: 7.6, knee: 5.4, ankle: 3.4 },
+} as const
+
+/** World (y up) to SVG (y down). */
+const svg = (p: Vec): Vec => [p[0], -p[1]]
+const n = (v: number) => Number(v.toFixed(2))
+const pt = (p: Vec) => `${n(p[0])} ${n(p[1])}`
+
+/** A tapered capsule from ``a`` (radius ``ra``) to ``b`` (radius ``rb``), as a path. */
+export function capsule(a: Vec, b: Vec, ra: number, rb: number): string {
+  const p1 = svg(a)
+  const p2 = svg(b)
+  const d = Math.hypot(p2[0] - p1[0], p2[1] - p1[1])
+  if (d <= Math.abs(ra - rb) + 0.05) {
+    const [c, r] = ra >= rb ? [p1, ra] : [p2, rb]
+    return `M ${pt([c[0] - r, c[1]])} a ${n(r)} ${n(r)} 0 1 0 ${n(2 * r)} 0 a ${n(r)} ${n(r)} 0 1 0 ${n(-2 * r)} 0 Z`
+  }
+  const th = Math.atan2(p2[1] - p1[1], p2[0] - p1[0])
+  const phi = Math.acos((ra - rb) / d)
+  const on = (c: Vec, r: number, angle: number): Vec => [
+    c[0] + r * Math.cos(angle),
+    c[1] + r * Math.sin(angle),
+  ]
+  // Around the back of the first end, along a tangent, around the far end, back along the other.
+  const big1 = phi < Math.PI / 2 ? 1 : 0
+  const big2 = phi > Math.PI / 2 ? 1 : 0
+  return [
+    `M ${pt(on(p1, ra, th + phi))}`,
+    `A ${n(ra)} ${n(ra)} 0 ${big1} 1 ${pt(on(p1, ra, th - phi))}`,
+    `L ${pt(on(p2, rb, th - phi))}`,
+    `A ${n(rb)} ${n(rb)} 0 ${big2} 1 ${pt(on(p2, rb, th + phi))}`,
+    'Z',
+  ].join(' ')
+}
+
+const polygon = (points: Vec[]) => `M ${points.map((p) => pt(svg(p))).join(' L ')} Z`
+
+const ball = (c: Vec, r: number, tone: Tone): Shape => ({ kind: 'ball', c: svg(c), r, tone })
+const limb = (a: Vec, b: Vec, [ra, rb]: readonly number[], tone: Tone): Shape => ({
+  kind: 'path',
+  d: capsule(a, b, ra, rb),
+  tone,
+})
+
+function arm(j: ArmJoints, tone: Tone): Shape[] {
+  return [
+    limb(j.shoulder, j.elbow, SIZE.upperArm, tone),
+    limb(j.wrist, j.tip, SIZE.hand, tone),
+    limb(j.elbow, j.wrist, SIZE.forearm, tone),
+    ball(j.wrist, SIZE.joint.wrist, tone),
+    ball(j.elbow, SIZE.joint.elbow, tone),
+    ball(j.shoulder, SIZE.joint.shoulder, tone),
+  ]
+}
+
+function leg(j: LegJoints, tone: Tone): Shape[] {
+  return [
+    limb(j.knee, j.ankle, SIZE.shin, tone),
+    { kind: 'path', d: polygon([j.back, j.heel, j.ball, j.tip, j.instep]), tone },
+    ball(j.ankle, SIZE.joint.ankle, tone),
+    limb(j.hip, j.knee, SIZE.thigh, tone),
+    ball(j.knee, SIZE.joint.knee, tone),
+  ]
+}
+
+/** An oval head turned along the neck, with a small nose so it's clear which way it faces. */
+function head(j: Joints, tone: Tone): Shape[] {
+  const [rx, ry] = SIZE.head
+  const { c, dir } = j.head
+  const points = Array.from({ length: 24 }, (_, i) => {
+    const a = (i / 24) * 2 * Math.PI
+    // across the face (rx) and along the neck (ry)
+    return along(along(c, dir - 90, rx * Math.cos(a)), dir, ry * Math.sin(a))
+  })
+  const nose = along(along(c, dir - 90, rx - 0.6), dir, -1.5)
+  return [
+    limb(j.neckBase, j.neckTop, SIZE.neck, tone),
+    { kind: 'path', d: smooth(points.map(svg)), tone },
+    ball(nose, 1.7, tone),
+  ]
+}
+
+/** A closed curve through ``points`` (Catmull-Rom as cubic Béziers). */
+function smooth(points: Vec[]): string {
+  const at = (i: number) => points[(i + points.length) % points.length]
+  const parts = [`M ${pt(points[0])}`]
+  for (let i = 0; i < points.length; i++) {
+    const [p0, p1, p2, p3] = [at(i - 1), at(i), at(i + 1), at(i + 2)]
+    const c1: Vec = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6]
+    const c2: Vec = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6]
+    parts.push(`C ${pt(c1)} ${pt(c2)} ${pt(p2)}`)
+  }
+  return parts.join(' ') + ' Z'
+}
+
+function torso(j: Joints, tone: Tone): Shape[] {
+  return [
+    limb(j.hip, j.waist, SIZE.pelvis, tone),
+    limb(j.midChest, j.neckBase, SIZE.chestHigh, tone),
+    limb(j.waist, j.midChest, SIZE.chestLow, tone),
+    ball(j.hip, SIZE.joint.hip, tone),
+  ]
+}
+
+/** A kettlebell held in both hands, hanging along the forearms. */
+function bell(j: Joints): Shape[] {
+  const w: Vec = [(j.armN.wrist[0] + j.armF.wrist[0]) / 2, (j.armN.wrist[1] + j.armF.wrist[1]) / 2]
+  const dir = heading(j.armN.elbow, j.armN.wrist)
+  return [
+    { kind: 'ring', c: svg(along(w, dir, 3.5)), r: 4.6, width: 2.2, tone: 'bell' },
+    ball(along(w, dir, 13), 8.6, 'bell'),
+  ]
+}
+
+function chair({ x0, x1, seat }: NonNullable<Props['chair']>): Shape[] {
+  const rect = (a: number, b: number, c: number, d: number): Shape => ({
+    kind: 'path',
+    d: polygon([
+      [a, b],
+      [c, b],
+      [c, d],
+      [a, d],
+    ]),
+    tone: 'prop',
+  })
+  return [
+    rect(x0 + 1, 0, x0 + 4, seat - 4),
+    rect(x1 - 4, 0, x1 - 1, seat - 4),
+    rect(x0, seat - 4, x1, seat),
+    rect(x0, seat, x0 + 3.5, seat + 44),
+    rect(x0 - 0.5, seat + 36, x0 + 4, seat + 46),
+  ]
+}
+
+export const ORDER: readonly Part[] = ['armF', 'legF', 'torso', 'head', 'legN', 'armN']
+
+/** Everything to draw for ``pose``, back to front. */
+export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = ORDER): Shape[] {
+  const j = solve(pose)
+  const out: Shape[] = []
+  if (props.mat)
+    out.push({
+      kind: 'mat',
+      x: props.mat[0],
+      y: -1.2,
+      width: props.mat[1] - props.mat[0],
+      height: 1.2,
+    })
+  if (props.chair) out.push(...chair(props.chair))
+  for (const part of order) {
+    if (part === 'armF') out.push(...arm(j.armF, 'far'))
+    else if (part === 'armN') out.push(...arm(j.armN, 'near'))
+    else if (part === 'legF') out.push(...leg(j.legF, 'far'))
+    else if (part === 'legN') out.push(...leg(j.legN, 'near'))
+    else if (part === 'torso') out.push(...torso(j, 'near'))
+    else if (part === 'head') out.push(...head(j, 'near'))
+    else if (props.bell) out.push(...bell(j))
+  }
+  return out
+}
