@@ -68,6 +68,8 @@ test('one movement at a time: countdown, cues, then the next starts by itself', 
   start()
   expect(unlockAudio).toHaveBeenCalled()
   expect(screen.getByRole('heading', { name: 'Glute bridge' })).toBeInTheDocument()
+  expect(screen.getByRole('img', { name: /^Glute bridge, moving from/ })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Start and end' })).toBeInTheDocument()
   expect(screen.getByText('1 of 2')).toBeInTheDocument()
   expect(timer()).toBe('1:00')
   expect(screen.getByText('Glute bridge cue')).toBeInTheDocument()
@@ -84,6 +86,7 @@ test('one movement at a time: countdown, cues, then the next starts by itself', 
   expect(vibrate).toHaveBeenCalledWith(400)
   expect(screen.getByRole('heading', { name: 'Kneeling lunge' })).toBeInTheDocument()
   expect(screen.getByText('First side')).toBeInTheDocument()
+  expect(screen.queryByRole('img')).not.toBeInTheDocument() // no figure for this slug
   expect(timer()).toBe('0:45')
 })
 
