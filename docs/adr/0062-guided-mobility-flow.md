@@ -85,8 +85,8 @@ actually spent moving (paused and skipped time left out), with the set's `starte
 - The guided session shows a flow player for the mobility item (a following PR); the bot
   still shows the summary.
 - A setting for the sound needs a column and a migration (a following PR).
-- The player shows each movement's mannequin moving from its start to its end, keyed by slug
-  (ADR-0063).
+- Each movement needs a start and end picture (the mannequin work); the player leaves a place
+  for it, keyed by slug.
 - Changing the flow is a plan edit with a review, like any other plan change.
 - Sources: Behm et al. 2016; Opplert and Babault 2018 (PubMed 29063454); ACSM (Garber et al.
   2011); Gonzalez-de-la-Flor et al. 2024 (BMC Musculoskeletal Disorders); Winters et al. 2004;
