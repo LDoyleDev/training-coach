@@ -252,7 +252,25 @@ def test_overview_shows_last_session_best_and_readiness(plan: Session) -> None:
     assert by_name["Pull-up"].status is Progress.READY
     dip = by_name["Dip (chairs)"]
     assert (dip.last, dip.best_set, dip.status) == ((10, 10, 10), 15, Progress.HOLD)
-    assert dip.recent == (10, 15)  # best set per session, newest first
+    assert dip.trend == ()  # only with today's date
+
+
+def test_the_trend_is_six_weeks_of_best_sets_across_steps(plan: Session) -> None:
+    on = DAY + timedelta(days=50)  # six weeks back reaches day 9
+    start = _step(plan, "dip")
+    harder = next(
+        s
+        for s in sorted(start.exercise.ladder, key=lambda s: s.position)
+        if s.position > start.position
+    )
+    _log(plan, "dip", [20], 8)  # a day before the window
+    _log(plan, "dip", [10, 12], 9)
+    _log(plan, "dip", [6], 20, step=harder)
+    dip = next(s for s in overview(plan, on) if s.exercise == "Dip (chairs)")
+    assert [(p.day, p.best, p.step_number) for p in dip.trend] == [
+        (DAY + timedelta(days=9), 12, start.position + 1),
+        (DAY + timedelta(days=20), 6, harder.position + 1),  # moved up: fewer reps, harder step
+    ]
 
 
 def test_overview_reports_the_top_of_the_ladder(plan: Session) -> None:

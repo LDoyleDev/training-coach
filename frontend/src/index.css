@@ -28,6 +28,25 @@
   --hiit-set-rest-ink: #f2f6fa;
   --hiit-cool-down: #5b5f97;
   --hiit-cool-down-ink: #f5f5fb;
+  /* Exercise figures (ADR-0063): the mannequin's near and far side, props, a kettlebell */
+  --fig-near-lit: #eef1f4;
+  --fig-near-base: #b6c0ca;
+  --fig-near-dark: #7f8b98;
+  --fig-near-line: #56616c;
+  --fig-far-lit: #c9d0d7;
+  --fig-far-base: #939eaa;
+  --fig-far-dark: #66727e;
+  --fig-far-line: #4a5560;
+  --fig-prop-lit: #e6dccd;
+  --fig-prop-base: #cbbca5;
+  --fig-prop-dark: #a8977d;
+  --fig-prop-line: #85745c;
+  --fig-bell-lit: #7a8085;
+  --fig-bell-base: #464b4f;
+  --fig-bell-dark: #26292c;
+  --fig-bell-line: #1b1d1f;
+  --fig-mat: #c6d8ce;
+  --fig-floor: #98a29c;
   --font: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
   color-scheme: light;
 }
@@ -53,6 +72,24 @@
     --hiit-set-rest-ink: #1b2024;
     --hiit-cool-down: #b0b3e6;
     --hiit-cool-down-ink: #1b2024;
+    --fig-near-lit: #e9eef2;
+    --fig-near-base: #aab5c0;
+    --fig-near-dark: #748090;
+    --fig-near-line: #2b3238;
+    --fig-far-lit: #a2adb8;
+    --fig-far-base: #77838f;
+    --fig-far-dark: #525d69;
+    --fig-far-line: #262c32;
+    --fig-prop-lit: #85796a;
+    --fig-prop-base: #665c4f;
+    --fig-prop-dark: #4a4239;
+    --fig-prop-line: #2f2a24;
+    --fig-bell-lit: #a3a9ae;
+    --fig-bell-base: #676d72;
+    --fig-bell-dark: #3c4145;
+    --fig-bell-line: #1f2224;
+    --fig-mat: #284339;
+    --fig-floor: #4b5550;
     color-scheme: dark;
   }
 }

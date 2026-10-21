@@ -66,3 +66,5 @@ Code). Template: [template.md](template.md).
 | [0059](0059-invites-and-members.md) | Invite-only members, behind a switch that is off by default | Accepted |
 | [0060](0060-log-any-day-and-ask-before-overwriting.md) | Log any day, any session, and ask before a day gets two | Accepted |
 | [0061](0061-time-guided-sessions.md) | Time each set of a guided session | Accepted |
+| [0062](0062-guided-mobility-flow.md) | Guide the mobility flow one movement at a time | Accepted |
+| [0063](0063-mannequin-exercise-figures.md) | Exercise pictures are mannequins we draw from two poses | Accepted |

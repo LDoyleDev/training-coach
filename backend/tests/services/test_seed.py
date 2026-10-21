@@ -730,3 +730,69 @@ def test_the_bundled_zone_2_target_is_huberman_s_180_to_200() -> None:
     targets = load_plan().targets
     assert targets is not None
     assert targets.zone2_minutes == (180, 200)
+
+
+# ------------------------------------------------------------- mobility flow (ADR-0062)
+
+FLOW = """
+[mobility]
+exercise = "EXERCISE"
+safety = "Stop if it hurts."
+
+[[mobility.moves]]
+slug = "cat-cow"
+name = "Cat-cow"
+seconds = SECONDS
+target = "Spine"
+start = "All fours, back rounded."
+end = "All fours, back arched."
+cues = ["Slowly."]
+breathing = "Out as you round."
+easier = "Smaller."
+pacing = "Slow reps."
+"""
+
+
+def _flow(exercise: str = "walk", seconds: int = 60) -> str:
+    walk = """
+[[exercises]]
+slug = "walk"
+name = "Walk"
+kind = "duration_min"
+start = 0
+ladder = ["Easy"]
+"""
+    return MINI_PLAN + walk + FLOW.replace("EXERCISE", exercise).replace("SECONDS", str(seconds))
+
+
+def test_the_mobility_flow_is_logged_as_an_exercise_in_minutes() -> None:
+    flow = load_plan(_flow()).mobility
+    assert flow is not None
+    assert (flow.exercise, flow.flow().seconds) == ("walk", 60)
+    with pytest.raises(ValidationError, match="must be an exercise counted in minutes"):
+        load_plan(_flow("pull-up"))
+    with pytest.raises(ValidationError, match="must be an exercise counted in minutes"):
+        load_plan(_flow("nothing"))
+    with pytest.raises(ValidationError, match="must last whole minutes, not 45 s"):
+        load_plan(_flow(seconds=45))
+
+
+def test_a_flow_movement_is_named_once() -> None:
+    again = FLOW[FLOW.index("[[mobility.moves]]") :].replace("SECONDS", "60")
+    twice = _flow() + again
+    with pytest.raises(ValidationError, match="duplicate flow movement slug"):
+        load_plan(twice)
+
+
+def test_the_bundled_flow_is_ten_minutes_standing_to_lying() -> None:
+    flow = load_plan().mobility
+    assert flow is not None
+    found = flow.flow()
+    assert found.seconds == 600
+    assert len(found.moves) == 8
+    assert [m.slug for m in found.moves if m.per_side] == [
+        "half-kneeling-hip-flexor",
+        "kneeling-lunge-rotation",
+        "quadruped-t-spine-rotation",
+        "hamstring-floss",
+    ]

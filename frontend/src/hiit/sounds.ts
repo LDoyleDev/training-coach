@@ -1,5 +1,5 @@
 /**
- * The HIIT timer's sounds, synthesised with the Web Audio API: no audio files, no dependencies.
+ * The timers' sounds (HIIT, and the mobility flow's chosen sound, ADR-0062), synthesised with the Web Audio API: no audio files, no dependencies.
  * Every sound fades in and out (no clicks). Browsers only allow audio after a user gesture, so
  * `unlockAudio()` must be called from one (the Start button). Without Web Audio (jsdom, very old
  * browsers) every function does nothing.
@@ -80,6 +80,55 @@ export function playFinished(): void {
   bell(659, 0.45, 0.8, 0)
   bell(784, 0.45, 0.8, 0.18)
   bell(1047, 0.5, 1.8, 0.36)
+}
+
+/** What a guided timer plays at each change; the person picks one in Settings (ADR-0062). */
+export type Sound = 'chime' | 'beep' | 'wood' | 'bell' | 'none'
+export type Change = 'count' | 'switch' | 'next' | 'finish'
+
+/** A woodblock knock: a bright click with a quick body. */
+function knock(freq: number, delay = 0): void {
+  partial(freq, 0.6, 0.06, delay, 0.002)
+  partial(freq * 2.4, 0.25, 0.03, delay, 0.002)
+}
+
+/** Each sound's voice for a count, a side switch, the next movement and the end. */
+const VOICES: Record<Exclude<Sound, 'none'>, Record<Change, () => void>> = {
+  chime: {
+    count: () => partial(1047, 0.25, 0.3, 0, 0.01),
+    switch: () => {
+      partial(659, 0.35, 0.9, 0, 0.03)
+      partial(988, 0.2, 0.7, 0.12, 0.03)
+    },
+    next: () => playBell('rest'),
+    finish: () => [523, 659, 784].forEach((f, i) => partial(f, 0.35, 1.2, i * 0.18, 0.03)),
+  },
+  beep: {
+    count: () => playBeep(),
+    switch: () => [0, 0.2].forEach((d) => partial(988, 0.5, 0.12, d, 0.01)),
+    next: () => partial(1175, 0.5, 0.35, 0, 0.01),
+    finish: () => [880, 1047, 1319].forEach((f, i) => partial(f, 0.5, 0.2, i * 0.18, 0.01)),
+  },
+  wood: {
+    count: () => knock(1400),
+    switch: () => [0, 0.15].forEach((d) => knock(1000, d)),
+    next: () => {
+      knock(700)
+      knock(1050, 0.12)
+    },
+    finish: () => [700, 900, 1200].forEach((f, i) => knock(f, i * 0.15)),
+  },
+  bell: {
+    count: () => playBeep(),
+    switch: () => bell(659, 0.5, 1.0),
+    next: () => playBell('work'),
+    finish: () => playFinished(),
+  },
+}
+
+/** Play `change` in the chosen sound; 'none' plays nothing. */
+export function playChange(sound: Sound, change: Change): void {
+  if (sound !== 'none') VOICES[sound][change]()
 }
 
 type Speech = {

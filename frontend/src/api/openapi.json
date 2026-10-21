@@ -945,6 +945,32 @@
         "title": "ExerciseView",
         "type": "object"
       },
+      "FlowView": {
+        "properties": {
+          "moves": {
+            "items": {
+              "$ref": "#/components/schemas/MoveView"
+            },
+            "title": "Moves",
+            "type": "array"
+          },
+          "safety": {
+            "title": "Safety",
+            "type": "string"
+          },
+          "seconds": {
+            "title": "Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seconds",
+          "safety",
+          "moves"
+        ],
+        "title": "FlowView",
+        "type": "object"
+      },
       "GoTo": {
         "properties": {
           "redirect": {
@@ -1583,6 +1609,16 @@
             ],
             "title": "Cue"
           },
+          "flow": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FlowView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -2206,6 +2242,73 @@
         "title": "MeasurementView",
         "type": "object"
       },
+      "MoveView": {
+        "description": "One movement of the guided mobility flow (ADR-0062).",
+        "properties": {
+          "breathing": {
+            "title": "Breathing",
+            "type": "string"
+          },
+          "cues": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cues",
+            "type": "array"
+          },
+          "easier": {
+            "title": "Easier",
+            "type": "string"
+          },
+          "end": {
+            "title": "End",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pacing": {
+            "title": "Pacing",
+            "type": "string"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "seconds": {
+            "title": "Seconds",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "start": {
+            "title": "Start",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "seconds",
+          "per_side",
+          "target",
+          "start",
+          "end",
+          "cues",
+          "breathing",
+          "easier",
+          "pacing"
+        ],
+        "title": "MoveView",
+        "type": "object"
+      },
       "NewSecret": {
         "properties": {
           "created_at": {
@@ -2576,6 +2679,30 @@
           "target"
         ],
         "title": "PlannedView",
+        "type": "object"
+      },
+      "PointView": {
+        "properties": {
+          "best": {
+            "title": "Best",
+            "type": "integer"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "step_number": {
+            "title": "Step Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "best",
+          "step_number"
+        ],
+        "title": "PointView",
         "type": "object"
       },
       "ProgressView": {
@@ -3639,6 +3766,16 @@
               }
             ],
             "title": "Review Time"
+          },
+          "sound": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sound"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "title": "SettingsChange",
@@ -3695,6 +3832,9 @@
             "title": "Review Time",
             "type": "string"
           },
+          "sound": {
+            "$ref": "#/components/schemas/Sound"
+          },
           "timezone": {
             "title": "Timezone",
             "type": "string"
@@ -3709,6 +3849,7 @@
           "protein_g",
           "blocks_since",
           "pace",
+          "sound",
           "paused",
           "timezone"
         ],
@@ -3757,6 +3898,18 @@
         "title": "Soreness",
         "type": "string"
       },
+      "Sound": {
+        "description": "What a guided timer plays at each change (ADR-0062). A per-person setting.",
+        "enum": [
+          "chime",
+          "beep",
+          "wood",
+          "bell",
+          "none"
+        ],
+        "title": "Sound",
+        "type": "string"
+      },
       "StandingView": {
         "properties": {
           "best_set": {
@@ -3779,13 +3932,6 @@
               "type": "integer"
             },
             "title": "Last",
-            "type": "array"
-          },
-          "recent": {
-            "items": {
-              "type": "integer"
-            },
-            "title": "Recent",
             "type": "array"
           },
           "retired": {
@@ -3813,6 +3959,13 @@
             "title": "Steps",
             "type": "integer"
           },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/PointView"
+            },
+            "title": "Trend",
+            "type": "array"
+          },
           "unit": {
             "enum": [
               "reps",
@@ -3833,9 +3986,31 @@
           "best_set",
           "status",
           "retired",
-          "recent"
+          "trend"
         ],
         "title": "StandingView",
+        "type": "object"
+      },
+      "StandingsView": {
+        "properties": {
+          "standings": {
+            "items": {
+              "$ref": "#/components/schemas/StandingView"
+            },
+            "title": "Standings",
+            "type": "array"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          }
+        },
+        "required": [
+          "today",
+          "standings"
+        ],
+        "title": "StandingsView",
         "type": "object"
       },
       "StretchBody": {
@@ -6322,11 +6497,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/StandingView"
-                  },
-                  "title": "Response Standings Api Progress Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/StandingsView"
                 }
               }
             },

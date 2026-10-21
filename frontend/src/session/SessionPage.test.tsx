@@ -748,3 +748,57 @@ test('an untimed save says nothing about time', async () => {
   expect(await screen.findByRole('heading', { name: 'Legs done' })).toBeInTheDocument()
   expect(screen.queryByText(/^Took /)).not.toBeInTheDocument()
 })
+
+test('the mobility item plays its flow and logs the minutes moved as its set', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  vi.setSystemTime(new Date('2026-10-20T16:00:00Z'))
+  const move = {
+    slug: 'cat-cow',
+    name: 'Cat-cow',
+    seconds: 60,
+    per_side: false,
+    target: 'The whole spine',
+    start: 'All fours, back rounded.',
+    end: 'All fours, back arched.',
+    cues: ['Move slowly.'],
+    breathing: 'Out as you round.',
+    easier: 'Move less far.',
+    pacing: 'Slow reps.',
+  }
+  const recovery: Guided = {
+    ...SESSION,
+    name: 'Recovery + posture',
+    kind: 'recovery',
+    warm_up: false,
+    items: [
+      {
+        slug: 'mobility',
+        name: 'Mobility flow',
+        step: 'Guided 10 min',
+        summary: 'Eight slow movements.',
+        cue: null,
+        unit: 'minutes',
+        per_side: false,
+        pair: null,
+        targets: [10],
+        baseline: false,
+        flow: { seconds: 120, safety: 'If something hurts, stop.', moves: [move, move] },
+      },
+    ],
+    order: [{ item: 0, set_no: 1, target: 10 }],
+  }
+  const sent = serve({ today: { session: recovery, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.queryByRole('button', { name: 'Confirm set' })).not.toBeInTheDocument()
+  const started = Date.now()
+  click('Start the flow')
+  expect(screen.getByRole('heading', { name: 'Cat-cow' })).toBeInTheDocument()
+  act(() => vi.advanceTimersByTime(121_000))
+  click('Log 2 min')
+  await screen.findByRole('heading', { name: 'Check and save' })
+  const [kept] = (sent['PUT /api/session/progress'] ?? []) as { sets: Done[] }[]
+  expect(kept.sets).toHaveLength(1)
+  expect(kept.sets[0]).toMatchObject({ item: 0, set_no: 1, left: 2, right: null })
+  expect(Date.parse(kept.sets[0].started_at ?? '')).toBe(started)
+})

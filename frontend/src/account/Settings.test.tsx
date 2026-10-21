@@ -1,7 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { MessageSettings } from '../api'
+import { playChange } from '../hiit/sounds'
 import Settings from './Settings'
+
+vi.mock('../hiit/sounds', () => ({ unlockAudio: vi.fn(), playChange: vi.fn() }))
 
 const PREFS: MessageSettings = {
   morning_time: '07:30',
@@ -12,6 +15,7 @@ const PREFS: MessageSettings = {
   protein_g: null,
   blocks_since: null,
   pace: 'standard',
+  sound: 'chime',
   paused: false,
   timezone: 'Europe/Berlin',
 }
@@ -148,4 +152,26 @@ test('stays hidden when it cannot load', async () => {
   const { container } = render(<Settings />)
   await Promise.resolve()
   expect(container).toBeEmptyDOMElement()
+})
+
+test('the timer sound is one of five, played when tapped, and saved', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const sent = serve()
+  render(<Settings />)
+  expect(await screen.findByRole('button', { name: 'Chime' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  fireEvent.click(button('Wood block'))
+  expect(playChange).toHaveBeenCalledWith('wood', 'switch')
+  vi.advanceTimersByTime(1000)
+  expect(playChange).toHaveBeenCalledWith('wood', 'next')
+  expect(await screen.findByText('Timer sound: wood block.')).toBeInTheDocument()
+  expect(button('Wood block')).toHaveAttribute('aria-pressed', 'true')
+  vi.mocked(playChange).mockClear()
+  fireEvent.click(button('No sound'))
+  expect(playChange).not.toHaveBeenCalled()
+  await screen.findByText('Timer sound: no sound.')
+  expect(sent).toEqual([{ sound: 'wood' }, { sound: 'none' }])
+  vi.useRealTimers()
 })

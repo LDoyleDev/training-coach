@@ -1866,6 +1866,15 @@ export interface components {
             /** Start Step */
             start_step: number;
         };
+        /** FlowView */
+        FlowView: {
+            /** Moves */
+            moves: components["schemas"]["MoveView"][];
+            /** Safety */
+            safety: string;
+            /** Seconds */
+            seconds: number;
+        };
         /** GoTo */
         GoTo: {
             /** Redirect */
@@ -2058,6 +2067,7 @@ export interface components {
             baseline: boolean;
             /** Cue */
             cue: string | null;
+            flow?: components["schemas"]["FlowView"] | null;
             /** Name */
             name: string;
             /** Pair */
@@ -2266,6 +2276,34 @@ export interface components {
             /** Value */
             value: number;
         };
+        /**
+         * MoveView
+         * @description One movement of the guided mobility flow (ADR-0062).
+         */
+        MoveView: {
+            /** Breathing */
+            breathing: string;
+            /** Cues */
+            cues: string[];
+            /** Easier */
+            easier: string;
+            /** End */
+            end: string;
+            /** Name */
+            name: string;
+            /** Pacing */
+            pacing: string;
+            /** Per Side */
+            per_side: boolean;
+            /** Seconds */
+            seconds: number;
+            /** Slug */
+            slug: string;
+            /** Start */
+            start: string;
+            /** Target */
+            target: string;
+        };
         /** NewSecret */
         NewSecret: {
             /** Created At */
@@ -2409,6 +2447,18 @@ export interface components {
             session: string;
             /** Target */
             target: number;
+        };
+        /** PointView */
+        PointView: {
+            /** Best */
+            best: number;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Step Number */
+            step_number: number;
         };
         /** ProgressView */
         ProgressView: {
@@ -2762,6 +2812,7 @@ export interface components {
             protein_g?: number | null;
             /** Review Time */
             review_time?: string | null;
+            sound?: components["schemas"]["Sound"] | null;
         };
         /** SettingsView */
         SettingsView: {
@@ -2782,6 +2833,7 @@ export interface components {
             protein_g: number | null;
             /** Review Time */
             review_time: string;
+            sound: components["schemas"]["Sound"];
             /** Timezone */
             timezone: string;
         };
@@ -2802,6 +2854,12 @@ export interface components {
          * @enum {string}
          */
         Soreness: "none" | "some" | "a_lot";
+        /**
+         * Sound
+         * @description What a guided timer plays at each change (ADR-0062). A per-person setting.
+         * @enum {string}
+         */
+        Sound: "chime" | "beep" | "wood" | "bell" | "none";
         /** StandingView */
         StandingView: {
             /** Best Set */
@@ -2810,8 +2868,6 @@ export interface components {
             exercise: string;
             /** Last */
             last: number[];
-            /** Recent */
-            recent: number[];
             /** Retired */
             retired: boolean;
             /**
@@ -2825,11 +2881,23 @@ export interface components {
             step_number: number;
             /** Steps */
             steps: number;
+            /** Trend */
+            trend: components["schemas"]["PointView"][];
             /**
              * Unit
              * @enum {string}
              */
             unit: "reps" | "seconds" | "minutes";
+        };
+        /** StandingsView */
+        StandingsView: {
+            /** Standings */
+            standings: components["schemas"]["StandingView"][];
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
         };
         /** StretchBody */
         StretchBody: {
@@ -4587,7 +4655,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StandingView"][];
+                    "application/json": components["schemas"]["StandingsView"];
                 };
             };
         };

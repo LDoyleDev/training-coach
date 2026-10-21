@@ -42,3 +42,13 @@ class CardioActivity(StrEnum):
     ROW = "row"
     STAIRS = "stairs"
     OTHER = "other"
+
+
+class Sound(StrEnum):
+    """What a guided timer plays at each change (ADR-0062). A per-person setting."""
+
+    CHIME = "chime"
+    BEEP = "beep"
+    WOOD = "wood"
+    BELL = "bell"
+    NONE = "none"

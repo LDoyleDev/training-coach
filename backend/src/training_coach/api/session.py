@@ -13,6 +13,7 @@ from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.daily_check import summary as daily_summary
 from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.mobility_flow import Flow
 from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import HARD_SESSIONS
 from training_coach.domain.readiness import note as readiness_note
@@ -21,6 +22,7 @@ from training_coach.domain.stretching import HOLD_SECONDS
 from training_coach.services import (
     daily_check,
     guided,
+    mobility_flow,
     queue_actions,
     readiness,
     retests,
@@ -51,6 +53,53 @@ UNITS: dict[ExerciseKind, Literal["reps", "seconds", "minutes"]] = {
 }
 
 
+class MoveView(BaseModel):
+    """One movement of the guided mobility flow (ADR-0062)."""
+
+    slug: str  # also names its picture
+    name: str
+    seconds: int  # per side when per_side
+    per_side: bool
+    target: str
+    start: str
+    end: str
+    cues: list[str]
+    breathing: str
+    easier: str
+    pacing: str
+
+
+class FlowView(BaseModel):
+    seconds: int  # the whole flow, both sides counted
+    safety: str
+    moves: list[MoveView]
+
+
+def flow_view(flow: Flow | None) -> FlowView | None:
+    if flow is None:
+        return None
+    return FlowView(
+        seconds=flow.seconds,
+        safety=flow.safety,
+        moves=[
+            MoveView(
+                slug=m.slug,
+                name=m.name,
+                seconds=m.seconds,
+                per_side=m.per_side,
+                target=m.target,
+                start=m.start,
+                end=m.end,
+                cues=list(m.cues),
+                breathing=m.breathing,
+                easier=m.easier,
+                pacing=m.pacing,
+            )
+            for m in flow.moves
+        ],
+    )
+
+
 class ItemView(BaseModel):
     slug: str
     name: str
@@ -62,6 +111,7 @@ class ItemView(BaseModel):
     pair: int | None
     targets: list[int]
     baseline: bool  # first session at this step (ADR-0034)
+    flow: FlowView | None = None  # guided one movement at a time (ADR-0062)
 
 
 class SetView(BaseModel):
@@ -272,6 +322,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                     pair=i.pair,
                     targets=list(i.targets),
                     baseline=i.baseline,
+                    flow=flow_view(mobility_flow.flow_for(i.slug)),
                 )
                 for i in plan.items
             ],
