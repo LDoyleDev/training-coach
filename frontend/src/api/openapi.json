@@ -2578,6 +2578,30 @@
         "title": "PlannedView",
         "type": "object"
       },
+      "PointView": {
+        "properties": {
+          "best": {
+            "title": "Best",
+            "type": "integer"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "step_number": {
+            "title": "Step Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "best",
+          "step_number"
+        ],
+        "title": "PointView",
+        "type": "object"
+      },
       "ProgressView": {
         "properties": {
           "first": {
@@ -3781,13 +3805,6 @@
             "title": "Last",
             "type": "array"
           },
-          "recent": {
-            "items": {
-              "type": "integer"
-            },
-            "title": "Recent",
-            "type": "array"
-          },
           "retired": {
             "title": "Retired",
             "type": "boolean"
@@ -3813,6 +3830,13 @@
             "title": "Steps",
             "type": "integer"
           },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/PointView"
+            },
+            "title": "Trend",
+            "type": "array"
+          },
           "unit": {
             "enum": [
               "reps",
@@ -3833,9 +3857,31 @@
           "best_set",
           "status",
           "retired",
-          "recent"
+          "trend"
         ],
         "title": "StandingView",
+        "type": "object"
+      },
+      "StandingsView": {
+        "properties": {
+          "standings": {
+            "items": {
+              "$ref": "#/components/schemas/StandingView"
+            },
+            "title": "Standings",
+            "type": "array"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          }
+        },
+        "required": [
+          "today",
+          "standings"
+        ],
+        "title": "StandingsView",
         "type": "object"
       },
       "StretchBody": {
@@ -6322,11 +6368,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/StandingView"
-                  },
-                  "title": "Response Standings Api Progress Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/StandingsView"
                 }
               }
             },

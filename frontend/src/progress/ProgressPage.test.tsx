@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Standing } from '../api'
+import { chart } from './chart'
 import { amount, trend } from './logic'
 import ProgressPage from './ProgressPage'
 
@@ -16,7 +17,7 @@ const make = (over: Partial<Standing>): Standing => ({
   best_set: null,
   status: 'hold',
   retired: false,
-  recent: [],
+  trend: [],
   ...over,
 })
 
@@ -27,7 +28,7 @@ function serve(answer: Standing[] | 401 | 500) {
       if (path === '/api/progress/times') return Response.json([]) // SessionTimes' own tests
       return typeof answer === 'number'
         ? new Response(null, { status: answer })
-        : Response.json(answer)
+        : Response.json({ today: '2026-10-21', standings: answer })
     }),
   )
 }
@@ -36,8 +37,23 @@ afterEach(() => vi.unstubAllGlobals())
 
 test('each exercise shows its step, last session, best and status', async () => {
   serve([
-    make({ last: [9, 8, 7], best_set: 10, status: 'ready', recent: [9, 10, 7] }),
-    make({ exercise: 'Dead hang', unit: 'seconds', last: [45], best_set: 45, recent: [45] }),
+    make({
+      last: [9, 8, 7],
+      best_set: 10,
+      status: 'ready',
+      trend: [
+        { day: '2026-10-01', best: 12, step_number: 1 },
+        { day: '2026-10-08', best: 7, step_number: 2 },
+        { day: '2026-10-15', best: 9, step_number: 2 },
+      ],
+    }),
+    make({
+      exercise: 'Dead hang',
+      unit: 'seconds',
+      last: [45],
+      best_set: 45,
+      trend: [{ day: '2026-10-15', best: 45, step_number: 1 }],
+    }),
     make({ exercise: 'Zone 2', unit: 'minutes', status: 'top_of_ladder' }),
     make({ exercise: 'Goblet squat', retired: true, last: [16], best_set: 16 }),
   ])
@@ -50,9 +66,14 @@ test('each exercise shows its step, last session, best and status', async () => 
   expect(screen.getByText('Top of the ladder')).toBeInTheDocument()
   expect(screen.getByText('(retired)')).toBeInTheDocument()
   expect(screen.getAllByText('Strict · step 2 of 4')).toHaveLength(4)
-  // A trend needs two sessions or more.
-  expect(screen.getAllByRole('img')).toHaveLength(1)
-  expect(screen.getByRole('img', { name: 'Best set, last 3 sessions' })).toBeInTheDocument()
+  const pull = screen.getByRole('img', { name: /from 12 to 9, moved up to step 2$/ })
+  expect(pull).toHaveAccessibleName(
+    'Best set per session, last 6 weeks: 3 sessions, from 12 to 9, moved up to step 2',
+  )
+  expect(pull).toHaveTextContent('Step 2') // the move up, marked
+  expect(pull).toHaveTextContent('Today')
+  expect(screen.getByRole('img', { name: /1 session, from 45 s to 45 s$/ })).toBeInTheDocument()
+  expect(screen.getAllByText('No sessions in the last 6 weeks.')).toHaveLength(2)
 })
 
 test('the trend runs oldest to newest and fits the box', () => {
@@ -60,6 +81,38 @@ test('the trend runs oldest to newest and fits the box', () => {
   expect(trend([7, 7])).toBe('0.0,30.0 120.0,30.0') // flat
   expect(trend([7])).toBe('')
   expect(amount(make({ unit: 'minutes' }), 45)).toBe('45 min')
+})
+
+test('the graph puts sessions on their dates over six weeks, best set up the side', () => {
+  const today = new Date(2026, 9, 21)
+  const found = chart(
+    [
+      { day: '2026-09-10', best: 8, step_number: 1 }, // the window's first day
+      { day: '2026-10-21', best: 12, step_number: 1 }, // today
+    ],
+    today,
+  )
+  expect(found).not.toBeNull()
+  const [first, last] = found!.dots
+  expect([first.x, first.y]).toEqual([34, 78]) // left edge, bottom: the lowest
+  expect([last.x, last.y]).toEqual([292, 14]) // right edge, top: the highest
+  expect([found!.low, found!.high]).toEqual([8, 12])
+  expect(found!.start).toEqual(new Date(2026, 8, 10)) // 42 days, today included
+  expect(found!.weeks).toHaveLength(7) // six weeks of gridlines, both ends
+  expect(found!.moves).toEqual([])
+  expect(chart([], today)).toBeNull()
+  // Two sessions on one day share an x, the better one higher.
+  const twice = chart(
+    [
+      { day: '2026-10-20', best: 6, step_number: 1 },
+      { day: '2026-10-20', best: 9, step_number: 1 },
+    ],
+    today,
+  )!.dots
+  expect(twice[0].x).toBe(twice[1].x)
+  expect(twice[1].y).toBeLessThan(twice[0].y)
+  // One value sits in the middle rather than on the floor.
+  expect(chart([{ day: '2026-10-20', best: 5, step_number: 1 }], today)!.dots[0].y).toBe(46)
 })
 
 test('signed out, or the server down', async () => {
