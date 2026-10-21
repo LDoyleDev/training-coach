@@ -378,7 +378,7 @@ ladder = ["5 s hold", "10 s hold", "Lying, head lifted 1 cm, 10 s hold"]
 [[exercises]]
 slug = "mobility"
 name = "Mobility flow (hip flexors, thoracic spine, hamstrings)"
-summary = "A slow flow through hip-flexor, thoracic-spine and hamstring stretches. Move gently and breathe; nothing should hurt."
+summary = "Eight slow movements in 10 minutes, standing to lying, for the upper back, hips and hamstrings. The app times each one. Move gently and breathe; nothing should hurt."
 kind = "duration_min"
 muscle_groups = ["mobility"]
 aliases = ["mobility", "stretch", "stretching"]
@@ -637,3 +637,113 @@ name = "Sphinx stretch"
 muscles = ["core", "hip flexors"]
 per_side = false
 cue = "On your front, up on your forearms, hips on the floor. Relax the glutes and breathe."
+
+# ------------------------------------------------------------- mobility flow (ADR-0062)
+# The Recovery day's 10 minutes, guided one movement at a time. Standing, then kneeling, then
+# all fours, then lying: three position changes. Slow controlled reps with short holds at the
+# end of the range; `seconds` is per side for one-sided moves. Move often, feel looser: this is
+# not about fixing posture. Logged as the `mobility` exercise, in minutes.
+
+[mobility]
+exercise = "mobility"
+safety = "If something hurts, use the easier option or skip it. See a physio if pain persists."
+
+[[mobility.moves]]
+slug = "y-reach"
+name = "Standing Y-reach"
+seconds = 60
+target = "Upper back and shoulders, warming up"
+start = "Standing tall, feet hip-width apart, arms relaxed at your sides."
+end = "Arms overhead in a Y, thumbs back, chest lifted, ribs down, eyes forward."
+cues = ["Reach long and lift your chest.", "Keep your lower back still."]
+breathing = "In as you reach up, out as you lower."
+easier = "Raise your arms only to shoulder height, or sit on a chair."
+pacing = "Slow reps of about 4-5 s, with a 1-2 s pause at the top."
+
+[[mobility.moves]]
+slug = "hip-hinge"
+name = "Hip hinge (bodyweight good morning)"
+seconds = 60
+target = "Hamstrings and the back of the hips"
+start = "Standing tall, feet hip-width apart, knees soft, hands on your hips."
+end = "Hips pushed back, chest tipped forward about 45 degrees, back flat, shins near vertical."
+cues = ["Push your hips back as if closing a door with your bum.", "Stop at a gentle stretch behind your thighs."]
+breathing = "In going down, out as you stand up."
+easier = "Bend your knees more and go less far, hands on a chair back."
+pacing = "Slow reps of about 4-5 s, with a 1-2 s pause at the bottom."
+
+[[mobility.moves]]
+slug = "half-kneeling-hip-flexor"
+name = "Half-kneeling hip-flexor stretch"
+seconds = 45
+per_side = true
+target = "Front of the hips"
+start = "Kneeling on one knee on a folded mat, other foot forward, both knees at 90 degrees, upright, hands on hips."
+end = "Tailbone tucked under, back glute squeezed, hips shifted forward a few cm, the arm on the back knee's side reaching overhead."
+cues = ["Tuck your tailbone and squeeze the back glute, then shift forward a little.", "Feel it at the front of the back hip."]
+breathing = "Out as you tuck, then slow breaths through each hold."
+easier = "Hold a chair or wall, skip the reach, and tuck without shifting forward."
+pacing = "About 5 rounds: hold 5 s, ease off 3 s."
+
+[[mobility.moves]]
+slug = "kneeling-lunge-rotation"
+name = "Kneeling lunge with rotation"
+seconds = 45
+per_side = true
+target = "Hips and upper-back rotation"
+start = "Low lunge, back knee on the mat, both hands on the floor inside the front foot."
+end = "The front leg's arm reaching to the ceiling, chest turned towards the front leg, eyes on the hand, other hand down."
+cues = ["Turn your chest, not just your arm.", "Keep the back knee down."]
+breathing = "In as you open, out as you come back."
+easier = "Put the reaching hand on your front knee and turn halfway."
+pacing = "About 5 reps, with 2-3 s at the top."
+
+[[mobility.moves]]
+slug = "cat-cow"
+name = "Cat-cow"
+seconds = 60
+target = "The whole spine"
+start = "On all fours, hands under shoulders, knees under hips, back rounded up, chin towards your chest."
+end = "Belly lowered gently, chest forward and up, tailbone lifted, eyes forward."
+cues = ["Move slowly, from tailbone to head.", "Keep your arms long."]
+breathing = "Out as you round, in as you arch."
+easier = "Move less far, on fists or forearms, or sit with your hands on your knees."
+pacing = "Slow reps of about 4-5 s."
+
+[[mobility.moves]]
+slug = "quadruped-t-spine-rotation"
+name = "All-fours upper-back rotation"
+seconds = 45
+per_side = true
+target = "Upper-back rotation"
+start = "On all fours, one hand behind your head, that elbow pointing down towards the other wrist."
+end = "Chest turned open, elbow pointing to the ceiling, eyes following it, hips still over your knees."
+cues = ["Turn from your upper back.", "Keep your hips still over your knees."]
+breathing = "In as you open, out as you close."
+easier = "Lie on your side and open your top arm behind you, like a book."
+pacing = "Slow reps of about 4-5 s, with a 1-2 s pause when open."
+
+[[mobility.moves]]
+slug = "hamstring-floss"
+name = "Lying hamstring floss"
+seconds = 45
+per_side = true
+target = "Hamstrings and the nerve behind the leg"
+start = "On your back, other foot flat, hands behind one thigh, thigh vertical, knee bent 90 degrees, toes pulled towards your shin."
+end = "Knee straightened to a mild stretch, toes pointed away, thigh still vertical."
+cues = ["Straighten the knee as you point your toes; bend it as you pull them back.", "Smooth, no holding."]
+breathing = "Steady, natural breathing."
+easier = "Let the thigh lean away from you and straighten the knee less."
+pacing = "Slow reps of about 4-5 s."
+
+[[mobility.moves]]
+slug = "glute-bridge"
+name = "Glute bridge"
+seconds = 60
+target = "Hip extension, using the new range"
+start = "On your back, knees bent, feet flat and hip-width apart, arms at your sides, palms down."
+end = "Hips lifted so shoulders, hips and knees make a straight line, glutes squeezed."
+cues = ["Push through your heels and squeeze your glutes.", "Stop before your lower back arches."]
+breathing = "Out as you lift, in as you lower."
+easier = "Lift halfway, or squeeze your glutes with your hips down."
+pacing = "Slow reps, with a 2 s squeeze at the top."
