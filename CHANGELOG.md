@@ -4,6 +4,20 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.32.0](https://github.com/LDoyleDev/training-coach/compare/v0.31.0...v0.32.0) (2026-10-21)
+
+
+### Features
+
+* **web:** record when each set of a guided session starts and ends ([#267](https://github.com/LDoyleDev/training-coach/issues/267)) ([d350b45](https://github.com/LDoyleDev/training-coach/commit/d350b45639b8504eb7825447cdf71c74fd669cee))
+* **web:** say how long today's session takes on the home screen ([#274](https://github.com/LDoyleDev/training-coach/issues/274)) ([680336c](https://github.com/LDoyleDev/training-coach/commit/680336c9eae3ce949b8f128299f14931c7a96326))
+* **web:** show how long guided sessions take ([#270](https://github.com/LDoyleDev/training-coach/issues/270)) ([a0ddfec](https://github.com/LDoyleDev/training-coach/commit/a0ddfecea25dde9d0f2faf66c47c8c5e3bc49100))
+
+
+### Bug Fixes
+
+* **deps:** update certifi and Pillow past newly published vulnerabilities ([#268](https://github.com/LDoyleDev/training-coach/issues/268)) ([18d81af](https://github.com/LDoyleDev/training-coach/commit/18d81afcd0e64af4f659db9fc4b785442644fd76))
+
 ## [0.31.0](https://github.com/LDoyleDev/training-coach/compare/v0.30.0...v0.31.0) (2026-10-19)
 
 

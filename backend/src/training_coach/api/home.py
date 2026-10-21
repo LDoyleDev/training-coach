@@ -49,6 +49,8 @@ class HomeView(BaseModel):
     progress: LadderView
     recent: list[RecentView]  # done in the last seven days, newest first
     today: str | None  # today's session; empty when done or rested
+    today_minutes: int | None  # about how long, from the plan; empty for a test day
+    today_usual_minutes: int | None  # how long it usually takes, once timed (ADR-0061)
 
 
 @router.get("", response_model=HomeView)
@@ -65,4 +67,6 @@ def home(request: Request, user: Owner) -> HomeView:
         progress=LadderView(**vars(found.progress)),
         recent=[RecentView(day=r.day, session=r.session) for r in found.recent],
         today=found.today,
+        today_minutes=found.today_minutes,
+        today_usual_minutes=found.today_usual_minutes,
     )

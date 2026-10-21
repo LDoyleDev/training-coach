@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, Exercise, SessionTemplate, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
-from training_coach.services import guided, retests, review
+from training_coach.services import guided, retests, review, session_times
 
 MOVED_UP = "progress.moved_up"  # written by progress.move_up
 RECENT_DAYS = 7
@@ -60,6 +60,8 @@ class Home:
     progress: Ladder
     recent: list[Recent]  # done in the last seven days, newest first
     today: str | None  # today's session (or a test day due today); None when done or rested
+    today_minutes: int | None  # about how long, from the plan; None for a test day
+    today_usual_minutes: int | None  # how long it usually takes, once timed (ADR-0061)
 
 
 def _totals(session: Session, on: date) -> Totals:
@@ -116,16 +118,20 @@ def _label(workout: Workout, names: dict[int, str]) -> str:
     return f"{name}: {detail}" if name else detail.capitalize()
 
 
-def _today(session: Session, on: date, tz: ZoneInfo) -> str | None:
+def _today(session: Session, on: date, tz: ZoneInfo) -> tuple[str | None, int | None, int | None]:
+    """Today's session for the button: its name, the plan's minutes and the usual minutes."""
     test_day = retests.due(session, on, tz)
     if test_day is not None:
-        return test_day.name
+        return test_day.name, None, None
     plan = guided.today(session, on, tz)
-    return plan.name if plan is not None else None
+    if plan is None:
+        return None, None, None
+    return plan.name, plan.minutes, session_times.usual_minutes(session, plan.template_id)
 
 
 def home(session: Session, on: date, tz: ZoneInfo) -> Home:
     """The home screen for local day ``on``."""
+    today, minutes, usual = _today(session, on, tz)
     weekly = review.weekly(session, on, tz)
     climbed = session.scalar(select(func.count()).select_from(Event).where(Event.kind == MOVED_UP))
     return Home(
@@ -144,5 +150,7 @@ def home(session: Session, on: date, tz: ZoneInfo) -> Home:
             bests=list(dict.fromkeys(b.exercise for b in weekly.bests)),
         ),
         recent=_recent(session, on),
-        today=_today(session, on, tz),
+        today=today,
+        today_minutes=minutes,
+        today_usual_minutes=usual,
     )
