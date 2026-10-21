@@ -46,7 +46,9 @@ and the set is kept: a phone with a wrong clock never stops a log.
 
 **Showing it** (#266): the saved screen says how long the session took, split into sets and
 rests, plus any breaks ("Took 41 min: 22 on sets, 19 resting"). The overview before Start says
-how long this session usually takes in place of the plan's estimate, and Progress lists each
+how long this session usually takes in place of the plan's estimate, and so does the home
+screen's button to it ("Today: Legs · usually 38 min"), so the length is in view before the
+session is opened, which is when it helps most to get started. Progress lists each
 timed session's usual, last and fastest time. "Usually" is the median of the session's last
 five timed totals, so one slow day doesn't move it much. All are whole minutes.
 

@@ -27,6 +27,8 @@ const make = (over: Partial<Home> = {}): Home => ({
     { day: '2026-10-08', session: 'Extra' },
   ],
   today: 'Legs',
+  today_minutes: 45,
+  today_usual_minutes: null,
   ...over,
 })
 
@@ -60,7 +62,10 @@ test('totals first, then progress and the week, then the button to today', async
     '90',
   )
   expect(screen.getByText('Torso + neck')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Today: Legs' })).toHaveAttribute('href', '/session')
+  expect(screen.getByRole('link', { name: 'Today: Legs · about 45 min' })).toHaveAttribute(
+    'href',
+    '/session',
+  )
   const main = screen.getByRole('main')
   expect(main.querySelector('a[href="/progress"]')).toHaveTextContent('Progress')
   expect(main.querySelector('a[href="/progress?tab=plan"]')).toHaveTextContent('Plan')
@@ -81,6 +86,7 @@ test('before the first session, and with nothing left today', async () => {
       progress: { steps_climbed: 1, ready: [], bests: [] },
       recent: [],
       today: null,
+      today_minutes: null,
     }),
   )
   render(<HomePage />)
@@ -94,6 +100,18 @@ test('before the first session, and with nothing left today', async () => {
   expect(screen.queryByRole('meter')).not.toBeInTheDocument()
   expect(screen.getByText('Nothing logged in the last seven days.')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Go to today' })).toHaveAttribute('href', '/session')
+})
+
+test('the button says how long today usually takes, once it has been timed', async () => {
+  serve(make({ today_usual_minutes: 38 }))
+  render(<HomePage />)
+  expect(await screen.findByRole('link', { name: 'Today: Legs · usually 38 min' })).toBeVisible()
+})
+
+test('a test day has no length', async () => {
+  serve(make({ today: 'Retest, day 1', today_minutes: null }))
+  render(<HomePage />)
+  expect(await screen.findByRole('link', { name: 'Today: Retest, day 1' })).toBeVisible()
 })
 
 test('signed out, or the server down', async () => {

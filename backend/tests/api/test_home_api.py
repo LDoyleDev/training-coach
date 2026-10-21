@@ -46,6 +46,8 @@ def test_home_before_anything_is_done(signed_in: TestClient) -> None:
     assert found["progress"] == {"steps_climbed": 0, "ready": [], "bests": []}
     assert found["recent"] == []
     assert isinstance(found["today"], str)
+    assert isinstance(found["today_minutes"], int)
+    assert found["today_usual_minutes"] is None  # nothing timed yet
 
 
 def test_home_needs_a_signed_in_browser(engine: Engine) -> None:
