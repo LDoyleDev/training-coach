@@ -4,6 +4,17 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.33.0](https://github.com/LDoyleDev/training-coach/compare/v0.32.0...v0.33.0) (2026-10-21)
+
+
+### Features
+
+* **api:** define the mobility flow's eight movements and serve them ([#278](https://github.com/LDoyleDev/training-coach/issues/278)) ([6f08c6a](https://github.com/LDoyleDev/training-coach/commit/6f08c6a1cfa75bc99cf487336dc889b35a805428))
+* **web:** choose the mobility flow's timer sound in Settings ([#281](https://github.com/LDoyleDev/training-coach/issues/281)) ([a21e220](https://github.com/LDoyleDev/training-coach/commit/a21e220b32db17873e755d876bf2890a9071ca7d))
+* **web:** draw exercises as mannequins moving from start to end ([#279](https://github.com/LDoyleDev/training-coach/issues/279)) ([c2ea250](https://github.com/LDoyleDev/training-coach/commit/c2ea250c926ce6d8feb9e7a15a8c54782e2d1876))
+* **web:** graph six weeks of each exercise on dates, with a scale ([#275](https://github.com/LDoyleDev/training-coach/issues/275)) ([30946ee](https://github.com/LDoyleDev/training-coach/commit/30946ee29a34260e250e295a28005e490354ad39))
+* **web:** guide the mobility flow one movement at a time ([#280](https://github.com/LDoyleDev/training-coach/issues/280)) ([3a2fe64](https://github.com/LDoyleDev/training-coach/commit/3a2fe642f72b6d12a7292a00d12fa8b28fea09a8))
+
 ## [0.32.0](https://github.com/LDoyleDev/training-coach/compare/v0.31.0...v0.32.0) (2026-10-21)
 
 
