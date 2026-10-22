@@ -323,6 +323,27 @@ frames with reduced motion). The picker needs them most: it's where people meet 
 don't know. The 29 gym exercises (Decided 5) add about 25 new poses to the roughly 100 already
 planned; split squats, pull-ups, tibialis raises and neck work already have theirs.
 
+### J. Time: rest inside pairs, fillers and kit (to decide)
+
+The evidence and timings are in the research file (Time efficiency). The guided session rests
+60 s after every set, inside a pair too, so pairs save no time today. Resting only after the
+pair (15 s to move, 60 s after, 90 s when the two share a prime mover), with neck work and
+other light items in a pair's rest, takes the current week from 197 to about 162 minutes and the
+proposed one from 226 to about 187, for the same sets; every exercise still gets 104 s or more
+between its own sets. To decide:
+
+1. **Rest per transition** in the guided session and its time estimate (amends ADR-0031's
+   timing; the pairs stay).
+2. **A third, light item in a pair** (the seed allows exactly two neighbours today), and pairs on
+   the Recovery day.
+3. **Pairing rules for the editor (step 6):** no shared prime mover without the longer rest, not
+   two grip-heavy exercises, at most one spine-loading exercise per pair.
+4. **Warm-up** 10 or 5 minutes (5 saves 15 minutes a week; a choice, not a finding).
+5. **Drop sets and rest-pause:** an optional set type for isolation exercises, counted at
+   matched volume, later. They save little inside pairs.
+6. **Kit order** for the equipment step: 16 kg kettlebell, then a weighted vest; each saves
+   4-7 minutes a week, far less than the rest change.
+
 ## API, in outline
 
 - `GET /api/catalogue`: exercises with muscles, pattern, steps, needs, pose ids.
