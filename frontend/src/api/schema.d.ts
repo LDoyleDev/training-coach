@@ -964,6 +964,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plan/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Coverage
+         * @description Weekly fractional sets per muscle with its band and warnings, from the plan as it
+         *     stands; nothing here changes it.
+         */
+        get: operations["get_coverage_api_plan_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/progress": {
         parameters: {
             query?: never;
@@ -1579,6 +1600,11 @@ export interface components {
             /** Scopes */
             scopes: string[];
         };
+        /**
+         * Band
+         * @enum {string}
+         */
+        Band: "grey" | "amber" | "light green" | "green" | "blue" | "warning";
         /** BandCounted */
         BandCounted: {
             /** Already Saved */
@@ -1755,6 +1781,29 @@ export interface components {
             /** Scopes */
             scopes: components["schemas"]["ConsentScopeView"][];
         };
+        /** CoverageView */
+        CoverageView: {
+            /** Back To Back */
+            back_to_back: number;
+            /** Ceiling */
+            ceiling: number;
+            /** Grip Cap */
+            grip_cap: number;
+            /** Main On Target */
+            main_on_target: number;
+            /** Main Total */
+            main_total: number;
+            /** Minimum */
+            minimum: number;
+            /** Muscles */
+            muscles: components["schemas"]["MuscleView"][];
+            /** Session Cap */
+            session_cap: number;
+            /** Sessions */
+            sessions: components["schemas"]["SessionLoadView"][];
+            /** Spine Cap */
+            spine_cap: number;
+        };
         /**
          * DailyCheckView
          * @description Today's check: the questions, and the answers with their advice once given.
@@ -1838,6 +1887,12 @@ export interface components {
              */
             confirm: "erase";
         };
+        /**
+         * Evidence
+         * @description How well a muscle's own band is supported; the app marks the weak ones.
+         * @enum {string}
+         */
+        Evidence: "moderate" | "low" | "very low";
         /**
          * ExerciseKind
          * @description How an exercise is measured.
@@ -2319,6 +2374,37 @@ export interface components {
             /** Target */
             target: string;
         };
+        /** MuscleView */
+        MuscleView: {
+            /** Back To Back */
+            back_to_back: string[];
+            band: components["schemas"]["Band"];
+            /** Days */
+            days: number;
+            evidence: components["schemas"]["Evidence"] | null;
+            /** High */
+            high: number;
+            /** Low */
+            low: number;
+            /** Main */
+            main: boolean;
+            /** Missing Parts */
+            missing_parts: string[];
+            /** Most */
+            most: number;
+            /** Most In */
+            most_in: string | null;
+            /** Muscle */
+            muscle: string;
+            /** One Day */
+            one_day: boolean;
+            /** Over Session Cap */
+            over_session_cap: boolean;
+            /** Sets */
+            sets: number;
+            /** Sources */
+            sources: components["schemas"]["SourceView"][];
+        };
         /** NewSecret */
         NewSecret: {
             /** App Version */
@@ -2771,6 +2857,19 @@ export interface components {
             /** Token Endpoint Auth Methods Supported */
             token_endpoint_auth_methods_supported: string[];
         };
+        /** SessionLoadView */
+        SessionLoadView: {
+            /** Grip Heavy */
+            grip_heavy: boolean;
+            /** Grip Sets */
+            grip_sets: number;
+            /** Session */
+            session: string;
+            /** Spine Heavy */
+            spine_heavy: boolean;
+            /** Spine Sets */
+            spine_sets: number;
+        };
         /**
          * SessionTimeView
          * @description A session's times in whole minutes, from its timed guided sessions (ADR-0061).
@@ -2888,6 +2987,17 @@ export interface components {
          * @enum {string}
          */
         Sound: "chime" | "beep" | "wood" | "bell" | "none";
+        /** SourceView */
+        SourceView: {
+            /** Exercise */
+            exercise: string;
+            /** Session */
+            session: string;
+            /** Sets */
+            sets: number;
+            /** Weight */
+            weight: number;
+        };
         /** StandingView */
         StandingView: {
             /** Best Set */
@@ -4664,6 +4774,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanView"];
+                };
+            };
+        };
+    };
+    get_coverage_api_plan_coverage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoverageView"];
                 };
             };
         };

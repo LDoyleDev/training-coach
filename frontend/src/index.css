@@ -47,6 +47,13 @@
   --fig-bell-line: #1b1d1f;
   --fig-mat: #c6d8ce;
   --fig-floor: #98a29c;
+  /* Body map bands (program-builder.md, Decided 3): not trained to too much */
+  --band-grey: #dcdfdf;
+  --band-amber: #e8b14f;
+  --band-light-green: #b9d9a6;
+  --band-green: #4b9a63;
+  --band-blue: #5d8fc6;
+  --band-warning: #cf4a5c;
   --font: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
   color-scheme: light;
 }
@@ -90,6 +97,12 @@
     --fig-bell-line: #1f2224;
     --fig-mat: #284339;
     --fig-floor: #4b5550;
+    --band-grey: #4a5257;
+    --band-amber: #c99a45;
+    --band-light-green: #7fa56e;
+    --band-green: #3f8a57;
+    --band-blue: #5a86b8;
+    --band-warning: #c4505f;
     color-scheme: dark;
   }
 }
@@ -571,87 +584,6 @@ body {
     grid-column: 1 / -1;
     color: var(--slate);
   }
-}
-
-/* -------------------------------------------------------------- volume */
-
-.volume {
-  margin: 0;
-  max-width: 46rem;
-}
-
-.volume-axis {
-  position: relative;
-  height: 1.25rem;
-  margin-left: 8.5rem;
-  margin-right: 2.5rem;
-  font-size: 0.8125rem;
-  color: var(--slate);
-}
-
-.volume-axis span {
-  position: absolute;
-  transform: translateX(-50%);
-}
-
-.volume-rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.volume-row {
-  display: grid;
-  grid-template-columns: 8.5rem 1fr 2.5rem;
-  align-items: center;
-  height: 1.9rem;
-}
-
-.volume-label {
-  font-size: 0.9375rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding-right: 0.75rem;
-}
-
-.volume-track {
-  position: relative;
-  height: 0.75rem;
-}
-
-.volume-band {
-  position: absolute;
-  top: -0.45rem;
-  bottom: -0.45rem;
-  background: var(--line);
-  opacity: 0.6;
-}
-
-.volume-bar {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  background: var(--slate);
-  border-radius: 0 2px 2px 0;
-}
-
-.volume-bar.in-range {
-  background: var(--ink);
-}
-
-.volume-value {
-  text-align: right;
-  font-weight: 700;
-  font-stretch: 80%;
-}
-
-.volume figcaption {
-  margin-top: 1rem;
-  font-size: 0.9375rem;
-  color: var(--slate);
-  max-width: 38rem;
 }
 
 /* ------------------------------------------------------------- ladders */

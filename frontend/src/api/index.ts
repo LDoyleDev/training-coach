@@ -21,6 +21,19 @@ export async function fetchPlan(signal?: AbortSignal): Promise<Plan | null> {
   return (await res.json()) as Plan
 }
 
+export type Coverage = Schemas['CoverageView']
+export type MuscleCoverage = Schemas['MuscleView']
+export type Band = Schemas['Band']
+
+/** The body map: weekly sets per muscle with its band and warnings (program-builder.md F);
+ * null when not signed in. */
+export async function fetchCoverage(signal?: AbortSignal): Promise<Coverage | null> {
+  const res = await fetch('/api/plan/coverage', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Coverage
+}
+
 const range = (a: number, b: number) => (a === b ? `${a}` : `${a}–${b}`)
 
 /** "4 × 8–15 per side", "1 × 45–75 min", "2 × 30–60 s" */
