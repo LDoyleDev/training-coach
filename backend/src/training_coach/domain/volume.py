@@ -1,31 +1,31 @@
-"""Weekly training volume per muscle group (docs/specs/training-plan.md). Pure logic, no I/O.
+"""Weekly training volume per muscle (docs/specs/training-plan.md). Pure logic, no I/O.
 
-Every planned set counts once for each muscle group its exercise lists, primary or secondary
-(pull-ups count for lats, upper back and biceps), so totals are an upper estimate of Galpin's
-direct-set count.
+Sets are counted fractionally (ADR-0064): a set counts the weight its exercise gives each
+muscle, 1 for a prime mover, 0.5 for a synergist and 0.25 for a small part (pull-ups: 1 for
+lats, 0.5 for biceps and upper back). This fitted growth better than counting every muscle
+fully (Pelland 2026), so totals are lower than a count of every listed muscle.
 """
 
-from collections.abc import Iterable, Sequence
-
-# Tags in the plan that describe a quality, not a muscle.
-NON_MUSCLE_TAGS = frozenset({"conditioning", "mobility", "power", "posture"})
+from collections.abc import Iterable, Mapping
 
 # Galpin: 10-20 hard sets per muscle group per week.
 TARGET_MIN_SETS = 10
 TARGET_MAX_SETS = 20
 
 
-def weekly_sets(items: Iterable[tuple[Sequence[str], int]]) -> list[tuple[str, int]]:
-    """``(muscle groups, sets)`` per planned item -> ``(group, total sets)``, largest first.
-
-    Ties are ordered by name so the result is stable.
+def weekly_sets[M: str](items: Iterable[tuple[Mapping[M, float], int]]) -> list[tuple[M, float]]:
+    """``(muscle weights, sets)`` per planned or logged item -> ``(muscle, fractional sets)``,
+    largest first. Ties are ordered by name so the result is stable.
     """
-    totals: dict[str, int] = {}
-    for groups, sets in items:
+    totals: dict[M, float] = {}
+    for muscles, sets in items:
         if sets < 0:
             raise ValueError("sets must be >= 0")
-        for group in groups:
-            if group in NON_MUSCLE_TAGS:
-                continue
-            totals[group] = totals.get(group, 0) + sets
+        for muscle, weight in muscles.items():
+            totals[muscle] = totals.get(muscle, 0) + weight * sets
     return sorted(totals.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
+def shown(sets: float) -> str:
+    """Fractional sets as people read them: ``7.5``, ``10``, ``6.25``."""
+    return f"{sets:g}"

@@ -894,20 +894,31 @@
             "title": "Ladder",
             "type": "array"
           },
-          "muscle_groups": {
-            "items": {
-              "type": "string"
+          "muscles": {
+            "additionalProperties": {
+              "type": "number"
             },
-            "title": "Muscle Groups",
-            "type": "array"
+            "title": "Muscles",
+            "type": "object"
           },
           "name": {
             "title": "Name",
             "type": "string"
           },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
           "per_side": {
             "title": "Per Side",
             "type": "boolean"
+          },
+          "qualities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Qualities",
+            "type": "array"
           },
           "rep_max": {
             "title": "Rep Max",
@@ -938,7 +949,9 @@
           "rep_min",
           "rep_max",
           "per_side",
-          "muscle_groups",
+          "muscles",
+          "qualities",
+          "pattern",
           "ladder",
           "start_step"
         ],
@@ -3171,7 +3184,7 @@
           },
           "sets": {
             "title": "Sets",
-            "type": "integer"
+            "type": "number"
           }
         },
         "required": [
@@ -4598,7 +4611,7 @@
           },
           "sets": {
             "title": "Sets",
-            "type": "integer"
+            "type": "number"
           }
         },
         "required": [

@@ -10,7 +10,9 @@ const pullUp: Exercise = {
   rep_min: 5,
   rep_max: 12,
   per_side: false,
-  muscle_groups: ['lats'],
+  muscles: { lats: 1, biceps: 0.5 },
+  qualities: [],
+  pattern: 'vertical pull',
   ladder: ['Slow negatives', 'Strict pull-up', 'Pause at top'],
   start_step: 1,
 }
