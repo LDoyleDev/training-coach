@@ -3,7 +3,8 @@
 Status: **research, 2026-10-21**, for [program-builder.md](program-builder.md), which holds the
 decisions. This file holds the evidence: how much each exercise counts for each muscle, where
 isolation work is needed, the overload caps, how the plan compares with Huberman's protocol,
-and the coverage of the current plan and the starters. Each source under Sources says how far it
+how long sessions take (time efficiency, 2026-10-23), and the coverage of the current plan and
+the starters. Each source under Sources says how far it
 was read: the full paper, the abstract, or someone else's summary of it.
 
 ## Counting: the weight of a set for each muscle
@@ -209,6 +210,80 @@ lengthened exercise; under an hour) and adds the sets to bring the main muscles 
   go to work that counts for little (jump squats, light swings, chin tucks) and legs are trained
   once a week.
 
+## Time efficiency: the same work in less time (2026-10-23)
+
+The sets above are what a week needs; this section is how long they take. Most of a session
+is rest, so the lever is the rest, not the reps.
+
+**What the studies say.**
+
+| Question | Finding | Read |
+| --- | --- | --- |
+| Do paired sets (supersets) cost growth? | 19 studies, 313 people: same reps (SMD −0.03) and volume load (0.05), much better kg per minute (1.74); same long-term strength (0.10) and hypertrophy (−0.05, from two studies). Higher lactate (0.94), energy cost and effort (RPE 0.77) (Zhang 2025) | full |
+| Which pairs? | Opposing muscles (bench + row) completed *more* reps than straight sets (SMD 0.68). Two exercises for the same muscles lost volume (−1.08). Upper + lower body: reps not clearly lower (−0.46, CI crosses 0) (Zhang 2025) | full |
+| How much time? | Six lifts, 3×10, 2 min after each set or group: 42.3 min straight, 24.0 min in pairs, 17.7 min in threes, same volume. Pairs and threes left lactate and creatine kinase higher and jump height still down at 24 h (Weakley 2017) | full |
+| | Bench + row paired with 2 min after each pair lifted more total load than the same sets done straight, with more EMG fatigue (Paz 2017). Pairs took about 10 min against 20 (Robbins 2010), and over 8 weeks gave the same strength in half the time (Robbins 2009) | full; abstracts |
+| How long to rest? | 9 studies: a small benefit to resting more than 60 s, and nothing more beyond about 90 s; every interval crosses zero (Singer 2024). 3 min beat 1 min in trained men (Schoenfeld 2016), but the gap closes when the short-rest group adds sets to match the volume (Longo 2022). Short rest costs reps most on multi-joint and heavy sets (Senna 2011, 2017) | full; summary; abstract; summary |
+| Do heavy, low-rep sets save time? | No. 7×3 with 3 min rest vs 3×10 with 90 s, volume matched: same biceps growth, **70 min vs 17 min** a session, more strength from the heavy routine, and 2 of its 10 men dropped out injured (Schoenfeld 2014). Growth is similar from about 30% to 80% of a one-rep max taken to failure (Schoenfeld 2017; Lasevicius 2018), but light sets must get closer to failure to count (Lasevicius 2020); stopping a rep or two short of failure is as good as failure (Refalo 2023) | full; abstract; summary; abstract; abstract |
+| Drop sets? | 5 studies: same strength (ES 0.07) and growth (0.08) as straight sets (Coleman 2022); pooled growth SMD 0.155, not significant (Sødal 2023). One triceps drop set took 145 s against 316 s for 3 sets (Fink); curls 2.1 min against 6.8 (Ozaki). Most studies are isolation exercises on machines | full; full |
+| Rest-pause (myo-reps)? | 6 weeks in trained men: 35 min sessions against 57, strength the same (Prestes 2019, as cited by Iversen 2021 and Nuzzo 2024). Same growth as straight sets at matched volume (Enes 2021). No trial of "myo-reps" as such | as cited; summary |
+| Cluster sets, pre-exhaustion? | Clusters: same strength and growth (ES −0.05 each), and they add rest (Davies 2021). Pre-exhausting a muscle with an isolation exercise first: no long-term benefit (Fisher 2014; Trindade 2022 review). Neither saves time | abstract; abstract |
+| Warm-up? | A general or specific warm-up didn't add reps on submaximal sets; a few specific sets matter above about 80% of a one-rep max (Ribeiro, as cited by Iversen 2021) | as cited |
+
+One correction to the earlier plan: the minimal-dose overview cited as "Fyfe 2022" is Nuzzo,
+Pinto, Kirk & Nosaka 2024; it is about strength, not growth, and backs single sets and one
+session a week as better than nothing.
+
+**What it means for this plan.** The plan already pairs (ADR-0031), but the guided session
+starts its 60 s rest after every set, inside a pair too (`REST_SECONDS` in `services/guided.py`).
+So the pairs interleave and save nothing. Timed with the summary page's assumptions (10 s set-up,
+about 3 s a rep, 10 s to switch sides, 10 min warm-up):
+
+| Rule | Value | Why |
+| --- | --- | --- |
+| Between the two exercises of a pair | 15 s, to move | Opposing or unrelated muscles keep their reps in a pair (Zhang 2025) |
+| After the pair | 60 s | Each exercise still gets 104 s or more between its own sets, past the 90 s where more rest stops helping (Singer 2024) |
+| After a pair that shares a prime mover | 90 s | Same-muscle pairs lose volume (Zhang 2025); pistol squat + single-leg RDL share glutes |
+| Straight sets | 90 s compound, 60 s small muscle | Short rest costs most on multi-joint sets (Senna 2011, 2017; Iversen 2021) |
+| A third, light exercise in a pair's rest | neck, chin tucks, lateral raises | Fills rest without touching the pair's muscles. Estimate: tri-sets were studied with heavy lifts (Weakley 2017), not fillers |
+| Pairing rules | no shared prime mover (or 90 s rest); not two grip-heavy exercises; at most one spine-loading exercise | Zhang 2025 for shared muscles; grip and spine are the overload rules above, estimates |
+
+| Week | As the app runs pairs now | Paired properly | Longest session |
+| --- | --- | --- | --- |
+| Current plan, 78 sets | 197 min | **162 min** (−35) | 63 → 56 min |
+| Proposed plan, 93 sets | 226 min | **187 min** (−39) | 65 → 56 min |
+
+Pairing properly is free and saves more than any kit. It is about 18% here, not the
+studies' 40-60%, because the 60 s after each pair stays, and set-up and the warm-up don't
+shrink. A 5-minute specific warm-up in place of 10 would save another 15 minutes a week
+(Iversen 2021); that is a choice, not a finding for these loads. The cost of pairing is harder
+sessions: more effort, lactate and muscle damage, and jump height down a day later (Zhang 2025;
+Weakley 2017). The Recovery day after Legs suits that.
+
+Drop sets and rest-pause save time only where rest is long and sets are many. Inside pairs the
+rest is already used, and for two or three sets of a small muscle the model shows no saving.
+They stay an optional technique for isolation exercises, counted at matched volume, not the
+default. With one 8 kg kettlebell a drop set means kettlebell to water bottles.
+
+**Heavier kit saves minutes, not hours.** Bringing high-rep sets into 8-12 reps, over the
+current → proposed plan:
+
+| Kit | Minutes a week saved | What else it does | Cost class |
+| --- | --- | --- | --- |
+| 16 kg kettlebell | 3.6 → 4.3 (swings, one-arm rows, single-leg RDLs, curls, overhead extension) | Swings at 8 kg count half; at 16 kg near failure they can count fully (estimate). Loaded split squats, pistols and goblet squats, which count as spine-loading: Legs passes the 8-set spine limit once both are loaded | low-medium |
+| Weighted vest, 10 kg | 5.4 → 7.0 (calf raises, push-ups, dips, diamond push-ups) | Ladders for pull-ups, dips and pistols once they pass 12 reps. A vest on squats or lunges loads the spine too | medium |
+| A light dumbbell pair, 2-5 kg | about 0 | Controlled lateral raises and reverse flies instead of bottles; makes drop sets possible | low |
+| Dip belt | 0 now | Only useful once pull-ups, chin-ups or dips pass 12 reps, which the vest also covers | low |
+
+Ranked: the kettlebell first (the one place sets don't count fully, the most exercises, the
+lowest price), then the vest (the most minutes). Nothing needs buying for the pairing gain.
+
+**What the app needs for this.** Rest per transition from the server: the move inside a pair,
+the rest after it, straight-set rest by exercise type. Pairs that can take a third, light item
+(the seed allows exactly two neighbours today, ADR-0031). Pairs on the Recovery day. The time
+estimate (`_minutes` in `services/guided.py`) using the same rules. Later, a drop-set or
+rest-pause set type for isolation exercises.
+
 ## Coverage
 
 Fractional sets a week; "Days" counts days with at least 2 sets for that muscle; "Most" is the
@@ -338,6 +413,50 @@ connections, so the two Pelland-group papers rest on summaries.
   https://www.newswise.com/articles/acsm-unveils-landmark-2026-resistance-training-guidelines-first-update-in-17-years
 - Huberman, Foundational Fitness Protocol, newsletter page (the PDF wasn't reachable).
   https://hubermanlab.com/newsletter/foundational-fitness-protocol
+
+Time efficiency (2026-10-23):
+
+- Zhang, Weakley, Li, Li & García-Ramos 2025, *Sports Medicine*, supersets vs traditional sets,
+  19 studies. **Full.** https://eprints.leedsbeckett.ac.uk/id/eprint/11908
+- Weakley et al. 2017, *Eur J Appl Physiol*, traditional vs superset vs tri-set. **Full.**
+  https://eprints.leedsbeckett.ac.uk/id/eprint/3890
+- Paz, Robbins et al. 2017, *J Strength Cond Res*, paired vs traditional bench press and row.
+  **Full.** https://paulogentil.com/pdf/Volume%20Load%20and%20Neuromuscular%20Fatigue%20During%20an%20Acute%20Bout%20of%20Agonist-antagonist%20Paired-set%20Versus%20Traditional-set%20Training.pdf
+- Robbins et al. 2009, *J Sports Sci*, 8 weeks of paired sets; Robbins et al. 2010, *J Strength
+  Cond Res* 24:1782-1789, one session. **Abstracts**, and as cited by Iversen 2021.
+  https://pubmed.ncbi.nlm.nih.gov/19967584
+- Singer, Schoenfeld et al. 2024, *Front Sports Act Living* 6:1429789, rest
+  intervals, Bayesian meta-analysis. **Full.**
+  https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1429789/full
+- Schoenfeld et al. 2016, *J Strength Cond Res* 30:1805-1812, 1 vs 3 min rest. **Summary.**
+- Longo et al. 2022, *J Strength Cond Res*, rest vs volume load. **Abstract.**
+  https://pubmed.ncbi.nlm.nih.gov/35622106/
+- Senna et al. 2011 and 2017, rest for single- and multi-joint exercises. **Summary**; 2017
+  **abstract.** https://pubmed.ncbi.nlm.nih.gov/28828090/
+- Schoenfeld et al. 2014, *J Strength Cond Res* 28:2909-2918, 7×3 vs 3×10, volume matched.
+  **Full.**
+- Schoenfeld, Grgic, Ogborn & Krieger 2017, low vs high load. **Abstract.**
+  https://pubmed.ncbi.nlm.nih.gov/28834797/
+- Lasevicius et al. 2018, 20-80% of a one-rep max. **Summary.** Lasevicius et al. 2020, failure
+  with low and high loads. **Abstract.** https://pubmed.ncbi.nlm.nih.gov/31895290/
+- Refalo, Helms, Trexler, Hamilton & Fyfe 2023, *Sports Medicine* 53:649-665, proximity to
+  failure. **Abstract.**
+- Coleman et al. 2022, *Int J Strength Cond*, drop sets meta-analysis. **Full.**
+  https://vuir.vu.edu.au/46296/
+- Sødal, Kristiansen, Larsen & van den Tillaar 2023, *Sports Med Open* 9:66, drop sets. **Full**
+  (results and the timing of the included studies). https://pmc.ncbi.nlm.nih.gov/articles/PMC10390395/
+- Prestes et al. 2019, *J Strength Cond Res* 33:S113, rest-pause. **As cited** by Iversen 2021
+  and Nuzzo 2024. Enes et al. 2021, *Appl Physiol Nutr Metab*, rest-pause and drop sets.
+  **Summary.**
+- Nuzzo, Pinto, Kirk & Nosaka 2024, *Sports Medicine*, minimal-dose strategies. **Full.**
+  https://doi.org/10.1007/s40279-024-02009-0
+- Iversen, Norum, Schoenfeld & Fimland 2021 (above), for supersets, drop sets, rest and
+  warm-ups. **Full.**
+- Davies, Tran, Hogan, Haff & Latella 2021, *Sports Medicine* 51:707-736, cluster sets.
+  **Abstract.** https://pubmed.ncbi.nlm.nih.gov/33475986/
+- Fisher et al. 2014, pre-exhaustion and exercise order, 12 weeks. **Abstract.**
+  https://pubmed.ncbi.nlm.nih.gov/25092528/ Trindade et al. 2022, pre-exhaustion review.
+  **Abstract.** https://pmc.ncbi.nlm.nih.gov/articles/PMC9022698
 
 **Left out.** Papers by Barbalho and colleagues, including the "ceiling effect" volume study
 (retracted) and the squat vs hip thrust study in trained women, after data sleuths called for
