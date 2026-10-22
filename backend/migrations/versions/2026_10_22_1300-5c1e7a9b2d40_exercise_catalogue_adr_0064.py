@@ -5,7 +5,7 @@ muscles with a weight each, read from the bundled plan like an exercise's summar
 column goes. Downgrade brings it back empty: the older version's seed fills it on start.
 
 Revision ID: 5c1e7a9b2d40
-Revises: 8041ef5f4a10
+Revises: 7c1e5a9d2b44
 Create Date: 2026-10-22 12:00:00.000000
 
 """
@@ -17,7 +17,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "5c1e7a9b2d40"
-down_revision: str | Sequence[str] | None = "8041ef5f4a10"
+down_revision: str | Sequence[str] | None = "7c1e5a9d2b44"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
