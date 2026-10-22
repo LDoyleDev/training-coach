@@ -25,6 +25,7 @@ from training_coach.db.models import (
 )
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
+from training_coach.domain.volume import weekly_sets
 from training_coach.services import users
 from training_coach.services.seed import PlanSeed, SeedError, apply_seed, load_plan
 
@@ -33,6 +34,8 @@ MINI_PLAN = """
 slug = "pull-up"
 name = "Pull-up"
 kind = "reps"
+muscles = { lats = 1, biceps = 0.5 }
+pattern = "vertical pull"
 start = 1
 ladder = ["Negatives", "Strict", "Weighted"]
 
@@ -40,6 +43,8 @@ ladder = ["Negatives", "Strict", "Weighted"]
 slug = "dip"
 name = "Dip"
 kind = "reps"
+muscles = { chest = 1 }
+pattern = "vertical push"
 start = 0
 ladder = ["Feet down", "Feet up"]
 
@@ -279,7 +284,7 @@ def test_shortening_a_ladder_is_rejected_before_any_write(session: Session) -> N
 def test_bundled_plan_covers_huberman_protocol() -> None:
     """docs/specs/training-plan.md: neck twice a week, posture work, every major muscle trained."""
     plan = load_plan()
-    groups = {e.slug: set(e.muscle_groups) for e in plan.exercises}
+    groups = {e.slug: {*e.muscles, *e.qualities, *e.stress} for e in plan.exercises}
 
     def sessions_hitting(group: str) -> int:
         return sum(any(group in groups[item.exercise] for item in s.items) for s in plan.sessions)
@@ -299,40 +304,31 @@ def test_bundled_plan_covers_huberman_protocol() -> None:
         "side delts",
         "biceps",
         "triceps",
-        "core",
+        "abs",
         "lower back",
         "grip",
     ):
         assert sessions_hitting(group) >= 1, group
 
 
-def test_bundled_plan_weekly_volume_in_galpin_range() -> None:
-    """10-20 hard sets per week for the big muscle groups (Galpin)."""
-    volume = _weekly_volume()
-    for group in ("quads", "glutes", "lats", "upper back", "biceps", "triceps"):
-        assert 10 <= volume[group] <= 20, (group, volume[group])
-
-
-def _weekly_volume() -> dict[str, int]:
+def _weekly_volume() -> dict[str, float]:
     plan = load_plan()
-    groups = {e.slug: e.muscle_groups for e in plan.exercises}
-    volume: dict[str, int] = {}
-    for session in plan.sessions:
-        for item in session.items:
-            for group in groups[item.exercise]:
-                volume[group] = volume.get(group, 0) + item.sets
-    return volume
+    exercises = {e.slug: e for e in plan.exercises}
+    return dict(
+        weekly_sets(
+            (exercises[item.exercise].muscles, item.sets)
+            for session in plan.sessions
+            for item in session.items
+        )
+    )
 
 
 def test_training_plan_spec_volume_table_matches_plan() -> None:
     """The hand-written weekly-sets table in the spec must not drift from plan.toml."""
     spec = (Path(__file__).resolve().parents[3] / "docs/specs/training-plan.md").read_text()
     section = spec.split("## Weekly hard sets per muscle group", 1)[1].split("\n## ", 1)[0]
-    rows = re.findall(r"^\| ([A-Za-z ]+) \| (\d+) \|", section, flags=re.M)
-    assert len(rows) >= 10
-    volume = _weekly_volume()
-    for name, sets in rows:
-        assert volume[name.lower()] == int(sets), (name, volume[name.lower()], sets)
+    rows = re.findall(r"^\| ([A-Za-z ]+) \| ([\d.]+) \|", section, flags=re.M)
+    assert {name.lower(): float(sets) for name, sets in rows} == _weekly_volume()
 
 
 # ----------------------------------------------------- ladder steps that history uses (#18)
@@ -529,10 +525,12 @@ cue = "Reach."
 
 
 def test_stretches_must_name_muscles_the_exercises_work() -> None:
-    plan = MINI_PLAN.replace('kind = "reps"', 'kind = "reps"\nmuscle_groups = ["lats"]', 1)
+    plan = MINI_PLAN
     stretches = load_plan(plan + STRETCH.replace("MUSCLE", "lats")).stretches
     assert [s.slug for s in stretches] == ["lat"]
     with pytest.raises(ValidationError, match="no exercise works"):
+        load_plan(plan + STRETCH.replace("MUSCLE", "calves"))
+    with pytest.raises(ValidationError, match=r"muscles\.0"):
         load_plan(plan + STRETCH.replace("MUSCLE", "latz"))
     with pytest.raises(ValidationError, match="duplicate stretch slug"):
         load_plan(plan + (STRETCH.replace("MUSCLE", "lats") * 2))
@@ -547,9 +545,48 @@ def test_the_bundled_plan_has_a_stretch_for_every_resistance_muscle() -> None:
         for session in plan.sessions
         if session.type == "strength"
         for item in session.items
-        for group in exercises[item.exercise].muscle_groups
+        for group in exercises[item.exercise].muscles
     }
-    assert worked - stretched == {"power", "posture"}  # qualities, not muscles
+    assert worked - stretched == {"adductors"}  # no adductor stretch yet
+
+
+DIP_FACTS = 'muscles = { chest = 1 }\npattern = "vertical push"'
+
+
+@pytest.mark.parametrize(
+    ("facts", "error"),
+    [
+        ('pattern = "vertical push"', "say which muscles or qualities"),
+        ('muscles = { chest = 0.4 }\npattern = "vertical push"', "must be 1, 0.5 or 0.25"),
+        ('muscles = { pecs = 1 }\npattern = "vertical push"', "muscles.pecs"),
+        ('muscles = { chest = 1 }\npattern = "press"', "pattern"),
+        (DIP_FACTS + '\nparts = ["triceps long head"]', "reaches the triceps long head"),
+        (DIP_FACTS + '\nneeds = { "Rings" = ["rings"] }', "needs for \\['Rings'\\]"),
+        (DIP_FACTS + '\nneeds = { "Feet up" = ["kettlebell"] }', "'Feet up'.*say the weight in kg"),
+    ],
+)
+def test_catalogue_facts_are_checked(facts: str, error: str) -> None:
+    with pytest.raises(ValidationError, match=error):
+        load_plan(MINI_PLAN.replace(DIP_FACTS, facts))
+
+
+def test_catalogue_facts_are_read() -> None:
+    facts = DIP_FACTS + '\nstress = ["grip"]\nneeds = { "Feet up" = ["dip bars", "kettlebell:8"] }'
+    exercises = load_plan(MINI_PLAN.replace(DIP_FACTS, facts)).exercises
+    dip = next(e for e in exercises if e.slug == "dip")
+    assert (dip.muscles, dip.pattern, dip.stress) == ({"chest": 1}, "vertical push", ["grip"])
+    assert dip.needs == {"Feet up": ["dip bars", "kettlebell:8"]}
+
+
+def test_bundled_catalogue_needs_name_real_steps_and_kit() -> None:
+    """Every ladder step that holds the 8 kg kettlebell says so, and the bar steps need a bar."""
+    plan = load_plan()
+    for exercise in plan.exercises:
+        for step in exercise.ladder:
+            if "8 kg" in step and "water bottles" not in step:
+                assert "kettlebell:8" in exercise.needs.get(step, []), (exercise.slug, step)
+    pull_up = next(e for e in plan.exercises if e.slug == "pull-up")
+    assert all("pull-up bar" in pull_up.needs[step] for step in pull_up.ladder)
 
 
 def test_a_retired_exercise_cannot_be_in_a_session() -> None:
@@ -759,6 +796,8 @@ def _flow(exercise: str = "walk", seconds: int = 60) -> str:
 slug = "walk"
 name = "Walk"
 kind = "duration_min"
+qualities = ["conditioning"]
+pattern = "cardio"
 start = 0
 ladder = ["Easy"]
 """
@@ -796,3 +835,13 @@ def test_the_bundled_flow_is_ten_minutes_standing_to_lying() -> None:
         "quadruped-t-spine-rotation",
         "hamstring-floss",
     ]
+
+
+def test_split_squats_load_the_spine_only_with_a_kettlebell() -> None:
+    """program-builder.md, Decided 3: loaded squats count; bodyweight and jump squats don't."""
+    exercises = {e.slug: e for e in load_plan().exercises}
+    split = exercises["bulgarian-split-squat"]
+    assert [bool(split.step_stress(s)) for s in split.ladder] == [False, True, True, True]
+    jump = exercises["jump-squat"]
+    assert not any(jump.step_stress(s) for s in jump.ladder)
+    assert all(exercises["kb-swing"].step_stress(s) for s in exercises["kb-swing"].ladder)

@@ -70,7 +70,7 @@ are below.
    | Too much in one session | More than **11 fractional sets** for one muscle in one session (a preprint's plateau) |
    | Too much in a week | Over 30 fractional sets (the warning band) |
    | No rest between | **4 or more** fractional sets for one muscle on two days in a row |
-   | Spine loading | More than **8 spine-loading hard sets** in one session (squats, hinges, swings, back extensions, carries, bent-over rows), or heavy hinges on two days in a row |
+   | Spine loading | More than **8 spine-loading hard sets** in one session (loaded squats, hinges, swings, back extensions, carries, bent-over rows; not bodyweight or jump squats), or heavy hinges on two days in a row |
    | Grip | More than about 8 grip-heavy sets in a session: suggest straps or a grip-free option |
    | Redundant | Direct front-delt work when presses already cover them; any exercise whose muscles are all green already |
 
@@ -170,13 +170,13 @@ max) and a maintenance mode (about a third of the building volume, at the same i
   harder ladder step (ADR-0016). Targets and bests are scoped to the step and the block kind
   (ADR-0028), and history follows the exercise, never the plan day (ADR-0034).
 
-### Muscles are free text
+### Muscles are fixed, with weights (step 2, ADR-0064)
 
-- `exercises.muscle_groups` is a JSON list of 24 free strings (quads, lats, "shoulders",
-  "grip", "posture", ...). `domain/volume.py` counts every planned set once for each tag on its
-  exercise against 10-20 hard sets a week, skipping four non-muscle tags. The Plan tab shows that
-  count as "Hard sets per muscle, per week".
-- No movement pattern (squat, hinge, push, pull ...) and no equipment on any exercise.
+- Each exercise in `plan.toml` names muscles from a fixed list of 21 with a weight (1, 0.5,
+  0.25), qualities apart, a movement pattern, its shared stress and the kit each ladder step
+  needs. `domain/volume.py` counts fractionally against 10-20 sets a week; the Plan tab, the
+  weekly review and the stretching routine use it. Until step 2 these were 24 free tags, each
+  set counting once per tag.
 
 ## Options
 
@@ -341,8 +341,8 @@ planned; split squats, pull-ups, tibialis raises and neck work already have thei
 
 1. **ADRs:** each person's own plan (A2; amends ADR-0059's Plans and multi-user Decided 7),
    equipment and places (C, E), load and double progression (D).
-2. **Catalogue facts:** fixed muscles with their weights, patterns, needs in `plan.toml`. The
-   Plan tab's volume chart uses the fixed list and fractional counting.
+2. **Catalogue facts** (done, ADR-0064): fixed muscles with their weights, patterns, needs in
+   `plan.toml`. The Plan tab's volume chart uses the fixed list and fractional counting.
 3. **Body map, read-only**, on the Plan tab, from the current plan, with the six bands and each
    muscle's own band.
 4. **Equipment** on Account; concrete kettlebell and backpack steps; locked steps; Move up and

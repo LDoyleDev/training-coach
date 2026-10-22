@@ -2,7 +2,6 @@
 the stretches from the bundled plan file, the choice from ``domain.stretching``, and the
 minutes logged on the workout as the plan's mobility exercise."""
 
-from collections import Counter
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -15,8 +14,9 @@ from training_coach.services import users
 from training_coach.services.seed import bundled_plan
 
 
-def worked(session: Session, template_id: int) -> Counter[str] | None:
-    """Planned sets per muscle group in a session, or None if there's no such session."""
+def worked(session: Session, template_id: int) -> dict[str, float] | None:
+    """Planned fractional sets per muscle in a session (ADR-0064), or None if there's no such
+    session."""
     template = session.scalar(
         select(SessionTemplate)
         .where(SessionTemplate.id == template_id)
@@ -24,10 +24,11 @@ def worked(session: Session, template_id: int) -> Counter[str] | None:
     )
     if template is None:
         return None
-    sets: Counter[str] = Counter()
+    weights = {e.slug: e.muscles for e in bundled_plan().exercises}
+    sets: dict[str, float] = {}
     for item in template.items:
-        for group in item.exercise.muscle_groups:
-            sets[group] += item.sets
+        for muscle, weight in weights.get(item.exercise.slug, {}).items():
+            sets[muscle] = sets.get(muscle, 0) + weight * item.sets
     return sets
 
 

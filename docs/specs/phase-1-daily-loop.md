@@ -29,7 +29,7 @@ Built outside the step list: the public plan page and
 
 | Table | Purpose | Key columns |
 | --- | --- | --- |
-| `exercises` | Movement family | id, slug, name, kind (`reps`/`seconds`/`duration_min`), muscle_groups |
+| `exercises` | Movement family | id, slug, name, kind (`reps`/`seconds`/`duration_min`); muscles are in the bundled plan (ADR-0064) |
 | `ladder_steps` | Variations, easiest first | id, exercise_id, position, name, cue |
 | `session_templates` | Ordered sessions in the cycle | id, position, slug, name, focus, is_rest_optional |
 | `template_items` | Exercises in a session | id, template_id, position, exercise_id, sets, rep_min, rep_max, per_side |

@@ -16,6 +16,8 @@ PLAN = """
 slug = "pull-up"
 name = "Pull-up"
 kind = "reps"
+muscles = { lats = 1 }
+pattern = "vertical pull"
 start = 1
 ladder = ["Negatives", "Strict", "Weighted"]
 
@@ -23,6 +25,8 @@ ladder = ["Negatives", "Strict", "Weighted"]
 slug = "split-squat"
 name = "Split squat"
 kind = "reps"
+muscles = { quads = 1 }
+pattern = "lunge"
 start = 0
 ladder = ["Bodyweight"]
 
@@ -30,6 +34,8 @@ ladder = ["Bodyweight"]
 slug = "run"
 name = "Zone 2 run"
 kind = "duration_min"
+qualities = ["conditioning"]
+pattern = "cardio"
 start = 0
 ladder = ["Easy"]
 

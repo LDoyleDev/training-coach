@@ -13,6 +13,11 @@
 # `pair = N` on two neighbouring items: they are done alternately, set by set, and should not
 # compete for the same muscles, so one rests while the other works. The order above applies to
 # each pair's first exercise; the second may be a small muscle filling that lift's rest (ADR-0031).
+# Each exercise's catalogue facts (ADR-0064): `muscles` from the fixed list, with what a hard set
+# counts for each (1 prime mover, 0.5 synergist, 0.25 a small part; a stabiliser is left out),
+# from docs/specs/program-builder-research.md; `qualities` that aren't muscles; its `pattern`;
+# the `stress` it shares with other exercises (spine, grip); and under `[exercises.needs]`, the
+# kit each ladder step needs ("kettlebell:16"). Bodyweight and household things need nothing.
 
 # Weekly targets the review reports against (#124). Zone 2: 180-200 minutes a week, built up
 # over time (Huberman Lab newsletter, "Foundational Fitness Protocol", Nov 2022).
@@ -114,67 +119,97 @@ slug = "tibialis-raise"
 name = "Tibialis raise"
 summary = "Lean your back against a wall with your heels out in front. Lift your toes as high as you can, then lower slowly."
 kind = "reps"
-muscle_groups = ["tibialis"]
+muscles = { tibialis = 1 }
+pattern = "isolation"
 aliases = ["tib raise", "tib raises", "tibialis", "toe raises"]
 start = 0
 ladder = ["Back against wall, heels forward", "Heels further from wall", "Single leg", "Holding 8 kg on toes"]
+[exercises.needs]
+"Holding 8 kg on toes" = ["kettlebell:8"]
 
 [[exercises]]
 slug = "jump-squat"
 name = "Jump squat"
 summary = "Squat to about parallel, then jump as high as you can. Land softly through the balls of your feet and reset before the next rep."
 kind = "reps"
-muscle_groups = ["quads", "glutes", "power"]
+muscles = { quads = 0.5, glutes = 0.5 }
+qualities = ["power"]
+pattern = "squat"
 aliases = ["jump squat", "jump squats", "squat jumps"]
 start = 0
 ladder = ["Bodyweight, full rest", "Pause at bottom, then jump", "Holding 8 kg"]
+[exercises.needs]
+"Holding 8 kg" = ["kettlebell:8"]
 
 [[exercises]]
 slug = "kb-swing"
 name = "Kettlebell swing"
 summary = "Hinge at the hips with a flat back and hike the bell between your legs. Snap your hips forward to float it to chest height; your arms only guide it."
 kind = "reps"
-muscle_groups = ["glutes", "hamstrings", "lower back"]
+muscles = { glutes = 0.5, hamstrings = 0.5, "lower back" = 0.25, forearms = 0.25 }
+pattern = "hinge"
+stress = ["spine", "grip"]
 aliases = ["swings", "swing", "kb swings"]
 start = 0
 ladder = ["Two-hand, 8 kg", "One-arm, 8 kg", "Heavier kettlebell"]
+[exercises.needs]
+"Two-hand, 8 kg" = ["kettlebell:8"]
+"One-arm, 8 kg" = ["kettlebell:8"]
+"Heavier kettlebell" = ["kettlebell:16"]
 
 [[exercises]]
 slug = "bulgarian-split-squat"
 name = "Bulgarian split squat"
 summary = "Back foot on a chair, front foot far enough forward that the knee stays over the foot. Lower until the back knee nearly touches the floor, then drive up through the front heel."
 kind = "reps"
-muscle_groups = ["quads", "glutes"]
+muscles = { quads = 1, glutes = 1, adductors = 0.5 }
+pattern = "lunge"
+stress = ["spine"]
 aliases = ["split squat", "bulgarian", "bss"]
 start = 0
 ladder = ["Bodyweight, back foot on chair", "Goblet hold, 8 kg", "Goblet hold, 3 s lowering", "Heavier kettlebell"]
+[exercises.needs]
+"Goblet hold, 8 kg" = ["kettlebell:8"]
+"Goblet hold, 3 s lowering" = ["kettlebell:8"]
+"Heavier kettlebell" = ["kettlebell:16"]
 
 [[exercises]]
 slug = "pistol-squat"
 name = "Pistol squat"
 summary = "Stand on one leg with the other held out in front. Sit back and down under control, then stand up without letting the knee cave in."
 kind = "reps"
-muscle_groups = ["quads", "glutes"]
+muscles = { quads = 1, glutes = 1, adductors = 0.5 }
+pattern = "squat"
+stress = ["spine"]
 aliases = ["pistol", "pistols"]
 start = 0
 ladder = ["Sit to chair on one leg", "Lower box", "Full pistol", "Holding 8 kg"]
+[exercises.needs]
+"Holding 8 kg" = ["kettlebell:8"]
 
 [[exercises]]
 slug = "single-leg-rdl"
 name = "Single-leg Romanian deadlift"
 summary = "Stand on one leg, kettlebell in the opposite hand. Hinge at the hip with a long back until you feel the hamstring stretch, then squeeze the glute to stand."
 kind = "reps"
-muscle_groups = ["hamstrings", "glutes", "lower back"]
+muscles = { hamstrings = 1, glutes = 0.5, "lower back" = 0.25 }
+pattern = "hinge"
+stress = ["spine"]
 aliases = ["rdl", "single leg rdl", "romanian deadlift"]
 start = 0
 ladder = ["8 kg", "8 kg, pause at bottom", "Heavier kettlebell"]
+[exercises.needs]
+"8 kg" = ["kettlebell:8"]
+"8 kg, pause at bottom" = ["kettlebell:8"]
+"Heavier kettlebell" = ["kettlebell:16"]
 
 [[exercises]]
 slug = "hamstring-curl"
 name = "Hamstring curl"
 summary = "Lie on your back, heels on a towel on a smooth floor, hips lifted. Pull your heels towards your glutes, then slide them back out slowly, keeping the hips up."
 kind = "reps"
-muscle_groups = ["hamstrings"]
+muscles = { hamstrings = 1 }
+pattern = "isolation"
 aliases = ["hamstring curl", "towel curl", "sliders", "leg curl", "nordic", "nordics"]
 start = 0
 ladder = ["Towel slide, both legs", "Towel slide, single leg", "Nordic curl negatives", "Full Nordic curl"]
@@ -184,10 +219,14 @@ slug = "calf-raise"
 name = "Single-leg calf raise"
 summary = "Ball of one foot on a step, heel hanging. Rise as high as you can, pause, then lower below the step."
 kind = "reps"
-muscle_groups = ["calves"]
+muscles = { calves = 1 }
+pattern = "isolation"
 aliases = ["calf raise", "calves", "calf raises"]
 start = 0
 ladder = ["Bodyweight on a step", "Holding 8 kg", "8 kg, 2 s pause at top"]
+[exercises.needs]
+"Holding 8 kg" = ["kettlebell:8"]
+"8 kg, 2 s pause at top" = ["kettlebell:8"]
 
 # ------------------------------------------------------------------ torso
 
@@ -196,37 +235,53 @@ slug = "pull-up"
 name = "Pull-up"
 summary = "Hang with an overhand grip a little wider than your shoulders. Pull until your chin clears the bar, then lower slowly to a full hang. Check the bar is fixed firmly first."
 kind = "reps"
-muscle_groups = ["lats", "upper back", "biceps"]
+muscles = { lats = 1, biceps = 0.5, "upper back" = 0.5, "rear delts" = 0.25, forearms = 0.25 }
+pattern = "vertical pull"
+stress = ["grip"]
 aliases = ["pullups", "pull ups", "pull-ups"]
 start = 1
 ladder = ["Slow negatives", "Strict pull-up", "Pause at top", "Weighted backpack"]
+[exercises.needs]
+"Slow negatives" = ["pull-up bar"]
+"Strict pull-up" = ["pull-up bar"]
+"Pause at top" = ["pull-up bar"]
+"Weighted backpack" = ["pull-up bar", "backpack"]
 
 [[exercises]]
 slug = "dip"
 name = "Dip (chairs)"
 summary = "Hands on two sturdy chairs that can't tip or slide (back them against a wall), behind or beside you. Lower until your upper arms are level with the seats, then press back up without shrugging."
 kind = "reps"
-muscle_groups = ["chest", "triceps", "front delts"]
+muscles = { chest = 1, triceps = 0.5, "front delts" = 0.5 }
+pattern = "vertical push"
 aliases = ["dips"]
 start = 0
 ladder = ["Feet on floor", "Feet off floor", "Weighted backpack"]
+[exercises.needs]
+"Weighted backpack" = ["backpack"]
 
 [[exercises]]
 slug = "kb-row"
 name = "One-arm kettlebell row"
 summary = "One hand and knee on a bench or bed, back flat. Pull the kettlebell to your hip, pause, and lower with control."
 kind = "reps"
-muscle_groups = ["lats", "upper back", "biceps"]
+muscles = { "upper back" = 1, lats = 1, biceps = 0.5, "rear delts" = 0.5 }
+pattern = "horizontal pull"
 aliases = ["row", "rows", "kb row"]
 start = 0
 ladder = ["8 kg", "8 kg, 3 s lowering", "Heavier kettlebell"]
+[exercises.needs]
+"8 kg" = ["kettlebell:8"]
+"8 kg, 3 s lowering" = ["kettlebell:8"]
+"Heavier kettlebell" = ["kettlebell:16"]
 
 [[exercises]]
 slug = "push-up"
 name = "Push-up"
 summary = "Hands under your shoulders, body in one straight line. Lower your chest to just above the floor, then push away."
 kind = "reps"
-muscle_groups = ["chest", "triceps", "front delts"]
+muscles = { chest = 1, triceps = 0.5, "front delts" = 0.5 }
+pattern = "horizontal push"
 aliases = ["pushups", "push ups", "push-ups", "press ups"]
 start = 0
 ladder = ["Standard", "Feet elevated", "Deficit", "Archer"]
@@ -236,7 +291,8 @@ slug = "pike-push-up"
 name = "Pike push-up"
 summary = "Hips high so your body makes an upside-down V. Bend your elbows to bring the top of your head towards the floor between your hands, then press up."
 kind = "reps"
-muscle_groups = ["shoulders", "triceps"]
+muscles = { "front delts" = 1, "side delts" = 0.5, triceps = 0.5 }
+pattern = "vertical push"
 aliases = ["pike", "pikes", "pike pushups"]
 start = 0
 ladder = ["Feet on floor", "Feet on chair", "Wall handstand push-up negatives"]
@@ -246,17 +302,23 @@ slug = "reverse-fly"
 name = "Rear-delt reverse fly"
 summary = "Chest supported, arms hanging straight down. Raise the weights out to the side with a slight bend in the elbows, squeezing your shoulder blades together."
 kind = "reps"
-muscle_groups = ["rear delts", "upper back", "posture"]
+muscles = { "rear delts" = 1, "upper back" = 0.5 }
+qualities = ["posture"]
+pattern = "isolation"
 aliases = ["reverse fly", "rear delt", "rear delts", "reverse flyes"]
 start = 0
 ladder = ["Chest on bench/bed, water bottles", "Chest on bench/bed, 8 kg one arm", "Chest-supported, 3 s lowering"]
+[exercises.needs]
+"Chest on bench/bed, 8 kg one arm" = ["kettlebell:8"]
+"Chest-supported, 3 s lowering" = ["kettlebell:8"]
 
 [[exercises]]
 slug = "neck-flexion"
 name = "Neck flexion (lying on back, head off edge)"
 summary = "Lie on your back with your head off the edge of a bed or bench. Tuck your chin and lift your head slowly, then lower just as slowly. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
-muscle_groups = ["neck"]
+muscles = { neck = 1 }
+pattern = "isolation"
 aliases = ["neck flexion", "neck curl", "neck curls", "neck front"]
 start = 0
 ladder = ["Bodyweight, slow", "Hand resistance on forehead", "Folded towel + light plate/bottle on forehead"]
@@ -266,7 +328,9 @@ slug = "neck-extension"
 name = "Neck extension (lying face down, head off edge)"
 summary = "Lie face down with your head off the edge. Lift your head to neutral and a little beyond, slowly, then lower. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
-muscle_groups = ["neck", "posture"]
+muscles = { neck = 1 }
+qualities = ["posture"]
+pattern = "isolation"
 aliases = ["neck extension", "neck back", "neck extensions"]
 start = 0
 ladder = ["Bodyweight, slow", "Hand resistance on back of head", "Towel-wrapped light weight on back of head"]
@@ -278,17 +342,24 @@ slug = "chin-up"
 name = "Chin-up"
 summary = "Hang with palms facing you, hands shoulder-width apart. Pull until your chin clears the bar, then lower slowly to a full hang."
 kind = "reps"
-muscle_groups = ["biceps", "lats"]
+muscles = { lats = 1, biceps = 0.5, "upper back" = 0.5, "rear delts" = 0.25, forearms = 0.25 }
+pattern = "vertical pull"
+stress = ["grip"]
 aliases = ["chinups", "chin ups", "chin-ups"]
 start = 0
 ladder = ["Strict", "3 s lowering", "Weighted backpack"]
+[exercises.needs]
+"Strict" = ["pull-up bar"]
+"3 s lowering" = ["pull-up bar"]
+"Weighted backpack" = ["pull-up bar", "backpack"]
 
 [[exercises]]
 slug = "diamond-push-up"
 name = "Diamond push-up"
 summary = "Hands together under your chest, thumbs and index fingers touching. Keep your elbows close to your sides as you lower and press."
 kind = "reps"
-muscle_groups = ["triceps", "chest"]
+muscles = { chest = 1, triceps = 0.5, "front delts" = 0.5 }
+pattern = "horizontal push"
 aliases = ["diamonds", "diamond pushups"]
 start = 0
 ladder = ["Standard", "Feet elevated"]
@@ -298,17 +369,23 @@ slug = "kb-curl"
 name = "Kettlebell curl"
 summary = "Stand tall, elbows pinned to your sides. Curl the kettlebell up, squeeze, then lower over about two seconds."
 kind = "reps"
-muscle_groups = ["biceps", "forearms"]
+muscles = { biceps = 1, forearms = 0.25 }
+pattern = "isolation"
 aliases = ["curls", "curl", "bicep curls"]
 start = 0
 ladder = ["8 kg", "8 kg, slow tempo", "Heavier kettlebell"]
+[exercises.needs]
+"8 kg" = ["kettlebell:8"]
+"8 kg, slow tempo" = ["kettlebell:8"]
+"Heavier kettlebell" = ["kettlebell:16"]
 
 [[exercises]]
 slug = "lateral-raise"
 name = "Kettlebell lateral raise"
 summary = "Slight bend in the elbows. Raise the weight out to the side to shoulder height, leading with the elbow, then lower slowly."
 kind = "reps"
-muscle_groups = ["side delts"]
+muscles = { "side delts" = 1 }
+pattern = "isolation"
 aliases = ["lateral raises", "laterals", "side raises"]
 start = 0
 ladder = ["8 kg or water bottles", "Lean-away single-arm"]
@@ -318,7 +395,8 @@ slug = "neck-lateral"
 name = "Neck side bend (lying on side, head off edge)"
 summary = "Lie on your side with your head off the edge. Lift your ear towards your shoulder slowly, then lower; do both sides. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
-muscle_groups = ["neck"]
+muscles = { neck = 1 }
+pattern = "isolation"
 aliases = ["neck side", "neck lateral", "side neck"]
 start = 0
 ladder = ["Bodyweight, slow", "Hand resistance on side of head", "Towel-wrapped light weight"]
@@ -328,20 +406,32 @@ slug = "hanging-raise"
 name = "Hanging knee/leg raise"
 summary = "Hang from the bar with your shoulders engaged. Bring your knees (or legs) up without swinging, then lower with control."
 kind = "reps"
-muscle_groups = ["core", "hip flexors", "grip"]
+muscles = { abs = 1, "hip flexors" = 1, forearms = 0.25 }
+pattern = "core"
+stress = ["grip"]
 aliases = ["leg raises", "knee raises", "hanging raises"]
 start = 0
 ladder = ["Knee raises", "Straight-leg raises", "Toes to bar"]
+[exercises.needs]
+"Knee raises" = ["pull-up bar"]
+"Straight-leg raises" = ["pull-up bar"]
+"Toes to bar" = ["pull-up bar"]
 
 [[exercises]]
 slug = "dead-hang"
 name = "Dead hang"
 summary = "Hang from the bar with straight arms. Breathe slowly and keep a firm grip; start the clock when your feet leave the floor."
 kind = "seconds"
-muscle_groups = ["grip", "forearms", "shoulders"]
+muscles = { forearms = 1 }
+pattern = "isolation"
+stress = ["grip"]
 aliases = ["hang", "dead hang", "hangs"]
 start = 0
 ladder = ["Two hands", "Two hands, active shoulders", "One hand, alternating"]
+[exercises.needs]
+"Two hands" = ["pull-up bar"]
+"Two hands, active shoulders" = ["pull-up bar"]
+"One hand, alternating" = ["pull-up bar"]
 
 # --------------------------------------------------------- recovery + posture
 
@@ -350,7 +440,9 @@ slug = "prone-ytw"
 name = "Prone Y-T-W raise"
 summary = "Lie face down, arms overhead in a Y. Lift your arms, then move through T (out to the sides) and W (elbows bent), squeezing your shoulder blades each time."
 kind = "reps"
-muscle_groups = ["upper back", "rear delts", "posture"]
+muscles = { "upper back" = 1, "rear delts" = 0.5 }
+qualities = ["posture"]
+pattern = "isolation"
 aliases = ["ytw", "y t w", "y-t-w", "prone raises"]
 start = 0
 ladder = ["Bodyweight", "Water bottles", "3 s hold at top"]
@@ -360,17 +452,23 @@ slug = "back-extension"
 name = "Back extension (superman)"
 summary = "Lie face down. Lift your chest and legs off the floor together, hold for a breath, then lower slowly."
 kind = "reps"
-muscle_groups = ["lower back", "glutes", "posture"]
+muscles = { "lower back" = 1, glutes = 0.5 }
+qualities = ["posture"]
+pattern = "hinge"
+stress = ["spine"]
 aliases = ["superman", "supermans", "back extension", "back extensions"]
 start = 0
 ladder = ["Floor superman", "Hips on bed edge, feet anchored", "Holding 8 kg at chest"]
+[exercises.needs]
+"Holding 8 kg at chest" = ["kettlebell:8"]
 
 [[exercises]]
 slug = "chin-tuck"
 name = "Chin tuck (against wall)"
 summary = "Stand with your back and head against a wall. Draw your chin straight back, making a double chin, and hold."
 kind = "reps"
-muscle_groups = ["neck", "posture"]
+qualities = ["posture"]
+pattern = "mobility"
 aliases = ["chin tuck", "chin tucks"]
 start = 0
 ladder = ["5 s hold", "10 s hold", "Lying, head lifted 1 cm, 10 s hold"]
@@ -380,7 +478,8 @@ slug = "mobility"
 name = "Mobility flow (hip flexors, thoracic spine, hamstrings)"
 summary = "Eight slow movements in 10 minutes, standing to lying, for the upper back, hips and hamstrings. The app times each one. Move gently and breathe; nothing should hurt."
 kind = "duration_min"
-muscle_groups = ["mobility"]
+qualities = ["mobility"]
+pattern = "mobility"
 aliases = ["mobility", "stretch", "stretching"]
 start = 0
 ladder = ["Guided 10 min"]
@@ -392,7 +491,8 @@ slug = "moderate-cardio"
 name = "Moderate cardio (~75-80% effort)"
 summary = "About 75-80% effort: breathing hard, but able to say a few words. Run, bike, climb stairs, skip or do a kettlebell circuit."
 kind = "duration_min"
-muscle_groups = ["conditioning"]
+qualities = ["conditioning"]
+pattern = "cardio"
 aliases = ["run", "cardio", "moderate", "kb circuit", "jump rope"]
 start = 0
 ladder = ["Run, bike, stairs, jump rope or KB circuit"]
@@ -402,7 +502,8 @@ slug = "hiit"
 name = "High-intensity intervals (20 s all-out / 10 s easy)"
 summary = "20 seconds as hard as you can, 10 seconds easy, repeated. Bike, hill sprints, swings or burpees all work. Only once you have a base of easier cardio; stop if you feel dizzy or your chest feels tight."
 kind = "reps"
-muscle_groups = ["conditioning"]
+qualities = ["conditioning"]
+pattern = "cardio"
 aliases = ["hiit", "intervals", "sprints", "tabata"]
 start = 0
 ladder = ["8 rounds", "10 rounds", "12 rounds", "12 rounds, 30 s on"]
@@ -412,7 +513,8 @@ slug = "zone2"
 name = "Zone 2 (conversational pace)"
 summary = "Easy enough to hold a conversation the whole time. Walk briskly, hike, jog gently or cycle."
 kind = "duration_min"
-muscle_groups = ["conditioning"]
+qualities = ["conditioning"]
+pattern = "cardio"
 aliases = ["zone 2", "walk", "easy run", "bike", "cycle", "cycling", "cycled", "hike", "long run"]
 start = 0
 ladder = ["Brisk walk / hike", "Easy jog / bike", "Easy jog with weight vest or backpack"]
@@ -501,6 +603,8 @@ type = "conditioning"
 name = "Long zone 2"
 focus = "60-75 min at conversational pace (30 min minimum)"
 items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
+[exercises.needs]
+"Easy jog with weight vest or backpack" = ["backpack"]
 
 # ---------------------------------------------------------- retired (#107, ADR-0034)
 # No longer in any session. Kept so their history stays and old days can still be logged;
@@ -511,17 +615,25 @@ items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
 slug = "goblet-squat"
 name = "Goblet squat"
 kind = "reps"
-muscle_groups = ["quads", "glutes"]
+muscles = { quads = 1, glutes = 1, adductors = 1 }
+pattern = "squat"
+stress = ["spine"]
 aliases = ["goblet", "goblet squats"]
 start = 0
 ladder = ["8 kg, 3 s lowering", "1.5-rep squats, 8 kg", "Heavier kettlebell"]
 retired = true
+[exercises.needs]
+"8 kg, 3 s lowering" = ["kettlebell:8"]
+"1.5-rep squats, 8 kg" = ["kettlebell:8"]
+"Heavier kettlebell" = ["kettlebell:16"]
 
 [[exercises]]
 slug = "reverse-lunge"
 name = "Reverse lunge"
 kind = "reps"
-muscle_groups = ["quads", "glutes"]
+muscles = { quads = 1, glutes = 1, adductors = 0.5 }
+pattern = "lunge"
+stress = ["spine"]
 aliases = ["lunge", "lunges", "reverse lunges"]
 start = 0
 ladder = ["Bodyweight", "Holding 8 kg", "Deficit, holding 8 kg"]
@@ -530,7 +642,7 @@ per_side = true
 
 # ---------------------------------------------------------------- stretches (#98, ADR-0032)
 # Offered after a resistance session (10, 20 or 30 min). Static holds of about 30 s at a gentle
-# effort, 3-4 out of 10: a stretch, never pain. `muscles` use the exercises' muscle groups, so
+# effort, 3-4 out of 10: a stretch, never pain. `muscles` come from the exercises' muscles, so
 # the routine can start with what the session worked. No equipment beyond a wall, door or chair.
 
 [[stretches]]
@@ -592,7 +704,7 @@ cue = "Forearms on the door frame, elbows at shoulder height, step through until
 [[stretches]]
 slug = "cross-body-shoulder"
 name = "Cross-body shoulder stretch"
-muscles = ["rear delts", "upper back", "shoulders", "side delts"]
+muscles = ["rear delts", "upper back", "side delts"]
 per_side = true
 cue = "Bring one arm across your chest and hold it above the elbow. Keep the shoulder down."
 
@@ -613,7 +725,7 @@ cue = "Palm on the wall behind you at shoulder height, arm straight, turn your b
 [[stretches]]
 slug = "wrist-flexor"
 name = "Wrist and forearm stretch"
-muscles = ["forearms", "grip"]
+muscles = ["forearms"]
 per_side = true
 cue = "Arm straight, palm up, gently pull the fingers back. Then palm down for the other side."
 
@@ -634,7 +746,7 @@ cue = "Ear towards the shoulder, the opposite shoulder down. Your hand only rest
 [[stretches]]
 slug = "sphinx"
 name = "Sphinx stretch"
-muscles = ["core", "hip flexors"]
+muscles = ["abs", "hip flexors"]
 per_side = false
 cue = "On your front, up on your forearms, hips on the floor. Relax the glutes and breathe."
 
@@ -747,3 +859,6 @@ cues = ["Push through your heels and squeeze your glutes.", "Stop before your lo
 breathing = "Out as you lift, in as you lower."
 easier = "Lift halfway, or squeeze your glutes with your hips down."
 pacing = "Slow reps, with a 2 s squeeze at the top."
+[exercises.needs]
+"Holding 8 kg" = ["kettlebell:8"]
+"Deficit, holding 8 kg" = ["kettlebell:8"]

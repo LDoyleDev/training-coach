@@ -58,7 +58,6 @@ class Exercise(Base):
     slug: Mapped[str] = mapped_column(String(64), unique=True)
     name: Mapped[str] = mapped_column(String(120))
     kind: Mapped[str] = mapped_column(String(16))
-    muscle_groups: Mapped[list[str]] = mapped_column(JSON, default=list)
     aliases: Mapped[list[str]] = mapped_column(JSON, default=list)
     # Out of the plan but kept with its history; still loggable (#107, ADR-0034).
     retired: Mapped[bool] = mapped_column(Boolean, server_default=false())

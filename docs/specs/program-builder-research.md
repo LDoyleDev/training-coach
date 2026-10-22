@@ -156,10 +156,12 @@ sore for 72 hours, rows for less (Soares 2015, abstract). The app warns when one
 **Shared stress that muscle counts miss.** No study gives a limit for these; they are reasoned
 defaults, marked **no data** in the app, and they warn without blocking:
 
-- **Lower back (spinal loading).** Squats, RDLs, swings, back extensions, carries and bent-over
-  rows all load the spine, though few of them count for lower-back growth. Warn above **8
-  spine-loading hard sets in one session**, and when heavy hinges (RDL, deadlift, swings with a
-  heavy bell) fall on two days in a row. Today's Legs day has 6, the 4-day starter's Lower 1 has 6.
+- **Lower back (spinal loading).** Loaded squats (goblet, back and front squats, a loaded split
+  squat), RDLs, swings, back extensions, carries and bent-over rows all load the spine, though
+  few of them count for lower-back growth; bodyweight and jump squats don't count. Warn above
+  **8 spine-loading hard sets in one session**, and when heavy hinges (RDL, deadlift, swings with
+  a heavy bell) fall on two days in a row. Today's Legs day has 6 (swings and RDLs), and up to 13
+  on the split squat's and pistol's kettlebell steps; the 4-day starter's Lower 1 has 6.
 - **Elbows and the front of the shoulder.** Pressing, dips and triceps work all load the elbow in
   extension, and every press loads the front delts. The front delts need no direct work, so the
   picker says so ("already covered by your presses") rather than offering front raises.
@@ -230,7 +232,7 @@ Worked out from the weights above.
 
 Also: front delts 7.5, rear delts 7.25, neck 7, forearms 6, lower back 3.5, adductors 3.5,
 abs 3, tibialis 3, obliques and upper traps 0. No rectus femoris work; spine-loading sets at most
-6 in a session (Legs).
+6 in a session (Legs), or 13 once the split squats and pistols hold a kettlebell: over the cap.
 
 **What would turn it green, home kit only** (a suggestion for the owner; nothing changes until
 they say so):

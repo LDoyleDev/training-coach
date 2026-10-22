@@ -42,8 +42,8 @@ def seconds(stretch: Stretch, rounds: int) -> int:
     return rounds * sides * (HOLD_SECONDS + SWITCH_SECONDS)
 
 
-def routine(catalogue: Sequence[Stretch], worked: Mapping[str, int], minutes: int) -> list[Step]:
-    """The stretches to do in ``minutes``, in order. ``worked`` is sets per muscle group in the
+def routine(catalogue: Sequence[Stretch], worked: Mapping[str, float], minutes: int) -> list[Step]:
+    """The stretches to do in ``minutes``, in order. ``worked`` is fractional sets per muscle in the
     session; the most-worked muscles come first, each stretch at most once."""
     budget = minutes * 60
     rounds: dict[Stretch, int] = {}
@@ -85,6 +85,6 @@ def routine(catalogue: Sequence[Stretch], worked: Mapping[str, int], minutes: in
     return [Step(stretch, n) for stretch, n in rounds.items()]
 
 
-def _new_work(stretch: Stretch, worked: Mapping[str, int], covered: set[str]) -> int:
+def _new_work(stretch: Stretch, worked: Mapping[str, float], covered: set[str]) -> float:
     """Sets the session did for muscles this stretch would cover for the first time."""
     return sum(worked.get(m, 0) for m in stretch.muscles - covered)

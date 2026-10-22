@@ -8,7 +8,7 @@ from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.habits import WEEK_DAYS
 from training_coach.domain.parser import sets_text
 from training_coach.domain.progression import Progress
-from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS
+from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
 from training_coach.domain.work_order import work_order
 from training_coach.services.progress import Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
@@ -334,7 +334,7 @@ def review_text(review: Review) -> str:
             note = (
                 " (low)" if sets < TARGET_MIN_SETS else " (high)" if sets > TARGET_MAX_SETS else ""
             )
-            lines.append(f"- {group}: {sets}{note}")
+            lines.append(f"- {group}: {shown(sets)}{note}")
     else:
         lines += ["", "No sets logged this week."]
     lines += ["", cardio_line(review)]

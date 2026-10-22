@@ -26,7 +26,9 @@ class ExerciseView(BaseModel):
     rep_min: int
     rep_max: int
     per_side: bool
-    muscle_groups: list[str]
+    muscles: dict[str, float]  # what a set counts for each muscle (ADR-0064)
+    qualities: list[str]
+    pattern: str
     ladder: list[str]
     start_step: int  # the plan's starting rung, not live progress (that comes from the db)
 
@@ -44,7 +46,7 @@ class SessionView(BaseModel):
 
 class VolumeView(BaseModel):
     group: str
-    sets: int
+    sets: float  # fractional hard sets (ADR-0064)
 
 
 class PlanView(BaseModel):
@@ -71,7 +73,9 @@ def build_plan_view() -> PlanView:
                     rep_min=item.rep_min,
                     rep_max=item.rep_max,
                     per_side=item.per_side,
-                    muscle_groups=list(ex.muscle_groups),
+                    muscles=dict(ex.muscles),
+                    qualities=list(ex.qualities),
+                    pattern=ex.pattern,
                     ladder=list(ex.ladder),
                     start_step=ex.start,
                 )
@@ -89,7 +93,7 @@ def build_plan_view() -> PlanView:
             )
         )
     volume = weekly_sets(
-        (exercises[item.exercise].muscle_groups, item.sets)
+        (exercises[item.exercise].muscles, item.sets)
         for session in plan.sessions
         for item in session.items
     )

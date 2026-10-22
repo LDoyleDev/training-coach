@@ -7,7 +7,7 @@ from training_coach.domain.enums import ExerciseKind
 
 
 def exercise(session: Session, slug: str = "pull-up") -> Exercise:
-    row = Exercise(slug=slug, name="Pull-up", kind=ExerciseKind.REPS, muscle_groups=["back"])
+    row = Exercise(slug=slug, name="Pull-up", kind=ExerciseKind.REPS)
     row.ladder = [
         LadderStep(position=0, name="Negatives"),
         LadderStep(position=1, name="Strict"),

@@ -17,6 +17,7 @@ from training_coach.db.models import Exercise, LadderStep, SessionTemplate, SetL
 from training_coach.domain.blocks import BlockKind
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.habits import HabitWeek
+from training_coach.domain.muscles import Muscle
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
 from training_coach.domain.volume import weekly_sets
@@ -43,7 +44,7 @@ class Review:
     done: int  # planned sessions completed
     rested: int
     extras: int  # unplanned sessions
-    volume: list[tuple[str, int]]  # hard sets logged per muscle group, largest first
+    volume: list[tuple[Muscle, float]]  # fractional hard sets logged per muscle, largest first
     bests: list[Best]
     ready: list[str]  # exercises ready to move up
     strength_block: bool = False  # moving up waits for the hypertrophy block (ADR-0028)
@@ -58,9 +59,9 @@ def week_start(day: date) -> date:
     return day - timedelta(days=day.weekday())
 
 
-def _volume(session: Session, start: date, end: date) -> list[tuple[str, int]]:
-    """Each logged set counts once per muscle group of its exercise; a set done on both sides
-    (left and right) is still one set."""
+def _volume(session: Session, start: date, end: date) -> list[tuple[Muscle, float]]:
+    """Each logged set counts its exercise's weight for each muscle (ADR-0064); a set done on
+    both sides (left and right) is still one set."""
     one_per_set = (
         select(SetLog.exercise_id, SetLog.workout_id, SetLog.set_no)
         .join(Workout)
@@ -75,8 +76,9 @@ def _volume(session: Session, start: date, end: date) -> list[tuple[str, int]]:
     rows = session.execute(
         select(one_per_set.c.exercise_id, func.count()).group_by(one_per_set.c.exercise_id)
     )
-    groups = {e.id: e.muscle_groups for e in session.scalars(select(Exercise))}
-    return weekly_sets((groups.get(exercise_id, []), int(sets)) for exercise_id, sets in rows)
+    weights = {e.slug: e.muscles for e in bundled_plan().exercises}
+    muscles = {e.id: weights.get(e.slug, {}) for e in session.scalars(select(Exercise))}
+    return weekly_sets((muscles.get(exercise_id, {}), int(sets)) for exercise_id, sets in rows)
 
 
 def _minutes(session: Session, start: date, end: date) -> dict[str, int]:

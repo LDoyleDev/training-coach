@@ -30,7 +30,7 @@ def _bound(request: Request, user: int) -> sessionmaker[Session]:
 
 class ReviewSetsView(BaseModel):
     group: str
-    sets: int
+    sets: float  # fractional hard sets (ADR-0064)
 
 
 class ReviewBestView(BaseModel):

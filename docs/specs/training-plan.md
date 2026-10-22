@@ -23,9 +23,9 @@ shift everything back (ADR-0006).
 
 ## Training rules (Galpin, from the Huberman Lab guest series)
 
-- **Volume:** 10-20 hard sets per muscle group per week (Galpin counts direct work; the table
-  below also counts secondary movers, so treat it as an upper estimate). Each muscle is trained
-  directly once and indirectly once per week.
+- **Volume:** 10-20 hard sets per muscle group per week. The table below counts secondary
+  movers as half a set or less (ADR-0064). Each muscle is trained directly once and indirectly
+  once per week.
 - **Effort:** stop 1-2 reps short of failure on most sets.
 - **Reps:** hypertrophy 6-30 reps (mostly 8-15). Bodyweight progression comes from harder
   ladder variations, which keeps sets inside the range.
@@ -43,26 +43,33 @@ shift everything back (ADR-0006).
 
 ## Weekly hard sets per muscle group
 
-Counted from `plan.toml`: every set counts for each muscle group an exercise lists, primary or
-secondary (pull-ups count for lats, upper back and biceps). CI checks that this table matches
-`plan.toml`, and that quads, glutes, lats, upper back, biceps and triceps stay within 10-20.
-Hamstrings, chest and calves sit below 10 (see Known limits).
+Counted from `plan.toml`, fractionally (ADR-0064): a set counts 1 for each muscle its exercise
+lists as a prime mover, 0.5 for a synergist and 0.25 for a small part (pull-ups: 1 for lats, 0.5
+for biceps and upper back, 0.25 for rear delts and forearms). The weights, and why, are in
+`program-builder-research.md` (Weights by exercise). CI checks that this table matches
+`plan.toml`. Most muscles sit below Galpin's 10 (see Known limits).
 
 | Group | Sets | From |
 | --- | --- | --- |
-| Glutes | 18 | jump squat, swing, split squat, pistol, RDL, back extension |
-| Biceps | 13 | pull-up, row, chin-up, curl |
-| Upper back | 12 | pull-up, row, reverse fly, Y-T-W |
-| Triceps | 12 | dip, push-up, pike, diamond |
-| Quads | 10 | jump squat, split squat, pistol |
+| Glutes | 12.5 | split squat, pistol, jump squat, swing, RDL, back extension |
 | Lats | 10 | pull-up, row, chin-up |
-| Hamstrings | 9 | swing, RDL, hamstring curl |
+| Upper back | 10 | row, Y-T-W, reverse fly, pull-up, chin-up |
 | Chest | 9 | dip, push-up, diamond |
-| Neck | 9 | flexion, extension, side bend, chin tuck (Torso + Arms + Recovery days) |
-| Lower back | 8 | swing, RDL, back extension |
+| Quads | 8.5 | split squat, pistol, jump squat |
+| Biceps | 8 | curl, pull-up, row, chin-up |
+| Front delts | 7.5 | pike, dip, push-up, diamond |
+| Hamstrings | 7.5 | hamstring curl, RDL, swing |
+| Rear delts | 7.25 | reverse fly, row, Y-T-W, pull-up, chin-up |
+| Neck | 7 | flexion, extension, side bend (Torso + Arms days) |
 | Calves | 6 | twice a week (Legs + Arms) |
-| Shoulders (front/side/rear) | 6 / 4 / 5 | pike + presses / lateral raise / reverse fly + Y-T-W |
-| Core, grip, tibialis | 3-5 each | hanging raises, dead hang, tibialis raises |
+| Forearms | 6 | dead hang, curl, hanging raise, pull-up, chin-up, swing |
+| Triceps | 6 | dip, push-up, pike, diamond; nothing for the long head |
+| Side delts | 5.5 | lateral raise, pike |
+| Adductors | 3.5 | split squat, pistol |
+| Lower back | 3.5 | back extension, swing, RDL |
+| Abs | 3 | hanging raises |
+| Hip flexors | 3 | hanging raises |
+| Tibialis | 3 | tibialis raises |
 
 Conditioning covers Galpin's endurance adaptations: long zone 2 (long-duration endurance),
 moderate cardio (muscular endurance / threshold), high intensity (anaerobic and VO2 max).
@@ -75,8 +82,10 @@ in `plan.toml`.
 
 ## Known limits
 
-- Hamstrings and chest get 9 sets a week and calves 6, under Galpin's 10. Adding more would
-  lengthen the Legs and Torso days past an hour. Raise them first if those groups lag.
+- Counted fractionally, only glutes, lats and upper back reach Galpin's 10; quads, glutes and
+  hamstrings are trained on one day a week, and nothing trains the triceps' long head. The
+  research file (`program-builder-research.md`, Coverage) suggests changes with the home kit;
+  the plan stays as it is until the owner decides.
 - Legs outgrow an 8 kg kettlebell first. A 16 kg (then 24 kg) bell is the most useful upgrade;
   the ladders already include "heavier kettlebell" steps.
 - Huberman alternates monthly between strength blocks (4-8 reps, 3-4 sets, 2-4 min rest) and

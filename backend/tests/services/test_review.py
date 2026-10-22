@@ -89,22 +89,15 @@ def test_sessions_done_rested_and_extra_this_week_only(plan: Session) -> None:
     assert (review.done, review.rested, review.extras) == (1, 1, 1)
 
 
-def test_hard_sets_count_once_per_muscle_group(plan: Session) -> None:
-    """A set done on both sides is one set; each set counts for each of its muscle groups."""
+def test_hard_sets_count_their_weight_per_muscle(plan: Session) -> None:
+    """A set done on both sides is one set; each set counts its exercise's weight for each
+    muscle (ADR-0064): pull-ups 1 for lats and 0.5 for biceps, split squats 1 for quads."""
     _log(plan, "pull-up", [8, 8, 8, 8], MONDAY)
     _log(plan, "bulgarian-split-squat", [10, 10], MONDAY, sides=(Side.LEFT, Side.RIGHT))
     volume = dict(weekly(plan, SUNDAY).volume)
-    for group in _exercise(plan, "pull-up").muscle_groups:
-        if group in volume:
-            assert volume[group] >= 4
-    split = [g for g in _exercise(plan, "bulgarian-split-squat").muscle_groups if g in volume]
-    assert split
-    assert all(volume[g] >= 2 for g in split)
-    pull_only = set(_exercise(plan, "pull-up").muscle_groups) - set(
-        _exercise(plan, "bulgarian-split-squat").muscle_groups
-    )
-    assert all(volume[g] == 4 for g in pull_only if g in volume)
-    assert all(volume[g] == 2 for g in split if g not in _exercise(plan, "pull-up").muscle_groups)
+    assert (volume["lats"], volume["biceps"], volume["rear delts"]) == (4, 2, 1)
+    assert (volume["quads"], volume["glutes"], volume["adductors"]) == (2, 2, 1)
+    assert "hamstrings" not in volume
 
 
 def test_bests_this_week_keep_the_highest(plan: Session) -> None:

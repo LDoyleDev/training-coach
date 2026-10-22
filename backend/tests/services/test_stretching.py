@@ -23,10 +23,11 @@ def test_legs_works_quads_and_glutes_most(session: Session) -> None:
     worked = stretching.worked(session, _template(session, "legs"))
     assert worked is not None
     plan = load_plan()
-    groups = {e.slug: e.muscle_groups for e in plan.exercises}
+    weights = {e.slug: e.muscles for e in plan.exercises}
     legs = next(p for p in plan.sessions if p.slug == "legs")
-    assert worked["glutes"] == sum(i.sets for i in legs.items if "glutes" in groups[i.exercise])
-    assert worked.most_common(1)[0][0] == "glutes"
+    glutes = sum(i.sets * weights[i.exercise].get("glutes", 0) for i in legs.items)
+    assert worked["glutes"] == glutes == 11.5  # program-builder-research.md, Coverage
+    assert max(worked, key=lambda m: worked[m]) == "glutes"
 
 
 def test_legs_stretching_starts_with_the_legs(session: Session) -> None:

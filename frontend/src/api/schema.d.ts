@@ -1849,12 +1849,18 @@ export interface components {
             kind: components["schemas"]["ExerciseKind"];
             /** Ladder */
             ladder: string[];
-            /** Muscle Groups */
-            muscle_groups: string[];
+            /** Muscles */
+            muscles: {
+                [key: string]: number;
+            };
             /** Name */
             name: string;
+            /** Pattern */
+            pattern: string;
             /** Per Side */
             per_side: boolean;
+            /** Qualities */
+            qualities: string[];
             /** Rep Max */
             rep_max: number;
             /** Rep Min */

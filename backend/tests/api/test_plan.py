@@ -85,7 +85,9 @@ def test_plan_endpoint_exposes_only_static_plan_fields(client: TestClient) -> No
         "rep_min",
         "rep_max",
         "per_side",
-        "muscle_groups",
+        "muscles",
+        "qualities",
+        "pattern",
         "ladder",
         "start_step",
     }
