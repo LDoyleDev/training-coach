@@ -187,8 +187,9 @@ and erasing everything removes them by the `user_id` cascade.
   and lists `deleted` records as `{type, id}`. Nights and workouts now keep that id
   (`record_id`) and are matched by it first, then as before (source and overlap for a night,
   source and start for a workout), so rows from before still match. A deleted night is removed
-  and its day's resting heart rate derived again; a deleted workout is removed unless it was
-  counted, since then it is the person's own log. Steps and heart rate stay keyed by day and
+  and its day's resting heart rate derived again; a deleted workout is removed when new or
+  dismissed (Health Connect no longer has it, so it can't come again to be offered anew) and
+  kept when counted, since then it is the person's own log. Steps and heart rate stay keyed by day and
   minute: they are aggregates, the app can't rebuild them after a deletion, and their
   deletions are ignored. Times may now come in the phone's local time with an offset (the
   `timezone` field says which); they are parsed as the same instants.
