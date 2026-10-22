@@ -31,7 +31,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from training_coach.db.base import Base
 from training_coach.db.types import UTCDateTime, utcnow
-from training_coach.domain.band_watch import Feed
+from training_coach.domain.band_watch import Feed, Refusal
 from training_coach.domain.blocks import BlockKind
 from training_coach.domain.daily_check import Energy, Sleep, Soreness
 from training_coach.domain.enums import CardioActivity, ExerciseKind, Side, Sound, WorkoutStatus
@@ -610,6 +610,11 @@ class IngestKey(Owned, Base):
     only its SHA-256 kept."""
 
     __tablename__ = "ingest_keys"
+    __table_args__ = (
+        CheckConstraint(
+            f"refused_reason IS NULL OR {_in('refused_reason', Refusal)}", name="refused_valid"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
@@ -619,6 +624,11 @@ class IngestKey(Owned, Base):
     # The last sync that took a record, and when a gap in band data was told (ADR-0055).
     last_taken_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     alerted_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    # The last sync turned away or left wholly unstored, and why; and the app version the
+    # last stored sync came from: what Account shows when data stops.
+    refused_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    refused_reason: Mapped[str | None] = mapped_column(String(16))
+    app_version: Mapped[str | None] = mapped_column(String(32))
 
 
 class BandFeed(Owned, Base):
@@ -686,8 +696,9 @@ class HeartRateSample(Owned, Base):
 
 
 class SleepSession(Owned, Base):
-    """A night (or nap) from the band (ADR-0055), with minutes per stage. Identified by where it
-    came from and when it started; sent again, it is updated."""
+    """A night (or nap) from the band (ADR-0055), with minutes per stage. Identified by its
+    Health Connect id when the app sends one, else by where it came from and when it started;
+    sent again, it is updated."""
 
     __tablename__ = "sleep_sessions"
     __table_args__ = (
@@ -703,6 +714,7 @@ class SleepSession(Owned, Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = _owner()
     source: Mapped[str] = mapped_column(String(128))  # the app that wrote it, e.g. com.mi.health
+    record_id: Mapped[str | None] = mapped_column(String(128), index=True)  # Health Connect's
     start_at: Mapped[datetime] = mapped_column(UTCDateTime)
     end_at: Mapped[datetime] = mapped_column(UTCDateTime)
     local_date: Mapped[date] = mapped_column(Date, index=True)  # the day it ended on
@@ -736,6 +748,7 @@ class ImportedWorkout(Owned, Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = _owner()
     source: Mapped[str] = mapped_column(String(128))
+    record_id: Mapped[str | None] = mapped_column(String(128), index=True)  # Health Connect's
     start_at: Mapped[datetime] = mapped_column(UTCDateTime)
     end_at: Mapped[datetime] = mapped_column(UTCDateTime)
     local_date: Mapped[date] = mapped_column(Date, index=True)  # the day it started on

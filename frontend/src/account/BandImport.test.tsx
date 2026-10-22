@@ -3,7 +3,16 @@ import { afterEach, expect, test, vi } from 'vitest'
 import BandImport from './BandImport'
 
 const URL = 'https://coach.example.com/api/ingest/health-connect'
-const NONE = { exists: false, created_at: null, last_used_at: null, last_taken_at: null, url: URL }
+const NONE = {
+  exists: false,
+  created_at: null,
+  last_used_at: null,
+  last_taken_at: null,
+  refused_at: null,
+  refused_reason: null,
+  app_version: null,
+  url: URL,
+}
 const MADE = { ...NONE, exists: true, created_at: '2026-10-11T08:00:00Z' }
 const SECRET = 'tci_' + 'ab'.repeat(16)
 
@@ -123,4 +132,34 @@ test('hidden when signed out or the server fails', async () => {
   const { container } = render(<BandImport />)
   await new Promise((resolve) => setTimeout(resolve, 0))
   expect(container).toBeEmptyDOMElement()
+})
+
+test('a refused sync is shown with why, and the app version', async () => {
+  serve({
+    'GET /api/account/ingest': [
+      {
+        status: 200,
+        body: {
+          ...MADE,
+          last_used_at: '2026-10-11T09:30:00Z',
+          last_taken_at: '2026-10-11T09:30:00Z',
+          refused_at: '2026-10-11T10:00:00Z',
+          refused_reason: 'too_large',
+          app_version: '1.9.22',
+        },
+      },
+    ],
+  })
+  render(<BandImport />)
+  expect(await screen.findByText(/Last refused sync/)).toHaveTextContent(
+    'it was over 5 MB. In HC Webhook, set heart rate to 1 minute, not Full.',
+  )
+  expect(screen.getByText(/From HC Webhook 1\.9\.22\./)).toBeInTheDocument()
+})
+
+test('no refusal line without one', async () => {
+  serve({ 'GET /api/account/ingest': [{ status: 200, body: MADE }] })
+  render(<BandImport />)
+  expect(await screen.findByText('No data has arrived yet.')).toBeInTheDocument()
+  expect(screen.queryByText(/Last refused sync/)).not.toBeInTheDocument()
 })
