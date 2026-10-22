@@ -29,8 +29,13 @@ Android 12 doesn't have Health Connect built in (it is part of Android from 14 o
    github.com/mcnaveen/health-connect-webhook.
    - The Play Store version, listed by "Naveen MC", costs €9.99.
    - The same app is free from the author's GitHub releases: install **Obtainium**, add
-     `github.com/mcnaveen/health-connect-webhook`, and it installs and updates the app.
+     `github.com/mcnaveen/health-connect-webhook`, and it installs the app.
    - Not the "Health Connect Webhook App" by Wonkru: that is a different app.
+   - **Use v1.9.22 and don't let it update by itself.** v1.9.24 and v1.9.25 (18 and 20 Oct
+     2026) fail every normal sync on the phone with "Payload too large" (upstream issue #100),
+     so nothing is sent. In Obtainium, open HC Webhook's settings there, turn off its
+     background update checks, and don't tap Update. Move to a later version only once #100 is
+     fixed; the coach already reads the later payloads (ADR-0055).
 2. Open it, tap **Grant Permissions** and allow reading: **Steps, Sleep, Heart rate, Exercise,
    Weight** (and Resting heart rate if listed), plus reading in the background and past data.
    Allow nothing else: the coach ignores other types, and HC Webhook's dashboard reads every
@@ -42,7 +47,8 @@ Android 12 doesn't have Health Connect built in (it is part of Android from 14 o
    - **Sleep: with stages** (not summary only).
 4. Keep the app out of battery optimisation, or syncs stop when the phone sleeps:
    Settings > Apps > HC Webhook > Battery saver > **No restrictions**, and on MIUI also
-   **Autostart: on**.
+   **Autostart: on**. Do the same for **Mi Fitness**: if MIUI stops it, the band's data never
+   reaches Health Connect. In the recent-apps view, long-press both and lock them.
 
 ## 4. The address and the secret
 
@@ -79,7 +85,14 @@ heart rate and weight) is not stored. Its log entry is **200** with
    - **413**: a sync larger than 5 MB. Check heart rate resolution is 1 minute, not Full.
    - "skipped" above 0 for a type: some records didn't make sense (a clock far off, an
      impossible value) and were left out; the rest arrived.
-3. In the coach, **Account** > **Band import** shows "Last data arrived ..." and, after a night
+   - "Payload too large" on the phone, with no log entry for it: HC Webhook's own size
+     check (issue #100, v1.9.24 and later), not the coach. See "Unsticking HC Webhook" below.
+3. Check that Mi Fitness writes everything into Health Connect: open **Health Connect** >
+   **Data and access** > **Sleep**, then **Heart rate** and **Exercise**. Each should list
+   entries from Mi Fitness for the last few days. Nothing there: in Mi Fitness, turn sharing
+   with Health Connect off and on again for that type (step 2.2), sync the band and look again.
+   Entries there but they don't reach the coach: it's HC Webhook (the read quota, below).
+4. In the coach, **Account** > **Band import** shows "Last data arrived ..." and, after a night
    and a walk:
    - **Home** and **Progress** show last night's sleep, today's steps and resting heart rate;
    - **Today** (and Telegram) offers the walk to count;
@@ -99,8 +112,10 @@ The coach checks every hour and tells you once per gap, in Telegram, between 08:
 - **"No band data has arrived for a day."** No sync has reached the coach for 24 hours: the
   phone, HC Webhook or the address. Open Mi Fitness and sync the band, then in HC Webhook tap
   **Sync Now** and read **Webhook Log** (step 6 above lists what 401, 413 and 429 mean). No
-  entries at all: HC Webhook isn't running, so check its battery setting (step 3.4). Still
-  failing: make a new secret on **Account** > **Band import** and enter it again (step 5).
+  entries at all: HC Webhook isn't running, so check its battery setting (step 3.4), or it
+  fails before sending: "Payload too large" on its Home tab is its own bug, see "Unsticking HC
+  Webhook" below. Still failing: make a new secret on **Account** > **Band import** and enter
+  it again (step 5).
 - **"HC Webhook is syncing, but nothing new has come from the band for a day."** The syncs
   arrive (log entries are 200) but carry no records: the band isn't reaching Health Connect.
   Open Mi Fitness and sync the band; check that Mi Fitness still shares with Health Connect
@@ -117,7 +132,24 @@ The coach checks every hour and tells you once per gap, in Telegram, between 08:
   and weight aren't checked: they come when they happen.
 - **"Sleep data is arriving again."** (or steps, heart rate): that kind came back.
 
-**Account** > **Band import** shows when data last arrived and, if later, the last sync.
+**Account** > **Band import** shows when data last arrived and, if later, the last sync, the
+HC Webhook version that sent it, and the last refused sync with why (too large, not JSON, the
+coach couldn't store it, or every record left out). A wrong secret can't be shown there: the
+coach doesn't know whose phone sent it.
+
+## Unsticking HC Webhook
+
+When normal syncs fail on the phone with "Payload too large" (issue #100) or keep failing for
+another reason:
+
+1. On HC Webhook's **Home** tab, choose a time range of **Past 1 day** and **Sync Now**. A
+   chosen range doesn't use the pile of changes that breaks normal syncs, so today's data gets
+   through; it doesn't fix later normal syncs.
+2. To fix normal syncs: **Settings** > **Settings Backup** > **Export**, then Android Settings >
+   Apps > HC Webhook > Storage > **Clear storage**, then open the app, **Import** the export,
+   check the permissions (step 3.2) and **Sync Now**.
+3. Go back to v1.9.22 if a later version keeps doing it: uninstall, install v1.9.22 from the
+   GitHub releases, import the export, and turn off updates in Obtainium (step 3.1).
 
 ## Stopping or moving phones
 

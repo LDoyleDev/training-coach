@@ -56,7 +56,8 @@ Health Connect Webhook ([mcnaveen/health-connect-webhook], v1.9.22, AGPL-3.0; ch
   `end_time`, `duration_seconds`, optional distance and steps. `weight`: `kilograms`, `time`.
   Most records carry `metadata` with `data_origin` (the writing app's package, e.g.
   `com.mi.health`) and `recording_method`. **The JSON carries no record id** (only the
-  Protobuf form does), so a record is identified by its source and start time.
+  Protobuf form does), so a record is identified by its source and start time. (From v1.9.23
+  it does: see Consequences, "Record ids, edits and deletions".)
 
 ## Decision
 
@@ -181,7 +182,24 @@ and erasing everything removes them by the `user_id` cascade.
   `docs/runbooks/band-import.md` covers installing and configuring the app on the Poco X3.
 - Health data is personal (GDPR Art. 9): never logged, never on the `/share` picture, in the
   export, erased with everything; the privacy notice draft lists it.
-- If the app ever sends record ids in JSON, they become the identity instead of source + start.
+- **Record ids, edits and deletions** (2026-10-22). From v1.9.23 the JSON carries each record's
+  Health Connect `metadata.id`, sends an edited or late-written record again with the same id,
+  and lists `deleted` records as `{type, id}`. Nights and workouts now keep that id
+  (`record_id`) and are matched by it first, then as before (source and overlap for a night,
+  source and start for a workout), so rows from before still match. A deleted night is removed
+  and its day's resting heart rate derived again; a deleted workout is removed unless it was
+  counted, since then it is the person's own log. Steps and heart rate stay keyed by day and
+  minute: they are aggregates, the app can't rebuild them after a deletion, and their
+  deletions are ignored. Times may now come in the phone's local time with an offset (the
+  `timezone` field says which); they are parsed as the same instants.
+- **A sync with the right secret that stores nothing is noted with why** (2026-10-22): over the
+  5 MB cap, not a JSON object, failed to store, or every record skipped, on the `ingest_keys`
+  row (`refused_at`, `refused_reason`) at most hourly unless the reason changes, with the HC
+  Webhook version of the last stored sync (`app_version`). Account shows "Last refused sync"
+  while it is newer than the last stored sync; the first stored sync after it is always noted,
+  so the line goes. A wrong secret or a rate limit is refused before the secret is known, so
+  can't be tied to anyone and isn't noted, and a failure on the phone (HC Webhook's own size
+  check, its read quota) never reaches the coach: the runbook covers those.
 - **Band data stopping is told on Telegram** (approved 2026-10-12). Every stored sync is noted
   on the person's `ingest_keys` row (`last_used_at`; a refused sync is not), and so is the last
   sync that took at least one record (`last_taken_at`), each at most hourly on its own clock.
