@@ -173,7 +173,7 @@ async def health_connect(request: Request) -> IngestReceived:
                     took=bool(kinds),
                     kinds=kinds,
                     app_version=version if isinstance(version, str) else None,
-                    skipped=not kinds and bool(batch.skipped),
+                    skipped=not kinds and health_import.records_skipped(batch),
                 )
         except Exception:
             _refuse(bound, now, Refusal.FAILED)

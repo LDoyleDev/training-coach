@@ -412,6 +412,16 @@ def test_a_sync_whose_records_were_all_skipped_is_noted(
     assert status["last_taken_at"] is None
 
 
+def test_a_bad_deletion_alone_isnt_a_skipped_sync(signed_in: TestClient, phone: TestClient) -> None:
+    # A malformed deleted entry drops no record, so it isn't "every record left out".
+    secret = _secret(signed_in)
+    answer = _post(phone, secret, hcw.changes(deleted=[{"type": "sleep"}]))
+    assert answer.json() == {"taken": {}, "skipped": {"deleted": 1}}
+    status = _status(signed_in)
+    assert (status["refused_at"], status["refused_reason"]) == (None, None)
+    assert status["last_used_at"] == "2026-10-11T08:00:00Z"
+
+
 def test_a_sync_that_fails_to_store_is_noted(
     signed_in: TestClient, phone: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

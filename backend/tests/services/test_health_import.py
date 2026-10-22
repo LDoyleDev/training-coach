@@ -268,10 +268,13 @@ def test_a_deleted_night_is_removed_and_its_rest_derived_again(session: Session)
 
 
 def test_a_deleted_workout_is_removed_unless_counted(session: Session) -> None:
-    _store(session, {"exercise": [hcw.identified(hcw.walk(), hcw.WALK_ID)]})
     gone = hcw.changes(deleted=[{"type": "exercise", "id": hcw.WALK_ID}])
-    _store(session, gone)
-    assert list(session.scalars(select(ImportedWorkout))) == []
+    for status in ("new", "dismissed"):
+        _store(session, {"exercise": [hcw.identified(hcw.walk(), hcw.WALK_ID)]})
+        session.scalars(select(ImportedWorkout)).one().status = status
+        session.commit()
+        _store(session, gone)
+        assert list(session.scalars(select(ImportedWorkout))) == []
 
     _store(session, {"exercise": [hcw.identified(hcw.walk(), hcw.WALK_ID)]})
     (walk,) = session.scalars(select(ImportedWorkout))

@@ -272,7 +272,8 @@ def _chunks(ids: set[str]) -> list[list[str]]:
 def _delete(session: Session, deleted: dict[str, set[str]]) -> set[date]:
     """Remove the nights and workouts deleted from Health Connect, and return the days whose
     resting heart rate a removed night may have set. A workout already counted stays: it is
-    the person's own log now."""
+    the person's own log now. A dismissed one goes too: Health Connect no longer has the
+    record, so it can't be sent again and offered anew (review of #283)."""
     nights: set[date] = set()
     for ids in _chunks(deleted.get("sleep", set())):
         for row in session.scalars(select(SleepSession).where(SleepSession.record_id.in_(ids))):
@@ -498,6 +499,12 @@ def _weight(
         first.setdefault(at.astimezone(tz).date(), (at, kilograms))
     for day, (_, kilograms) in first.items():
         measurements.fill(session, day, today, Kind.BODYWEIGHT, round(kilograms, 1))
+
+
+def records_skipped(batch: Batch) -> bool:
+    """Whether any record was left out: a bad ``deleted`` entry drops no record (review of
+    #283)."""
+    return any(n for key, n in batch.skipped.items() if key != "deleted")
 
 
 def counts(batch: Batch) -> dict[str, int]:
