@@ -85,7 +85,8 @@ in `plan.toml`.
 - Counted fractionally, only glutes, lats and upper back reach Galpin's 10; quads, glutes and
   hamstrings are trained on one day a week, and nothing trains the triceps' long head. The
   research file (`program-builder-research.md`, Coverage) suggests changes with the home kit;
-  the plan stays as it is until the owner decides.
+  the plan stays as it is until the owner decides. The Plan tab's body map shows each muscle's
+  band and warnings (`program-builder.md`, step 3).
 - Legs outgrow an 8 kg kettlebell first. A 16 kg (then 24 kg) bell is the most useful upgrade;
   the ladders already include "heavier kettlebell" steps.
 - Huberman alternates monthly between strength blocks (4-8 reps, 3-4 sets, 2-4 min rest) and
