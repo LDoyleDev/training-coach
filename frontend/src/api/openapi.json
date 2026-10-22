@@ -1484,6 +1484,20 @@
       "IngestReceived": {
         "description": "How many records of each type were stored, and skipped as not fitting. A press of the\napp's Test button also gets ``test`` and a ``note`` saying nothing was stored, so its log\nshows it; a real sync gets neither.",
         "properties": {
+          "deleted": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted"
+          },
           "note": {
             "anyOf": [
               {
@@ -1530,6 +1544,17 @@
       },
       "IngestView": {
         "properties": {
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -1570,6 +1595,28 @@
             ],
             "title": "Last Used At"
           },
+          "refused_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused At"
+          },
+          "refused_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Refusal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "url": {
             "anyOf": [
               {
@@ -1587,6 +1634,9 @@
           "created_at",
           "last_used_at",
           "last_taken_at",
+          "refused_at",
+          "refused_reason",
+          "app_version",
           "url"
         ],
         "title": "IngestView",
@@ -2311,6 +2361,17 @@
       },
       "NewSecret": {
         "properties": {
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -2351,6 +2412,28 @@
             ],
             "title": "Last Used At"
           },
+          "refused_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused At"
+          },
+          "refused_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Refusal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "secret": {
             "title": "Secret",
             "type": "string"
@@ -2372,6 +2455,9 @@
           "created_at",
           "last_used_at",
           "last_taken_at",
+          "refused_at",
+          "refused_reason",
+          "app_version",
           "url",
           "secret"
         ],
@@ -3046,6 +3132,17 @@
         ],
         "title": "Redeem",
         "type": "object"
+      },
+      "Refusal": {
+        "description": "Why a sync that carried a known secret stored nothing, kept so Account can show it. A\nwrong secret or a rate limit comes before the secret is known, so isn't kept: it could be\nanyone's.",
+        "enum": [
+          "too_large",
+          "not_json",
+          "failed",
+          "skipped"
+        ],
+        "title": "Refusal",
+        "type": "string"
       },
       "ResourceMetadata": {
         "properties": {

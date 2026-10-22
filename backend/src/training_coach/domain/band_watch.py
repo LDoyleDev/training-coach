@@ -31,6 +31,17 @@ class Feed(StrEnum):
     HEART_RATE = "heart_rate"
 
 
+class Refusal(StrEnum):
+    """Why a sync that carried a known secret stored nothing, kept so Account can show it. A
+    wrong secret or a rate limit comes before the secret is known, so isn't kept: it could be
+    anyone's."""
+
+    TOO_LARGE = "too_large"  # over the 5 MB cap
+    NOT_JSON = "not_json"  # not a JSON object
+    FAILED = "failed"  # the coach couldn't store it; the phone sends it again
+    SKIPPED = "skipped"  # it got through, but every record in it was left out
+
+
 class Notice(StrEnum):
     QUIET = "quiet"  # no sync got through for a day
     EMPTY = "empty"  # syncs got through, but none took a record for a day

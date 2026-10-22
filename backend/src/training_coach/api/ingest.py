@@ -3,7 +3,8 @@ person's ingest secret; and the Account routes that make and remove that secret.
 
 The ingest route is public in the sense that no cookie signs it in: only the secret does. It
 reads no cookies and sets none, reads the body up to a cap, limits callers per address, and
-logs only how many records of each type came in.
+logs only how many records of each type came in. A sync with the right secret that stores
+nothing is noted with why, for Account; one refused before the secret is known isn't.
 """
 
 import json
@@ -22,6 +23,7 @@ from training_coach.api.auth import Fresh, Owner
 from training_coach.api.passkeys import _client
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.band_watch import Refusal
 from training_coach.services import health_import, ingest_keys
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
@@ -88,6 +90,7 @@ class IngestReceived(BaseModel):
     test: bool | None = None
     taken: dict[str, int]
     skipped: dict[str, int]
+    deleted: dict[str, int] | None = None  # nights and workouts removed, when any were listed
     note: str | None = None
 
 
@@ -97,6 +100,16 @@ TESTED = IngestReceived(test=True, taken={}, skipped={}, note="test received; no
 def _secret(request: Request) -> str | None:
     scheme, _, value = request.headers.get("authorization", "").partition(" ")
     return value.strip() if scheme.lower() == "bearer" and value.strip() else None
+
+
+def _refuse(bound: sessionmaker[Session], now: datetime, reason: Refusal) -> None:
+    """Note a sync that stored nothing, in a transaction of its own: the sync's own one, if it
+    began, was rolled back. Noting it never hides the refusal itself."""
+    try:
+        with session_scope(bound) as session:
+            ingest_keys.refused(session, now, reason)
+    except Exception:
+        log.warning("ingest.refusal_not_noted", reason=reason.value, exc_info=True)
 
 
 async def _body(request: Request) -> bytes:
@@ -123,9 +136,13 @@ async def health_connect(request: Request) -> IngestReceived:
     if user is None:
         limiter.failed(address, clock)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "unknown ingest secret")
-    raw = await _body(request)
     settings: Settings = request.app.state.settings
     bound = make_session_factory(request.app.state.engine, user_id=user)
+    try:
+        raw = await _body(request)
+    except HTTPException:
+        await run_in_threadpool(_refuse, bound, now, Refusal.TOO_LARGE)
+        raise
 
     def parse_and_store() -> health_import.Batch | None:
         """Parsing up to 5 MB and the SQLite writes block: off the event loop, so a first sync
@@ -133,8 +150,10 @@ async def health_connect(request: Request) -> IngestReceived:
         try:
             body = json.loads(raw)
         except (ValueError, RecursionError) as exc:  # bad UTF-8 or JSON, or nested too deep
+            _refuse(bound, now, Refusal.NOT_JSON)
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "not JSON") from exc
         if not isinstance(body, dict):
+            _refuse(bound, now, Refusal.NOT_JSON)
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "not a JSON object")
         if health_import.is_test(body):
             # The address and the secret work, so the sync got through; its records are made
@@ -142,11 +161,23 @@ async def health_connect(request: Request) -> IngestReceived:
             with session_scope(bound) as session:
                 ingest_keys.received(session, now, took=False)
             return None
+        version = body.get("app_version")
         batch = health_import.parse(body, now)
-        with session_scope(bound) as session:
-            health_import.store(session, batch, settings.tz, now)
-            kinds = [kind for kind, n in batch.taken.items() if n]
-            ingest_keys.received(session, now, took=bool(kinds), kinds=kinds)
+        kinds = [kind for kind, n in batch.taken.items() if n]
+        try:
+            with session_scope(bound) as session:
+                health_import.store(session, batch, settings.tz, now)
+                ingest_keys.received(
+                    session,
+                    now,
+                    took=bool(kinds),
+                    kinds=kinds,
+                    app_version=version if isinstance(version, str) else None,
+                    skipped=not kinds and bool(batch.skipped),
+                )
+        except Exception:
+            _refuse(bound, now, Refusal.FAILED)
+            raise
         return batch
 
     batch = await run_in_threadpool(parse_and_store)
@@ -154,7 +185,10 @@ async def health_connect(request: Request) -> IngestReceived:
         log.info("ingest.test")
         return TESTED
     log.info("ingest.stored", **health_import.counts(batch))
-    return IngestReceived(taken=dict(batch.taken), skipped=dict(batch.skipped))
+    deleted = {kind: len(ids) for kind, ids in batch.deleted.items()}
+    return IngestReceived(
+        taken=dict(batch.taken), skipped=dict(batch.skipped), deleted=deleted or None
+    )
 
 
 # --------------------------------------------------------------------- the secret
@@ -165,6 +199,9 @@ class IngestView(BaseModel):
     created_at: datetime | None
     last_used_at: datetime | None  # the last sync stored, to within an hour
     last_taken_at: datetime | None  # the last sync that took a record: data actually arrived
+    refused_at: datetime | None  # a sync that stored nothing, when newer than the last stored
+    refused_reason: Refusal | None
+    app_version: str | None  # HC Webhook's, from the last stored sync
     url: str | None  # where the phone posts; None until the server has TC_PUBLIC_URL
 
 

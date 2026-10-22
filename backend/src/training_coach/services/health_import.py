@@ -2,10 +2,14 @@
 storing what it says in our own tables. The payload itself is never kept or logged.
 
 The app sends one JSON object per sync: ``timestamp``, ``app_version`` and an array per data
-type with records (docs/webhook.md in mcnaveen/health-connect-webhook). Records carry no id, so
-one is known by where it came from (``metadata.data_origin``) and when it started. A record that
-doesn't fit is skipped and counted; the rest are stored. The caller owns the transaction and
-passes a session bound to the person the secret belongs to.
+type with records (docs/webhook.md in mcnaveen/health-connect-webhook). From v1.9.23 a record's
+``metadata`` carries its Health Connect ``id``, an edited record comes again with the same id,
+and ``deleted`` lists the ids of records removed since the last sync. A night or a workout is
+known by that id when there is one, else by where it came from (``metadata.data_origin``) and
+when it started; a deleted one is removed. Steps and heart rate are per-day and per-minute
+totals, stored by their time, so their ids add nothing and their deletions can't be applied.
+A record that doesn't fit is skipped and counted; the rest are stored. The caller owns the
+transaction and passes a session bound to the person the secret belongs to.
 
 The app's Test button posts made-up records for yesterday (``MockPayloadBuilder.build``) with a
 top-level ``"test": true`` that real syncs never send: those are never parsed or stored.
@@ -18,7 +22,7 @@ from typing import Any, Self
 from zoneinfo import ZoneInfo
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError, model_validator
-from sqlalchemy import delete, select
+from sqlalchemy import ColumnElement, and_, delete, or_, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import HealthDay, HeartRateSample, ImportedWorkout, SleepSession
@@ -34,6 +38,8 @@ AHEAD = timedelta(minutes=10)  # a phone clock a little fast
 KEEP_HEART_RATE = timedelta(days=8)
 UNKNOWN_SOURCE = "health-connect"
 LONGEST = timedelta(hours=24)  # no sleep or workout session is longer
+DELETABLE = ("sleep", "exercise")  # kept one row per record, so a deletion can be applied
+CHUNK = 500  # ids per query: well inside SQLite's limit on bound parameters
 
 
 class _Record(BaseModel):
@@ -42,6 +48,7 @@ class _Record(BaseModel):
 
 class _Meta(_Record):
     data_origin: str = Field(default=UNKNOWN_SOURCE, min_length=1, max_length=128)
+    id: str | None = Field(default=None, min_length=1, max_length=128)  # from v1.9.23
 
 
 class _Span(_Record):
@@ -93,12 +100,18 @@ class _Weight(_Record):
     kilograms: float = Field(ge=30, le=250)  # as for typed measurements
 
 
+class _Deleted(_Record):
+    type: str = Field(min_length=1, max_length=64)  # the payload key, e.g. "sleep"
+    id: str = Field(min_length=1, max_length=128)
+
+
 @dataclass(frozen=True)
 class Sleep:
     source: str
     start: datetime
     end: datetime
     minutes: SleepMinutes
+    record_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -107,6 +120,7 @@ class Exercise:
     start: datetime
     end: datetime
     exercise_type: int
+    record_id: str | None = None
 
 
 @dataclass
@@ -119,6 +133,7 @@ class Batch:
     resting: list[tuple[datetime, int]] = field(default_factory=list)
     exercise: list[Exercise] = field(default_factory=list)
     weight: list[tuple[datetime, float]] = field(default_factory=list)
+    deleted: dict[str, set[str]] = field(default_factory=dict)  # ids per type in DELETABLE
     taken: Counter[str] = field(default_factory=Counter)
     skipped: Counter[str] = field(default_factory=Counter)
 
@@ -168,7 +183,25 @@ def parse(body: dict[str, Any], now: datetime) -> Batch:
             batch.taken[key] += 1
             _add(batch, record, readings)
     batch.heart_rate = health.per_minute(readings)
+    _deletions(batch, body.get("deleted"))
     return batch
+
+
+def _deletions(batch: Batch, records: object) -> None:
+    """The ids of nights and workouts deleted from Health Connect; other types' are ignored."""
+    if records is None:
+        return
+    if not isinstance(records, list):
+        batch.skipped["deleted"] += 1
+        return
+    for raw in records:
+        try:
+            record = _Deleted.model_validate(raw)
+        except ValidationError:
+            batch.skipped["deleted"] += 1
+            continue
+        if record.type in DELETABLE:
+            batch.deleted.setdefault(record.type, set()).add(record.id)
 
 
 def _add(
@@ -181,8 +214,9 @@ def _add(
             stages = ((s.stage, s.duration_seconds) for s in record.stages)
             start = record.session_end_time - timedelta(seconds=record.duration_seconds)
             minutes = health.sleep_minutes(record.duration_seconds, stages)
+            meta = record.metadata
             batch.sleep.append(
-                Sleep(record.metadata.data_origin, start, record.session_end_time, minutes)
+                Sleep(meta.data_origin, start, record.session_end_time, minutes, meta.id)
             )
         case _HeartRate():
             low = record.min if record.min is not None else record.bpm
@@ -191,10 +225,9 @@ def _add(
         case _Resting():
             batch.resting.append((record.time, record.bpm))
         case _Exercise():
+            meta = record.metadata
             batch.exercise.append(
-                Exercise(
-                    record.metadata.data_origin, record.start_time, record.end_time, record.type
-                )
+                Exercise(meta.data_origin, record.start_time, record.end_time, record.type, meta.id)
             )
         case _Weight():
             batch.weight.append((record.time, record.kilograms))
@@ -204,13 +237,15 @@ def _add(
 
 
 def store(session: Session, batch: Batch, tz: ZoneInfo, now: datetime) -> None:
-    """Write a checked batch: heart rate first, so sleep and workouts can use it."""
+    """Write a checked batch: deletions first, then heart rate, so sleep and workouts can use
+    it."""
+    nights = _delete(session, batch.deleted)
     _heart_rate(session, batch.heart_rate, now)
     _steps(session, batch.steps, tz)
     _resting_records(session, batch.resting, tz)
     for sleep in batch.sleep:
         _sleep(session, sleep, tz)
-    nights = {s.end.astimezone(tz).date() for s in batch.sleep}
+    nights |= {s.end.astimezone(tz).date() for s in batch.sleep}
     for minute in batch.heart_rate:
         day = minute.at.astimezone(tz).date()
         nights |= {day, day + timedelta(days=1)}
@@ -227,6 +262,30 @@ def store(session: Session, batch: Batch, tz: ZoneInfo, now: datetime) -> None:
             count_zones(session, row, hr)
     _weight(session, batch.weight, tz, today)
     session.flush()
+
+
+def _chunks(ids: set[str]) -> list[list[str]]:
+    ordered = sorted(ids)
+    return [ordered[n : n + CHUNK] for n in range(0, len(ordered), CHUNK)]
+
+
+def _delete(session: Session, deleted: dict[str, set[str]]) -> set[date]:
+    """Remove the nights and workouts deleted from Health Connect, and return the days whose
+    resting heart rate a removed night may have set. A workout already counted stays: it is
+    the person's own log now."""
+    nights: set[date] = set()
+    for ids in _chunks(deleted.get("sleep", set())):
+        for row in session.scalars(select(SleepSession).where(SleepSession.record_id.in_(ids))):
+            nights.add(row.local_date)
+            session.delete(row)
+    for ids in _chunks(deleted.get("exercise", set())):
+        session.execute(
+            delete(ImportedWorkout).where(
+                ImportedWorkout.record_id.in_(ids), ImportedWorkout.status != "counted"
+            )
+        )
+    session.flush()
+    return nights
 
 
 def _heart_rate(session: Session, minutes: list[Minute], now: datetime) -> None:
@@ -283,18 +342,16 @@ def _resting_records(session: Session, records: list[tuple[datetime, int]], tz: 
 
 def _sleep(session: Session, sleep: Sleep, tz: ZoneInfo) -> None:
     """The payload carries only the end and the length, so a night still being recorded comes
-    back with another start: match it by overlap with the same source, not by its start."""
-    same = list(
-        session.scalars(
-            select(SleepSession)
-            .where(
-                SleepSession.source == sleep.source,
-                SleepSession.start_at < sleep.end,
-                SleepSession.end_at > sleep.start,
-            )
-            .order_by(SleepSession.start_at)
-        )
+    back with another start: match it by its id and by overlap with the same source, not by
+    its start."""
+    found: ColumnElement[bool] = and_(
+        SleepSession.source == sleep.source,
+        SleepSession.start_at < sleep.end,
+        SleepSession.end_at > sleep.start,
     )
+    if sleep.record_id is not None:
+        found = or_(found, SleepSession.record_id == sleep.record_id)
+    same = list(session.scalars(select(SleepSession).where(found).order_by(SleepSession.start_at)))
     if same:
         row, *older = same
         for extra in older:  # one night, sent in pieces before: keep a single row
@@ -304,6 +361,8 @@ def _sleep(session: Session, sleep: Sleep, tz: ZoneInfo) -> None:
     else:
         row = SleepSession(source=sleep.source, start_at=sleep.start)
         session.add(row)
+    if sleep.record_id is not None:
+        row.record_id = sleep.record_id
     m = sleep.minutes
     row.end_at, row.local_date = sleep.end, sleep.end.astimezone(tz).date()
     row.asleep_min, row.awake_min = min(m.asleep, 1440), min(m.awake, 1440)
@@ -346,9 +405,30 @@ def _exercise(session: Session, exercise: Exercise, tz: ZoneInfo) -> None:
             ImportedWorkout.source == exercise.source, ImportedWorkout.start_at == exercise.start
         )
     )
+    if exercise.record_id is not None:
+        same = session.scalar(
+            select(ImportedWorkout)
+            .where(ImportedWorkout.record_id == exercise.record_id)
+            .order_by(ImportedWorkout.id)
+        )
+        if same is not None and same is not row:
+            # Its start was edited since it came: one workout, so one row, keeping the one the
+            # person counted or dismissed. Two acted on are left as they are.
+            if row is None:
+                row = same
+            elif row.status == "new":
+                session.delete(row)
+                session.flush()
+                row = same
+            elif same.status == "new":
+                session.delete(same)
+                session.flush()
     if row is None:
         row = ImportedWorkout(source=exercise.source, start_at=exercise.start, status="new")
         session.add(row)
+    row.start_at = exercise.start
+    if exercise.record_id is not None:
+        row.record_id = exercise.record_id
     activity = health.activity_for(exercise.exercise_type)
     row.end_at, row.exercise_type = exercise.end, exercise.exercise_type
     row.local_date = exercise.start.astimezone(tz).date()
@@ -423,4 +503,6 @@ def counts(batch: Batch) -> dict[str, int]:
         found[key] = n
     for key, n in batch.skipped.items():
         found[f"{key}_skipped"] = n
+    for key, ids in batch.deleted.items():
+        found[f"{key}_deleted"] = len(ids)
     return dict(found)

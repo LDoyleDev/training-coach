@@ -2035,6 +2035,10 @@ export interface components {
          *     shows it; a real sync gets neither.
          */
         IngestReceived: {
+            /** Deleted */
+            deleted?: {
+                [key: string]: number;
+            } | null;
             /** Note */
             note?: string | null;
             /** Skipped */
@@ -2050,6 +2054,8 @@ export interface components {
         };
         /** IngestView */
         IngestView: {
+            /** App Version */
+            app_version: string | null;
             /** Created At */
             created_at: string | null;
             /** Exists */
@@ -2058,6 +2064,9 @@ export interface components {
             last_taken_at: string | null;
             /** Last Used At */
             last_used_at: string | null;
+            /** Refused At */
+            refused_at: string | null;
+            refused_reason: components["schemas"]["Refusal"] | null;
             /** Url */
             url: string | null;
         };
@@ -2306,6 +2315,8 @@ export interface components {
         };
         /** NewSecret */
         NewSecret: {
+            /** App Version */
+            app_version: string | null;
             /** Created At */
             created_at: string | null;
             /** Exists */
@@ -2314,6 +2325,9 @@ export interface components {
             last_taken_at: string | null;
             /** Last Used At */
             last_used_at: string | null;
+            /** Refused At */
+            refused_at: string | null;
+            refused_reason: components["schemas"]["Refusal"] | null;
             /** Secret */
             secret: string;
             /** Url */
@@ -2589,6 +2603,14 @@ export interface components {
             /** Token */
             token: string;
         };
+        /**
+         * Refusal
+         * @description Why a sync that carried a known secret stored nothing, kept so Account can show it. A
+         *     wrong secret or a rate limit comes before the secret is known, so isn't kept: it could be
+         *     anyone's.
+         * @enum {string}
+         */
+        Refusal: "too_large" | "not_json" | "failed" | "skipped";
         /** ResourceMetadata */
         ResourceMetadata: {
             /** Authorization Servers */

@@ -10,6 +10,7 @@ app that wrote each record. The values are made up: one night, one walk, a weigh
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 NOW = datetime(2026, 10, 11, 8, 0, tzinfo=UTC)  # 10:00 in Berlin
 MI = {
@@ -155,3 +156,27 @@ def mock() -> dict[str, Any]:
         ],
         "weight": [{"kilograms": 75.4, "time": iso(NOW - timedelta(hours=1)), "metadata": PIXEL}],
     }
+
+
+# From v1.9.23 (docs/webhook.md, "Edits and deletions" and "Record metadata", checked
+# 2026-10-22): each record's metadata carries its Health Connect ``id`` and
+# ``last_modified_time``, an edited record comes again with the same id, ``deleted`` lists
+# ``{type, id}`` per record removed since the last sync, and ``timezone`` names the zone the
+# times are written in: new installs write the phone's local time with its offset.
+NIGHT_ID = "3f1c2b9e-7d4a-4e1b-9c61-5a2f0e8d7b10"
+WALK_ID = "a8d0c4e2-1b3f-4c5d-8e7f-90a1b2c3d4e5"
+
+
+def identified(record: dict[str, Any], record_id: str, modified: datetime = NOW) -> dict[str, Any]:
+    meta = {**record.get("metadata", MI), "id": record_id, "last_modified_time": iso(modified)}
+    return {**record, "metadata": meta}
+
+
+def local(moment: datetime) -> str:
+    """A time as v1.9.25 writes it by default: Berlin wall-clock time with its offset."""
+    return moment.astimezone(ZoneInfo("Europe/Berlin")).isoformat()
+
+
+def changes(**arrays: list[dict[str, Any]]) -> dict[str, Any]:
+    """A default sync from v1.9.25, with the given arrays (``deleted`` among them)."""
+    return {"timestamp": local(NOW), "app_version": "1.9.25", "timezone": "Europe/Berlin", **arrays}
