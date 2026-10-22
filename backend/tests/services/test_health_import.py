@@ -230,6 +230,34 @@ def test_a_night_is_kept_by_its_id_when_edited(session: Session) -> None:
     assert (night.record_id, night.end_at) == (hcw.NIGHT_ID, later)
 
 
+def test_overlapping_records_with_their_own_ids_stay_apart(session: Session) -> None:
+    """A nap inside a night, each its own Health Connect record: two rows, and deleting one
+    removes only that one (review of #283)."""
+    nap_end = hcw.SLEEP_START + timedelta(hours=2)
+    nap = {**hcw.sleep(), "session_end_time": hcw.iso(nap_end), "duration_seconds": 1800}
+    _store(session, {"sleep": [hcw.identified(hcw.sleep(), hcw.NIGHT_ID)]})
+    _store(session, {"sleep": [hcw.identified(nap, "nap-id")]})
+    found = {row.record_id: row.end_at for row in session.scalars(select(SleepSession))}
+    assert found == {hcw.NIGHT_ID: hcw.SLEEP_END, "nap-id": nap_end}
+    _store(session, hcw.changes(deleted=[{"type": "sleep", "id": "nap-id"}]))
+    assert [row.record_id for row in session.scalars(select(SleepSession))] == [hcw.NIGHT_ID]
+
+
+def test_a_night_stored_without_an_id_takes_its_id_when_sent_again(session: Session) -> None:
+    _store(session, {"sleep": [hcw.sleep()]})
+    _store(session, {"sleep": [hcw.identified(hcw.sleep(), hcw.NIGHT_ID)]})
+    (night,) = session.scalars(select(SleepSession))
+    assert night.record_id == hcw.NIGHT_ID
+
+
+def test_another_record_at_the_same_start_replaces_the_row(session: Session) -> None:
+    # Source and start are unique: a second record there can't be a second row.
+    _store(session, {"sleep": [hcw.identified(hcw.sleep(), hcw.NIGHT_ID)]})
+    _store(session, {"sleep": [hcw.identified(hcw.sleep(), "rewritten-id")]})
+    (night,) = session.scalars(select(SleepSession))
+    assert night.record_id == "rewritten-id"
+
+
 def test_a_deleted_night_is_removed_and_its_rest_derived_again(session: Session) -> None:
     _store(session, hcw.full() | {"sleep": [hcw.identified(hcw.sleep(), hcw.NIGHT_ID)]})
     assert _day(session, TODAY).resting_hr == 48  # type: ignore[union-attr]

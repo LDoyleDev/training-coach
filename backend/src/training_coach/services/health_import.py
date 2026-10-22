@@ -342,12 +342,16 @@ def _resting_records(session: Session, records: list[tuple[datetime, int]], tz: 
 
 def _sleep(session: Session, sleep: Sleep, tz: ZoneInfo) -> None:
     """The payload carries only the end and the length, so a night still being recorded comes
-    back with another start: match it by its id and by overlap with the same source, not by
-    its start."""
+    back with another start. With an id, it is matched by the id, and by overlap with the same
+    source only among rows stored without one (before v1.9.23): two records that overlap, a
+    nap inside a night, stay two rows (review of #283). Without one, by overlap as before. A
+    row with the same source and start is always the same row: they are unique."""
+    overlaps = and_(SleepSession.start_at < sleep.end, SleepSession.end_at > sleep.start)
+    if sleep.record_id is not None:
+        overlaps = and_(overlaps, SleepSession.record_id.is_(None))
     found: ColumnElement[bool] = and_(
         SleepSession.source == sleep.source,
-        SleepSession.start_at < sleep.end,
-        SleepSession.end_at > sleep.start,
+        or_(overlaps, SleepSession.start_at == sleep.start),
     )
     if sleep.record_id is not None:
         found = or_(found, SleepSession.record_id == sleep.record_id)
