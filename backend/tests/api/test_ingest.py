@@ -31,6 +31,7 @@ from training_coach.db.models import (
     SleepSession,
 )
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.band_watch import Refusal
 from training_coach.services import health_import, ingest_keys
 from training_coach.services.users import OWNER
 
@@ -66,6 +67,9 @@ def test_a_secret_is_shown_once_and_kept_hashed(
         "created_at": None,
         "last_used_at": None,
         "last_taken_at": None,
+        "refused_at": None,
+        "refused_reason": None,
+        "app_version": None,
         "url": f"{ORIGIN}{PATH}",
     }
     made = signed_in.post("/api/account/ingest").json()
@@ -352,3 +356,139 @@ def test_a_sync_notes_each_daily_kind_it_took(
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         noted = {row.feed: row.last_taken_at for row in mine.scalars(select(BandFeed))}
     assert noted == {"steps": hcw.NOW, "heart_rate": hcw.NOW}  # workouts and weight aren't watched
+
+
+# ------------------------------------------- refused syncs, shown on Account (ADR-0055)
+
+
+def _status(signed_in: TestClient) -> dict[str, object]:
+    found: dict[str, object] = signed_in.get("/api/account/ingest").json()
+    return found
+
+
+def test_a_sync_too_large_is_noted_with_why(signed_in: TestClient, phone: TestClient) -> None:
+    secret = _secret(signed_in)
+    big = {"heart_rate": [], "padding": "x" * (ingest.MAX_BYTES + 1)}
+    assert _post(phone, secret, big).status_code == 413
+    status = _status(signed_in)
+    assert (status["refused_at"], status["refused_reason"]) == ("2026-10-11T08:00:00Z", "too_large")
+    assert status["last_used_at"] is None
+
+
+@pytest.mark.parametrize("content", ["not json", "[1, 2]"], ids=["text", "array"])
+def test_a_sync_not_a_json_object_is_noted(
+    signed_in: TestClient, phone: TestClient, content: str
+) -> None:
+    secret = _secret(signed_in)
+    with time_machine.travel(hcw.NOW, tick=False):
+        phone.post(PATH, content=content, headers={"Authorization": f"Bearer {secret}"})
+    assert _status(signed_in)["refused_reason"] == "not_json"
+
+
+def test_a_stored_sync_after_a_refusal_clears_it(signed_in: TestClient, phone: TestClient) -> None:
+    secret = _secret(signed_in)
+    _post(phone, secret, {"timestamp": hcw.iso(hcw.NOW), "app_version": "1.9.22"})
+    with time_machine.travel(hcw.NOW + timedelta(minutes=10), tick=False):
+        phone.post(PATH, content="[]", headers={"Authorization": f"Bearer {secret}"})
+    assert _status(signed_in)["refused_reason"] == "not_json"
+    # Within the hour that would otherwise skip noting it: the first stored sync after a
+    # refusal is always noted, so Account stops showing the refusal.
+    with time_machine.travel(hcw.NOW + timedelta(minutes=20), tick=False):
+        phone.post(PATH, json=hcw.full(), headers={"Authorization": f"Bearer {secret}"})
+    status = _status(signed_in)
+    assert (status["refused_at"], status["refused_reason"]) == (None, None)
+    assert status["last_used_at"] == "2026-10-11T08:20:00Z"
+
+
+def test_a_sync_whose_records_were_all_skipped_is_noted(
+    signed_in: TestClient, phone: TestClient
+) -> None:
+    secret = _secret(signed_in)
+    body = {"timestamp": hcw.iso(hcw.NOW), "app_version": "1.9.22", "sleep": [{}, {}]}
+    assert _post(phone, secret, body).json() == {"taken": {}, "skipped": {"sleep": 2}}
+    status = _status(signed_in)
+    assert status["refused_reason"] == "skipped"
+    assert status["last_used_at"] == status["refused_at"] == "2026-10-11T08:00:00Z"
+    assert status["last_taken_at"] is None
+
+
+def test_a_bad_deletion_alone_isnt_a_skipped_sync(signed_in: TestClient, phone: TestClient) -> None:
+    # A malformed deleted entry drops no record, so it isn't "every record left out".
+    secret = _secret(signed_in)
+    answer = _post(phone, secret, hcw.changes(deleted=[{"type": "sleep"}]))
+    assert answer.json() == {"taken": {}, "skipped": {"deleted": 1}}
+    status = _status(signed_in)
+    assert (status["refused_at"], status["refused_reason"]) == (None, None)
+    assert status["last_used_at"] == "2026-10-11T08:00:00Z"
+
+
+def test_a_sync_that_fails_to_store_is_noted(
+    signed_in: TestClient, phone: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    secret = _secret(signed_in)
+
+    def store(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(health_import, "store", store)
+    with pytest.raises(RuntimeError):
+        _post(phone, secret)
+    assert _status(signed_in)["refused_reason"] == "failed"
+
+
+def test_refusals_are_written_at_most_hourly_unless_the_reason_changes(engine: Engine) -> None:
+    bound = make_session_factory(engine, user_id=OWNER)
+    with session_scope(bound) as mine:
+        ingest_keys.make(mine, hcw.NOW - timedelta(days=1))
+    steps = [
+        (0, Refusal.TOO_LARGE, 0),
+        (20, Refusal.TOO_LARGE, 0),  # same reason within the hour: not written
+        (30, Refusal.NOT_JSON, 30),  # another reason: written
+        (95, Refusal.NOT_JSON, 95),  # an hour on: written
+    ]
+    for minutes, reason, noted in steps:
+        with session_scope(bound) as mine:
+            ingest_keys.refused(mine, hcw.NOW + timedelta(minutes=minutes), reason)
+            found = ingest_keys.status(mine)
+        assert found.refused_at == hcw.NOW + timedelta(minutes=noted)
+        assert found.refused_reason is reason
+
+
+def test_the_apps_version_is_kept_and_a_new_secret_clears_it_all(
+    signed_in: TestClient, phone: TestClient
+) -> None:
+    secret = _secret(signed_in)
+    _post(phone, secret, hcw.changes())
+    assert _status(signed_in)["app_version"] == "1.9.25"
+    with time_machine.travel(hcw.NOW, tick=False):
+        phone.post(PATH, content="[]", headers={"Authorization": f"Bearer {secret}"})
+    _secret(signed_in)
+    status = _status(signed_in)
+    assert (status["app_version"], status["refused_reason"], status["last_used_at"]) == (
+        None,
+        None,
+        None,
+    )
+
+
+def test_a_wrong_secret_notes_nothing(
+    signed_in: TestClient, phone: TestClient, engine: Engine
+) -> None:
+    _secret(signed_in)
+    assert _post(phone, "tci_" + "ab" * 16, [1]).status_code == 401
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        assert mine.scalars(select(IngestKey)).one().refused_at is None
+
+
+def test_deletions_are_counted_in_the_answer(signed_in: TestClient, phone: TestClient) -> None:
+    secret = _secret(signed_in)
+    body = hcw.changes(
+        exercise=[hcw.identified(hcw.walk(), hcw.WALK_ID)],
+        deleted=[{"type": "sleep", "id": hcw.NIGHT_ID}, {"type": "heart_rate", "id": "x"}],
+    )
+    with capture_logs() as logs:
+        answer = _post(phone, secret, body)
+    assert answer.json() == {"taken": {"exercise": 1}, "skipped": {}, "deleted": {"sleep": 1}}
+    (line,) = [entry for entry in logs if entry["event"] == "ingest.stored"]
+    assert line["sleep_deleted"] == 1
+    assert hcw.NIGHT_ID not in json.dumps(logs, default=str)

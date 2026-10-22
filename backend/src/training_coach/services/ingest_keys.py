@@ -8,6 +8,10 @@ is the question being asked, so that lookup runs in an unbound session with ``AL
 Each stored sync is noted, and so is the last one that took a record: the bot tells the person
 when either stops for a day (``domain.band_watch``). So is the last that took steps, sleep or
 heart rate, each on its own ``band_feeds`` row, told when one kind stops for two days.
+
+A sync with the right secret that stores nothing (too large, not JSON, a failure, every record
+skipped) is noted too, with why, so Account can say what went wrong without the phone. Like
+the rest it is written at most hourly unless something changed: SQLite is on an SD card.
 """
 
 import hmac
@@ -22,7 +26,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import BandFeed, Event, IngestKey
 from training_coach.db.session import ALL_USERS
 from training_coach.domain import band_watch
-from training_coach.domain.band_watch import Feed, FeedNotices, FeedSeen, Notice
+from training_coach.domain.band_watch import Feed, FeedNotices, FeedSeen, Notice, Refusal
 from training_coach.services.auth import hash_token
 
 PREFIX = "tci_"  # so a leaked one is recognisable as this app's
@@ -35,13 +39,32 @@ class Status:
     created_at: datetime | None
     last_used_at: datetime | None  # the last sync stored
     last_taken_at: datetime | None  # the last sync that took a record: data actually arrived
+    refused_at: datetime | None = None  # a sync that stored nothing, since the last stored one
+    refused_reason: Refusal | None = None
+    app_version: str | None = None  # of HC Webhook, from the last stored sync
+
+
+def _refusal_open(row: IngestKey) -> bool:
+    """Whether the newest thing noted is a sync that stored nothing."""
+    return row.refused_at is not None and (
+        row.last_used_at is None or row.refused_at >= row.last_used_at
+    )
 
 
 def status(session: Session) -> Status:
     row = session.scalar(select(IngestKey))
     if row is None:
         return Status(False, None, None, None)
-    return Status(True, row.created_at, row.last_used_at, row.last_taken_at)
+    latest = _refusal_open(row)
+    return Status(
+        True,
+        row.created_at,
+        row.last_used_at,
+        row.last_taken_at,
+        row.refused_at if latest else None,
+        Refusal(row.refused_reason) if latest and row.refused_reason else None,
+        row.app_version,
+    )
 
 
 def make(session: Session, now: datetime) -> str:
@@ -53,6 +76,7 @@ def make(session: Session, now: datetime) -> str:
     else:
         row.key_hash, row.created_at = hash_token(secret), now
         row.last_used_at = row.last_taken_at = row.alerted_at = None  # the clock starts again
+        row.refused_at = row.refused_reason = row.app_version = None
         session.execute(delete(BandFeed))
     session.add(Event(kind="ingest.key_made", payload={}))
     session.flush()
@@ -88,15 +112,26 @@ def _due(noted: datetime | None, now: datetime) -> bool:
     return noted is None or now - noted > TOUCH_AFTER
 
 
-def received(session: Session, now: datetime, took: bool, kinds: Iterable[str] = ()) -> None:
+def received(
+    session: Session,
+    now: datetime,
+    took: bool,
+    kinds: Iterable[str] = (),
+    app_version: str | None = None,
+    skipped: bool = False,
+) -> None:
     """Note a sync that was stored, whether it took any record, and the kinds it took records
     of. Each is noted at most hourly, on its own clock: an empty sync noted a minute ago never
-    hides one that took records. A refused sync (bad JSON, too large) is not noted."""
+    hides one that took records, and the first stored sync after a refusal is always noted, so
+    Account stops showing the refusal. ``skipped``: every record in it was left out, noted as
+    a refusal as well. A sync turned away is noted by ``refused`` alone."""
     row = session.scalar(select(IngestKey))
     if row is None:  # removed while the sync was being stored
         return
-    if _due(row.last_used_at, now):
+    if _due(row.last_used_at, now) or (_refusal_open(row) and not skipped):
         row.last_used_at = now
+    if app_version and row.app_version != app_version[:32]:
+        row.app_version = app_version[:32]
     if took and _due(row.last_taken_at, now):
         row.last_taken_at = now
     feeds = _feeds(session)
@@ -106,6 +141,18 @@ def received(session: Session, now: datetime, took: bool, kinds: Iterable[str] =
             session.add(BandFeed(feed=feed.value, last_taken_at=now))
         elif _due(found.last_taken_at, now):
             found.last_taken_at = now
+    if skipped:
+        refused(session, now, Refusal.SKIPPED)
+
+
+def refused(session: Session, now: datetime, reason: Refusal) -> None:
+    """Note a sync with the right secret that stored nothing, and why: at most hourly while
+    the reason stays the same, and always when it is the first since a stored sync."""
+    row = session.scalar(select(IngestKey))
+    if row is None:
+        return
+    if row.refused_reason != reason or not _refusal_open(row) or _due(row.refused_at, now):
+        row.refused_at, row.refused_reason = now, reason.value
 
 
 def _feeds(session: Session) -> dict[Feed, BandFeed]:

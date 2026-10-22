@@ -16,6 +16,14 @@ function failure(error: unknown): string {
   return "That didn't work. Check your connection and try again."
 }
 
+/** Why the last sync with the right secret stored nothing, and what to do about it. */
+const REFUSED: Record<NonNullable<Status['refused_reason']>, string> = {
+  too_large: 'it was over 5 MB. In HC Webhook, set heart rate to 1 minute, not Full.',
+  not_json: 'it wasn’t JSON. In HC Webhook, set the delivery format to JSON.',
+  failed: 'the coach couldn’t store it. The app sends it again at its next sync.',
+  skipped: 'nothing in it made sense, so all of it was left out. Check the phone’s clock.',
+}
+
 const when = (iso: string) =>
   new Date(iso).toLocaleString('en-GB', {
     day: 'numeric',
@@ -28,7 +36,8 @@ const when = (iso: string) =>
  * Band import (ADR-0055): the secret the Health Connect Webhook app on the phone sends with
  * band data. Made here and shown once; the server keeps only its hash. Steps for the phone are
  * in docs/runbooks/band-import.md. "Last data arrived" is the last sync that brought a record,
- * not just the last call: the two drift apart when the band stops syncing to the phone.
+ * not just the last call: the two drift apart when the band stops syncing to the phone. A sync
+ * with the right secret that stored nothing is shown with why, while it is the newest.
  */
 export default function BandImport() {
   const [status, setStatus] = useState<Status | null>(null)
@@ -67,6 +76,9 @@ export default function BandImport() {
         created_at: null,
         last_used_at: null,
         last_taken_at: null,
+        refused_at: null,
+        refused_reason: null,
+        app_version: null,
       })
       setNote('Removed. The phone can’t send band data until you make a new secret.')
     } catch (error) {
@@ -98,6 +110,12 @@ export default function BandImport() {
           {status.last_used_at &&
             status.last_used_at !== status.last_taken_at &&
             ` Last sync ${when(status.last_used_at)}.`}
+          {status.app_version && ` From HC Webhook ${status.app_version}.`}
+        </p>
+      )}
+      {status.exists && status.refused_at && status.refused_reason && (
+        <p>
+          Last refused sync {when(status.refused_at)}: {REFUSED[status.refused_reason]}
         </p>
       )}
       {secret && (
