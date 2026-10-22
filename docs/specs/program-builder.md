@@ -132,9 +132,9 @@ are below.
 10. **No "away" place:** travelling is Home, with whatever kit is there, or bodyweight only.
 
 **What this means for the current plan.** Counted with the weights above, the current plan's
-78 sets a week turn 3 of the 10 main muscles green (glutes, lats, upper back). Legs are trained
-on one day, so quads, glutes and hamstrings fail the two-day rule, and glutes reach the
-per-session cap on Legs. Triceps get 6 sets with no long-head work; side delts 5.5. The research
+78 sets a week reach the green band's 10 sets for 3 of the 10 main muscles (glutes, lats, upper
+back), but legs are trained on one day, so quads, glutes and hamstrings fail the two-day rule:
+2 are green (lats, upper back). Glutes also pass the per-session cap on Legs. Triceps get 6 sets with no long-head work; side delts 5.5. The research
 file (Coverage) lists three changes with the home kit that make 8 of the 10 green at 93 sets;
 they are a suggestion, and nothing changes until the owner says so. Huberman's shape (each
 muscle twice a week, a compound plus a lengthened exercise, under an hour) stays; what the
@@ -343,8 +343,20 @@ planned; split squats, pull-ups, tibialis raises and neck work already have thei
    equipment and places (C, E), load and double progression (D).
 2. **Catalogue facts** (done, ADR-0064): fixed muscles with their weights, patterns, needs in
    `plan.toml`. The Plan tab's volume chart uses the fixed list and fractional counting.
-3. **Body map, read-only**, on the Plan tab, from the current plan, with the six bands and each
-   muscle's own band.
+3. **Body map, read-only** (done): on the Plan tab, from the current plan, with the six bands
+   and each muscle's own band (`GET /api/plan/coverage`, `domain/coverage.py`). It shows the
+   per-session, back-to-back, one-day, muscle-part, spine and grip warnings; a day for a muscle
+   is a session with 2 or more of its sets (research file, Coverage). Read as built:
+   - the two-day rule applies to the ten main muscles and those on the general band; the small
+     muscles with their own band (neck, tibialis, forearms, rear and front delts) count as
+     covered on one day;
+   - neck is one muscle in the catalogue, so its 3-9 band counts flexion, extension and side
+     work together;
+   - spine-loading sets are counted at the step each person is on, so a split squat counts
+     once it holds a kettlebell;
+   - left for later: "heavy hinges on two days in a row" (needs load, step 8), the redundant
+     and push-without-pull warnings and a session's length (editing, step 6), and the
+     exercises that would add to a muscle (the picker, step 7).
 4. **Equipment** on Account; concrete kettlebell and backpack steps; locked steps; Move up and
    Progress respect the kit. The 16 kg example works from here.
 5. **Plans per person** (A2): the migration copies the plan to every user; the seed keeps the

@@ -58,8 +58,11 @@ const plan: Plan = {
   volume_target_max: 20,
 }
 
+/** The plan answers ``response``; the body map has its own tests and stays out of the way. */
 function mockFetch(response: Partial<Response>) {
-  globalThis.fetch = vi.fn().mockResolvedValue(response)
+  globalThis.fetch = vi.fn((url: string) =>
+    Promise.resolve(url === '/api/plan/coverage' ? { ok: false, status: 401 } : response),
+  ) as unknown as typeof fetch
 }
 
 describe('App', () => {
@@ -72,7 +75,9 @@ describe('App', () => {
     expect(
       screen.getByRole('button', { name: /Torso \+ neck/, expanded: false }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Lats')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'What the week gives each muscle' }),
+    ).toBeInTheDocument()
   })
 
   it('opens a session to show its exercises', async () => {

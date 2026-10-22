@@ -156,6 +156,18 @@
         "title": "ApproveBody",
         "type": "object"
       },
+      "Band": {
+        "enum": [
+          "grey",
+          "amber",
+          "light green",
+          "green",
+          "blue",
+          "warning"
+        ],
+        "title": "Band",
+        "type": "string"
+      },
       "BandCounted": {
         "properties": {
           "already_saved": {
@@ -623,6 +635,70 @@
         "title": "ConsentView",
         "type": "object"
       },
+      "CoverageView": {
+        "properties": {
+          "back_to_back": {
+            "title": "Back To Back",
+            "type": "integer"
+          },
+          "ceiling": {
+            "title": "Ceiling",
+            "type": "integer"
+          },
+          "grip_cap": {
+            "title": "Grip Cap",
+            "type": "integer"
+          },
+          "main_on_target": {
+            "title": "Main On Target",
+            "type": "integer"
+          },
+          "main_total": {
+            "title": "Main Total",
+            "type": "integer"
+          },
+          "minimum": {
+            "title": "Minimum",
+            "type": "integer"
+          },
+          "muscles": {
+            "items": {
+              "$ref": "#/components/schemas/MuscleView"
+            },
+            "title": "Muscles",
+            "type": "array"
+          },
+          "session_cap": {
+            "title": "Session Cap",
+            "type": "integer"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SessionLoadView"
+            },
+            "title": "Sessions",
+            "type": "array"
+          },
+          "spine_cap": {
+            "title": "Spine Cap",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "muscles",
+          "sessions",
+          "main_on_target",
+          "main_total",
+          "session_cap",
+          "back_to_back",
+          "spine_cap",
+          "grip_cap",
+          "minimum",
+          "ceiling"
+        ],
+        "title": "CoverageView",
+        "type": "object"
+      },
       "DailyCheckView": {
         "description": "Today's check: the questions, and the answers with their advice once given.",
         "properties": {
@@ -871,6 +947,16 @@
         ],
         "title": "EraseRequest",
         "type": "object"
+      },
+      "Evidence": {
+        "description": "How well a muscle's own band is supported; the app marks the weak ones.",
+        "enum": [
+          "moderate",
+          "low",
+          "very low"
+        ],
+        "title": "Evidence",
+        "type": "string"
       },
       "ExerciseKind": {
         "description": "How an exercise is measured.",
@@ -2372,6 +2458,110 @@
         "title": "MoveView",
         "type": "object"
       },
+      "MuscleView": {
+        "properties": {
+          "back_to_back": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Back To Back",
+            "type": "array"
+          },
+          "band": {
+            "$ref": "#/components/schemas/Band"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Evidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "high": {
+            "title": "High",
+            "type": "number"
+          },
+          "low": {
+            "title": "Low",
+            "type": "number"
+          },
+          "main": {
+            "title": "Main",
+            "type": "boolean"
+          },
+          "missing_parts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Parts",
+            "type": "array"
+          },
+          "most": {
+            "title": "Most",
+            "type": "number"
+          },
+          "most_in": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Most In"
+          },
+          "muscle": {
+            "title": "Muscle",
+            "type": "string"
+          },
+          "one_day": {
+            "title": "One Day",
+            "type": "boolean"
+          },
+          "over_session_cap": {
+            "title": "Over Session Cap",
+            "type": "boolean"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "number"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceView"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "muscle",
+          "main",
+          "sets",
+          "days",
+          "most",
+          "most_in",
+          "band",
+          "low",
+          "high",
+          "evidence",
+          "one_day",
+          "over_session_cap",
+          "back_to_back",
+          "missing_parts",
+          "sources"
+        ],
+        "title": "MuscleView",
+        "type": "object"
+      },
       "NewSecret": {
         "properties": {
           "app_version": {
@@ -3663,6 +3853,39 @@
         "title": "ServerMetadata",
         "type": "object"
       },
+      "SessionLoadView": {
+        "properties": {
+          "grip_heavy": {
+            "title": "Grip Heavy",
+            "type": "boolean"
+          },
+          "grip_sets": {
+            "title": "Grip Sets",
+            "type": "integer"
+          },
+          "session": {
+            "title": "Session",
+            "type": "string"
+          },
+          "spine_heavy": {
+            "title": "Spine Heavy",
+            "type": "boolean"
+          },
+          "spine_sets": {
+            "title": "Spine Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session",
+          "spine_sets",
+          "grip_sets",
+          "spine_heavy",
+          "grip_heavy"
+        ],
+        "title": "SessionLoadView",
+        "type": "object"
+      },
       "SessionTimeView": {
         "description": "A session's times in whole minutes, from its timed guided sessions (ADR-0061).",
         "properties": {
@@ -4019,6 +4242,34 @@
         ],
         "title": "Sound",
         "type": "string"
+      },
+      "SourceView": {
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "session": {
+            "title": "Session",
+            "type": "string"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "integer"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "session",
+          "exercise",
+          "sets",
+          "weight"
+        ],
+        "title": "SourceView",
+        "type": "object"
       },
       "StandingView": {
         "properties": {
@@ -6593,6 +6844,28 @@
           }
         },
         "summary": "Get Plan",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan/coverage": {
+      "get": {
+        "description": "Weekly fractional sets per muscle with its band and warnings, from the plan as it\nstands; nothing here changes it.",
+        "operationId": "get_coverage_api_plan_coverage_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Coverage",
         "tags": [
           "plan"
         ]

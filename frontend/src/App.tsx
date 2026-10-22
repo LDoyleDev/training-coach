@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { fetchPlan, type Plan } from './api'
+import { BodyMap } from './bodymap/BodyMap'
 import { CycleRing } from './components/CycleRing'
 import { Ladders } from './components/Ladders'
 import { SessionList } from './components/SessionList'
-import { VolumeChart } from './components/VolumeChart'
 import { card, primaryInline } from './ui'
 
 const LADDER_PICKS = [
@@ -94,15 +94,11 @@ export default function App() {
           </section>
 
           <section className="block" aria-labelledby="volume">
-            <h2 id="volume">Hard sets per muscle, per week</h2>
+            <h2 id="volume">What the week gives each muscle</h2>
             <p className="block-intro">
-              Every set counts for each muscle an exercise works, so these are upper estimates.
+              Hard sets a week per muscle, coloured by how close each is to its target.
             </p>
-            <VolumeChart
-              volume={state.plan.volume}
-              min={state.plan.volume_target_min}
-              max={state.plan.volume_target_max}
-            />
+            <BodyMap />
           </section>
 
           <section className="block" aria-labelledby="ladders">
