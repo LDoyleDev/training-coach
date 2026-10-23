@@ -41,6 +41,15 @@ from training_coach.domain.measurements import Kind as MeasurementKind
 from training_coach.domain.photos import Pose
 from training_coach.domain.targets import Pace
 
+# The bounds in domain/cardio.py, kept by the database too (ADR-0067).
+CARDIO_DETAILS_VALID = (
+    "(effort IS NULL OR effort BETWEEN 1 AND 10)"
+    " AND (distance_m IS NULL OR distance_m BETWEEN 1 AND 300000)"
+    " AND (avg_hr IS NULL OR avg_hr BETWEEN 30 AND 230)"
+    " AND (max_hr IS NULL OR max_hr BETWEEN 30 AND 230)"
+    " AND (avg_hr IS NULL OR max_hr IS NULL OR max_hr >= avg_hr)"
+)
+
 
 def _in(column: str, values: type[StrEnum]) -> str:
     allowed = ", ".join(f"'{v.value}'" for v in values)
@@ -289,6 +298,7 @@ class Workout(Owned, Base):
         CheckConstraint(_in("status", WorkoutStatus), name="status_valid"),
         CheckConstraint(_in("block", BlockKind), name="block_valid"),
         CheckConstraint(_in("activity", CardioActivity), name="activity_valid"),
+        CheckConstraint(CARDIO_DETAILS_VALID, name="cardio_details_valid"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -305,6 +315,13 @@ class Workout(Owned, Base):
     log_token: Mapped[str | None] = mapped_column(String(32), unique=True)
     # What a cardio log was (walk, bike...), from the web's Log activity; empty otherwise.
     activity: Mapped[str | None] = mapped_column(String(16))
+    # What else a cardio log said (ADR-0067), each only when given: session RPE 1-10, metres,
+    # average and highest bpm, and when it started. Pace is minutes over distance, not kept.
+    effort: Mapped[int | None] = mapped_column(Integer)
+    distance_m: Mapped[int | None] = mapped_column(Integer)
+    avg_hr: Mapped[int | None] = mapped_column(Integer)
+    max_hr: Mapped[int | None] = mapped_column(Integer)
+    started_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     # The plan version in force on local_date (ADR-0034), set on insert; empty only when
     # the plan has no versions yet (the seed fills those in once it has).
     plan_version_id: Mapped[int | None] = mapped_column(
