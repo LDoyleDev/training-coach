@@ -63,10 +63,11 @@ function logged(day: string): DayLog {
 }
 
 /** A fake API: /api/day answers per ``on`` (or fails), /api/habits answers HABITS. */
-function serve(day: 'ok' | 'fail-earlier' | 'signed-out' = 'ok') {
+function serve(day: 'ok' | 'fail' | 'fail-earlier' | 'signed-out' = 'ok') {
   const fetchMock = vi.fn(async (path: string) => {
     if (path.startsWith('/api/habits')) return Response.json(HABITS)
     if (day === 'signed-out') return new Response(null, { status: 401 })
+    if (day === 'fail') return new Response(null, { status: 500 })
     const on = new URL(path, 'https://coach.example.com').searchParams.get('on') ?? TODAY
     if (day === 'fail-earlier' && on !== TODAY) return new Response(null, { status: 500 })
     return Response.json(logged(on))
@@ -120,11 +121,18 @@ test('the arrow keys step days too', async () => {
   expect(await screen.findByRole('region', { name: 'Logged today' })).toBeInTheDocument()
 })
 
-test('shows nothing while signed out', async () => {
+test("signed out, there's no day card, but today's habits still load", async () => {
   serve('signed-out')
-  const { container } = render(<DayCard />)
-  await new Promise((done) => setTimeout(done, 0))
-  expect(container).toBeEmptyDOMElement()
+  render(<DayCard />)
+  expect(await screen.findByRole('heading', { name: 'Habits today' })).toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: /Logged/ })).not.toBeInTheDocument()
+})
+
+test("a first load that fails says so and keeps today's habits (review of #298)", async () => {
+  serve('fail')
+  render(<DayCard />)
+  expect(await screen.findByRole('status')).toHaveTextContent("Couldn't reach the coach")
+  expect(await screen.findByRole('heading', { name: 'Habits today' })).toBeInTheDocument()
 })
 
 test('a day that fails to load says so and keeps the last one', async () => {

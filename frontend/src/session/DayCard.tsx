@@ -63,8 +63,8 @@ function Workout({ workout }: { workout: LoggedWorkout }) {
 
 /** What was logged on a day, today or earlier, with today's habits under today (ADR-0068).
  * ‹ and › step a day back or forward, never past today or before the first day; the date goes
- * back to today. Earlier days are read-only. Shows nothing until loaded, like the habits.
- * ``refresh`` changes after a log saved elsewhere. */
+ * back to today. Earlier days are read-only. The card shows once loaded; until then, or when
+ * it can't load, today's habits still show. ``refresh`` changes after a log saved elsewhere. */
 export default function DayCard({ refresh = 0 }: { refresh?: number }) {
   const [shown, setShown] = useState<string | undefined>(undefined) // none: today
   const [log, setLog] = useState<DayLog | null>(null)
@@ -84,7 +84,19 @@ export default function DayCard({ refresh = 0 }: { refresh?: number }) {
     return () => controller.abort()
   }, [shown, refresh])
 
-  if (log === null) return null
+  const note = failed && (
+    <p role="status" className="status">
+      Couldn't reach the coach. Check your connection and try again.
+    </p>
+  )
+  // Today's habits stay on the page whatever the day card does (review of #298).
+  if (log === null)
+    return (
+      <>
+        {note}
+        <HabitsCard />
+      </>
+    )
   const isToday = log.day === log.today
   const back = log.day > log.first ? shift(log.day, -1) : null
   const forward = isToday ? null : shift(log.day, 1)
@@ -140,11 +152,7 @@ export default function DayCard({ refresh = 0 }: { refresh?: number }) {
             ))}
           </ul>
         )}
-        {failed && (
-          <p role="status" className="status">
-            Couldn't reach the coach. Check your connection and try again.
-          </p>
-        )}
+        {note}
       </section>
       {isToday && <HabitsCard />}
     </>
