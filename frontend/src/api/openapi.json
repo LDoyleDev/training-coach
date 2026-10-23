@@ -2071,6 +2071,45 @@
               }
             ]
           },
+          "avg_hr": {
+            "anyOf": [
+              {
+                "maximum": 230.0,
+                "minimum": 30.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Hr"
+          },
+          "distance_km": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 300.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Km"
+          },
+          "effort": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effort"
+          },
           "kind": {
             "enum": [
               "zone2",
@@ -2079,6 +2118,19 @@
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "max_hr": {
+            "anyOf": [
+              {
+                "maximum": 230.0,
+                "minimum": 30.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hr"
           },
           "resolution": {
             "anyOf": [
@@ -2099,6 +2151,18 @@
             "maxItems": 20,
             "title": "Seen",
             "type": "array"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
           },
           "token": {
             "pattern": "^[0-9a-f]{32}$",
@@ -2421,6 +2485,17 @@
               }
             ],
             "title": "Next Session"
+          },
+          "pace": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace"
           },
           "planned": {
             "title": "Planned",

@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import ImportedWorkout
 from training_coach.domain import health
+from training_coach.domain.cardio import Details, details_problem
 from training_coach.domain.enums import CardioActivity
 from training_coach.services import cardio, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
@@ -60,6 +61,15 @@ def token(import_id: int) -> str:
 def _zones(row: ImportedWorkout) -> list[int] | None:
     found = [row.zone1_min, row.zone2_min, row.zone3_min, row.zone4_min, row.zone5_min]
     return [m for m in found if m is not None] if None not in found else None
+
+
+def _details(row: ImportedWorkout) -> Details:
+    """The band's heart rate and start for the log (ADR-0067); heart rate only when it makes
+    sense, so an odd reading never stops the walk being counted."""
+    found = Details(avg_hr=row.avg_hr, max_hr=row.max_hr, started_at=row.start_at)
+    return (
+        found if details_problem(found, rounds=False) is None else Details(started_at=row.start_at)
+    )
 
 
 def _offer(row: ImportedWorkout) -> Offer | None:
@@ -143,6 +153,7 @@ def count(
         token(row.id),
         extra=offer.on != today,
         answer=answer,
+        details=_details(row),
     )
     if not isinstance(logged, cardio.Logged):
         return logged

@@ -16,7 +16,7 @@ HOME = "/"
 SESSION = "/session"
 PROGRESS = "/progress"
 REVIEW = "/review"
-TESTS = "/tests"
+TESTS = "/body?tab=tests"  # Tests is a tab of Body (ADR-0069)
 ACCOUNT = "/account"
 LOCAL_HOSTS = frozenset({"localhost"})
 

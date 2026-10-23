@@ -65,6 +65,9 @@ model. Options, not exclusive:
 | A3 **Timer** | A running clock; for HIIT a 20 s / 10 s interval timer that counts rounds | Useful for HIIT indoors | Pointless for an outdoor walk: the band times it |
 | A4 **Import from the band** (Health Connect, already proposed) | The minutes arrive by themselves; you confirm | No typing; real heart-rate zones | Bigger job; needs the bridge app |
 
+Since ADR-0067, A1 also asks how hard it felt (1-10) and takes optional distance, heart rate
+and start time from a watch or app; pace is shown, not stored.
+
 **Recommendation:** A1 + A2 for zone 2 and moderate cardio, an A3 interval timer for HIIT
 only, and A4 later as the default with A1 as the fallback. After saving a cardio day, show
 "This week: 95 of 180-200 zone-2 min".
@@ -98,7 +101,7 @@ and alerts. The web app becomes the place you work in.
 | Option | What |
 | --- | --- |
 | D1 **Bottom tabs on phones** (being built, Part 1) | Today, Progress, Tests, Body, More |
-| D2 Fewer pages | Fold Readiness into Today (as a due card) and Plan into Progress (built: Plan is a tab of Progress, `/progress?tab=plan`, with no nav entry of its own; `/plan` and old links open that tab. Readiness is asked on app load instead, see Decided) |
+| D2 Fewer pages | Fold Readiness into Today (as a due card) and Plan into Progress (built, then changed by ADR-0069: the nav is now Home, Plan, Progress, Today, Body, Account; Plan is its own page `/plan` again and Tests is a tab of Body, `/body?tab=tests`. Readiness is asked on app load instead, see Decided) |
 | D3 Install as an app (PWA) (built: install button on Account, a one-time hint on Home, offline notice; how to install: `docs/runbooks/deploy.md`) | A home-screen icon and full screen; no store, no cost |
 
 ## Suggested order
