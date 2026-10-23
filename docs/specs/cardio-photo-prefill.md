@@ -1,6 +1,8 @@
 # Cardio from a photo or screenshot: plan
 
-Status: proposal (2026-10-23). Not built. The form it fills is ADR-0067 (PR #295).
+Status: option A built (2026-10-24): `propose_log` takes a run's distance, heart rate and
+start, and the card asks how it felt before Save (ADR-0067, "From a connected AI").
+Options B and C are not built. The form they would fill is ADR-0067 (PR #295).
 
 ## Goal
 

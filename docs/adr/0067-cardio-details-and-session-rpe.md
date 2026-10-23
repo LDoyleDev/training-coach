@@ -58,3 +58,13 @@ heart rate the band sends (ADR-0055), so typed zone minutes would not match them
 - VO2 max fits better as an occasional measurement, like bodyweight, than as a field on each
   run. It is left for the Body page.
 - Photo or screenshot prefill of these fields: `docs/specs/cardio-photo-prefill.md`.
+
+## From a connected AI (2026-10-24)
+
+A person can share a run's screenshot with their own AI, which proposes the log over MCP
+(ADR-0058, option A of the prefill plan). `propose_log` takes `distance_km`, `avg_hr`,
+`max_hr` and `start` (local HH:MM) on a cardio proposal, checked with the same bounds as
+the form, and the card shows them with the pace. It refuses `effort`: how a run felt is
+not on a screenshot, and only the person knows it. The web card asks for it, 1 to 10, before
+Save, as the form does. Telegram's Save button and proposals made before this have none,
+and save with effort empty, like a typed log.
