@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Exercise, ExerciseState
 from training_coach.domain.coverage import Band
-from training_coach.domain.muscles import Muscle, Part
+from training_coach.domain.muscles import Muscle
 from training_coach.services.coverage import plan_coverage, trained_steps
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -20,17 +20,33 @@ def plan(session: Session) -> Session:
 
 def test_the_plan_puts_every_main_muscle_on_target(plan: Session) -> None:
     by = {m.muscle: m for m in plan_coverage(plan).muscles}
-    # training-plan.md, Weekly hard sets: the coverage update (24 Oct 2026)
+    # training-plan.md, Weekly hard sets: coverage + core (23 Oct 2026)
     assert {m: (by[m].sets, by[m].days) for m in (Muscle.QUADS, Muscle.GLUTES, Muscle.LATS)} == {
-        Muscle.QUADS: (10.5, 2),
-        Muscle.GLUTES: (14.5, 2),
+        Muscle.QUADS: (12.5, 3),  # the reverse Nordic on Recovery
+        Muscle.GLUTES: (15.5, 2),
         Muscle.LATS: (10, 2),
     }
     assert by[Muscle.GLUTES].band is Band.GREEN  # Legs and Arms
     assert not by[Muscle.GLUTES].over_session_cap  # 10.5 on Legs, under 11
     assert by[Muscle.TRICEPS].missing_parts == ()  # the overhead extension
-    assert by[Muscle.QUADS].missing_parts == (Part.RECTUS_FEMORIS,)
+    assert by[Muscle.QUADS].missing_parts == ()  # the reverse Nordic
     assert plan_coverage(plan).main_on_target == 10
+
+
+def test_the_core_block_covers_the_trunk_and_hips(plan: Session) -> None:
+    by = {m.muscle: m for m in plan_coverage(plan).muscles}
+    # program-builder-research.md, Core and hips: Recovery and Cardio + core
+    trunk = (Muscle.ABS, Muscle.OBLIQUES, Muscle.LOWER_BACK, Muscle.ADDUCTORS)
+    assert {m: (by[m].sets, by[m].days, by[m].band) for m in trunk} == {
+        Muscle.ABS: (7, 2, Band.GREEN),
+        Muscle.OBLIQUES: (5.75, 2, Band.GREEN),
+        Muscle.LOWER_BACK: (5.5, 2, Band.GREEN),
+        Muscle.ADDUCTORS: (6.5, 2, Band.GREEN),
+    }
+    assert by[Muscle.HIP_FLEXORS].band is Band.GREEN  # 3 on its own 3-8 band
+    days = {d.name: d for d in plan_coverage(plan).days}
+    assert (days["Cardio + core"].spine_sets, days["Cardio + core"].grip_sets) == (2, 0)
+    assert not any(d.spine_heavy or d.grip_heavy for d in days.values())
 
 
 def test_a_loaded_step_adds_to_the_spine_count(plan: Session) -> None:

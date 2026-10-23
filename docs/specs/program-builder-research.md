@@ -286,7 +286,7 @@ rest-pause set type for isolation exercises.
 
 ## Core and hips: the muscles the plan misses (2026-10-23)
 
-The plan from 24 Oct 2026 has all ten main muscles green but leaves the trunk and hips short:
+The coverage update (PR #289) had all ten main muscles green but left the trunk and hips short:
 abs 3 sets a week (one day), obliques 0, lower back 3.5 (one day), hip flexors 3, adductors
 4.5 (one day), no exercise reaching the rectus femoris, and upper traps 0.
 
@@ -343,7 +343,7 @@ raised → holding 8 kg on the hip); reverse Nordic (lean to about 30° → deep
 to the floor, hands push back → no hands). The back extension and hanging raise keep their
 ladders. Every pair has at most one spine-loading exercise and none grips.
 
-**Coverage, before → after** (plan from 24 Oct 2026, the app's coverage logic, own bands as
+**Coverage, before → after** (the coverage update of PR #289, the app's coverage logic, own bands as
 above): abs 3 → 7 (2 days), obliques 0 → 5.75 (2 days), lower back 3.5 → 5.5 (2 days),
 adductors 4.5 → 6.5 (2 days), hip flexors 3 (1 day, green on its own band), quads 10.5 → 12.5
 with the rectus femoris reached, upper traps 0. All ten main muscles stay green; no session,
@@ -372,10 +372,10 @@ Fractional sets a week; "Days" counts days with at least 2 sets for that muscle;
 most in one session. Bands for the ten main muscles: green 10-20 (calves 8-16, side delts 8-20).
 Worked out from the weights above.
 
-### The plan before 24 Oct 2026: 78 sets, 26 exercises
+### The plan before 23 Oct 2026: 78 sets, 26 exercises
 
 The owner applied the changes below, plus the first gap closer (one more curl set and one more
-lateral-raise set, both on Torso), as the "Coverage update" plan version: 95 sets, all ten main
+lateral-raise set, both on Torso), as part of the "Coverage + core" plan version: 95 sets, all ten main
 muscles green on two days. The numbers now are in `training-plan.md` (Weekly hard sets).
 
 | Muscle | Sets | Days | Most | Band |
@@ -395,7 +395,7 @@ Also: front delts 7.5, rear delts 7.25, neck 7, forearms 6, lower back 3.5, addu
 abs 3, tibialis 3, obliques and upper traps 0. No rectus femoris work; spine-loading sets at most
 6 in a session (Legs), or 13 once the split squats and pistols hold a kettlebell: over the cap.
 
-**What would turn it green, home kit only** (applied on 24 Oct 2026):
+**What would turn it green, home kit only** (applied on 23 Oct 2026):
 
 1. Move the low-fatigue work from Arms to Recovery + posture: hanging raises, neck side bends,
    one neck extension set and dead hangs.
