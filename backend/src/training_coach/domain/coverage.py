@@ -23,6 +23,17 @@ class Band(StrEnum):
     WARNING = "warning"  # past where more showed no extra growth
 
 
+class Heat(StrEnum):
+    """How hard one session works a muscle, for that session's map (ADR-0069). Not a band: a
+    single session is never "on target" by itself."""
+
+    NONE = "none"  # not worked
+    LIGHT = "light"  # under DAY_SETS: helper work that doesn't make it a day for the muscle
+    WORKED = "worked"  # DAY_SETS up to HARD_FROM
+    HARD = "hard"  # HARD_FROM up to SESSION_CAP: the productive range for one session
+    OVER = "over"  # past SESSION_CAP
+
+
 class Evidence(StrEnum):
     """How well a muscle's own band is supported; the app marks the weak ones."""
 
@@ -76,6 +87,7 @@ SESSION_CAP = 11  # one muscle, one session (a preprint's plateau)
 BACK_TO_BACK = 4  # this much for one muscle on two days running is no rest between
 SPINE_CAP = 8  # spine-loading hard sets in one session (no study: a rule of thumb)
 GRIP_CAP = 8  # grip-heavy sets in one session (no study: a rule of thumb)
+HARD_FROM = 6  # one session's productive range is about 6 to SESSION_CAP sets (research doc)
 
 
 def target(muscle: Muscle) -> Target:
@@ -86,6 +98,17 @@ def needs_two_days(muscle: Muscle) -> bool:
     """The two-day rule is for the main muscles and those on the general band; the small
     muscles with their own band count as covered on one day."""
     return muscle in MAIN or muscle not in OWN
+
+
+def heat(sets: float) -> Heat:
+    """How hard ``sets`` in one session work a muscle."""
+    if sets <= 0:
+        return Heat.NONE
+    if sets > SESSION_CAP:
+        return Heat.OVER
+    if sets >= HARD_FROM:
+        return Heat.HARD
+    return Heat.WORKED if sets >= DAY_SETS else Heat.LIGHT
 
 
 def band(sets: float, goal: Target) -> Band:
@@ -117,6 +140,7 @@ class Day:
 
     name: str
     items: Sequence[Item]
+    slug: str = ""  # the session template's, so a page can match its own list
 
 
 @dataclass(frozen=True)
@@ -149,9 +173,13 @@ class MuscleCoverage:
 
 @dataclass(frozen=True)
 class DayLoad:
+    """One session's shared load, and what it gives each muscle it works (main muscles first)."""
+
     name: str
     spine_sets: int
     grip_sets: int
+    slug: str = ""
+    muscles: tuple[tuple[Muscle, float], ...] = ()
 
     @property
     def spine_heavy(self) -> bool:
@@ -195,8 +223,10 @@ def coverage(week: Sequence[Day]) -> Coverage:
             day.name,
             spine_sets=sum(i.sets for i in day.items if Stress.SPINE in i.stress),
             grip_sets=sum(i.sets for i in day.items if Stress.GRIP in i.stress),
+            slug=day.slug,
+            muscles=tuple((m, totals[m]) for m in _ordered(Muscle) if totals.get(m, 0) > 0),
         )
-        for day in week
+        for day, totals in zip(week, per_day, strict=True)
     )
     return Coverage(tuple(found), loads)
 

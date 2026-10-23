@@ -57,10 +57,24 @@ def test_coverage_gives_each_muscle_its_band_and_warnings(client: TestClient) ->
     )
     assert muscles["quads"]["evidence"] is None
     legs = body["sessions"][0]
-    assert legs == {
+    assert {k: v for k, v in legs.items() if k != "muscles"} == {
         "session": "Legs",
+        "slug": "legs",
         "spine_sets": 6,
         "grip_sets": 3,
         "spine_heavy": False,
         "grip_heavy": False,
     }
+    assert body["hard_from"] == 6
+
+
+def test_each_session_has_its_own_heat_map(client: TestClient) -> None:
+    sessions = client.get("/api/plan/coverage").json()["sessions"]
+    legs = {m["muscle"]: m for m in sessions[0]["muscles"]}
+    assert (legs["glutes"]["sets"], legs["glutes"]["heat"]) == (10.5, "hard")
+    assert "chest" not in legs  # only what the session works
+    assert all(m["sets"] > 0 for s in sessions for m in s["muscles"])
+    by_slug = {s["slug"]: s for s in sessions}
+    assert by_slug["zone2"]["muscles"] == []  # cardio only
+    core = {m["muscle"] for m in by_slug["moderate-cardio"]["muscles"]}
+    assert {"abs", "obliques", "adductors"} <= core

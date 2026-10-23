@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from training_coach.api.auth import Owner
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain import coverage as domain
-from training_coach.domain.coverage import Band, Evidence
+from training_coach.domain.coverage import Band, Evidence, Heat
 from training_coach.services import coverage as service
 
 router = APIRouter(prefix="/api/plan", tags=["plan"])
@@ -41,12 +41,20 @@ class MuscleView(BaseModel):
     sources: list[SourceView]
 
 
+class SessionMuscleView(BaseModel):
+    muscle: str
+    sets: float  # fractional hard sets in this session
+    heat: Heat  # how hard the session works it (ADR-0069)
+
+
 class SessionLoadView(BaseModel):
     session: str
+    slug: str  # the session template's, as in GET /api/plan
     spine_sets: int
     grip_sets: int
     spine_heavy: bool
     grip_heavy: bool
+    muscles: list[SessionMuscleView]  # only those it works, main muscles first
 
 
 class CoverageView(BaseModel):
@@ -58,6 +66,7 @@ class CoverageView(BaseModel):
     back_to_back: int
     spine_cap: int
     grip_cap: int
+    hard_from: int  # one session's sets from which a muscle is worked hard
     minimum: int
     ceiling: int
 
@@ -92,10 +101,14 @@ def get_coverage(request: Request, user: Owner) -> CoverageView:
         sessions=[
             SessionLoadView(
                 session=d.name,
+                slug=d.slug,
                 spine_sets=d.spine_sets,
                 grip_sets=d.grip_sets,
                 spine_heavy=d.spine_heavy,
                 grip_heavy=d.grip_heavy,
+                muscles=[
+                    SessionMuscleView(muscle=m, sets=n, heat=domain.heat(n)) for m, n in d.muscles
+                ],
             )
             for d in found.days
         ],
@@ -105,6 +118,7 @@ def get_coverage(request: Request, user: Owner) -> CoverageView:
         back_to_back=domain.BACK_TO_BACK,
         spine_cap=domain.SPINE_CAP,
         grip_cap=domain.GRIP_CAP,
+        hard_from=domain.HARD_FROM,
         minimum=domain.MINIMUM,
         ceiling=domain.CEILING,
     )
