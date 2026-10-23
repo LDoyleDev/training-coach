@@ -30,7 +30,8 @@ heart rate the band sends (ADR-0055), so typed zone minutes would not match them
 - **Stored on the workout,** next to `activity`: `effort`, `distance_m`, `avg_hr`, `max_hr`,
   `started_at`. Each is empty unless given. The bounds live in `domain/cardio.py` and a check
   constraint: RPE 1-10, distance up to 300 km, heart rate 30-230, highest not below the
-  average, no distance for HIIT (rounds), and a start that isn't still to come.
+  average, and no distance for HIIT (rounds). The start is the last time the clock showed the
+  time typed, so a run started at 23:40 and logged after midnight started yesterday.
 - **A counted band workout carries the band's heart rate and start** onto the workout, but only
   when they pass the same bounds. An odd reading is dropped, so the walk is still counted. The
   band can't know how it felt, so effort stays empty there.
