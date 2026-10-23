@@ -4,8 +4,12 @@ mcp-threat-model.md M10 and requirement 15).
 ``propose_log`` never saves. What it sends is checked as hard as a typed log: strength sets go
 through the typed-log model (``groq.Rewrite``) and the rule parser, cardio, habits and body
 measurements through the checks of their own save paths; anything else is refused with a short
-reason. A valid proposal waits in ``log_proposals`` with a random token, as a card on Today and
-a Telegram message, each with Save and Discard. Only the person's web session or their bot
+reason. A run read from a screenshot (cardio-photo-prefill.md, option A) may carry its distance,
+heart rate and start (ADR-0067), checked with the bounds of a typed log; never how hard it felt,
+which only the person knows and picks on the card when saving.
+
+A valid proposal waits in ``log_proposals`` with a random token, as a card on Today and a
+Telegram message, each with Save and Discard. Only the person's web session or their bot
 button resolves it, and resolving it in one place resolves it everywhere. Saving goes through
 the same service as a log of that kind, so /undo takes a workout back as usual.
 
@@ -18,7 +22,7 @@ never what it held. The caller owns the transaction and passes a session bound t
 import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Annotated, Any, Literal, cast, get_args
 from zoneinfo import ZoneInfo
 
@@ -29,6 +33,7 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, LogProposal, McpConnection
 from training_coach.db.session import ALL_USERS, bound_user
+from training_coach.domain import cardio as details
 from training_coach.domain.dates import MAX_DAYS_BACK
 from training_coach.domain.enums import CardioActivity, ExerciseKind, Side
 from training_coach.domain.habits import LABELS as HABIT_LABELS
@@ -70,6 +75,11 @@ class CardioProposal(_Proposal):
     cardio: Literal["zone2", "moderate-cardio"]
     minutes: int = Field(ge=1, le=MAX_MINUTES)
     activity: CardioActivity | None = None
+    # From the app or watch that recorded it (ADR-0067); bounds beyond these: domain/cardio.py.
+    distance_km: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    avg_hr: int | None = None
+    max_hr: int | None = None
+    start: time | None = None  # local clock time on that day, e.g. "07:10"
 
 
 class HabitsProposal(_Proposal):
@@ -121,6 +131,14 @@ INPUT_SCHEMA: dict[str, Any] = {
         "cardio": {"type": "string", "enum": ["zone2", "moderate-cardio"]},
         "minutes": {"type": "integer", "minimum": 1, "maximum": MAX_MINUTES},
         "activity": {"type": "string", "enum": [a.value for a in CardioActivity]},
+        "distance_km": {"type": "number", "description": "cardio: as the app or watch shows it"},
+        "avg_hr": {"type": "integer", "description": "cardio: average heart rate, bpm"},
+        "max_hr": {"type": "integer", "description": "cardio: highest heart rate, bpm"},
+        "start": {
+            "type": "string",
+            "pattern": "^[0-2][0-9]:[0-5][0-9]$",
+            "description": "cardio: the local time it started, HH:MM",
+        },
         "habits": {"type": "array", "items": {"type": "string", "enum": [h.value for h in Habit]}},
         "measurements": {
             "type": "object",
@@ -214,10 +232,33 @@ def _strength(
     return _Checked(STRENGTH, day, payload, f"{draft.session_name} on {_when(day)}: {shown}")
 
 
-def _cardio(session: Session, found: CardioProposal, day: date, today: date) -> _Checked | Refused:
+def _details_text(found: CardioProposal, given: details.Details) -> str:
+    """ ", 7.29 km, 5:54 /km, HR 139 avg, 160 max, started 07:10": what the app showed."""
+    parts = []
+    if given.distance_m is not None:
+        parts.append(f"{given.distance_m / 1000:.2f} km")
+        if (pace := details.pace(found.minutes, given.distance_m)) is not None:
+            parts.append(f"{pace // 60}:{pace % 60:02d} /km")
+    heart = [f"{bpm} {name}" for bpm, name in ((given.avg_hr, "avg"), (given.max_hr, "max")) if bpm]
+    if heart:
+        parts.append("HR " + ", ".join(heart))
+    if found.start is not None:
+        parts.append(f"started {found.start:%H:%M}")
+    return "".join(f", {part}" for part in parts)
+
+
+def _cardio(
+    session: Session, found: CardioProposal, day: date, today: date, tz: ZoneInfo, now: datetime
+) -> _Checked | Refused:
     if problem := _day_problem(day, today, MAX_DAYS_BACK):
         return Refused(problem)
-    if problem := cardio.problem(found.cardio, found.minutes):
+    given = details.Details(
+        distance_m=round(found.distance_km * 1000) if found.distance_km is not None else None,
+        avg_hr=found.avg_hr,
+        max_hr=found.max_hr,
+        started_at=cardio.started(day, found.start, tz, now) if found.start else None,
+    )
+    if problem := cardio.problem(found.cardio, found.minutes, given):
         return Refused(problem)
     name = workout_log.exercise_labels(session).get(found.cardio, (found.cardio,))[0]
     what = f" ({found.activity.value})" if found.activity is not None else ""
@@ -225,8 +266,13 @@ def _cardio(session: Session, found: CardioProposal, day: date, today: date) -> 
         "cardio": found.cardio,
         "minutes": found.minutes,
         "activity": found.activity.value if found.activity is not None else None,
+        "distance_m": given.distance_m,
+        "avg_hr": given.avg_hr,
+        "max_hr": given.max_hr,
+        "started_at": given.started_at.isoformat() if given.started_at else None,
     }
-    return _Checked(CARDIO, day, payload, f"{name}, {found.minutes} min{what}, on {_when(day)}")
+    shown = f"{name}, {found.minutes} min{what}{_details_text(found, given)}, on {_when(day)}"
+    return _Checked(CARDIO, day, payload, shown)
 
 
 def _habits(found: HabitsProposal, day: date, today: date) -> _Checked | Refused:
@@ -256,19 +302,20 @@ def _body(found: BodyProposal, day: date, today: date) -> _Checked | Refused:
 
 
 def check(
-    session: Session, arguments: Mapping[str, Any], today: date, tz: ZoneInfo
+    session: Session, arguments: Mapping[str, Any], tz: ZoneInfo, now: datetime
 ) -> _Checked | Refused:
     """What saving the proposal would write, or why it can't be proposed. Never writes."""
     try:
         found = _PROPOSAL.validate_python(dict(arguments))
     except ValidationError as error:
         return Refused(_reason(error))
+    today = local_date(now, tz)
     day = found.day or today
     checked: _Checked | Refused
     if isinstance(found, StrengthProposal):
         checked = _strength(session, found, day, today, tz)
     elif isinstance(found, CardioProposal):
-        checked = _cardio(session, found, day, today)
+        checked = _cardio(session, found, day, today, tz, now)
     elif isinstance(found, HabitsProposal):
         checked = _habits(found, day, today)
     else:
@@ -349,7 +396,7 @@ def propose(
             f"{PER_CONNECTION} proposals are already waiting for the person: wait until they "
             "save or discard one"
         )
-    checked = check(session, arguments, local_date(now, tz), tz)
+    checked = check(session, arguments, tz, now)
     if isinstance(checked, Refused):
         return checked
     row = LogProposal(
@@ -545,6 +592,7 @@ def _write(
     tz: ZoneInfo,
     today: date,
     answer: day_clash.Resolution | None,
+    effort: int | None,
 ) -> str | day_clash.Clash | day_clash.Refused | None:
     """Save through the service of the proposal's kind; why not, when it no longer fits; or the
     question, when the day already has its session (ADR-0060)."""
@@ -573,6 +621,14 @@ def _write(
         return None if isinstance(result, workout_log.Saved) else "today's session changed"
     if row.kind == CARDIO:
         activity = CardioActivity(data["activity"]) if data["activity"] else None
+        start = data.get("started_at")  # proposals from before ADR-0067 have none of these
+        given = details.Details(
+            effort=effort,
+            distance_m=data.get("distance_m"),
+            avg_hr=data.get("avg_hr"),
+            max_hr=data.get("max_hr"),
+            started_at=datetime.fromisoformat(start) if start else None,
+        )
         logged = cardio.log(
             session,
             day,
@@ -583,6 +639,7 @@ def _write(
             row.token,
             extra=day != today,
             answer=answer,
+            details=given,
         )
         if isinstance(logged, day_clash.Clash | day_clash.Refused):
             return logged
@@ -604,15 +661,17 @@ def save(
     now: datetime,
     by: str,
     answer: day_clash.Resolution | None = None,
+    effort: int | None = None,
 ) -> Saved | Already | Gone | Changed | day_clash.Clash | day_clash.Refused:
-    """Save a waiting proposal, once. ``by`` is where the person tapped (web or telegram).
+    """Save a waiting proposal, once. ``by`` is where the person tapped (web or telegram);
+    ``effort`` is how hard a cardio one felt, picked on the web card (ADR-0067).
 
     When its day already has its session, nothing is saved and it keeps waiting: the person
     is asked (``Clash``) and saves again with ``answer`` (ADR-0060)."""
     row = _claim(session, token, SAVED, now)
     if not isinstance(row, LogProposal):
         return row
-    problem = _write(session, row, tz, local_date(now, tz), answer)
+    problem = _write(session, row, tz, local_date(now, tz), answer, effort)
     if isinstance(problem, day_clash.Clash | day_clash.Refused):
         # Nothing was written but the claim: it waits again, for the answer.
         row.status, row.resolved_at = PENDING, None

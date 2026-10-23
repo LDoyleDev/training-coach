@@ -184,3 +184,28 @@ test('cancelling the question saves nothing', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 })
+
+const RUN = {
+  ...PROPOSAL,
+  kind: 'cardio',
+  summary: 'Moderate cardio, 43 min (run), 7.29 km, 5:54 /km, HR 139 avg, 160 max, on Fri 23 Oct',
+}
+
+test('a run from a screenshot shows what it read and asks how it felt before Save', async () => {
+  const saved = vi.fn()
+  const asked = serve({
+    'GET /api/proposals': [
+      { status: 200, body: [RUN] },
+      { status: 200, body: [] },
+    ],
+    ['POST /api/proposals/save']: [{ status: 200, body: { summary: RUN.summary, workout: true } }],
+  })
+  render(<Proposals onSaved={saved} />)
+  expect(await screen.findByText(/7\.29 km, 5:54 \/km, HR 139 avg, 160 max/)).toBeInTheDocument()
+  const save = screen.getByRole('button', { name: 'Pick how it felt to save' })
+  expect(save).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Effort 6' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await vi.waitFor(() => expect(saved).toHaveBeenCalledWith(`Saved: ${RUN.summary}.`))
+  expect(asked).toContain(`POST /api/proposals/save {"token":"${TOKEN}","effort":6}`)
+})

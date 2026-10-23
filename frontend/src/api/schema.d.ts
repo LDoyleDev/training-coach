@@ -2712,6 +2712,8 @@ export interface components {
          * @description The token, and the answer when the day already has its session (ADR-0060).
          */
         ProposalSave: {
+            /** Effort */
+            effort?: number | null;
             /** Resolution */
             resolution?: string | null;
             /** Seen */
