@@ -31,12 +31,11 @@ items = [
 """
 
 
-def _seeded(session: Session, *, core: bool = True) -> Session:
+def _seeded(session: Session) -> Session:
     text = files("training_coach.seed").joinpath("plan.toml").read_text(encoding="utf-8")
-    if core:
-        start = text.index('[[sessions]]\nslug = "moderate-cardio"')
-        end = text.index("[[sessions]]", start + 1)
-        text = text[:start] + CARDIO_CORE + text[end:]
+    start = text.index('[[sessions]]\nslug = "moderate-cardio"')
+    end = text.index("[[sessions]]", start + 1)
+    text = text[:start] + CARDIO_CORE + text[end:]
     apply_seed(session, load_plan(text))
     session.flush()
     return session
@@ -162,9 +161,11 @@ def test_progress_for_the_block_is_dropped_when_the_run_is_undone(session: Sessi
 
 
 def test_a_cardio_only_day_is_done_once_its_cardio_is(session: Session) -> None:
-    seeded = _seeded(session, core=False)
-    _queue_at(seeded, "moderate-cardio")
-    _run_logged(seeded)
+    seeded = _seeded(session)
+    _queue_at(seeded, "zone2")  # Long zone 2: the walk and nothing after it
+    logged = cardio.log(seeded, DAY, BERLIN, "zone2", 60, None, "a" * 32)
+    assert isinstance(logged, cardio.Logged)
+    assert logged.planned
     assert guided.today(seeded, DAY, BERLIN) is None
 
 
@@ -208,3 +209,14 @@ def test_a_strength_session_is_never_planned_cardio(session: Session) -> None:
     session.flush()
     _queue_at(session, "moderate-cardio")
     assert cardio.planned(session, DAY, BERLIN) is None
+
+
+def test_the_bundled_cardio_day_opens_its_block_after_the_run(session: Session) -> None:
+    apply_seed(session, load_plan())
+    session.flush()
+    day = _queue_at(session, "moderate-cardio")
+    _run_logged(session)
+    plan = _after(session)
+    assert plan.name == day.name
+    assert plan.items
+    assert all(i.slug != "moderate-cardio" for i in plan.items)
