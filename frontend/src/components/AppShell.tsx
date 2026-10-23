@@ -4,10 +4,10 @@ import OfflineNotice from '../pwa/Offline'
 /** The signed-in pages, in the order the nav shows them. */
 const PAGES = [
   { path: '/', label: 'Home' },
-  { path: '/session', label: 'Today' },
+  { path: '/plan', label: 'Plan' },
   { path: '/progress', label: 'Progress' },
-  { path: '/tests', label: 'Tests' },
-  { path: '/body', label: 'Body' },
+  { path: '/session', label: 'Today' },
+  { path: '/body', label: 'Body' }, // its Tests tab too (ADR-0069)
   { path: '/account', label: 'Account' },
 ] as const
 
@@ -64,4 +64,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </main>
     </div>
   )
+}
+
+/** The page frame, or none when the page is a tab of another (Body hosts Tests, ADR-0069). */
+export function Frame({ embedded, children }: { embedded: boolean; children: React.ReactNode }) {
+  return embedded ? <>{children}</> : <AppShell>{children}</AppShell>
 }

@@ -1,4 +1,4 @@
-import AppShell from '../components/AppShell'
+import { Frame } from '../components/AppShell'
 import SignedOutNotice from '../components/SignedOutNotice'
 import Sparkline from '../components/Sparkline'
 import { useEffect, useState } from 'react'
@@ -50,7 +50,7 @@ const TIMES: When[] = ['morning', 'midday', 'afternoon', 'evening']
  * /tests: baseline tests and retests (2-A, ADR-0037). The conditions first, then one test (or
  * side) per screen; nothing is saved until Save (ADR-0007).
  */
-export default function TestsPage() {
+export default function TestsPage({ embedded = false }: { embedded?: boolean }) {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
   const [stage, setStage] = useState<Stage>('list')
   const [day, setDay] = useState(1)
@@ -76,7 +76,8 @@ export default function TestsPage() {
     void load()
   }, [])
 
-  if (loaded.status !== 'ready') return <AppShell>{<Status loaded={loaded} />}</AppShell>
+  if (loaded.status !== 'ready')
+    return <Frame embedded={embedded}>{<Status loaded={loaded} />}</Frame>
   const { tests, days, due } = loaded
   const list = steps(tests, day)
   const step: Step | undefined = list[position]
@@ -145,7 +146,7 @@ export default function TestsPage() {
   const nameOf = (slug: string) => tests.find((t) => t.slug === slug)
 
   return (
-    <AppShell>
+    <Frame embedded={embedded}>
       <Toast text={note} onClose={() => setNote(null)} />
       {signedOut && <SignedOutNotice />}
 
@@ -404,7 +405,7 @@ export default function TestsPage() {
           </button>
         </section>
       )}
-    </AppShell>
+    </Frame>
   )
 }
 

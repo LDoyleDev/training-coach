@@ -8,7 +8,7 @@ afterEach(() => {
 })
 
 test('the nav links every signed-in page and marks the one shown', () => {
-  window.history.replaceState(null, '', '/tests')
+  window.history.replaceState(null, '', '/plan')
   render(
     <AppShell>
       <p>content</p>
@@ -18,18 +18,18 @@ test('the nav links every signed-in page and marks the one shown', () => {
   const links = [...nav.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('href')])
   expect(links).toEqual([
     ['Home', '/'],
-    ['Today', '/session'],
+    ['Plan', '/plan'],
     ['Progress', '/progress'],
-    ['Tests', '/tests'],
+    ['Today', '/session'],
     ['Body', '/body'],
     ['Account', '/account'],
   ])
-  expect(screen.getByRole('link', { name: 'Tests' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('link', { name: 'Plan' })).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('link', { name: 'Body' })).not.toHaveAttribute('aria-current')
   expect(screen.getByRole('link', { name: 'Training Coach' })).toHaveAttribute('href', '/')
-  // Six tabs, all on a phone too: Plan is a tab of Progress (ux-flow-plan D2).
+  // Six tabs, all on a phone too; Tests is a tab of Body (ADR-0069).
   expect(screen.getByRole('link', { name: 'Home' }).closest('li')).not.toHaveClass('hidden')
-  expect(screen.queryByRole('link', { name: 'Plan' })).toBeNull()
+  expect(screen.queryByRole('link', { name: 'Tests' })).toBeNull()
   expect(screen.getByText('content')).toBeInTheDocument()
 })
 
