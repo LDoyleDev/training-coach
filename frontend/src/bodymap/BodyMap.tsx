@@ -1,36 +1,40 @@
-import { useEffect, useState } from 'react'
-import { fetchCoverage, type Band, type Coverage, type MuscleCoverage } from '../api'
+import { useState } from 'react'
+import {
+  type Band,
+  type Coverage,
+  type Heat,
+  type MuscleCoverage,
+  type SessionCoverage,
+} from '../api'
 import { HEAD, HEIGHT, MIRROR, REGIONS, SILHOUETTE, WIDTH, type View } from './regions'
+import type { State } from './useCoverage'
 import {
   BANDS,
+  HEATS,
   amount,
   bandLabel,
   goal,
+  heatLabel,
   muscleName,
   sessionWarnings,
   sets,
   warnings,
 } from './words'
 
-type State =
-  | { status: 'loading' }
-  | { status: 'hidden' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; coverage: Coverage }
-
 const slug = (s: string) => s.replace(/ /g, '-')
 const fill = (band: Band) => `var(--band-${slug(band)})`
+const heatFill = (heat: Heat) => (heat === 'over' ? fill('warning') : `var(--heat-${heat})`)
 
 type FigureProps = {
   view: View
-  bands: Map<string, Band>
+  fills: Map<string, string> // muscle -> its colour; the rest are not worked
   selected: string | null
   onSelect: (muscle: string) => void
 }
 
 /** One mannequin with its muscles coloured. The list below is the accessible way in; tapping
  * a region is a shortcut to the same row. */
-function BodyFigure({ view, bands, selected, onSelect }: FigureProps) {
+function BodyFigure({ view, fills, selected, onSelect }: FigureProps) {
   const regions = REGIONS[view]
   const half = (
     <>
@@ -42,7 +46,7 @@ function BodyFigure({ view, bands, selected, onSelect }: FigureProps) {
           key={r.muscle}
           d={r.d}
           data-muscle={r.muscle}
-          fill={fill(bands.get(r.muscle) ?? 'grey')}
+          fill={fills.get(r.muscle) ?? fill('grey')}
           stroke={r.muscle === selected ? 'var(--ink)' : 'var(--fig-near-line)'}
           strokeWidth={r.muscle === selected ? 2 : 0.75}
           className="cursor-pointer"
@@ -76,11 +80,11 @@ function BodyFigure({ view, bands, selected, onSelect }: FigureProps) {
   )
 }
 
-function Swatch({ band }: { band: Band }) {
+function Swatch({ band, colour }: { band?: Band; colour?: string }) {
   return (
     <span
       className="inline-block h-3 w-3 shrink-0 rounded-sm border border-[var(--fig-near-line)]"
-      style={{ background: fill(band) }}
+      style={{ background: colour ?? fill(band ?? 'grey') }}
       aria-hidden="true"
     />
   )
@@ -145,22 +149,10 @@ function MuscleRow({
   )
 }
 
-/** The read-only body map on the Plan tab (program-builder.md F, step 3): what the plan as it
+/** The read-only body map on the Plan page (program-builder.md F, step 3): what the plan as it
  * stands gives each muscle in a week. */
-export function BodyMap() {
-  const [state, setState] = useState<State>({ status: 'loading' })
+export function BodyMap({ state }: { state: State }) {
   const [open, setOpen] = useState<string | null>(null)
-
-  useEffect(() => {
-    const ctrl = new AbortController()
-    fetchCoverage(ctrl.signal)
-      .then((coverage) => setState(coverage ? { status: 'ready', coverage } : { status: 'hidden' }))
-      .catch((err: unknown) => {
-        if (ctrl.signal.aborted) return
-        setState({ status: 'error', message: err instanceof Error ? err.message : String(err) })
-      })
-    return () => ctrl.abort()
-  }, [])
 
   if (state.status === 'loading') return <p className="status">Loading the body map…</p>
   if (state.status === 'hidden') return null
@@ -172,7 +164,7 @@ export function BodyMap() {
     )
 
   const { coverage } = state
-  const bands = new Map(coverage.muscles.map((m) => [m.muscle, m.band]))
+  const fills = new Map(coverage.muscles.map((m) => [m.muscle, fill(m.band)]))
   const select = (muscle: string) => {
     setOpen(muscle)
     document
@@ -204,8 +196,8 @@ export function BodyMap() {
         role="img"
         aria-label={`Body map: ${coverage.main_on_target} of ${coverage.main_total} main muscles on target. The list below has every muscle.`}
       >
-        <BodyFigure view="front" bands={bands} selected={open} onSelect={select} />
-        <BodyFigure view="back" bands={bands} selected={open} onSelect={select} />
+        <BodyFigure view="front" fills={fills} selected={open} onSelect={select} />
+        <BodyFigure view="back" fills={fills} selected={open} onSelect={select} />
       </div>
       <ul className="my-3 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-sm">
         {BANDS.map((b) => (
@@ -232,6 +224,80 @@ export function BodyMap() {
         figure or in the list, to see where its sets come from. The spine, grip and rest-day
         warnings are rules of thumb, not study results.
       </p>
+    </div>
+  )
+}
+
+/** One session's map, at the top of its row on the Plan page (ADR-0069): how hard this session
+ * works each muscle, scaled to one session rather than the week's bands. Tapping a muscle says
+ * how many of its sets come from here, and from which exercises. */
+export function SessionMap({ coverage, day }: { coverage: Coverage; day: SessionCoverage }) {
+  const [open, setOpen] = useState<string | null>(null)
+  if (day.muscles.length === 0) return null
+  const fills = new Map(day.muscles.map((m) => [m.muscle, heatFill(m.heat)]))
+  const shown = day.muscles.find((m) => m.muscle === open)
+  const from = shown
+    ? (coverage.muscles
+        .find((m) => m.muscle === shown.muscle)
+        ?.sources.filter((s) => s.session === day.session) ?? [])
+    : []
+  const toggle = (muscle: string) => setOpen((cur) => (cur === muscle ? null : muscle))
+  const hard = day.muscles.filter((m) => m.heat === 'hard' || m.heat === 'over')
+  return (
+    <div className="mb-4 max-w-[46rem]">
+      <div
+        className="flex gap-2"
+        role="img"
+        aria-label={`What ${day.session} works: ${
+          hard.length > 0
+            ? `hardest on ${hard.map((m) => muscleName(m.muscle)).join(', ')}`
+            : 'no muscle worked hard'
+        }. The list below has every muscle it works.`}
+      >
+        <BodyFigure view="front" fills={fills} selected={open} onSelect={toggle} />
+        <BodyFigure view="back" fills={fills} selected={open} onSelect={toggle} />
+      </div>
+      <ul className="my-2 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-sm">
+        {HEATS.filter((h) => h.heat !== 'none').map((h) => (
+          <li key={h.heat} className="flex items-center gap-1.5">
+            <Swatch colour={heatFill(h.heat)} />
+            {h.label}
+          </li>
+        ))}
+      </ul>
+      <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+        {day.muscles.map((m) => (
+          <li key={m.muscle}>
+            <button
+              type="button"
+              aria-pressed={open === m.muscle}
+              aria-label={`${muscleName(m.muscle)}: ${sets(m.sets)} sets, ${heatLabel(m.heat)}`}
+              onClick={() => toggle(m.muscle)}
+              className="flex min-h-11 items-center gap-1.5 rounded-lg border border-[var(--line)] bg-transparent px-2 text-sm text-[var(--ink)] aria-pressed:border-[var(--ink)]"
+            >
+              <Swatch colour={heatFill(m.heat)} />
+              {muscleName(m.muscle)} <span className="num font-bold">{sets(m.sets)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {shown && (
+        <div className="mt-2 text-[0.9375rem]" aria-live="polite">
+          <p className="m-0">
+            {muscleName(shown.muscle)}: {sets(shown.sets)} {shown.sets === 1 ? 'set' : 'sets'} in
+            this session, {heatLabel(shown.heat).toLowerCase()}.
+          </p>
+          {from.length > 0 && (
+            <ul className="mt-1 mb-0 list-none p-0 text-[var(--slate)]">
+              {from.map((s) => (
+                <li key={s.exercise}>
+                  {s.exercise}: {s.sets} × {sets(s.weight)} = {sets(s.sets * s.weight)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }

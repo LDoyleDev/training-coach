@@ -390,7 +390,7 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
    equipment and places (C, E), load and double progression (D).
 2. **Catalogue facts** (done, ADR-0064): fixed muscles with their weights, patterns, needs in
    `plan.toml`. The Plan tab's volume chart uses the fixed list and fractional counting.
-3. **Body map, read-only** (done): on the Plan tab, from the current plan, with the six bands
+3. **Body map, read-only** (done): on the Plan page, from the current plan (each open session also shows its own map on a heat scale, and the week's is at the bottom: ADR-0069), with the six bands
    and each muscle's own band (`GET /api/plan/coverage`, `domain/coverage.py`). It shows the
    per-session, back-to-back, one-day, muscle-part, spine and grip warnings; a day for a muscle
    is a session with 2 or more of its sets (research file, Coverage). Read as built:

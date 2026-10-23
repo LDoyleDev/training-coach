@@ -1,19 +1,22 @@
-import { prescription, sessionSize, type Session } from '../api'
+import { prescription, sessionSize, type Coverage, type Session } from '../api'
+import { SessionMap } from '../bodymap/BodyMap'
 
 type Props = {
   sessions: Session[]
   open: string | null
   onToggle: (slug: string) => void
+  coverage?: Coverage // when loaded: an open session shows its own body map first (ADR-0069)
 }
 
 const TYPE_LABEL = { strength: 'Strength', conditioning: 'Conditioning', recovery: 'Recovery' }
 
-export function SessionList({ sessions, open, onToggle }: Props) {
+export function SessionList({ sessions, open, onToggle, coverage }: Props) {
   return (
     <ol className="sessions">
       {sessions.map((s) => {
         const isOpen = open === s.slug
         const panel = `session-${s.slug}`
+        const day = coverage?.sessions.find((d) => d.slug === s.slug)
         return (
           <li key={s.slug} className={`session session-${s.type}`} id={`row-${s.slug}`}>
             <button
@@ -37,6 +40,7 @@ export function SessionList({ sessions, open, onToggle }: Props) {
               <span className="session-chevron" aria-hidden="true" />
             </button>
             <div id={panel} className="session-body" hidden={!isOpen}>
+              {isOpen && coverage && day && <SessionMap coverage={coverage} day={day} />}
               {s.optional && (
                 <p className="session-note">
                   Optional: take a full rest day instead if you need it.

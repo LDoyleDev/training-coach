@@ -24,6 +24,8 @@ export async function fetchPlan(signal?: AbortSignal): Promise<Plan | null> {
 export type Coverage = Schemas['CoverageView']
 export type MuscleCoverage = Schemas['MuscleView']
 export type Band = Schemas['Band']
+export type SessionCoverage = Schemas['SessionLoadView']
+export type Heat = Schemas['Heat']
 
 /** The body map: weekly sets per muscle with its band and warnings (program-builder.md F);
  * null when not signed in. */

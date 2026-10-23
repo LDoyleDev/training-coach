@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Coverage, MuscleCoverage } from '../api'
-import { BodyMap } from './BodyMap'
+import { BodyMap, SessionMap } from './BodyMap'
+import { useCoverage } from './useCoverage'
 import { BACK, FRONT } from './regions'
 import { amount, goal, sessionWarnings, warnings } from './words'
 
@@ -63,8 +64,27 @@ const tibialis = muscle({
 const coverage: Coverage = {
   muscles: [glutes, lats, neck, tibialis],
   sessions: [
-    { session: 'Legs', spine_sets: 10, grip_sets: 3, spine_heavy: true, grip_heavy: false },
-    { session: 'Arms', spine_sets: 0, grip_sets: 9, spine_heavy: false, grip_heavy: true },
+    {
+      session: 'Legs',
+      slug: 'legs',
+      spine_sets: 10,
+      grip_sets: 3,
+      spine_heavy: true,
+      grip_heavy: false,
+      muscles: [
+        { muscle: 'glutes', sets: 12.5, heat: 'over' },
+        { muscle: 'lats', sets: 1.5, heat: 'light' },
+      ],
+    },
+    {
+      session: 'Arms',
+      slug: 'arms',
+      spine_sets: 0,
+      grip_sets: 9,
+      spine_heavy: false,
+      grip_heavy: true,
+      muscles: [],
+    },
   ],
   main_on_target: 1,
   main_total: 10,
@@ -72,6 +92,7 @@ const coverage: Coverage = {
   back_to_back: 4,
   spine_cap: 8,
   grip_cap: 8,
+  hard_from: 6,
   minimum: 4,
   ceiling: 30,
 }
@@ -82,10 +103,15 @@ function answer(response: Partial<Response>) {
 
 afterEach(() => vi.restoreAllMocks())
 
+/** The week's map as the Plan page uses it: the page fetches, the map shows. */
+function Week() {
+  return <BodyMap state={useCoverage()} />
+}
+
 describe('BodyMap', () => {
   it('colours each muscle and lists them with their bands', async () => {
     answer({ ok: true, json: () => Promise.resolve(coverage) })
-    const { container } = render(<BodyMap />)
+    const { container } = render(<Week />)
     expect(await screen.findByText('1 of 10 main muscles on target')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: /1 of 10 main muscles on target/ })).toBeInTheDocument()
     const region = container.querySelector('path[data-muscle="lats"]')
@@ -107,7 +133,7 @@ describe('BodyMap', () => {
 
   it('opens a muscle to show where its sets come from', async () => {
     answer({ ok: true, json: () => Promise.resolve(coverage) })
-    render(<BodyMap />)
+    render(<Week />)
     const row = await screen.findByRole('button', { name: /Glutes/, expanded: false })
     fireEvent.click(row)
     expect(row).toHaveAttribute('aria-expanded', 'true')
@@ -124,7 +150,7 @@ describe('BodyMap', () => {
   it('tapping a region opens its row', async () => {
     answer({ ok: true, json: () => Promise.resolve(coverage) })
     Element.prototype.scrollIntoView = vi.fn()
-    const { container } = render(<BodyMap />)
+    const { container } = render(<Week />)
     await screen.findByText('1 of 10 main muscles on target')
     fireEvent.click(container.querySelector('path[data-muscle="neck"]')!)
     expect(
@@ -137,18 +163,55 @@ describe('BodyMap', () => {
 
   it('marks very low evidence', async () => {
     answer({ ok: true, json: () => Promise.resolve(coverage) })
-    render(<BodyMap />)
+    render(<Week />)
     fireEvent.click(await screen.findByRole('button', { name: /Tibialis/ }))
     expect(screen.getByText(/Very low evidence for this band/)).toBeVisible()
   })
 
   it('shows nothing when signed out, and explains a failed load', async () => {
     answer({ ok: false, status: 401 })
-    const { container } = render(<BodyMap />)
+    const { container } = render(<Week />)
     await vi.waitFor(() => expect(container).toBeEmptyDOMElement())
     answer({ ok: false, status: 500 })
-    render(<BodyMap />)
+    render(<Week />)
     expect(await screen.findByRole('alert')).toHaveTextContent('The server answered 500.')
+  })
+})
+
+describe('SessionMap', () => {
+  it("colours one session's muscles by how hard it works them", () => {
+    const { container } = render(<SessionMap coverage={coverage} day={coverage.sessions[0]} />)
+    expect(container.querySelector('path[data-muscle="glutes"]')).toHaveAttribute(
+      'fill',
+      'var(--band-warning)', // over the session cap
+    )
+    expect(container.querySelector('path[data-muscle="lats"]')).toHaveAttribute(
+      'fill',
+      'var(--heat-light)',
+    )
+    expect(container.querySelector('path[data-muscle="chest"]')).toHaveAttribute(
+      'fill',
+      'var(--band-grey)',
+    )
+    expect(screen.getByRole('img', { name: /What Legs works: hardest on Glutes/ })).toBeVisible()
+  })
+
+  it('tapping a muscle says what this session gives it, and from what', () => {
+    const { container } = render(<SessionMap coverage={coverage} day={coverage.sessions[0]} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Glutes: 12.5 sets, Too much for one session' }),
+    )
+    expect(
+      screen.getByText(/Glutes: 12.5 sets in this session, too much for one session/),
+    ).toBeVisible()
+    expect(screen.getByText('Kettlebell swing: 3 × 0.5 = 1.5')).toBeVisible()
+    fireEvent.click(container.querySelector('path[data-muscle="lats"]')!)
+    expect(screen.getByText(/Lats: 1.5 sets in this session, a little/)).toBeVisible()
+  })
+
+  it('draws nothing for a session that works no muscle', () => {
+    const { container } = render(<SessionMap coverage={coverage} day={coverage.sessions[1]} />)
+    expect(container).toBeEmptyDOMElement()
   })
 })
 
