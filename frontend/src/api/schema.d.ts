@@ -793,7 +793,8 @@ export interface paths {
         get?: never;
         /**
          * Put Habit
-         * @description Tick or untick a habit for today. Repeating the same tap changes nothing.
+         * @description Tick or untick a habit for ``day`` (default today). Repeating the same tap changes
+         *     nothing.
          */
         put: operations["put_habit_api_habits__habit__put"];
         post?: never;
@@ -1681,6 +1682,19 @@ export interface components {
          * @enum {string}
          */
         CardioActivity: "walk" | "hike" | "jog" | "run" | "bike" | "swim" | "row" | "stairs" | "other";
+        /** CardioDetailsView */
+        CardioDetailsView: {
+            /** Avg Hr */
+            avg_hr: number | null;
+            /** Distance M */
+            distance_m: number | null;
+            /** Effort */
+            effort: number | null;
+            /** Max Hr */
+            max_hr: number | null;
+            /** Pace S Per Km */
+            pace_s_per_km: number | null;
+        };
         /** ChangeBody */
         ChangeBody: {
             /** Template Id */
@@ -2417,6 +2431,7 @@ export interface components {
             /** Activity */
             activity: string | null;
             band: components["schemas"]["BandRunView"] | null;
+            cardio: components["schemas"]["CardioDetailsView"] | null;
             /** Exercises */
             exercises: components["schemas"]["LoggedExerciseView"][];
             /** Name */
@@ -4603,7 +4618,9 @@ export interface operations {
     };
     get_habits_api_habits_get: {
         parameters: {
-            query?: never;
+            query?: {
+                day?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4619,11 +4636,22 @@ export interface operations {
                     "application/json": components["schemas"]["HabitsView"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     put_habit_api_habits__habit__put: {
         parameters: {
-            query?: never;
+            query?: {
+                day?: string | null;
+            };
             header?: never;
             path: {
                 habit: components["schemas"]["Habit"];

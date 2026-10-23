@@ -3,7 +3,7 @@ import { fetchDay, type DayLog, type LoggedWorkout } from '../api'
 import { day as dayName } from '../home/logic'
 import { card, secondary } from '../ui'
 import HabitsCard from './Habits'
-import { shift } from './days'
+import { details, shift } from './days'
 
 type Exercise = LoggedWorkout['exercises'][number]
 type LoggedSet = Exercise['sets'][number]
@@ -45,6 +45,9 @@ function Workout({ workout }: { workout: LoggedWorkout }) {
           {band.max_hr ? ` · max ${band.max_hr}` : ''}
         </p>
       )}
+      {workout.cardio && (
+        <p className="m-0 text-sm text-[var(--slate)]">{details(workout.cardio)}</p>
+      )}
       {workout.exercises.length > 0 && (
         <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm">
           {workout.exercises.map((exercise, n) => (
@@ -61,10 +64,11 @@ function Workout({ workout }: { workout: LoggedWorkout }) {
   )
 }
 
-/** What was logged on a day, today or earlier, with today's habits under today (ADR-0068).
- * ‹ and › step a day back or forward, never past today or before the first day; the date goes
- * back to today. Earlier days are read-only. The card shows once loaded; until then, or when
- * it can't load, today's habits still show. ``refresh`` changes after a log saved elsewhere. */
+/** What was logged on a day, today or earlier, and that day's habits (ADR-0068). ‹ and ›
+ * step a day back or forward, never past today or before the first day; the date goes back to
+ * today. An earlier day's log is read-only, but its habits can still be ticked. The card shows
+ * once loaded; until then, or when it can't load, today's habits still show. ``refresh``
+ * changes after a log saved elsewhere. */
 export default function DayCard({ refresh = 0 }: { refresh?: number }) {
   const [shown, setShown] = useState<string | undefined>(undefined) // none: today
   const [log, setLog] = useState<DayLog | null>(null)
@@ -154,7 +158,11 @@ export default function DayCard({ refresh = 0 }: { refresh?: number }) {
         )}
         {note}
       </section>
-      {isToday && <HabitsCard />}
+      <HabitsCard
+        key={log.day} // another day starts afresh: never tick the last one's
+        day={isToday ? undefined : log.day}
+        label={isToday ? 'today' : `on ${name}`}
+      />
     </>
   )
 }

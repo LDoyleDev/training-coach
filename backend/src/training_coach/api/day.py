@@ -39,6 +39,14 @@ class BandRunView(BaseModel):
     max_hr: int | None
 
 
+class CardioDetailsView(BaseModel):
+    effort: int | None
+    distance_m: int | None
+    pace_s_per_km: int | None
+    avg_hr: int | None
+    max_hr: int | None
+
+
 class LoggedWorkoutView(BaseModel):
     workout_id: int
     name: str
@@ -47,6 +55,7 @@ class LoggedWorkoutView(BaseModel):
     activity: str | None
     exercises: list[LoggedExerciseView]
     band: BandRunView | None
+    cardio: CardioDetailsView | None  # effort, distance, pace and heart rate typed with it
 
 
 class DayView(BaseModel):
@@ -94,6 +103,7 @@ def get_day(request: Request, user: Owner, on: date | None = None) -> DayView:
                         for e in w.exercises
                     ],
                     band=BandRunView(**vars(w.band)) if w.band is not None else None,
+                    cardio=CardioDetailsView(**vars(w.cardio)) if w.cardio is not None else None,
                 )
                 for w in found
             ],
