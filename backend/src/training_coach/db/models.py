@@ -484,6 +484,9 @@ class SessionProgress(Owned, Base):
     saved_workout_id: Mapped[int | None] = mapped_column(
         ForeignKey("workouts.id", ondelete="SET NULL")
     )
+    # The block after a conditioning session's cardio, once the cardio is logged (ADR-0066):
+    # its sets are added to that day's workout instead of saving a second one.
+    after_run: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

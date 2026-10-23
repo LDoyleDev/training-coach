@@ -140,6 +140,9 @@ class GuidedView(BaseModel):
     rest_seconds: int  # the rest after a pair, for pages from before ADR-0065
     items: list[ItemView]
     order: list[SetView]
+    # What's left of a conditioning session once its cardio is logged (ADR-0066): offered
+    # "after your run", saved into that day's workout.
+    after_run: bool = False
 
 
 class DoneView(BaseModel):
@@ -268,7 +271,11 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
     plan = guided.today(session, on, settings.tz)
     test_day = test_day_view(retests.due(session, on, settings.tz))
     current = readiness.current(session, datetime.now(UTC))
-    if plan is not None and kept is not None and kept.template_id != plan.template_id:
+    if (
+        plan is not None
+        and kept is not None
+        and (kept.template_id != plan.template_id or kept.after_run != plan.after_run)
+    ):
         kept = None  # kept for a session that's no longer today's: its swaps don't apply
     if plan is not None and kept is not None and kept.first:
         plan = guided.today(session, on, settings.tz, set(kept.first))
@@ -310,7 +317,9 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
             if plan.block is not None
             else None,
             minutes=plan.minutes,
-            usual_minutes=session_times.usual_minutes(session, plan.template_id),
+            usual_minutes=None  # the whole session's, not the block's (ADR-0066)
+            if plan.after_run
+            else session_times.usual_minutes(session, plan.template_id),
             rest_seconds=plan.rest_seconds,
             items=[
                 ItemView(
@@ -338,6 +347,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                 )
                 for s in plan.order
             ],
+            after_run=plan.after_run,
         ),
     )
 

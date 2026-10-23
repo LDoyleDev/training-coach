@@ -500,6 +500,43 @@ def save(
     return _commit(session, workout, confirmed, rule, answer, tz)
 
 
+def add_to(
+    session: Session,
+    workout: Workout,
+    entries: tuple[Entry, ...],
+    strength: bool,
+    tz: ZoneInfo,
+) -> Saved | Stale:
+    """Add sets to a saved workout of the same session: the block after a conditioning
+    session's cardio (ADR-0066). It is that session's log, so it neither clashes nor moves the
+    queue. ``Stale`` when an exercise is gone from the plan."""
+    confirmed = Draft(
+        token=workout.log_token or secrets.token_hex(16),
+        on=workout.local_date,
+        template_id=workout.template_id,
+        session_name="",
+        entries=entries,
+        problems=(),
+        strength=strength,
+    )
+    exercises = _exercises(session, confirmed)
+    if exercises is None:
+        return Stale()
+    _file(session, workout, confirmed, exercises, strength, tz)
+    session.flush()
+    session.add(
+        Event(
+            kind="workout.added",
+            payload={
+                "workout_id": workout.id,
+                "exercises": len(entries),
+                "sets": len(workout.sets),
+            },
+        )
+    )
+    return Saved(workout.id, already_saved=False)
+
+
 def _save_past(
     session: Session, confirmed: Draft, tz: ZoneInfo, answer: Resolution | None
 ) -> Saving:

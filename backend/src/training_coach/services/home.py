@@ -126,6 +126,8 @@ def _today(session: Session, on: date, tz: ZoneInfo) -> tuple[str | None, int | 
     plan = guided.today(session, on, tz)
     if plan is None:
         return None, None, None
+    if plan.after_run:  # the rest of the day's session after its cardio (ADR-0066)
+        return f"{plan.name}, after your run", plan.minutes, None
     return plan.name, plan.minutes, session_times.usual_minutes(session, plan.template_id)
 
 

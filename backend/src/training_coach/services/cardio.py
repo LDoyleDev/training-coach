@@ -28,7 +28,7 @@ MAX_ROUNDS = 100
 
 @dataclass(frozen=True)
 class Planned:
-    """Today's planned session, when it is a single cardio exercise."""
+    """Today's planned cardio (``planned``)."""
 
     kind: str  # one of KINDS
     session: str  # its name, e.g. "Long zone 2"
@@ -49,11 +49,16 @@ class Logged:
 
 
 def planned(session: Session, on: date, tz: ZoneInfo) -> Planned | None:
+    """Today's planned cardio: a session that is one cardio exercise, or a conditioning
+    session with a block after its cardio (ADR-0066), whose cardio is logged in one step and
+    leaves the block open. None once that cardio is logged."""
     plan = guided.today(session, on, tz)
-    if plan is None or len(plan.items) != 1 or plan.items[0].slug not in KINDS:
+    if plan is None or plan.after_run:
         return None
-    item = plan.items[0]
-    return Planned(item.slug, plan.name, item.targets[0])
+    found = [i for i in plan.items if i.slug in KINDS]
+    if len(found) != 1 or (len(plan.items) > 1 and plan.kind != "conditioning"):
+        return None
+    return Planned(found[0].slug, plan.name, found[0].targets[0])
 
 
 def week(session: Session, on: date) -> Week:

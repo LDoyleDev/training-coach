@@ -13,6 +13,7 @@ const LEGS: Guided = {
   block: null,
   minutes: 45,
   rest_seconds: 60,
+  after_run: false,
   items: [
     {
       slug: 'jump-squat',
