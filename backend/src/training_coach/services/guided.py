@@ -161,17 +161,22 @@ def _run_done(session: Session, on: date) -> Workout | None:
     )
 
 
-def _left(session: Session, workout: Workout, items: tuple[ItemPlan, ...]) -> tuple[ItemPlan, ...]:
-    """The session's items not logged in ``workout``, leaving out its cardio however it was
-    logged (a counted band run carries the minutes, not always the plan's exercise)."""
+def _left(
+    session: Session, workout: Workout, items: tuple[ItemPlan, ...]
+) -> tuple[ItemPlan, ...] | None:
+    """The session's items not logged in ``workout`` once its run is: None unless the session
+    has exactly one cardio exercise (as ``cardio.planned`` reads it) and the workout logged it,
+    so a conditioning session without a run, or saved short, offers nothing "after the run"."""
+    cardio = {e.slug for e in bundled_plan().exercises if e.pattern == "cardio"}
+    runs = [i.slug for i in items if i.slug in cardio]
     logged = set(
         session.scalars(
             select(Exercise.slug).join(SetLog).where(SetLog.workout_id == workout.id).distinct()
         )
     )
-    return tuple(
-        i for i in items if i.kind is not ExerciseKind.DURATION_MIN and i.slug not in logged
-    )
+    if len(runs) != 1 or runs[0] not in logged:
+        return None
+    return tuple(i for i in items if i.slug not in cardio and i.slug not in logged)
 
 
 def _after_run(session: Session, on: date, tz: ZoneInfo, first: Collection[int]) -> Guided | None:
@@ -490,14 +495,26 @@ def _save_after_run(
     plan = session_plan(session, template.id, blocks.current(session, day, tz))
     assert plan is not None  # noqa: S101 - the template exists
     items = _left(session, workout, plan.items)
+    if items is None:
+        return workout_log.Stale()
+    if not items:  # the block is in the workout already: a repeated save
+        return workout_log.Saved(workout.id, already_saved=True)
     sets = tuple(_done(s) for s in row.sets)
     if sets_problem(items, sets) is not None:  # checked again: the plan may have changed
         return "the plan changed since these sets were recorded"
     strength = workout_log.strength_on(session, day, tz, template)
-    result = workout_log.add_to(session, workout, entries(items, sets), strength, tz)
-    if isinstance(result, workout_log.Saved):
-        row.saved_workout_id = result.workout_id
-        _stamp(session, result.workout_id, items, sets)
+    try:
+        # A racing duplicate save files the same sets again: the sets' uniqueness in a workout
+        # rolls it back here, so the block is never added twice.
+        with session.begin_nested():
+            result = workout_log.add_to(session, workout, entries(items, sets), strength, tz)
+            if isinstance(result, workout_log.Saved):
+                row.saved_workout_id = result.workout_id
+                _stamp(session, result.workout_id, items, sets)
+                session.flush()
+    except IntegrityError:
+        session.expire_all()
+        return workout_log.Saved(workout.id, already_saved=True)
     return result
 
 

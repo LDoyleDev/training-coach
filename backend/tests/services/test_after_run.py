@@ -5,10 +5,18 @@ from datetime import date, timedelta
 from importlib.resources import files
 from zoneinfo import ZoneInfo
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Exercise, SessionTemplate, SetLog, Workout
+from training_coach.db.models import (
+    Event,
+    Exercise,
+    SessionProgress,
+    SessionTemplate,
+    SetLog,
+    Workout,
+)
 from training_coach.services import cardio, guided, home, users, workout_log
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.today import position
@@ -220,3 +228,74 @@ def test_the_bundled_cardio_day_opens_its_block_after_the_run(session: Session) 
     assert plan.name == day.name
     assert plan.items
     assert all(i.slug != "moderate-cardio" for i in plan.items)
+
+
+def _block_saved(session: Session) -> int:
+    _queue_at(session, "moderate-cardio")
+    run = _run_logged(session)
+    plan = _after(session)
+    sets = [guided.Done(o.item, o.set_no, 10) for o in plan.order]
+    guided.keep(session, plan, 0, len(sets), [], sets)
+    assert guided.save(session, DAY, DAY, BERLIN) == workout_log.Saved(run, already_saved=False)
+    return run
+
+
+def _as_if_unsaved(session: Session) -> None:
+    """A second save that read the progress before the first one committed."""
+    row = session.scalars(select(SessionProgress).where(SessionProgress.local_date == DAY)).one()
+    row.saved_workout_id = None
+    session.flush()
+
+
+def test_a_repeated_save_of_the_block_adds_nothing(session: Session) -> None:
+    seeded = _seeded(session)
+    run = _block_saved(seeded)
+    count = len(seeded.get_one(Workout, run).sets)
+    _as_if_unsaved(seeded)
+    assert guided.save(seeded, DAY, DAY, BERLIN) == workout_log.Saved(run, already_saved=True)
+    assert len(seeded.get_one(Workout, run).sets) == count
+
+
+def test_a_racing_save_of_the_block_is_rolled_back(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seeded = _seeded(session)
+    run = _block_saved(seeded)
+    count = len(seeded.get_one(Workout, run).sets)
+    _as_if_unsaved(seeded)
+    block = ("hanging-raise", "back-extension")  # its view: none of the block is in yet
+    monkeypatch.setattr(
+        guided, "_left", lambda _s, _w, items: tuple(i for i in items if i.slug in block)
+    )
+    assert guided.save(seeded, DAY, DAY, BERLIN) == workout_log.Saved(run, already_saved=True)
+    assert len(seeded.get_one(Workout, run).sets) == count
+    added = seeded.scalars(select(Event).where(Event.kind == "workout.added")).all()
+    assert len(added) == 1
+
+
+def test_a_conditioning_day_without_a_run_offers_nothing_after(session: Session) -> None:
+    text = files("training_coach.seed").joinpath("plan.toml").read_text(encoding="utf-8")
+    start = text.index('[[sessions]]\nslug = "moderate-cardio"')
+    end = text.index("[[sessions]]", start + 1)
+    no_run = CARDIO_CORE.replace(
+        '  { exercise = "moderate-cardio", sets = 1, rep_min = 30, rep_max = 40 },\n', ""
+    )
+    apply_seed(session, load_plan(text[:start] + no_run + text[end:]))
+    session.flush()
+    _queue_at(session, "moderate-cardio")
+    plan = guided.today(session, DAY, BERLIN)
+    assert plan is not None
+    guided.keep(session, plan, 0, 1, [], [guided.Done(0, 1, 10)])
+    assert isinstance(guided.save(session, DAY, DAY, BERLIN), workout_log.Saved)
+    assert guided.today(session, DAY, BERLIN) is None  # nothing left today, not "after your run"
+
+
+def test_a_session_saved_without_its_run_offers_nothing_after(session: Session) -> None:
+    seeded = _seeded(session)
+    _queue_at(seeded, "moderate-cardio")
+    whole = guided.today(seeded, DAY, BERLIN)
+    assert whole is not None
+    raise_set = next(o for o in whole.order if whole.items[o.item].slug == "hanging-raise")
+    guided.keep(seeded, whole, 0, 1, [], [guided.Done(raise_set.item, 1, 10)])
+    assert isinstance(guided.save(seeded, DAY, DAY, BERLIN), workout_log.Saved)
+    assert guided.today(seeded, DAY, BERLIN) is None
