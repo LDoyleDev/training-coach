@@ -290,7 +290,11 @@ Fractional sets a week; "Days" counts days with at least 2 sets for that muscle;
 most in one session. Bands for the ten main muscles: green 10-20 (calves 8-16, side delts 8-20).
 Worked out from the weights above.
 
-### The current plan (`seed/plan.toml`): 78 sets, 26 exercises
+### The plan before 24 Oct 2026: 78 sets, 26 exercises
+
+The owner applied the changes below, plus the first gap closer (one more curl set and one more
+lateral-raise set, both on Torso), as the "Coverage update" plan version: 95 sets, all ten main
+muscles green on two days. The numbers now are in `training-plan.md` (Weekly hard sets).
 
 | Muscle | Sets | Days | Most | Band |
 | --- | --- | --- | --- | --- |
@@ -309,8 +313,7 @@ Also: front delts 7.5, rear delts 7.25, neck 7, forearms 6, lower back 3.5, addu
 abs 3, tibialis 3, obliques and upper traps 0. No rectus femoris work; spine-loading sets at most
 6 in a session (Legs), or 13 once the split squats and pistols hold a kettlebell: over the cap.
 
-**What would turn it green, home kit only** (a suggestion for the owner; nothing changes until
-they say so):
+**What would turn it green, home kit only** (applied on 24 Oct 2026):
 
 1. Move the low-fatigue work from Arms to Recovery + posture: hanging raises, neck side bends,
    one neck extension set and dead hangs.

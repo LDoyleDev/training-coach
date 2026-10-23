@@ -6,8 +6,9 @@
 #
 # Structure follows Huberman's Foundational Fitness Protocol (Huberman Lab ep. 94, with
 # Andy Galpin; see docs/specs/training-plan.md): 3 resistance days (legs; torso + neck;
-# arms, calves + neck), 3 conditioning days (long zone 2; moderate ~35 min; high intensity),
-# 1 recovery day. Every major muscle gets direct and indirect work each week. Order within a
+# arms + a second, smaller leg block), 3 conditioning days (long zone 2; moderate ~35 min; high
+# intensity), 1 recovery day that also carries the light core, grip and neck side work. Every
+# main muscle gets 10+ hard sets on two or more days (program-builder-research.md). Order within a
 # session: power -> strength -> hypertrophy -> small muscles (Galpin). Each resistance session
 # starts with a ~10 min warm-up and stays within ~60 min of work.
 # `pair = N` on two neighbouring items: they are done alternately, set by set, and should not
@@ -35,6 +36,10 @@ name = "Original plan"
 [[versions]]
 since = 2026-10-01
 name = "Rebuild (Oct 2026, ADR-0017)"
+
+[[versions]]
+since = 2026-10-24
+name = "Coverage update (Oct 2026, ADR-0064)"
 
 # ------------------------------------------------------------------- baseline tests
 # The product spec's performance tests (2-A, ADR-0037), on two days. Retest under the same
@@ -365,6 +370,22 @@ start = 0
 ladder = ["Standard", "Feet elevated"]
 
 [[exercises]]
+slug = "overhead-triceps-extension"
+name = "Overhead kettlebell triceps extension"
+summary = "Hold the kettlebell by the horns behind your head, elbows pointing up and close in. Lower it until you feel the stretch in the back of your arms, then straighten your elbows without flaring them."
+kind = "reps"
+muscles = { triceps = 1 }
+parts = ["triceps long head"]
+pattern = "isolation"
+aliases = ["overhead extension", "overhead extensions", "triceps extension", "triceps extensions", "overhead triceps"]
+start = 0
+ladder = ["8 kg, both hands", "8 kg, 3 s lowering", "Heavier kettlebell"]
+[exercises.needs]
+"8 kg, both hands" = ["kettlebell:8"]
+"8 kg, 3 s lowering" = ["kettlebell:8"]
+"Heavier kettlebell" = ["kettlebell:16"]
+
+[[exercises]]
 slug = "kb-curl"
 name = "Kettlebell curl"
 summary = "Stand tall, elbows pinned to your sides. Curl the kettlebell up, squeeze, then lower over about two seconds."
@@ -530,8 +551,8 @@ items = [
   { exercise = "jump-squat", sets = 3, rep_min = 5, rep_max = 8, pair = 1 },
   { exercise = "tibialis-raise", sets = 3, rep_min = 15, rep_max = 25, pair = 1 },
   { exercise = "kb-swing", sets = 3, rep_min = 15, rep_max = 20, pair = 2 },
-  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, per_side = true, pair = 2 },
-  { exercise = "bulgarian-split-squat", sets = 4, rep_min = 8, rep_max = 15, per_side = true, pair = 3 },
+  { exercise = "calf-raise", sets = 4, rep_min = 12, rep_max = 20, per_side = true, pair = 2 },
+  { exercise = "bulgarian-split-squat", sets = 3, rep_min = 8, rep_max = 15, per_side = true, pair = 3 },
   { exercise = "hamstring-curl", sets = 3, rep_min = 6, rep_max = 15, pair = 3 },
   { exercise = "pistol-squat", sets = 3, rep_min = 5, rep_max = 10, per_side = true, pair = 4 },
   { exercise = "single-leg-rdl", sets = 3, rep_min = 10, rep_max = 15, per_side = true, pair = 4 },
@@ -541,12 +562,16 @@ items = [
 slug = "recovery"
 type = "recovery"
 name = "Recovery + posture"
-focus = "Posture, mobility; optional sauna / cold if you're healthy and used to it"
+focus = "Posture, core, grip, neck side work, mobility; optional sauna / cold if you're used to it"
 is_rest_optional = true
 items = [
-  { exercise = "prone-ytw", sets = 2, rep_min = 8, rep_max = 12 },
-  { exercise = "back-extension", sets = 2, rep_min = 10, rep_max = 15 },
+  { exercise = "prone-ytw", sets = 2, rep_min = 8, rep_max = 12, pair = 1 },
+  { exercise = "back-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 1 },
   { exercise = "chin-tuck", sets = 2, rep_min = 8, rep_max = 12 },
+  { exercise = "hanging-raise", sets = 3, rep_min = 8, rep_max = 15, pair = 2 },
+  { exercise = "neck-lateral", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
+  { exercise = "dead-hang", sets = 2, rep_min = 30, rep_max = 60, pair = 3 },
+  { exercise = "neck-extension", sets = 1, rep_min = 10, rep_max = 15, pair = 3 },
   { exercise = "mobility", sets = 1, rep_min = 10, rep_max = 15 },
 ]
 
@@ -557,13 +582,15 @@ name = "Torso + neck"
 focus = "Strength / hypertrophy: back, chest, shoulders, neck"
 items = [
   { exercise = "pull-up", sets = 4, rep_min = 5, rep_max = 12, pair = 1 },
-  { exercise = "dip", sets = 3, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "dip", sets = 4, rep_min = 8, rep_max = 15, pair = 1 },
   { exercise = "kb-row", sets = 3, rep_min = 10, rep_max = 20, per_side = true, pair = 2 },
-  { exercise = "push-up", sets = 3, rep_min = 10, rep_max = 20, pair = 2 },
+  { exercise = "push-up", sets = 4, rep_min = 10, rep_max = 20, pair = 2 },
   { exercise = "pike-push-up", sets = 3, rep_min = 6, rep_max = 12, pair = 3 },
   { exercise = "reverse-fly", sets = 3, rep_min = 12, rep_max = 20, pair = 3 },
   { exercise = "neck-flexion", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
   { exercise = "neck-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
+  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 20, pair = 5 },
+  { exercise = "kb-curl", sets = 1, rep_min = 12, rep_max = 20, pair = 5 },
 ]
 
 [[sessions]]
@@ -583,18 +610,17 @@ items = [{ exercise = "hiit", sets = 1, rep_min = 8, rep_max = 12 }]
 [[sessions]]
 slug = "arms"
 type = "strength"
-name = "Arms, calves + neck"
-focus = "Hypertrophy: biceps, triceps, side delts, calves, neck, core, grip"
+name = "Arms + legs"
+focus = "Hypertrophy: biceps, triceps, side delts, calves; a second, smaller leg block"
 items = [
   { exercise = "chin-up", sets = 3, rep_min = 6, rep_max = 12, pair = 1 },
   { exercise = "diamond-push-up", sets = 3, rep_min = 8, rep_max = 15, pair = 1 },
-  { exercise = "kb-curl", sets = 3, rep_min = 12, rep_max = 20, pair = 2 },
-  { exercise = "lateral-raise", sets = 4, rep_min = 12, rep_max = 20, pair = 2 },
-  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, per_side = true, pair = 3 },
-  { exercise = "hanging-raise", sets = 3, rep_min = 8, rep_max = 15, pair = 3 },
-  { exercise = "neck-lateral", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 4 },
-  { exercise = "neck-extension", sets = 1, rep_min = 10, rep_max = 15, pair = 4 },
-  { exercise = "dead-hang", sets = 2, rep_min = 30, rep_max = 60 },
+  { exercise = "bulgarian-split-squat", sets = 3, rep_min = 8, rep_max = 15, per_side = true, pair = 2 },
+  { exercise = "overhead-triceps-extension", sets = 3, rep_min = 10, rep_max = 15, pair = 2 },
+  { exercise = "hamstring-curl", sets = 3, rep_min = 6, rep_max = 15, pair = 3 },
+  { exercise = "kb-curl", sets = 4, rep_min = 12, rep_max = 20, pair = 3 },
+  { exercise = "lateral-raise", sets = 4, rep_min = 12, rep_max = 20, pair = 4 },
+  { exercise = "calf-raise", sets = 4, rep_min = 12, rep_max = 20, per_side = true, pair = 4 },
 ]
 
 [[sessions]]

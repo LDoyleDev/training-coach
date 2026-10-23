@@ -65,7 +65,7 @@ async def test_another_session_named_today_is_done_out_of_turn(
 ) -> None:
     assert _pointer(seeded) == "legs"
     saved = await _log(application, "today Arms" + NL + "chin ups 8 8")
-    assert texts(saved)[0].startswith("Saved Arms, calves + neck")
+    assert texts(saved)[0].startswith("Saved Arms + legs")
     assert _days(seeded) == {TODAY: [("arms", "done")]}
     assert _pointer(seeded) == "legs"  # out of turn: Legs is still next (ADR-0016)
     named = await run(application, text_message("Legs" + NL + "jump squats 6 6", OWNER))

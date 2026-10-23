@@ -33,21 +33,22 @@ def test_coverage_needs_a_signed_in_browser(engine: Engine) -> None:
 
 def test_coverage_gives_each_muscle_its_band_and_warnings(client: TestClient) -> None:
     body = client.get("/api/plan/coverage").json()
-    assert (body["main_on_target"], body["main_total"]) == (2, 10)
+    assert (body["main_on_target"], body["main_total"]) == (10, 10)
     assert (body["session_cap"], body["spine_cap"], body["grip_cap"]) == (11, 8, 8)
     assert (body["minimum"], body["ceiling"], body["back_to_back"]) == (4, 30, 4)
     muscles = {m["muscle"]: m for m in body["muscles"]}
     assert len(muscles) == 21
     assert [m["main"] for m in body["muscles"][:10]] == [True] * 10
     glutes = muscles["glutes"]
-    assert (glutes["sets"], glutes["days"], glutes["band"]) == (12.5, 1, "light green")
+    assert (glutes["sets"], glutes["days"], glutes["band"]) == (14.5, 2, "green")
     assert (glutes["one_day"], glutes["over_session_cap"], glutes["most_in"]) == (
-        True,
-        True,
+        False,
+        False,
         "Legs",
     )
     assert {s["exercise"] for s in glutes["sources"]} >= {"Kettlebell swing", "Pistol squat"}
-    assert muscles["triceps"]["missing_parts"] == ["triceps long head"]
+    assert muscles["triceps"]["missing_parts"] == []
+    assert muscles["quads"]["missing_parts"] == ["rectus femoris"]
     assert (muscles["neck"]["low"], muscles["neck"]["high"], muscles["neck"]["evidence"]) == (
         3,
         9,
