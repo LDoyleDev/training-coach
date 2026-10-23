@@ -10,6 +10,7 @@ stay in their own homes (ADRs, specs, runbooks); this log only points at them.
 | v0.34.0 (23 Oct) | #283 refused band syncs and HC Webhook record ids (ADR-0055); #284 exercise catalogue with weighted muscles (ADR-0064); #285 read-only body map; #288 rest by transition (ADR-0065); #289 plan update: every main muscle on target; #287 dependency fix; docs #276, #286 |
 | v0.35.0 (23 Oct) | #293 core and hips block, Cardio + core day; #294 a cardio day's block stays open after its run (ADR-0066); #292 read-only Pi helper; docs #290 |
 | v0.36.0 (23 Oct) | #295 cardio effort, distance, heart rate, start (ADR-0067); #298 Today shows each day's log, with ‹ › to earlier days (ADR-0068); #299, #300 nav order, Tests inside Body, a body map per session on Plan (ADR-0069); #301 habits on earlier days; docs #296 |
+| After v0.36.0 | #304 virtualenv 21.14.13 for GHSA-cx6f-vjhg-g3cc (dev tools only; no release needed); docs #302 (this log) |
 
 ## Decisions and where they live
 
@@ -32,6 +33,7 @@ stay in their own homes (ADRs, specs, runbooks); this log only points at them.
 
 ## State at the wrap
 
+- **Pi.** v0.36.0 has been live since 23 Oct 21:16 UTC and is healthy. The cardio-details migration `b7e2c4d9a1f3` ran; the plan seed was unchanged.
 - **Band data.** None since 2026-10-19 19:00 UTC, and only steps have ever arrived.
   - **Cause:** Health Connect's read quota. HC Webhook 1.9.22 reports "Rate limited request quota has been exceeded" even for Steps alone.
   - **Fix in progress on the phone:**
@@ -47,8 +49,8 @@ stay in their own homes (ADRs, specs, runbooks); this log only points at them.
 ## Open items and next steps
 
 1. **Phone:** retry the band sync. If it still fails, plan our own Android reader (proposal section 4).
-2. **Pi:** copy the updated `scripts/pi-read.sh` to `~/bin/tc-read`. The installed copy predates masking keys and photos, the function allowlist and log redaction. Needs an OK.
-3. **Photo prefill:** option 1 needs `propose_log` to accept the new cardio fields. Waiting for a go.
+2. **Pi:** copy the updated `scripts/pi-read.sh` to `~/bin/tc-read`. The installed copy predates masking keys and photos, the function allowlist and log redaction. OK given 24 Oct, together with tidying the 23 Oct `session_progress` row.
+3. **Photo prefill:** option 1, `propose_log` accepting the new cardio fields. Go given 24 Oct.
 4. **Connect the coach to the Claude.ai exercise chat:** `docs/runbooks/connect-my-ai.md`.
 5. **Builder stages left:** equipment and places, editing, the picker, gym weights. Plus tri-sets, Recovery pairs and drop sets (decision J).
 6. **Coverage gaps:**
@@ -56,3 +58,4 @@ stay in their own homes (ADRs, specs, runbooks); this log only points at them.
    - rear delts light green;
    - Legs goes over the spine cap once split squats and pistols are loaded.
 7. **Figures:** for the exercises that still have none.
+8. **Local worktrees:** twelve merged, clean worktrees under `training-coach-worktrees/` are waiting to be removed. `dayview` holds 26 uncommitted files from before that work was split into #298 and #301. Keep it until it has been checked.
