@@ -7,7 +7,7 @@ extra. The caller owns the transaction.
 """
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
@@ -83,11 +83,14 @@ def problem(kind: str, value: int, details: Details = NO_DETAILS) -> str | None:
     return details_problem(details, rounds=kind == HIIT)
 
 
-def started(on: date, clock: time, tz: ZoneInfo, now: datetime) -> datetime | None:
-    """When a log on ``on`` started, from the local clock time typed, in UTC; None when that
-    is still to come (a start can't be in the future)."""
+def started(on: date, clock: time, tz: ZoneInfo, now: datetime) -> datetime:
+    """When a log made on ``on`` started, from the local clock time typed, in UTC: the last
+    time the clock read that, so a run started at 23:40 and logged at 00:15 started yesterday
+    (review of #295). Only the time of day is sent, so a start is never in the future."""
     at = datetime.combine(on, clock, tzinfo=tz).astimezone(UTC)
-    return at if at <= now else None
+    if at > now:
+        at = datetime.combine(on - timedelta(days=1), clock, tzinfo=tz).astimezone(UTC)
+    return at
 
 
 def log(

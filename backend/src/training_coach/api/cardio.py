@@ -91,8 +91,6 @@ def log(body: LogBody, request: Request, user: Owner) -> LoggedView:
     now = datetime.now(UTC)
     on = local_date(now, settings.tz)
     started = cardio.started(on, body.start, settings.tz, now) if body.start else None
-    if body.start and started is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "the start is still to come")
     found = details.Details(
         effort=body.effort,
         distance_m=round(body.distance_km * 1000) if body.distance_km is not None else None,
