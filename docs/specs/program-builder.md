@@ -131,12 +131,13 @@ are below.
    muscles and kit. People ask for additions to the catalogue instead.
 10. **No "away" place:** travelling is Home, with whatever kit is there, or bodyweight only.
 
-**What this means for the current plan.** Counted with the weights above, the current plan's
+**What this meant for the plan.** Counted with the weights above, the plan's
 78 sets a week reach the green band's 10 sets for 3 of the 10 main muscles (glutes, lats, upper
 back), but legs are trained on one day, so quads, glutes and hamstrings fail the two-day rule:
 2 are green (lats, upper back). Glutes also pass the per-session cap on Legs. Triceps get 6 sets with no long-head work; side delts 5.5. The research
 file (Coverage) lists three changes with the home kit that make 8 of the 10 green at 93 sets;
-they are a suggestion, and nothing changes until the owner says so. Huberman's shape (each
+the owner applied them with two more sets (curls and lateral raises) on 24 Oct 2026, so all ten
+are green at 95 sets (`training-plan.md`). Huberman's shape (each
 muscle twice a week, a compound plus a lengthened exercise, under an hour) stays; what the
 evidence adds is sets. Monthly alternation between heavier and lighter schedules is harmless but
 not reliably better (ACSM 2026), so it stays optional. **Later options**, not in these steps: a
