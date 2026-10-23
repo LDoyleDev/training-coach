@@ -7,11 +7,19 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from tests import factories
-from training_coach.db.models import HabitCheck, ImportedWorkout, SetLog, User, Workout
+from training_coach.db.models import (
+    Exercise,
+    HabitCheck,
+    ImportedWorkout,
+    LadderStep,
+    SetLog,
+    User,
+    Workout,
+)
 from training_coach.domain.day_view import LoggedSet
-from training_coach.domain.enums import Side, WorkoutStatus
+from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.services import day_view
-from training_coach.services.day_view import BandRun
+from training_coach.services.day_view import BandRun, CardioDetails
 
 BERLIN = ZoneInfo("Europe/Berlin")
 DAY = date(2026, 10, 23)
@@ -82,3 +90,23 @@ def test_the_first_day_is_the_earliest_of_the_account_and_its_records(session: S
     assert day_view.first_day(session, BERLIN) == date(2026, 10, 9)
     _workout(session, on=date(2026, 10, 1))
     assert day_view.first_day(session, BERLIN) == date(2026, 10, 1)
+
+
+def test_a_cardio_log_shows_what_was_typed_with_it(session: Session) -> None:
+    run = Exercise(slug="moderate-cardio", name="Moderate cardio", kind=ExerciseKind.DURATION_MIN)
+    run.ladder = [LadderStep(position=0, name="Run")]
+    session.add(run)
+    session.flush()
+    workout = _workout(session, effort=6, distance_m=7290, avg_hr=139, max_hr=160)
+    workout.sets = [
+        SetLog(
+            exercise_id=run.id, ladder_step_id=run.ladder[0].id, set_no=1, side=Side.BOTH, value=43
+        )
+    ]
+    plain = _workout(session, activity="walk")
+    session.flush()
+    typed, walk = day_view.logged(session, DAY)
+    assert typed.cardio == CardioDetails(6, 7290, 354, 139, 160)  # 43 min over 7.29 km: 5:54/km
+    assert typed.exercises[0].unit == "minutes"
+    assert walk.workout_id == plain.id
+    assert walk.cardio is None

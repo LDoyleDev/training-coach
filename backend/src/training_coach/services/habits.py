@@ -7,7 +7,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import HabitCheck
-from training_coach.domain.habits import WEEK_DAYS, Habit, HabitWeek, can_change, tally
+from training_coach.domain.habits import (
+    WEEK_DAYS,
+    Habit,
+    HabitWeek,
+    can_backfill,
+    can_change,
+    tally,
+)
 
 
 def checked(session: Session, day: date) -> frozenset[Habit]:
@@ -21,6 +28,10 @@ def toggle(session: Session, day: date, habit: Habit, today: date) -> bool | Non
     ``day`` is too long ago (or in the future) to change."""
     if not can_change(day, today):
         return None
+    return _flip(session, day, habit)
+
+
+def _flip(session: Session, day: date, habit: Habit) -> bool:
     row = session.scalar(
         select(HabitCheck).where(HabitCheck.local_date == day, HabitCheck.habit == habit)
     )
@@ -41,6 +52,18 @@ def mark(session: Session, day: date, habit: Habit, done: bool, today: date) -> 
     if (habit in checked(session, day)) == done:
         return done
     return toggle(session, day, habit, today)
+
+
+def backfill(
+    session: Session, day: date, habit: Habit, done: bool, today: date, first: date
+) -> bool | None:
+    """Set ``habit`` for ``day`` to ``done`` from the web's day view (ADR-0068): any day from
+    ``first`` (the account's first day) to today, safe to repeat. None outside that."""
+    if not can_backfill(day, today, first):
+        return None
+    if (habit in checked(session, day)) == done:
+        return done
+    return _flip(session, day, habit)
 
 
 def week(session: Session, start: date, on: date) -> list[HabitWeek]:

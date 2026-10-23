@@ -87,6 +87,13 @@ def can_change(day: date, today: date) -> bool:
     return 0 <= (today - day).days <= LATE_DAYS
 
 
+def can_backfill(day: date, today: date, first: date) -> bool:
+    """Whether the web may change ``day``'s check-offs on ``today`` (ADR-0068): any day from
+    the account's first day up to today, so a forgotten tick can be filled in. The bot and
+    proposals keep the shorter ``can_change`` window."""
+    return first <= day <= today
+
+
 def tally(checked: Iterable[tuple[date, Habit]], start: date, on: date) -> list[HabitWeek]:
     """Each habit's days done in the week from Monday ``start``, counting days up to ``on``."""
     days = max(0, min(WEEK_DAYS, (on - start).days + 1))

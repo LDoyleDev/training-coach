@@ -8,10 +8,11 @@ const toggle =
 const on = ' border-[var(--ink)] bg-[var(--ink)] text-[var(--chalk)]'
 const off = ' border-[var(--ink)] text-[var(--ink)]'
 
-/** Today's habits (ux-flow-plan C5): one tap ticks, another unticks, the same check-offs as
- * the bot's buttons. Shows nothing until loaded, or when signed out or unreachable: it is an
- * extra on the page, never in the way of the session. */
-export default function HabitsCard() {
+/** A day's habits (ux-flow-plan C5): one tap ticks, another unticks, the same check-offs as
+ * the bot's buttons. ``day`` is an earlier day to fill in (ADR-0068); none means today. Shows
+ * nothing until loaded, or when signed out or unreachable: it is an extra on the page, never
+ * in the way of the session. */
+export default function HabitsCard({ day, label = 'today' }: { day?: string; label?: string }) {
   const [habits, setHabits] = useState<Habits | null>(null)
   const [busy, setBusy] = useState<HabitKey | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -19,9 +20,9 @@ export default function HabitsCard() {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchHabits(controller.signal).then(setHabits, () => {}) // quiet: see above
+    fetchHabits(controller.signal, day).then(setHabits, () => {}) // quiet: see above
     return () => controller.abort()
-  }, [])
+  }, [day])
 
   if (habits === null) return null
 
@@ -30,7 +31,7 @@ export default function HabitsCard() {
     setNote(null)
     setSignedOut(false) // a retry after signing in again
     try {
-      setHabits(await markHabit(habit, done))
+      setHabits(await markHabit(habit, done, day))
     } catch (error) {
       if (error instanceof SignedOutError) setSignedOut(true)
       else setNote("Couldn't reach the coach. Check your connection and try again.")
@@ -42,10 +43,13 @@ export default function HabitsCard() {
   return (
     <section aria-labelledby="habits" className={card + ' flex flex-col gap-3'}>
       <h2 id="habits" className="text-lg font-bold">
-        Habits today
+        Habits {label}
       </h2>
       <p className="m-0 text-sm text-[var(--slate)]">
-        Tap each one you did. Days this week: {habits.week_days} so far.
+        Tap each one you did.{' '}
+        {day
+          ? `Days that week up to then: ${habits.week_days}.`
+          : `Days this week: ${habits.week_days} so far.`}
       </p>
       <ul className="m-0 flex list-none flex-col gap-2 p-0">
         {habits.habits.map((habit) => (
