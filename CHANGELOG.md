@@ -4,6 +4,22 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.36.0](https://github.com/LDoyleDev/training-coach/compare/v0.35.0...v0.36.0) (2026-10-23)
+
+
+### Features
+
+* **web:** log how a run felt, plus distance, heart rate and start ([#295](https://github.com/LDoyleDev/training-coach/issues/295)) ([c8fce2e](https://github.com/LDoyleDev/training-coach/commit/c8fce2e022dbfae24650daed959c9c227786d273))
+* **web:** put Plan in the nav and move Tests into a Body tab ([#299](https://github.com/LDoyleDev/training-coach/issues/299)) ([626870d](https://github.com/LDoyleDev/training-coach/commit/626870d2d86aa0f3c2a11587ba516fe54f0391eb))
+* **web:** show each session's own body map on the Plan page ([#300](https://github.com/LDoyleDev/training-coach/issues/300)) ([4faaac4](https://github.com/LDoyleDev/training-coach/commit/4faaac4f0be2fe29513db69c69bf369aab4aa085))
+* **web:** show what a day logged on Today, with ‹ › to earlier days ([#298](https://github.com/LDoyleDev/training-coach/issues/298)) ([06cb787](https://github.com/LDoyleDev/training-coach/commit/06cb78787aab2c784884328e72f8cdbe061a349d))
+* **web:** tick an earlier day's habits from Today's day card ([#301](https://github.com/LDoyleDev/training-coach/issues/301)) ([3dceaa8](https://github.com/LDoyleDev/training-coach/commit/3dceaa8cccb154f1f5d83b116ddeee8205d51189))
+
+
+### Documentation
+
+* plan cardio prefill from a photo or screenshot ([#296](https://github.com/LDoyleDev/training-coach/issues/296)) ([592c9b7](https://github.com/LDoyleDev/training-coach/commit/592c9b7112b733b69d2fcb954335ba8257975fb2))
+
 ## [0.35.0](https://github.com/LDoyleDev/training-coach/compare/v0.34.0...v0.35.0) (2026-10-23)
 
 
