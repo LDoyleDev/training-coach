@@ -66,5 +66,7 @@ A person can share a run's screenshot with their own AI, which proposes the log 
 `max_hr` and `start` (local HH:MM) on a cardio proposal, checked with the same bounds as
 the form, and the card shows them with the pace. It refuses `effort`: how a run felt is
 not on a screenshot, and only the person knows it. The web card asks for it, 1 to 10, before
-Save, as the form does. Telegram's Save button and proposals made before this have none,
-and save with effort empty, like a typed log.
+Save on every cardio proposal, with or without details, as the form does: session load is
+minutes × effort, and the web is where it can be asked. So the web is deliberately stricter
+than the other paths. Telegram's Save button has no picker, so it and proposals made before
+this save with effort empty, like a typed log.

@@ -209,3 +209,23 @@ test('a run from a screenshot shows what it read and asks how it felt before Sav
   await vi.waitFor(() => expect(saved).toHaveBeenCalledWith(`Saved: ${RUN.summary}.`))
   expect(asked).toContain(`POST /api/proposals/save {"token":"${TOKEN}","effort":6}`)
 })
+
+test('a cardio proposal without details also asks how it felt before Save', async () => {
+  const plain = { ...PROPOSAL, kind: 'cardio', summary: 'Zone 2 cardio, 40 min, on Fri 23 Oct' }
+  const asked = serve({
+    'GET /api/proposals': [
+      { status: 200, body: [plain] },
+      { status: 200, body: [] },
+    ],
+    ['POST /api/proposals/save']: [
+      { status: 200, body: { summary: plain.summary, workout: true } },
+    ],
+  })
+  render(<Proposals onSaved={vi.fn()} />)
+  expect(await screen.findByRole('button', { name: 'Pick how it felt to save' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Effort 4' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await vi.waitFor(() =>
+    expect(asked).toContain(`POST /api/proposals/save {"token":"${TOKEN}","effort":4}`),
+  )
+})
