@@ -53,20 +53,20 @@ async def test_a_test_day_morning_names_the_tests_and_where_to_enter_them(
     text = kwargs["text"]
     assert text.startswith("Today: Baseline tests, day 2\n")
     assert "Bulgarian split squat" in text
-    assert "Enter the results in the app: https://coach.example.com/tests" in text
+    assert "Enter the results in the app: https://coach.example.com/body?tab=tests" in text
     assert "The plan waits:" in text
     button, *_check, link = _buttons(kwargs)  # the daily check's rows between (ADR-0053)
     assert button[0].startswith("Train ")
     assert button[0].endswith(" instead")
     assert button[1] == session_id  # Start on the waiting session
-    assert link == ("Open in app", "https://coach.example.com/tests")  # C1
+    assert link == ("Open in app", "https://coach.example.com/body?tab=tests")  # C1
 
 
 async def test_without_a_public_url_the_tests_page_is_named(seeded: Sessions) -> None:
     handlers = Handlers(SETTINGS, seeded)
     _tested(seeded, 1, 1, handlers)
     text, _ = handlers._today()
-    assert "Enter the results in the app: the Tests page of the web app" in text
+    assert "Enter the results in the app: the Tests tab of the Body page" in text
 
 
 async def test_the_nudge_on_a_test_day_points_to_the_tests(seeded: Sessions) -> None:
@@ -80,7 +80,7 @@ async def test_the_nudge_on_a_test_day_points_to_the_tests(seeded: Sessions) -> 
     kwargs = context.bot.send_message.await_args.kwargs  # type: ignore[attr-defined]
     assert kwargs["text"] == (
         "Nothing logged today yet. Baseline tests, day 2 is still waiting: "
-        "https://coach.example.com/tests."
+        "https://coach.example.com/body?tab=tests."
     )
     assert len(_buttons(kwargs)) == 1
 

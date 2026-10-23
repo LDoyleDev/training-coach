@@ -94,7 +94,7 @@ def today_text(today: Today) -> str:
 
 def tests_where(public_url: str | None) -> str:
     """Where test results are entered: the web app's tests page (ADR-0037)."""
-    return f"{public_url}/tests" if public_url else "the Tests page of the web app"
+    return f"{public_url}/body?tab=tests" if public_url else "the Tests tab of the Body page"
 
 
 def test_day_text(today: Today, where: str) -> str:

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { fetchProgress, type Standing } from '../api'
-import PlanView from '../App'
 import AppShell from '../components/AppShell'
 import BandSummary from '../components/BandSummary'
 import SessionTimes from './SessionTimes'
@@ -16,52 +15,19 @@ type Loaded =
   | { status: 'error' }
   | { status: 'ready'; standings: Standing[]; today: Date }
 
-type Tab = 'progress' | 'plan'
-
 const STATUS: Record<Standing['status'], string | null> = {
   ready: 'Ready to move up',
   top_of_ladder: 'Top of the ladder',
   hold: null,
 }
 
-const TABS: [Tab, string][] = [
-  ['progress', 'My progress'],
-  ['plan', 'The plan'],
-]
-
-const tab =
-  'min-h-11 flex-1 rounded-xl border-2 border-[var(--ink)] px-3 font-bold text-[var(--ink)] aria-selected:bg-[var(--ink)] aria-selected:text-[var(--chalk)]'
-
-/** /progress: my progress, and the plan (ux-flow-plan D2: the Plan page lives here now; /plan
- * opens it as ?tab=plan). */
+/** /progress: each exercise's step and trend, and session times. The plan has its own page
+ * now (/plan, ADR-0069). */
 export default function ProgressPage() {
-  const [shown, setShown] = useState<Tab>(() =>
-    new URLSearchParams(window.location.search).get('tab') === 'plan' ? 'plan' : 'progress',
-  )
-  const show = (next: Tab) => {
-    setShown(next)
-    window.history.replaceState(null, '', next === 'plan' ? '/progress?tab=plan' : '/progress')
-  }
   return (
     <AppShell>
       <h1 className="text-3xl font-extrabold">Progress</h1>
-      <div role="tablist" aria-label="Progress" className="flex gap-2">
-        {TABS.map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={shown === key}
-            className={tab}
-            onClick={() => show(key)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" className="flex flex-col gap-4">
-        {shown === 'plan' ? <PlanView /> : <Standings />}
-      </div>
+      <Standings />
     </AppShell>
   )
 }

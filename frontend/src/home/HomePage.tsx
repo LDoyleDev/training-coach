@@ -157,10 +157,7 @@ export default function HomePage() {
         >
           Progress
         </a>
-        <a
-          href="/progress?tab=plan"
-          className={secondary + ' flex items-center justify-center no-underline'}
-        >
+        <a href="/plan" className={secondary + ' flex items-center justify-center no-underline'}>
           Plan
         </a>
         <a

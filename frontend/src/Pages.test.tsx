@@ -6,6 +6,7 @@ vi.mock('./SignIn', () => ({ default: () => <p>sign in</p> }))
 vi.mock('./Account', () => ({ default: () => <p>account</p> }))
 vi.mock('./tests/TestsPage', () => ({ default: () => <p>tests</p> }))
 vi.mock('./body/BodyPage', () => ({ default: () => <p>body</p> }))
+vi.mock('./plan/PlanPage', () => ({ default: () => <p>plan</p> }))
 vi.mock('./progress/ProgressPage', () => ({ default: () => <p>progress</p> }))
 vi.mock('./home/HomePage', () => ({ default: () => <p>home</p> }))
 vi.mock('./review/ReviewPage', () => ({ default: () => <p>review</p> }))
@@ -14,10 +15,9 @@ vi.mock('./connect/ConnectPage', () => ({ default: () => <p>connect</p> }))
 afterEach(() => window.history.replaceState(null, '', '/'))
 
 test.each([
-  ['/plan', 'progress'],
+  ['/plan', 'plan'],
   ['/signin', 'sign in'],
   ['/account', 'account'],
-  ['/tests', 'tests'],
   ['/body', 'body'],
   ['/progress', 'progress'],
   ['/review', 'review'],
@@ -29,11 +29,19 @@ test.each([
   expect(screen.getByText(text)).toBeInTheDocument()
 })
 
-test('/plan becomes the Plan tab of Progress', () => {
-  window.history.replaceState(null, '', '/plan')
+test('the old Plan tab of Progress opens the Plan page', () => {
+  window.history.replaceState(null, '', '/progress?tab=plan')
   render(<Pages />)
-  expect(screen.getByText('progress')).toBeInTheDocument()
-  expect(window.location.pathname + window.location.search).toBe('/progress?tab=plan')
+  expect(screen.getByText('plan')).toBeInTheDocument()
+  expect(window.location.pathname + window.location.search).toBe('/plan')
+})
+
+test('/tests opens the Tests tab of Body', () => {
+  window.history.replaceState(null, '', '/tests')
+  render(<Pages />)
+  expect(screen.getByText('tests')).toBeInTheDocument()
+  expect(screen.getByRole('tab', { name: 'Tests' })).toHaveAttribute('aria-selected', 'true')
+  expect(window.location.pathname + window.location.search).toBe('/body?tab=tests')
 })
 
 test('an unknown page says so instead of redirecting', () => {

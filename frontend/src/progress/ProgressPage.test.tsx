@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Standing } from '../api'
 import { chart } from './chart'
@@ -125,24 +125,10 @@ test('signed out, or the server down', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load your progress.")
 })
 
-test('the plan is a tab here, kept in the address', async () => {
+test('the plan is not a tab here any more: it has its own page', async () => {
   serve([make({})])
   render(<ProgressPage />)
   expect(await screen.findByText('Pull-up')).toBeInTheDocument()
-  expect(screen.getByRole('tab', { name: 'My progress' })).toHaveAttribute('aria-selected', 'true')
-  fireEvent.click(screen.getByRole('tab', { name: 'The plan' }))
-  expect(screen.getByText('the plan')).toBeInTheDocument()
-  expect(window.location.search).toBe('?tab=plan')
-  fireEvent.click(screen.getByRole('tab', { name: 'My progress' }))
-  expect(await screen.findByText('Pull-up')).toBeInTheDocument()
-  expect(window.location.pathname + window.location.search).toBe('/progress')
-})
-
-test('?tab=plan opens on the plan', () => {
-  serve([])
-  window.history.replaceState(null, '', '/progress?tab=plan')
-  render(<ProgressPage />)
-  expect(screen.getByRole('tab', { name: 'The plan' })).toHaveAttribute('aria-selected', 'true')
-  expect(screen.getByText('the plan')).toBeInTheDocument()
-  window.history.replaceState(null, '', '/')
+  expect(screen.queryByRole('tab')).toBeNull()
+  expect(screen.queryByText('the plan')).toBeNull()
 })
