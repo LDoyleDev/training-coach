@@ -9,7 +9,7 @@ stay in their own homes (ADRs, specs, runbooks); this log only points at them.
 | --- | --- |
 | v0.34.0 (23 Oct) | #283 refused band syncs and HC Webhook record ids (ADR-0055); #284 exercise catalogue with weighted muscles (ADR-0064); #285 read-only body map; #288 rest by transition (ADR-0065); #289 plan update: every main muscle on target; #287 dependency fix; docs #276, #286 |
 | v0.35.0 (23 Oct) | #293 core and hips block, Cardio + core day; #294 a cardio day's block stays open after its run (ADR-0066); #292 read-only Pi helper; docs #290 |
-| v0.36.0 | #295 cardio effort, distance, heart rate, start (ADR-0067); #298 Today shows each day's log, with ‹ › to earlier days (ADR-0068); #299, #300 nav order, Tests inside Body, a body map per session on Plan (ADR-0069); #301 habits on earlier days; docs #296 |
+| v0.36.0 (23 Oct) | #295 cardio effort, distance, heart rate, start (ADR-0067); #298 Today shows each day's log, with ‹ › to earlier days (ADR-0068); #299, #300 nav order, Tests inside Body, a body map per session on Plan (ADR-0069); #301 habits on earlier days; docs #296 |
 
 ## Decisions and where they live
 
@@ -22,7 +22,7 @@ stay in their own homes (ADRs, specs, runbooks); this log only points at them.
     - only loaded squats count as spine-loading;
     - time efficiency;
     - the core and hips bands, which rest on low evidence.
-- **The plan itself.** `seed/plan.toml` and `docs/specs/training-plan.md`. The "Coverage + core" version runs from 23 Oct.
+- **The plan itself.** `backend/src/training_coach/seed/plan.toml` and `docs/specs/training-plan.md`. The "Coverage + core" version runs from 23 Oct.
 - **Rest.** A 15 s switch inside a pair and 60 or 90 s after it, by pattern: ADR-0065.
 - **Cardio log fields and session load (minutes × effort).** ADR-0067. Photo or screenshot prefill is planned in `docs/specs/cardio-photo-prefill.md`.
 - **Read-only access to the live Pi.** A forced-command SSH key: `docs/runbooks/pi-read-access.md`. Writes still go through `vybe-pi`, with an OK each time.
