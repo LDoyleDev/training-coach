@@ -92,6 +92,7 @@ class Kit(StrEnum):
     BACKPACK = "backpack"
     RINGS = "rings"
     MAT = "mat"
+    AB_WHEEL = "ab wheel"
 
 
 WEIGHTS = (1.0, 0.5, 0.25)

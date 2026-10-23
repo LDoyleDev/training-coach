@@ -7,9 +7,10 @@
 # Structure follows Huberman's Foundational Fitness Protocol (Huberman Lab ep. 94, with
 # Andy Galpin; see docs/specs/training-plan.md): 3 resistance days (legs; torso + neck;
 # arms + a second, smaller leg block), 3 conditioning days (long zone 2; moderate ~35 min; high
-# intensity), 1 recovery day that also carries the light core, grip and neck side work. Every
-# main muscle gets 10+ hard sets on two or more days (program-builder-research.md). Order within a
-# session: power -> strength -> hypertrophy -> small muscles (Galpin). Each resistance session
+# intensity, the moderate one followed by a core + hips block), 1 recovery day that also carries
+# the light core, grip and neck side work. Every main muscle gets 10+ hard sets on two or more
+# days (program-builder-research.md). Order within a session: power -> strength -> hypertrophy
+# -> small muscles (Galpin). Each resistance session
 # starts with a ~10 min warm-up and stays within ~60 min of work.
 # `pair = N` on two neighbouring items: they are done alternately, set by set, and should not
 # compete for the same muscles, so one rests while the other works. The order above applies to
@@ -38,8 +39,8 @@ since = 2026-10-01
 name = "Rebuild (Oct 2026, ADR-0017)"
 
 [[versions]]
-since = 2026-10-24
-name = "Coverage update (Oct 2026, ADR-0064)"
+since = 2026-10-23
+name = "Coverage + core (Oct 2026, ADR-0064)"
 
 # ------------------------------------------------------------------- baseline tests
 # The product spec's performance tests (2-A, ADR-0037), on two days. Retest under the same
@@ -505,6 +506,60 @@ aliases = ["mobility", "stretch", "stretching"]
 start = 0
 ladder = ["Guided 10 min"]
 
+# ------------------------------------------------------------------- core + hips
+# The trunk and hips the main lifts miss (program-builder-research.md, "Core and hips"). The
+# weights are estimates: no growth trial exists for these muscles.
+
+[[exercises]]
+slug = "ab-rollout"
+name = "Ab rollout"
+summary = "Kneel with your hands on a towel (or an ab wheel). Brace and roll forward as far as you can without your lower back sagging, then pull back with your abs."
+kind = "reps"
+muscles = { abs = 1, obliques = 0.25 }
+pattern = "core"
+aliases = ["rollout", "rollouts", "ab rollouts", "ab wheel", "towel rollout"]
+start = 0
+ladder = ["Kneeling towel slide, short range", "Kneeling towel slide, full range", "Kneeling ab wheel", "Standing ab wheel negatives"]
+[exercises.needs]
+"Kneeling ab wheel" = ["ab wheel"]
+"Standing ab wheel negatives" = ["ab wheel"]
+
+[[exercises]]
+slug = "copenhagen-plank"
+name = "Copenhagen plank"
+summary = "Lie on your side with your top leg on a chair seat and your forearm on the floor. Lift your hips until your body is straight, pressing down through the top leg, then lower slowly. Do both sides."
+kind = "reps"
+muscles = { adductors = 1, obliques = 0.5 }
+pattern = "core"
+aliases = ["copenhagen", "copenhagens", "copenhagen planks", "adductor plank"]
+start = 0
+ladder = ["Knee on a chair", "Knee on a chair, 3 s lowering", "Ankle on a chair", "Ankle on a chair, 3 s lowering"]
+
+[[exercises]]
+slug = "side-plank-hip-dip"
+name = "Side plank hip dip"
+summary = "Hold a side plank on your forearm. Lower your hip towards the floor, then lift it as high as you can. Do both sides."
+kind = "reps"
+muscles = { obliques = 1, abs = 0.25 }
+pattern = "core"
+aliases = ["hip dips", "side plank dips", "side plank", "side planks"]
+start = 0
+ladder = ["On the knees", "Straight legs", "Top leg raised", "Holding 8 kg on the hip"]
+[exercises.needs]
+"Holding 8 kg on the hip" = ["kettlebell:8"]
+
+[[exercises]]
+slug = "reverse-nordic"
+name = "Reverse Nordic"
+summary = "Kneel upright with your feet anchored. Keep a straight line from knees to head and lean back slowly until you feel the front of your thighs working, then pull yourself back up."
+kind = "reps"
+muscles = { quads = 1 }
+parts = ["rectus femoris"]
+pattern = "isolation"
+aliases = ["reverse nordics", "reverse nordic curl", "reverse nordic curls"]
+start = 0
+ladder = ["Lean back about 30 degrees", "Lean deeper, 3 s lowering", "To the floor, hands push you back", "To the floor and back, no hands"]
+
 # ------------------------------------------------------------- conditioning
 
 [[exercises]]
@@ -572,6 +627,8 @@ items = [
   { exercise = "neck-lateral", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
   { exercise = "dead-hang", sets = 2, rep_min = 30, rep_max = 60, pair = 3 },
   { exercise = "neck-extension", sets = 1, rep_min = 10, rep_max = 15, pair = 3 },
+  { exercise = "reverse-nordic", sets = 2, rep_min = 5, rep_max = 10, pair = 4 },
+  { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 4 },
   { exercise = "mobility", sets = 1, rep_min = 10, rep_max = 15 },
 ]
 
@@ -596,9 +653,15 @@ items = [
 [[sessions]]
 slug = "moderate-cardio"
 type = "conditioning"
-name = "Moderate cardio"
-focus = "~35 min at 75-80% effort"
-items = [{ exercise = "moderate-cardio", sets = 1, rep_min = 30, rep_max = 40 }]
+name = "Cardio + core"
+focus = "~35 min at 75-80% effort, then abs, obliques, adductors and lower back"
+items = [
+  { exercise = "moderate-cardio", sets = 1, rep_min = 30, rep_max = 40 },
+  { exercise = "ab-rollout", sets = 3, rep_min = 8, rep_max = 12, pair = 1 },
+  { exercise = "copenhagen-plank", sets = 2, rep_min = 6, rep_max = 12, per_side = true, pair = 1 },
+  { exercise = "back-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 2 },
+  { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
+]
 
 [[sessions]]
 slug = "hiit"

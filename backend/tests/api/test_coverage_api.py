@@ -40,7 +40,7 @@ def test_coverage_gives_each_muscle_its_band_and_warnings(client: TestClient) ->
     assert len(muscles) == 21
     assert [m["main"] for m in body["muscles"][:10]] == [True] * 10
     glutes = muscles["glutes"]
-    assert (glutes["sets"], glutes["days"], glutes["band"]) == (14.5, 2, "green")
+    assert (glutes["sets"], glutes["days"], glutes["band"]) == (15.5, 2, "green")
     assert (glutes["one_day"], glutes["over_session_cap"], glutes["most_in"]) == (
         False,
         False,
@@ -48,7 +48,8 @@ def test_coverage_gives_each_muscle_its_band_and_warnings(client: TestClient) ->
     )
     assert {s["exercise"] for s in glutes["sources"]} >= {"Kettlebell swing", "Pistol squat"}
     assert muscles["triceps"]["missing_parts"] == []
-    assert muscles["quads"]["missing_parts"] == ["rectus femoris"]
+    assert muscles["quads"]["missing_parts"] == []  # the reverse Nordic
+    assert (muscles["abs"]["low"], muscles["abs"]["evidence"]) == (6, "low")
     assert (muscles["neck"]["low"], muscles["neck"]["high"], muscles["neck"]["evidence"]) == (
         3,
         9,

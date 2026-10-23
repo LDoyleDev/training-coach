@@ -63,12 +63,18 @@ def test_small_muscles_have_their_own_band_and_evidence() -> None:
         Muscle.SIDE_DELTS,
         Muscle.REAR_DELTS,
         Muscle.FRONT_DELTS,
+        Muscle.ABS,
+        Muscle.OBLIQUES,
+        Muscle.LOWER_BACK,
+        Muscle.HIP_FLEXORS,
+        Muscle.ADDUCTORS,
     }
 
 
 def test_two_days_are_needed_by_main_and_general_muscles_only() -> None:
     assert needs_two_days(Muscle.CALVES)  # a main muscle with its own band
-    assert needs_two_days(Muscle.ABS)  # the general band
+    assert needs_two_days(Muscle.UPPER_TRAPS)  # the general band
+    assert not needs_two_days(Muscle.ABS)  # its own band, like the other small muscles
     assert not needs_two_days(Muscle.TIBIALIS)
 
 
