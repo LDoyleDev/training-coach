@@ -25,11 +25,15 @@ stopped a block after the run from working:
   the web's cardio card, a counted band workout, a typed or Telegram log ("run 35 min") and
   the guided session all log it as that session, and the queue moves then, once.
 - **The rest stays open until the day ends.** Once a conditioning session's workout for today is
-  saved, `guided.today` offers its items not yet logged in that workout, its cardio left out,
-  marked `after_run` ("After your run"). Cardio-only days are done as before.
+  saved with its cardio in it, `guided.today` offers its items not yet logged in that workout,
+  its cardio left out, marked `after_run` ("After your run"). A conditioning session without
+  exactly one cardio exercise, or saved without it, offers nothing after. Cardio-only days are
+  done as before.
 - **Its sets join the day's workout** (`workout_log.add_to`): it is the same session, so nothing
   clashes (ADR-0060) and the queue doesn't move again. Its ladders move from those sets like
-  any session's.
+  any session's. A repeated save adds nothing: the progress row says it's saved, the block's
+  exercises are already in the workout, or, for two saves racing, a set's uniqueness in its
+  workout rolls the second back.
 - **Its own progress.** The guided progress row is marked `after_run`; the run's progress (saved
   or not) gives way to it when the block starts, and it is dropped if the run's log is undone.
   It is saved only on its day: the next day it isn't offered, since its day's session is logged.
