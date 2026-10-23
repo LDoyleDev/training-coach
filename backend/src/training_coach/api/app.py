@@ -26,6 +26,7 @@ from training_coach.api.change import router as change_router
 from training_coach.api.connections import router as connections_router
 from training_coach.api.coverage import router as coverage_router
 from training_coach.api.daily_check import router as daily_check_router
+from training_coach.api.day import router as day_router
 from training_coach.api.fitness import router as fitness_router
 from training_coach.api.habits import router as habits_router
 from training_coach.api.health import router as health_router
@@ -263,6 +264,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(mcp_router)
     app.include_router(connections_router)
     app.include_router(proposals_router)
+    app.include_router(day_router)
 
     # Mounted last so API routes always win over static files.
     dist = settings.web_dist_dir

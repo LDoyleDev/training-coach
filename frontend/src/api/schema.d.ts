@@ -746,6 +746,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/day": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Day
+         * @description What was logged on ``on`` (default: today).
+         */
+        get: operations["get_day_api_day_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/habits": {
         parameters: {
             query?: never;
@@ -1636,6 +1656,15 @@ export interface components {
             /** Zone2 */
             zone2: number | null;
         };
+        /** BandRunView */
+        BandRunView: {
+            /** Avg Hr */
+            avg_hr: number | null;
+            /** Max Hr */
+            max_hr: number | null;
+            /** Minutes */
+            minutes: number;
+        };
         /** BlockView */
         BlockView: {
             /**
@@ -1818,6 +1847,26 @@ export interface components {
             /** Questions */
             questions: components["schemas"]["CheckQuestionView"][];
             suggested_sleep?: components["schemas"]["Sleep"] | null;
+        };
+        /** DayView */
+        DayView: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * First
+             * Format: date
+             */
+            first: string;
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
+            /** Workouts */
+            workouts: components["schemas"]["LoggedWorkoutView"][];
         };
         /** DeviceView */
         DeviceView: {
@@ -2310,6 +2359,26 @@ export interface components {
             /** Workout Id */
             workout_id: number;
         };
+        /** LoggedExerciseView */
+        LoggedExerciseView: {
+            /** Name */
+            name: string;
+            /** Sets */
+            sets: components["schemas"]["LoggedSetView"][];
+            /** Step */
+            step: string;
+            /** Unit */
+            unit: string;
+        };
+        /** LoggedSetView */
+        LoggedSetView: {
+            /** Left */
+            left: number;
+            /** Right */
+            right: number | null;
+            /** Set No */
+            set_no: number;
+        };
         /** LoggedView */
         LoggedView: {
             /** Already Saved */
@@ -2319,6 +2388,22 @@ export interface components {
             /** Planned */
             planned: boolean;
             week: components["schemas"]["WeekView"];
+            /** Workout Id */
+            workout_id: number;
+        };
+        /** LoggedWorkoutView */
+        LoggedWorkoutView: {
+            /** Activity */
+            activity: string | null;
+            band: components["schemas"]["BandRunView"] | null;
+            /** Exercises */
+            exercises: components["schemas"]["LoggedExerciseView"][];
+            /** Name */
+            name: string;
+            /** Planned */
+            planned: boolean;
+            /** Status */
+            status: string;
             /** Workout Id */
             workout_id: number;
         };
@@ -4439,6 +4524,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DailyCheckView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_day_api_day_get: {
+        parameters: {
+            query?: {
+                on?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayView"];
                 };
             };
             /** @description Validation Error */
