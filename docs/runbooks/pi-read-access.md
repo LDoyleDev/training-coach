@@ -9,7 +9,7 @@ How it is safe: the Pi ties the key to one command, `~/bin/tc-read` (a copy of
 `scripts/pi-read.sh`), in `authorized_keys`. Whatever the client sends arrives in that script as
 text and only its fixed subcommands run; `restrict` turns off forwarding and terminals. The
 database is opened read-only with `query_only` on and an authorizer that allows only reads, and
-secret columns (hashes, tokens, keys) come back empty. Deploys don't update the installed copy:
+secret and binary columns (hashes, tokens, keys, photos) come back empty. Deploys don't update the installed copy:
 widening what the key can do is a deliberate copy, never a side effect of a release.
 
 ## 1. The key (desktop, PowerShell)

@@ -10,7 +10,7 @@
 #   deploy            the last runs of the auto-deploy service
 #   band              band import: last sync, last refusal, what has arrived
 #   sql QUERY         one SELECT (or WITH, or a schema PRAGMA); at most 500 rows; secret columns
-#                     (hashes, tokens, keys) come back empty
+#                     (hashes, tokens, keys, photos) come back empty
 # The installed copy is not updated by deploys: changing what the key can do is a deliberate
 # copy, not a side effect of a release.
 set -euo pipefail
@@ -23,7 +23,8 @@ DB_URI="file:/data/training_coach.db?mode=ro"
 read -r -d '' QUERY_PY <<'PY' || true
 import re, sqlite3, sys, time
 
-SECRET = re.compile(r"hash|secret|token|credential|public_key|private|password|challenge|cookie", re.I)
+# Kept in step with the models by tests/test_pi_read.py: every secret or binary column matches.
+SECRET = re.compile(r"hash|secret|token|key|credential|private|password|challenge|cookie|jpeg|photo|image", re.I)
 PRAGMAS = {"table_info", "table_xinfo", "index_list", "index_info", "foreign_key_list"}
 query = sys.argv[1].strip()
 if not re.match(r"(select|with|pragma)\b", query, re.I):
@@ -60,7 +61,10 @@ usage() {
   exit 2
 }
 
-read -r sub rest <<<"${SSH_ORIGINAL_COMMAND:-${*:-}}" || true
+command="${SSH_ORIGINAL_COMMAND:-${*:-}}"
+command="${command#"${command%%[![:space:]]*}"}" # leading spaces off
+sub="${command%%[[:space:]]*}"
+rest="${command#"$sub"}" # everything after the subcommand, newlines kept (a multi-line query)
 case "${sub:-}" in
   status)
     cd "$REPO_DIR"
