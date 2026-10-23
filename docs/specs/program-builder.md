@@ -136,7 +136,7 @@ are below.
 back), but legs are trained on one day, so quads, glutes and hamstrings fail the two-day rule:
 2 are green (lats, upper back). Glutes also pass the per-session cap on Legs. Triceps get 6 sets with no long-head work; side delts 5.5. The research
 file (Coverage) lists three changes with the home kit that make 8 of the 10 green at 93 sets;
-the owner applied them with two more sets (curls and lateral raises) on 24 Oct 2026, so all ten
+the owner applied them with two more sets (curls and lateral raises) on 23 Oct 2026, so all ten
 are green at 95 sets (`training-plan.md`). Huberman's shape (each
 muscle twice a week, a compound plus a lengthened exercise, under an hour) stays; what the
 evidence adds is sets. Monthly alternation between heavier and lighter schedules is harmless but
@@ -347,12 +347,16 @@ between its own sets. To decide:
 6. **Kit order** for the equipment step: 16 kg kettlebell, then a weighted vest; each saves
    4-7 minutes a week, far less than the rest change.
 
-### K. Core and hips: the muscles the plan misses (to decide)
+### K. Core and hips: the muscles the plan misses (decided 23 Oct 2026)
 
-The evidence, the block and its coverage are in the research file (Core and hips). The plan from
-24 Oct 2026 leaves abs, obliques, lower back, hip flexors and adductors amber or grey, the
+**Applied 23 Oct 2026** (plan version "Coverage + core"): decisions 1, 2 and 4 in `plan.toml`
+and `domain/coverage.py`, the moderate cardio day renamed "Cardio + core"; decision 3 in the
+app. All four were accepted as proposed.
+
+The evidence, the block and its coverage are in the research file (Core and hips). The coverage
+update (PR #289) left abs, obliques, lower back, hip flexors and adductors amber or grey, the
 rectus femoris unreached and the upper traps grey. No growth trial exists for the trunk
-muscles, so the choices rest on EMG, strength trials and estimates. To decide:
+muscles, so the choices rest on EMG, strength trials and estimates. The decisions:
 
 1. **Own bands for the trunk and hips** (low evidence): abs 6-12, obliques 4-10, lower back
    4-10, hip flexors 3-8, adductors 4-10, in place of the general 10-20.

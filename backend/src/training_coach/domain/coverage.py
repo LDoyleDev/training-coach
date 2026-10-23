@@ -47,6 +47,13 @@ OWN = {
     Muscle.SIDE_DELTS: Target(8, 20, Evidence.LOW),
     Muscle.REAR_DELTS: Target(8, 20, Evidence.LOW),
     Muscle.FRONT_DELTS: Target(4, 20, Evidence.LOW),  # covered by presses; no direct work
+    # The trunk and hips work in every compound and no growth trial sets their dose: own bands,
+    # estimates (program-builder-research.md, "Core and hips").
+    Muscle.ABS: Target(6, 12, Evidence.LOW),
+    Muscle.OBLIQUES: Target(4, 10, Evidence.LOW),
+    Muscle.LOWER_BACK: Target(4, 10, Evidence.LOW),  # once a week suffices for strength
+    Muscle.HIP_FLEXORS: Target(3, 8, Evidence.LOW),
+    Muscle.ADDUCTORS: Target(4, 10, Evidence.LOW),
 }
 MAIN = (
     Muscle.QUADS,
