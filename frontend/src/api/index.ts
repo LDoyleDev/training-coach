@@ -836,6 +836,19 @@ export async function saveSettings(change: SettingsChange): Promise<MessageSetti
 
 export type Habits = Schemas['HabitsView']
 export type HabitKey = Schemas['Habit']
+/** `?on=` for an earlier day's log (ADR-0068); nothing for today. */
+const onDay = (day?: string) => (day ? `?on=${encodeURIComponent(day)}` : '')
+
+export type DayLog = Schemas['DayView']
+export type LoggedWorkout = Schemas['LoggedWorkoutView']
+
+/** What was logged on a day (default today), or null when signed out (ADR-0068). */
+export async function fetchDay(day?: string, signal?: AbortSignal): Promise<DayLog | null> {
+  const res = await fetch(`/api/day${onDay(day)}`, { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as DayLog
+}
 
 /** Today's habits with this week's count; null when not signed in. */
 export async function fetchHabits(signal?: AbortSignal): Promise<Habits | null> {

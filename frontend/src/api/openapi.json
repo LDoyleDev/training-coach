@@ -250,6 +250,43 @@
         "title": "BandOfferView",
         "type": "object"
       },
+      "BandRunView": {
+        "properties": {
+          "avg_hr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Hr"
+          },
+          "max_hr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hr"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "minutes",
+          "avg_hr",
+          "max_hr"
+        ],
+        "title": "BandRunView",
+        "type": "object"
+      },
       "BlockView": {
         "properties": {
           "kind": {
@@ -767,6 +804,40 @@
           "advice"
         ],
         "title": "DailyCheckView",
+        "type": "object"
+      },
+      "DayView": {
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "first": {
+            "format": "date",
+            "title": "First",
+            "type": "string"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          },
+          "workouts": {
+            "items": {
+              "$ref": "#/components/schemas/LoggedWorkoutView"
+            },
+            "title": "Workouts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "day",
+          "today",
+          "first",
+          "workouts"
+        ],
+        "title": "DayView",
         "type": "object"
       },
       "DeviceView": {
@@ -2354,6 +2425,67 @@
         "title": "LoggedDayView",
         "type": "object"
       },
+      "LoggedExerciseView": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/LoggedSetView"
+            },
+            "title": "Sets",
+            "type": "array"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "unit",
+          "step",
+          "sets"
+        ],
+        "title": "LoggedExerciseView",
+        "type": "object"
+      },
+      "LoggedSetView": {
+        "properties": {
+          "left": {
+            "title": "Left",
+            "type": "integer"
+          },
+          "right": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Right"
+          },
+          "set_no": {
+            "title": "Set No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "set_no",
+          "left",
+          "right"
+        ],
+        "title": "LoggedSetView",
+        "type": "object"
+      },
       "LoggedView": {
         "properties": {
           "already_saved": {
@@ -2402,6 +2534,65 @@
           "week"
         ],
         "title": "LoggedView",
+        "type": "object"
+      },
+      "LoggedWorkoutView": {
+        "properties": {
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity"
+          },
+          "band": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BandRunView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exercises": {
+            "items": {
+              "$ref": "#/components/schemas/LoggedExerciseView"
+            },
+            "title": "Exercises",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "planned": {
+            "title": "Planned",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "workout_id": {
+            "title": "Workout Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "workout_id",
+          "name",
+          "status",
+          "planned",
+          "activity",
+          "exercises",
+          "band"
+        ],
+        "title": "LoggedWorkoutView",
         "type": "object"
       },
       "Me": {
@@ -6548,6 +6739,57 @@
         "summary": "Put Daily Check",
         "tags": [
           "daily check"
+        ]
+      }
+    },
+    "/api/day": {
+      "get": {
+        "description": "What was logged on ``on`` (default: today).",
+        "operationId": "get_day_api_day_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "on",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "On"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Day",
+        "tags": [
+          "day"
         ]
       }
     },

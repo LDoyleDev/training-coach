@@ -59,6 +59,7 @@ function serve(replies: Record<string, Reply>) {
         if (path === '/api/session/today') return Response.json(LEGS_TODAY)
         if (path === '/api/session/pending') return Response.json([])
         if (path === '/api/today/undo') return Response.json(none)
+        if (path === '/api/day') return new Response(null, { status: 401 }) // no day card here
         return new Response(null, { status: 404 })
       }
       return typeof reply === 'function' ? reply() : reply.clone()

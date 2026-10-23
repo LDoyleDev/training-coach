@@ -39,7 +39,7 @@ import FlowPlayer from './FlowPlayer'
 import Stretching from './Stretching'
 import Cardio, { type CardioChange } from './Cardio'
 import ChangeToday from './ChangeToday'
-import HabitsCard from './Habits'
+import DayCard from './DayCard'
 import Undo from './Undo'
 import BandOffers from './BandOffers'
 import Proposals from './Proposals'
@@ -233,11 +233,11 @@ export default function SessionPage() {
         {loaded.status === 'none' && readinessNote && <ReadinessNotice text={readinessNote} />}
         {loaded.status === 'none' && testDay && <TestDayNotice due={testDay} />}
         <Status loaded={loaded} />
+        {loaded.status === 'none' && <DayCard refresh={undoKey} />}
         {loaded.status === 'none' && bandOffers}
         {loaded.status === 'none' && undoBar}
         {loaded.status === 'none' && <Cardio featured={false} onChange={cardioChange} />}
         {loaded.status === 'none' && <LogDay onSaved={counted} />}
-        {loaded.status === 'none' && <HabitsCard />}
       </AppShell>
     )
   const session = loaded.session
@@ -461,7 +461,7 @@ export default function SessionPage() {
           {undoBar}
           {!isCardio(session) && <Cardio featured={false} onChange={cardioChange} />}
           <LogDay onSaved={counted} />
-          <HabitsCard />
+          <DayCard refresh={undoKey} />
         </>
       )}
 
