@@ -4,6 +4,23 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.34.0](https://github.com/LDoyleDev/training-coach/compare/v0.33.0...v0.34.0) (2026-10-23)
+
+
+### Features
+
+* **api:** rest by transition: a 15 s switch inside a pair, a rest after it ([#288](https://github.com/LDoyleDev/training-coach/issues/288)) ([05abf38](https://github.com/LDoyleDev/training-coach/commit/05abf38d8df5681674067f23e1df6004e614ef61))
+* **band:** note refused syncs and read HC Webhook record ids ([#283](https://github.com/LDoyleDev/training-coach/issues/283)) ([96a531e](https://github.com/LDoyleDev/training-coach/commit/96a531e863a89c04237ab115d337499a839b069e))
+* **domain:** exercise catalogue with weighted muscles, fractional sets ([#284](https://github.com/LDoyleDev/training-coach/issues/284)) ([fc52c9f](https://github.com/LDoyleDev/training-coach/commit/fc52c9f2c4c0356605bef7342537a25eb38dcce2))
+* **domain:** put every main muscle on target with the coverage update ([#289](https://github.com/LDoyleDev/training-coach/issues/289)) ([78de1af](https://github.com/LDoyleDev/training-coach/commit/78de1af77dc032b769ebe68a12005df862f05f9f))
+* **web:** read-only body map on the Plan tab, coloured by weekly sets ([#285](https://github.com/LDoyleDev/training-coach/issues/285)) ([c018439](https://github.com/LDoyleDev/training-coach/commit/c018439ba2fcaef5124b1a00fb894346efe52132))
+
+
+### Documentation
+
+* plan the program builder, equipment and home/gym versions ([#276](https://github.com/LDoyleDev/training-coach/issues/276)) ([260aa67](https://github.com/LDoyleDev/training-coach/commit/260aa6719ecbbd1c0e0bd9fd4dbbbcfce092a29c))
+* time efficiency for the builder: rest inside pairs, fillers and kit ([#286](https://github.com/LDoyleDev/training-coach/issues/286)) ([69b4e02](https://github.com/LDoyleDev/training-coach/commit/69b4e0212192ba89144f20894dbe49c18f4cba2d))
+
 ## [0.33.0](https://github.com/LDoyleDev/training-coach/compare/v0.32.0...v0.33.0) (2026-10-21)
 
 
