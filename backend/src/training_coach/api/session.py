@@ -118,6 +118,8 @@ class SetView(BaseModel):
     item: int  # index into items
     set_no: int
     target: int
+    rest_seconds: int = 0  # the rest after this set; 0 after the last (ADR-0065)
+    switch: bool = False  # that rest is the move to the other exercise of a pair
 
 
 class BlockView(BaseModel):
@@ -135,7 +137,7 @@ class GuidedView(BaseModel):
     block: BlockView | None
     minutes: int  # the plan's estimate
     usual_minutes: int | None = None  # how long this session usually takes (ADR-0061)
-    rest_seconds: int
+    rest_seconds: int  # the rest after a pair, for pages from before ADR-0065
     items: list[ItemView]
     order: list[SetView]
 
@@ -326,7 +328,16 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                 )
                 for i in plan.items
             ],
-            order=[SetView(item=s.item, set_no=s.set_no, target=s.target) for s in plan.order],
+            order=[
+                SetView(
+                    item=s.item,
+                    set_no=s.set_no,
+                    target=s.target,
+                    rest_seconds=s.rest.seconds,
+                    switch=s.rest.switch,
+                )
+                for s in plan.order
+            ],
         ),
     )
 

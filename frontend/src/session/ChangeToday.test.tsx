@@ -27,7 +27,7 @@ const LEGS: Guided = {
       baseline: false,
     },
   ],
-  order: [{ item: 0, set_no: 1, target: 6 }],
+  order: [{ item: 0, set_no: 1, target: 6, rest_seconds: 0, switch: false }],
 }
 const TORSO: Guided = { ...LEGS, template_id: 5, name: 'Torso + neck' }
 const LEGS_TODAY: TodayView = { session: LEGS, progress: null }

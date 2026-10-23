@@ -2912,8 +2912,18 @@ export interface components {
         SetView: {
             /** Item */
             item: number;
+            /**
+             * Rest Seconds
+             * @default 0
+             */
+            rest_seconds: number;
             /** Set No */
             set_no: number;
+            /**
+             * Switch
+             * @default false
+             */
+            switch: boolean;
             /** Target */
             target: number;
         };
