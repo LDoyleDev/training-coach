@@ -3982,9 +3982,19 @@
             "title": "Item",
             "type": "integer"
           },
+          "rest_seconds": {
+            "default": 0,
+            "title": "Rest Seconds",
+            "type": "integer"
+          },
           "set_no": {
             "title": "Set No",
             "type": "integer"
+          },
+          "switch": {
+            "default": false,
+            "title": "Switch",
+            "type": "boolean"
           },
           "target": {
             "title": "Target",

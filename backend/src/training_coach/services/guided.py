@@ -21,13 +21,14 @@ from training_coach.db.models import Exercise, SessionProgress, SessionTemplate,
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.parser import LIMITS, Entry
+from training_coach.domain.rest import AFTER_PAIR_SECONDS, Kind, Rest, rests
 from training_coach.domain.session_times import plausible
-from training_coach.domain.work_order import work_order
+from training_coach.domain.work_order import SetRef, work_order
 from training_coach.services import blocks, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
+from training_coach.services.seed import bundled_plan
 from training_coach.services.today import ItemPlan, position, session_plan
 
-REST_SECONDS = 60  # after each set, adjustable during the rest (D1)
 WARM_UP_MINUTES = 10
 SET_SECONDS = 45  # a rough working set, for the time estimate only
 
@@ -37,6 +38,7 @@ class GuidedSet:
     item: int  # index into items
     set_no: int  # from 1
     target: int
+    rest: Rest  # after this set, adjustable during the rest (D1, ADR-0065)
 
 
 @dataclass(frozen=True)
@@ -49,23 +51,50 @@ class Guided:
     warm_up: bool
     block: Block | None
     minutes: int  # about how long, warm-up included
-    rest_seconds: int
+    rest_seconds: int  # the rest after a pair; each set carries its own (ADR-0065)
     items: tuple[ItemPlan, ...]
     order: tuple[GuidedSet, ...]
     slug: str = ""  # the session template's
 
 
-def _minutes(items: tuple[ItemPlan, ...], warm_up: bool) -> int:
-    seconds = 0
+def _kinds(items: tuple[ItemPlan, ...]) -> list[Kind | None]:
+    """What the rest rules need about each item, from the catalogue (ADR-0064)."""
+    catalogue = {e.slug: e for e in bundled_plan().exercises}
+    kinds: list[Kind | None] = []
     for item in items:
+        found = catalogue.get(item.slug)
+        if found is None:  # not in the bundled plan: rests as a small exercise
+            kinds.append(None)
+        else:
+            primes = frozenset(m for m, weight in found.muscles.items() if weight == 1)
+            involved = frozenset(m for m, weight in found.muscles.items() if weight >= 0.5)
+            kinds.append(Kind(found.pattern, primes, involved))
+    return kinds
+
+
+def _ordered(items: tuple[ItemPlan, ...], groups: list[list[SetRef]]) -> tuple[GuidedSet, ...]:
+    """The sets in work order, each with the rest that follows it (ADR-0065)."""
+    flat = [ref for group in groups for ref in group]
+    after = rests(groups, _kinds(items))
+    return tuple(
+        GuidedSet(item, set_no, items[item].targets[set_no - 1], rest)
+        for (item, set_no), rest in zip(flat, after, strict=True)
+    )
+
+
+def _minutes(items: tuple[ItemPlan, ...], order: tuple[GuidedSet, ...], warm_up: bool) -> int:
+    """About how long: each set's work and the rest after it, by the rules the session runs."""
+    seconds = 0
+    for done in order:
+        item = items[done.item]
         sides = 2 if item.per_side else 1
-        for target in item.targets:
-            if item.kind is ExerciseKind.DURATION_MIN:
-                seconds += target * 60
-            elif item.kind is ExerciseKind.SECONDS:
-                seconds += target * sides + REST_SECONDS
-            else:
-                seconds += SET_SECONDS * sides + REST_SECONDS
+        if item.kind is ExerciseKind.DURATION_MIN:
+            seconds += done.target * 60
+        elif item.kind is ExerciseKind.SECONDS:
+            seconds += done.target * sides
+        else:
+            seconds += SET_SECONDS * sides
+        seconds += done.rest.seconds
     return round(seconds / 60) + (WARM_UP_MINUTES if warm_up else 0)
 
 
@@ -79,11 +108,7 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
     plan = session_plan(session, template.id, block)
     assert plan is not None  # noqa: S101 - target() returned this template a moment ago
     groups = work_order([len(i.targets) for i in plan.items], [i.pair for i in plan.items], first)
-    order = tuple(
-        GuidedSet(item, set_no, plan.items[item].targets[set_no - 1])
-        for group in groups
-        for item, set_no in group
-    )
+    order = _ordered(plan.items, groups)
     warm_up = plan.kind == "strength"
     return Guided(
         day=on,
@@ -94,8 +119,8 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
         slug=plan.slug,
         warm_up=warm_up,
         block=block,
-        minutes=_minutes(plan.items, warm_up),
-        rest_seconds=REST_SECONDS,
+        minutes=_minutes(plan.items, order, warm_up),
+        rest_seconds=AFTER_PAIR_SECONDS,
         items=plan.items,
         order=order,
     )

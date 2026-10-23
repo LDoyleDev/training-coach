@@ -3,6 +3,7 @@ import type { Guided, GuidedItem } from '../api'
 import {
   fromKept,
   partnerOf,
+  restTitle,
   stepOf,
   summary,
   timed,
@@ -132,4 +133,11 @@ test('a set is timed from its screen to its confirm, and keeps its first times',
   expect(timed({ left: 6, right: 6, split: false }, shown, shown - 5_000).started_at).toBe(
     '2026-10-20T15:59:55.000Z',
   )
+})
+
+test('the rest title says switch inside a pair and rest otherwise', () => {
+  const set = { item: 0, set_no: 1, target: 8, rest_seconds: 15, switch: true }
+  expect(restTitle(set, 'Rows')).toBe('Switch to Rows · 15 s')
+  expect(restTitle({ ...set, rest_seconds: 90, switch: false }, 'Rows')).toBe('Rest · 90 s')
+  expect(restTitle(undefined, 'Rows')).toBe('Rest')
 })

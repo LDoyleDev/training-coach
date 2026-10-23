@@ -13,6 +13,14 @@ export type Values = Record<string, Value>
 
 export const key = (item: number, setNo: number) => `${item}:${setNo}`
 
+/** "Switch to Rows · 15 s" inside a pair, "Rest · 60 s" otherwise (ADR-0065). */
+export function restTitle(before: Guided['order'][number] | undefined, next: string): string {
+  if (before === undefined) return 'Rest'
+  return before.switch
+    ? `Switch to ${next} · ${before.rest_seconds} s`
+    : `Rest · ${before.rest_seconds} s`
+}
+
 /** Values kept on the server, as the screen holds them. */
 export function fromKept(kept: Kept | null | undefined): Values {
   const values: Values = {}

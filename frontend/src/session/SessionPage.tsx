@@ -24,6 +24,7 @@ import {
   fromKept,
   key,
   partnerOf,
+  restTitle,
   stepOf,
   summary,
   timed,
@@ -291,7 +292,8 @@ export default function SessionPage() {
       setWatchFrom(null)
       if (next >= total) setStage('check')
       else {
-        startRest(session.rest_seconds)
+        // The rest that leads into the next set: a 15 s move inside a pair, longer after it.
+        startRest(session.order[next - 1].rest_seconds)
         setStage('rest')
       }
     }
@@ -583,8 +585,11 @@ export default function SessionPage() {
 
       {stage === 'rest' && (
         <section aria-labelledby="rest" className="flex flex-col items-center gap-4 text-center">
-          <h1 id="rest" className="text-lg font-bold tracking-wide text-[var(--bell-ink)]">
-            REST
+          <h1
+            id="rest"
+            className="text-lg font-bold tracking-wide text-[var(--bell-ink)] uppercase"
+          >
+            {restTitle(session.order[position - 1], item.name)}
           </h1>
           <p aria-live="polite" className="text-8xl font-extrabold">
             {Math.floor(restLeft / 60)}:{String(restLeft % 60).padStart(2, '0')}

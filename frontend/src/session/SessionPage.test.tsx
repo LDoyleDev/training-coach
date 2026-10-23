@@ -40,9 +40,9 @@ const SESSION: Guided = {
     },
   ],
   order: [
-    { item: 0, set_no: 1, target: 6 },
-    { item: 1, set_no: 1, target: 15 },
-    { item: 0, set_no: 2, target: 6 },
+    { item: 0, set_no: 1, target: 6, rest_seconds: 15, switch: true },
+    { item: 1, set_no: 1, target: 15, rest_seconds: 60, switch: false },
+    { item: 0, set_no: 2, target: 6, rest_seconds: 0, switch: false },
   ],
 }
 
@@ -145,6 +145,22 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
     sets: [{ item: 0, set_no: 1, left: 7, right: null }],
   })
   expect(kept[2]).toMatchObject({ revision: 1, position: 3 })
+})
+
+test('inside a pair the rest is a 15 s switch; after the pair it is a rest (ADR-0065)', async () => {
+  serve()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Confirm set')
+  expect(
+    await screen.findByRole('heading', { name: 'Switch to Calf raise · 15 s' }),
+  ).toBeInTheDocument()
+  expect(screen.getByText('0:15')).toBeInTheDocument()
+  click('Skip rest')
+  await screen.findByRole('heading', { name: 'Calf raise' })
+  click('Confirm set')
+  expect(await screen.findByRole('heading', { name: 'Rest · 60 s' })).toBeInTheDocument()
+  expect(screen.getByText('1:00')).toBeInTheDocument()
 })
 
 test('left and right can differ on a one-sided exercise', async () => {
@@ -285,11 +301,11 @@ test('the rest counts down, can be lengthened, and buzzes into the next set', as
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
   click('Confirm set')
-  expect(await screen.findByText('1:00')).toBeInTheDocument()
+  expect(await screen.findByText('0:15')).toBeInTheDocument() // the switch inside the pair
   expect(screen.getByText('Calf raise')).toBeInTheDocument() // next
   click('+ 15 s')
-  expect(screen.getByText('1:15')).toBeInTheDocument()
-  act(() => vi.advanceTimersByTime(75_000))
+  expect(screen.getByText('0:30')).toBeInTheDocument()
+  act(() => vi.advanceTimersByTime(30_000))
   expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
   expect(vibrate).toHaveBeenCalledWith(300)
 })
@@ -308,7 +324,7 @@ test('a timed set uses a stopwatch, then plus and minus by 5 seconds', async () 
         targets: [30],
       },
     ],
-    order: [{ item: 0, set_no: 1, target: 30 }],
+    order: [{ item: 0, set_no: 1, target: 30, rest_seconds: 0, switch: false }],
   }
   const sent = serve({ today: { session: hang, progress: null } })
   render(<SessionPage />)
@@ -456,7 +472,7 @@ test('leaving stops a running clock', async () => {
   const hang: Guided = {
     ...SESSION,
     items: [{ ...SESSION.items[0], name: 'Dead hang', unit: 'seconds', pair: null, targets: [30] }],
-    order: [{ item: 0, set_no: 1, target: 30 }],
+    order: [{ item: 0, set_no: 1, target: 30, rest_seconds: 0, switch: false }],
   }
   serve({ today: { session: hang, progress: null } })
   render(<SessionPage />)
@@ -472,7 +488,7 @@ test('leaving stops a running clock', async () => {
 const HANG: Guided = {
   ...SESSION,
   items: [{ ...SESSION.items[0], name: 'Dead hang', unit: 'seconds', pair: null, targets: [30] }],
-  order: [{ item: 0, set_no: 1, target: 30 }],
+  order: [{ item: 0, set_no: 1, target: 30, rest_seconds: 0, switch: false }],
 }
 
 test('the stopwatch keeps time while the screen is locked', async () => {
@@ -495,9 +511,9 @@ test('the rest ends on time after a locked screen', async () => {
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
   click('Confirm set')
-  expect(await screen.findByText('1:00')).toBeInTheDocument()
+  expect(await screen.findByText('0:15')).toBeInTheDocument()
   act(() => {
-    vi.setSystemTime(Date.now() + 61_000)
+    vi.setSystemTime(Date.now() + 16_000)
     document.dispatchEvent(new Event('visibilitychange'))
   })
   expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
@@ -625,7 +641,7 @@ test('a cardio day is logged in one step, not started set by set', async () => {
     kind: 'conditioning',
     warm_up: false,
     items: [{ ...SESSION.items[0], slug: 'zone2', name: 'Zone 2', unit: 'minutes', pair: null }],
-    order: [{ item: 0, set_no: 1, target: 45 }],
+    order: [{ item: 0, set_no: 1, target: 45, rest_seconds: 0, switch: false }],
   }
   serve({ today: { session: zone2, progress: null } })
   render(<SessionPage />)
@@ -655,8 +671,8 @@ test('each set is sent with when its screen appeared and when it was confirmed',
   const shown = Date.now()
   act(() => vi.advanceTimersByTime(40_000))
   click('Confirm set')
-  await screen.findByText('1:00')
-  act(() => vi.advanceTimersByTime(60_000)) // the rest runs out: the next set shows
+  await screen.findByText('0:15')
+  act(() => vi.advanceTimersByTime(15_000)) // the switch runs out: the next set shows
   expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
   act(() => vi.advanceTimersByTime(30_000))
   click('Confirm set')
@@ -669,10 +685,10 @@ test('each set is sent with when its screen appeared and when it was confirmed',
     40_000,
   )
   expect(second.sets[0]).toEqual(jump) // the first set's times don't change
-  // The next set is timed from the rest's end: a minute after the confirm.
+  // The next set is timed from the switch's end: 15 s after the confirm.
   const rest = Date.parse(second.sets[1].started_at ?? '') - Date.parse(jump.done_at ?? '')
-  expect(rest).toBeGreaterThanOrEqual(60_000)
-  expect(rest).toBeLessThan(61_000)
+  expect(rest).toBeGreaterThanOrEqual(15_000)
+  expect(rest).toBeLessThan(16_000)
 })
 
 test('a set fixed with Back keeps the times of its first confirm', async () => {
@@ -691,7 +707,7 @@ test('a set fixed with Back keeps the times of its first confirm', async () => {
   click('Back')
   click('1 fewer')
   click('Confirm set')
-  await screen.findByText('1:00')
+  await screen.findByText('0:15') // back to the calf raise: the switch that leads into it
   expect(sent['PUT /api/session/progress']?.[0]).toMatchObject({
     sets: [{ item: 0, set_no: 1, left: 5, right: null, ...at }],
   })
@@ -785,7 +801,7 @@ test('the mobility item plays its flow and logs the minutes moved as its set', a
         flow: { seconds: 120, safety: 'If something hurts, stop.', moves: [move, move] },
       },
     ],
-    order: [{ item: 0, set_no: 1, target: 10 }],
+    order: [{ item: 0, set_no: 1, target: 10, rest_seconds: 0, switch: false }],
   }
   const sent = serve({ today: { session: recovery, progress: null } })
   render(<SessionPage />)
