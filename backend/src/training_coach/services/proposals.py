@@ -252,8 +252,15 @@ def _cardio(
 ) -> _Checked | Refused:
     if problem := _day_problem(day, today, MAX_DAYS_BACK):
         return Refused(problem)
+    # Capped before rounding: a huge distance (1e308) would overflow round(); one past the limit
+    # still gets the domain's refusal.
+    distance_m = (
+        round(min(found.distance_km * 1000, details.MAX_DISTANCE_M + 1))
+        if found.distance_km is not None
+        else None
+    )
     given = details.Details(
-        distance_m=round(found.distance_km * 1000) if found.distance_km is not None else None,
+        distance_m=distance_m,
         avg_hr=found.avg_hr,
         max_hr=found.max_hr,
         started_at=cardio.started(day, found.start, tz, now) if found.start else None,

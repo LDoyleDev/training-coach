@@ -337,6 +337,7 @@ def test_a_cardio_proposal_from_before_the_details_still_saves(
         ({"max_hr": 250}, "highest heart rate must be between 30 and 230"),
         ({"avg_hr": 150, "max_hr": 140}, "can't be below the average"),
         ({"distance_km": 301}, "distance must be between 0 and 300 km"),
+        ({"distance_km": 1e308}, "distance must be between 0 and 300 km"),  # no overflow
         ({"distance_km": 0}, "distance_km: Input should be greater than 0"),
         ({"start": "25:00"}, "start"),
         ({"effort": 6}, "effort: Extra inputs are not permitted"),  # only the person says that
