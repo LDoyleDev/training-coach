@@ -56,3 +56,20 @@ def test_marking_sets_the_state_and_repeating_it_changes_nothing(session: Sessio
     assert habits.mark(session, MONDAY, M, False, MONDAY) is False
     assert habits.checked(session, MONDAY) == frozenset()
     assert habits.mark(session, MONDAY, M, True, MONDAY + timedelta(days=3)) is None
+
+
+def test_backfill_sets_any_day_from_the_first_and_refuses_outside(session: Session) -> None:
+    first, today = date(2026, 10, 1), date(2026, 10, 23)
+    ten_back = today - timedelta(days=10)
+    assert habits.backfill(session, ten_back, Habit.PROTEIN, True, today, first) is True
+    assert habits.backfill(session, ten_back, Habit.PROTEIN, True, today, first) is True  # repeat
+    assert habits.checked(session, ten_back) == {Habit.PROTEIN}
+    assert habits.backfill(session, ten_back, Habit.PROTEIN, False, today, first) is False
+    assert (
+        habits.backfill(session, today + timedelta(days=1), Habit.PROTEIN, True, today, first)
+        is None
+    )
+    assert (
+        habits.backfill(session, first - timedelta(days=1), Habit.PROTEIN, True, today, first)
+        is None
+    )

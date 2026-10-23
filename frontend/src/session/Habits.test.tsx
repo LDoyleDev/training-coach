@@ -34,7 +34,7 @@ function serve(
     if (init?.method === 'PUT') {
       if (put === 'fail') return new Response(null, { status: 500 })
       if (put === 'signed-out') return new Response(null, { status: 401 })
-      const key = path.split('/').pop()
+      const key = path.split('?')[0].split('/').pop()
       const { done } = JSON.parse(String(init.body)) as { done: boolean }
       return Response.json({
         ...HABITS,
@@ -105,4 +105,18 @@ test.each(['signed-out', 'error'] as const)('shows nothing when %s', async (toda
   await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled())
   await Promise.resolve()
   expect(container).toBeEmptyDOMElement()
+})
+
+test('an earlier day asks for that day and ticks it, not today', async () => {
+  const fetchMock = serve({ ...HABITS, day: '2026-10-09', week_days: 5 })
+  render(<HabitsCard day="2026-10-09" label="on Fri 9 Oct" />)
+  expect(await screen.findByRole('heading', { name: 'Habits on Fri 9 Oct' })).toBeInTheDocument()
+  expect(screen.getByText(/Days that week up to then: 5/)).toBeInTheDocument()
+  expect(fetchMock).toHaveBeenCalledWith('/api/habits?day=2026-10-09', expect.anything())
+  fireEvent.click(screen.getByRole('button', { name: /Wind-down/ }))
+  await screen.findByRole('button', { name: /Wind-down/, pressed: true })
+  expect(fetchMock).toHaveBeenLastCalledWith(
+    '/api/habits/wind_down?day=2026-10-09',
+    expect.objectContaining({ method: 'PUT' }),
+  )
 })

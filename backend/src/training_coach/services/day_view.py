@@ -20,6 +20,8 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.db.session import bound_user
+from training_coach.domain.cardio import pace
+from training_coach.domain.day_view import LoggedExercise as Grouped
 from training_coach.domain.day_view import LoggedSet, group
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.queue import local_date
@@ -43,6 +45,17 @@ class BandRun:
 
 
 @dataclass(frozen=True)
+class CardioDetails:
+    """What a cardio log said beyond its minutes (ADR-0067), each only when given."""
+
+    effort: int | None  # session RPE 1-10
+    distance_m: int | None
+    pace_s_per_km: int | None  # from the minutes and distance, never stored
+    avg_hr: int | None
+    max_hr: int | None
+
+
+@dataclass(frozen=True)
 class LoggedWorkout:
     workout_id: int
     name: str  # the session's, or "Extra" for an unplanned workout
@@ -51,6 +64,7 @@ class LoggedWorkout:
     activity: str | None  # walk, bike...: what a cardio log was
     exercises: tuple[LoggedExercise, ...]
     band: BandRun | None  # the band's numbers, when this logs a run it recorded
+    cardio: CardioDetails | None = None  # what was typed with a cardio log
 
 
 def first_day(session: Session, tz: ZoneInfo) -> date:
@@ -89,6 +103,7 @@ def logged(session: Session, day: date) -> tuple[LoggedWorkout, ...]:
             select(ImportedWorkout).where(ImportedWorkout.workout_id.in_(ids))
         )
     }
+    grouped = {w.id: group(rows[w.id]) for w in workouts}
     return tuple(
         LoggedWorkout(
             workout_id=w.id,
@@ -98,14 +113,38 @@ def logged(session: Session, day: date) -> tuple[LoggedWorkout, ...]:
             activity=w.activity,
             exercises=tuple(
                 LoggedExercise(
-                    name=exercises[found.exercise_id].name,
-                    unit=UNITS.get(ExerciseKind(exercises[found.exercise_id].kind), "minutes"),
-                    step=steps.get(found.step_id, ""),
-                    sets=found.sets,
+                    name=exercises[item.exercise_id].name,
+                    unit=UNITS.get(ExerciseKind(exercises[item.exercise_id].kind), "minutes"),
+                    step=steps.get(item.step_id, ""),
+                    sets=item.sets,
                 )
-                for found in group(rows[w.id])
+                for item in grouped[w.id]
             ),
             band=band.get(w.id),
+            cardio=_details(w, _minutes(grouped[w.id], exercises)),
         )
         for w in workouts
+    )
+
+
+def _minutes(logged: tuple[Grouped, ...], exercises: dict[int, Exercise]) -> int:
+    """The minutes of a workout's timed-in-minutes exercises: its cardio."""
+    return sum(
+        s.left
+        for e in logged
+        if ExerciseKind(exercises[e.exercise_id].kind) is ExerciseKind.DURATION_MIN
+        for s in e.sets
+    )
+
+
+def _details(workout: Workout, minutes: int) -> CardioDetails | None:
+    given = (workout.effort, workout.distance_m, workout.avg_hr, workout.max_hr)
+    if all(value is None for value in given):
+        return None
+    return CardioDetails(
+        effort=workout.effort,
+        distance_m=workout.distance_m,
+        pace_s_per_km=pace(minutes, workout.distance_m),
+        avg_hr=workout.avg_hr,
+        max_hr=workout.max_hr,
     )

@@ -7,6 +7,7 @@ from training_coach.domain.habits import (
     LABELS,
     Habit,
     HabitWeek,
+    can_backfill,
     can_change,
     hint,
     label,
@@ -81,3 +82,13 @@ def test_the_protein_habit_names_its_number_once_set() -> None:
     assert label(M, 165) == "Morning light"
     assert hint(P) == HINTS[P]
     assert hint(P, 165).startswith("165 g across the day")
+
+
+def test_the_web_can_fill_in_any_day_from_the_first_but_never_a_later_one() -> None:
+    first, today = date(2026, 10, 1), date(2026, 10, 23)
+    assert can_backfill(first, today, first)
+    assert can_backfill(today, today, first)
+    assert can_backfill(date(2026, 10, 2), today, first)  # three weeks back: fine on the web
+    assert not can_change(date(2026, 10, 2), today)  # the bot's window stays two days
+    assert not can_backfill(first - timedelta(days=1), today, first)
+    assert not can_backfill(today + timedelta(days=1), today, first)

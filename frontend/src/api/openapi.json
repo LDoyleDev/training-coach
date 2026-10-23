@@ -325,6 +325,74 @@
         "title": "CardioActivity",
         "type": "string"
       },
+      "CardioDetailsView": {
+        "properties": {
+          "avg_hr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Hr"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "effort": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effort"
+          },
+          "max_hr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hr"
+          },
+          "pace_s_per_km": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace S Per Km"
+          }
+        },
+        "required": [
+          "effort",
+          "distance_m",
+          "pace_s_per_km",
+          "avg_hr",
+          "max_hr"
+        ],
+        "title": "CardioDetailsView",
+        "type": "object"
+      },
       "ChangeBody": {
         "properties": {
           "template_id": {
@@ -2559,6 +2627,16 @@
               }
             ]
           },
+          "cardio": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardioDetailsView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "exercises": {
             "items": {
               "$ref": "#/components/schemas/LoggedExerciseView"
@@ -2590,7 +2668,8 @@
           "planned",
           "activity",
           "exercises",
-          "band"
+          "band",
+          "cardio"
         ],
         "title": "LoggedWorkoutView",
         "type": "object"
@@ -6796,6 +6875,25 @@
     "/api/habits": {
       "get": {
         "operationId": "get_habits_api_habits_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "day",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Day"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -6806,6 +6904,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Get Habits",
@@ -6816,7 +6924,7 @@
     },
     "/api/habits/{habit}": {
       "put": {
-        "description": "Tick or untick a habit for today. Repeating the same tap changes nothing.",
+        "description": "Tick or untick a habit for ``day`` (default today). Repeating the same tap changes\nnothing.",
         "operationId": "put_habit_api_habits__habit__put",
         "parameters": [
           {
@@ -6825,6 +6933,23 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/Habit"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Day"
             }
           }
         ],

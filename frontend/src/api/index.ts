@@ -836,8 +836,8 @@ export async function saveSettings(change: SettingsChange): Promise<MessageSetti
 
 export type Habits = Schemas['HabitsView']
 export type HabitKey = Schemas['Habit']
-/** `?on=` for an earlier day's log (ADR-0068); nothing for today. */
-const onDay = (day?: string) => (day ? `?on=${encodeURIComponent(day)}` : '')
+/** `?on=` or `?day=` for an earlier day's log or habits (ADR-0068); nothing for today. */
+const onDay = (day?: string, key = 'on') => (day ? `?${key}=${encodeURIComponent(day)}` : '')
 
 export type DayLog = Schemas['DayView']
 export type LoggedWorkout = Schemas['LoggedWorkoutView']
@@ -850,18 +850,18 @@ export async function fetchDay(day?: string, signal?: AbortSignal): Promise<DayL
   return (await res.json()) as DayLog
 }
 
-/** Today's habits with this week's count; null when not signed in. */
-export async function fetchHabits(signal?: AbortSignal): Promise<Habits | null> {
-  const res = await fetch('/api/habits', { signal, credentials: 'same-origin' })
+/** A day's habits (default today) with that week's count; null when not signed in. */
+export async function fetchHabits(signal?: AbortSignal, day?: string): Promise<Habits | null> {
+  const res = await fetch(`/api/habits${onDay(day, 'day')}`, { signal, credentials: 'same-origin' })
   if (res.status === 401) return null
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Habits
 }
 
-/** Tick or untick one of today's habits; returns them all as they now are. */
-export async function markHabit(habit: HabitKey, done: boolean): Promise<Habits> {
+/** Tick or untick one of a day's habits (default today); returns them all as they now are. */
+export async function markHabit(habit: HabitKey, done: boolean, day?: string): Promise<Habits> {
   const res = signedIn(
-    await fetch(`/api/habits/${habit}`, {
+    await fetch(`/api/habits/${habit}${onDay(day, 'day')}`, {
       method: 'PUT',
       credentials: 'same-origin',
       headers: json,
