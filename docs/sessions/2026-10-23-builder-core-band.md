@@ -1,4 +1,4 @@
-# Session log: 21 to 23 Oct 2026 (v0.33.0 to v0.36.0)
+# Session log: 21 to 24 Oct 2026 (v0.33.0 to v0.37.0)
 
 One file per release wrap: what shipped, the decisions and where they live, open items. Facts
 stay in their own homes (ADRs, specs, runbooks); this log only points at them.
@@ -10,7 +10,7 @@ stay in their own homes (ADRs, specs, runbooks); this log only points at them.
 | v0.34.0 (23 Oct) | #283 refused band syncs and HC Webhook record ids (ADR-0055); #284 exercise catalogue with weighted muscles (ADR-0064); #285 read-only body map; #288 rest by transition (ADR-0065); #289 plan update: every main muscle on target; #287 dependency fix; docs #276, #286 |
 | v0.35.0 (23 Oct) | #293 core and hips block, Cardio + core day; #294 a cardio day's block stays open after its run (ADR-0066); #292 read-only Pi helper; docs #290 |
 | v0.36.0 (23 Oct) | #295 cardio effort, distance, heart rate, start (ADR-0067); #298 Today shows each day's log, with ‹ › to earlier days (ADR-0068); #299, #300 nav order, Tests inside Body, a body map per session on Plan (ADR-0069); #301 habits on earlier days; docs #296 |
-| After v0.36.0 | #304 virtualenv 21.14.13 for GHSA-cx6f-vjhg-g3cc (dev tools only; no release needed); docs #302 (this log) |
+| v0.37.0 (24 Oct) | #305 your own AI turns a run screenshot into a cardio proposal with distance, heart rate and start; you pick the effort on the card (ADR-0067, `docs/specs/cardio-photo-prefill.md` option A); #304 virtualenv 21.14.13 (GHSA-cx6f-vjhg-g3cc) and #306 filelock 4.2.4 (CVE-2026-112940), both dev tools only; docs #302 (this log) |
 
 ## Decisions and where they live
 
@@ -43,14 +43,15 @@ stay in their own homes (ADRs, specs, runbooks); this log only points at them.
   - **Also:** Fit no longer writes to Health Connect, and Mi Fitness comes first in the data priority.
 - **23 Oct workout.** Cardio + core is logged as workout 23: a 43 min run plus the core block.
   - A rollback-based "dry run" wrote it for real, because the save commits inside the service.
-  - Leftover: that day's `session_progress` row has no `saved_workout_id`. It's harmless, and tidying it waits for an OK.
-  - Backup: `training_coach-manual-20261023T154959Z.db`.
+  - The day's `session_progress` row was left without its `saved_workout_id`. It was linked to workout 23 on 24 Oct, after a dry run on a copy of the backup.
+  - Backups: `training_coach-manual-20261023T154959Z.db` (before the log), `training_coach-manual-20261023T223125Z.db` (before the link).
+- **Read-only helper.** `~/bin/tc-read` on the Pi now matches `scripts/pi-read.sh` on main (24 Oct). The old copy is `~/bin/tc-read.bak-20261024`. Its SQL allowlist has no `LIKE`; use `instr`.
 
 ## Open items and next steps
 
 1. **Phone:** retry the band sync. If it still fails, plan our own Android reader (proposal section 4).
-2. **Pi:** copy the updated `scripts/pi-read.sh` to `~/bin/tc-read`. The installed copy predates masking keys and photos, the function allowlist and log redaction. OK given 24 Oct, together with tidying the 23 Oct `session_progress` row.
-3. **Photo prefill:** option 1, `propose_log` accepting the new cardio fields. Go given 24 Oct.
+2. **Photo prefill, next step:** option B, reading the text on the phone (`docs/specs/cardio-photo-prefill.md`). This is for when there's no connected AI.
+3. **Proposal start time:** an AI's `start` is read against the proposal's day, with the same rule as the form: a time later than now means the day before. It only matters for a run that crossed midnight.
 4. **Connect the coach to the Claude.ai exercise chat:** `docs/runbooks/connect-my-ai.md`.
 5. **Builder stages left:** equipment and places, editing, the picker, gym weights. Plus tri-sets, Recovery pairs and drop sets (decision J).
 6. **Coverage gaps:**
