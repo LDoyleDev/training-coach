@@ -4,6 +4,19 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.35.0](https://github.com/LDoyleDev/training-coach/compare/v0.34.0...v0.35.0) (2026-10-23)
+
+
+### Features
+
+* **api:** keep a cardio day's block open after its run (ADR-0066) ([#294](https://github.com/LDoyleDev/training-coach/issues/294)) ([e622c6c](https://github.com/LDoyleDev/training-coach/commit/e622c6ca7f23471d8ca024390f6d2c6cbd29aa97))
+* **domain:** add a core and hips block on Recovery and Cardio + core ([#293](https://github.com/LDoyleDev/training-coach/issues/293)) ([a289877](https://github.com/LDoyleDev/training-coach/commit/a289877d91480120bca268d8ff067dd9d7b1d315))
+
+
+### Documentation
+
+* research a core and hips block for the muscles the plan misses ([#290](https://github.com/LDoyleDev/training-coach/issues/290)) ([239a2c2](https://github.com/LDoyleDev/training-coach/commit/239a2c2c82a8b0685f1e2231bde3e0eefbeb3aca))
+
 ## [0.34.0](https://github.com/LDoyleDev/training-coach/compare/v0.33.0...v0.34.0) (2026-10-23)
 
 
