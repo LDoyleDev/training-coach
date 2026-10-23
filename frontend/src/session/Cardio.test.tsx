@@ -94,11 +94,13 @@ test('the exact minutes, the effort and what it was', async () => {
   click('Harder (moderate)')
   click('Hike')
   expect(screen.getByRole('button', { name: 'Hike' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: 'Pick how it felt to save' })).toBeDisabled()
+  click('Effort 6')
   click('Save 58 min')
   expect(await screen.findByRole('heading', { name: 'Logged' })).toBeInTheDocument()
   expect(screen.getByText('58 min hike, moderate.')).toBeInTheDocument()
   expect(sent).toEqual([
-    expect.objectContaining({ kind: 'moderate-cardio', value: 58, activity: 'hike' }),
+    expect.objectContaining({ kind: 'moderate-cardio', value: 58, activity: 'hike', effort: 6 }),
   ])
   expect(screen.queryByText(/Next up/)).not.toBeInTheDocument()
 })
@@ -202,6 +204,7 @@ test('a new log starts afresh: no activity or token carried over', async () => {
   render(<Cardio featured />)
   fireEvent.click(await screen.findByRole('button', { name: /different minutes/ }))
   click('Hike')
+  click('Effort 3')
   click('Save 45 min')
   fireEvent.click(await screen.findByRole('button', { name: 'Log more' }))
   click(/Done as planned/)
@@ -219,6 +222,7 @@ test('a different log after a failed save gets a new token', async () => {
   await screen.findByText(/Couldn't save/)
   click(/different minutes/)
   click('5 more')
+  click('Effort 5')
   click('Save 50 min')
   await waitFor(() => expect(sent).toHaveLength(2))
   const [planned, changed] = sent as { token: string; value: number }[]
@@ -260,4 +264,72 @@ test('Log more closes the saved screen for the page', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Done as planned: 45 min' }))
   fireEvent.click(await screen.findByRole('button', { name: 'Log more' }))
   expect(onChange).toHaveBeenLastCalledWith('closed')
+})
+
+test('details from a watch: distance gives the pace, and they are sent and shown', async () => {
+  const sent = serve({ log: { ...LOGGED, planned: false, pace: 354 } })
+  render(<Cardio featured />)
+  fireEvent.click(await screen.findByRole('button', { name: /different minutes/ }))
+  fireEvent.change(screen.getByLabelText('Minutes'), { target: { value: '43' } })
+  click('Bike')
+  click('Effort 6')
+  fireEvent.change(screen.getByLabelText('Distance (km)'), { target: { value: '7,29' } })
+  expect(screen.getByText('Pace 5:54 /km')).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('Average heart rate'), { target: { value: '139' } })
+  fireEvent.change(screen.getByLabelText('Highest heart rate'), { target: { value: '160' } })
+  fireEvent.change(screen.getByLabelText('Started at'), { target: { value: '16:26' } })
+  click('Save 43 min')
+  expect(
+    await screen.findByText('effort 6/10 · 7.29 km · 5:54 /km · HR 139 avg, 160 max'),
+  ).toBeInTheDocument()
+  expect(sent).toEqual([
+    expect.objectContaining({
+      value: 43,
+      activity: 'bike',
+      effort: 6,
+      distance_km: 7.29,
+      avg_hr: 139,
+      max_hr: 160,
+      start: '16:26',
+    }),
+  ])
+})
+
+test('empty details are sent as not given', async () => {
+  const sent = serve({ log: { ...LOGGED, planned: false } })
+  render(<Cardio featured />)
+  fireEvent.click(await screen.findByRole('button', { name: /different minutes/ }))
+  click('Effort 4')
+  click('Save 45 min')
+  await screen.findByRole('heading', { name: 'Logged' })
+  expect(sent).toEqual([
+    expect.objectContaining({
+      effort: 4,
+      distance_km: null,
+      avg_hr: null,
+      max_hr: null,
+      start: null,
+    }),
+  ])
+})
+
+test('a log the server refuses says why', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (_path: string, init?: RequestInit) =>
+      init?.method === 'POST'
+        ? Response.json(
+            { detail: "highest heart rate can't be below the average" },
+            { status: 422 },
+          )
+        : Response.json(ZONE2_DAY),
+    ),
+  )
+  render(<Cardio featured />)
+  fireEvent.click(await screen.findByRole('button', { name: /different minutes/ }))
+  click('Effort 7')
+  click('Save 45 min')
+  expect(
+    await screen.findByText("Not saved: highest heart rate can't be below the average."),
+  ).toBeInTheDocument()
 })

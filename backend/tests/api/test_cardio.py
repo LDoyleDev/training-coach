@@ -2,6 +2,7 @@
 
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -179,3 +180,75 @@ def test_cardio_needs_a_signed_in_browser(engine: Engine) -> None:
         assert stranger.get("/api/cardio").status_code == 401
         log = {"token": TOKEN, "kind": "zone2", "value": 30}
         assert stranger.post("/api/cardio", json=log).status_code == 401
+
+
+def test_a_log_keeps_its_effort_distance_heart_rate_and_start(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    _plan_next(engine, "moderate-cardio")
+    log = {
+        "token": TOKEN,
+        "kind": "moderate-cardio",
+        "value": 43,
+        "activity": "run",
+        "effort": 6,
+        "distance_km": 7.29,
+        "avg_hr": 139,
+        "max_hr": 160,
+        "start": "00:00",
+    }
+    body = signed_in.post("/api/cardio", json=log).json()
+    assert body["pace"] == 354  # 43 min over 7.29 km: 5:54 a km
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        workout = bound.scalars(select(Workout)).one()
+        assert (workout.effort, workout.distance_m, workout.avg_hr, workout.max_hr) == (
+            6,
+            7290,
+            139,
+            160,
+        )
+        assert workout.started_at is not None
+        assert workout.started_at <= datetime.now(UTC)
+
+
+def test_a_log_without_details_stores_none(signed_in: TestClient, engine: Engine) -> None:
+    _plan_next(engine, "zone2")
+    body = signed_in.post("/api/cardio", json={"token": TOKEN, "kind": "zone2", "value": 45})
+    assert body.json()["pace"] is None
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        workout = bound.scalars(select(Workout)).one()
+        assert (workout.effort, workout.distance_m, workout.avg_hr, workout.started_at) == (
+            None,
+            None,
+            None,
+            None,
+        )
+
+
+@pytest.mark.parametrize(
+    ("extra", "detail"),
+    [
+        ({"avg_hr": 150, "max_hr": 140}, "highest heart rate can't be below the average"),
+        ({"kind": "hiit", "value": 8, "distance_km": 2}, "HIIT is counted in rounds: no distance"),
+        ({"start": "23:59"}, None),  # later today, unless the tests run in the last minute
+    ],
+)
+def test_details_that_make_no_sense_are_refused(
+    signed_in: TestClient, engine: Engine, extra: dict[str, object], detail: str | None
+) -> None:
+    if "start" in extra and datetime.now(cardio_tz()).strftime("%H:%M") == "23:59":
+        pytest.skip("the start would not be in the future")
+    log = {"token": TOKEN, "kind": "zone2", "value": 45, **extra}
+    response = signed_in.post("/api/cardio", json=log)
+    assert response.status_code == 422
+    assert response.json()["detail"] == (detail or "the start is still to come")
+    assert _workouts(engine) == []
+
+
+def test_effort_outside_one_to_ten_is_refused(signed_in: TestClient) -> None:
+    log = {"token": TOKEN, "kind": "zone2", "value": 45, "effort": 11}
+    assert signed_in.post("/api/cardio", json=log).status_code == 422
+
+
+def cardio_tz() -> ZoneInfo:
+    return Settings(environment="test").tz
