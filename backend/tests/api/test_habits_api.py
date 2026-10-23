@@ -5,10 +5,11 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, update
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
+from training_coach.db.models import User
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.habits import Habit
 from training_coach.domain.queue import local_date
@@ -84,3 +85,38 @@ def test_an_unknown_habit_or_no_state_is_refused(signed_in: TestClient) -> None:
 def test_signed_out_gets_nothing(client: TestClient) -> None:
     assert client.get("/api/habits").status_code == 401
     assert client.put("/api/habits/protein", json={"done": True}).status_code == 401
+
+
+def test_an_earlier_day_can_be_filled_in(signed_in: TestClient, engine: Engine) -> None:
+    long_ago = _today() - timedelta(days=10)  # well past the bot's two days
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        mine.execute(update(User).values(created_at=datetime.now(UTC) - timedelta(days=30)))
+    path = f"/api/habits/protein?day={long_ago.isoformat()}"
+    ticked = signed_in.put(path, json={"done": True}).json()
+    assert ticked["day"] == long_ago.isoformat()
+    assert ticked["habits"][1]["done"] is True
+    assert ticked["week_days"] == long_ago.weekday() + 1  # that week, up to that day
+    assert ticked["habits"][1]["week_done"] == 1
+    shown = signed_in.get(f"/api/habits?day={long_ago.isoformat()}").json()
+    assert shown == ticked
+    assert signed_in.get("/api/habits").json()["habits"][1]["done"] is False  # today untouched
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        assert habits.checked(mine, long_ago) == {Habit.PROTEIN}
+    unticked = signed_in.put(path, json={"done": False}).json()
+    assert unticked["habits"][1]["done"] is False
+
+
+def test_a_later_day_or_one_before_the_first_is_refused(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        mine.execute(update(User).values(created_at=datetime.now(UTC)))
+    tomorrow = (_today() + timedelta(days=1)).isoformat()
+    before = (_today() - timedelta(days=5)).isoformat()
+    for day in (tomorrow, before):
+        assert signed_in.get(f"/api/habits?day={day}").status_code == 422
+        assert (
+            signed_in.put(f"/api/habits/protein?day={day}", json={"done": True}).status_code == 422
+        )
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        assert habits.checked(mine, _today() + timedelta(days=1)) == frozenset()

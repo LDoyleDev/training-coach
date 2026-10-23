@@ -25,6 +25,7 @@ function logged(day: string): DayLog {
         planned: true,
         activity: null,
         band: { minutes: 43, avg_hr: 139, max_hr: 160 },
+        cardio: { effort: 6, distance_m: 7290, pace_s_per_km: 354, avg_hr: null, max_hr: null },
         exercises: [
           {
             name: 'Moderate cardio',
@@ -56,6 +57,7 @@ function logged(day: string): DayLog {
         planned: false,
         activity: 'walk',
         band: null,
+        cardio: null,
         exercises: [],
       },
     ],
@@ -85,6 +87,7 @@ test("shows today's log with steps, sides, units and the band's numbers", async 
   const view = within(section)
   expect(view.getByRole('heading', { name: 'Cardio + core' })).toBeInTheDocument()
   expect(view.getByText('Band: 43 min · avg 139 bpm · max 160')).toBeInTheDocument()
+  expect(view.getByText('Effort 6/10 · 7.29 km · 5:54/km')).toBeInTheDocument()
   expect(view.getByText(/: 43 min$/)).toBeInTheDocument()
   expect(view.getByText(/: 12\/11 · 12\/12$/)).toBeInTheDocument()
   expect(view.getByText('(Knee on a chair)')).toBeInTheDocument()
@@ -101,7 +104,8 @@ test('steps back a day at a time to the first day, and the date returns to today
   expect(await screen.findByRole('button', { name: 'Logged Yesterday: back to today' }))
   expect(screen.getByText('Nothing logged.')).toBeInTheDocument()
   expect(fetchMock).toHaveBeenCalledWith('/api/day?on=2026-10-22', expect.anything())
-  expect(screen.queryByRole('heading', { name: /Habits/ })).not.toBeInTheDocument() // today's only
+  expect(await screen.findByRole('heading', { name: 'Habits on Yesterday' })).toBeInTheDocument()
+  expect(fetchMock).toHaveBeenCalledWith('/api/habits?day=2026-10-22', expect.anything())
 
   fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
   const first = await screen.findByRole('button', { name: /Logged Wed 21 Oct: back to today/ })
