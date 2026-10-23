@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchPlan, type Plan } from './api'
 import { BodyMap } from './bodymap/BodyMap'
+import { useCoverage } from './bodymap/useCoverage'
 import { CycleRing } from './components/CycleRing'
 import { Ladders } from './components/Ladders'
 import { SessionList } from './components/SessionList'
@@ -20,11 +21,12 @@ type State =
   | { status: 'error'; message: string }
   | { status: 'ready'; plan: Plan }
 
-/** The plan: the cycle, each session, weekly volume and the ladders. Shown as the Plan tab of
- * Progress (ux-flow-plan D2), which gives it the page frame. */
+/** The plan: the cycle, each session with what it works (its own body map, ADR-0069), the
+ * ladders, and at the bottom what the whole week gives each muscle. Its page gives it the frame. */
 export default function App() {
   const [state, setState] = useState<State>({ status: 'loading' })
   const [open, setOpen] = useState<string | null>(null)
+  const coverage = useCoverage()
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -89,16 +91,15 @@ export default function App() {
 
           <section className="block" aria-labelledby="week">
             <h2 id="week">The week</h2>
-            <p className="block-intro">Open a session to see its exercises and targets.</p>
-            <SessionList sessions={state.plan.sessions} open={open} onToggle={toggle} />
-          </section>
-
-          <section className="block" aria-labelledby="volume">
-            <h2 id="volume">What the week gives each muscle</h2>
             <p className="block-intro">
-              Hard sets a week per muscle, coloured by how close each is to its target.
+              Open a session to see what it works, its exercises and targets.
             </p>
-            <BodyMap />
+            <SessionList
+              sessions={state.plan.sessions}
+              open={open}
+              onToggle={toggle}
+              coverage={coverage.status === 'ready' ? coverage.coverage : undefined}
+            />
           </section>
 
           <section className="block" aria-labelledby="ladders">
@@ -115,6 +116,14 @@ export default function App() {
                 return ex ? [ex] : []
               })}
             />
+          </section>
+
+          <section className="block" aria-labelledby="volume">
+            <h2 id="volume">What the week gives each muscle</h2>
+            <p className="block-intro">
+              The whole week: hard sets per muscle, coloured by how close each is to its target.
+            </p>
+            <BodyMap state={coverage} />
           </section>
         </div>
       )}

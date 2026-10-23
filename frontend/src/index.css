@@ -54,6 +54,10 @@
   --band-green: #4b9a63;
   --band-blue: #5d8fc6;
   --band-warning: #cf4a5c;
+  /* One session's map (ADR-0069): how hard it works a muscle; over the cap uses --band-warning. */
+  --heat-light: #f3dcb8;
+  --heat-worked: #e9a65f;
+  --heat-hard: #c4662c;
   --font: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
   color-scheme: light;
 }
@@ -103,6 +107,9 @@
     --band-green: #3f8a57;
     --band-blue: #5a86b8;
     --band-warning: #c4505f;
+    --heat-light: #6e5a40;
+    --heat-worked: #a8743f;
+    --heat-hard: #d0803f;
     color-scheme: dark;
   }
 }

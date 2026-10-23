@@ -8,9 +8,11 @@ from training_coach.domain.coverage import (
     Band,
     Day,
     Evidence,
+    Heat,
     Item,
     band,
     coverage,
+    heat,
     needs_two_days,
     target,
 )
@@ -152,3 +154,33 @@ def test_spine_and_grip_load_per_session() -> None:
         False,
         False,
     )
+
+
+@pytest.mark.parametrize(
+    ("sets", "expected"),
+    [
+        (0, Heat.NONE),
+        (0.25, Heat.LIGHT),
+        (1.75, Heat.LIGHT),
+        (2, Heat.WORKED),
+        (5.75, Heat.WORKED),
+        (6, Heat.HARD),
+        (11, Heat.HARD),
+        (11.5, Heat.OVER),
+    ],
+)
+def test_one_sessions_heat_is_scaled_to_the_day_and_session_cap(
+    sets: float, expected: Heat
+) -> None:
+    assert heat(sets) is expected
+
+
+def test_each_session_lists_the_muscles_it_works_main_first() -> None:
+    week = [
+        Day("Legs", [_item(3, {Muscle.CALVES: 1}), _item(4, {G: 1, Q: 0.5})], slug="legs"),
+        Day("Rest", [], slug="rest"),
+    ]
+    legs, rest = coverage(week).days
+    assert legs.slug == "legs"
+    assert legs.muscles == ((Q, 2.0), (G, 4.0), (Muscle.CALVES, 3.0))
+    assert rest.muscles == ()

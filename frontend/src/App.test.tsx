@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import App from './App'
 import { prescription, sessionSize, type Exercise, type Plan, type Session } from './api'
 
@@ -88,6 +88,54 @@ describe('App', () => {
     fireEvent.click(row)
     expect(row).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('rowheader', { name: 'Pull-up' })).toBeVisible()
+  })
+
+  it("an open session shows its own body map first, and the week's comes last", async () => {
+    const coverage = {
+      muscles: [],
+      sessions: [
+        {
+          session: 'Torso + neck',
+          slug: 'torso',
+          spine_sets: 0,
+          grip_sets: 4,
+          spine_heavy: false,
+          grip_heavy: false,
+          muscles: [{ muscle: 'lats', sets: 8, heat: 'hard' }],
+        },
+      ],
+      main_on_target: 0,
+      main_total: 10,
+      session_cap: 11,
+      back_to_back: 4,
+      spine_cap: 8,
+      grip_cap: 8,
+      hard_from: 6,
+      minimum: 4,
+      ceiling: 30,
+    }
+    globalThis.fetch = vi.fn((url: string) =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(url === '/api/plan/coverage' ? coverage : plan),
+      }),
+    ) as unknown as typeof fetch
+    const { container } = render(<App />)
+    const row = await screen.findByRole('button', { name: /Torso \+ neck/, expanded: false })
+    fireEvent.click(row)
+    const panel = document.getElementById('session-torso')!
+    expect(
+      await within(panel).findByRole('img', { name: /What Torso \+ neck works: hardest on Lats/ }),
+    ).toBeVisible()
+    expect(panel.querySelector('path[data-muscle="lats"]')).toHaveAttribute(
+      'fill',
+      'var(--heat-hard)',
+    )
+    const headings = [...container.querySelectorAll('h2')].map((h) => h.textContent)
+    expect(headings.at(-1)).toBe('What the week gives each muscle')
+    expect(
+      vi.mocked(globalThis.fetch).mock.calls.filter(([u]) => u === '/api/plan/coverage'),
+    ).toHaveLength(1)
   })
 
   it('selecting a ring segment opens that session', async () => {

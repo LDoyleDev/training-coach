@@ -686,6 +686,10 @@
             "title": "Grip Cap",
             "type": "integer"
           },
+          "hard_from": {
+            "title": "Hard From",
+            "type": "integer"
+          },
           "main_on_target": {
             "title": "Main On Target",
             "type": "integer"
@@ -730,6 +734,7 @@
           "back_to_back",
           "spine_cap",
           "grip_cap",
+          "hard_from",
           "minimum",
           "ceiling"
         ],
@@ -1535,6 +1540,18 @@
         ],
         "title": "HeartRateView",
         "type": "object"
+      },
+      "Heat": {
+        "description": "How hard one session works a muscle, for that session's map (ADR-0069). Not a band: a\nsingle session is never \"on target\" by itself.",
+        "enum": [
+          "none",
+          "light",
+          "worked",
+          "hard",
+          "over"
+        ],
+        "title": "Heat",
+        "type": "string"
       },
       "HomeView": {
         "properties": {
@@ -4134,8 +4151,19 @@
             "title": "Grip Sets",
             "type": "integer"
           },
+          "muscles": {
+            "items": {
+              "$ref": "#/components/schemas/SessionMuscleView"
+            },
+            "title": "Muscles",
+            "type": "array"
+          },
           "session": {
             "title": "Session",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
             "type": "string"
           },
           "spine_heavy": {
@@ -4149,12 +4177,36 @@
         },
         "required": [
           "session",
+          "slug",
           "spine_sets",
           "grip_sets",
           "spine_heavy",
-          "grip_heavy"
+          "grip_heavy",
+          "muscles"
         ],
         "title": "SessionLoadView",
+        "type": "object"
+      },
+      "SessionMuscleView": {
+        "properties": {
+          "heat": {
+            "$ref": "#/components/schemas/Heat"
+          },
+          "muscle": {
+            "title": "Muscle",
+            "type": "string"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "number"
+          }
+        },
+        "required": [
+          "muscle",
+          "sets",
+          "heat"
+        ],
+        "title": "SessionMuscleView",
         "type": "object"
       },
       "SessionTimeView": {

@@ -1818,6 +1818,8 @@ export interface components {
             ceiling: number;
             /** Grip Cap */
             grip_cap: number;
+            /** Hard From */
+            hard_from: number;
             /** Main On Target */
             main_on_target: number;
             /** Main Total */
@@ -2108,6 +2110,13 @@ export interface components {
             /** Zones */
             zones: components["schemas"]["ZoneView"][];
         };
+        /**
+         * Heat
+         * @description How hard one session works a muscle, for that session's map (ADR-0069). Not a band: a
+         *     single session is never "on target" by itself.
+         * @enum {string}
+         */
+        Heat: "none" | "light" | "worked" | "hard" | "over";
         /** HomeView */
         HomeView: {
             progress: components["schemas"]["LadderView"];
@@ -2965,12 +2974,24 @@ export interface components {
             grip_heavy: boolean;
             /** Grip Sets */
             grip_sets: number;
+            /** Muscles */
+            muscles: components["schemas"]["SessionMuscleView"][];
             /** Session */
             session: string;
+            /** Slug */
+            slug: string;
             /** Spine Heavy */
             spine_heavy: boolean;
             /** Spine Sets */
             spine_sets: number;
+        };
+        /** SessionMuscleView */
+        SessionMuscleView: {
+            heat: components["schemas"]["Heat"];
+            /** Muscle */
+            muscle: string;
+            /** Sets */
+            sets: number;
         };
         /**
          * SessionTimeView

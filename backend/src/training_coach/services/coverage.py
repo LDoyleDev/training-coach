@@ -45,5 +45,5 @@ def plan_coverage(session: Session) -> domain.Coverage:
                     stress=frozenset(step_stress(ex.stress, ex.pattern, ex.needs.get(step, []))),
                 )
             )
-        week.append(domain.Day(planned.name, items))
+        week.append(domain.Day(planned.name, items, slug=planned.slug))
     return domain.coverage(week)

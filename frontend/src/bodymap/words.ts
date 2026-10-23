@@ -1,4 +1,4 @@
-import type { Band, Coverage, MuscleCoverage } from '../api'
+import type { Band, Coverage, Heat, MuscleCoverage } from '../api'
 
 /** The six bands as people read them (program-builder.md, Decided 3). */
 export const BANDS: readonly { band: Band; label: string; means: string }[] = [
@@ -9,6 +9,17 @@ export const BANDS: readonly { band: Band; label: string; means: string }[] = [
   { band: 'blue', label: 'High', means: 'diminishing returns' },
   { band: 'warning', label: 'Too much', means: 'over 30 sets' },
 ]
+
+/** One session's map: how hard it works each muscle (ADR-0069). Not the week's bands. */
+export const HEATS: readonly { heat: Heat; label: string }[] = [
+  { heat: 'none', label: 'Not worked' },
+  { heat: 'light', label: 'A little' },
+  { heat: 'worked', label: 'Worked' },
+  { heat: 'hard', label: 'Worked hard' },
+  { heat: 'over', label: 'Too much for one session' },
+]
+
+export const heatLabel = (heat: Heat) => HEATS.find((h) => h.heat === heat)?.label ?? heat
 
 export const bandLabel = (band: Band) => BANDS.find((b) => b.band === band)?.label ?? band
 
