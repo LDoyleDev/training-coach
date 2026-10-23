@@ -1085,6 +1085,11 @@
       },
       "GuidedView": {
         "properties": {
+          "after_run": {
+            "default": false,
+            "title": "After Run",
+            "type": "boolean"
+          },
           "block": {
             "anyOf": [
               {

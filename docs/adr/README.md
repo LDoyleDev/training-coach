@@ -70,3 +70,4 @@ Code). Template: [template.md](template.md).
 | [0063](0063-mannequin-exercise-figures.md) | Exercise pictures are mannequins we draw from two poses | Accepted |
 | [0064](0064-exercise-catalogue-and-fractional-sets.md) | Exercises name fixed muscles with weights; sets count fractionally | Accepted |
 | [0065](0065-rest-by-transition.md) | Rest by transition: a quick switch inside a pair, a rest after it | Accepted |
+| [0066](0066-block-after-the-run.md) | A block after a cardio session's run stays open that day | Accepted |

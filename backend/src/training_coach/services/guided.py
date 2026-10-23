@@ -4,6 +4,10 @@ Which session today is follows the same rule as a typed log (``workout_log.targe
 picked today, else the one at the queue's pointer; once a planned session is done or rested
 today, or held for tomorrow (Rest today or Push), there is none. Sets come in work order
 (ADR-0031), with any pair swapped to start with its second exercise.
+
+The exception is a conditioning session with more than its cardio (ADR-0066): once the cardio is
+logged, however it was logged, the rest of that session stays open until the day ends, and its
+sets are added to the day's workout.
 """
 
 import secrets
@@ -17,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, Workout
+from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, SetLog, Workout
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.parser import LIMITS, Entry
@@ -27,7 +31,7 @@ from training_coach.domain.work_order import SetRef, work_order
 from training_coach.services import blocks, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
 from training_coach.services.seed import bundled_plan
-from training_coach.services.today import ItemPlan, position, session_plan
+from training_coach.services.today import ItemPlan, SessionPlan, position, session_plan
 
 WARM_UP_MINUTES = 10
 SET_SECONDS = 45  # a rough working set, for the time estimate only
@@ -55,6 +59,7 @@ class Guided:
     items: tuple[ItemPlan, ...]
     order: tuple[GuidedSet, ...]
     slug: str = ""  # the session template's
+    after_run: bool = False  # what's left of a conditioning session once its cardio is logged
 
 
 def _kinds(items: tuple[ItemPlan, ...]) -> list[Kind | None]:
@@ -102,13 +107,27 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
     """Today's session to guide, or None when there is nothing planned left today. ``first``
     holds the pair numbers to start with their second exercise."""
     template = workout_log.target(session, on, tz)
-    if template is None or held_today(session, on):
+    if template is None:
+        return _after_run(session, on, tz, first)
+    if held_today(session, on):
         return None
     block = blocks.current(session, on, tz)
     plan = session_plan(session, template.id, block)
     assert plan is not None  # noqa: S101 - target() returned this template a moment ago
-    groups = work_order([len(i.targets) for i in plan.items], [i.pair for i in plan.items], first)
-    order = _ordered(plan.items, groups)
+    return _guided(on, plan, plan.items, block, first, after_run=False)
+
+
+def _guided(
+    on: date,
+    plan: SessionPlan,
+    items: tuple[ItemPlan, ...],
+    block: Block | None,
+    first: Collection[int],
+    *,
+    after_run: bool,
+) -> Guided:
+    groups = work_order([len(i.targets) for i in items], [i.pair for i in items], first)
+    order = _ordered(items, groups)
     warm_up = plan.kind == "strength"
     return Guided(
         day=on,
@@ -119,11 +138,58 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
         slug=plan.slug,
         warm_up=warm_up,
         block=block,
-        minutes=_minutes(plan.items, order, warm_up),
+        minutes=_minutes(items, order, warm_up),
         rest_seconds=AFTER_PAIR_SECONDS,
-        items=plan.items,
+        items=items,
         order=order,
+        after_run=after_run,
     )
+
+
+def _run_done(session: Session, on: date) -> Workout | None:
+    """The day's done conditioning session, the workout an after-run block is added to."""
+    return session.scalar(
+        select(Workout)
+        .join(SessionTemplate, Workout.template_id == SessionTemplate.id)
+        .where(
+            Workout.local_date == on,
+            Workout.status == WorkoutStatus.DONE,
+            SessionTemplate.kind == "conditioning",
+        )
+        .order_by(Workout.id.desc())
+        .limit(1)
+    )
+
+
+def _left(
+    session: Session, workout: Workout, items: tuple[ItemPlan, ...]
+) -> tuple[ItemPlan, ...] | None:
+    """The session's items not logged in ``workout`` once its run is: None unless the session
+    has exactly one cardio exercise (as ``cardio.planned`` reads it) and the workout logged it,
+    so a conditioning session without a run, or saved short, offers nothing "after the run"."""
+    cardio = {e.slug for e in bundled_plan().exercises if e.pattern == "cardio"}
+    runs = [i.slug for i in items if i.slug in cardio]
+    logged = set(
+        session.scalars(
+            select(Exercise.slug).join(SetLog).where(SetLog.workout_id == workout.id).distinct()
+        )
+    )
+    if len(runs) != 1 or runs[0] not in logged:
+        return None
+    return tuple(i for i in items if i.slug not in cardio and i.slug not in logged)
+
+
+def _after_run(session: Session, on: date, tz: ZoneInfo, first: Collection[int]) -> Guided | None:
+    """What's left of the day's conditioning session once its cardio is logged (ADR-0066)."""
+    workout = _run_done(session, on)
+    if workout is None or workout.template_id is None:
+        return None
+    block = blocks.current(session, on, tz)
+    plan = session_plan(session, workout.template_id, block)
+    if plan is None:
+        return None
+    items = _left(session, workout, plan.items)
+    return _guided(on, plan, items, block, first, after_run=True) if items else None
 
 
 def held_today(session: Session, on: date) -> bool:
@@ -207,6 +273,7 @@ class Kept:
     sets: tuple[Done, ...]
     saved: bool
     revision: int = 0
+    after_run: bool = False  # kept for the block after a run (ADR-0066)
 
 
 @dataclass(frozen=True)
@@ -229,6 +296,7 @@ def _kept(row: SessionProgress) -> Kept:
         sets=tuple(_done(s) for s in row.sets),
         saved=row.saved_workout_id is not None,
         revision=row.revision,
+        after_run=row.after_run,
     )
 
 
@@ -291,6 +359,18 @@ def keep(
     if problem is not None:
         return problem
     row = _row(session, plan.day)
+    restart = row is not None and (
+        row.after_run != plan.after_run or (plan.after_run and row.saved_workout_id is not None)
+    )
+    if row is not None and restart:
+        # The day's cardio was logged (or that log undone): the run's progress, saved or not,
+        # gives way to the block after it, which starts afresh (ADR-0066). So does a block
+        # saved with some of it left: the rest is offered, and kept afresh.
+        if revision != 0:
+            return STALE
+        session.delete(row)
+        session.flush()
+        row = None
     if row is not None and row.saved_workout_id is not None:
         return "this session is saved already"
     if row is not None and row.template_id != plan.template_id:
@@ -311,6 +391,7 @@ def keep(
                     template_id=plan.template_id,
                     token=secrets.token_hex(16),
                     revision=0,
+                    after_run=plan.after_run,
                 )
                 session.add(row)
             row.revision += 1
@@ -378,6 +459,8 @@ def save(
     row = _row(session, day)
     if row is None or not row.sets:
         return "no sets recorded"
+    if row.after_run:
+        return _save_after_run(session, row, day, today, tz)
     template = session.get_one(SessionTemplate, row.template_id)  # cascades with its progress
     plan = session_plan(session, template.id, blocks.current(session, day, tz))
     assert plan is not None  # noqa: S101 - the template exists
@@ -400,6 +483,43 @@ def save(
         if not result.already_saved:
             _stamp(session, result.workout_id, plan.items, sets)
     return result if result is not None else "no sets recorded"
+
+
+def _save_after_run(
+    session: Session, row: SessionProgress, day: date, today: date, tz: ZoneInfo
+) -> workout_log.Saved | workout_log.Stale | str:
+    """Add the block after a run to the day's workout (ADR-0066): the same session, so nothing
+    clashes and the queue, moved by the cardio's log, doesn't move again. Only on its day."""
+    if row.saved_workout_id is not None:
+        return workout_log.Saved(row.saved_workout_id, already_saved=True)
+    workout = _run_done(session, day)
+    if day != today or workout is None or workout.template_id != row.template_id:
+        return workout_log.Stale()
+    template = session.get_one(SessionTemplate, row.template_id)
+    plan = session_plan(session, template.id, blocks.current(session, day, tz))
+    assert plan is not None  # noqa: S101 - the template exists
+    items = _left(session, workout, plan.items)
+    if items is None:
+        return workout_log.Stale()
+    if not items:  # the block is in the workout already: a repeated save
+        return workout_log.Saved(workout.id, already_saved=True)
+    sets = tuple(_done(s) for s in row.sets)
+    if sets_problem(items, sets) is not None:  # checked again: the plan may have changed
+        return "the plan changed since these sets were recorded"
+    strength = workout_log.strength_on(session, day, tz, template)
+    try:
+        # A racing duplicate save files the same sets again: the sets' uniqueness in a workout
+        # rolls it back here, so the block is never added twice.
+        with session.begin_nested():
+            result = workout_log.add_to(session, workout, entries(items, sets), strength, tz)
+            if isinstance(result, workout_log.Saved):
+                row.saved_workout_id = result.workout_id
+                _stamp(session, result.workout_id, items, sets)
+                session.flush()
+    except IntegrityError:
+        session.expire_all()
+        return workout_log.Saved(workout.id, already_saved=True)
+    return result
 
 
 def pending(session: Session, today: date) -> list[Pending]:

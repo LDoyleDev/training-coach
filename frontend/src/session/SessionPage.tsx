@@ -195,9 +195,12 @@ export default function SessionPage() {
   }
 
   const cardioChange = (change: CardioChange) => {
-    setCardioSaved(change === 'saved')
-    if (change !== 'saved') refreshUndo()
-    if (change === 'undone') load()
+    // The run of a session with more after it: on to the rest of it (ADR-0066).
+    const onward =
+      change === 'saved' && loaded.status === 'ready' && afterRun(loaded.session).length > 0
+    setCardioSaved(change === 'saved' && !onward)
+    if (change !== 'saved' || onward) refreshUndo()
+    if (change === 'undone' || onward) load()
   }
 
   const counted = (text: string) => {
@@ -430,7 +433,14 @@ export default function SessionPage() {
             </p>
           ))}
           {isCardio(session) ? (
-            <Cardio featured onChange={cardioChange} />
+            <>
+              <Cardio featured onChange={cardioChange} />
+              {afterRun(session).length > 0 && (
+                <p className={card}>
+                  After your run: {afterRun(session).join(', ')}. Log the run, then this opens.
+                </p>
+              )}
+            </>
           ) : (
             <Overview
               session={session}
@@ -700,9 +710,18 @@ function took(timing: Timing): string {
   return `Took ${timing.minutes} min: ${timing.on_sets} on sets, ${timing.resting} resting${breaks}.`
 }
 
-/** Today's session is a single cardio exercise: logged in one step, not set by set. */
+/** Today's session is a single cardio exercise, or a conditioning session's cardio with more
+ * after it: the cardio is logged in one step, not set by set (ADR-0066). */
 function isCardio(session: Guided): boolean {
-  return session.items.length === 1 && CARDIO.includes(session.items[0].slug)
+  if (session.items.length === 1) return CARDIO.includes(session.items[0].slug)
+  const runs = session.items.filter((item) => CARDIO.includes(item.slug))
+  return session.kind === 'conditioning' && !session.after_run && runs.length === 1
+}
+
+/** What a conditioning session has after its cardio, by name, until the cardio is logged. */
+function afterRun(session: Guided): string[] {
+  if (session.after_run || !isCardio(session)) return []
+  return session.items.filter((item) => !CARDIO.includes(item.slug)).map((item) => item.name)
 }
 
 function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
@@ -774,6 +793,9 @@ function Overview({
         {session.name}
       </h1>
       <p className="text-[var(--slate)]">{session.focus}</p>
+      {session.after_run && (
+        <p className={card}>After your run: it's logged, and these sets are saved with it.</p>
+      )}
       {session.warm_up && <p className={card}>Warm up for about 10 minutes first.</p>}
       <p className="text-[var(--slate)]">
         Stop if you feel sharp pain, dizziness or chest tightness.

@@ -1943,6 +1943,11 @@ export interface components {
         };
         /** GuidedView */
         GuidedView: {
+            /**
+             * After Run
+             * @default false
+             */
+            after_run: boolean;
             block: components["schemas"]["BlockView"] | null;
             /** Day */
             day: string;

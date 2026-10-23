@@ -13,6 +13,7 @@ const SESSION: Guided = {
   block: null,
   minutes: 45,
   rest_seconds: 60,
+  after_run: false,
   items: [
     {
       slug: 'jump-squat',
@@ -648,6 +649,54 @@ test('a cardio day is logged in one step, not started set by set', async () => {
   // The cardio options failed to load here, so the card offers both ways in.
   expect(await screen.findByRole('heading', { name: 'Cardio or HIIT' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Start session' })).not.toBeInTheDocument()
+})
+
+const CARDIO_CORE: Guided = {
+  ...SESSION,
+  name: 'Cardio + core',
+  kind: 'conditioning',
+  warm_up: false,
+  items: [
+    {
+      ...SESSION.items[0],
+      slug: 'moderate-cardio',
+      name: 'Moderate cardio',
+      unit: 'minutes',
+      pair: null,
+    },
+    { ...SESSION.items[0], slug: 'ab-rollout', name: 'Ab rollout', pair: 1 },
+    { ...SESSION.items[1], slug: 'copenhagen-plank', name: 'Copenhagen plank', pair: 1 },
+  ],
+  order: [{ item: 0, set_no: 1, target: 35, rest_seconds: 0, switch: false }],
+}
+
+test('a cardio day with a block after the run logs the run first (ADR-0066)', async () => {
+  serve({ today: { session: CARDIO_CORE, progress: null } })
+  render(<SessionPage />)
+  expect(await screen.findByRole('heading', { name: 'Cardio or HIIT' })).toBeInTheDocument()
+  expect(
+    screen.getByText('After your run: Ab rollout, Copenhagen plank. Log the run, then this opens.'),
+  ).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Start session' })).not.toBeInTheDocument()
+})
+
+test('once the run is logged, the rest of the session is guided after it', async () => {
+  const after: Guided = {
+    ...CARDIO_CORE,
+    after_run: true,
+    items: CARDIO_CORE.items.slice(1),
+    order: [
+      { item: 0, set_no: 1, target: 8, rest_seconds: 15, switch: true },
+      { item: 1, set_no: 1, target: 6, rest_seconds: 0, switch: false },
+    ],
+  }
+  serve({ today: { session: after, progress: null } })
+  render(<SessionPage />)
+  expect(await screen.findByRole('button', { name: 'Start session' })).toBeInTheDocument()
+  expect(
+    screen.getByText("After your run: it's logged, and these sets are saved with it."),
+  ).toBeInTheDocument()
+  expect(screen.queryByText(/Log the run, then this opens/)).not.toBeInTheDocument()
 })
 
 test('cardio and HIIT stay on offer under any session, and once the day is done', async () => {
