@@ -360,9 +360,9 @@ muscles, so the choices rest on EMG, strength trials and estimates. To decide:
    plank and back extension + side plank hip dip after the moderate cardio. Four new exercises,
    household kit (an ab wheel optional). Abs, obliques, lower back and adductors go green on two
    days, the rectus femoris is reached, hard sets 93 → 106, about 16-22 minutes a week more.
-3. **"After your run" in the app:** a conditioning session keeps its other items open that day
-   once the cardio is logged (from the band, Telegram or the web), so the block is guided and
-   its ladders move. Needed before decision 2 can go on the cardio day.
+3. **"After your run" in the app** (done, ADR-0066): a conditioning session keeps its other
+   items open that day once the cardio is logged (from the band, Telegram or the web), so the
+   block is guided, saved with the day's workout and its ladders move.
 4. **Upper traps stay grey** at home: no study shows shrugs grow them; a gym version can add
    farmer carries.
 
