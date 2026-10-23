@@ -2222,15 +2222,25 @@ export interface components {
         /** LogBody */
         LogBody: {
             activity?: components["schemas"]["CardioActivity"] | null;
+            /** Avg Hr */
+            avg_hr?: number | null;
+            /** Distance Km */
+            distance_km?: number | null;
+            /** Effort */
+            effort?: number | null;
             /**
              * Kind
              * @enum {string}
              */
             kind: "zone2" | "moderate-cardio" | "hiit";
+            /** Max Hr */
+            max_hr?: number | null;
             /** Resolution */
             resolution?: string | null;
             /** Seen */
             seen?: number[];
+            /** Start */
+            start?: string | null;
             /** Token */
             token: string;
             /** Value */
@@ -2316,6 +2326,8 @@ export interface components {
             already_saved: boolean;
             /** Next Session */
             next_session: string | null;
+            /** Pace */
+            pace?: number | null;
             /** Planned */
             planned: boolean;
             week: components["schemas"]["WeekView"];

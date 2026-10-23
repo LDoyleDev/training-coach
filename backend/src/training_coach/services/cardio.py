@@ -7,11 +7,12 @@ extra. The caller owns the transaction.
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
+from training_coach.domain.cardio import NO_DETAILS, Details, details_problem
 from training_coach.domain.enums import CardioActivity, Side
 from training_coach.domain.parser import Entry
 from training_coach.services import guided, review, workout_log
@@ -71,7 +72,7 @@ def week(session: Session, on: date) -> Week:
     )
 
 
-def problem(kind: str, value: int) -> str | None:
+def problem(kind: str, value: int, details: Details = NO_DETAILS) -> str | None:
     """Why a log can't be saved, or None."""
     if kind not in KINDS:
         return "unknown kind of cardio"
@@ -79,7 +80,17 @@ def problem(kind: str, value: int) -> str | None:
     if not 1 <= value <= top:
         unit = "rounds" if kind == HIIT else "minutes"
         return f"{unit} must be between 1 and {top}"
-    return None
+    return details_problem(details, rounds=kind == HIIT)
+
+
+def started(on: date, clock: time, tz: ZoneInfo, now: datetime) -> datetime:
+    """When a log made on ``on`` started, from the local clock time typed, in UTC: the last
+    time the clock read that, so a run started at 23:40 and logged at 00:15 started yesterday
+    (review of #295). Only the time of day is sent, so a start is never in the future."""
+    at = datetime.combine(on, clock, tzinfo=tz).astimezone(UTC)
+    if at > now:
+        at = datetime.combine(on - timedelta(days=1), clock, tzinfo=tz).astimezone(UTC)
+    return at
 
 
 def log(
@@ -93,6 +104,7 @@ def log(
     *,
     extra: bool = False,
     answer: Resolution | None = None,
+    details: Details = NO_DETAILS,
 ) -> Logged | workout_log.Stale | Clash | Refused:
     """Save one cardio log for ``on``. The caller checks ``problem`` first. ``extra`` files it
     as an extra whatever is planned (a band workout from an earlier day, ADR-0055). Today's
@@ -110,6 +122,7 @@ def log(
         strength=workout_log.strength_on(session, on, tz, template),
         extra=not is_planned,
         activity=activity.value if activity is not None else None,
+        cardio=details,
     )
     result = workout_log.save(session, draft, tz, answer)
     if result is None or isinstance(result, workout_log.Stale):
