@@ -106,6 +106,7 @@ frontend/    dashboard                                            (see frontend/
 docs/adr/    decisions (NNNN-title.md)       docs/specs/     product + phase specs
 docs/security/  threat model                 docs/runbooks/  deploy, backup/restore, secrets
 docs/legal/  privacy notice, Impressum (drafts, unpublished)
+docs/sessions/  a wrap log per release: shipped, decision pointers, open items
 scripts/     repo and ops scripts            .claude/        commands, subagents, hooks
 ```
 
@@ -123,6 +124,8 @@ cause is gone.
   `make check` fails with "API types are stale".
 - Tests import builders as `from tests import factories`; the migrated-DB fixtures `engine`
   and `session` live in `tests/conftest.py`. Don't recreate them per file.
+- Fixing live data on the Pi: services such as `workout_log.save` commit inside, so a script that
+  ends in `rollback()` is not a dry run. Dry-run against a copy of the backup, not the live file.
 - Develop in WSL 2, not natively on Windows (ADR-0018, `docs/runbooks/dev-environment-windows.md`).
   Natively, AVG's HTTPS scanning breaks TLS: use `git config http.sslBackend schannel` and
   `uv ... --system-certs`; there is no `make`.
