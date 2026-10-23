@@ -68,7 +68,7 @@ test('totals first, then progress and the week, then the button to today', async
   )
   const main = screen.getByRole('main')
   expect(main.querySelector('a[href="/progress"]')).toHaveTextContent('Progress')
-  expect(main.querySelector('a[href="/progress?tab=plan"]')).toHaveTextContent('Plan')
+  expect(main.querySelector('a[href="/plan"]')).toHaveTextContent('Plan')
 })
 
 test('before the first session, and with nothing left today', async () => {

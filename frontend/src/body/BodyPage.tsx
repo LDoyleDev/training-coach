@@ -7,7 +7,7 @@ import {
   type MeasureKind,
   type Measurement,
 } from '../api'
-import AppShell from '../components/AppShell'
+import { Frame } from '../components/AppShell'
 import SignedOutNotice from '../components/SignedOutNotice'
 import { byDay, change, format, isoDay, latest, parse } from './logic'
 import Photos from './Photos'
@@ -23,7 +23,7 @@ type Loaded =
   | { status: 'ready'; kinds: MeasureKind[]; entries: Measurement[] }
 
 /** /body: measurements (2-B, #142). Personal: never in a share view. */
-export default function BodyPage() {
+export default function BodyPage({ embedded = false }: { embedded?: boolean }) {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
   const [typed, setTyped] = useState<Record<string, string>>({})
   const [day, setDay] = useState(() => isoDay(new Date()))
@@ -42,7 +42,8 @@ export default function BodyPage() {
     void load()
   }, [])
 
-  if (loaded.status !== 'ready') return <AppShell>{<Status loaded={loaded} />}</AppShell>
+  if (loaded.status !== 'ready')
+    return <Frame embedded={embedded}>{<Status loaded={loaded} />}</Frame>
   const { kinds, entries } = loaded
   const kindOf = (name: string) => kinds.find((k) => k.kind === name)
 
@@ -81,8 +82,8 @@ export default function BodyPage() {
   }
 
   return (
-    <AppShell>
-      <h1 className="text-3xl font-extrabold">Body</h1>
+    <Frame embedded={embedded}>
+      {!embedded && <h1 className="text-3xl font-extrabold">Body</h1>}
       <Toast text={note} onClose={() => setNote(null)} />
       {signedOut && <SignedOutNotice />}
 
@@ -182,7 +183,7 @@ export default function BodyPage() {
           ))}
         </section>
       )}
-    </AppShell>
+    </Frame>
   )
 }
 
