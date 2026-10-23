@@ -83,6 +83,33 @@ def test_counting_on_a_zone2_day_completes_it_once(signed_in: TestClient, engine
     assert signed_in.get(PATH).json() == []
 
 
+def test_a_counted_walk_keeps_the_band_heart_rate_and_start(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    walk = _band(engine)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        row = mine.get_one(ImportedWorkout, walk)
+        row.avg_hr, row.max_hr = 112, 131
+        start = row.start_at
+    signed_in.post(f"{PATH}/{walk}/count")
+    with make_session_factory(engine, user_id=OWNER)() as mine:
+        workout = mine.scalars(select(Workout)).one()
+        assert (workout.avg_hr, workout.max_hr, workout.started_at) == (112, 131, start)
+        assert workout.effort is None  # the band doesn't know how it felt
+
+
+def test_an_odd_band_heart_rate_is_left_out(signed_in: TestClient, engine: Engine) -> None:
+    walk = _band(engine)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        row = mine.get_one(ImportedWorkout, walk)
+        row.avg_hr, row.max_hr = 140, 120  # highest below the average: a bad reading
+    assert signed_in.post(f"{PATH}/{walk}/count").status_code == 200
+    with make_session_factory(engine, user_id=OWNER)() as mine:
+        workout = mine.scalars(select(Workout)).one()
+        assert (workout.avg_hr, workout.max_hr) == (None, None)
+        assert workout.started_at is not None
+
+
 def test_counting_on_a_strength_day_is_an_extra(signed_in: TestClient, engine: Engine) -> None:
     body = signed_in.post(f"{PATH}/{_band(engine)}/count").json()
     assert body["planned"] is False

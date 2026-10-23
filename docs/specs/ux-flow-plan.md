@@ -65,6 +65,9 @@ model. Options, not exclusive:
 | A3 **Timer** | A running clock; for HIIT a 20 s / 10 s interval timer that counts rounds | Useful for HIIT indoors | Pointless for an outdoor walk: the band times it |
 | A4 **Import from the band** (Health Connect, already proposed) | The minutes arrive by themselves; you confirm | No typing; real heart-rate zones | Bigger job; needs the bridge app |
 
+Since ADR-0067, A1 also asks how hard it felt (1-10) and takes optional distance, heart rate
+and start time from a watch or app; pace is shown, not stored.
+
 **Recommendation:** A1 + A2 for zone 2 and moderate cardio, an A3 interval timer for HIIT
 only, and A4 later as the default with A1 as the fallback. After saving a cardio day, show
 "This week: 95 of 180-200 zone-2 min".

@@ -26,7 +26,7 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.domain.blocks import BlockKind
-from training_coach.domain.cardio import TIMED, activity_in
+from training_coach.domain.cardio import NO_DETAILS, TIMED, Details, activity_in
 from training_coach.domain.dates import DateLine, date_line
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.parser import Entry, Known, ParseResult, normalise_name, parse_log
@@ -69,6 +69,7 @@ class Draft:
     # today's session is a different one): never completes it, never moves the queue.
     extra: bool = False
     activity: str | None = None  # CardioActivity, for a cardio log
+    cardio: Details = NO_DETAILS  # effort, distance, heart rate, start (ADR-0067)
     # Today's log of a session named on purpose ("today Arms", or picked on the web), whatever
     # the queue offers (ADR-0060): done out of turn, it leaves the queue where it is (ADR-0016).
     chosen: bool = False
@@ -487,6 +488,7 @@ def save(
         status=WorkoutStatus.DONE,  # only done workouts carry sets (rest/skip have none)
         log_token=confirmed.token,
         activity=confirmed.activity,
+        **_details(confirmed.cardio),
     )
     _file(session, workout, confirmed, exercises, strength, tz)
 
@@ -561,6 +563,7 @@ def _save_past(
         status=WorkoutStatus.REST if confirmed.rest else WorkoutStatus.DONE,
         log_token=confirmed.token,
         activity=confirmed.activity,
+        **_details(confirmed.cardio),
     )
     _file(session, workout, confirmed, exercises, strength, tz)
 
@@ -569,6 +572,17 @@ def _save_past(
         return caught_up(_order(session), template.id) if template and later is None else None
 
     return _commit(session, workout, confirmed, rule, answer, tz)
+
+
+def _details(details: Details) -> dict[str, object]:
+    """A cardio log's details as workout columns (ADR-0067)."""
+    return {
+        "effort": details.effort,
+        "distance_m": details.distance_m,
+        "avg_hr": details.avg_hr,
+        "max_hr": details.max_hr,
+        "started_at": details.started_at,
+    }
 
 
 def strength_on(session: Session, on: date, tz: ZoneInfo, template: SessionTemplate | None) -> bool:

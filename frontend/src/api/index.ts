@@ -341,9 +341,18 @@ export async function logCardio(body: CardioLog): Promise<CardioLogged | 'stale'
     }),
   )
   if (res.status === 409) return 'stale'
+  if (res.status === 422) {
+    const found = (await res.json().catch(() => null)) as { detail?: unknown } | null
+    throw new RefusedError(
+      typeof found?.detail === 'string' ? found.detail : 'a value is out of range',
+    )
+  }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as CardioLogged
 }
+
+/** The server checked a log and said why it can't be saved (ADR-0067). */
+export class RefusedError extends Error {}
 
 export type BandOffer = Schemas['BandOfferView']
 export type BandCounted = Schemas['BandCounted']

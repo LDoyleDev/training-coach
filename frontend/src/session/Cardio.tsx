@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import {
   fetchCardio,
   logCardio,
+  RefusedError,
   SignedOutError,
   type CardioActivity,
   type CardioKind,
+  type CardioLog,
   type CardioLogged,
   type CardioOptions,
 } from '../api'
@@ -31,6 +33,35 @@ const ACTIVITY: Record<CardioActivity, string> = {
 }
 
 type Mode = 'menu' | 'log' | 'hiit' | 'rounds' | 'saved'
+
+/** What a log can carry besides its minutes (ADR-0067), each only when given. */
+type Details = Pick<CardioLog, 'effort' | 'distance_km' | 'avg_hr' | 'max_hr' | 'start'>
+
+/** Seconds per km as "5:54". */
+function paceText(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
+/** A typed number, or null when the box is empty or not a number. */
+const typed = (text: string): number | null => {
+  const n = Number(text.replace(',', '.'))
+  return text.trim() === '' || !Number.isFinite(n) ? null : n
+}
+
+/** The saved log in words: "effort 6/10 · 7.29 km · 5:54 /km · HR 139 avg, 160 max". */
+function detailsText(details: Details, pace: number | null | undefined): string {
+  const parts = [
+    details.effort ? `effort ${details.effort}/10` : null,
+    details.distance_km ? `${details.distance_km} km` : null,
+    pace ? `${paceText(pace)} /km` : null,
+    details.avg_hr || details.max_hr
+      ? `HR ${[details.avg_hr && `${details.avg_hr} avg`, details.max_hr && `${details.max_hr} max`]
+          .filter(Boolean)
+          .join(', ')}`
+      : null,
+  ]
+  return parts.filter(Boolean).join(' · ')
+}
 
 /** A fresh token per log: saving the same one twice saves once. */
 function newToken(): string {
@@ -65,6 +96,12 @@ export default function Cardio({
   const [kind, setKind] = useState<CardioKind>('zone2')
   const [activity, setActivity] = useState<CardioActivity | null>(null)
   const [value, setValue] = useState(30)
+  const [effort, setEffort] = useState<number | null>(null)
+  const [distance, setDistance] = useState('')
+  const [avgHr, setAvgHr] = useState('')
+  const [maxHr, setMaxHr] = useState('')
+  const [start, setStart] = useState('')
+  const [saved, setSaved] = useState<Details>({})
   // The token and the log it was first sent with: only that same log, retried, reuses it.
   const sent = useRef<{ token: string; log: string } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -91,6 +128,11 @@ export default function Cardio({
     setKind(nextKind)
     setValue(nextValue)
     setActivity(null)
+    setEffort(null)
+    setDistance('')
+    setAvgHr('')
+    setMaxHr('')
+    setStart('')
     setMode(next)
   }
   const logForm = () =>
@@ -104,9 +146,10 @@ export default function Cardio({
     saveKind: CardioKind,
     saveValue: number,
     saveActivity: CardioActivity | null,
+    details: Details = {},
   ) => {
     if (busy) return
-    const log = JSON.stringify([saveKind, saveValue, saveActivity])
+    const log = JSON.stringify([saveKind, saveValue, saveActivity, details])
     if (sent.current?.log !== log) sent.current = { token: newToken(), log }
     const token = sent.current.token
     setNote(null)
@@ -118,6 +161,7 @@ export default function Cardio({
         kind: saveKind,
         value: saveValue,
         activity: saveActivity,
+        ...details,
       })
       if (result === 'stale') {
         setNote("Today's session changed (a rest, swap or another log), so this wasn't saved.")
@@ -127,11 +171,13 @@ export default function Cardio({
       setKind(saveKind)
       setValue(saveValue)
       setActivity(saveActivity)
+      setSaved(details)
       setLogged(result)
       setMode('saved')
       onChange?.('saved')
     } catch (error) {
       if (error instanceof SignedOutError) setSignedOut(true)
+      else if (error instanceof RefusedError) setNote(`Not saved: ${error.message}.`)
       else setNote("Couldn't save. Check your connection and try again.")
     } finally {
       setBusy(false)
@@ -222,13 +268,62 @@ export default function Cardio({
           </div>
         </fieldset>
         <Amount label="Minutes" value={value} steps={[5, 1]} max={600} onChange={setValue} />
+        <fieldset className="flex flex-col gap-2 border-0 p-0">
+          <legend className="mb-2 font-bold">How it felt, 1 (very easy) to 10 (all out)</legend>
+          <div className="grid grid-cols-5 gap-2">
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <button
+                key={n}
+                type="button"
+                aria-pressed={effort === n}
+                aria-label={`Effort ${n}`}
+                className={chip(effort === n)}
+                onClick={() => setEffort(n)}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <details className="flex flex-col gap-2">
+          <summary className="min-h-11 cursor-pointer font-bold">
+            More from your watch or app (optional)
+          </summary>
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <Detail label="Distance (km)" value={distance} decimal onChange={setDistance} />
+            <label className="flex flex-col gap-1 font-bold">
+              Started at
+              <input
+                type="time"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                className="min-h-11 text-lg"
+              />
+            </label>
+            <Detail label="Average heart rate" value={avgHr} onChange={setAvgHr} />
+            <Detail label="Highest heart rate" value={maxHr} onChange={setMaxHr} />
+          </div>
+          {typed(distance) && value > 0 ? (
+            <p className="m-0 mt-2" role="status">
+              Pace {paceText(Math.round((value * 60) / (typed(distance) ?? 1)))} /km
+            </p>
+          ) : null}
+        </details>
         <button
           type="button"
           className={primary}
-          disabled={busy || value < 1}
-          onClick={() => save(kind, value, activity)}
+          disabled={busy || value < 1 || effort === null}
+          onClick={() =>
+            save(kind, value, activity, {
+              effort,
+              distance_km: typed(distance),
+              avg_hr: typed(avgHr),
+              max_hr: typed(maxHr),
+              start: start || null,
+            })
+          }
         >
-          Save {value} min
+          {effort === null ? 'Pick how it felt to save' : `Save ${value} min`}
         </button>
         <button type="button" className={secondary} onClick={() => setMode('menu')}>
           Cancel
@@ -249,6 +344,9 @@ export default function Cardio({
             : `${value} min${activity ? ` ${ACTIVITY[activity].toLowerCase()}` : ''}, ${kind === 'zone2' ? 'zone 2' : 'moderate'}`}
           {logged.already_saved ? ' (already saved)' : ''}.
         </p>
+        {detailsText(saved, logged.pace) && (
+          <p className="m-0 text-[var(--slate)]">{detailsText(saved, logged.pace)}</p>
+        )}
         <WeekBar week={logged.week} />
         {logged.planned && logged.next_session && (
           <p className="m-0">Next up: {logged.next_session}.</p>
@@ -413,6 +511,32 @@ function Amount({
         ))}
       </div>
     </div>
+  )
+}
+
+/** One optional number from a watch or app; empty means not given. */
+function Detail({
+  label,
+  value,
+  decimal = false,
+  onChange,
+}: {
+  label: string
+  value: string
+  decimal?: boolean
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="flex flex-col gap-1 font-bold">
+      {label}
+      <input
+        type="text"
+        inputMode={decimal ? 'decimal' : 'numeric'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-h-11 text-lg"
+      />
+    </label>
   )
 }
 
