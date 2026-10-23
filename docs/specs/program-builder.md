@@ -347,6 +347,25 @@ between its own sets. To decide:
 6. **Kit order** for the equipment step: 16 kg kettlebell, then a weighted vest; each saves
    4-7 minutes a week, far less than the rest change.
 
+### K. Core and hips: the muscles the plan misses (to decide)
+
+The evidence, the block and its coverage are in the research file (Core and hips). The plan from
+24 Oct 2026 leaves abs, obliques, lower back, hip flexors and adductors amber or grey, the
+rectus femoris unreached and the upper traps grey. No growth trial exists for the trunk
+muscles, so the choices rest on EMG, strength trials and estimates. To decide:
+
+1. **Own bands for the trunk and hips** (low evidence): abs 6-12, obliques 4-10, lower back
+   4-10, hip flexors 3-8, adductors 4-10, in place of the general 10-20.
+2. **The block:** reverse Nordic + side plank hip dip on Recovery; ab rollout + Copenhagen
+   plank and back extension + side plank hip dip after the moderate cardio. Four new exercises,
+   household kit (an ab wheel optional). Abs, obliques, lower back and adductors go green on two
+   days, the rectus femoris is reached, hard sets 93 → 106, about 16-22 minutes a week more.
+3. **"After your run" in the app:** a conditioning session keeps its other items open that day
+   once the cardio is logged (from the band, Telegram or the web), so the block is guided and
+   its ladders move. Needed before decision 2 can go on the cardio day.
+4. **Upper traps stay grey** at home: no study shows shrugs grow them; a gym version can add
+   farmer carries.
+
 ## API, in outline
 
 - `GET /api/catalogue`: exercises with muscles, pattern, steps, needs, pose ids.

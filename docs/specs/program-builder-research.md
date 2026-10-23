@@ -3,8 +3,8 @@
 Status: **research, 2026-10-21**, for [program-builder.md](program-builder.md), which holds the
 decisions. This file holds the evidence: how much each exercise counts for each muscle, where
 isolation work is needed, the overload caps, how the plan compares with Huberman's protocol,
-how long sessions take (time efficiency, 2026-10-23), and the coverage of the current plan and
-the starters. Each source under Sources says how far it
+how long sessions take (time efficiency, 2026-10-23), the trunk and hip muscles the plan misses
+(core and hips, 2026-10-23), and the coverage of the current plan and the starters. Each source under Sources says how far it
 was read: the full paper, the abstract, or someone else's summary of it.
 
 ## Counting: the weight of a set for each muscle
@@ -284,6 +284,88 @@ the rest after it, straight-set rest by exercise type. Pairs that can take a thi
 estimate (`_minutes` in `services/guided.py`) using the same rules. Later, a drop-set or
 rest-pause set type for isolation exercises.
 
+## Core and hips: the muscles the plan misses (2026-10-23)
+
+The plan from 24 Oct 2026 has all ten main muscles green but leaves the trunk and hips short:
+abs 3 sets a week (one day), obliques 0, lower back 3.5 (one day), hip flexors 3, adductors
+4.5 (one day), no exercise reaching the rectus femoris, and upper traps 0.
+
+**What the studies show.** Much less than for the limb muscles: no growth trial of crunches,
+rollouts, side planks or back extensions in healthy trained adults turned up, and no
+dose-response data for any trunk muscle. What there is:
+
+| Question | Finding | Read |
+| --- | --- | --- |
+| Do compounds train the core? | They work it hard but nobody has measured growth. 67 EMG studies: free-weight lifts gave the highest rectus abdominis, external oblique and erector activity (deadlift erectors about 90% of a maximal contraction, back extension about 63%); a plank with the pelvis tucked gave the highest internal oblique (about 120%), and a suspended rollout about 145% for the upper abs (Oliva-Lozano & Muyor 2020). Free weights beat ball exercises for the multifidus (Martuscello 2013). No longitudinal study of squats or deadlifts and ab growth exists (Contreras, as summarised) | full (first half); abstract; summary |
+| Abs: which exercise? | Crunches shortened and thickened the rectus abdominis most in one session, 36% more than leg raises (2023, 15 people, ultrasound). One comparison of 16 exercises found none beat the crunch for the abs; rollout-type exercises rank high in others. Activation only | abstract; abstracts |
+| Lower back | Isolated lumbar extension plus motor control grew the erectors and multifidus more than general exercise over 12 weeks, in 50 people with chronic low back pain (Fortin 2023). Lumbar extension strength rose as much training once a week as two or three times, over 12 weeks in 114 adults; every two weeks still gave 26% against 40% (Graves 1990) | full (results, partly); summary |
+| Adductors | The Copenhagen adduction exercise raised eccentric adduction strength 35.7% in 8 weeks (24 footballers; Ishøi 2016); twice a week for 6 weeks at a low dose didn't (39 footballers; Dawkins 2021). Adductor longus thickness rose in both groups alike over 8 weeks, so no size benefit was shown (12 players; Alonso-Calvete 2021). Deep squats grew the adductors 6.2% (Kubo 2019) | abstract; abstract; full; abstract |
+| Rectus femoris | Leg extension with the hip at 40° grew it more than at 90°, with the vastus lateralis the same (22 men, 10 weeks, preprint): it grows best lengthened, hip extended and knee bent. The reverse Nordic loads it that way and lengthened its fascicles (Alonso-Fernández 2019) | abstract; as cited |
+| Hip flexors | Band hip-flexor training raised isometric hip-flexion strength 17% in 6 weeks (33 adults; Thorborg 2016). No growth trial | abstract |
+| Upper traps | A 12-week full-body programme that included shrugs, deadlifts and rows didn't grow the upper traps, while adding neck training grew the neck (Conley 1997); no shrug growth trial found | as cited |
+| Carries | A suitcase carry (about 25 kg) raised multifidus and back activity on both sides, and the abs and external oblique on the loaded side, more than holding the weight (2024) | abstract |
+| After a run? | 43 studies: concurrent training didn't reduce growth (SMD −0.01) or maximal strength (−0.06); explosive strength gained less, more so in the same session (Schumann 2022) | abstract |
+
+**What follows.**
+
+- **Weights.** Compounds keep counting 0 for the abs and obliques and 0.25 for the lower back
+  from hinges: high EMG with no growth data is not a set. New exercises: ab rollout abs 1,
+  obliques 0.25; Copenhagen plank adductors 1, obliques 0.5; side plank hip dip obliques 1,
+  abs 0.25; reverse Nordic quads 1, reaching the rectus femoris. All estimates (E).
+- **Bands.** The general 10-20 band comes from limb-muscle growth studies. For the trunk and
+  hips, which work in every compound and where strength and robustness matter more than size,
+  an own band is the honest choice, marked low evidence: abs 6-12, obliques 4-10, lower back
+  4-10 (once a week is enough for strength: Graves 1990), hip flexors 3-8, adductors 4-10.
+  These are estimates, not findings. Like the other own bands, one day a week counts as covered;
+  the proposal gives abs, obliques, lower back and adductors two anyway.
+- **Upper traps:** no direct work. No study shows shrugs grow them, and the neck work already
+  trains the neck. They stay grey; a gym version can add farmer carries.
+- **Hip flexors:** the hanging raise already moves from knee raises to straight-leg raises and
+  toes to bar, and running and sprints use them. Nothing added.
+- **Carries:** not at home; with 8 kg a suitcase carry is far lighter than the studied 25 kg,
+  and it adds grip and spine load.
+- **Order:** core after the run, not before: no growth cost, and the trunk isn't tired for the
+  run (estimate).
+
+**Proposal: a core and hips block on two days**, household kit only (an ab wheel is an optional
+step, low cost):
+
+| Day | Pair | Sets × reps |
+| --- | --- | --- |
+| Recovery + posture, after pair 3 | Reverse Nordic + side plank hip dip | 2 × 5-10 + 2 × 10-15 per side |
+| Moderate cardio, after the run | Ab rollout + Copenhagen plank | 3 × 8-12 + 2 × 6-12 per side |
+| | Back extension + side plank hip dip | 2 × 10-15 + 2 × 10-15 per side |
+
+Ladders: ab rollout (kneeling, towel on a smooth floor, short range → full range → kneeling ab
+wheel → standing negatives); Copenhagen plank (knee on a chair, 3 s down → ankle on a chair →
+ankle on a chair, 3 s lowering); side plank hip dip (on the knees → straight legs → top leg
+raised → holding 8 kg on the hip); reverse Nordic (lean to about 30° → deeper, 3 s lowering →
+to the floor, hands push back → no hands). The back extension and hanging raise keep their
+ladders. Every pair has at most one spine-loading exercise and none grips.
+
+**Coverage, before → after** (plan from 24 Oct 2026, the app's coverage logic, own bands as
+above): abs 3 → 7 (2 days), obliques 0 → 5.75 (2 days), lower back 3.5 → 5.5 (2 days),
+adductors 4.5 → 6.5 (2 days), hip flexors 3 (1 day, green on its own band), quads 10.5 → 12.5
+with the rectus femoris reached, upper traps 0. All ten main muscles stay green; no session,
+back-to-back, spine (at most 6 a session) or grip (at most 5) warning. On the general band the
+trunk muscles would show light green, and green would need about 20 more sets: roughly 25
+more minutes a week. Hard sets: 93 → 106.
+
+**Time.** By the app's estimator (45 s a set, each side counted, the rest rules of ADR-0065):
+Recovery 32 → 39 minutes, and 15 minutes after the moderate cardio (30 → 46 with the run). The
+estimator is high for these short sets: at about 25-35 s a set the block is about 4 and 11
+minutes. Added: 22 minutes a week by the estimator, about 16 by the shorter sets.
+
+**What the app needs.** Strength items on a conditioning day are already possible in the seed
+and the guided session (the time estimate counts them). The gap is counting: once a planned
+session's workout is logged, later logs that day are extras (`workout_log.target`), so counting
+the run from the band, or logging it in Telegram, closes the session and the block isn't
+guided or counted for its ladders. The smallest change: a conditioning session keeps its other
+items open for the rest of that day after the cardio is logged, and the guided session offers
+them as "after your run", saved with that day's workout. Without that change the block would go
+on a strength day (Arms + legs would reach about 68 minutes) or wholly on Recovery (about 54
+minutes for the optional day): neither keeps sessions near an hour.
+
 ## Coverage
 
 Fractional sets a week; "Days" counts days with at least 2 sets for that muscle; "Most" is the
@@ -460,6 +542,42 @@ Time efficiency (2026-10-23):
 - Fisher et al. 2014, pre-exhaustion and exercise order, 12 weeks. **Abstract.**
   https://pubmed.ncbi.nlm.nih.gov/25092528/ Trindade et al. 2022, pre-exhaustion review.
   **Abstract.** https://pmc.ncbi.nlm.nih.gov/articles/PMC9022698
+
+Core and hips (2026-10-23):
+
+- Oliva-Lozano & Muyor 2020, *Int J Environ Res Public Health* 17:4306, core muscle EMG during
+  fitness exercises, 67 studies. **Full** (first half, with the results by muscle).
+  https://pmc.ncbi.nlm.nih.gov/articles/PMC7345922/
+- Martuscello et al. 2013, *J Strength Cond Res* 27:1684-1698, core EMG, 17 studies.
+  **Abstract.** https://paulogentil.com/pdf/Systematic%20Review%20of%20Core%20Muscle%20Activity%20During%20Physical%20Fitness%20Exercises.pdf
+- Contreras, on the lack of trials of squats and deadlifts for ab growth. **Summary.**
+  https://bretcontreras.com/?p=16968
+- Rectus abdominis segments by ultrasound, crunch vs leg raise vs sit-up, one session, 2023.
+  **Abstract.** https://pmc.ncbi.nlm.nih.gov/articles/PMC10824285/ Sixteen exercises vs the
+  crunch, ACE-funded EMG study. **Abstract.** https://www.acefitness.org/getfit/studies/BestWorstAbExercises.pdf
+- Fortin et al. 2023, *J Clin Med* 12:5920, lumbar extension plus motor control vs general
+  exercise, paraspinal MRI, chronic low back pain. **Full** (results, partly).
+  https://pmc.ncbi.nlm.nih.gov/articles/PMC10532355/
+- Graves et al. 1990, *Spine*, frequency of lumbar extension training. **Summary.**
+  https://www.painscience.com/biblio/training-only-once-per-week-will-increase-lumbar-extension-strength.html
+- Ishøi et al. 2016, *Scand J Med Sci Sports*, Copenhagen adduction, 8 weeks. **Abstract.**
+  https://www.ucviden.dk/en/publications/large-eccentric-strength-increase-using-the-copenhagen-adduction-/
+  Dawkins et al. 2021, *Transl Sports Med*, low-dose Copenhagen. **Abstract.**
+  https://researchportal.bath.ac.uk/en/publications/effects-of-a-lowdose-copenhagen-adduction-exercise-intervention-o/
+- Alonso-Calvete et al. 2021, *Int J Environ Res Public Health*, Copenhagen adduction and adductor
+  architecture, RCT. **Full.** https://pmc.ncbi.nlm.nih.gov/articles/PMC8701296
+- Leg extension at 40° vs 90° of hip flexion, 10 weeks, SportRxiv preprint 407. **Abstract.**
+  https://doi.org/10.51224/SRXIV.407
+- Alonso-Fernández et al. 2019, *J Sports Med Phys Fitness* 59:640-647, reverse Nordic and rectus
+  femoris architecture. **As cited** (the paper couldn't be reached).
+  https://doi.org/10.23736/S0022-4707.18.08873-4
+- Thorborg et al. 2016, *Knee Surg Sports Traumatol Arthrosc*, hip-flexor training RCT.
+  **Abstract.** https://www.ucviden.dk/en/publications/large-strengthening-effect-of-a-hip-flexor-training-programme-a-r/
+- Conley et al. 1997 (above), for the upper traps. **As cited** (Henselmans).
+  https://mennohenselmans.com/4-myths-keeping-your-shoulders-small-instead-of-yoked/
+- Loaded carries vs holds, EMG, 2024. **Abstract.** https://pubmed.ncbi.nlm.nih.gov/38665162/
+- Schumann et al. 2022, *Sports Medicine*, concurrent training, 43 studies.
+  **Abstract.** https://doi.org/10.1007/s40279-021-01587-7
 
 **Left out.** Papers by Barbalho and colleagues, including the "ceiling effect" volume study
 (retracted) and the squat vs hip thrust study in trained women, after data sleuths called for
