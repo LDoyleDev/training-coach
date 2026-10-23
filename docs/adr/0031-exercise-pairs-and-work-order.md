@@ -45,3 +45,5 @@ push-up + reverse fly, neck flexion + neck extension. Arms: chin-up + diamond pu
 - Messages are longer (one line per set), but they're the list to train and log from.
 - A plan change that moves items must keep pairs on neighbours, or the seed refuses it.
 - The dashboard (D1) will get the same order from the API, computed by the same domain function.
+- The rest between sets is by transition (ADR-0065): 15 s to switch inside a pair, the rest after
+  the round. Before that, the guided session rested 60 s after every set, so pairs saved no time.

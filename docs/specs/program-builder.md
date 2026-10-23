@@ -334,7 +334,9 @@ proposed one from 226 to about 187, for the same sets; every exercise still gets
 between its own sets. To decide:
 
 1. **Rest per transition** in the guided session and its time estimate (amends ADR-0031's
-   timing; the pairs stay).
+   timing; the pairs stay). **Done** (ADR-0065): 15 s to switch, 60 s after a pair or 90 s
+   when it shares a prime mover, straight sets 90 s compound or 60 s small. Still to come:
+   decisions 2 and 5 below.
 2. **A third, light item in a pair** (the seed allows exactly two neighbours today), and pairs on
    the Recovery day.
 3. **Pairing rules for the editor (step 6):** no shared prime mover without the longer rest, not

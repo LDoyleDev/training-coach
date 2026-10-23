@@ -45,6 +45,16 @@ def test_today_comes_in_work_order(signed_in: TestClient) -> None:
     assert calf["summary"].startswith("Ball of one foot")
 
 
+def test_each_set_says_the_rest_after_it(signed_in: TestClient) -> None:
+    """A pair moves to its other exercise in 15 s and rests 60 s after the round (ADR-0065)."""
+    body = signed_in.get("/api/session/today").json()["session"]
+    first, second = body["order"][:2]
+    assert (first["rest_seconds"], first["switch"]) == (15, True)
+    assert (second["rest_seconds"], second["switch"]) == (60, False)
+    assert body["order"][-1]["rest_seconds"] == 0
+    assert body["rest_seconds"] == 60  # for pages from before per-set rest
+
+
 def _first_slug(client: TestClient) -> str:
     session = client.get("/api/session/today").json()["session"]
     slug: str = session["items"][session["order"][0]["item"]]["slug"]

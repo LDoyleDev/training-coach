@@ -32,8 +32,35 @@ def test_today_is_the_queued_session_in_work_order(session: Session) -> None:
     assert len(plan.order) == sum(len(i.targets) for i in plan.items)
     assert all(s.target == plan.items[s.item].targets[s.set_no - 1] for s in plan.order)
     assert all(i.summary and i.slug for i in plan.items)
-    assert plan.rest_seconds == guided.REST_SECONDS
+    assert plan.rest_seconds == 60  # after a pair, for pages from before ADR-0065
     assert 40 <= plan.minutes <= 90  # warm-up plus 25 sets, some per side
+
+
+def test_a_pair_switches_inside_and_rests_after_the_round(session: Session) -> None:
+    """Jump squat + tibialis raise share no prime mover: 15 s to move, 60 s after (ADR-0065)."""
+    plan = guided.today(_seeded(session), DAY, BERLIN)
+    assert plan is not None
+    first, second = plan.order[:2]
+    assert (first.rest.seconds, first.rest.switch) == (15, True)
+    assert (second.rest.seconds, second.rest.switch) == (60, False)
+    assert plan.order[-1].rest.seconds == 0  # the session is over
+
+
+def test_a_pair_sharing_a_prime_mover_rests_longer(session: Session) -> None:
+    """Pistol squat + single-leg RDL both count fully for the glutes: 90 s after the round."""
+    plan = guided.today(_seeded(session), DAY, BERLIN)
+    assert plan is not None
+    pistol = next(i for i, item in enumerate(plan.items) if item.slug == "pistol-squat")
+    rounds = [s for s in plan.order if s.item == pistol + 1 and s is not plan.order[-1]]
+    assert rounds
+    assert all(s.rest.seconds == 90 for s in rounds)
+
+
+def test_the_estimate_counts_the_rests_the_session_runs(session: Session) -> None:
+    plan = guided.today(_seeded(session), DAY, BERLIN)
+    assert plan is not None
+    rested = sum(s.rest.seconds for s in plan.order)
+    assert rested < 60 * len(plan.order)  # shorter than a minute after every set
 
 
 def test_a_pair_can_start_with_its_second_exercise(session: Session) -> None:
