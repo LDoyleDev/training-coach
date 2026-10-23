@@ -359,9 +359,13 @@ def keep(
     if problem is not None:
         return problem
     row = _row(session, plan.day)
-    if row is not None and row.after_run != plan.after_run:
+    restart = row is not None and (
+        row.after_run != plan.after_run or (plan.after_run and row.saved_workout_id is not None)
+    )
+    if row is not None and restart:
         # The day's cardio was logged (or that log undone): the run's progress, saved or not,
-        # gives way to the block after it, which starts afresh (ADR-0066).
+        # gives way to the block after it, which starts afresh (ADR-0066). So does a block
+        # saved with some of it left: the rest is offered, and kept afresh.
         if revision != 0:
             return STALE
         session.delete(row)

@@ -274,7 +274,11 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
     if (
         plan is not None
         and kept is not None
-        and (kept.template_id != plan.template_id or kept.after_run != plan.after_run)
+        and (
+            kept.template_id != plan.template_id
+            or kept.after_run != plan.after_run
+            or (plan.after_run and kept.saved)  # a block saved short: what's left starts afresh
+        )
     ):
         kept = None  # kept for a session that's no longer today's: its swaps don't apply
     if plan is not None and kept is not None and kept.first:

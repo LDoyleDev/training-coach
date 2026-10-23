@@ -139,6 +139,15 @@ def test_a_guided_run_saved_alone_gives_way_to_the_block(session: Session) -> No
     assert _slugs(seeded, saved.workout_id) == ["hanging-raise", "moderate-cardio"]
     left = _after(seeded)  # only back extensions are left
     assert [i.slug for i in left.items] == ["back-extension"]
+    assert guided.keep(seeded, left, 0, 1, [], [guided.Done(0, 1, 12)]) == 1  # kept afresh
+    rest = guided.save(seeded, DAY, DAY, BERLIN)
+    assert rest == workout_log.Saved(saved.workout_id, already_saved=False)
+    assert _slugs(seeded, saved.workout_id) == [
+        "back-extension",
+        "hanging-raise",
+        "moderate-cardio",
+    ]
+    assert guided.today(seeded, DAY, BERLIN) is None
 
 
 def test_the_block_is_not_saved_once_its_day_is_over(session: Session) -> None:
