@@ -294,7 +294,7 @@ async def test_a_dated_log_names_the_day_and_saves_there(
     saved = await run(application, press(f"l:save:{_token(drafted)}", OWNER))
     (text,) = texts(saved)
     assert text.startswith(f"Saved Torso + neck for {_yesterday():%a %d %b}: 1 exercise, 2 sets.")
-    assert "Next up: Moderate cardio." in text  # the session after it
+    assert "Next up: Cardio + core." in text  # the session after it
     assert not any(d.startswith("st:") for d in button_data(saved["sendMessage"][0]))
     with seeded() as session:
         assert session.scalars(select(Workout.local_date)).one() == _yesterday()

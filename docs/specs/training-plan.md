@@ -14,16 +14,19 @@ Andy Galpin, adapted to home equipment (8 kg kettlebell, pull-up bar, chairs for
 | Mon: legs (quads, hamstrings, calves; tibialis first) | Legs |
 | Tue: heat/cold, recovery | Recovery + posture (+ core, grip, neck side work; optional sauna/cold) |
 | Wed: torso push/pull + neck | Torso + neck |
-| Thu: moderate cardio, ~35 min at 75-80% | Moderate cardio, 30-40 min |
+| Thu: moderate cardio, ~35 min at 75-80% | Cardio + core: 30-40 min, then a core + hips block |
 | Fri: high intensity, 20-30 s all-out / 10 s rest x 8-12 | High intensity, 20 s / 10 s x 8-12 |
 | Sat: arms, calves, neck | Arms + legs (calves, a second leg block) |
 
-Since 24 Oct 2026 ("Coverage update", ADR-0064) the plan departs from Huberman's days in three
+Since 23 Oct 2026 ("Coverage + core", ADR-0064) the plan departs from Huberman's days in four
 ways, so every main muscle gets 10 or more hard sets on two or more days
 (`program-builder-research.md`, Coverage): the light core, grip and neck side work moved from
 Arms to Recovery; Arms carries split squats, hamstring curls and an overhead triceps extension,
 so legs are trained twice a week and the triceps' long head is reached; and a few sets were
-added where muscles fell short (calves, curls, push-ups, dips, lateral raises).
+added where muscles fell short (calves, curls, push-ups, dips, lateral raises). And the
+trunk and hips the lifts miss get their own work (`program-builder-research.md`, Core and hips):
+Recovery adds reverse Nordics and side plank hip dips, and the moderate cardio day, now "Cardio
++ core", ends with ab rollouts, Copenhagen planks, back extensions and side plank hip dips.
 
 The queue starts at Legs (freshest at the start of the cycle) and keeps this order; missed days
 shift everything back (ADR-0006).
@@ -54,13 +57,14 @@ lists as a prime mover, 0.5 for a synergist and 0.25 for a small part (pull-ups:
 for biceps and upper back, 0.25 for rear delts and forearms). The weights, and why, are in
 `program-builder-research.md` (Weights by exercise). CI checks that this table matches
 `plan.toml`. All ten main muscles are in their target band on two or more days; the body map
-on the Plan tab shows the same numbers.
+on the Plan tab shows the same numbers. Abs, obliques, lower back, hip flexors and adductors
+are measured against their own, lower bands (low evidence; Core and hips).
 
 | Group | Sets | From |
 | --- | --- | --- |
-| Glutes | 14.5 | split squat (Legs + Arms), pistol, jump squat, swing, RDL, back extension |
+| Glutes | 15.5 | split squat (Legs + Arms), pistol, jump squat, swing, RDL, back extension (Recovery + Cardio) |
 | Chest | 11 | dip, push-up, diamond |
-| Quads | 10.5 | split squat (Legs + Arms), pistol, jump squat |
+| Quads | 12.5 | split squat (Legs + Arms), pistol, jump squat, reverse Nordic (the rectus femoris) |
 | Hamstrings | 10.5 | hamstring curl (Legs + Arms), RDL, swing |
 | Lats | 10 | pull-up, row, chin-up |
 | Upper back | 10 | row, Y-T-W, reverse fly, pull-up, chin-up |
@@ -70,11 +74,12 @@ on the Plan tab shows the same numbers.
 | Front delts | 8.5 | pike, dip, push-up, diamond |
 | Calves | 8 | twice a week (Legs + Arms) |
 | Rear delts | 7.25 | reverse fly, row, Y-T-W, pull-up, chin-up |
+| Abs | 7 | ab rollout, hanging raise, side plank hip dip |
 | Neck | 7 | flexion, extension, side bend (Torso + Recovery days) |
+| Adductors | 6.5 | Copenhagen plank, split squat, pistol |
 | Forearms | 6.5 | dead hang, curl, hanging raise, pull-up, chin-up, swing |
-| Adductors | 4.5 | split squat, pistol |
-| Lower back | 3.5 | back extension, swing, RDL |
-| Abs | 3 | hanging raises |
+| Obliques | 5.75 | side plank hip dip (Recovery + Cardio), Copenhagen plank, ab rollout |
+| Lower back | 5.5 | back extension (Recovery + Cardio), swing, RDL |
 | Hip flexors | 3 | hanging raises |
 | Tibialis | 3 | tibialis raises |
 
@@ -89,10 +94,12 @@ in `plan.toml`.
 
 ## Known limits
 
-- Nothing trains the rectus femoris (the quads' front head, which squats barely grow): that
-  needs a leg extension, which the home kit can't do well. The map flags it. Abs, lower back,
-  hip flexors and adductors stay under 10; obliques and upper traps get nothing.
-- Skipping the optional Recovery day now also skips the abs, dead hangs and neck side work.
+- Upper traps get nothing: no study shows shrugs grow them (Core and hips).
+- The core bands (abs 6-12, obliques 4-10, lower back 4-10, hip flexors 3-8, adductors 4-10)
+  are estimates: no growth trial sets a dose for these muscles. On the general 10-20 band they
+  would show light green.
+- Skipping the optional Recovery day now also skips the hanging raises, dead hangs, neck side
+  work, reverse Nordics and half the oblique work.
 - Once the split squats and pistols hold a kettlebell, Legs passes the 8-set spine-loading
   limit (12 sets at the top steps: swing, both squats, RDL); the map warns then.
 - Most muscles sit at the bottom of their band: a skipped set drops lats, upper back, biceps

@@ -6,6 +6,7 @@ from training_coach.domain.muscles import Kit, Pattern, Stress, parse_need, step
 def test_kit_with_and_without_a_weight() -> None:
     assert parse_need("kettlebell:16") == (Kit.KETTLEBELL, 16)
     assert parse_need("pull-up bar") == (Kit.PULL_UP_BAR, None)
+    assert parse_need("ab wheel") == (Kit.AB_WHEEL, None)
 
 
 @pytest.mark.parametrize(
