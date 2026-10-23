@@ -26,7 +26,7 @@ def test_legs_works_quads_and_glutes_most(session: Session) -> None:
     weights = {e.slug: e.muscles for e in plan.exercises}
     legs = next(p for p in plan.sessions if p.slug == "legs")
     glutes = sum(i.sets * weights[i.exercise].get("glutes", 0) for i in legs.items)
-    assert worked["glutes"] == glutes == 11.5  # program-builder-research.md, Coverage
+    assert worked["glutes"] == glutes == 10.5  # training-plan.md: under the session cap of 11
     assert max(worked, key=lambda m: worked[m]) == "glutes"
 
 

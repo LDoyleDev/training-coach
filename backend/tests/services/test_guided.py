@@ -93,16 +93,20 @@ def test_a_cardio_session_has_no_warm_up_and_counts_its_minutes(session: Session
 
 def test_timed_sets_count_their_seconds(session: Session) -> None:
     seeded = _seeded(session)
-    arms = seeded.scalars(select(SessionTemplate).where(SessionTemplate.slug == "arms")).one()
+    recovery = seeded.scalars(
+        select(SessionTemplate).where(SessionTemplate.slug == "recovery")
+    ).one()
     state = users.plan_state(seeded)
     assert state is not None
-    state.next_template_id = arms.id
+    state.next_template_id = recovery.id
     seeded.flush()
     plan = guided.today(seeded, DAY, BERLIN)
     assert plan is not None
     hang = next(i for i in plan.items if i.slug == "dead-hang")
     assert hang.kind.value == "seconds"
-    assert plan.order[-1].item == plan.items.index(hang)  # alone, after the pairs
+    paired = [plan.items[o.item].slug for o in plan.order]
+    paired = [s for s in paired if s in ("dead-hang", "neck-extension")]
+    assert paired == ["dead-hang", "neck-extension", "dead-hang"]  # its extra set alone
 
 
 def _plan(session: Session) -> guided.Guided:

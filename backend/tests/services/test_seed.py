@@ -155,6 +155,32 @@ def test_reseed_keeps_progress(session: Session) -> None:
     assert session.get_one(PlanState, 1).next_template_id == arms.id
 
 
+def test_moving_an_exercise_to_another_session_keeps_its_step(session: Session) -> None:
+    """Progress is per exercise, not per plan day: moving pull-ups from Upper to Arms, with
+    more sets, keeps the step reached (the Oct 2026 coverage update moves exercises)."""
+    apply_seed(session, load_plan(MINI_PLAN))
+    session.commit()
+    pull_up = session.scalars(select(Exercise).where(Exercise.slug == "pull-up")).one()
+    weighted = next(s for s in pull_up.ladder if s.name == "Weighted")
+    users.exercise_state(session, pull_up.id).ladder_step_id = weighted.id
+    session.commit()
+    moved = MINI_PLAN.replace(
+        'items = [{ exercise = "pull-up", sets = 4, rep_min = 5, rep_max = 12 }]',
+        'items = [{ exercise = "dip", sets = 2, rep_min = 8, rep_max = 15 }]',
+    ).replace(
+        'items = [{ exercise = "dip", sets = 3, rep_min = 8, rep_max = 15 }]',
+        'items = [\n  { exercise = "dip", sets = 3, rep_min = 8, rep_max = 15 },\n'
+        '  { exercise = "pull-up", sets = 5, rep_min = 5, rep_max = 12 },\n]',
+    )
+
+    apply_seed(session, load_plan(moved))
+    session.commit()
+
+    assert users.exercise_state(session, pull_up.id).ladder_step_id == weighted.id
+    arms = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "arms")).one()
+    assert [(i.exercise_id, i.sets) for i in arms.items][-1] == (pull_up.id, 5)
+
+
 def test_reseed_applies_edits_and_additions(session: Session) -> None:
     apply_seed(session, load_plan(MINI_PLAN))
     session.commit()
@@ -510,9 +536,10 @@ def test_a_broken_pair_is_rejected(items: str) -> None:
 
 def test_the_bundled_resistance_sessions_are_fully_paired() -> None:
     sessions = {s.slug: s for s in load_plan().sessions}
-    for slug in ("legs", "torso"):
+    for slug in ("legs", "torso", "arms"):
         assert all(item.pair is not None for item in sessions[slug].items), slug
-    assert [item.pair is None for item in sessions["arms"].items].count(True) == 1  # dead hang
+    alone = [item.exercise for item in sessions["recovery"].items if item.pair is None]
+    assert alone == ["chin-tuck", "mobility"]
 
 
 STRETCH = """

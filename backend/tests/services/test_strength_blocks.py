@@ -1,6 +1,7 @@
 """What a strength block prescribes, and how its history stays apart (ADR-0028, #26)."""
 
 from datetime import UTC, date, datetime, timedelta
+from importlib.resources import files
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -45,13 +46,27 @@ def test_a_strength_session_trains_one_step_harder_at_four_to_eight(plan: Sessio
 
 
 def test_sets_are_raised_to_three_and_capped_at_four(plan: Session) -> None:
-    split = _item(plan, "legs", "bulgarian-split-squat")  # planned 4 sets
-    assert len(split.targets) == 4
+    calves = _item(plan, "legs", "calf-raise")  # planned 4 sets
+    assert len(calves.targets) == 4
     neck = _item(plan, "torso", "neck-flexion")  # planned 2 sets
     assert len(neck.targets) == 3
 
 
-def test_timed_work_and_other_sessions_are_unchanged(plan: Session) -> None:
+# The bundled plan has no timed work in a strength session since the coverage update moved
+# dead hangs to Recovery, so this puts one back on Arms.
+ARMS_LAST = (
+    '  { exercise = "calf-raise", sets = 4, rep_min = 12, rep_max = 20, '
+    "per_side = true, pair = 4 },\n]"
+)
+HANG = '  { exercise = "dead-hang", sets = 2, rep_min = 30, rep_max = 60 },\n]'
+
+
+def test_timed_work_and_other_sessions_are_unchanged(session: Session) -> None:
+    text = files("training_coach.seed").joinpath("plan.toml").read_text(encoding="utf-8")
+    assert text.count(ARMS_LAST) == 1
+    apply_seed(session, load_plan(text.replace(ARMS_LAST, ARMS_LAST[:-1] + HANG)))
+    session.flush()
+    plan = session
     hang = _item(plan, "arms", "dead-hang")
     hang_off = session_plan(plan, _template(plan, "arms"))
     assert hang_off is not None
