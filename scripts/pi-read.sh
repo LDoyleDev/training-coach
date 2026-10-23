@@ -5,7 +5,7 @@
 # SSH_ORIGINAL_COMMAND and only the subcommands below run. Nothing here writes: the database is
 # opened read-only, with query_only on and an authorizer that allows reads only.
 #   status            version, container health, deploy timer, disk, memory, temperature
-#   logs [SINCE] [TEXT]  app logs without health checks; SINCE like 30m, 6h, 2d (default 6h),
+#   logs [SINCE] [TEXT]  app logs without health checks, known secret shapes redacted; SINCE like 30m, 6h, 2d (default 6h),
 #                     TEXT a fixed string to keep (case-insensitive)
 #   deploy            the last runs of the auto-deploy service
 #   band              band import: last sync, last refusal, what has arrived
@@ -26,6 +26,13 @@ import re, sqlite3, sys, time
 # Kept in step with the models by tests/test_pi_read.py: every secret or binary column matches.
 SECRET = re.compile(r"hash|secret|token|key|credential|private|password|challenge|cookie|jpeg|photo|image", re.I)
 PRAGMAS = {"table_info", "table_xinfo", "index_list", "index_info", "foreign_key_list"}
+# Only these functions: nothing that loads code or builds a huge value in one call (zeroblob).
+FUNCTIONS = {
+    "abs", "avg", "coalesce", "count", "date", "datetime", "group_concat", "ifnull", "iif",
+    "instr", "json_array_length", "json_extract", "julianday", "length", "lower", "max", "min",
+    "nullif", "printf", "replace", "round", "strftime", "substr", "substring", "sum", "time",
+    "total", "trim", "typeof", "unixepoch", "upper",
+}
 query = sys.argv[1].strip()
 if not re.match(r"(select|with|pragma)\b", query, re.I):
     sys.exit("only SELECT, WITH or a schema PRAGMA")
@@ -36,7 +43,9 @@ db.execute("PRAGMA query_only = ON")
 def allow(action, arg1, arg2, _db, _source):
     if action == sqlite3.SQLITE_READ:
         return sqlite3.SQLITE_IGNORE if SECRET.search(arg2 or "") else sqlite3.SQLITE_OK
-    if action in (sqlite3.SQLITE_SELECT, sqlite3.SQLITE_FUNCTION, getattr(sqlite3, "SQLITE_RECURSIVE", 33)):
+    if action == sqlite3.SQLITE_FUNCTION:
+        return sqlite3.SQLITE_OK if (arg2 or "").lower() in FUNCTIONS else sqlite3.SQLITE_DENY
+    if action in (sqlite3.SQLITE_SELECT, getattr(sqlite3, "SQLITE_RECURSIVE", 33)):
         return sqlite3.SQLITE_OK
     if action == sqlite3.SQLITE_PRAGMA and (arg1 or "").lower() in PRAGMAS:
         return sqlite3.SQLITE_OK
@@ -44,6 +53,7 @@ def allow(action, arg1, arg2, _db, _source):
 
 
 db.set_authorizer(allow)
+db.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, 1_000_000)  # no value over 1 MB
 deadline = time.monotonic() + 20
 db.set_progress_handler(lambda: int(time.monotonic() > deadline), 10_000)
 cursor = db.execute(query)
@@ -78,14 +88,21 @@ case "${sub:-}" in
     command -v vcgencmd >/dev/null && echo "temp:     $(vcgencmd measure_temp)" || true
     ;;
   logs)
+    # Not masked like the database: the app's logging rules keep secrets out (backend/CLAUDE.md),
+    # and these known shapes are redacted on top: query strings, bot tokens in Telegram URLs,
+    # bearer headers and ingest secrets.
+    redact() {
+      sed -E -e 's#\?[^ "]*#?...#g' -e 's#bot[0-9]+:[A-Za-z0-9_-]+#bot<redacted>#g' \
+        -e 's#([Bb]earer) [^ "]+#\1 <redacted>#g' -e 's#tci_[A-Za-z0-9_-]+#tci_<redacted>#g'
+    }
     read -r since text <<<"${rest:-}" || true
     since="${since:-6h}"
     [[ "$since" =~ ^[0-9]{1,4}[smhd]$ ]] || { echo "SINCE like 30m, 6h or 2d" >&2; exit 2; }
     cd "$REPO_DIR"
     if [[ -n "${text:-}" ]]; then
-      docker compose logs --no-color --since "$since" app 2>&1 | grep -v healthz | grep -iF -- "$text" | tail -n 300
+      docker compose logs --no-color --since "$since" app 2>&1 | grep -v healthz | redact | grep -iF -- "$text" | tail -n 300
     else
-      docker compose logs --no-color --since "$since" app 2>&1 | grep -v healthz | tail -n 300
+      docker compose logs --no-color --since "$since" app 2>&1 | grep -v healthz | redact | tail -n 300
     fi
     ;;
   deploy)
