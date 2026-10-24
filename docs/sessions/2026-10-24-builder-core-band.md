@@ -1,4 +1,4 @@
-# Session log: 21 to 24 Oct 2026 (v0.34.0 to v0.37.0)
+# Session log: 21 to 24 Oct 2026 (v0.34.0 to v0.37.1)
 
 One file per release wrap: what shipped, the decisions and where they live, open items. Facts
 stay in their own homes (ADRs, specs, runbooks); this log only points at them.
@@ -11,6 +11,7 @@ stay in their own homes (ADRs, specs, runbooks); this log only points at them.
 | v0.35.0 (23 Oct) | #293 core and hips block, Cardio + core day; #294 a cardio day's block stays open after its run (ADR-0066); #292 read-only Pi helper; docs #290 |
 | v0.36.0 (23 Oct) | #295 cardio effort, distance, heart rate, start (ADR-0067); #298 Today shows each day's log, with ‹ › to earlier days (ADR-0068); #299, #300 nav order, Tests inside Body, a body map per session on Plan (ADR-0069); #301 habits on earlier days; docs #296 |
 | v0.37.0 (24 Oct, released with this log) | #305 your own AI turns a run screenshot into a cardio proposal with distance, heart rate and start; you pick the effort on the card (ADR-0067, `docs/specs/cardio-photo-prefill.md` option A); #304 virtualenv 21.14.13 (GHSA-cx6f-vjhg-g3cc) and #306 filelock 4.2.4 (CVE-2026-112940), both dev tools only; docs #302, this log |
+| v0.37.1 (24 Oct) | #308: the Pi's image build survives a slow download (longer timeout, retries, a wheel cache). v0.37.0 never deployed: its build timed out fetching one package over Wi-Fi, so the Pi rolled back to v0.36.0 (`docs/runbooks/deploy.md`) |
 
 ## Decisions and where they live
 
@@ -33,7 +34,7 @@ stay in their own homes (ADRs, specs, runbooks); this log only points at them.
 
 ## State at the wrap
 
-- **Pi.** v0.36.0 has been live since 23 Oct 21:16 UTC and is healthy. v0.37.0 is released as soon as this log merges, with no migration. The next log records its deploy. The cardio-details migration `b7e2c4d9a1f3` ran; the plan seed was unchanged.
+- **Pi.** v0.36.0 has been live since 23 Oct 21:16 UTC and is healthy. v0.37.1 (which includes v0.37.0) has been live since 24 Oct 05:07 UTC and is healthy. To check a deploy, look for "auto-deploy: deployed vX" in `tc-read deploy`. The version that `tc-read status` shows is the Pi's checkout, not the running app. The cardio-details migration `b7e2c4d9a1f3` ran; the plan seed was unchanged.
 - **Band data.** None since 2026-10-19 19:00 UTC, and only steps have ever arrived.
   - **Cause:** Health Connect's read quota. HC Webhook 1.9.22 reports "Rate limited request quota has been exceeded" even for Steps alone.
   - **Fix in progress on the phone:**
