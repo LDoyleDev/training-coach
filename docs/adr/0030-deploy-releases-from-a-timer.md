@@ -51,3 +51,26 @@ Merging a release PR is now the deploy decision. To hold a release back, stop th
   make them visible. Both are possible follow-ups.
 - Anyone who can tag a commit on `main` can deploy to the Pi. That is the same group that
   can merge to `main`, which branch protection guards.
+
+## Addendum (2026-10-24): cut-off deploys, old images, deleted tags
+
+An eval found three gaps; the decision above otherwise stands.
+
+- **A deploy cut off part way is finished, not taken as done.** Step 2's quiet exit assumed
+  that a checkout on the newest tag meant it was running, which a power cut, a reboot or the
+  unit's timeout during the rebuild breaks: the old image ran under the new checkout. The
+  script now writes `.git/auto-deploy-pending` after the backup and before the checkout, and
+  removes it when the deploy is over either way. A run that finds it rebuilds the tag once more
+  (the backup was already taken). If that is cut off too, or the rollback was, it rolls back
+  once and the failed mark holds, so neither is retried forever. We chose a marker over asking
+  the running app its version on every run: the steady state stays a fetch and nothing else.
+- **The failed mark can't stop the rollback.** It is still written before the rollback, so an
+  interrupted rollback isn't followed by the same deploy, but a write that fails (a full disk)
+  is logged instead of ending the script.
+- **Old images are removed after a healthy deploy.** One image per release filled the SD card.
+  Only images with the Dockerfile's `training-coach.app` label are removed, keeping the one
+  running and the one it replaced. Never other projects' images or volumes.
+- **Release tags deleted upstream are deleted locally** (`git fetch --prune`, `v*` only), so a
+  stray tag fixed upstream can't stay the newest and block every later release. A tag moved in
+  place is still refused. A tag deleted and later made again arrives as a new tag, and passes
+  only the checks every release does: on `main`, forward, and signed by GitHub (ADR-0043).
