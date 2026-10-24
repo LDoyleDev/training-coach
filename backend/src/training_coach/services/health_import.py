@@ -18,7 +18,7 @@ top-level ``"test": true`` that real syncs never send: those are never parsed or
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from typing import Any, Self
+from typing import Any, ClassVar, Self
 from zoneinfo import ZoneInfo
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -38,6 +38,7 @@ AHEAD = timedelta(minutes=10)  # a phone clock a little fast
 KEEP_HEART_RATE = timedelta(days=8)
 UNKNOWN_SOURCE = "health-connect"
 LONGEST = timedelta(hours=24)  # no sleep or workout session is longer
+LONGEST_DAY = timedelta(hours=25)  # a local day the clocks go back, for a "Daily" steps record
 DELETABLE = ("sleep", "exercise")  # kept one row per record, so a deletion can be applied
 CHUNK = 500  # ids per query: well inside SQLite's limit on bound parameters
 
@@ -52,17 +53,19 @@ class _Meta(_Record):
 
 
 class _Span(_Record):
+    longest: ClassVar[timedelta] = LONGEST
     start_time: AwareDatetime
     end_time: AwareDatetime
 
     @model_validator(mode="after")
     def _ordered(self) -> Self:
-        if not self.start_time <= self.end_time <= self.start_time + LONGEST:
+        if not self.start_time <= self.end_time <= self.start_time + self.longest:
             raise ValueError("a span ends after it starts, within a day")
         return self
 
 
 class _Steps(_Span):
+    longest: ClassVar[timedelta] = LONGEST_DAY
     count: int = Field(ge=0, le=200_000)
 
 

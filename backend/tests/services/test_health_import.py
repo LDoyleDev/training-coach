@@ -1,6 +1,6 @@
 """Storing Health Connect Webhook payloads (ADR-0055)."""
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -117,6 +117,21 @@ def test_a_scale_reading_never_replaces_a_typed_weight(session: Session) -> None
     assert measurements.save(session, TODAY, TODAY, {Kind.BODYWEIGHT: 80.0}) is None
     _store(session, hcw.full())
     assert measurements.history(session)[0].value == 80.0
+
+
+def test_the_day_the_clocks_go_back_keeps_its_steps(session: Session) -> None:
+    # 25 Oct 2026 in Berlin is 25 hours long: a "Daily" record spans midnight to midnight.
+    now = datetime(2026, 10, 26, 7, 0, tzinfo=UTC)
+    day = {"count": 9000, "start_time": "2026-10-24T22:00:00Z", "end_time": "2026-10-25T23:00:00Z"}
+    _store(session, {"steps": [day]}, now)
+    assert _day(session, date(2026, 10, 25)).steps == 9000  # type: ignore[union-attr]
+
+
+def test_a_session_longer_than_a_day_is_still_skipped() -> None:
+    walk = {**hcw.walk(), "start_time": "2026-10-09T08:00:00Z", "end_time": "2026-10-10T09:00:00Z"}
+    steps = {"count": 5, "start_time": "2026-10-09T08:00:00Z", "end_time": "2026-10-10T10:00:00Z"}
+    batch = health_import.parse({"exercise": [walk], "steps": [steps]}, hcw.NOW)
+    assert dict(batch.skipped) == {"exercise": 1, "steps": 1}
 
 
 def test_records_that_dont_fit_are_skipped_and_counted() -> None:
