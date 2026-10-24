@@ -41,7 +41,8 @@ object Sync {
             reader.steps(zone, today, now) to reader.heartRate(store.heartToken, now)
         } catch (e: Exception) {
             // Health Connect's quota answers with an exception; show it as it came (ADR-0070 trial).
-            return "Health Connect refused the read: ${e.message ?: e.javaClass.simpleName}"
+            return readFailure(e.message ?: e.javaClass.simpleName) +
+                " (at ${reader.lastRead}, read ${reader.reads} of this sync)"
         }
         val newSteps = changedDays(steps, store.sentSteps)
         val bodies = posts(now, BuildConfig.VERSION_NAME, newSteps, heart.samples)

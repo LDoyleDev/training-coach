@@ -127,6 +127,46 @@ def test_the_day_the_clocks_go_back_keeps_its_steps(session: Session) -> None:
     assert _day(session, date(2026, 10, 25)).steps == 9000  # type: ignore[union-attr]
 
 
+def test_records_past_a_types_cap_are_skipped_and_counted() -> None:
+    # Security test, 2026-10-24: one 5 MB post stored 38,267 workouts.
+    most = health_import.MOST["exercise"]
+    walks = [
+        {**hcw.walk(), "start_time": hcw.iso(hcw.WALK_START + timedelta(seconds=n))}
+        for n in range(most + 7)
+    ]
+    batch = health_import.parse({"exercise": walks, "sleep": [hcw.sleep()]}, hcw.NOW)
+    assert (batch.taken["exercise"], batch.skipped["exercise"]) == (most, 7)
+    assert dict(batch.taken)["sleep"] == 1
+
+
+def test_steps_and_resting_heart_rate_stay_within_their_bounds(session: Session) -> None:
+    # Whoever holds the secret can set them within these bounds, and a real sync can't
+    # correct it: a day keeps its larger steps and its lower resting heart rate (threat model).
+    span = {"start_time": "2026-10-10T22:00:00Z", "end_time": "2026-10-11T07:00:00Z"}
+    steps = [{**span, "count": 150_000}, {**span, "count": 150_000}, {**span, "count": 200_001}]
+    resting = [{"bpm": 24, "time": "2026-10-11T03:00:00Z"}]
+    _store(session, {"steps": steps, "resting_heart_rate": resting})
+    day = _day(session, TODAY)
+    assert day is not None
+    assert (day.steps, day.resting_hr) == (200_000, None)
+
+
+def _peak_walk(session: Session, rates: list[int]) -> tuple[int, int] | None:
+    body = {"exercise": [hcw.walk()], "heart_rate": hcw.walk_heart_rate(rates)}
+    moved = health_import.store(session, health_import.parse(body, hcw.NOW), BERLIN, hcw.NOW)
+    session.commit()
+    return moved
+
+
+def test_only_a_held_peak_moves_max_heart_rate_and_never_far(session: Session) -> None:
+    # Security test, 2026-10-24: one made-up 230 reading took max from 190 to 230.
+    assert _peak_walk(session, [140] * 20 + [225] + [140] * 25) is None
+    assert zones.current(session, TODAY).zones.max == 190
+    assert _peak_walk(session, [140] * 16 + [230] * 30) == (190, 210)  # at most 20 over
+    found = zones.current(session, TODAY)
+    assert (found.peak, found.zones.max) == (210, 210)
+
+
 def test_a_session_longer_than_a_day_is_still_skipped() -> None:
     walk = {**hcw.walk(), "start_time": "2026-10-09T08:00:00Z", "end_time": "2026-10-10T09:00:00Z"}
     steps = {"count": 5, "start_time": "2026-10-09T08:00:00Z", "end_time": "2026-10-10T10:00:00Z"}

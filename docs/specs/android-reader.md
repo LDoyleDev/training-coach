@@ -37,8 +37,10 @@ publishes no numbers for either.
 
 - **Changes, not history.** One changes token per type (as [best practices] advise), stored on
   the phone. Each sync asks only for what was written or deleted since the last one. The first
-  sync, or one after a token expires, reads the last 48 hours once; a gap longer than that
-  doesn't come across.
+  sync, or one after a token expires, reads the last 24 hours once (`FIRST_SYNC_HOURS`; it was
+  48 until the trial's first sync hit the quota on 24 Oct), in pages of 5,000, the most Health
+  Connect allows; a gap longer than that doesn't come across. A quota error names the read that
+  hit it and how many reads the sync had made.
 - **Changes are collapsed per record id, last one wins,** so a record written and deleted in
   the same batch isn't sent as both (the ingest applies deletions first).
 - **Steps:** one aggregate call for today and yesterday, grouped by local day, and a day is sent
@@ -114,8 +116,8 @@ publishes no numbers for either.
   compare it with a sample committed in the repo; a backend test posts that same sample to the
   ingest and checks what is taken.
 - **Signing from the first build:** one release key, kept as secrets of the GitHub environment
-  `android-release`, which needs Liam's approval for every run that uses it, and backed up
-  encrypted with age in `~/.secrets/training-coach/android`. A debug key changes per CI runner,
+  `android-release`, which needs Liam's approval for every run that uses it; where it is kept
+  and backed up: ADR-0070, Decision. A debug key changes per CI runner,
   so every build would mean uninstalling and setting up again.
 - **Releases:** when `android/` changes on main and its version moved, a workflow of its own
   builds the signed APK in that environment and publishes a GitHub pre-release tagged

@@ -42,18 +42,27 @@ function paceText(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
 
+/** "24.3 km/h": a ride is read by its speed, not its pace. */
+const speedText = (minutes: number, km: number) => `${((km * 60) / minutes).toFixed(1)} km/h`
+
 /** A typed number, or null when the box is empty or not a number. */
 const typed = (text: string): number | null => {
   const n = Number(text.replace(',', '.'))
   return text.trim() === '' || !Number.isFinite(n) ? null : n
 }
 
-/** The saved log in words: "effort 6/10 · 7.29 km · 5:54 /km · HR 139 avg, 160 max". */
-function detailsText(details: Details, pace: number | null | undefined): string {
+/** The saved log in words: "effort 6/10 · 7.29 km · 5:54 /km · HR 139 avg, 160 max"; a ride
+ * (``rideMinutes``) shows its speed instead of the pace. */
+function detailsText(
+  details: Details,
+  pace: number | null | undefined,
+  rideMinutes: number | null,
+): string {
+  const speed = rideMinutes && details.distance_km && speedText(rideMinutes, details.distance_km)
   const parts = [
     details.effort ? `effort ${details.effort}/10` : null,
     details.distance_km ? `${details.distance_km} km` : null,
-    pace ? `${paceText(pace)} /km` : null,
+    speed || (pace ? `${paceText(pace)} /km` : null),
     details.avg_hr || details.max_hr
       ? `HR ${[details.avg_hr && `${details.avg_hr} avg`, details.max_hr && `${details.max_hr} max`]
           .filter(Boolean)
@@ -305,7 +314,9 @@ export default function Cardio({
           </div>
           {typed(distance) && value > 0 ? (
             <p className="m-0 mt-2" role="status">
-              Pace {paceText(Math.round((value * 60) / (typed(distance) ?? 1)))} /km
+              {activity === 'bike'
+                ? `Speed ${speedText(value, typed(distance) ?? 1)}`
+                : `Pace ${paceText(Math.round((value * 60) / (typed(distance) ?? 1)))} /km`}
             </p>
           ) : null}
         </details>
@@ -331,6 +342,7 @@ export default function Cardio({
       </section>
     )
 
+  const ride = activity === 'bike' ? value : null
   if (mode === 'saved' && logged)
     return (
       <section aria-labelledby="cardio-saved" className={`${card} flex flex-col gap-3`}>
@@ -344,8 +356,8 @@ export default function Cardio({
             : `${value} min${activity ? ` ${ACTIVITY[activity].toLowerCase()}` : ''}, ${kind === 'zone2' ? 'zone 2' : 'moderate'}`}
           {logged.already_saved ? ' (already saved)' : ''}.
         </p>
-        {detailsText(saved, logged.pace) && (
-          <p className="m-0 text-[var(--slate)]">{detailsText(saved, logged.pace)}</p>
+        {detailsText(saved, logged.pace, ride) && (
+          <p className="m-0 text-[var(--slate)]">{detailsText(saved, logged.pace, ride)}</p>
         )}
         <WeekBar week={logged.week} />
         {logged.planned && logged.next_session && (

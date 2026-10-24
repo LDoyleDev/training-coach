@@ -6,7 +6,9 @@ through the typed-log model (``groq.Rewrite``) and the rule parser, cardio, habi
 measurements through the checks of their own save paths; anything else is refused with a short
 reason. A run read from a screenshot (cardio-photo-prefill.md, option A) may carry its distance,
 heart rate and start (ADR-0067), checked with the bounds of a typed log; never how hard it felt,
-which only the person knows and picks on the card when saving.
+which only the person knows and picks on the card when saving. Whether it was zone 2 or moderate
+the person picks too: the AI's ``cardio`` is only a hint, and the card suggests one from the
+person's own heart-rate zones when the average heart rate is known (ADR-0067, 2026-10-24).
 
 A valid proposal waits in ``log_proposals`` with a random token, as a card on Today and a
 Telegram message, each with Save and Discard. Only the person's web session or their bot
@@ -44,6 +46,7 @@ from training_coach.domain.measurements import Kind as Measure
 from training_coach.domain.parser import Entry, sets_text
 from training_coach.domain.queue import local_date
 from training_coach.services import cardio, day_clash, habits, measurements, workout_log
+from training_coach.services import zones as heart
 from training_coach.services.cardio import MAX_MINUTES
 from training_coach.services.groq import Rewrite, RewriteLine
 
@@ -92,9 +95,14 @@ class StrengthProposal(_Proposal):
     exercises: list[_Line] = Field(min_length=1, max_length=30)
 
 
+CardioKind = details.Timed
+CARDIO_WORDS: dict[str, str] = {"zone2": "zone 2", "moderate-cardio": "moderate"}
+UNPICKED = "Cardio"  # a cardio summary's first word until the person picks zone 2 or moderate
+
+
 class CardioProposal(_Proposal):
     kind: Literal["cardio"]
-    cardio: Literal["zone2", "moderate-cardio"]
+    cardio: CardioKind | None = None  # the AI's hint only: the person picks
     minutes: int = Field(ge=1, le=MAX_MINUTES, strict=True)
     activity: CardioActivity | None = None
     # From the app or watch that recorded it (ADR-0067); bounds beyond these: domain/cardio.py.
@@ -150,7 +158,11 @@ INPUT_SCHEMA: dict[str, Any] = {
                 "additionalProperties": False,
             },
         },
-        "cardio": {"type": "string", "enum": ["zone2", "moderate-cardio"]},
+        "cardio": {
+            "type": "string",
+            "enum": list(get_args(CardioKind)),
+            "description": "cardio: optional, only a hint; the person picks zone 2 or moderate",
+        },
         "minutes": {"type": "integer", "minimum": 1, "maximum": MAX_MINUTES},
         "activity": {"type": "string", "enum": [a.value for a in CardioActivity]},
         "distance_km": {"type": "number", "description": "cardio: as the app or watch shows it"},
@@ -262,7 +274,11 @@ def _details_text(found: CardioProposal, given: details.Details) -> str:
     if given.distance_m is not None:  # every metre Save writes: 1 m is 0.001 km, not 0.00
         places = 2 if given.distance_m % 10 == 0 else 3
         parts.append(f"{given.distance_m / 1000:.{places}f} km")
-        if (pace := details.pace(found.minutes, given.distance_m)) is not None:
+        speed = details.speed(found.minutes, given.distance_m)
+        pace = details.pace(found.minutes, given.distance_m)
+        if details.by_speed(found.activity) and speed is not None:  # a ride: 24.3 km/h
+            parts.append(f"{speed:.1f} km/h")
+        elif pace is not None:
             parts.append(f"{pace // 60}:{pace % 60:02d} /km")
     heart = [f"{bpm} {name}" for bpm, name in ((given.avg_hr, "avg"), (given.max_hr, "max")) if bpm]
     if heart:
@@ -270,6 +286,21 @@ def _details_text(found: CardioProposal, given: details.Details) -> str:
     if found.start is not None:
         parts.append(f"started {found.start:%H:%M}")
     return "".join(f", {part}" for part in parts)
+
+
+def _suggestion(
+    session: Session, found: CardioProposal, today: date
+) -> tuple[CardioKind | None, str | None]:
+    """Which kind to suggest, and what was observed: from the person's own zones when the
+    average heart rate is known (ADR-0055), else the AI's hint, else none. Never decided."""
+    if found.avg_hr is None:
+        return found.cardio, None
+    zones = heart.current(session, today).zones
+    low, high = zones.bounds[details.ZONE_2 - 1]
+    zone = zones.zone(found.avg_hr)
+    where = "in" if zone == details.ZONE_2 else "below" if zone < details.ZONE_2 else "above"
+    observed = f"Average {found.avg_hr} bpm is {where} your zone 2 ({low}-{high - 1} bpm)"
+    return details.suggested(found.avg_hr, zones), observed
 
 
 def _cardio(
@@ -297,12 +328,14 @@ def _cardio(
         max_hr=found.max_hr,
         started_at=started_at,
     )
-    if problem := cardio.problem(found.cardio, found.minutes, given, now):
+    # Both kinds share these bounds; which kind it was, the person picks when saving.
+    if problem := cardio.problem(details.TIMED[0], found.minutes, given, now):
         return Refused(problem)
-    name = workout_log.exercise_labels(session).get(found.cardio, (found.cardio,))[0]
+    suggested, observed = _suggestion(session, found, today)
     what = f" ({found.activity.value})" if found.activity is not None else ""
     payload = {
-        "cardio": found.cardio,
+        "suggested": suggested,
+        "observed": observed,
         "minutes": found.minutes,
         "activity": found.activity.value if found.activity is not None else None,
         "distance_m": given.distance_m,
@@ -310,7 +343,7 @@ def _cardio(
         "max_hr": given.max_hr,
         "started_at": given.started_at.isoformat() if given.started_at else None,
     }
-    shown = f"{name}, {found.minutes} min{what}{_details_text(found, given)}, on {_when(day)}"
+    shown = f"{UNPICKED}, {found.minutes} min{what}{_details_text(found, given)}, on {_when(day)}"
     return _Checked(CARDIO, day, payload, shown)
 
 
@@ -467,11 +500,18 @@ class Pending:
     expires_at: datetime
     # "Replaces the 78.4 kg saved that day": for the person only, never for the AI.
     replaces: str | None = None
+    # Cardio: the kind suggested ("zone2", "moderate-cardio" or None) and why, in our words:
+    # "Average 131 bpm is in your zone 2 (120-132 bpm), so zone 2 is suggested". The person picks.
+    suggested: CardioKind | None = None
+    suggestion: str | None = None
 
     @property
     def text(self) -> str:
         replaces = f"\n{self.replaces}." if self.replaces else ""
-        return f"From “{self.source}”: {self.summary}{replaces}"
+        pick = ""
+        if self.kind == CARDIO:
+            pick = f"\n{self.suggestion or 'Zone 2 or moderate'}. You pick."
+        return f"From “{self.source}”: {self.summary}{replaces}{pick}"
 
 
 def _source(name: str, length: int = NAME_LENGTH) -> str:
@@ -496,16 +536,32 @@ def _replaces(session: Session, row: LogProposal) -> str | None:
     return f"Replaces the {both} saved that day"
 
 
+def _suggested(row: LogProposal, source: str) -> tuple[CardioKind | None, str | None]:
+    """A cardio proposal's suggested kind and the line saying why."""
+    if row.kind != CARDIO:
+        return None, None
+    # Before the person picked (ADR-0067, 2026-10-24) the AI's kind was saved: its hint now.
+    kind = row.payload.get("suggested", row.payload.get("cardio"))
+    if kind not in CARDIO_WORDS:
+        return None, None
+    word = CARDIO_WORDS[kind]
+    observed = row.payload.get("observed")
+    why = f"{observed}, so {word} is suggested" if observed else f"“{source}” suggested {word}"
+    return kind, why
+
+
 def _pending(session: Session, row: LogProposal, name: str) -> Pending:
+    source = _source(name)
     return Pending(
         row.id,
         row.token,
         row.kind,
         row.local_date,
         row.summary,
-        _source(name),
+        source,
         row.expires_at,
         _replaces(session, row),
+        *_suggested(row, source),
     )
 
 
@@ -578,7 +634,13 @@ class Discarded:
     pass
 
 
-Resolved = Saved | Discarded | Already | Gone | Changed
+@dataclass(frozen=True)
+class Unpicked:
+    """A cardio proposal saved without zone 2 or moderate picked: nothing was written and it
+    keeps waiting."""
+
+
+Resolved = Saved | Discarded | Already | Gone | Changed | Unpicked
 
 
 def _claim(
@@ -632,6 +694,7 @@ def _write(
     today: date,
     answer: day_clash.Resolution | None,
     effort: int | None,
+    kind: str,
 ) -> str | day_clash.Clash | day_clash.Refused | None:
     """Save through the service of the proposal's kind; why not, when it no longer fits; or the
     question, when the day already has its session (ADR-0060)."""
@@ -672,7 +735,7 @@ def _write(
             session,
             day,
             tz,
-            data["cardio"],
+            kind,
             data["minutes"],
             activity,
             row.token,
@@ -701,18 +764,29 @@ def save(
     by: str,
     answer: day_clash.Resolution | None = None,
     effort: int | None = None,
-) -> Saved | Already | Gone | Changed | day_clash.Clash | day_clash.Refused:
+    cardio: str | None = None,
+) -> Saved | Already | Gone | Changed | Unpicked | day_clash.Clash | day_clash.Refused:
     """Save a waiting proposal, once. ``by`` is where the person tapped (web or telegram);
-    ``effort`` is how hard a cardio one felt, picked on the web card (ADR-0067).
+    ``effort`` is how hard a cardio one felt, picked on the web card, and ``cardio`` whether
+    it was zone 2 or moderate, picked on the card or a Telegram button (ADR-0067).
 
     When its day already has its session, nothing is saved and it keeps waiting: the person
-    is asked (``Clash``) and saves again with ``answer`` (ADR-0060)."""
+    is asked (``Clash``) and saves again with ``answer`` (ADR-0060). A cardio one without a
+    pick (``Unpicked``) waits too."""
     row = _claim(session, token, SAVED, now)
     if not isinstance(row, LogProposal):
         return row
-    problem = _write(session, row, tz, local_date(now, tz), answer, effort)
-    if isinstance(problem, day_clash.Clash | day_clash.Refused):
-        # Nothing was written but the claim: it waits again, for the answer.
+    # Only the person's pick saves a kind (review of #321): one proposed before they picked
+    # keeps the AI's kind as its suggestion, though its summary names it.
+    fixed = row.payload.get("cardio") if row.kind == CARDIO else None
+    kind = cardio if cardio in CARDIO_WORDS else None
+    problem: str | day_clash.Clash | day_clash.Refused | Unpicked | None
+    if row.kind == CARDIO and kind is None:
+        problem = Unpicked()
+    else:
+        problem = _write(session, row, tz, local_date(now, tz), answer, effort, kind or "")
+    if isinstance(problem, day_clash.Clash | day_clash.Refused | Unpicked):
+        # Nothing was written but the claim: it waits again, for the answer or the pick.
         row.status, row.resolved_at = PENDING, None
         session.flush()
         return problem
@@ -720,7 +794,28 @@ def save(
         _resolve(session, row, DISCARDED, now, by, "changed")
         return Changed(problem)
     _resolve(session, row, SAVED, now, by)
-    return Saved(row.summary, workout=row.kind in (STRENGTH, CARDIO))
+    summary = row.summary
+    if row.kind == CARDIO and kind is not None and kind != fixed:
+        # Name the kind saved: in place of "Cardio", or of the AI's kind on an older proposal
+        # the person saved as the other one (review of #321).
+        labels = workout_log.exercise_labels(session)
+        shown = UNPICKED if fixed is None else labels.get(fixed, (fixed,))[0]
+        if summary.startswith(shown):
+            summary = labels.get(kind, (kind,))[0] + summary.removeprefix(shown)
+    return Saved(summary, workout=row.kind in (STRENGTH, CARDIO))
+
+
+def waiting_kind(session: Session, token: str, now: datetime) -> str | None:
+    """The kind of the proposal waiting under ``token``, or None when none waits there."""
+    user = _user(session)
+    return session.scalar(
+        select(LogProposal.kind).where(
+            LogProposal.token == token,
+            LogProposal.status == PENDING,
+            LogProposal.expires_at > now,
+            LogProposal.connection_id.in_(_live(user, now)),
+        )
+    )
 
 
 def discard(session: Session, token: str, now: datetime, by: str) -> Discarded | Already | Gone:

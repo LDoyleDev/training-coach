@@ -755,6 +755,9 @@ class ImportedWorkout(Owned, Base):
         CheckConstraint("minutes BETWEEN 0 AND 1440", name="minutes_range"),
         CheckConstraint("avg_hr IS NULL OR avg_hr BETWEEN 25 AND 250", name="avg_hr_range"),
         CheckConstraint("max_hr IS NULL OR max_hr BETWEEN 25 AND 250", name="max_hr_range"),
+        CheckConstraint(
+            "sustained_hr IS NULL OR sustained_hr BETWEEN 25 AND 250", name="sustained_hr_range"
+        ),
         CheckConstraint(_in("activity", CardioActivity), name="activity_valid"),
         CheckConstraint("status IN ('new', 'counted', 'dismissed')", name="status_valid"),
         CheckConstraint(
@@ -777,6 +780,8 @@ class ImportedWorkout(Owned, Base):
     minutes: Mapped[int] = mapped_column(Integer)
     avg_hr: Mapped[int | None] = mapped_column(Integer)
     max_hr: Mapped[int | None] = mapped_column(Integer)
+    # The highest held 3 minutes in a row: what raises max heart rate (``domain.zones``).
+    sustained_hr: Mapped[int | None] = mapped_column(Integer)
     # Minutes in Karvonen zones 1-5 (ADR-0055); empty without heart rate.
     zone1_min: Mapped[int | None] = mapped_column(Integer)
     zone2_min: Mapped[int | None] = mapped_column(Integer)

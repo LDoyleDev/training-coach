@@ -266,12 +266,25 @@ test('Log more closes the saved screen for the page', async () => {
   expect(onChange).toHaveBeenLastCalledWith('closed')
 })
 
+test('a ride shows its speed, not its pace', async () => {
+  serve({ log: { ...LOGGED, planned: false, pace: 148 } })
+  render(<Cardio featured />)
+  fireEvent.click(await screen.findByRole('button', { name: /different minutes/ }))
+  fireEvent.change(screen.getByLabelText('Minutes'), { target: { value: '90' } })
+  click('Bike')
+  click('Effort 5')
+  fireEvent.change(screen.getByLabelText('Distance (km)'), { target: { value: '36.4' } })
+  expect(screen.getByText('Speed 24.3 km/h')).toBeInTheDocument()
+  click('Save 90 min')
+  expect(await screen.findByText('effort 5/10 · 36.4 km · 24.3 km/h')).toBeInTheDocument()
+})
+
 test('details from a watch: distance gives the pace, and they are sent and shown', async () => {
   const sent = serve({ log: { ...LOGGED, planned: false, pace: 354 } })
   render(<Cardio featured />)
   fireEvent.click(await screen.findByRole('button', { name: /different minutes/ }))
   fireEvent.change(screen.getByLabelText('Minutes'), { target: { value: '43' } })
-  click('Bike')
+  click('Hike')
   click('Effort 6')
   fireEvent.change(screen.getByLabelText('Distance (km)'), { target: { value: '7,29' } })
   expect(screen.getByText('Pace 5:54 /km')).toBeInTheDocument()
@@ -285,7 +298,7 @@ test('details from a watch: distance gives the pace, and they are sent and shown
   expect(sent).toEqual([
     expect.objectContaining({
       value: 43,
-      activity: 'bike',
+      activity: 'hike',
       effort: 6,
       distance_km: 7.29,
       avg_hr: 139,

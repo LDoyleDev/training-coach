@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
 from tests import oauth_flow as flow
-from tests.bot.fakes import OWNER, SETTINGS, STRANGER, press, run, texts
+from tests.bot.fakes import OWNER, SETTINGS, STRANGER, button_data, press, run, texts
 from training_coach.bot import proposals as proposals_ui
 from training_coach.bot.app import ANNOUNCE
 from training_coach.db.models import HabitCheck, LogProposal, McpConnection, Measurement, Workout
@@ -56,6 +56,9 @@ def _ticks(seeded: Sessions) -> list[str]:
     [
         ("lp:save:" + "ab" * 16, proposals_ui.Press("save", "ab" * 16)),
         ("lp:discard:" + "ab" * 16, proposals_ui.Press("discard", "ab" * 16)),
+        ("lp:zone2:" + "ab" * 16, proposals_ui.Press("zone2", "ab" * 16)),
+        ("lp:moderate:" + "ab" * 16, proposals_ui.Press("moderate", "ab" * 16)),
+        ("lp:moderate-cardio:" + "ab" * 16, None),
         ("lp:edit:" + "ab" * 16, None),
         ("lp:save:" + "AB" * 16, None),
         ("lp:save:abc", None),
@@ -138,8 +141,89 @@ async def test_a_saved_workout_offers_undo(
     token = _propose(
         seeded, engine, kind="cardio", cardio="zone2", minutes=40, day=TODAY.isoformat()
     )
-    (reply,) = texts(await run(application, press(f"lp:save:{token}", OWNER)))
+    (reply,) = texts(await run(application, press(f"lp:zone2:{token}", OWNER)))
     assert reply.endswith("/undo takes it back.")
+
+
+RIDE = {"kind": "cardio", "cardio": "zone2", "minutes": 40, "activity": "bike"}
+
+
+async def test_a_cardio_proposal_has_a_button_per_kind_and_names_the_suggestion(
+    seeded: Sessions, engine: Engine
+) -> None:
+    """Owner, 2026-10-24: the app observes and suggests; the person picks."""
+    token = _propose(seeded, engine, **RIDE, avg_hr=139)
+    send = AsyncMock(return_value=proposals_ui.SENT)
+    await proposals_ui.ProposalHandlers(SETTINGS, seeded, send).announce(None)  # type: ignore[arg-type]
+    text, markup = send.await_args.args[2], send.await_args.kwargs["reply_markup"]
+    assert text == (
+        f"From “Claude”: Cardio, 40 min (bike), HR 139 avg, on {TODAY:%a %d %b}\n"
+        "Average 139 bpm is in your zone 2 (138-150 bpm), so zone 2 is suggested. You pick.\n\n"
+        "Nothing is saved until you tap Zone 2 or Moderate."
+    )
+    assert [(b.text, b.callback_data) for b in markup.inline_keyboard[0]] == [
+        ("Zone 2", f"lp:zone2:{token}"),
+        ("Moderate", f"lp:moderate:{token}"),
+        ("Discard", f"lp:discard:{token}"),
+    ]
+
+
+async def test_without_a_suggestion_it_says_the_person_picks(
+    seeded: Sessions, engine: Engine
+) -> None:
+    _propose(seeded, engine, kind="cardio", minutes=40)
+    send = AsyncMock(return_value=proposals_ui.SENT)
+    await proposals_ui.ProposalHandlers(SETTINGS, seeded, send).announce(None)  # type: ignore[arg-type]
+    assert "\nZone 2 or moderate. You pick.\n" in send.await_args.args[2]
+
+
+async def test_the_kind_tapped_is_the_kind_saved(
+    application: App, seeded: Sessions, engine: Engine
+) -> None:
+    token = _propose(seeded, engine, **RIDE)  # the AI's hint is zone 2
+    (reply,) = texts(await run(application, press(f"lp:moderate:{token}", OWNER)))
+    assert reply.startswith("Saved: Moderate cardio (~75-80% effort), 40 min (bike), on ")
+    assert _status(seeded, token) == "saved"
+
+
+async def test_save_on_a_cardio_one_asks_for_the_kind(
+    application: App, seeded: Sessions, engine: Engine
+) -> None:
+    token = _propose(seeded, engine, **RIDE)
+    calls = await run(application, press(f"lp:save:{token}", OWNER))
+    assert texts(calls) == [proposals_ui.UNPICKED]
+    assert button_data(calls["sendMessage"][0]) == [
+        f"lp:zone2:{token}",
+        f"lp:moderate:{token}",
+        f"lp:discard:{token}",
+    ]
+    assert _status(seeded, token) == "pending"
+
+
+async def test_save_on_an_older_cardio_one_asks_for_the_kind_too(
+    application: App, seeded: Sessions, engine: Engine
+) -> None:
+    """Review of #321: its message has a plain Save, which saved the AI's kind untouched."""
+    token = _propose(seeded, engine, **RIDE)
+    with seeded() as session:  # as proposed before the person picked: the AI's kind kept
+        session.scalars(select(LogProposal)).one().payload = {
+            "cardio": "zone2",
+            "minutes": 40,
+            "activity": "bike",
+        }
+        session.commit()
+    calls = await run(application, press(f"lp:save:{token}", OWNER))
+    assert texts(calls) == [proposals_ui.UNPICKED]
+    assert _status(seeded, token) == "pending"
+
+
+@pytest.mark.parametrize("action", ["zone2", "moderate"])
+async def test_strangers_cant_pick_a_kind(
+    application: App, seeded: Sessions, engine: Engine, action: str
+) -> None:
+    token = _propose(seeded, engine, **RIDE)
+    assert await run(application, press(f"lp:{action}:{token}", STRANGER)) == {}
+    assert _status(seeded, token) == "pending"
 
 
 async def test_discard(application: App, seeded: Sessions, engine: Engine) -> None:

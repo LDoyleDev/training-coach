@@ -47,6 +47,26 @@ def test_their_own_max_wins_then_the_higher_of_estimate_and_peak() -> None:
     assert zones.max_heart_rate(own=None, years=None, peak=None) == zones.DEFAULT_MAX
 
 
+def _minutes(*rates: float, start: datetime = T) -> list[tuple[datetime, float]]:
+    return [(start + timedelta(minutes=n), bpm) for n, bpm in enumerate(rates)]
+
+
+def test_a_peak_counts_only_as_held_for_three_minutes() -> None:
+    # Security test, 2026-10-24: one 230 reading moved max heart rate and every zone.
+    assert zones.sustained(_minutes(150, 230, 150, 150)) == 150
+    assert zones.sustained(_minutes(150, 181, 182.4, 190, 150)) == 181
+    gap = _minutes(195, 195) + _minutes(195, start=T + timedelta(minutes=5))
+    assert zones.sustained(gap) is None  # not three minutes in a row
+    assert zones.sustained(_minutes(200, 200)) is None
+
+
+def test_a_peak_raises_the_estimate_by_at_most_twenty() -> None:
+    assert zones.counted_peak(None, 230) == zones.DEFAULT_MAX + zones.RAISE_LIMIT
+    assert zones.counted_peak(40, 195) == 195  # an estimate of 180
+    assert zones.counted_peak(40, 215) == 200
+    assert zones.counted_peak(40, None) is None
+
+
 def test_resting_is_the_median_of_the_last_seven_nights() -> None:
     assert zones.resting([50, 52, 48, 70, 51, 49, 50, 90, 90]) == 50  # the 90s are too old
     assert zones.resting([50, 53]) == 52  # 51.5 rounds to even

@@ -46,7 +46,9 @@ function Workout({ workout }: { workout: LoggedWorkout }) {
         </p>
       )}
       {workout.cardio && (
-        <p className="m-0 text-sm text-[var(--slate)]">{details(workout.cardio)}</p>
+        <p className="m-0 text-sm text-[var(--slate)]">
+          {details(workout.cardio, workout.activity)}
+        </p>
       )}
       {workout.exercises.length > 0 && (
         <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm">
