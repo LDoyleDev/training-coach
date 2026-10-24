@@ -139,12 +139,19 @@ rollback still runs and the journal says so.
 A deploy cut off part way (a power cut, a reboot, the unit's 30-minute timeout) leaves
 `.git/auto-deploy-pending`, written after the backup and removed when the deploy is over. The
 next run finishes it without a second backup: it rebuilds the new tag once more. If that is
-cut off too, or the rollback was, it rolls back once and the failed tag stays marked. A
-`pending` file that matches neither the old nor the new checkout (someone deployed by hand
-meanwhile) stops every run with an error until you `rm .git/auto-deploy-pending`.
+cut off too, or the rollback was, it rolls back once and the failed tag stays marked. Before
+any of that, the tag passes the same checks as a new deploy: a release tag, on `main`, forward
+from the commit deployed before, every commit since signed by GitHub (with the key from that
+commit, not the release's). A `pending` file that matches neither the old nor the new checkout
+(someone deployed by hand meanwhile), that names anything but a release tag and a full commit
+id, or whose tag fails a check, stops every run with an error until you `rm
+.git/auto-deploy-pending`. One you didn't expect is worth a look: only this script writes it.
 
 After a healthy deploy, the script removes this app's older images, which would otherwise fill
-the SD card at one per release. It keeps the image now running and the one it replaced, and
+the SD card at one per release. It keeps the image now running and the one the app's container
+ran before the deploy, recorded in `.git/auto-deploy-replaced-image` when the deploy starts (not
+simply the newest other: after a rollback by hand whose build was all cached, that one never
+ran). If the app wasn't running then, it removes nothing that time and says so. It
 touches only images with the Dockerfile's `training-coach.app` label: no other project's
 images, no volumes, no `docker image prune -a`. Images built before the label was added stay;
 remove them once by hand: for each untagged `<none>` image in `docker image ls`, check it is
@@ -152,7 +159,14 @@ this app's (`docker image inspect <id>` shows `training-coach serve` in its `Cmd
 `docker image rm <id>`.
 
 A release tag deleted upstream (a typo'd or early tag) is deleted on the Pi at the next fetch,
-so it can't stay the newest tag and block later releases. A tag that moves is still refused.
+so it can't stay the newest tag and block later releases. A tag that moves is still refused,
+and so is one deleted and made again on another commit: each healthy deploy adds
+`<tag> <commit>` to `.git/auto-deploy-tags`, and a tag listed there at a different commit logs
+`vX.Y.Z was deployed here at <commit> and now names <commit>` on every run until a newer
+release is out. Release tags never move, so find out who re-made it first (`git log
+--show-signature -1 vX.Y.Z` on the Pi; the fetch already brought the new one). The way on is a
+new release; deploying the re-made tag means a deploy by hand and deleting its line from that
+file, which only a person decides.
 
 The usual cause is the image build failing on a download over the Pi's Wi-Fi (v0.37.0 failed
 that way). The build waits up to 120 s and retries each download, and keeps downloaded wheels in

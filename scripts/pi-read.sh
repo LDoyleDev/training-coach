@@ -82,10 +82,10 @@ def run():
     cursor = db.execute(query)
     header = "\t".join(c[0] for c in cursor.description or ())
     print(header)
-    size = len(header) + 1
+    size = len(header.encode()) + 1  # bytes, not characters: an emoji is 4 (review of 2026-10-24)
     for row in itertools.islice(cursor, MAX_ROWS):  # one row at a time, not all 500 at once
         values = ["" if v is None else str(v) for v in row]
-        size += sum(map(len, values)) + len(values)
+        size += sum(len(v.encode()) for v in values) + len(values)
         if size > OUTPUT_MB * 1_000_000:
             sys.exit(f"stopped at {OUTPUT_MB} MB of output: ask for fewer or narrower columns, or fewer rows")
         print("\t".join(values))

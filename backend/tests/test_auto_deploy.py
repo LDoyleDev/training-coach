@@ -26,6 +26,8 @@ echo "$*" >> "$STUB_DIR/docker.log"
 case "$*" in
   image\\ inspect*) cat "$STUB_DIR/running" 2>/dev/null ;;
   image\\ ls*) cat "$STUB_DIR/images" 2>/dev/null || true ;;
+  compose\\ ps*) [ ! -e "$STUB_DIR/replaced" ] || echo c0ffee ;;
+  inspect\\ *c0ffee) cat "$STUB_DIR/replaced" ;;
   *exec*backup*) [ ! -e "$STUB_DIR/fail-backup" ] && [ ! -e "$STUB_DIR/fail-exec" ] ;;
   *backup*) [ ! -e "$STUB_DIR/fail-backup" ] ;;
   *up\\ -d*) [ ! -e "$STUB_DIR/fail-up" ] ;;
@@ -40,7 +42,7 @@ GPG = """#!/usr/bin/env bash
 mode="" file=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --import) exit 0 ;;
+    --import) cp "$2" "$STUB_DIR/imported"; exit 0 ;;  # the key the script trusts, kept to look at
     --verify) mode=verify; file="$2"; shift ;;
     -bsau) mode=sign ;;
   esac
@@ -63,6 +65,7 @@ echo "[GNUPG:] GOODSIG 0 GitHub"
 echo "[GNUPG:] VALIDSIG $signer 2026-10-10 0 0 4 0 1 8 00 $signer"
 """
 GITHUB = "968479A1AFF927E37D1A566BB5690EEEBB952194"  # pinned in the script
+KEY = "scripts/keys/github-web-flow.gpg"  # the script imports it from the deployed commit
 
 
 def _git(cwd: Path, *args: str) -> str:
@@ -144,20 +147,23 @@ class Pi:
         )
 
     def docker_calls(self) -> list[str]:
-        """The compose calls: the deploy's steps, without the image clean-up."""
+        """The compose calls that act: the deploy's steps, without the image bookkeeping."""
         log = self.stubs / "docker.log"
         calls = log.read_text().splitlines() if log.exists() else []
-        return [call for call in calls if call.startswith("compose ")]
+        return [c for c in calls if c.startswith("compose ") and not c.startswith("compose ps")]
 
     def removed_images(self) -> list[str]:
         log = self.stubs / "docker.log"
         calls = log.read_text().splitlines() if log.exists() else []
         return [call.removeprefix("image rm ") for call in calls if call.startswith("image rm ")]
 
-    def images(self, running: str, *others: str) -> None:
-        """This app's images, newest first, as `docker image ls` lists them."""
+    def images(self, running: str, *others: str, replaced: str | None = None) -> None:
+        """This app's images, newest first, as `docker image ls` lists them; ``running`` once
+        the deploy is done, ``replaced`` the one the app's container ran before it."""
         (self.stubs / "running").write_text(running + "\n")
         (self.stubs / "images").write_text("".join(f"{i}\n" for i in (running, *others)))
+        if replaced is not None:
+            (self.stubs / "replaced").write_text(replaced + "\n")
 
     def cut_off_builds(self, *numbers: int) -> None:
         """The script is killed during these rebuilds (1 is the first): a power cut, a reboot,
@@ -182,7 +188,10 @@ def pi(tmp_path: Path) -> Pi:
     origin.mkdir()
     stubs.mkdir()
     _git(origin, "init", "-q", "-b", "main")
-    _git(origin, "commit", "-q", "--allow-empty", "-m", "start")
+    (origin / KEY).parent.mkdir(parents=True)
+    (origin / KEY).write_text("GitHub's key")
+    _git(origin, "add", ".")
+    _git(origin, "commit", "-q", "-m", "start")
     for name, body in (("docker", DOCKER), ("curl", CURL), ("gpg", GPG)):
         (stubs / name).write_text(body, newline="\n")
         (stubs / name).chmod(0o755)
@@ -251,6 +260,24 @@ def test_a_moved_release_tag_is_refused_and_says_so(pi: Pi) -> None:
     assert result.returncode == 1
     assert pi.at() == "v0.2.0"
     assert "a release tag moved" in result.stdout
+
+
+def test_a_release_tag_deleted_and_made_again_elsewhere_is_refused(pi: Pi) -> None:
+    """The fetch refuses a tag moved in place, but --prune drops one deleted upstream first, so
+    made again on a later commit it arrived as new (security test of 2026-10-24)."""
+    pi.release("v0.2.0")
+    pi.health("0.2.0")
+    assert pi.deploy().returncode == 0
+    deployed = _git(pi.checkout, "rev-parse", "HEAD")
+    _git(pi.origin, "tag", "-d", "v0.2.0")
+    pi.deploy()  # drops the local tag
+    (pi.origin / "backend" / "src" / "later.txt").write_text("not released")
+    pi.release("v0.2.0")  # signed, on main and forward: only this Pi's history tells
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert _git(pi.checkout, "rev-parse", "HEAD") == deployed
+    assert pi.docker_calls() == [BACKUP, BUILD]
+    assert f"v0.2.0 was deployed here at {deployed[:7]}" in result.stdout
 
 
 def test_a_rollback_waits_for_the_old_version_not_any_answer(pi: Pi) -> None:
@@ -437,6 +464,56 @@ def test_a_cut_off_deploy_overtaken_by_hand_is_left_for_a_person(pi: Pi) -> None
     assert "doesn't match the checkout" in result.stdout
 
 
+@pytest.mark.parametrize(
+    ("branch", "refused"), [("side", "not on main"), ("main", "which GitHub didn't sign")]
+)
+def test_a_planted_pending_mark_does_not_skip_the_checks(pi: Pi, branch: str, refused: str) -> None:
+    """The mark is a file in .git: one naming an unsigned tag was "finished" and deployed, off
+    main too. A resumed deploy passes the same checks as a new one (security test of
+    2026-10-24)."""
+    _git(pi.origin, "branch", "side")
+    pi.release("v0.9.0", branch=branch, signer=None)
+    _git(pi.checkout, "fetch", "-q", "origin", "refs/tags/v0.9.0:refs/tags/v0.9.0")
+    _git(pi.checkout, "fetch", "-q", "origin", "+main:refs/remotes/deploy/main")  # a run's fetch
+    head = _git(pi.checkout, "rev-parse", "HEAD")
+    (pi.checkout / PENDING).write_text(f"v0.9.0 {head}\n", newline="\n")  # as the script writes
+    pi.health("0.9.0")
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert (pi.at(), pi.docker_calls()) == ("v0.1.0", [])
+    assert refused in result.stdout
+
+
+@pytest.mark.parametrize("mark", ["--orphan=x {head}", "main {head}", "v0.2.0 HEAD"])
+def test_a_pending_mark_this_script_did_not_write_is_refused(pi: Pi, mark: str) -> None:
+    """Only a release tag and a full commit id: nothing in the mark reaches git as an option
+    or as a branch or other name."""
+    pi.release("v0.2.0")
+    _git(pi.checkout, "fetch", "-q", "--tags")
+    head = _git(pi.checkout, "rev-parse", "HEAD")
+    (pi.checkout / PENDING).write_text(mark.format(head=head) + "\n", newline="\n")
+    pi.health("0.2.0")
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert (pi.at(), pi.docker_calls()) == ("v0.1.0", [])
+    assert "is not one this script wrote" in result.stdout
+
+
+def test_a_resumed_deploy_trusts_the_key_deployed_before(pi: Pi) -> None:
+    """When a cut-off deploy is finished the release is checked out already, so its own copy of
+    GitHub's key could vouch for it; the key comes from the commit deployed before."""
+    (pi.origin / KEY).write_text("a key the release brought")
+    pi.release("v0.2.0")
+    pi.health("0.1.0")
+    pi.cut_off_builds(1)
+    pi.deploy()
+    (pi.stubs / "imported").unlink()
+    pi.health("0.2.0")
+    result = pi.deploy()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (pi.stubs / "imported").read_text() == "GitHub's key"
+
+
 def test_the_rollback_runs_even_if_the_failed_mark_cannot_be_written(pi: Pi) -> None:
     pi.release("v0.2.0")
     pi.health("0.1.0")
@@ -464,7 +541,9 @@ def test_a_tag_deleted_upstream_is_dropped_and_blocks_nothing(pi: Pi) -> None:
 def test_a_healthy_deploy_removes_old_images_but_the_running_and_previous(pi: Pi) -> None:
     pi.release("v0.2.0")
     pi.health("0.2.0")
-    pi.images("sha256:new", "sha256:previous", "sha256:old", "sha256:older")
+    pi.images(
+        "sha256:new", "sha256:previous", "sha256:old", "sha256:older", replaced="sha256:previous"
+    )
     assert pi.deploy().returncode == 0
     assert pi.removed_images() == ["sha256:old", "sha256:older"]
     assert "image ls --quiet --no-trunc --filter label=training-coach.app" in (
@@ -475,6 +554,26 @@ def test_a_healthy_deploy_removes_old_images_but_the_running_and_previous(pi: Pi
 def test_a_failed_deploy_removes_no_images(pi: Pi) -> None:
     pi.release("v0.2.0")
     pi.health("0.1.0")
-    pi.images("sha256:new", "sha256:previous", "sha256:old")
+    pi.images("sha256:new", "sha256:previous", "sha256:old", replaced="sha256:previous")
     assert pi.deploy().returncode == 1
     assert pi.removed_images() == []
+
+
+def test_the_clean_up_keeps_the_image_that_ran_before_not_the_newest_other(pi: Pi) -> None:
+    """After a rollback by hand whose build was all cached, the image that ran is older than one
+    that never ran, and keeping the newest other removed it (security test of 2026-10-24)."""
+    pi.release("v0.2.0")
+    pi.health("0.2.0")
+    pi.images("sha256:new", "sha256:never-ran", "sha256:ran", replaced="sha256:ran")
+    assert pi.deploy().returncode == 0
+    assert pi.removed_images() == ["sha256:never-ran"]
+
+
+def test_the_clean_up_removes_nothing_when_what_ran_before_is_unknown(pi: Pi) -> None:
+    pi.release("v0.2.0")
+    pi.health("0.2.0")
+    pi.images("sha256:new", "sha256:previous", "sha256:old")  # the app wasn't running
+    result = pi.deploy()
+    assert result.returncode == 0
+    assert pi.removed_images() == []
+    assert "which one ran before this deploy isn't known" in result.stdout
