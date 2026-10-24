@@ -171,9 +171,8 @@ is roughly 60-70% of max heart rate, the "can still talk" pace.
   hours of raw records on every sync, and its dashboard reads every allowed type when opened, so
   the quota (smaller in the background) never refills. Fixes on the phone:
   `docs/runbooks/band-import.md`.
-- **Next step:** HC Webhook v1.9.26 or later, which syncs from Health Connect's changes
-  (`docs/runbooks/band-import.md` step 3.1). If that still fails: our own small Android reader
-  (the L3 path, earlier), planned in `android-reader.md`. Every future user would hit the same quota, so it is the long-term
+- **Next step:** HC Webhook 1.9.31 still ran out of quota on 24 Oct, so we are building our own
+  small Android reader (the L3 path, earlier): ADR-0070, planned in `android-reader.md`. Every future user would hit the same quota, so it is the long-term
   route rather than a workaround.
 
 ### What it unlocks in the plan
