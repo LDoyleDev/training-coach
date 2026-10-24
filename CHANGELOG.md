@@ -4,6 +4,30 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.38.0](https://github.com/LDoyleDev/training-coach/compare/v0.37.2...v0.38.0) (2026-10-24)
+
+
+### Features
+
+* **api:** the person picks zone 2 or moderate on AI cardio proposals ([#321](https://github.com/LDoyleDev/training-coach/issues/321)) ([d90487b](https://github.com/LDoyleDev/training-coach/commit/d90487ba541d2cff357fa4481908faedbfebbb21))
+* **infra:** band reader spike: steps and heart rate from Health Connect ([#316](https://github.com/LDoyleDev/training-coach/issues/316)) ([be10175](https://github.com/LDoyleDev/training-coach/commit/be1017529a9ae96c46d95dc0c753398c22d161f1))
+
+
+### Bug Fixes
+
+* **api:** harden propose_log against lax types, odd ids and starts ([#320](https://github.com/LDoyleDev/training-coach/issues/320)) ([ef084e6](https://github.com/LDoyleDev/training-coach/commit/ef084e6a6d521d60432e7e444f183b5c00272caf))
+* **api:** limit what one stolen band-import secret can do ([#324](https://github.com/LDoyleDev/training-coach/issues/324)) ([2e95a21](https://github.com/LDoyleDev/training-coach/commit/2e95a21ca6bd3e4f52a8e4d02d2e637d19948532))
+* **infra:** close the 2026-10-24 security test's auto-deploy and tc-read gaps ([#323](https://github.com/LDoyleDev/training-coach/issues/323)) ([f7cf286](https://github.com/LDoyleDev/training-coach/commit/f7cf2869c37699b0644479557d6b6fb340d8baf8))
+* **infra:** give tc-read's sql query its own memory and output budget ([#317](https://github.com/LDoyleDev/training-coach/issues/317)) ([98fc5d7](https://github.com/LDoyleDev/training-coach/commit/98fc5d74fc94fc2f5c7f2b8c896610ab4cdb9153))
+* **infra:** harden auto-deploy against cut-offs, full disks, old images ([#318](https://github.com/LDoyleDev/training-coach/issues/318)) ([d70297c](https://github.com/LDoyleDev/training-coach/commit/d70297cd39abb535895835a06a4710795722ca0a))
+* **infra:** reader and CI hardening from the security review ([#322](https://github.com/LDoyleDev/training-coach/issues/322)) ([ebf7a53](https://github.com/LDoyleDev/training-coach/commit/ebf7a537d21aabb34f2f84ae5c360864d0afcded))
+
+
+### Documentation
+
+* ADR-0070, our own Android reader, and its plan after review ([#315](https://github.com/LDoyleDev/training-coach/issues/315)) ([6065312](https://github.com/LDoyleDev/training-coach/commit/60653129649b45f68733952af2ae6764ca159abd))
+* wrap v0.38.0: the band reader and the security review ([#332](https://github.com/LDoyleDev/training-coach/issues/332)) ([9609857](https://github.com/LDoyleDev/training-coach/commit/9609857b35fd1028cd8e5d24854df70e7cdec0c0))
+
 ## [0.37.2](https://github.com/LDoyleDev/training-coach/compare/v0.37.1...v0.37.2) (2026-10-24)
 
 
