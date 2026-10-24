@@ -27,7 +27,14 @@ own reader rather than retry. The plan and its review are in `docs/specs/android
   background if the phone's Health Connect allows it.
 - **Signing:** one release key from the first build, kept as secrets of the GitHub environment
   `android-release`, which needs Liam's approval for every run that uses it, and backed up
-  encrypted with age in `~/.secrets/training-coach/android`.
+  encrypted with age in `~/.secrets/training-coach/android`. The key never meets Gradle: CI
+  builds an unsigned APK with no secrets, and the release job only signs it with apksigner and
+  checks the certificate against the digest pinned in `android/SIGNING_CERT_SHA256` (security
+  review of 24 Oct: a compromised build dependency could otherwise take the key). Accepted for
+  now: a compromised build dependency could still change the unsigned APK it hands over, and it
+  would be signed, since the digest check proves who signed, not what. Gradle dependency
+  verification (checksums of every plugin and library, committed) is the follow-up that
+  closes it.
 - **Builds:** CI builds and tests `android/` when it changes. A release is a GitHub
   pre-release tagged `android-v<version>` with the signed APK, made by its own workflow (not
   release-please), and installed with Obtainium.
@@ -54,7 +61,7 @@ own reader rather than retry. The plan and its review are in `docs/specs/android
 - The repo's root release-please package ignores `android/`, so an app change doesn't bump the
   coach's version; the Pi's auto-deploy only takes `v*` tags, so `android-v*` tags never deploy.
 - The threat model gets a row for the reader: the ingest secret on the phone, encrypted with an
-  Android Keystore key and never shown again; HTTPS only to the one address typed; no backup of
+  Android Keystore key and never shown again; HTTPS only to the coach's address built into the app (not typed, 24 Oct review); no backup of
   app data (`allowBackup=false`); no third-party SDKs or analytics; and the signing key,
   whose leak would let someone ship an update, behind the protected environment.
 - Account's band-import text shows the sending app's own version string, not "HC Webhook".
