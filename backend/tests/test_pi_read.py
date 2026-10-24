@@ -70,7 +70,11 @@ def _run(tmp_path: Path, query: str, db: Path | None = None) -> subprocess.Compl
     script.write_text(_query_script())
     uri = f"file:{db.as_posix()}?mode=ro"
     return subprocess.run(  # noqa: S603 - our own script and interpreter, fixed arguments
-        [sys.executable, str(script), query, uri], capture_output=True, text=True, check=False
+        [sys.executable, str(script), query, uri],
+        capture_output=True,
+        encoding="utf-8",  # as in the container; Windows' default can't print an emoji
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        check=False,
     )
 
 
@@ -198,6 +202,19 @@ def test_a_result_is_capped_in_total_not_just_per_value(tmp_path: Path, query: s
     done = _run(tmp_path, query)
     assert done.returncode != 0
     assert len(done.stdout) <= 4_000_000
+    assert " MB" in done.stderr, done.stderr
+
+
+def test_the_output_cap_counts_bytes_not_characters(tmp_path: Path) -> None:
+    """Counted in characters, 4-byte ones let 15 MB through the 4 MB cap (review of
+    2026-10-24)."""
+    done = _run(
+        tmp_path,
+        "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c LIMIT 500) "
+        "SELECT replace(printf('%240000d', x), ' ', '\U0001f600') FROM c",
+    )
+    assert done.returncode != 0
+    assert 0 < len(done.stdout.encode()) <= 4_000_000
     assert " MB" in done.stderr, done.stderr
 
 
