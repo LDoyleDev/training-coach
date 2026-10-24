@@ -54,7 +54,7 @@ own reader rather than retry. The plan and its review are in `docs/specs/android
 - The repo's root release-please package ignores `android/`, so an app change doesn't bump the
   coach's version; the Pi's auto-deploy only takes `v*` tags, so `android-v*` tags never deploy.
 - The threat model gets a row for the reader: the ingest secret on the phone, encrypted with an
-  Android Keystore key and never shown again; HTTPS only to the one address typed; no backup of
+  Android Keystore key and never shown again; HTTPS only to the coach's address built into the app (not typed, 24 Oct review); no backup of
   app data (`allowBackup=false`); no third-party SDKs or analytics; and the signing key,
   whose leak would let someone ship an update, behind the protected environment.
 - Account's band-import text shows the sending app's own version string, not "HC Webhook".

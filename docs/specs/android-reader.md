@@ -66,7 +66,9 @@ publishes no numbers for either.
   and the screen says what was dropped, so one bad batch can't block every later sync.
 - Only one sync runs at a time ("Sync now" and the background job share one lock), so a stale
   token never overwrites a newer one.
-- HTTPS only, to the one address the person types; no cleartext, no analytics, no other
+- HTTPS only, to the coach's ingest address built into the app (`BuildConfig.COACH_URL`,
+  checked for host, path, no user part and no port) and never typed, so a look-alike can't get
+  the secret; redirects aren't followed; no cleartext, no analytics, no other
   network calls.
 
 ### Syncs when it can
@@ -80,9 +82,9 @@ publishes no numbers for either.
 
 ### One screen
 
-- The address and the secret, entered once. The secret is encrypted with a key held in the
+- The secret, entered once in a password field (screenshots of the screen are blocked). The secret is encrypted with a key held in the
   Android Keystore and never shown again.
-- **Sync now**, and **Test**, which posts `{"test": true}` to check the address and secret.
+- **Sync now**, and **Test**, which posts `{"test": true}` to check the secret.
 - Per type: last read, last sent, records in the last sync.
 - The last error as it happened: the quota, 401, 413, no network.
 - Later, **In Health Connect, last 7 days:** which apps wrote each type, from an aggregate's
@@ -127,7 +129,7 @@ publishes no numbers for either.
 
 Each PR under about 400 changed lines, not counting generated files.
 
-1. **Spike:** ADR-0070 and this update first, then the app with the address and secret, Test,
+1. **Spike:** ADR-0070 and this update first, then the app with the secret, Test,
    Sync now reading steps and heart rate only, the last error; the CI workflow, signing and
    the pre-release workflow. Trial: HC Webhook switched off, three days of opening Mi Fitness
    and then the reader (ADR-0070, Consequences).
