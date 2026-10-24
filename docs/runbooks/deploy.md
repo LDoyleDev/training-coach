@@ -135,6 +135,10 @@ place, because going back needs the backup it took (see Rollback). Either way, t
 is saved in `.git/auto-deploy-failed` and not retried. Fix it with a new release, or deploy by
 hand and `rm .git/auto-deploy-failed`.
 
+The usual cause is the image build failing on a download over the Pi's Wi-Fi (v0.37.0 failed
+that way). The build waits up to 120 s and retries each download, and keeps downloaded wheels in
+a BuildKit cache, so a retry or a lockfile change only fetches what changed.
+
 ## Uptime monitoring (ADR-0045)
 
 Every 5 minutes the Pi tells Healthchecks.io the app is up: it pings a check if `/healthz`
