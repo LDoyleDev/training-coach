@@ -61,7 +61,9 @@ object Sync {
                 keep(store, steps, heart.nextToken)
                 "The coach refused this batch $REFUSALS_BEFORE_SKIPPING syncs in a row " +
                     "(${delivery.answer.status}), so it was skipped: the last ${delivery.dropped} of " +
-                    "${delivery.of} post(s) won't be sent. Later data is sent as usual."
+                    "${delivery.of} post(s) won't be sent" +
+                    (if (delivery.dropped == delivery.of) ", steps included" else "") +
+                    ". Later data is sent as usual."
             }
         }
     }
