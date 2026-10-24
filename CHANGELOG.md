@@ -4,6 +4,20 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.37.2](https://github.com/LDoyleDev/training-coach/compare/v0.37.1...v0.37.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* **api:** keep a daily steps record on the day the clocks go back ([#313](https://github.com/LDoyleDev/training-coach/issues/313)) ([2b7e855](https://github.com/LDoyleDev/training-coach/commit/2b7e85522b28f3455f0aaa89bc7143a34185305f))
+
+
+### Documentation
+
+* plan our own Android reader for band data ([#312](https://github.com/LDoyleDev/training-coach/issues/312)) ([1313af7](https://github.com/LDoyleDev/training-coach/commit/1313af7e2841bf33bab997e89534456fbf031b13))
+* wrap v0.37.1: the Pi build fix and the v0.37.0 rollback ([#310](https://github.com/LDoyleDev/training-coach/issues/310)) ([45ae827](https://github.com/LDoyleDev/training-coach/commit/45ae827c26656477863e24d5670738e29220b2da))
+* wrap v0.37.2: eval findings, and HC Webhook 1.9.26+ before our reader ([#314](https://github.com/LDoyleDev/training-coach/issues/314)) ([7e3dbf1](https://github.com/LDoyleDev/training-coach/commit/7e3dbf1ac9754c6031c7b72d6892ce339181456a))
+
 ## [0.37.1](https://github.com/LDoyleDev/training-coach/compare/v0.37.0...v0.37.1) (2026-10-24)
 
 
