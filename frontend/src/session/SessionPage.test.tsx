@@ -464,7 +464,7 @@ test('a failed save of an earlier day keeps it offered', async () => {
   serve({ pending: [{ day: '2026-10-11', session: 'Torso + neck', sets: 5 }], saveEarlier: 'fail' })
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Save it' }))
-  expect(await screen.findByText(/Check your connection/)).toBeInTheDocument()
+  expect(await screen.findByText(/Couldn't save. Check your connection/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Save it' })).toBeInTheDocument()
 })
 
