@@ -4,6 +4,13 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.37.1](https://github.com/LDoyleDev/training-coach/compare/v0.37.0...v0.37.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **infra:** let the Pi's image build survive a slow download ([#308](https://github.com/LDoyleDev/training-coach/issues/308)) ([fe24f32](https://github.com/LDoyleDev/training-coach/commit/fe24f324cbb708c6267a034c4605dfd9939fe3c6))
+
 ## [0.37.0](https://github.com/LDoyleDev/training-coach/compare/v0.36.0...v0.37.0) (2026-10-24)
 
 
