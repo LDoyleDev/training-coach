@@ -54,6 +54,16 @@ def parse_error() -> dict[str, Any]:
     return _error(None, PARSE_ERROR, "not JSON")
 
 
+def _encodable(text: str) -> bool:
+    """Whether ``text`` can go back in a UTF-8 answer: JSON lets a lone surrogate (half of a
+    pair, like U+D800) through, which no answer can carry."""
+    try:
+        text.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
 def handle(
     session: Session, access: Access, message: object, tz: ZoneInfo, now: datetime
 ) -> dict[str, Any] | NeedsScope | None:
@@ -65,9 +75,13 @@ def handle(
     if "id" not in message or not isinstance(method, str):
         return None  # a notification (initialized, cancelled) or a response: nothing to say
     id_ = message["id"]
-    if not isinstance(id_, str | int) or isinstance(id_, bool):
+    if (
+        not isinstance(id_, str | int)
+        or isinstance(id_, bool)
+        or (isinstance(id_, str) and not _encodable(id_))
+    ):
         return _error(None, INVALID_REQUEST, "id must be a string or a number")
-    params = message.get("params") or {}
+    params = message.get("params", {})  # null, [] or 0 are not an object either
     if not isinstance(params, dict):
         return _error(id_, INVALID_PARAMS, "params must be an object")
     if method == "initialize":
@@ -115,7 +129,7 @@ def _call(
     now: datetime,
 ) -> dict[str, Any] | NeedsScope:
     tool = mcp_tools.BY_NAME.get(str(params.get("name")))
-    arguments = params.get("arguments") or {}
+    arguments = params.get("arguments", {})
     if tool is None:
         _record(session, access, "unknown", "unknown_tool")
         return _error(id_, INVALID_PARAMS, "unknown tool")
@@ -131,7 +145,8 @@ def _call(
         text = mcp_tools.run(session, tool, arguments, access.scopes, local_date(now, tz))
     except mcp_tools.BadArgumentsError as problem:
         _record(session, access, tool.name, "bad_arguments")
-        return _result(id_, {"content": [{"type": "text", "text": str(problem)}], "isError": True})
+        answer = {"content": [{"type": "text", "text": problem.reason}], "isError": True}
+        return _result(id_, answer)
     _record(session, access, tool.name, "ok")
     return _result(id_, {"content": [{"type": "text", "text": text}], "isError": False})
 
