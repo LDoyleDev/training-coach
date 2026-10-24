@@ -11,8 +11,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-const val REFUSALS_BEFORE_SKIPPING = 3 // a batch the coach refuses for good mustn't block every later sync
-
 /** One sync at a time, whatever starts it, so an older token never overwrites a newer one. */
 object Sync {
     private val lock = Mutex()
@@ -48,22 +46,24 @@ object Sync {
         }
         val newSteps = changedDays(steps, store.sentSteps)
         val bodies = posts(now, BuildConfig.VERSION_NAME, newSteps, heart.samples)
-        for (body in bodies) {
-            val answer = send(store.address, secret, body)
-            if (answer.ok) continue
-            if (answer.status == 413 || answer.status == 422) {
-                store.refusals += 1
-                if (store.refusals >= REFUSALS_BEFORE_SKIPPING) {
-                    keep(store, steps, heart.nextToken)
-                    return "The coach refused this batch ${store.refusals} times (${answer.status}); skipped it."
-                }
+        return when (val delivery = deliver(bodies, store.refusals) { send(store.address, secret, it) }) {
+            is Delivery.Sent -> {
+                keep(store, steps, heart.nextToken)
+                "Sent at ${now.atZone(zone).toLocalTime().withNano(0)}: " +
+                    "${newSteps.size} day(s) of steps, ${heart.samples.size} heart-rate samples, " +
+                    "in ${delivery.posts} post(s)."
             }
-            return describe(answer)
+            is Delivery.Failed -> {
+                store.refusals = delivery.refusals
+                describe(delivery.answer)
+            }
+            is Delivery.Skipped -> {
+                keep(store, steps, heart.nextToken)
+                "The coach refused this batch $REFUSALS_BEFORE_SKIPPING syncs in a row " +
+                    "(${delivery.answer.status}), so it was skipped: the last ${delivery.dropped} of " +
+                    "${delivery.of} post(s) won't be sent. Later data is sent as usual."
+            }
         }
-        keep(store, steps, heart.nextToken)
-        return "Sent at ${now.atZone(zone).toLocalTime().withNano(0)}: " +
-            "${newSteps.size} day(s) of steps, ${heart.samples.size} heart-rate samples, " +
-            "in ${bodies.size} post(s)."
     }
 
     /** Only after the coach took everything: the token moves on and the totals count as sent. */
@@ -77,6 +77,7 @@ object Sync {
         0 -> "Couldn't reach the coach: ${answer.body}"
         401 -> "The coach didn't accept the secret (401). Make a new one on Account > Band import."
         413 -> "The coach refused the sync as too large (413)."
+        422 -> "The coach couldn't read the sync (422)."
         429 -> "Too many tries (429): wait 10 minutes."
         else -> "The coach answered ${answer.status}: ${answer.body}"
     }

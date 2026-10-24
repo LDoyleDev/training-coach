@@ -5,11 +5,6 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** The coach's answer to one post: the HTTP status and its body, cut short for the screen. */
-data class Answer(val status: Int, val body: String) {
-    val ok get() = status in 200..299
-}
-
 /** Whether an address can be posted to: HTTPS only (ADR-0070), never cleartext. */
 fun usableAddress(address: String): Boolean =
     address.startsWith("https://") && address.length > "https://".length && ' ' !in address
