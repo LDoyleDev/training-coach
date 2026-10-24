@@ -4,6 +4,13 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.38.1](https://github.com/LDoyleDev/training-coach/compare/v0.38.0...v0.38.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **infra:** reader keeps the screen awake, names the read that hits the quota, reads less ([#333](https://github.com/LDoyleDev/training-coach/issues/333)) ([4146302](https://github.com/LDoyleDev/training-coach/commit/4146302b1b46124e8319d2529d215e15dc345181))
+
 ## [0.38.0](https://github.com/LDoyleDev/training-coach/compare/v0.37.2...v0.38.0) (2026-10-24)
 
 
