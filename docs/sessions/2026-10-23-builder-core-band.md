@@ -51,12 +51,11 @@ stay in their own homes (ADRs, specs, runbooks); this log only points at them.
 
 1. **Phone:** retry the band sync. If it still fails, plan our own Android reader (proposal section 4).
 2. **Photo prefill, next step:** option B, reading the text on the phone (`docs/specs/cardio-photo-prefill.md`). This is for when there's no connected AI.
-3. **Proposal start time:** an AI's `start` is read against the proposal's day, with the same rule as the form: a time later than now means the day before. It only matters for a run that crossed midnight.
-4. **Connect the coach to the Claude.ai exercise chat:** `docs/runbooks/connect-my-ai.md`.
-5. **Builder stages left:** equipment and places, editing, the picker, gym weights. Plus tri-sets, Recovery pairs and drop sets (decision J).
-6. **Coverage gaps:**
+3. **Connect the coach to the Claude.ai exercise chat:** `docs/runbooks/connect-my-ai.md`.
+4. **Builder stages left:** equipment and places, editing, the picker, gym weights. Plus tri-sets, Recovery pairs and drop sets (decision J).
+5. **Coverage gaps:**
    - upper traps 0;
    - rear delts light green;
    - Legs goes over the spine cap once split squats and pistols are loaded.
-7. **Figures:** for the exercises that still have none.
-8. **Local worktrees:** twelve merged, clean worktrees under `training-coach-worktrees/` are waiting to be removed. `dayview` holds 26 uncommitted files from before that work was split into #298 and #301. Keep it until it has been checked.
+6. **Figures:** for the exercises that still have none.
+7. **Local worktrees:** twelve merged, clean worktrees under `training-coach-worktrees/` are waiting to be removed. `dayview` holds 26 uncommitted files from before that work was split into #298 and #301. Keep it until it has been checked.
