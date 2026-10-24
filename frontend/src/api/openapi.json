@@ -3408,6 +3408,19 @@
       "ProposalSave": {
         "description": "The token, and the answer when the day already has its session (ADR-0060).",
         "properties": {
+          "effort": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effort"
+          },
           "resolution": {
             "anyOf": [
               {

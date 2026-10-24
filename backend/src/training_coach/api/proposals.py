@@ -35,6 +35,9 @@ class ProposalSave(ClashReply):
     """The token, and the answer when the day already has its session (ADR-0060)."""
 
     token: str = Field(pattern="^[0-9a-f]{32}$")
+    # How hard a cardio one felt, 1-10 (ADR-0067): the person picks it on the card, the AI
+    # never sends it. Ignored for the other kinds.
+    effort: int | None = Field(default=None, ge=1, le=10)
 
 
 class ProposalSaved(BaseModel):
@@ -69,7 +72,9 @@ def save(body: ProposalSave, request: Request, user: Owner) -> ProposalSaved:
     settings: Settings = request.app.state.settings
     answer = resolution(body)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
-        result = proposals.save(session, body.token, settings.tz, datetime.now(UTC), "web", answer)
+        result = proposals.save(
+            session, body.token, settings.tz, datetime.now(UTC), "web", answer, body.effort
+        )
     if isinstance(result, day_clash.Clash | day_clash.Refused):
         raise conflict(result)
     if isinstance(result, proposals.Gone):

@@ -94,8 +94,8 @@ def _events(engine: Engine, prefix: str) -> list[dict[str, Any]]:
         return [{"kind": e.kind, **e.payload} for e in found]
 
 
-def save(client: TestClient, proposal: str) -> Response:
-    return client.post("/api/proposals/save", json={"token": proposal})
+def save(client: TestClient, proposal: str, **more: Any) -> Response:
+    return client.post("/api/proposals/save", json={"token": proposal, **more})
 
 
 def discard(client: TestClient, proposal: str) -> Response:
@@ -274,6 +274,112 @@ def test_odd_cardio_is_refused(
     client: TestClient, token: str, arguments: dict[str, Any], why: str
 ) -> None:
     assert why in refused(client, token, kind="cardio", **arguments)
+
+
+RUN = {
+    "kind": "cardio",
+    "cardio": "moderate-cardio",
+    "minutes": 43,
+    "activity": "run",
+    "distance_km": 7.29,
+    "avg_hr": 139,
+    "max_hr": 160,
+    "start": "07:10",
+}
+AFTER_THE_RUN = time_machine.travel(datetime(2026, 10, 23, 16, 0, tzinfo=UTC), tick=False)
+
+
+@AFTER_THE_RUN
+def test_a_run_read_from_a_screenshot_carries_its_details(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    waiting = proposed(client, token, **RUN)
+    (card,) = client.get("/api/proposals").json()
+    assert card["summary"] == (
+        "Moderate cardio (~75-80% effort), 43 min (run), 7.29 km, 5:54 /km, HR 139 avg, 160 max, "
+        "started 07:10, on Fri 23 Oct"
+    )
+    assert save(client, waiting, effort=6).status_code == 200
+    (workout,) = _rows(engine, Workout)
+    assert (workout.effort, workout.distance_m, workout.avg_hr, workout.max_hr) == (
+        6,
+        7290,
+        139,
+        160,
+    )
+    assert workout.started_at == datetime(2026, 10, 23, 5, 10, tzinfo=UTC)  # 07:10 in Berlin
+
+
+@AFTER_THE_RUN  # 18:00 in Berlin
+def test_a_start_later_than_now_is_refused_not_moved_to_the_day_before(
+    client: TestClient, token: str
+) -> None:
+    # Review of #305: rolled back a day, "19:00" today would be saved as yesterday 19:00 while
+    # the card says today.
+    assert "start can't be later than now" in refused(client, token, **{**RUN, "start": "19:00"})
+
+
+@AFTER_THE_RUN
+def test_a_start_is_on_the_proposals_own_day(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    waiting = proposed(client, token, **{**RUN, "day": "2026-10-22", "start": "23:40"})
+    assert save(client, waiting, effort=6).status_code == 200
+    (workout,) = _rows(engine, Workout)
+    assert workout.started_at == datetime(2026, 10, 22, 21, 40, tzinfo=UTC)  # 23:40 in Berlin
+
+
+@AFTER_THE_RUN
+def test_saving_without_an_effort_leaves_it_empty(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    waiting = proposed(client, token, **RUN)
+    assert save(client, waiting).status_code == 200  # Telegram's Save, or an older app
+    (workout,) = _rows(engine, Workout)
+    assert (workout.effort, workout.distance_m) == (None, 7290)
+
+
+def test_a_cardio_proposal_from_before_the_details_still_saves(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    waiting = proposed(client, token, kind="cardio", cardio="zone2", minutes=40)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        row = mine.scalars(select(LogProposal)).one()
+        row.payload = {k: row.payload[k] for k in ("cardio", "minutes", "activity")}
+    assert save(client, waiting, effort=4).status_code == 200
+    (workout,) = _rows(engine, Workout)
+    assert (workout.effort, workout.distance_m, workout.started_at) == (4, None, None)
+
+
+@pytest.mark.parametrize(
+    ("changes", "why"),
+    [
+        ({"avg_hr": 20}, "average heart rate must be between 30 and 230"),
+        ({"max_hr": 250}, "highest heart rate must be between 30 and 230"),
+        ({"avg_hr": 150, "max_hr": 140}, "can't be below the average"),
+        ({"distance_km": 301}, "distance must be between 0 and 300 km"),
+        ({"distance_km": 1e308}, "distance must be between 0 and 300 km"),  # no overflow
+        ({"distance_km": 0}, "distance_km: Input should be greater than 0"),
+        ({"start": "25:00"}, "start"),
+        ({"effort": 6}, "effort: Extra inputs are not permitted"),  # only the person says that
+        ({"calories": 480}, "calories: Extra inputs are not permitted"),
+    ],
+)
+@AFTER_THE_RUN
+def test_odd_run_details_are_refused(
+    client: TestClient, token: str, changes: dict[str, Any], why: str
+) -> None:
+    assert why in refused(client, token, **{**RUN, **changes})
+
+
+@AFTER_THE_RUN
+def test_an_effort_out_of_range_saves_nothing(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    waiting = proposed(client, token, **RUN)
+    assert save(client, waiting, effort=11).status_code == 422
+    assert _rows(engine, Workout) == []
+    assert client.get("/api/proposals").json()[0]["token"] == waiting  # still waiting
 
 
 def test_habits_are_ticked_through_the_habits_service(

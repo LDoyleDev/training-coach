@@ -57,6 +57,12 @@ already done. A proposal waits 24 hours, at most 3 at a time per connection; /un
 workout back. If Claude says it was refused, the reason is in its answer (an unknown exercise,
 a future day, a day already saved).
 
+To log a run from your watch or phone app, share a screenshot of its summary with your AI
+and ask it to log the run. It proposes the minutes, the distance, the average and highest
+heart rate and the start time it can read; the card on Today shows them with the pace.
+Pick how it felt, 1 to 10, then Save. The picture stays with your AI: the coach only gets
+the numbers. Check them before saving, since a misread number is saved as shown.
+
 ## Revoking, and when it ends by itself
 
 - **Account page > Connected AI apps > Revoke** ends it at once: Claude's next call gets 401.
