@@ -95,18 +95,22 @@ async def mcp(request: Request, access: Connection, background: BackgroundTasks)
     settings: Settings = request.app.state.settings
     bound = make_session_factory(request.app.state.engine, user_id=access.user_id)
 
-    def answer() -> dict[str, object] | mcp_server.NeedsScope | None:
+    def answer() -> tuple[dict[str, object] | mcp_server.NeedsScope | None, Response | None]:
         with session_scope(bound) as session:  # ADR-0029: only this person's rows
-            return mcp_server.handle(session, access, message, settings.tz, datetime.now(UTC))
+            found = mcp_server.handle(session, access, message, settings.tz, datetime.now(UTC))
+            # Encoded before the commit: an answer that can't be sent rolls back what the call
+            # wrote, so an AI told it failed hasn't left a proposal waiting (eval of 2026-10-24).
+            sent = JSONResponse(found, headers=NO_STORE) if isinstance(found, dict) else None
+            return found, sent
 
-    result = await run_in_threadpool(answer)  # the summary's queries mustn't block the loop
+    result, sent = await run_in_threadpool(answer)  # the summary's queries mustn't block the loop
     announce: Announce | None = getattr(request.app.state, "announce_proposals", None)
     if announce is not None and mcp_server.proposed(message, result):
         background.add_task(announce)  # Telegram hears of it now, not at the next check
-    if result is None:
-        return Response(status_code=status.HTTP_202_ACCEPTED, headers=NO_STORE)
     if isinstance(result, mcp_server.NeedsScope):
         challenge = _challenge(request, "insufficient_scope")
         challenge["WWW-Authenticate"] += f', scope="{result.scope}"'
         return JSONResponse({"detail": "insufficient_scope"}, 403, challenge)
-    return JSONResponse(result, headers=NO_STORE)
+    if sent is None:  # a notification or a response
+        return Response(status_code=status.HTTP_202_ACCEPTED, headers=NO_STORE)
+    return sent
