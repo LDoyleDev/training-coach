@@ -41,7 +41,7 @@ jobs:
           name: unsigned-apk
           path: android/app/build/outputs/apk/release/app-release-unsigned.apk
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 30 # a release can wait on approval for days; the job waits up to 30
       - name: Lint report
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
