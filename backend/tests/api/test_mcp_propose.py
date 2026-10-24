@@ -286,9 +286,10 @@ RUN = {
     "max_hr": 160,
     "start": "07:10",
 }
+AFTER_THE_RUN = time_machine.travel(datetime(2026, 10, 23, 16, 0, tzinfo=UTC), tick=False)
 
 
-@time_machine.travel(datetime(2026, 10, 23, 16, 0, tzinfo=UTC), tick=False)
+@AFTER_THE_RUN
 def test_a_run_read_from_a_screenshot_carries_its_details(
     client: TestClient, engine: Engine, token: str
 ) -> None:
@@ -309,6 +310,26 @@ def test_a_run_read_from_a_screenshot_carries_its_details(
     assert workout.started_at == datetime(2026, 10, 23, 5, 10, tzinfo=UTC)  # 07:10 in Berlin
 
 
+@AFTER_THE_RUN  # 18:00 in Berlin
+def test_a_start_later_than_now_is_refused_not_moved_to_the_day_before(
+    client: TestClient, token: str
+) -> None:
+    # Review of #305: rolled back a day, "19:00" today would be saved as yesterday 19:00 while
+    # the card says today.
+    assert "start can't be later than now" in refused(client, token, **{**RUN, "start": "19:00"})
+
+
+@AFTER_THE_RUN
+def test_a_start_is_on_the_proposals_own_day(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    waiting = proposed(client, token, **{**RUN, "day": "2026-10-22", "start": "23:40"})
+    assert save(client, waiting, effort=6).status_code == 200
+    (workout,) = _rows(engine, Workout)
+    assert workout.started_at == datetime(2026, 10, 22, 21, 40, tzinfo=UTC)  # 23:40 in Berlin
+
+
+@AFTER_THE_RUN
 def test_saving_without_an_effort_leaves_it_empty(
     client: TestClient, engine: Engine, token: str
 ) -> None:
@@ -344,12 +365,14 @@ def test_a_cardio_proposal_from_before_the_details_still_saves(
         ({"calories": 480}, "calories: Extra inputs are not permitted"),
     ],
 )
+@AFTER_THE_RUN
 def test_odd_run_details_are_refused(
     client: TestClient, token: str, changes: dict[str, Any], why: str
 ) -> None:
     assert why in refused(client, token, **{**RUN, **changes})
 
 
+@AFTER_THE_RUN
 def test_an_effort_out_of_range_saves_nothing(
     client: TestClient, engine: Engine, token: str
 ) -> None:

@@ -22,7 +22,7 @@ never what it held. The caller owns the transaction and passes a session bound t
 import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated, Any, Literal, cast, get_args
 from zoneinfo import ZoneInfo
 
@@ -259,11 +259,18 @@ def _cardio(
         if found.distance_km is not None
         else None
     )
+    # On the proposal's own day, never rolled back like a typed start (review of #305): the AI
+    # names the day, and a moved start would not match the card.
+    started_at = (
+        datetime.combine(day, found.start, tzinfo=tz).astimezone(UTC) if found.start else None
+    )
+    if started_at is not None and started_at > now:
+        return Refused("start can't be later than now")
     given = details.Details(
         distance_m=distance_m,
         avg_hr=found.avg_hr,
         max_hr=found.max_hr,
-        started_at=cardio.started(day, found.start, tz, now) if found.start else None,
+        started_at=started_at,
     )
     if problem := cardio.problem(found.cardio, found.minutes, given):
         return Refused(problem)
