@@ -25,6 +25,8 @@ long it waits and what is kept of it were open. Liam decided them on 2026-10-12.
   parser's ranges, at most 20 sets. A day that already has its session is asked about at Save
   time (ADR-0060).
 - **Cardio**: zone 2 or moderate cardio, minutes and what it was, the shape of `/api/cardio`.
+  The person picks zone 2 or moderate when saving; the AI's kind is a hint (ADR-0067, see
+  History).
 - **Habit ticks**, as on `/api/habits`: today and the two days before.
 - **Body weight and girths**, as on the Body page, with its ranges.
 
@@ -113,3 +115,6 @@ Also decided while building it:
   no longer refused, and saving one is no longer discarded when that day got its session
   meanwhile. Save asks, on the card and in Telegram, as for any log of that day; the proposal
   waits for the answer. `workout_log.day_saved` is gone.
+- 2026-10-24, ADR-0067: a cardio proposal's summary names no kind. Save writes the summary with
+  the kind the person picked, zone 2 or moderate, on the card or a Telegram button; the AI's
+  `cardio` is only a hint.

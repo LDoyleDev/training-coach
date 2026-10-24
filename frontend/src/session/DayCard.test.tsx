@@ -25,7 +25,14 @@ function logged(day: string): DayLog {
         planned: true,
         activity: null,
         band: { minutes: 43, avg_hr: 139, max_hr: 160 },
-        cardio: { effort: 6, distance_m: 7290, pace_s_per_km: 354, avg_hr: null, max_hr: null },
+        cardio: {
+          effort: 6,
+          distance_m: 7290,
+          pace_s_per_km: 354,
+          avg_hr: null,
+          max_hr: null,
+          speed_kmh: 10.2,
+        },
         exercises: [
           {
             name: 'Moderate cardio',

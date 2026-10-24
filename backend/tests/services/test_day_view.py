@@ -106,7 +106,8 @@ def test_a_cardio_log_shows_what_was_typed_with_it(session: Session) -> None:
     plain = _workout(session, activity="walk")
     session.flush()
     typed, walk = day_view.logged(session, DAY)
-    assert typed.cardio == CardioDetails(6, 7290, 354, 139, 160)  # 43 min over 7.29 km: 5:54/km
+    # 43 min over 7.29 km: 5:54/km, 10.2 km/h
+    assert typed.cardio == CardioDetails(6, 7290, 354, 139, 160, 10.2)
     assert typed.exercises[0].unit == "minutes"
     assert walk.workout_id == plain.id
     assert walk.cardio is None

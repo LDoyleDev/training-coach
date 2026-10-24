@@ -73,3 +73,31 @@ Save on every cardio proposal, with or without details, as the form does: sessio
 minutes × effort, and the web is where it can be asked. So the web is deliberately stricter
 than the other paths. Telegram's Save button has no picker, so it and proposals made before
 this save with effort empty, like a typed log.
+
+## The person picks zone 2 or moderate (2026-10-24)
+
+Liam, 2026-10-24: "It's important that the app is not determining or advising on exercise. The
+app can make observations and suggestions, but then the user has to decide." So a connected
+AI no longer decides whether a proposal is zone 2 or moderate cardio:
+
+- `propose_log`'s `cardio` is optional and only a hint. The proposal's summary starts
+  "Cardio, 43 min (run), ..." and names no kind; Save names the kind picked ("Saved: Zone 2
+  (conversational pace), 43 min (run), ...").
+- **The card suggests, the person picks.** With an average heart rate, the suggestion comes
+  from the person's own Karvonen zones (ADR-0055) when the AI proposes it: zone 2 up to the top
+  of zone 2, moderate above it, with the observation in our words ("Average 131 bpm is in your
+  zone 2 (120-132 bpm), so zone 2 is suggested"). Without one, the AI's hint is named as its
+  ("“Claude” suggested zone 2"); with neither, nothing is suggested. The AI never hears the
+  zones or the suggestion. The web card shows both kinds, the suggested one outlined, and
+  Save stays off until a kind and the effort are picked. `POST /api/proposals/save` takes
+  `cardio`; without it a cardio proposal is not saved (422) and keeps waiting.
+- **Telegram** shows **Zone 2**, **Moderate** and **Discard** instead of Save, with the
+  suggestion in the text. As before, it saves with effort empty. A kind tapped is kept while
+  a clash question (ADR-0060) is answered.
+- **Minutes are moving time.** The tool description tells the AI that when a screen shows both
+  moving (or active) and total (or elapsed) time, the minutes are the moving or active time.
+- **A ride shows speed.** A bike log shows km/h instead of min/km on the card, the cardio form,
+  its saved screen and the day view (`domain/cardio.speed`); nothing more is stored.
+- A proposal made before this change names the AI's kind in its summary, but that kind is
+  only its suggestion: it saves only with the person's pick, like any other (review of #321),
+  and the saved summary names the kind picked.

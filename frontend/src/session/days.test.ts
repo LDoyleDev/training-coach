@@ -10,10 +10,21 @@ test('steps days on the calendar, across months, years and clock changes', () =>
 })
 
 test('cardio details show only what was given', () => {
-  const none = { effort: null, distance_m: null, pace_s_per_km: null, avg_hr: null, max_hr: null }
+  const none = {
+    effort: null,
+    distance_m: null,
+    pace_s_per_km: null,
+    avg_hr: null,
+    max_hr: null,
+    speed_kmh: null,
+  }
   expect(details({ ...none, effort: 6 })).toBe('Effort 6/10')
   expect(details({ ...none, distance_m: 5000, pace_s_per_km: 305, avg_hr: 150, max_hr: 172 })).toBe(
     '5.00 km · 5:05/km · avg 150 bpm · max 172',
   )
   expect(details(none)).toBe('')
+  // 89 min over 36.2 km: 24.4 km/h, though 3600 / its rounded pace (148 s/km) gives 24.3
+  const ride = { ...none, distance_m: 36200, pace_s_per_km: 148, speed_kmh: 24.4 }
+  expect(details(ride, 'bike')).toBe('36.20 km · 24.4 km/h') // a ride: speed, not pace
+  expect(details(ride, 'run')).toBe('36.20 km · 2:28/km')
 })

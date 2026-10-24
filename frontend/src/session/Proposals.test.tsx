@@ -188,8 +188,42 @@ test('cancelling the question saves nothing', async () => {
 const RUN = {
   ...PROPOSAL,
   kind: 'cardio',
-  summary: 'Moderate cardio, 43 min (run), 7.29 km, 5:54 /km, HR 139 avg, 160 max, on Fri 23 Oct',
+  summary: 'Cardio, 43 min (run), 7.29 km, 5:54 /km, HR 139 avg, 160 max, on Fri 23 Oct',
+  suggested: 'zone2',
+  suggestion: 'Average 139 bpm is in your zone 2 (138-150 bpm), so zone 2 is suggested',
 }
+
+test('the person picks zone 2 or moderate; the suggestion is only marked', async () => {
+  const asked = serve({
+    'GET /api/proposals': [
+      { status: 200, body: [RUN] },
+      { status: 200, body: [] },
+    ],
+    ['POST /api/proposals/save']: [{ status: 200, body: { summary: 'Moderate', workout: true } }],
+  })
+  render(<Proposals onSaved={vi.fn()} />)
+  expect(await screen.findByText(`${RUN.suggestion}.`)).toBeInTheDocument()
+  const zone2 = screen.getByRole('button', { name: 'Zone 2 (suggested)' })
+  expect(zone2).toHaveAttribute('aria-pressed', 'false') // suggested, not picked
+  fireEvent.click(screen.getByRole('button', { name: 'Effort 6' }))
+  expect(screen.getByRole('button', { name: 'Pick zone 2 or moderate to save' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Moderate' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await vi.waitFor(() =>
+    expect(asked).toContain(
+      `POST /api/proposals/save {"token":"${TOKEN}","effort":6,"cardio":"moderate-cardio"}`,
+    ),
+  )
+})
+
+test('with nothing to go on, nothing is suggested', async () => {
+  const plain = { ...RUN, suggested: null, suggestion: null }
+  serve({ 'GET /api/proposals': [{ status: 200, body: [plain] }] })
+  render(<Proposals onSaved={vi.fn()} />)
+  expect(await screen.findByRole('button', { name: 'Zone 2' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Moderate' })).toBeInTheDocument()
+  expect(screen.queryByText(/suggested/)).not.toBeInTheDocument()
+})
 
 test('a run from a screenshot shows what it read and asks how it felt before Save', async () => {
   const saved = vi.fn()
@@ -202,16 +236,19 @@ test('a run from a screenshot shows what it read and asks how it felt before Sav
   })
   render(<Proposals onSaved={saved} />)
   expect(await screen.findByText(/7\.29 km, 5:54 \/km, HR 139 avg, 160 max/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Zone 2 (suggested)' }))
   const save = screen.getByRole('button', { name: 'Pick how it felt to save' })
   expect(save).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Effort 6' }))
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   await vi.waitFor(() => expect(saved).toHaveBeenCalledWith(`Saved: ${RUN.summary}.`))
-  expect(asked).toContain(`POST /api/proposals/save {"token":"${TOKEN}","effort":6}`)
+  expect(asked).toContain(
+    `POST /api/proposals/save {"token":"${TOKEN}","effort":6,"cardio":"zone2"}`,
+  )
 })
 
 test('a cardio proposal without details also asks how it felt before Save', async () => {
-  const plain = { ...PROPOSAL, kind: 'cardio', summary: 'Zone 2 cardio, 40 min, on Fri 23 Oct' }
+  const plain = { ...PROPOSAL, kind: 'cardio', summary: 'Cardio, 40 min, on Fri 23 Oct' }
   const asked = serve({
     'GET /api/proposals': [
       { status: 200, body: [plain] },
@@ -222,10 +259,13 @@ test('a cardio proposal without details also asks how it felt before Save', asyn
     ],
   })
   render(<Proposals onSaved={vi.fn()} />)
-  expect(await screen.findByRole('button', { name: 'Pick how it felt to save' })).toBeDisabled()
+  fireEvent.click(await screen.findByRole('button', { name: 'Zone 2' }))
+  expect(screen.getByRole('button', { name: 'Pick how it felt to save' })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Effort 4' }))
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   await vi.waitFor(() =>
-    expect(asked).toContain(`POST /api/proposals/save {"token":"${TOKEN}","effort":4}`),
+    expect(asked).toContain(
+      `POST /api/proposals/save {"token":"${TOKEN}","effort":4,"cardio":"zone2"}`,
+    ),
   )
 })

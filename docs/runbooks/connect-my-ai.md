@@ -59,8 +59,13 @@ a future day, a day already saved).
 
 To log a run from your watch or phone app, share a screenshot of its summary with your AI
 and ask it to log the run. It proposes the minutes, the distance, the average and highest
-heart rate and the start time it can read; the card on Today shows them with the pace.
-Pick how it felt, 1 to 10, then Save. The picture stays with your AI: the coach only gets
+heart rate and the start time it can read; the card on Today shows them with the pace (a ride
+shows its speed in km/h). When the screen shows both moving (or active) time and total (or
+elapsed) time, the minutes are the moving time. You pick whether it was zone 2 or moderate:
+the card marks a suggestion, from your own heart-rate zones when the average heart rate is
+known ("Average 131 bpm is in your zone 2"), otherwise from your AI's hint, and says why.
+Pick how it felt, 1 to 10, then Save. In Telegram, tap **Zone 2** or **Moderate** to save
+(how it felt is asked on the card only). The picture stays with your AI: the coach only gets
 the numbers. Check them before saving, since a misread number is saved as shown.
 
 ## Revoking, and when it ends by itself
