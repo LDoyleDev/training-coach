@@ -60,7 +60,7 @@ class HealthReader(context: Context) {
     suspend fun heartRate(token: String?, now: Instant): HeartRead {
         if (token != null) {
             val changed = mutableListOf<HeartSample>()
-            var next = token
+            var next: String = token
             while (true) {
                 val response = client.getChanges(next)
                 if (response.changesTokenExpired) return fromHistory(now)
