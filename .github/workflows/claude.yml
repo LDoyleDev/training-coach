@@ -2,6 +2,9 @@
 # only on an issue or PR the owner opened (a PR from this repo, not a fork), and the action reads
 # only the owner's and its own comments, so text from anyone else never reaches the model
 # (security review of 2026-10-24: a trigger checked only who wrote the comment).
+# Known gap, accepted: an issue_comment on a PR carries no head repo, so "not a fork" is checked
+# only on review events; a comment on a PR the owner opened from a fork would pass. The owner
+# opens PRs from this repo only.
 # Auth: repository secret CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`), which uses the
 # owner's Claude subscription. See ADR-0011 and docs/security/threat-model.md.
 name: Claude

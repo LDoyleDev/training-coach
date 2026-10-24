@@ -30,7 +30,11 @@ own reader rather than retry. The plan and its review are in `docs/specs/android
   encrypted with age in `~/.secrets/training-coach/android`. The key never meets Gradle: CI
   builds an unsigned APK with no secrets, and the release job only signs it with apksigner and
   checks the certificate against the digest pinned in `android/SIGNING_CERT_SHA256` (security
-  review of 24 Oct: a compromised build dependency could otherwise take the key).
+  review of 24 Oct: a compromised build dependency could otherwise take the key). Accepted for
+  now: a compromised build dependency could still change the unsigned APK it hands over, and it
+  would be signed, since the digest check proves who signed, not what. Gradle dependency
+  verification (checksums of every plugin and library, committed) is the follow-up that
+  closes it.
 - **Builds:** CI builds and tests `android/` when it changes. A release is a GitHub
   pre-release tagged `android-v<version>` with the signed APK, made by its own workflow (not
   release-please), and installed with Obtainium.
