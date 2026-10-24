@@ -25,6 +25,10 @@ class ProposalView(BaseModel):
     summary: str  # exactly what Save writes
     replaces: str | None  # "Replaces the 78.4 kg saved that day": shown here, never to the AI
     expires_at: datetime
+    # Cardio: the kind the coach suggests and why ("Average 131 bpm is in your zone 2 ..."); the
+    # person picks zone 2 or moderate on the card (ADR-0067, 2026-10-24).
+    suggested: proposals.CardioKind | None = None
+    suggestion: str | None = None
 
 
 class ProposalToken(BaseModel):
@@ -38,6 +42,8 @@ class ProposalSave(ClashReply):
     # How hard a cardio one felt, 1-10 (ADR-0067): the person picks it on the card, the AI
     # never sends it. Ignored for the other kinds.
     effort: int | None = Field(default=None, ge=1, le=10)
+    # Whether a cardio one was zone 2 or moderate: the person picks it, the AI only hints.
+    cardio: proposals.CardioKind | None = None
 
 
 class ProposalSaved(BaseModel):
@@ -58,6 +64,8 @@ def waiting(request: Request, user: Owner) -> list[ProposalView]:
             summary=p.summary,
             replaces=p.replaces,
             expires_at=p.expires_at,
+            suggested=p.suggested,
+            suggestion=p.suggestion,
         )
         for p in found
     ]
@@ -68,17 +76,27 @@ def save(body: ProposalSave, request: Request, user: Owner) -> ProposalSaved:
     """Save it. 404 when it has expired or never was; 409 with ``already_saved`` or
     ``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason
     when it no longer fits (it is discarded then); 409 with what is saved already when its
-    day has its session (it keeps waiting: save it again with the answer, ADR-0060)."""
+    day has its session (it keeps waiting: save it again with the answer, ADR-0060); 422 for
+    a cardio one without zone 2 or moderate picked (it keeps waiting)."""
     settings: Settings = request.app.state.settings
     answer = resolution(body)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         result = proposals.save(
-            session, body.token, settings.tz, datetime.now(UTC), "web", answer, body.effort
+            session,
+            body.token,
+            settings.tz,
+            datetime.now(UTC),
+            "web",
+            answer,
+            body.effort,
+            body.cardio,
         )
     if isinstance(result, day_clash.Clash | day_clash.Refused):
         raise conflict(result)
     if isinstance(result, proposals.Gone):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "that proposal has gone")
+    if isinstance(result, proposals.Unpicked):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "pick zone 2 or moderate")
     if isinstance(result, proposals.Already):
         raise HTTPException(status.HTTP_409_CONFLICT, f"already_{result.status}")
     if isinstance(result, proposals.Changed):

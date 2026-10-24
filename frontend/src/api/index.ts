@@ -407,22 +407,32 @@ export async function fetchProposals(signal?: AbortSignal): Promise<Proposal[]> 
 }
 
 /** The token goes in the body, never in a URL an access log could keep (review of #234). */
-const postToken = (path: string, token: string, answer?: Answer, effort?: number) =>
+/** What the person picked on a cardio card (ADR-0067): how it felt and zone 2 or moderate. */
+export type ProposalKind = NonNullable<Schemas['ProposalSave']['cardio']>
+export type ProposalPicks = { effort?: number; cardio?: ProposalKind }
+
+const postToken = (path: string, token: string, answer?: Answer, picks: ProposalPicks = {}) =>
   fetch(path, {
     method: 'POST',
     headers: json,
-    body: JSON.stringify({ token, ...answer, ...(effort ? { effort } : {}) }),
+    body: JSON.stringify({
+      token,
+      ...answer,
+      ...(picks.effort ? { effort: picks.effort } : {}),
+      ...(picks.cardio ? { cardio: picks.cardio } : {}),
+    }),
     credentials: 'same-origin',
   })
 
 /** Save one. 'gone': expired or its app disconnected; 'saved' / 'discarded': already dealt
  * with (here or in Telegram); any other text: why it no longer fits (it was discarded); a
  * clash: its day already has its session, so ask and save again with the answer (it waits).
- * ``effort`` is how hard a cardio one felt, picked on the card (ADR-0067). */
+ * ``picks`` are how hard a cardio one felt and whether it was zone 2 or moderate, both picked
+ * on the card (ADR-0067). */
 export async function saveProposal(
   token: string,
   answer?: Answer,
-  effort?: number,
+  picks?: ProposalPicks,
 ): Promise<
   | ProposalSaved
   | 'gone'
@@ -432,7 +442,7 @@ export async function saveProposal(
   | { clash: Clash }
   | { problem: string }
 > {
-  const res = signedIn(await postToken('/api/proposals/save', token, answer, effort))
+  const res = signedIn(await postToken('/api/proposals/save', token, answer, picks))
   if (res.status === 404) return 'gone'
   if (res.status === 422) {
     const detail = ((await res.json()) as { detail?: unknown }).detail

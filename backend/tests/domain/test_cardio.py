@@ -4,11 +4,15 @@ from training_coach.domain.cardio import (
     NO_DETAILS,
     Details,
     activity_in,
+    by_speed,
     details_problem,
     load,
     pace,
+    speed,
+    suggested,
 )
 from training_coach.domain.enums import CardioActivity
+from training_coach.domain.zones import karvonen
 
 
 @pytest.mark.parametrize(
@@ -64,6 +68,34 @@ def test_pace_is_seconds_per_km_and_needs_a_distance() -> None:
     assert pace(43, 7290) == 354  # 5:54 a km
     assert pace(43, None) is None
     assert pace(0, 7290) is None
+
+
+def test_speed_is_km_per_hour_and_needs_a_distance() -> None:
+    assert speed(90, 36000) == 24.0
+    assert speed(90, None) is None
+    assert speed(0, 36000) is None
+
+
+def test_only_a_ride_is_read_by_its_speed() -> None:
+    assert by_speed(CardioActivity.BIKE)
+    assert not by_speed(CardioActivity.RUN)
+    assert not by_speed(None)
+
+
+@pytest.mark.parametrize(
+    ("avg_hr", "kind"),
+    [
+        (100, "zone2"),
+        (138, "zone2"),
+        (150, "zone2"),
+        (151, "moderate-cardio"),
+        (200, "moderate-cardio"),
+    ],
+)
+def test_an_average_heart_rate_suggests_a_kind(avg_hr: int, kind: str) -> None:
+    zones = karvonen(60, 190)  # zone 2 is 138 bpm up to 151: 60 + 130 x 0.6 to 0.7
+    assert zones.bounds[1] == (138, 151)
+    assert suggested(avg_hr, zones) == kind
 
 
 def test_load_is_minutes_times_effort() -> None:

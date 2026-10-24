@@ -4,16 +4,23 @@ counts; anything else leaves the activity empty.
 
 And what else a cardio log can carry (ADR-0067): how hard it felt (session RPE), the
 distance, the average and highest heart rate and when it started. Pace is worked out from
-minutes and distance, never stored."""
+minutes and distance, never stored: a ride shows its speed instead.
+
+Which of the two a log is, zone 2 or moderate, the person picks. The coach may suggest one
+from their own heart-rate zones (ADR-0067 addendum of 2026-10-24), never decide it."""
 
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal
 
 from training_coach.domain.enums import CardioActivity
+from training_coach.domain.zones import Zones
 
 # The exercises logged in minutes whose log can carry an activity (plan.toml slugs).
 TIMED = ("zone2", "moderate-cardio")
+Timed = Literal["zone2", "moderate-cardio"]
+ZONE_2 = 2  # the heart-rate zone (ADR-0055) zone 2 cardio is named after
 
 WORDS: dict[CardioActivity, frozenset[str]] = {
     CardioActivity.WALK: frozenset({"walk", "walks", "walked", "walking"}),
@@ -86,6 +93,24 @@ def pace(minutes: int, distance_m: int | None) -> int | None:
     if distance_m is None or distance_m <= 0 or minutes <= 0:
         return None
     return round(minutes * 60 * 1000 / distance_m)
+
+
+def speed(minutes: int, distance_m: int | None) -> float | None:
+    """Km per hour, or None without a distance: a ride is read by its speed, not its pace."""
+    if distance_m is None or distance_m <= 0 or minutes <= 0:
+        return None
+    return distance_m * 60 / (minutes * 1000)
+
+
+def by_speed(activity: CardioActivity | None) -> bool:
+    """Whether a log of this activity shows km/h rather than min/km."""
+    return activity is CardioActivity.BIKE
+
+
+def suggested(avg_hr: int, zones: Zones) -> Timed:
+    """The kind an average heart rate suggests: zone 2 up to the top of zone 2, moderate
+    above it. Only a suggestion; the person picks."""
+    return "zone2" if zones.zone(avg_hr) <= ZONE_2 else "moderate-cardio"
 
 
 def load(minutes: int, effort: int | None) -> int | None:

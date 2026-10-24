@@ -5,6 +5,7 @@ import {
   discardProposal,
   fetchProposals,
   type Proposal,
+  type ProposalKind,
   saveProposal,
   SignedOutError,
 } from '../api'
@@ -18,6 +19,21 @@ const chip = (on: boolean) =>
     ? 'border-[var(--bell-ink)] bg-[var(--bell-ink)] text-[var(--chalk)]'
     : 'border-[var(--ink)] text-[var(--ink)]')
 
+/** The two kinds a cardio proposal can be saved as; the person picks one (ADR-0067). */
+const KINDS: { kind: ProposalKind; label: string }[] = [
+  { kind: 'zone2', label: 'Zone 2' },
+  { kind: 'moderate-cardio', label: 'Moderate' },
+]
+
+/** A kind's button: filled once picked, a dashed outline while it is only suggested. */
+const kindChip = (on: boolean, suggested: boolean) =>
+  on
+    ? chip(true)
+    : 'min-h-11 rounded-full border-2 px-2 font-bold ' +
+      (suggested
+        ? 'border-dashed border-[var(--bell-ink)] text-[var(--bell-ink)]'
+        : 'border-[var(--ink)] text-[var(--ink)]')
+
 const GONE = 'That proposal has gone: it expired after 24 hours, or its app was disconnected.'
 
 /**
@@ -28,7 +44,9 @@ const GONE = 'That proposal has gone: it expired after 24 hours, or its app was 
  * takes a workout back: ``onSaved`` hears what to say and the page reloads today and Undo.
  * One for a day that already has its session asks first (ADR-0060); it waits until answered.
  * A cardio one (a run read from a screenshot, say) asks how it felt, 1 to 10, before Save, as
- * the cardio form does: the AI never sends that, only the person knows it (ADR-0067).
+ * the cardio form does: the AI never sends that, only the person knows it (ADR-0067). The person
+ * also picks zone 2 or moderate: the coach only suggests one, from their own heart-rate zones
+ * or the AI's hint, and says why (ADR-0067, 2026-10-24).
  */
 export default function Proposals({ onSaved }: { onSaved: (text: string) => void }) {
   const [proposals, setProposals] = useState<Proposal[]>([])
@@ -37,6 +55,7 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
   const [signedOut, setSignedOut] = useState(false)
   const [loads, setLoads] = useState(0)
   const [efforts, setEfforts] = useState<Record<string, number>>({})
+  const [kinds, setKinds] = useState<Record<string, ProposalKind>>({})
   const [question, setQuestion] = useState<{
     token: string
     clash: Clash
@@ -60,7 +79,10 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
         await discardProposal(proposal.token)
         setNote('Discarded. Nothing was saved.')
       } else {
-        const result = await saveProposal(proposal.token, reply, efforts[proposal.token])
+        const result = await saveProposal(proposal.token, reply, {
+          effort: efforts[proposal.token],
+          cardio: kinds[proposal.token],
+        })
         if (typeof result === 'object' && 'clash' in result) {
           if (result.clash.moving && question) setQuestion({ ...question, taken: result.clash })
           else setQuestion({ token: proposal.token, clash: result.clash, taken: null })
@@ -87,6 +109,13 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
     }
   }
 
+  /** What a cardio one still needs before Save, as the button's words; null when ready. */
+  const unpicked = (proposal: Proposal): string | null => {
+    if (proposal.kind !== 'cardio') return null
+    if (!kinds[proposal.token]) return 'Pick zone 2 or moderate to save'
+    return efforts[proposal.token] ? null : 'Pick how it felt to save'
+  }
+
   if (proposals.length === 0 && !note && !signedOut) return null
   return (
     <section aria-label="Proposed by your AI" className="flex flex-col gap-2">
@@ -96,6 +125,29 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
             From <strong>“{proposal.source}”</strong>: {proposal.summary}
           </p>
           {proposal.replaces && <p className="m-0 mt-1 font-bold">{proposal.replaces}.</p>}
+          {proposal.kind === 'cardio' && (
+            <fieldset className="mt-2 flex flex-col gap-2 border-0 p-0">
+              <legend className="mb-2 font-bold">Zone 2 or moderate: you pick</legend>
+              {proposal.suggestion && <p className="m-0">{proposal.suggestion}.</p>}
+              <div className="grid grid-cols-2 gap-2">
+                {KINDS.map(({ kind, label }) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    aria-pressed={kinds[proposal.token] === kind}
+                    className={kindChip(
+                      kinds[proposal.token] === kind,
+                      !kinds[proposal.token] && proposal.suggested === kind,
+                    )}
+                    onClick={() => setKinds({ ...kinds, [proposal.token]: kind })}
+                  >
+                    {label}
+                    {proposal.suggested === kind ? ' (suggested)' : ''}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
           {proposal.kind === 'cardio' && (
             <fieldset className="mt-2 flex flex-col gap-2 border-0 p-0">
               <legend className="mb-2 font-bold">How it felt, 1 (very easy) to 10 (all out)</legend>
@@ -133,12 +185,10 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
             <button
               type="button"
               className={primaryInline}
-              disabled={busy !== null || (proposal.kind === 'cardio' && !efforts[proposal.token])}
+              disabled={busy !== null || unpicked(proposal) !== null}
               onClick={() => void answer(proposal, true)}
             >
-              {proposal.kind === 'cardio' && !efforts[proposal.token]
-                ? 'Pick how it felt to save'
-                : 'Save'}
+              {unpicked(proposal) ?? 'Save'}
             </button>
             <button
               type="button"
