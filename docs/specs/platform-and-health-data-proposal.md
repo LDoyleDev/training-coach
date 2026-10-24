@@ -171,12 +171,9 @@ is roughly 60-70% of max heart rate, the "can still talk" pace.
   hours of raw records on every sync, and its dashboard reads every allowed type when opened, so
   the quota (smaller in the background) never refills. Fixes on the phone:
   `docs/runbooks/band-import.md`.
-- **Next step if it stays unreliable:** our own small Android reader (the L3 path, earlier).
-  It would read daily aggregates and Health Connect's changes since the last sync rather than raw
-  history, sync in the foreground (the larger quota) plus once a day in the background, and post
-  to the same ingest endpoint and schema. Free from GitHub releases; Google Play adds a one-off
-  developer fee and a health-data declaration. Every future user would hit the same quota, so
-  this is the long-term route rather than a workaround.
+- **Next step:** our own small Android reader (the L3 path, earlier), planned in
+  `android-reader.md`. Every future user would hit the same quota, so it is the long-term
+  route rather than a workaround.
 
 ### What it unlocks in the plan
 

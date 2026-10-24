@@ -92,6 +92,8 @@ heart rate and weight) is not stored. Its log entry is **200** with
    entries from Mi Fitness for the last few days. Nothing there: in Mi Fitness, turn sharing
    with Health Connect off and on again for that type (step 2.2), sync the band and look again.
    Entries there but they don't reach the coach: it's HC Webhook (the read quota, below).
+   Entries that stop at the last time you opened Mi Fitness, and catch up when you open it:
+   MIUI is stopping Mi Fitness in the background (step 3.4).
 4. In the coach, **Account** > **Band import** shows "Last data arrived ..." and, after a night
    and a walk:
    - **Home** and **Progress** show last night's sleep, today's steps and resting heart rate;
