@@ -16,8 +16,9 @@ export function details(
   const parts: string[] = []
   if (cardio.effort) parts.push(`Effort ${cardio.effort}/10`)
   if (cardio.distance_m) parts.push(`${(cardio.distance_m / 1000).toFixed(2)} km`)
-  if (cardio.pace_s_per_km && activity === 'bike') {
-    parts.push(`${(3600 / cardio.pace_s_per_km).toFixed(1)} km/h`)
+  if (cardio.speed_kmh && activity === 'bike') {
+    // The server's figure from minutes and distance, as on the card: not 3600 / a rounded pace.
+    parts.push(`${cardio.speed_kmh.toFixed(1)} km/h`)
   } else if (cardio.pace_s_per_km) {
     const seconds = cardio.pace_s_per_km
     parts.push(`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}/km`)

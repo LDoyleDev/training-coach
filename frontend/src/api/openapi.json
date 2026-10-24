@@ -381,6 +381,17 @@
               }
             ],
             "title": "Pace S Per Km"
+          },
+          "speed_kmh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed Kmh"
           }
         },
         "required": [
@@ -388,7 +399,8 @@
           "distance_m",
           "pace_s_per_km",
           "avg_hr",
-          "max_hr"
+          "max_hr",
+          "speed_kmh"
         ],
         "title": "CardioDetailsView",
         "type": "object"

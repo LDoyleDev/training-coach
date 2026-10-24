@@ -1695,6 +1695,8 @@ export interface components {
             max_hr: number | null;
             /** Pace S Per Km */
             pace_s_per_km: number | null;
+            /** Speed Kmh */
+            speed_kmh: number | null;
         };
         /** ChangeBody */
         ChangeBody: {

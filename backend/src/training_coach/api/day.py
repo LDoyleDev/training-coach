@@ -45,6 +45,7 @@ class CardioDetailsView(BaseModel):
     pace_s_per_km: int | None
     avg_hr: int | None
     max_hr: int | None
+    speed_kmh: float | None  # from the minutes and distance, to one place: a ride shows it
 
 
 class LoggedWorkoutView(BaseModel):
