@@ -26,8 +26,10 @@ own reader rather than retry. The plan and its review are in `docs/specs/android
 - It syncs when opened (the foreground quota), and later once or twice a day in the
   background if the phone's Health Connect allows it.
 - **Signing:** one release key from the first build, kept as secrets of the GitHub environment
-  `android-release`, which needs Liam's approval for every run that uses it, and backed up
-  encrypted with age in `~/.secrets/training-coach/android`. The key never meets Gradle: CI
+  `android-release`, which needs Liam's approval for every run that uses it. On the desktop it
+  is in `~/.secrets/training-coach/android`, with a backup there and on the Pi
+  (`~/keys-backup/training-coach/android-signing-backup.tar.age`), encrypted with age to the
+  Training Coach backup key (`docs/runbooks/backup-restore.md`) and the desktop's Linux key. The key never meets Gradle: CI
   builds an unsigned APK with no secrets, and the release job only signs it with apksigner and
   checks the certificate against the digest pinned in `android/SIGNING_CERT_SHA256` (security
   review of 24 Oct: a compromised build dependency could otherwise take the key). Accepted for
