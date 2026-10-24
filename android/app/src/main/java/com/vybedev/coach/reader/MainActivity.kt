@@ -64,11 +64,20 @@ private fun ReaderScreen() {
         if (available) granted = HealthReader(context).granted()
     }
 
+    val window = (context as? ComponentActivity)?.window
+
     fun work(job: suspend () -> String) {
         busy = true
+        // Health Connect reads only while the app is on screen, so the screen stays awake.
+        window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         scope.launch {
-            result = runCatching { job() }.getOrElse { "Failed: ${it.message ?: it.javaClass.simpleName}" }
-            busy = false
+            try {
+                result = runCatching { job() }.getOrElse { "Failed: ${it.message ?: it.javaClass.simpleName}" }
+            } finally {
+                // Also when the screen goes away mid-sync, so it never stays awake for good.
+                window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                busy = false
+            }
         }
     }
 
@@ -115,6 +124,13 @@ private fun ReaderScreen() {
         }
         Button(enabled = !busy && hasSecret && granted, onClick = { work { Sync.run(context) } }) {
             Text(if (busy) "Working..." else "Sync now")
+        }
+        if (busy) {
+            Text(
+                "Keep this screen open until it finishes: Health Connect only lets the app read " +
+                    "while it's on screen. The first sync reads a day of history and takes longest.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
         Text(result, style = MaterialTheme.typography.bodyMedium)
         Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall)

@@ -26,6 +26,19 @@ class HeartRead(val samples: List<HeartSample>, val nextToken: String)
 class HealthReader(context: Context) {
     private val client = HealthConnectClient.getOrCreate(context)
 
+    /** Health Connect reads made by this reader, and the last one, for the trial (ADR-0070):
+     * a quota error says which read hit it and after how many. */
+    var reads = 0
+        private set
+    var lastRead = "none"
+        private set
+
+    private suspend fun <T> read(name: String, call: suspend () -> T): T {
+        reads += 1
+        lastRead = name
+        return call()
+    }
+
     suspend fun granted(): Boolean = client.permissionController.getGrantedPermissions().containsAll(PERMISSIONS)
 
     /**
@@ -34,13 +47,13 @@ class HealthReader(context: Context) {
      */
     suspend fun steps(zone: ZoneId, today: LocalDate, now: Instant): List<DaySteps> {
         val from = today.minusDays(1).atStartOfDay()
-        val groups = client.aggregateGroupByPeriod(
+        val groups = read("steps totals") { client.aggregateGroupByPeriod(
             AggregateGroupByPeriodRequest(
                 metrics = setOf(StepsRecord.COUNT_TOTAL),
                 timeRangeFilter = TimeRangeFilter.between(from, today.plusDays(1).atStartOfDay()),
                 timeRangeSlicer = Period.ofDays(1),
             ),
-        )
+        ) }
         return groups.mapNotNull { group ->
             val count = group.result[StepsRecord.COUNT_TOTAL] ?: return@mapNotNull null
             DaySteps(
@@ -54,7 +67,7 @@ class HealthReader(context: Context) {
     }
 
     /**
-     * Heart rate written since [token]. Without one, or when it expired, the last 48 hours once,
+     * Heart rate written since [token]. Without one, or when it expired, the last FIRST_SYNC_HOURS once,
      * with a token taken first so nothing written meanwhile is missed.
      */
     suspend fun heartRate(token: String?, now: Instant): HeartRead {
@@ -62,7 +75,7 @@ class HealthReader(context: Context) {
             val changed = mutableListOf<HeartSample>()
             var next: String = token
             while (true) {
-                val response = client.getChanges(next)
+                val response = read("heart-rate changes") { client.getChanges(next) }
                 if (response.changesTokenExpired) return fromHistory(now)
                 response.changes.filterIsInstance<UpsertionChange>()
                     .mapNotNull { it.record as? HeartRateRecord }
@@ -75,17 +88,21 @@ class HealthReader(context: Context) {
     }
 
     private suspend fun fromHistory(now: Instant): HeartRead {
-        val token = client.getChangesToken(ChangesTokenRequest(setOf(HeartRateRecord::class)))
+        val token = read("changes token") { client.getChangesToken(ChangesTokenRequest(setOf(HeartRateRecord::class))) }
         val found = mutableListOf<HeartSample>()
         var page: String? = null
         do {
-            val response = client.readRecords(
-                ReadRecordsRequest(
-                    HeartRateRecord::class,
-                    TimeRangeFilter.after(now.minus(48, ChronoUnit.HOURS)),
-                    pageToken = page,
-                ),
-            )
+            // The largest page Health Connect allows, so the first sync takes as few reads as it can.
+            val response = read("heart-rate history") {
+                client.readRecords(
+                    ReadRecordsRequest(
+                        HeartRateRecord::class,
+                        TimeRangeFilter.after(now.minus(FIRST_SYNC_HOURS, ChronoUnit.HOURS)),
+                        pageSize = 5_000,
+                        pageToken = page,
+                    ),
+                )
+            }
             response.records.forEach { found += samples(it) }
             page = response.pageToken
         } while (page != null)
@@ -96,6 +113,8 @@ class HealthReader(context: Context) {
         record.samples.map { HeartSample(it.time, it.beatsPerMinute, record.metadata.dataOrigin.packageName) }
 
     companion object {
+        const val FIRST_SYNC_HOURS = 24L // of history on a first sync: a day, to spend little quota
+
         val PERMISSIONS = setOf(
             HealthPermission.getReadPermission(StepsRecord::class),
             HealthPermission.getReadPermission(HeartRateRecord::class),

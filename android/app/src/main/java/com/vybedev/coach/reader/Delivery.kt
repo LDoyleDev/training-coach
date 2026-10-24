@@ -15,6 +15,21 @@ data class Answer(val status: Int, val body: String) {
     val refusedForGood get() = status == 413 || status == 422 // the same batch would be refused again
 }
 
+/**
+ * What to say when Health Connect refuses a read. The trial (ADR-0070) needs the quota error
+ * seen as it came, so its own words stay in the message.
+ */
+fun readFailure(said: String): String {
+    return when {
+        said.contains("foreground", ignoreCase = true) ->
+            "Health Connect stopped reading because the app left the screen. Tap Sync now " +
+                "again and keep this screen open until it finishes."
+        said.contains("quota", ignoreCase = true) || said.contains("rate limit", ignoreCase = true) ->
+            "Health Connect's read limit was reached: $said"
+        else -> "Health Connect refused the read: $said"
+    }
+}
+
 sealed interface Delivery {
     /** Every post got a 2xx: keep the token and the totals. */
     data class Sent(val posts: Int) : Delivery
