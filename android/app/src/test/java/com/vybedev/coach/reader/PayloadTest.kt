@@ -95,12 +95,24 @@ class PayloadTest {
     }
 
     @Test
-    fun `only an https address is used`() {
-        assertTrue(usableAddress("https://coach.example/api/ingest/health-connect"))
-        assertFalse(usableAddress("http://coach.example/api/ingest/health-connect"))
-        assertFalse(usableAddress("https://"))
-        assertFalse(usableAddress("https://coach.example/api ingest"))
-        assertFalse(usableAddress("HTTPS://coach.example/api/ingest/health-connect"))
-        assertFalse(usableAddress(""))
+    fun `only the coach's own ingest address is used`() {
+        val host = "coach.example"
+        assertTrue(usableAddress("https://coach.example/api/ingest/health-connect", host))
+        assertFalse(usableAddress("http://coach.example/api/ingest/health-connect", host))
+        assertFalse(usableAddress("HTTPS://coach.example/api/ingest/health-connect", host))
+        // A look-alike that would send the secret to evil.example.
+        assertFalse(usableAddress("https://coach.example@evil.example/api/ingest/health-connect", host))
+        assertFalse(usableAddress("https://coach.example.evil.example/api/ingest/health-connect", host))
+        assertFalse(usableAddress("https://coach.example:8443/api/ingest/health-connect", host))
+        assertFalse(usableAddress("https://coach.example/api/account", host))
+        assertFalse(usableAddress("https://coach.example/api/ingest/health-connect?to=x", host))
+        assertFalse(usableAddress("https://coach.example/api ingest", host))
+        assertFalse(usableAddress("https://", host))
+        assertFalse(usableAddress("", host))
+    }
+
+    @Test
+    fun `the built-in address is the coach's ingest`() {
+        assertTrue(usableAddress(BuildConfig.COACH_URL, "coach.vybe-dev.com"))
     }
 }
