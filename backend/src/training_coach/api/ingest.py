@@ -2,12 +2,14 @@
 person's ingest secret; and the Account routes that make and remove that secret.
 
 The ingest route is public in the sense that no cookie signs it in: only the secret does. It
-reads no cookies and sets none, reads the body up to a cap, limits callers per address, and
-logs only how many records of each type came in. A sync with the right secret that stores
-nothing is noted with why, for Account; one refused before the secret is known isn't.
+reads no cookies and sets none, reads the body up to a cap, limits callers per address and
+per secret, parses two posts at most at once, and logs only how many records of each type came
+in. A sync with the right secret that stores nothing is noted with why, for Account; one
+refused before the secret is known isn't.
 """
 
 import json
+import re
 import time
 from collections import deque
 from datetime import UTC, datetime
@@ -36,6 +38,13 @@ WINDOW = 600.0  # seconds
 MAX_CALLS = 60  # per address per window; the app syncs at most every 15 minutes
 MAX_FAILURES = 10  # wrong secrets per address per window
 MAX_ADDRESSES = 10_000  # then idle addresses are forgotten, so memory stays bounded
+# Per person, whatever the address: a stolen secret can be used from many (security test,
+# 2026-10-24). A real phone sends one sync per 15 minutes at most, 3 tries each, plus "Sync now".
+MAX_PER_SECRET = 20
+# Posts parsed and stored at once; the next is refused (503) and the phone sends it again.
+# 5 MB of raw heart rate peaks near 60 MB parsed, and the container has 512 MB (2026-10-24).
+MAX_PARSING = 2
+SURROGATE = re.compile(rb"\\u[dD][89a-fA-F]")  # the escape a lone UTF-16 surrogate needs
 
 
 class Limiter:
@@ -45,6 +54,7 @@ class Limiter:
     def __init__(self) -> None:
         self.calls: dict[str, deque[float]] = {}
         self.failures: dict[str, deque[float]] = {}
+        self.secrets: dict[str, deque[float]] = {}  # by the person the secret belongs to
 
     @staticmethod
     def _recent(seen: dict[str, deque[float]], address: str, now: float) -> deque[float]:
@@ -72,6 +82,18 @@ class Limiter:
 
     def failed(self, address: str, now: float) -> None:
         self._recent(self.failures, address, now).append(now)
+
+    def allow_secret(self, user: int, now: float) -> bool:
+        calls = self._recent(self.secrets, str(user), now)
+        if len(calls) >= MAX_PER_SECRET:
+            return False
+        calls.append(now)
+        return True
+
+    def refund_secret(self, user: int) -> None:
+        """Give back a post turned away as busy: that wasn't the phone's doing."""
+        if calls := self.secrets.get(str(user)):
+            calls.pop()
 
 
 def _limiter(request: Request) -> Limiter:
@@ -113,6 +135,12 @@ def _refuse(bound: sessionmaker[Session], now: datetime, reason: Refusal) -> Non
 
 
 async def _body(request: Request) -> bytes:
+    """The body, refused before reading when it declares more than the cap: the request guard
+    leaves this path to us (2026-10-24)."""
+    length = request.headers.get("content-length", "")
+    # isdigit alone passes "²", which int() refuses (review of #324): odd values are ignored.
+    if length.isascii() and length.isdigit() and int(length) > MAX_BYTES:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "payload too large")
     data = bytearray()
     async for chunk in request.stream():
         data += chunk
@@ -121,8 +149,28 @@ async def _body(request: Request) -> bytes:
     return bytes(data)
 
 
+def _busy(state: object) -> bool:
+    return getattr(state, "ingest_parsing", 0) >= MAX_PARSING
+
+
+def _busy_answer() -> HTTPException:
+    return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "busy", {"Retry-After": "60"})
+
+
+def _lone_surrogate(raw: bytes, body: object) -> bool:
+    """Whether a parsed body holds half a UTF-16 pair, which can't be stored (it was a 500,
+    2026-10-24). The app's JSON writer never escapes one; a whole pair, an emoji, is fine."""
+    if SURROGATE.search(raw) is None:
+        return False
+    try:
+        json.dumps(body, ensure_ascii=False).encode()
+    except UnicodeEncodeError:
+        return True
+    return False
+
+
 @router.post("/health-connect", response_model=IngestReceived, response_model_exclude_none=True)
-async def health_connect(request: Request) -> IngestReceived:
+async def health_connect(request: Request, background: BackgroundTasks) -> IngestReceived:
     """Store a Health Connect Webhook payload for the person whose secret it carries."""
     address, clock = _client(request), time.monotonic()
     limiter = _limiter(request)
@@ -136,6 +184,14 @@ async def health_connect(request: Request) -> IngestReceived:
     if user is None:
         limiter.failed(address, clock)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "unknown ingest secret")
+    # Busy is checked before the body is read and before the post counts against the secret,
+    # and again once it is read; a post turned away then is refunded (review of #324). The
+    # slot is taken only after reading, so a body sent slowly can't hold one.
+    state = request.app.state
+    if _busy(state):
+        raise _busy_answer()
+    if not limiter.allow_secret(user, clock):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "too many requests")
     settings: Settings = request.app.state.settings
     bound = make_session_factory(request.app.state.engine, user_id=user)
     try:
@@ -143,6 +199,11 @@ async def health_connect(request: Request) -> IngestReceived:
     except HTTPException:
         await run_in_threadpool(_refuse, bound, now, Refusal.TOO_LARGE)
         raise
+    if _busy(state):
+        limiter.refund_secret(user)
+        raise _busy_answer()
+
+    moved: tuple[int, int] | None = None
 
     def parse_and_store() -> health_import.Batch | None:
         """Parsing up to 5 MB and the SQLite writes block: off the event loop, so a first sync
@@ -152,7 +213,7 @@ async def health_connect(request: Request) -> IngestReceived:
         except (ValueError, RecursionError) as exc:  # bad UTF-8 or JSON, or nested too deep
             _refuse(bound, now, Refusal.NOT_JSON)
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "not JSON") from exc
-        if not isinstance(body, dict):
+        if not isinstance(body, dict) or _lone_surrogate(raw, body):
             _refuse(bound, now, Refusal.NOT_JSON)
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "not a JSON object")
         if health_import.is_test(body):
@@ -164,9 +225,10 @@ async def health_connect(request: Request) -> IngestReceived:
         version = body.get("app_version")
         batch = health_import.parse(body, now)
         kinds = [kind for kind, n in batch.taken.items() if n]
+        nonlocal moved
         try:
             with session_scope(bound) as session:
-                health_import.store(session, batch, settings.tz, now)
+                moved = health_import.store(session, batch, settings.tz, now)
                 ingest_keys.received(
                     session,
                     now,
@@ -180,7 +242,17 @@ async def health_connect(request: Request) -> IngestReceived:
             raise
         return batch
 
-    batch = await run_in_threadpool(parse_and_store)
+    state.ingest_parsing = getattr(state, "ingest_parsing", 0) + 1  # no await since the check
+    try:
+        batch = await run_in_threadpool(parse_and_store)
+    finally:
+        state.ingest_parsing -= 1
+    if moved is not None:  # told, so a made-up workout moving the zones is seen (2026-10-24)
+        text = (
+            f"Your band data moved the max heart rate your zones use from {moved[0]} to"
+            f" {moved[1]} bpm. If that doesn't look right, set your own max under Settings."
+        )
+        alert(request, background, user, "max_hr_moved", text)
     if batch is None:
         log.info("ingest.test")
         return TESTED

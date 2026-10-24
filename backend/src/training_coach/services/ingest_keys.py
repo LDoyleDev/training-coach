@@ -16,6 +16,7 @@ the rest it is written at most hourly unless something changed: SQLite is on an 
 
 import hmac
 import secrets
+import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -112,6 +113,12 @@ def _due(noted: datetime | None, now: datetime) -> bool:
     return noted is None or now - noted > TOUCH_AFTER
 
 
+def _printable(text: str) -> str:
+    """The app's version as Account shows it, without control, format (bidi overrides such as
+    U+202E) or lone surrogate characters: whoever holds the secret sets it (2026-10-24)."""
+    return "".join(c for c in text if unicodedata.category(c) not in ("Cc", "Cf", "Cs"))
+
+
 def received(
     session: Session,
     now: datetime,
@@ -130,8 +137,9 @@ def received(
         return
     if _due(row.last_used_at, now) or (_refusal_open(row) and not skipped):
         row.last_used_at = now
-    if app_version and row.app_version != app_version[:32]:
-        row.app_version = app_version[:32]
+    version = _printable(app_version or "")[:32]
+    if version and row.app_version != version:
+        row.app_version = version
     if took and _due(row.last_taken_at, now):
         row.last_taken_at = now
     feeds = _feeds(session)

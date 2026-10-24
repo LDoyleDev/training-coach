@@ -23,7 +23,7 @@ class HeartRate:
     birth_year: int | None
     own_max: int | None  # typed in; wins over everything
     estimated_max: int | None  # 208 - 0.7 x age
-    peak: int | None  # the highest any imported workout reached
+    peak: int | None  # the highest any imported workout held, as it counts (``counted_peak``)
     zones: Zones
 
 
@@ -33,12 +33,13 @@ def current(session: Session, today: date) -> HeartRate:
     own = found.max_hr if found is not None else None
     years = zones.age(birth_year, today.year)
     # A dismissed workout, or a reading no heart reaches (a glitch), never moves the zones
-    # (review of #225).
-    peak = session.scalar(
-        select(func.max(ImportedWorkout.max_hr)).where(
-            ImportedWorkout.status != "dismissed", ImportedWorkout.max_hr <= HIGHEST_MAX
+    # (review of #225); nor does a peak held under three minutes (2026-10-24).
+    held = session.scalar(
+        select(func.max(ImportedWorkout.sustained_hr)).where(
+            ImportedWorkout.status != "dismissed", ImportedWorkout.sustained_hr <= HIGHEST_MAX
         )
     )
+    peak = zones.counted_peak(years, held)
     nights = list(
         session.scalars(
             select(HealthDay.resting_hr)

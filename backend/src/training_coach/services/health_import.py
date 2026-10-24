@@ -41,6 +41,18 @@ LONGEST = timedelta(hours=24)  # no sleep or workout session is longer
 LONGEST_DAY = timedelta(hours=25)  # a local day the clocks go back, for a "Daily" steps record
 DELETABLE = ("sleep", "exercise")  # kept one row per record, so a deletion can be applied
 CHUNK = 500  # ids per query: well inside SQLite's limit on bound parameters
+# The most records of a type one post is read for; the rest are skipped and counted, so a
+# stolen secret can't write tens of thousands of rows (and hold SQLite's lock for minutes) in
+# one post (security test, 2026-10-24). A real sync covers 48 hours (ADR-0055), far inside
+# these; heart rate is bounded first by the 5 MB cap, about 120,000 raw samples.
+MOST = {
+    "steps": 20_000,  # even one record a minute is 2,880 in 48 hours
+    "sleep": 50,  # two nights, split into pieces, and naps
+    "heart_rate": 180_000,  # a sample every second for 48 hours is 172,800
+    "resting_heart_rate": 1_000,  # one a night; an hourly one would be 48
+    "exercise": 100,  # a handful a day
+    "weight": 100,  # a few weigh-ins a day
+}
 
 
 class _Record(BaseModel):
@@ -174,7 +186,9 @@ def parse(body: dict[str, Any], now: datetime) -> Batch:
         if not isinstance(records, list):
             batch.skipped[key] += 1
             continue
-        for raw in records:
+        if len(records) > MOST[key]:
+            batch.skipped[key] += len(records) - MOST[key]
+        for raw in records[: MOST[key]]:
             try:
                 record = model.model_validate(raw)
             except ValidationError:
@@ -239,9 +253,11 @@ def _add(
 # ------------------------------------------------------------------------- storing
 
 
-def store(session: Session, batch: Batch, tz: ZoneInfo, now: datetime) -> None:
+def store(session: Session, batch: Batch, tz: ZoneInfo, now: datetime) -> tuple[int, int] | None:
     """Write a checked batch: deletions first, then heart rate, so sleep and workouts can use
-    it."""
+    it. The max heart rate the zones use before and after, when the batch moved it."""
+    today = now.astimezone(tz).date()
+    before = zones.current(session, today).zones.max
     nights = _delete(session, batch.deleted)
     _heart_rate(session, batch.heart_rate, now)
     _steps(session, batch.steps, tz)
@@ -252,19 +268,18 @@ def store(session: Session, batch: Batch, tz: ZoneInfo, now: datetime) -> None:
     for minute in batch.heart_rate:
         day = minute.at.astimezone(tz).date()
         nights |= {day, day + timedelta(days=1)}
-    today = now.astimezone(tz).date()
     for day in sorted(d for d in nights if d <= today):
         _derive_resting(session, day, tz)
     for exercise in batch.exercise:
         _exercise(session, exercise, tz)
     touched = _refresh_workouts(session, batch)
     session.flush()  # a new peak can raise max heart rate before zones are counted
-    if touched:
-        hr = zones.current(session, today).zones
-        for row in touched:
-            count_zones(session, row, hr)
+    hr = zones.current(session, today).zones
+    for row in touched:
+        count_zones(session, row, hr)
     _weight(session, batch.weight, tz, today)
     session.flush()
+    return (before, hr.max) if hr.max != before else None
 
 
 def _chunks(ids: set[str]) -> list[list[str]]:
@@ -471,6 +486,7 @@ def refresh(session: Session, row: ImportedWorkout) -> None:
         return
     row.avg_hr = round(sum(m.bpm for m in minutes) / len(minutes))
     row.max_hr = max(m.high for m in minutes)
+    row.sustained_hr = domain_zones.sustained([(m.at, m.bpm) for m in minutes])
 
 
 def count_zones(session: Session, row: ImportedWorkout, hr: Zones) -> None:

@@ -30,7 +30,8 @@ def test_nights_birth_year_peak_and_own_max(session: Session) -> None:
             local_date=TODAY,
             exercise_type=56,
             minutes=30,
-            max_hr=186,
+            max_hr=190,
+            sustained_hr=186,  # what it held three minutes counts, not its top reading
         )
     )
     zones.save(session, 1986, None)
@@ -55,7 +56,7 @@ def test_a_birth_year_the_estimate_would_ignore_is_refused() -> None:
     assert zones.problem(2020, None, 2040) is None  # never past the stored range
 
 
-def _workout(session: Session, hour: int, max_hr: int, status: str = "new") -> None:
+def _workout(session: Session, hour: int, held: int, status: str = "new") -> None:
     start = datetime(2026, 10, 10, hour, 0, tzinfo=UTC)
     session.add(
         ImportedWorkout(
@@ -65,7 +66,7 @@ def _workout(session: Session, hour: int, max_hr: int, status: str = "new") -> N
             local_date=TODAY,
             exercise_type=56,
             minutes=30,
-            max_hr=max_hr,
+            sustained_hr=held,
             status=status,
         )
     )

@@ -83,7 +83,9 @@ heart rate and weight) is not stored. Its log entry is **200** with
    `{"taken": {"steps": 2, "heart_rate": 1400, ...}, "skipped": {}}`.
    - **401**: the header is wrong. Check `Authorization` and `Bearer <secret>` with one space,
      or make a new secret.
-   - **429**: too many tries; wait 10 minutes.
+   - **429**: too many tries; wait 10 minutes. If the phone isn't syncing that often,
+     someone else may have the secret: make a new one.
+   - **503**: the coach was busy with other syncs; the phone sends it again by itself.
    - **413**: a sync larger than 5 MB. Check heart rate resolution is 1 minute, not Full.
    - "skipped" above 0 for a type: some records didn't make sense (a clock far off, an
      impossible value) and were left out; the rest arrived.
