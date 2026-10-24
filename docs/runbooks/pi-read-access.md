@@ -25,7 +25,7 @@ has a budget of its own and fails alone, with a message:
 | Time | 20 s | `stopped at the 20 s limit` |
 | SQLite's memory | 64 MB (`hard_heap_limit`); sorts and temporary tables stay in it (`temp_store = MEMORY`), never in `/tmp` | `the query needs more than its 64 MB of memory: ...` |
 | The query's process | 192 MB of address space (`RLIMIT_AS`), a backstop | the same |
-| Output | 4 MB in all, header included | `stopped at 4 MB of output: ...`, after the rows that fit |
+| Output | 4 MB in all, header included, counted in bytes (an emoji is 4) | `stopped at 4 MB of output: ...`, after the rows that fit |
 | Columns | 100 (the widest table has 20) | `too many columns in result set` |
 | Rows | 500 | none: the rest isn't printed, so count with `count(*)` |
 | One value | 1 MB | `string or blob too big` (a `printf` past it comes back empty) |
