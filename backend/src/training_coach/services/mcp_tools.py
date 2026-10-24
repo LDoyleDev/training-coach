@@ -47,7 +47,11 @@ _NOTHING = {"type": "object", "properties": {}, "additionalProperties": False}
 
 
 class BadArgumentsError(ValueError):
-    """The tool's arguments don't fit its schema; the message says what's wrong."""
+    """The tool's arguments don't fit its schema; ``reason`` says what's wrong."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason  # written here for the AI to read, never an exception's own text
 
 
 @dataclass(frozen=True)

@@ -492,3 +492,45 @@ def test_deletions_are_counted_in_the_answer(signed_in: TestClient, phone: TestC
     (line,) = [entry for entry in logs if entry["event"] == "ingest.stored"]
     assert line["sleep_deleted"] == 1
     assert hcw.NIGHT_ID not in json.dumps(logs, default=str)
+
+
+def _reader_sync() -> dict[str, object]:
+    """A sync as the band reader sends it (android/.../Payload.kt, ADR-0070): one record per
+    local day of steps and raw heart-rate samples, each naming the app that wrote it."""
+    mi = {"data_origin": "com.mi.health"}
+    return {
+        "timestamp": hcw.iso(hcw.NOW),
+        "app_version": "tc-reader/0.0.1",
+        "steps": [
+            {
+                "count": 812,
+                "start_time": "2026-10-10T22:00:00Z",
+                "end_time": hcw.iso(hcw.NOW),
+                "metadata": mi,
+            }
+        ],
+        "heart_rate": [
+            {"bpm": bpm, "time": f"2026-10-11T07:{at}Z", "metadata": mi}
+            for bpm, at in ((60, "00:05"), (62, "00:25"), (64, "00:45"), (70, "01:10"))
+        ],
+    }
+
+
+def test_the_readers_sync_is_taken_and_sending_it_again_changes_nothing(
+    signed_in: TestClient, phone: TestClient, engine: Engine
+) -> None:
+    # The reader sends a sync again when a later post of it failed: that must be harmless.
+    secret = _secret(signed_in)
+    for _ in range(2):
+        answer = _post(phone, secret, _reader_sync())
+        assert answer.status_code == 200
+        assert answer.json()["taken"] == {"steps": 1, "heart_rate": 4}
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        minutes = [
+            (s.bpm, s.low, s.high)
+            for s in mine.scalars(select(HeartRateSample).order_by(HeartRateSample.at))
+        ]
+        steps = mine.scalar(select(HealthDay.steps))
+    assert minutes == [(62, 60, 64), (70, 70, 70)]
+    assert steps == 812
+    assert signed_in.get("/api/account/ingest").json()["app_version"] == "tc-reader/0.0.1"

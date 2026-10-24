@@ -74,3 +74,4 @@ Code). Template: [template.md](template.md).
 | [0067](0067-cardio-details-and-session-rpe.md) | A cardio log carries how hard it felt, and optionally distance, heart rate and start | Accepted |
 | [0068](0068-today-shows-the-days-log.md) | Today shows what a day logged, with earlier days a tap away and their habits | Accepted |
 | [0069](0069-plan-page-and-session-maps.md) | Plan gets its own tab, Tests moves into Body, each session has its own body map | Accepted |
+| [0070](0070-our-own-android-reader.md) | Our own Android reader replaces HC Webhook as the bridge from Health Connect | Proposed |

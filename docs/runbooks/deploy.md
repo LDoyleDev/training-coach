@@ -133,7 +133,26 @@ When a release doesn't come up healthy, the script rolls the code back to the pr
 and the bot keeps working. If the release changed the schema, it leaves the new version in
 place, because going back needs the backup it took (see Rollback). Either way, the failed tag
 is saved in `.git/auto-deploy-failed` and not retried. Fix it with a new release, or deploy by
-hand and `rm .git/auto-deploy-failed`.
+hand and `rm .git/auto-deploy-failed`. If that file can't be written (a full disk), the
+rollback still runs and the journal says so.
+
+A deploy cut off part way (a power cut, a reboot, the unit's 30-minute timeout) leaves
+`.git/auto-deploy-pending`, written after the backup and removed when the deploy is over. The
+next run finishes it without a second backup: it rebuilds the new tag once more. If that is
+cut off too, or the rollback was, it rolls back once and the failed tag stays marked. A
+`pending` file that matches neither the old nor the new checkout (someone deployed by hand
+meanwhile) stops every run with an error until you `rm .git/auto-deploy-pending`.
+
+After a healthy deploy, the script removes this app's older images, which would otherwise fill
+the SD card at one per release. It keeps the image now running and the one it replaced, and
+touches only images with the Dockerfile's `training-coach.app` label: no other project's
+images, no volumes, no `docker image prune -a`. Images built before the label was added stay;
+remove them once by hand: for each untagged `<none>` image in `docker image ls`, check it is
+this app's (`docker image inspect <id>` shows `training-coach serve` in its `Cmd`), then
+`docker image rm <id>`.
+
+A release tag deleted upstream (a typo'd or early tag) is deleted on the Pi at the next fetch,
+so it can't stay the newest tag and block later releases. A tag that moves is still refused.
 
 The usual cause is the image build failing on a download over the Pi's Wi-Fi (v0.37.0 failed
 that way). The build waits up to 120 s and retries each download, and keeps downloaded wheels in
