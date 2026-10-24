@@ -8,13 +8,23 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
-from tests.bot.fakes import OWNER, STRANGER, button_data, press, run, text_message, texts
+from tests.bot.fakes import (
+    OWNER,
+    SETTINGS,
+    STRANGER,
+    button_data,
+    press,
+    run,
+    text_message,
+    texts,
+)
 from tests.bot.test_band import _walk
 from tests.bot.test_proposals import _propose
 from training_coach.bot import band as band_ui
 from training_coach.bot import clash as clash_ui
 from training_coach.bot import logging_flow
 from training_coach.bot import proposals as proposals_ui
+from training_coach.bot.app import build_bot
 from training_coach.bot.messages import LOG_CANCELLED, LOG_EXPIRED
 from training_coach.db.models import LogProposal, PlanState, SessionTemplate, Workout
 from training_coach.domain.queue import local_date
@@ -266,6 +276,39 @@ async def test_a_cardio_kind_picked_is_kept_while_the_question_is_answered(
     added = await run(application, press(f"lp:add:{token}", OWNER))
     assert texts(added)[0].startswith("Saved: Zone 2 (conversational pace), 40 min, on ")
     assert _days(seeded)[TODAY] == [(None, "rest"), ("zone2", "done")]
+
+
+async def test_after_a_restart_mid_question_the_kind_buttons_come_back(
+    application: App, seeded: Sessions, engine: Engine
+) -> None:
+    """Review of #321: the pick lived only in memory, so after a restart the reply to an answer
+    offered a plain Save."""
+    _rest_today_and_zone2_next(seeded)
+    token = _propose(seeded, engine, kind="cardio", minutes=40)
+    await run(application, press(f"lp:zone2:{token}", OWNER))  # the question is asked
+    restarted = build_bot(SETTINGS, seeded)  # remembers no question and no pick
+    for data in (f"lp:add:{token}", f"lp:cancel:{token}"):
+        forgotten = await run(restarted, press(data, OWNER))
+        assert texts(forgotten) == [proposals_ui.WAITING]
+        assert [a.split(":")[1] for a in _answers(forgotten)] == ["zone2", "moderate", "discard"]
+    asked = await run(restarted, press(f"lp:zone2:{token}", OWNER))  # picked again
+    assert texts(asked)[0].startswith(f"{TODAY:%a %d %b} already has Rest day (rested).")
+    added = await run(restarted, press(f"lp:add:{token}", OWNER))
+    assert texts(added)[0].startswith("Saved: Zone 2 (conversational pace), 40 min, on ")
+
+
+async def test_a_pick_on_a_token_that_isnt_waiting_is_not_remembered(
+    application: App, seeded: Sessions
+) -> None:
+    gone = await run(application, press("lp:zone2:" + "ab" * 16, OWNER))
+    assert texts(gone) == [proposals_ui.GONE]
+    (handlers,) = {
+        h.callback.__self__
+        for group in application.handlers.values()
+        for h in group
+        if isinstance(getattr(h.callback, "__self__", None), proposals_ui.ProposalHandlers)
+    }
+    assert handlers.picked == {}
 
 
 async def test_counting_a_band_workout_into_a_day_with_its_session_asks(

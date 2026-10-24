@@ -114,7 +114,8 @@ class ProposalHandlers:
         self.sending = asyncio.Lock()
         # Token -> the clash shown for it, and a day to move to found taken (ADR-0060).
         self.asked: dict[str, tuple[Clash, date | None]] = {}
-        # Token -> the kind of cardio picked, kept while its clash question is answered.
+        # Token -> the kind of cardio picked, kept while its clash question is answered; only
+        # for a token that matched a waiting proposal. Lost on a restart: then it is asked again.
         self.picked: dict[str, str] = {}
 
     async def job(self, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -164,14 +165,12 @@ class ProposalHandlers:
         now = datetime.now(UTC)
         reply_markup = None
         asked = self.asked.get(press.token)
-        if press.action in PICKS:
-            self.picked[press.token] = PICKS[press.action]
-        waiting = markup(press.token, cardio=press.token in self.picked)
+        pick = PICKS.get(press.action)
         if press.action == "cancel" or (press.action == MOVE and asked is not None):
             await edit_quietly(query.edit_message_reply_markup(None))
             if press.action == "cancel":
                 self.asked.pop(press.token, None)
-                await query.message.reply_text(WAITING, reply_markup=waiting)
+                await query.message.reply_text(WAITING, reply_markup=self._waiting(press.token))
             else:
                 assert asked is not None  # noqa: S101 - checked above
                 today = local_date(now, self.settings.tz)
@@ -180,8 +179,8 @@ class ProposalHandlers:
             return
         answer = None
         if press.action not in ACTIONS:  # an answer to the question
-            if asked is None:
-                await query.message.reply_text(WAITING, reply_markup=waiting)
+            if asked is None:  # never asked, or forgotten in a restart
+                await query.message.reply_text(WAITING, reply_markup=self._waiting(press.token))
                 return
             answer = clash_ui.resolution(press.action, asked[0], local_date(now, self.settings.tz))
         result: proposals.Resolved | Clash | Refused
@@ -198,7 +197,7 @@ class ProposalHandlers:
                         now,
                         "telegram",
                         answer,
-                        cardio=self.picked.get(press.token),
+                        cardio=pick or self.picked.get(press.token),
                     )
                     reply = ""
                     if isinstance(result, proposals.Unpicked):
@@ -217,6 +216,8 @@ class ProposalHandlers:
         if not isinstance(result, Clash | Refused):
             self.asked.pop(press.token, None)
             self.picked.pop(press.token, None)
+        elif pick is not None:  # it is waiting, for the answer to the question
+            self.picked[press.token] = pick
         if isinstance(result, proposals.Already):
             reply = ALREADY[result.status]
         elif isinstance(result, proposals.Gone):
@@ -224,6 +225,17 @@ class ProposalHandlers:
         await edit_quietly(query.edit_message_reply_markup(None))
         await query.message.reply_text(reply, reply_markup=reply_markup)
         log.info("bot.proposal_answered", action=press.action, outcome=type(result).__name__)
+
+    def _waiting(self, token: str) -> InlineKeyboardMarkup:
+        """The buttons of one still waiting: a button per kind for cardio, looked up rather than
+        remembered, so they come back after a restart."""
+        try:
+            with session_scope(self.sessions) as session:
+                kind = proposals.waiting_kind(session, token, datetime.now(UTC))
+        except SQLAlchemyError as exc:
+            log.error("bot.proposal_failed", error=type(exc).__name__)
+            kind = None
+        return markup(token, cardio=kind == proposals.CARDIO or token in self.picked)
 
     def _ask(
         self, token: str, result: Clash | Refused, answer: Resolution | None, now: datetime
