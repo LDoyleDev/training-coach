@@ -145,7 +145,7 @@ def _call(
         text = mcp_tools.run(session, tool, arguments, access.scopes, local_date(now, tz))
     except mcp_tools.BadArgumentsError as problem:
         _record(session, access, tool.name, "bad_arguments")
-        return _result(id_, {"content": [{"type": "text", "text": str(problem)}], "isError": True})
+        return _result(id_, {"content": [{"type": "text", "text": problem.reason}], "isError": True})
     _record(session, access, tool.name, "ok")
     return _result(id_, {"content": [{"type": "text", "text": text}], "isError": False})
 
