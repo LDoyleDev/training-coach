@@ -98,5 +98,6 @@ AI no longer decides whether a proposal is zone 2 or moderate cardio:
   moving (or active) and total (or elapsed) time, the minutes are the moving or active time.
 - **A ride shows speed.** A bike log shows km/h instead of min/km on the card, the cardio form,
   its saved screen and the day view (`domain/cardio.speed`); nothing more is stored.
-- A proposal made before this change names the AI's kind in its summary and still saves as
-  that kind unless the person picks the other.
+- A proposal made before this change names the AI's kind in its summary, but that kind is
+  only its suggestion: it saves only with the person's pick, like any other (review of #321),
+  and the saved summary names the kind picked.
