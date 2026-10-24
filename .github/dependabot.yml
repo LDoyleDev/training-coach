@@ -23,6 +23,18 @@ updates:
         update-types: [minor, patch]
     commit-message: { prefix: build, include: scope }
 
+  # The band reader (ADR-0070): its Gradle plugins and libraries.
+  - package-ecosystem: gradle
+    directory: /android
+    schedule: { interval: weekly, day: monday }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      gradle-minor-patch:
+        update-types: [minor, patch]
+    commit-message: { prefix: build, include: scope }
+
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly, day: monday }

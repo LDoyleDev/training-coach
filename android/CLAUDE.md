@@ -20,10 +20,12 @@ app/src/test/               JVM unit tests for the pure parts
 - There are no Android tools on the desktop: CI (`.github/workflows/android.yml`) runs
   `gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` with Gradle
   8.14.4 and JDK 17. There's no Gradle wrapper; the workflow pins the version.
-- A release: bump `VERSION` in a PR. After merge, the workflow waits for Liam's approval of
-  the `android-release` environment, signs the APK, checks its signer against
+- A release: bump `VERSION` in a PR. After merge, the build job makes an unsigned APK (no
+  secrets), then the workflow waits for Liam's approval of the `android-release` environment,
+  signs it with apksigner only (no Gradle there), checks its signer against
   `SIGNING_CERT_SHA256` (the public certificate's digest, not a secret) and publishes the
-  pre-release `android-v<version>`. Never put the key or its password anywhere else.
+  pre-release `android-v<version>`. Never put the key or its password anywhere else, and never
+  give Gradle the key.
 - `adb` is on the desktop for the phone's logs: `adb logcat --pid=$(adb shell pidof
   com.vybedev.coach.reader)`.
 

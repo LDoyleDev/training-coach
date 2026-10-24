@@ -8,10 +8,6 @@ plugins {
 val appVersion = rootProject.file("VERSION").readText().trim()
 val (major, minor, patch) = appVersion.split(".").map { it.toInt() }
 
-// Only the release workflow has the key (GitHub environment android-release, ADR-0070).
-val keystorePath: String? = System.getenv("ANDROID_KEYSTORE_PATH")
-val keystorePassword: String? = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-
 android {
     namespace = "com.vybedev.coach.reader"
     compileSdk = 36
@@ -27,22 +23,11 @@ android {
         buildConfigField("String", "COACH_URL", "\"https://coach.vybe-dev.com/api/ingest/health-connect\"")
     }
 
-    signingConfigs {
-        if (keystorePath != null && keystorePassword != null) {
-            create("release") {
-                storeFile = file(keystorePath)
-                storePassword = keystorePassword
-                storeType = "pkcs12"
-                keyAlias = "tc-reader"
-                keyPassword = keystorePassword
-            }
-        }
-    }
-
     buildTypes {
         release {
+            // Built unsigned: the release workflow signs it with apksigner, so the key never
+            // meets Gradle or its plugins (ADR-0070, security review of 24 Oct).
             isMinifyEnabled = false
-            signingConfig = signingConfigs.findByName("release")
         }
     }
 

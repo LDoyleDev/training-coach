@@ -1,6 +1,10 @@
 # The band reader in android/ (ADR-0070). Builds, tests and lints it whenever it changes; on main,
-# when android/VERSION moved, builds the signed APK and publishes it as a pre-release
-# android-v<version> for Obtainium. Not a required check: PRs that don't touch android/ skip it.
+# when android/VERSION moved, signs the APK and publishes it as a pre-release android-v<version>
+# for Obtainium. Not a required check: PRs that don't touch android/ skip it.
+#
+# The signing key never meets Gradle (security review of 2026-10-24): the build job, which runs
+# every plugin and library, makes an unsigned APK with no secrets; the release job only signs it
+# with apksigner, checks the signer and publishes.
 name: Android reader
 
 on:
@@ -19,6 +23,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
@@ -27,7 +33,15 @@ jobs:
         with:
           gradle-version: "8.14.4"
       - name: Test, lint and build
-        run: gradle -p android --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+        run: gradle -p android --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease
+      - name: Keep the unsigned release APK
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-apk
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
+          retention-days: 3
       - name: Lint report
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -46,6 +60,8 @@ jobs:
       release: ${{ steps.check.outputs.release }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - id: check
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,11 +75,12 @@ jobs:
           fi
 
   release:
-    # The signing key lives only in this environment, which needs Liam's approval per run.
+    # The signing key lives only in this environment, which needs Liam's approval per run. No
+    # Gradle and no project code runs here: only apksigner from the runner's Android SDK.
     needs: version
     if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     environment: android-release
     # Two pushes that both move VERSION would race between the check and the create.
     concurrency:
@@ -73,36 +90,39 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+          persist-credentials: false
+          sparse-checkout: android/SIGNING_CERT_SHA256
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          gradle-version: "8.14.4"
-          cache-read-only: true
-      - name: Build the signed APK
+          name: unsigned-apk
+          path: unsigned
+      - name: Sign the APK
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
-          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.p12"
-          trap 'rm -f "$ANDROID_KEYSTORE_PATH"' EXIT
-          printf '%s' "$KEYSTORE_B64" | base64 -d > "$ANDROID_KEYSTORE_PATH"
-          gradle -p android --no-daemon :app:assembleRelease
+          tools="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME"/build-tools | sort -V | tail -1)"
+          keystore="$RUNNER_TEMP/release.p12"
+          trap 'rm -f "$keystore"' EXIT
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$keystore"
+          "$tools/zipalign" -p -f 4 unsigned/app-release-unsigned.apk "$RUNNER_TEMP/aligned.apk"
+          "$tools/apksigner" sign --ks "$keystore" --ks-type PKCS12 --ks-key-alias tc-reader \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEYSTORE_PASSWORD \
+            --out signed.apk "$RUNNER_TEMP/aligned.apk"
       - name: Check the signature
         # Signed with the one key phones already trust: its certificate digest is pinned in the repo.
         run: |
-          apk=android/app/build/outputs/apk/release/app-release.apk
           expected=$(tr -d '[:space:]' < android/SIGNING_CERT_SHA256)
           signer="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME"/build-tools | sort -V | tail -1)/apksigner"
-          "$signer" verify --print-certs "$apk" | grep -q "certificate SHA-256 digest: $expected"
+          "$signer" verify --print-certs signed.apk | grep -q "certificate SHA-256 digest: $expected"
       - name: Publish the pre-release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk "tc-reader-$VERSION.apk"
-          gh release create "android-v$VERSION" "tc-reader-$VERSION.apk" \
+          mv signed.apk "tc-reader-$VERSION.apk"
+          gh release create "android-v$VERSION" "tc-reader-$VERSION.apk" -R "$GITHUB_REPOSITORY" \
             --prerelease --latest=false --target "$GITHUB_SHA" --title "Coach reader $VERSION" \
-            --notes "The band reader (ADR-0070). Install or update with Obtainium, filtered to android-v tags."
+            --notes "The band reader (ADR-0070). Signing certificate SHA-256: $(cat android/SIGNING_CERT_SHA256). Install or update with Obtainium."

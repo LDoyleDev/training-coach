@@ -27,7 +27,10 @@ own reader rather than retry. The plan and its review are in `docs/specs/android
   background if the phone's Health Connect allows it.
 - **Signing:** one release key from the first build, kept as secrets of the GitHub environment
   `android-release`, which needs Liam's approval for every run that uses it, and backed up
-  encrypted with age in `~/.secrets/training-coach/android`.
+  encrypted with age in `~/.secrets/training-coach/android`. The key never meets Gradle: CI
+  builds an unsigned APK with no secrets, and the release job only signs it with apksigner and
+  checks the certificate against the digest pinned in `android/SIGNING_CERT_SHA256` (security
+  review of 24 Oct: a compromised build dependency could otherwise take the key).
 - **Builds:** CI builds and tests `android/` when it changes. A release is a GitHub
   pre-release tagged `android-v<version>` with the signed APK, made by its own workflow (not
   release-please), and installed with Obtainium.
