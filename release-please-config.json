@@ -78,6 +78,9 @@
           "section": "Chores",
           "hidden": true
         }
+      ],
+      "exclude-paths": [
+        "android"
       ]
     }
   }

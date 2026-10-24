@@ -1,7 +1,8 @@
 """scripts/auto-deploy.sh (ADR-0030), run for real against throwaway git repos.
 
 ``docker`` and ``curl`` are stubs on PATH: docker records its calls (and can be told to fail
-the backup or the rebuild), curl answers /healthz with whatever the test wrote to a file.
+the backup or the rebuild, or which images it has), curl answers /healthz with whatever the
+test wrote to a file.
 """
 
 import os
@@ -23,6 +24,8 @@ pytestmark = pytest.mark.skipif(BASH is None, reason="needs bash (set TC_TEST_BA
 DOCKER = """#!/usr/bin/env bash
 echo "$*" >> "$STUB_DIR/docker.log"
 case "$*" in
+  image\\ inspect*) cat "$STUB_DIR/running" 2>/dev/null ;;
+  image\\ ls*) cat "$STUB_DIR/images" 2>/dev/null || true ;;
   *exec*backup*) [ ! -e "$STUB_DIR/fail-backup" ] && [ ! -e "$STUB_DIR/fail-exec" ] ;;
   *backup*) [ ! -e "$STUB_DIR/fail-backup" ] ;;
   *up\\ -d*) [ ! -e "$STUB_DIR/fail-up" ] ;;
@@ -141,8 +144,33 @@ class Pi:
         )
 
     def docker_calls(self) -> list[str]:
+        """The compose calls: the deploy's steps, without the image clean-up."""
         log = self.stubs / "docker.log"
-        return log.read_text().splitlines() if log.exists() else []
+        calls = log.read_text().splitlines() if log.exists() else []
+        return [call for call in calls if call.startswith("compose ")]
+
+    def removed_images(self) -> list[str]:
+        log = self.stubs / "docker.log"
+        calls = log.read_text().splitlines() if log.exists() else []
+        return [call.removeprefix("image rm ") for call in calls if call.startswith("image rm ")]
+
+    def images(self, running: str, *others: str) -> None:
+        """This app's images, newest first, as `docker image ls` lists them."""
+        (self.stubs / "running").write_text(running + "\n")
+        (self.stubs / "images").write_text("".join(f"{i}\n" for i in (running, *others)))
+
+    def cut_off_builds(self, *numbers: int) -> None:
+        """The script is killed during these rebuilds (1 is the first): a power cut, a reboot,
+        the unit's TimeoutStartSec."""
+        cut = " ".join(map(str, numbers))
+        stub = DOCKER.replace(
+            "#!/usr/bin/env bash\n",
+            '#!/usr/bin/env bash\ncase "$*" in *up\\ -d*) echo >> "$STUB_DIR/builds"\n'
+            f'  case " {cut} " in *" $(($(wc -l < "$STUB_DIR/builds"))) "*)\n'
+            '    echo "$*" >> "$STUB_DIR/docker.log"; kill -9 $PPID; exit 1 ;; esac ;; esac\n',
+            1,
+        )
+        (self.stubs / "docker").write_text(stub, newline="\n")
 
     def at(self) -> str:
         return _git(self.checkout, "describe", "--tags", "--always")
@@ -345,3 +373,108 @@ def test_a_checkout_ahead_of_the_release_is_left_alone(pi: Pi) -> None:
     assert result.returncode == 1
     assert pi.docker_calls() == []
     assert "not behind v0.3.0" in result.stdout
+
+
+PENDING = Path(".git") / "auto-deploy-pending"
+FAILED = Path(".git") / "auto-deploy-failed"
+
+
+def test_a_deploy_cut_off_mid_build_is_finished_next_time(pi: Pi) -> None:
+    """Killed after the checkout moved: HEAD is already on the tag, but the old image runs."""
+    pi.release("v0.2.0")
+    pi.health("0.1.0")
+    pi.cut_off_builds(1)
+    assert pi.deploy().returncode != 0
+    assert pi.at() == "v0.2.0"
+
+    pi.health("0.2.0")
+    result = pi.deploy()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert pi.docker_calls() == [BACKUP, BUILD, BUILD]  # no second backup: one was taken
+    assert "finishing the deploy of v0.2.0" in result.stdout
+    assert not (pi.checkout / PENDING).exists()
+
+
+def test_a_deploy_cut_off_twice_is_rolled_back(pi: Pi) -> None:
+    pi.release("v0.2.0")
+    pi.health("0.1.0")
+    pi.cut_off_builds(1, 2)
+    pi.deploy()
+    pi.deploy()
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert pi.at() == "v0.1.0"
+    assert pi.docker_calls() == [BACKUP, BUILD, BUILD, BUILD]  # the third is the rollback's
+    assert "rolled back to v0.1.0" in result.stdout
+    assert (pi.checkout / FAILED).read_text().strip() == "v0.2.0"
+
+
+def test_a_rollback_cut_off_is_finished_once_then_left(pi: Pi) -> None:
+    pi.release("v0.2.0")
+    pi.health("0.1.0")
+    pi.cut_off_builds(2)  # the rollback's build
+    pi.deploy()
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert pi.at() == "v0.1.0"
+    assert "rolled back to v0.1.0" in result.stdout
+
+    again = pi.deploy()
+    assert (again.returncode, len(pi.docker_calls())) == (0, 4)  # not retried after that
+
+
+def test_a_cut_off_deploy_overtaken_by_hand_is_left_for_a_person(pi: Pi) -> None:
+    pi.release("v0.2.0")
+    pi.health("0.1.0")
+    pi.cut_off_builds(1)
+    pi.deploy()
+    pi.release("v0.3.0")
+    _git(pi.checkout, "fetch", "-q", "--tags")
+    _git(pi.checkout, "checkout", "-q", "v0.3.0")  # deployed by hand meanwhile
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert (pi.at(), len(pi.docker_calls())) == ("v0.3.0", 2)
+    assert "doesn't match the checkout" in result.stdout
+
+
+def test_the_rollback_runs_even_if_the_failed_mark_cannot_be_written(pi: Pi) -> None:
+    pi.release("v0.2.0")
+    pi.health("0.1.0")
+    (pi.checkout / FAILED).mkdir()  # stands in for a full disk: the write fails as ENOSPC would
+    result = pi.deploy()
+    assert result.returncode == 1
+    assert pi.at() == "v0.1.0"
+    assert pi.docker_calls() == [BACKUP, BUILD, BUILD], result.stdout + result.stderr
+    assert "rolled back to v0.1.0" in result.stdout
+
+
+def test_a_tag_deleted_upstream_is_dropped_and_blocks_nothing(pi: Pi) -> None:
+    pi.release("v9.9.9")  # a typo'd tag; the app's version.txt never says 9.9.9
+    pi.health("0.1.0")
+    assert pi.deploy().returncode == 1  # rolled back, marked failed
+    _git(pi.origin, "tag", "-d", "v9.9.9")
+    pi.release("v0.2.0")
+    pi.health("0.2.0")
+    result = pi.deploy()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert pi.at() == "v0.2.0"
+    assert _git(pi.checkout, "tag", "--list", "v9.9.9") == ""
+
+
+def test_a_healthy_deploy_removes_old_images_but_the_running_and_previous(pi: Pi) -> None:
+    pi.release("v0.2.0")
+    pi.health("0.2.0")
+    pi.images("sha256:new", "sha256:previous", "sha256:old", "sha256:older")
+    assert pi.deploy().returncode == 0
+    assert pi.removed_images() == ["sha256:old", "sha256:older"]
+    assert "image ls --quiet --no-trunc --filter label=training-coach.app" in (
+        (pi.stubs / "docker.log").read_text()
+    )  # only this app's images
+
+
+def test_a_failed_deploy_removes_no_images(pi: Pi) -> None:
+    pi.release("v0.2.0")
+    pi.health("0.1.0")
+    pi.images("sha256:new", "sha256:previous", "sha256:old")
+    assert pi.deploy().returncode == 1
+    assert pi.removed_images() == []

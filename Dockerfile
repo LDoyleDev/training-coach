@@ -29,6 +29,8 @@ RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 
 # --- 3. Runtime ------------------------------------------------------------
 FROM docker.io/library/python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS runtime
+# How scripts/auto-deploy.sh finds this app's old images to remove, and only them.
+LABEL training-coach.app="true"
 RUN groupadd --system --gid 10001 app \
  && useradd --system --uid 10001 --gid app --home /app --shell /usr/sbin/nologin app
 WORKDIR /app
