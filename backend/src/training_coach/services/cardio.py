@@ -25,6 +25,7 @@ HIIT = "hiit"
 KINDS = (ZONE2, MODERATE, HIIT)  # exercise slugs; HIIT counts rounds, the others minutes
 MAX_MINUTES = 600
 MAX_ROUNDS = 100
+SKIPPED = "start never happened that day: the clocks went forward then"
 
 
 @dataclass(frozen=True)
@@ -72,25 +73,42 @@ def week(session: Session, on: date) -> Week:
     )
 
 
-def problem(kind: str, value: int, details: Details = NO_DETAILS) -> str | None:
-    """Why a log can't be saved, or None."""
+def problem(
+    kind: str, value: int, details: Details = NO_DETAILS, now: datetime | None = None
+) -> str | None:
+    """Why a log can't be saved, or None. With ``now``, minutes from a start must end by
+    then (eval of 2026-10-24): 17:50 plus 120 minutes hasn't finished at 18:00."""
     if kind not in KINDS:
         return "unknown kind of cardio"
     top = MAX_ROUNDS if kind == HIIT else MAX_MINUTES
     if not 1 <= value <= top:
         unit = "rounds" if kind == HIIT else "minutes"
         return f"{unit} must be between 1 and {top}"
+    start = details.started_at
+    if now is not None and kind != HIIT and start and start + timedelta(minutes=value) > now:
+        return "start plus minutes can't be later than now"
     return details_problem(details, rounds=kind == HIIT)
 
 
-def started(on: date, clock: time, tz: ZoneInfo, now: datetime) -> datetime:
+def at(on: date, clock: time, tz: ZoneInfo) -> datetime | None:
+    """``clock`` on ``on``, in UTC; None for a time the clocks skip (02:30 on the spring change
+    in Berlin), which ``datetime`` would quietly read as 03:30. A time the autumn change
+    repeats is the first of the two."""
+    local = datetime.combine(on, clock, tzinfo=tz)
+    found = local.astimezone(UTC)
+    return (
+        found if found.astimezone(tz).replace(tzinfo=None) == local.replace(tzinfo=None) else None
+    )
+
+
+def started(on: date, clock: time, tz: ZoneInfo, now: datetime) -> datetime | None:
     """When a log made on ``on`` started, from the local clock time typed, in UTC: the last
     time the clock read that, so a run started at 23:40 and logged at 00:15 started yesterday
-    (review of #295). Only the time of day is sent, so a start is never in the future."""
-    at = datetime.combine(on, clock, tzinfo=tz).astimezone(UTC)
-    if at > now:
-        at = datetime.combine(on - timedelta(days=1), clock, tzinfo=tz).astimezone(UTC)
-    return at
+    (review of #295). Only the time of day is sent, so a start is never in the future. None
+    when the clock never read it that day (``at``)."""
+    if datetime.combine(on, clock, tzinfo=tz) > now:
+        on -= timedelta(days=1)
+    return at(on, clock, tz)
 
 
 def log(

@@ -1,9 +1,10 @@
 """/api/cardio (ux-flow-plan A1-A3): cardio logged in one step, planned or extra."""
 
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
+import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 
@@ -17,6 +18,7 @@ from training_coach.services.users import OWNER
 
 ORIGIN = "https://coach.example.com"
 TOKEN = "ab" * 16  # a log token, not a secret
+BERLIN = Settings().tz
 
 
 @pytest.fixture
@@ -194,7 +196,7 @@ def test_a_log_keeps_its_effort_distance_heart_rate_and_start(
         "distance_km": 7.29,
         "avg_hr": 139,
         "max_hr": 160,
-        "start": "00:00",
+        "start": f"{datetime.now(BERLIN) - timedelta(hours=1):%H:%M}",  # over by now
     }
     body = signed_in.post("/api/cardio", json=log).json()
     assert body["pace"] == 354  # 43 min over 7.29 km: 5:54 a km
@@ -238,6 +240,26 @@ def test_details_that_make_no_sense_are_refused(
     response = signed_in.post("/api/cardio", json=log)
     assert response.status_code == 422
     assert response.json()["detail"] == detail
+    assert _workouts(engine) == []
+
+
+def test_a_run_still_going_is_refused(signed_in: TestClient, engine: Engine) -> None:
+    """Eval of 2026-10-24: a start ten minutes ago with 30 minutes ends after now."""
+    start = f"{datetime.now(BERLIN) - timedelta(minutes=10):%H:%M}"
+    log = {"token": TOKEN, "kind": "zone2", "value": 30, "start": start}
+    response = signed_in.post("/api/cardio", json=log)
+    assert response.status_code == 422
+    assert response.json()["detail"] == "start plus minutes can't be later than now"
+    assert _workouts(engine) == []
+
+
+def test_a_start_the_spring_change_skips_is_refused(signed_in: TestClient, engine: Engine) -> None:
+    """Eval of 2026-10-24: 02:30 on 29 March never happens in Berlin; it was saved as 03:30."""
+    log = {"token": TOKEN, "kind": "zone2", "value": 30, "start": "02:30"}
+    with time_machine.travel(datetime(2026, 3, 29, 10, 0, tzinfo=UTC), tick=False):
+        response = signed_in.post("/api/cardio", json=log)
+    assert response.status_code == 422
+    assert response.json()["detail"] == cardio.SKIPPED
     assert _workouts(engine) == []
 
 
