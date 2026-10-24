@@ -88,7 +88,10 @@ class PayloadTest {
     fun `sent totals survive being stored`() {
         val days = mapOf(friday.day to 9_812L, saturday.day to 4_100L)
         assertEquals(days, decodeSteps(encodeSteps(days)))
+        assertEquals(emptyMap<LocalDate, Long>(), decodeSteps(""))
         assertEquals(emptyMap<LocalDate, Long>(), decodeSteps("not=a;day"))
+        // A bad entry is dropped, the good ones kept: only that day is sent again.
+        assertEquals(mapOf(friday.day to 9_812L), decodeSteps("2026-10-23=9812;2026-13-40=5;2026-10-24=x"))
     }
 
     @Test
@@ -96,5 +99,8 @@ class PayloadTest {
         assertTrue(usableAddress("https://coach.example/api/ingest/health-connect"))
         assertFalse(usableAddress("http://coach.example/api/ingest/health-connect"))
         assertFalse(usableAddress("https://"))
+        assertFalse(usableAddress("https://coach.example/api ingest"))
+        assertFalse(usableAddress("HTTPS://coach.example/api/ingest/health-connect"))
+        assertFalse(usableAddress(""))
     }
 }

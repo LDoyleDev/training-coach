@@ -15,6 +15,9 @@ fun send(address: String, secret: String, body: JsonObject): Answer {
     val connection = URL(address).openConnection() as HttpURLConnection
     return try {
         connection.requestMethod = "POST"
+        // The request carries the secret: a redirect could hand it to another host, and the coach
+        // never redirects an ingest post, so a 3xx is a failure.
+        connection.instanceFollowRedirects = false
         connection.connectTimeout = 20_000
         connection.readTimeout = 60_000
         connection.doOutput = true
