@@ -163,6 +163,21 @@ is roughly 60-70% of max heart rate, the "can still talk" pace.
   schema validation and size limits, rate limiting, payloads never logged, and a new
   threat-model row. Health metrics stay out of share views by default.
 
+### What we learned (Oct 2026)
+
+- The L1 bridge works end to end for steps, but sleep, heart rate and workouts have never
+  arrived, and from 2026-10-19 nothing did. HC Webhook 1.9.22 fails on the phone with Health
+  Connect's "Rate limited request quota has been exceeded", even for Steps alone. It re-reads 48
+  hours of raw records on every sync, and its dashboard reads every allowed type when opened, so
+  the quota (smaller in the background) never refills. Fixes on the phone:
+  `docs/runbooks/band-import.md`.
+- **Next step if it stays unreliable:** our own small Android reader (the L3 path, earlier).
+  It would read daily aggregates and Health Connect's changes since the last sync rather than raw
+  history, sync in the foreground (the larger quota) plus once a day in the background, and post
+  to the same ingest endpoint and schema. Free from GitHub releases; Google Play adds a one-off
+  developer fee and a health-data declaration. Every future user would hit the same quota, so
+  this is the long-term route rather than a workaround.
+
 ### What it unlocks in the plan
 
 - **Cardio sessions log themselves.** When a watch workout lands on a cardio day (or matches the
