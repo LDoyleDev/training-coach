@@ -1,8 +1,12 @@
 # Our own Android reader for band data: plan
 
-Status: a plan, nothing built (2026-10-24). It would replace HC Webhook as the bridge chosen in
-ADR-0055 (Q9), which named "our own Android app writing to the same endpoint" as the later
-option. The direction is `platform-and-health-data-proposal.md`, section 4, "What we learned".
+Status: on hold (2026-10-24), nothing built. HC Webhook v1.9.26 and later already read Health
+Connect's changes and split large syncs, which is most of what this reader adds, so the
+updated app is tried first (`band-import.md` step 3.1). This plan is the fallback if it still
+runs out of quota. It would replace HC Webhook as the bridge chosen in ADR-0055 (Q9), which
+named "our own Android app writing to the same endpoint" as the later option. The direction is
+`platform-and-health-data-proposal.md`, section 4, "What we learned". Before building, fold in
+the review of 24 Oct, listed in `docs/sessions/2026-10-24-evals-dst.md`.
 
 ## Goal
 
@@ -16,9 +20,9 @@ same JSON, so nothing on the Pi changes.
   exercise (Mi Fitness is the only app allowed to write them), and the 23 Oct run is there.
   Sleep isn't checked yet.
 - **It writes only when it syncs with the band.** Heart rate stopped at 17:29 on 23 Oct and
-  caught up to the minute when Mi Fitness was opened the next day. MIUI stops it in the
-  background unless its battery saver is off and Autostart is on (`band-import.md` step 3.4).
-  Any bridge, ours included, can only send what Mi Fitness has written.
+  caught up to the minute when Mi Fitness was opened the next day, although its battery saver
+  was already off and Autostart on (`band-import.md` step 3.4). Any bridge, ours included, can
+  only send what Mi Fitness has written, so Mi Fitness needs opening (by hand or automation).
 - **HC Webhook has delivered nothing since 19 Oct.** Version 1.9.22 fails on the phone with
   Health Connect's "Rate limited request quota has been exceeded", even for steps alone. It
   reads 48 hours of raw records on every sync, and its dashboard reads every type it may read

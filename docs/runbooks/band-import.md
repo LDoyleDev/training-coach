@@ -31,11 +31,12 @@ Android 12 doesn't have Health Connect built in (it is part of Android from 14 o
    - The same app is free from the author's GitHub releases: install **Obtainium**, add
      `github.com/mcnaveen/health-connect-webhook`, and it installs the app.
    - Not the "Health Connect Webhook App" by Wonkru: that is a different app.
-   - **Use v1.9.22 and don't let it update by itself.** v1.9.24 and v1.9.25 (18 and 20 Oct
-     2026) fail every normal sync on the phone with "Payload too large" (upstream issue #100),
-     so nothing is sent. In Obtainium, open HC Webhook's settings there, turn off its
-     background update checks, and don't tap Update. Move to a later version only once #100 is
-     fixed; the coach already reads the later payloads (ADR-0055).
+   - **Use v1.9.26 or later** (v1.9.31 is the newest, checked 2026-10-24 from its release
+     notes, not yet on the phone). v1.9.24 and v1.9.25 fail every normal sync with "Payload
+     too large" (upstream issue #100, fixed in v1.9.26). Since v1.9.24 a sync reads Health
+     Connect's changes rather than 48 hours of records, and since v1.9.26 a large one is sent
+     as several posts; the coach reads both (ADR-0055). If Obtainium's update checks for HC
+     Webhook were turned off for v1.9.22, turn them back on.
 2. Open it, tap **Grant Permissions** and allow reading: **Steps, Sleep, Heart rate, Exercise,
    Weight** (and Resting heart rate if listed), plus reading in the background and past data.
    Allow nothing else: the coach ignores other types, and HC Webhook's dashboard reads every
@@ -86,14 +87,16 @@ heart rate and weight) is not stored. Its log entry is **200** with
    - "skipped" above 0 for a type: some records didn't make sense (a clock far off, an
      impossible value) and were left out; the rest arrived.
    - "Payload too large" on the phone, with no log entry for it: HC Webhook's own size
-     check (issue #100, v1.9.24 and later), not the coach. See "Unsticking HC Webhook" below.
+     check (issue #100, v1.9.24 and v1.9.25), not the coach: update (step 3.1).
 3. Check that Mi Fitness writes everything into Health Connect: open **Health Connect** >
    **Data and access** > **Sleep**, then **Heart rate** and **Exercise**. Each should list
    entries from Mi Fitness for the last few days. Nothing there: in Mi Fitness, turn sharing
    with Health Connect off and on again for that type (step 2.2), sync the band and look again.
    Entries there but they don't reach the coach: it's HC Webhook (the read quota, below).
    Entries that stop at the last time you opened Mi Fitness, and catch up when you open it:
-   MIUI is stopping Mi Fitness in the background (step 3.4).
+   Mi Fitness writes only when it syncs with the band. Check step 3.4; on 24 Oct it was already
+   set and Mi Fitness still waited to be opened, so open it once or twice a day (or have an
+   automation app open it) before HC Webhook syncs.
 4. In the coach, **Account** > **Band import** shows "Last data arrived ..." and, after a night
    and a walk:
    - **Home** and **Progress** show last night's sleep, today's steps and resting heart rate;
@@ -141,8 +144,8 @@ coach doesn't know whose phone sent it.
 
 ## Unsticking HC Webhook
 
-When normal syncs fail on the phone with "Payload too large" (issue #100) or keep failing for
-another reason:
+When normal syncs keep failing on the phone ("Payload too large" means v1.9.24 or v1.9.25:
+update first, step 3.1):
 
 1. On HC Webhook's **Home** tab, choose a time range of **Past 1 day** and **Sync Now**. A
    chosen range doesn't use the pile of changes that breaks normal syncs, so today's data gets
@@ -150,8 +153,6 @@ another reason:
 2. To fix normal syncs: **Settings** > **Settings Backup** > **Export**, then Android Settings >
    Apps > HC Webhook > Storage > **Clear storage**, then open the app, **Import** the export,
    check the permissions (step 3.2) and **Sync Now**.
-3. Go back to v1.9.22 if a later version keeps doing it: uninstall, install v1.9.22 from the
-   GitHub releases, import the export, and turn off updates in Obtainium (step 3.1).
 
 ## Stopping or moving phones
 
