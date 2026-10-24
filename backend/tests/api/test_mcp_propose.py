@@ -400,6 +400,22 @@ def test_a_cardio_proposal_from_before_the_details_still_saves(
     assert (workout.effort, workout.distance_m, workout.started_at) == (4, None, None)
 
 
+def test_an_older_proposal_saved_as_the_other_kind_says_so(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    """Review of #321: picking moderate on a proposal whose card named the AI's zone 2 saved
+    moderate but said "Saved: Zone 2 ..."."""
+    waiting = proposed(client, token, kind="cardio", cardio="zone2", minutes=40)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        row = mine.scalars(select(LogProposal)).one()
+        on = row.summary.removeprefix("Cardio, 40 min")
+        row.payload = {"cardio": "zone2", "minutes": 40, "activity": None}
+        row.summary = f"Zone 2 (conversational pace), 40 min{on}"  # as it was named then
+    saved = save(client, waiting, effort=5, cardio="moderate-cardio").json()
+    assert saved["summary"] == f"Moderate cardio (~75-80% effort), 40 min{on}"
+    assert [s.value for s in _rows(engine, SetLog)] == [40]
+
+
 @AFTER_THE_RUN
 def test_a_ride_shows_its_speed_not_its_pace(client: TestClient, token: str) -> None:
     proposed(client, token, **{**RUN, "activity": "bike", "minutes": 90, "distance_km": 36.4})

@@ -794,9 +794,13 @@ def save(
         return Changed(problem)
     _resolve(session, row, SAVED, now, by)
     summary = row.summary
-    if row.kind == CARDIO and fixed is None and kind is not None:  # "Cardio, 43 min" named
-        name = workout_log.exercise_labels(session).get(kind, (kind,))[0]
-        summary = name + summary.removeprefix(UNPICKED)
+    if row.kind == CARDIO and kind is not None and kind != fixed:
+        # Name the kind saved: in place of "Cardio", or of the AI's kind on an older proposal
+        # the person saved as the other one (review of #321).
+        labels = workout_log.exercise_labels(session)
+        shown = UNPICKED if fixed is None else labels.get(fixed, (fixed,))[0]
+        if summary.startswith(shown):
+            summary = labels.get(kind, (kind,))[0] + summary.removeprefix(shown)
     return Saved(summary, workout=row.kind in (STRENGTH, CARDIO))
 
 
