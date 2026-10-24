@@ -3408,6 +3408,21 @@
       "ProposalSave": {
         "description": "The token, and the answer when the day already has its session (ADR-0060).",
         "properties": {
+          "cardio": {
+            "anyOf": [
+              {
+                "enum": [
+                  "zone2",
+                  "moderate-cardio"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cardio"
+          },
           "effort": {
             "anyOf": [
               {
@@ -3515,6 +3530,32 @@
           "source": {
             "title": "Source",
             "type": "string"
+          },
+          "suggested": {
+            "anyOf": [
+              {
+                "enum": [
+                  "zone2",
+                  "moderate-cardio"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested"
+          },
+          "suggestion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggestion"
           },
           "summary": {
             "title": "Summary",
@@ -7503,7 +7544,7 @@
     },
     "/api/proposals/save": {
       "post": {
-        "description": "Save it. 404 when it has expired or never was; 409 with ``already_saved`` or\n``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason\nwhen it no longer fits (it is discarded then); 409 with what is saved already when its\nday has its session (it keeps waiting: save it again with the answer, ADR-0060).",
+        "description": "Save it. 404 when it has expired or never was; 409 with ``already_saved`` or\n``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason\nwhen it no longer fits (it is discarded then); 409 with what is saved already when its\nday has its session (it keeps waiting: save it again with the answer, ADR-0060); 422 for\na cardio one without zone 2 or moderate picked (it keeps waiting).",
         "operationId": "save_api_proposals_save_post",
         "requestBody": {
           "content": {

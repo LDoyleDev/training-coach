@@ -131,12 +131,15 @@ TOOLS = (
         PROPOSE,
         "Propose a log",
         "Propose something for the person to log: strength sets (exercise names as in the "
-        "plan, one number per set), cardio (zone2 or moderate-cardio minutes), habits done, or "
-        "body weight and girths, for today or an earlier day. For a run or ride the person "
-        "shares a screenshot of, also send what it shows: distance_km, avg_hr, max_hr and the "
-        "start time; leave out anything you can't read. Never send how hard it felt: the "
-        "person picks that when saving. Nothing is saved: the person sees "
-        "it in the app and on Telegram and taps Save or Discard. It is checked like a typed "
+        "plan, one number per set), cardio minutes, habits done, or body weight and girths, "
+        "for today or an earlier day. For cardio, `cardio` (zone2 or moderate-cardio) is an "
+        "optional hint: the person picks which it was on the card. For a run or ride the "
+        "person shares a screenshot of, also send what it shows: distance_km, avg_hr, max_hr "
+        "and the start time; leave out anything you can't read. When it shows both moving (or "
+        "active) time and total (or elapsed) time, the minutes are the moving or active time. "
+        "Never send how hard it felt: the person picks that when saving. Nothing is saved: "
+        "the person sees it in the app and on Telegram and saves or discards it. It is "
+        "checked like a typed "
         "log, and refused with a reason if it doesn't fit. At most 3 wait at once; each "
         "expires after 24 hours.",
         Scope.PROPOSE,

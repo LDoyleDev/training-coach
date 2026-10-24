@@ -253,6 +253,21 @@ def _rest_today_and_zone2_next(sessions: Sessions) -> None:
         session.commit()
 
 
+async def test_a_cardio_kind_picked_is_kept_while_the_question_is_answered(
+    application: App, seeded: Sessions, engine: Engine
+) -> None:
+    _rest_today_and_zone2_next(seeded)
+    token = _propose(seeded, engine, kind="cardio", minutes=40)
+    asked = await run(application, press(f"lp:zone2:{token}", OWNER))
+    assert texts(asked)[0].startswith(f"{TODAY:%a %d %b} already has Rest day (rested).")
+    cancelled = await run(application, press(f"lp:cancel:{token}", OWNER))
+    assert [a.split(":")[1] for a in _answers(cancelled)] == ["zone2", "moderate", "discard"]
+    await run(application, press(f"lp:zone2:{token}", OWNER))
+    added = await run(application, press(f"lp:add:{token}", OWNER))
+    assert texts(added)[0].startswith("Saved: Zone 2 (conversational pace), 40 min, on ")
+    assert _days(seeded)[TODAY] == [(None, "rest"), ("zone2", "done")]
+
+
 async def test_counting_a_band_workout_into_a_day_with_its_session_asks(
     application: App, seeded: Sessions
 ) -> None:

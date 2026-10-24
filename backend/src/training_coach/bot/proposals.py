@@ -6,7 +6,10 @@ for any whose send failed because Telegram was unreachable. One Telegram refuses
 not tried again and doesn't hold up the others; it stays on Today in the app.
 
 Callback data is ``lp:save:<token>`` or ``lp:discard:<token>``; the service looks the token up,
-so an old or forged button can't save anything that isn't waiting.
+so an old or forged button can't save anything that isn't waiting. A cardio one has a button per
+kind instead of Save, ``lp:zone2:<token>`` and ``lp:moderate:<token>``: the person picks which it
+was, and the text names the coach's suggestion (ADR-0067, 2026-10-24). How hard it felt is asked
+on the web card only, so a cardio one saved here has no effort, like a typed log.
 Saving or discarding here or on Today resolves it in both places: a button pressed afterwards
 answers "already saved" or that it has gone. Saving one for a day that already has its session
 asks first (ADR-0060, ``bot.clash``), with ``lp:<answer>:<token>`` buttons; it keeps waiting
@@ -37,11 +40,14 @@ log = structlog.get_logger(__name__)
 
 PREFIX = "lp"
 PATTERN = rf"^{PREFIX}:"
-ACTIONS = frozenset({"save", "discard"})
+PICKS = {"zone2": "zone2", "moderate": "moderate-cardio"}  # a cardio button: the kind it saves
+ACTIONS = frozenset({"save", "discard", *PICKS})
 TOKEN_LENGTH = 32
 EVERY = timedelta(minutes=5)
 JOB = "proposals.announce"
 ASK = "Nothing is saved until you tap Save."
+ASK_CARDIO = "Nothing is saved until you tap Zone 2 or Moderate."
+UNPICKED = "Not saved yet: tap Zone 2 or Moderate."
 DISCARDED = "Discarded. Nothing was saved."
 GONE = "That proposal has gone: it expired after 24 hours, or its app was disconnected."
 ALREADY = {
@@ -74,20 +80,23 @@ def parse(data: str | None) -> Press | None:
     return Press(parts[1], token)
 
 
-def markup(token: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
+def markup(token: str, *, cardio: bool = False) -> InlineKeyboardMarkup:
+    """Save and Discard; for cardio, Zone 2, Moderate and Discard: the person picks."""
+    saves = (
         [
-            [
-                InlineKeyboardButton("Save", callback_data=f"{PREFIX}:save:{token}"),
-                InlineKeyboardButton("Discard", callback_data=f"{PREFIX}:discard:{token}"),
-            ]
+            InlineKeyboardButton("Zone 2", callback_data=f"{PREFIX}:zone2:{token}"),
+            InlineKeyboardButton("Moderate", callback_data=f"{PREFIX}:moderate:{token}"),
         ]
+        if cardio
+        else [InlineKeyboardButton("Save", callback_data=f"{PREFIX}:save:{token}")]
     )
+    discard = InlineKeyboardButton("Discard", callback_data=f"{PREFIX}:discard:{token}")
+    return InlineKeyboardMarkup([[*saves, discard]])
 
 
 def text(found: proposals.Pending) -> str:
     """Plain text (no parse mode), so the app's claimed name can't format anything."""
-    return f"{found.text}\n\n{ASK}"
+    return f"{found.text}\n\n{ASK_CARDIO if found.kind == proposals.CARDIO else ASK}"
 
 
 def saved_text(saved: proposals.Saved) -> str:
@@ -105,6 +114,8 @@ class ProposalHandlers:
         self.sending = asyncio.Lock()
         # Token -> the clash shown for it, and a day to move to found taken (ADR-0060).
         self.asked: dict[str, tuple[Clash, date | None]] = {}
+        # Token -> the kind of cardio picked, kept while its clash question is answered.
+        self.picked: dict[str, str] = {}
 
     async def job(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         await self.announce(context.bot)
@@ -122,7 +133,8 @@ class ProposalHandlers:
             owner = self.settings.telegram_allowed_user_id
             assert owner is not None  # noqa: S101 - owner_only
             for one in found:
-                sent = await self.send(bot, owner, text(one), reply_markup=markup(one.token))
+                buttons = markup(one.token, cardio=one.kind == proposals.CARDIO)
+                sent = await self.send(bot, owner, text(one), reply_markup=buttons)
                 if sent == UNREACHABLE:
                     log.warning("bot.proposal_not_sent")
                     return  # Telegram is unreachable; the rest wait for the next check too
@@ -140,7 +152,7 @@ class ProposalHandlers:
                 log.info("bot.proposal_sent" if sent == SENT else "bot.proposal_refused")
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Save or Discard. Strangers get nothing, not even an answer (T1)."""
+        """Save, a kind of cardio, or Discard. Strangers get nothing, not even an answer (T1)."""
         query = update.callback_query
         user = update.effective_user
         if query is None or user is None or user.id != self.settings.telegram_allowed_user_id:
@@ -152,11 +164,14 @@ class ProposalHandlers:
         now = datetime.now(UTC)
         reply_markup = None
         asked = self.asked.get(press.token)
+        if press.action in PICKS:
+            self.picked[press.token] = PICKS[press.action]
+        waiting = markup(press.token, cardio=press.token in self.picked)
         if press.action == "cancel" or (press.action == MOVE and asked is not None):
             await edit_quietly(query.edit_message_reply_markup(None))
             if press.action == "cancel":
                 self.asked.pop(press.token, None)
-                await query.message.reply_text(WAITING, reply_markup=markup(press.token))
+                await query.message.reply_text(WAITING, reply_markup=waiting)
             else:
                 assert asked is not None  # noqa: S101 - checked above
                 today = local_date(now, self.settings.tz)
@@ -166,7 +181,7 @@ class ProposalHandlers:
         answer = None
         if press.action not in ACTIONS:  # an answer to the question
             if asked is None:
-                await query.message.reply_text(WAITING, reply_markup=markup(press.token))
+                await query.message.reply_text(WAITING, reply_markup=waiting)
                 return
             answer = clash_ui.resolution(press.action, asked[0], local_date(now, self.settings.tz))
         result: proposals.Resolved | Clash | Refused
@@ -177,10 +192,18 @@ class ProposalHandlers:
                     reply = DISCARDED if isinstance(result, proposals.Discarded) else ""
                 else:
                     result = proposals.save(
-                        session, press.token, self.settings.tz, now, "telegram", answer
+                        session,
+                        press.token,
+                        self.settings.tz,
+                        now,
+                        "telegram",
+                        answer,
+                        cardio=self.picked.get(press.token),
                     )
                     reply = ""
-                    if isinstance(result, Clash | Refused):
+                    if isinstance(result, proposals.Unpicked):
+                        reply, reply_markup = UNPICKED, markup(press.token, cardio=True)
+                    elif isinstance(result, Clash | Refused):
                         reply, reply_markup = self._ask(press.token, result, answer, now)
                     elif isinstance(result, proposals.Saved):
                         reply = saved_text(result)
@@ -193,6 +216,7 @@ class ProposalHandlers:
             return
         if not isinstance(result, Clash | Refused):
             self.asked.pop(press.token, None)
+            self.picked.pop(press.token, None)
         if isinstance(result, proposals.Already):
             reply = ALREADY[result.status]
         elif isinstance(result, proposals.Gone):

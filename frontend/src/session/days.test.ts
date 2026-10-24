@@ -16,4 +16,7 @@ test('cardio details show only what was given', () => {
     '5.00 km · 5:05/km · avg 150 bpm · max 172',
   )
   expect(details(none)).toBe('')
+  const ride = { ...none, distance_m: 36400, pace_s_per_km: 148 }
+  expect(details(ride, 'bike')).toBe('36.40 km · 24.3 km/h') // a ride: speed, not pace
+  expect(details(ride, 'run')).toBe('36.40 km · 2:28/km')
 })

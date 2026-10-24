@@ -8,12 +8,17 @@ export function shift(iso: string, n: number): string {
 }
 
 /** "Effort 6/10 · 7.29 km · 5:54/km · avg 139 bpm · max 160": what was typed with a cardio
- * log (ADR-0067), each part only when given. */
-export function details(cardio: NonNullable<LoggedWorkout['cardio']>): string {
+ * log (ADR-0067), each part only when given. A ride shows its speed instead: "24.3 km/h". */
+export function details(
+  cardio: NonNullable<LoggedWorkout['cardio']>,
+  activity?: string | null,
+): string {
   const parts: string[] = []
   if (cardio.effort) parts.push(`Effort ${cardio.effort}/10`)
   if (cardio.distance_m) parts.push(`${(cardio.distance_m / 1000).toFixed(2)} km`)
-  if (cardio.pace_s_per_km) {
+  if (cardio.pace_s_per_km && activity === 'bike') {
+    parts.push(`${(3600 / cardio.pace_s_per_km).toFixed(1)} km/h`)
+  } else if (cardio.pace_s_per_km) {
     const seconds = cardio.pace_s_per_km
     parts.push(`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}/km`)
   }

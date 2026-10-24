@@ -253,11 +253,56 @@ def test_cardio_is_saved_through_the_cardio_log(
 ) -> None:
     waiting = proposed(client, token, kind="cardio", cardio="zone2", minutes=45, activity="walk")
     (card,) = client.get("/api/proposals").json()
-    assert card["summary"].startswith("Zone 2 (conversational pace), 45 min (walk), on ")
-    assert save(client, waiting).json() == {"summary": card["summary"], "workout": True}
+    assert card["summary"].startswith("Cardio, 45 min (walk), on ")  # the person picks the kind
+    assert (card["suggested"], card["suggestion"]) == ("zone2", "“Claude” suggested zone 2")
+    saved = save(client, waiting, cardio="zone2").json()
+    assert saved == {
+        "summary": "Zone 2 (conversational pace)" + card["summary"].removeprefix("Cardio"),
+        "workout": True,
+    }
     (workout,) = _rows(engine, Workout)
     assert (workout.activity, workout.log_token) == ("walk", waiting)
     assert [s.value for s in _rows(engine, SetLog)] == [45]
+
+
+def test_the_person_picks_the_kind_not_the_ai(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    """Owner, 2026-10-24: the app observes and suggests; the person decides."""
+    waiting = proposed(client, token, kind="cardio", cardio="zone2", minutes=40)
+    unpicked = save(client, waiting)
+    assert unpicked.status_code == 422
+    assert unpicked.json()["detail"] == "pick zone 2 or moderate"
+    assert client.get("/api/proposals").json()[0]["token"] == waiting  # still waiting
+    picked = save(client, waiting, cardio="moderate-cardio")  # against the AI's hint
+    assert picked.json()["summary"].startswith("Moderate cardio (~75-80% effort), 40 min, on ")
+    assert [s.value for s in _rows(engine, SetLog)] == [40]
+
+
+def test_without_a_hint_or_heart_rate_nothing_is_suggested(client: TestClient, token: str) -> None:
+    proposed(client, token, kind="cardio", minutes=40)
+    (card,) = client.get("/api/proposals").json()
+    assert (card["suggested"], card["suggestion"]) == (None, None)
+
+
+@pytest.mark.parametrize(
+    ("avg_hr", "kind", "line"),
+    [  # zones with no settings or nights yet: rest 60, max 190, zone 2 from 138 to 150
+        (139, "zone2", "Average 139 bpm is in your zone 2 (138-150 bpm), so zone 2 is suggested"),
+        (120, "zone2", "Average 120 bpm is below your zone 2 (138-150 bpm), so zone 2 is"),
+        (155, "moderate-cardio", "Average 155 bpm is above your zone 2 (138-150 bpm), so mod"),
+    ],
+)
+def test_the_suggestion_comes_from_the_persons_own_zones(
+    client: TestClient, token: str, avg_hr: int, kind: str, line: str
+) -> None:
+    # The person's zones win over the AI's hint, and the AI never hears them.
+    hint = "zone2" if kind == "moderate-cardio" else "moderate-cardio"
+    answer = propose(client, token, kind="cardio", cardio=hint, minutes=40, avg_hr=avg_hr)
+    assert "zone" not in answer["content"][0]["text"].lower()
+    (card,) = client.get("/api/proposals").json()
+    assert card["suggested"] == kind
+    assert card["suggestion"].startswith(line)
 
 
 @pytest.mark.parametrize(
@@ -268,6 +313,7 @@ def test_cardio_is_saved_through_the_cardio_log(
         ({"cardio": "hiit", "minutes": 20}, "'zone2' or 'moderate-cardio'"),
         ({"cardio": "zone2", "minutes": 30, "activity": "skydive"}, "activity"),
         ({"cardio": "zone2"}, "minutes: Field required"),
+        ({"cardio": "zone 2", "minutes": 30}, "'zone2' or 'moderate-cardio'"),
     ],
 )
 def test_odd_cardio_is_refused(
@@ -296,10 +342,9 @@ def test_a_run_read_from_a_screenshot_carries_its_details(
     waiting = proposed(client, token, **RUN)
     (card,) = client.get("/api/proposals").json()
     assert card["summary"] == (
-        "Moderate cardio (~75-80% effort), 43 min (run), 7.29 km, 5:54 /km, HR 139 avg, 160 max, "
-        "started 07:10, on Fri 23 Oct"
+        "Cardio, 43 min (run), 7.29 km, 5:54 /km, HR 139 avg, 160 max, started 07:10, on Fri 23 Oct"
     )
-    assert save(client, waiting, effort=6).status_code == 200
+    assert save(client, waiting, effort=6, cardio="moderate-cardio").status_code == 200
     (workout,) = _rows(engine, Workout)
     assert (workout.effort, workout.distance_m, workout.avg_hr, workout.max_hr) == (
         6,
@@ -324,7 +369,7 @@ def test_a_start_is_on_the_proposals_own_day(
     client: TestClient, engine: Engine, token: str
 ) -> None:
     waiting = proposed(client, token, **{**RUN, "day": "2026-10-22", "start": "23:40"})
-    assert save(client, waiting, effort=6).status_code == 200
+    assert save(client, waiting, effort=6, cardio="zone2").status_code == 200
     (workout,) = _rows(engine, Workout)
     assert workout.started_at == datetime(2026, 10, 22, 21, 40, tzinfo=UTC)  # 23:40 in Berlin
 
@@ -334,7 +379,7 @@ def test_saving_without_an_effort_leaves_it_empty(
     client: TestClient, engine: Engine, token: str
 ) -> None:
     waiting = proposed(client, token, **RUN)
-    assert save(client, waiting).status_code == 200  # Telegram's Save, or an older app
+    assert save(client, waiting, cardio="zone2").status_code == 200  # Telegram's buttons
     (workout,) = _rows(engine, Workout)
     assert (workout.effort, workout.distance_m) == (None, 7290)
 
@@ -345,10 +390,20 @@ def test_a_cardio_proposal_from_before_the_details_still_saves(
     waiting = proposed(client, token, kind="cardio", cardio="zone2", minutes=40)
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         row = mine.scalars(select(LogProposal)).one()
-        row.payload = {k: row.payload[k] for k in ("cardio", "minutes", "activity")}
-    assert save(client, waiting, effort=4).status_code == 200
+        # As it was proposed before ADR-0067: no details, and the AI's kind named on the card.
+        row.payload = {"cardio": "zone2", "minutes": 40, "activity": None}
+    (card,) = client.get("/api/proposals").json()
+    assert card["suggested"] == "zone2"
+    assert save(client, waiting, effort=4).status_code == 200  # saved as its card named it
     (workout,) = _rows(engine, Workout)
     assert (workout.effort, workout.distance_m, workout.started_at) == (4, None, None)
+
+
+@AFTER_THE_RUN
+def test_a_ride_shows_its_speed_not_its_pace(client: TestClient, token: str) -> None:
+    proposed(client, token, **{**RUN, "activity": "bike", "minutes": 90, "distance_km": 36.4})
+    (card,) = client.get("/api/proposals").json()
+    assert card["summary"].startswith("Cardio, 90 min (bike), 36.40 km, 24.3 km/h, HR 139")
 
 
 @pytest.mark.parametrize(
@@ -819,7 +874,7 @@ def test_a_day_too_long_ago_by_save_time_is_not_saved(
         token = flow.mint(engine, PROPOSE)
         waiting = proposed(client, token, day=oldest, **arguments)
     with time_machine.travel(EVENING + timedelta(hours=1), tick=False):
-        answer = save(client, waiting)
+        answer = save(client, waiting, cardio="zone2")  # ignored for strength
     assert answer.status_code == 409
     assert "too long ago" in answer.json()["detail"]
     assert _rows(engine, Workout) == []
