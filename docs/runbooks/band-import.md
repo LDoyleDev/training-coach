@@ -31,8 +31,9 @@ Android 12 doesn't have Health Connect built in (it is part of Android from 14 o
    - The same app is free from the author's GitHub releases: install **Obtainium**, add
      `github.com/mcnaveen/health-connect-webhook`, and it installs the app.
    - Not the "Health Connect Webhook App" by Wonkru: that is a different app.
-   - **Use v1.9.26 or later** (v1.9.31 is the newest, checked 2026-10-24 from its release
-     notes, not yet on the phone). v1.9.24 and v1.9.25 fail every normal sync with "Payload
+   - **Use v1.9.26 or later.** v1.9.31, tried on 2026-10-24, still ran out of Health
+     Connect's quota on a one-day sync, so the coach's own reader is being built to replace it
+     (ADR-0070, `docs/specs/android-reader.md`); until then this section stands. v1.9.24 and v1.9.25 fail every normal sync with "Payload
      too large" (upstream issue #100, fixed in v1.9.26). Since v1.9.24 a sync reads Health
      Connect's changes rather than 48 hours of records, and since v1.9.26 a large one is sent
      as several posts; the coach reads both (ADR-0055). If Obtainium's update checks for HC
