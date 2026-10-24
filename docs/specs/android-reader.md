@@ -1,18 +1,16 @@
 # Our own Android reader for band data: plan
 
-Status: on hold (2026-10-24), nothing built. HC Webhook v1.9.26 and later already read Health
-Connect's changes and split large syncs, which is most of what this reader adds, so the
-updated app is tried first (`band-import.md` step 3.1). This plan is the fallback if it still
-runs out of quota. It would replace HC Webhook as the bridge chosen in ADR-0055 (Q9), which
-named "our own Android app writing to the same endpoint" as the later option. The direction is
-`platform-and-health-data-proposal.md`, section 4, "What we learned". Before building, fold in
-the review of 24 Oct, listed in `docs/sessions/2026-10-24-evals-dst.md`.
+Status: being built (2026-10-24), decision in ADR-0070 (Proposed until the first build passes
+its trial). HC Webhook 1.9.31 still ran out of Health Connect's quota on the phone on 24 Oct
+(`band-import.md`), so Liam chose to build the reader. This plan replaces HC Webhook as the
+bridge chosen in ADR-0055 (Q9). The review of 24 Oct is folded in below, and its full list is
+in `docs/sessions/2026-10-24-evals-dst.md`.
 
 ## Goal
 
-Band data reaches the coach every day without fiddling on the phone. A small app of our own
-reads Health Connect and posts to the ingest the Pi already has, with the same secret and the
-same JSON, so nothing on the Pi changes.
+Band data reaches the coach every day with as little fiddling on the phone as possible. A small
+app of our own reads Health Connect and posts to the ingest the Pi already has, with the same
+secret and the same JSON, so the ingest doesn't change.
 
 ## What we know (24 Oct 2026)
 
@@ -23,12 +21,11 @@ same JSON, so nothing on the Pi changes.
   caught up to the minute when Mi Fitness was opened the next day, although its battery saver
   was already off and Autostart on (`band-import.md` step 3.4). Any bridge, ours included, can
   only send what Mi Fitness has written, so Mi Fitness needs opening (by hand or automation).
-- **HC Webhook has delivered nothing since 19 Oct.** Version 1.9.22 fails on the phone with
-  Health Connect's "Rate limited request quota has been exceeded", even for steps alone. It
-  reads 48 hours of raw records on every sync, and its dashboard reads every type it may read
-  each time it opens, so the quota never refills.
-- So there are two problems: Mi Fitness in the background (phone settings) and the bridge
-  (this plan).
+- **HC Webhook has delivered nothing since 19 Oct.** Version 1.9.22 ran out of Health
+  Connect's quota on every sync. Version 1.9.31 (24 Oct): a one-day sync of six types failed on
+  sleep with the same quota error after about nine minutes, and nothing reached the coach.
+- So there are two problems: Mi Fitness waits to be opened, and the bridge runs out of quota.
+  This plan is for the second.
 
 ## What the reader does
 
@@ -40,15 +37,18 @@ publishes no numbers for either.
 
 - **Changes, not history.** One changes token per type (as [best practices] advise), stored on
   the phone. Each sync asks only for what was written or deleted since the last one. The first
-  sync, or one after a token expires, reads the last 48 hours once.
-- **Steps:** one aggregate call for today and yesterday, grouped by local day, sent as one
-  record per day. The ingest keeps the larger of what a day has and what came (ADR-0055), so a
-  daily total sent again is harmless.
-- **Heart rate:** the changed heart-rate records, bucketed on the phone into the 1-minute
-  `avg`/`min`/`max` buckets HC Webhook sends, so the payload stays small.
+  sync, or one after a token expires, reads the last 48 hours once; a gap longer than that
+  doesn't come across.
+- **Changes are collapsed per record id, last one wins,** so a record written and deleted in
+  the same batch isn't sent as both (the ingest applies deletions first).
+- **Steps:** one aggregate call for today and yesterday, grouped by local day, and a day is sent
+  only when its total changed since the last send. Sending unchanged totals every time would
+  keep the coach's "nothing new from the band" alert from ever firing (ADR-0055).
+- **Heart rate:** the changed heart-rate records' raw samples as `{bpm, time}`. The ingest
+  already averages samples per minute.
 - **Sleep and exercise:** the changed records with their Health Connect ids; deletions go in
   `deleted` as `{type, id}`.
-- **Resting heart rate** if Health Connect has any; otherwise the coach derives it, as now.
+- **Resting heart rate** isn't read: the coach derives it from heart rate.
 - **Weight isn't read:** Mi Fitness doesn't write it (`band-import.md` step 2).
 
 ### Sends the same JSON
@@ -56,74 +56,93 @@ publishes no numbers for either.
 - `POST /api/ingest/health-connect` with `Authorization: Bearer <secret>`, the body HC Webhook
   1.9.23 and later send (`timestamp`, `app_version`, an array per type, record ids,
   `deleted`). The coach already reads it; `tests/hcw_payloads.py` describes it.
-- `app_version` is `tc-reader/<version>`, so Account > Band import shows which app sent the
-  last sync.
+- What the ingest needs from each record, or it skips or duplicates it: `bpm` on a heart-rate
+  sample, `metadata.data_origin` (the writing app, e.g. `com.mi.health`), `deleted[].type` of
+  `sleep` or `exercise`, and times with their full precision.
+- `app_version` is `tc-reader/<version>`, shown on Account > Band import.
 - A sync over about 4 MB is split into several posts (the ingest refuses 5 MB). A token moves
-  on only after the coach answers 2xx, so a failed send goes again next time.
+  on only after the post holding its changes gets a 2xx, so a failed send goes again next time.
+- **A post refused for good** (413 or 422) three times in a row is skipped, the token moves on,
+  and the screen says what was dropped, so one bad batch can't block every later sync.
+- Only one sync runs at a time ("Sync now" and the background job share one lock), so a stale
+  token never overwrites a newer one.
 - HTTPS only, to the one address the person types; no cleartext, no analytics, no other
   network calls.
 
 ### Syncs when it can
 
-- **When opened:** the foreground quota is the larger one.
-- **In the background, once or twice a day** with WorkManager, if the installed Health Connect
-  supports reading in the background (`FEATURE_READ_HEALTH_DATA_IN_BACKGROUND`, which depends on
-  the Health Connect version, not Android's [read data]). Without it the reader syncs only when
-  opened, and the coach's existing Telegram message ("No band data has arrived for a day") is
-  the nudge.
+- **When opened, or on "Sync now":** the foreground quota is the larger one.
+- **Later, in the background, once or twice a day** with WorkManager, if the installed Health
+  Connect supports reading in the background (`FEATURE_READ_HEALTH_DATA_IN_BACKGROUND`, which
+  depends on the Health Connect version, not Android's [read data]). Without it the reader
+  syncs only when opened, and the coach's existing Telegram message ("No band data has arrived
+  for a day") is the nudge.
 
 ### One screen
 
-- Per type: last read, last sent, records in the last sync.
-- **Sync now**.
-- **In Health Connect, last 7 days:** how many records of each type each app wrote, so "is Mi
-  Fitness writing it?" is one tap.
-- The address and the secret, entered once; the secret is encrypted with a key held in the
+- The address and the secret, entered once. The secret is encrypted with a key held in the
   Android Keystore and never shown again.
+- **Sync now**, and **Test**, which posts `{"test": true}` to check the address and secret.
+- Per type: last read, last sent, records in the last sync.
 - The last error as it happened: the quota, 401, 413, no network.
+- Later, **In Health Connect, last 7 days:** which apps wrote each type, from an aggregate's
+  data origins and only when tapped. Reading 7 days of raw records would spend the quota this
+  plan is saving.
 
-### Permissions
+### Permissions and Android 12
 
-Reads Steps, Heart rate, Sleep, Exercise and Resting heart rate, plus reading in the
-background. Nothing else, and no write permissions.
+- Reads Steps, Heart rate, Sleep and Exercise, plus reading in the background later. Nothing
+  else, and no write permissions.
+- On Android 13 and lower, Health Connect's permission screen only opens for an app that
+  declares the permissions-rationale activity and a `<queries>` entry for Health Connect.
+- `allowBackup=false`, so the secret and tokens never go to a cloud backup.
+- Android 12's "Pause app activity if unused" can cancel background jobs of an app that is
+  rarely opened: the runbook says to turn it off.
 
 ## Build and ship
 
 - **Where:** `android/` in this repo, with its own `android/CLAUDE.md`, the same PR flow and
-  review. Kotlin, Jetpack Compose, `androidx.health.connect:connect-client`, WorkManager; the
-  fewest dependencies that do the job, each with a reason in its PR.
-- **No tools needed on the desktop:** a CI job, run only when `android/` changes, builds the
-  app, runs its unit tests and Android lint, and checks the Gradle wrapper.
+  review. Kotlin, Jetpack Compose, `androidx.health.connect:connect-client`, WorkManager later;
+  the fewest dependencies that do the job, each with a reason in its PR.
+- **No Android tools needed on the desktop to build:** a CI workflow builds the app, runs its
+  unit tests and Android lint whenever `android/` changes. It isn't a required check, so PRs
+  that don't touch `android/` never wait for it. `adb` is installed on the desktop for reading
+  the phone's logs during the trial.
 - **One contract, tested on both sides:** the app's tests build a sync from fixed records and
   compare it with a sample committed in the repo; a backend test posts that same sample to the
   ingest and checks what is taken.
-- **Releases:** a release-please component of its own (`android-v0.1.0` and so on), so a
-  backend release doesn't offer a phone update. The signed APK is attached to its GitHub
-  release; Obtainium, already on the phone, installs and updates it from there.
-- **Signing key:** made once, kept as GitHub Actions secrets and backed up encrypted in
-  `~/.secrets`. Android refuses an update signed with another key, so losing it means
-  uninstalling and setting up again. Making and uploading it needs an OK first.
+- **Signing from the first build:** one release key, kept as secrets of the GitHub environment
+  `android-release`, which needs Liam's approval for every run that uses it, and backed up
+  encrypted with age in `~/.secrets/training-coach/android`. A debug key changes per CI runner,
+  so every build would mean uninstalling and setting up again.
+- **Releases:** when `android/` changes on main and its version moved, a workflow of its own
+  builds the signed APK in that environment and publishes a GitHub pre-release tagged
+  `android-v<version>`. Obtainium, filtered to `android-v` tags, installs and updates it. The
+  root release-please package ignores `android/`, so app changes don't bump the coach's
+  version, and the Pi only deploys `v*` tags.
 - **Cost:** none. Google Play, for a public app later, adds a one-off developer fee, a
   health-data declaration and Google's review.
 
 ## Order
 
-Each PR under about 400 lines, not counting the Gradle wrapper and generated files.
+Each PR under about 400 changed lines, not counting generated files.
 
-1. ADR (bridge: our reader), `android/` skeleton: the screen with the address and secret, the
-   CI job.
-2. Reading and sending: changes tokens, the steps aggregate, heart-rate buckets, the payload
-   and its contract test on both sides.
+1. **Spike:** ADR-0070 and this update first, then the app with the address and secret, Test,
+   Sync now reading steps and heart rate only, the last error; the CI workflow, signing and
+   the pre-release workflow. Trial: HC Webhook switched off, three days of opening Mi Fitness
+   and then the reader (ADR-0070, Consequences).
+2. Sleep, exercise and deletions, with the contract test on both sides.
 3. The background sync and the "In Health Connect, last 7 days" view.
-4. Signing, the release component, and `band-import.md` rewritten for the reader, keeping HC
-   Webhook as a fallback until the reader has a week of good syncs.
-
-About three to four days of work.
+4. `band-import.md` rewritten for the reader; Account and the bot name the sending app from its
+   version string instead of "HC Webhook"; HC Webhook retired.
 
 ## Risks
 
 - **The quota still exists.** We use far less of it, but Google doesn't publish the limits.
-  The screen shows the quota error when it happens.
+  The screen shows the quota error when it happens. If the spike hits it, readers built on
+  Health Connect reads are ruled out (ADR-0070).
+- **Mi Fitness still waits to be opened,** so a daily open (or automation) stays part of the
+  routine whatever the bridge.
 - **MIUI can stop the reader too,** as it stops Mi Fitness: the same battery settings.
 - **A new stack to maintain:** Kotlin and Gradle beside Python and TypeScript, and a Health
   Connect library that still changes between versions.
@@ -131,24 +150,9 @@ About three to four days of work.
 
 ## Options considered
 
-| Option | Why not, for now |
-| --- | --- |
-| Keep HC Webhook and tune it | Tried since 19 Oct (runbook "Unsticking HC Webhook"); fails even for steps alone |
-| Change HC Webhook upstream to use changes | AGPL, someone else's app and pace; ours would still depend on it |
-| Gadgetbridge reading the band directly | Writes to Health Connect, but Band 9 support isn't confirmed ([Gadgetbridge Xiaomi]) and it would replace Mi Fitness |
-| Google Health API (cloud) | Doesn't cover Mi Fitness (ADR-0055) |
-
-## Questions for Liam
-
-Answered with these defaults unless Liam says otherwise:
-
-1. **Same repo** (`android/`), not a separate one.
-2. **Foreground only is acceptable** if the phone's Health Connect can't read in the
-   background, with the existing Telegram gap message as the nudge.
-3. **Sleep:** does Health Connect > Data and access > Sleep list Mi Fitness entries? If not,
-   sleep needs fixing in Mi Fitness before any bridge can send it.
+ADR-0070 lists the options and why each lost: one more HC Webhook retry, a fork of it,
+Gadgetbridge in place of Mi Fitness, and Health Connect's own export.
 
 [rate limiting]: https://developer.android.com/health-and-fitness/health-connect/rate-limiting
 [best practices]: https://d.android.com/guide/health-and-fitness/health-connect/best-practices
 [read data]: https://developer.android.com/health-and-fitness/health-connect/read-data
-[Gadgetbridge Xiaomi]: https://gadgetbridge.org/gadgets/wearables/xiaomi/
