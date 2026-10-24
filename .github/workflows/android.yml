@@ -1,0 +1,101 @@
+# The band reader in android/ (ADR-0070). Builds, tests and lints it whenever it changes; on main,
+# when android/VERSION moved, builds the signed APK and publishes it as a pre-release
+# android-v<version> for Obtainium. Not a required check: PRs that don't touch android/ skip it.
+name: Android reader
+
+on:
+  pull_request:
+    paths: ["android/**", ".github/workflows/android.yml"]
+  push:
+    branches: [main]
+    paths: ["android/**", ".github/workflows/android.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          gradle-version: "8.14.4"
+      - name: Test, lint and build
+        run: gradle -p android --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+      - name: Lint report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lint-report
+          path: android/app/build/reports/
+          retention-days: 7
+
+  version:
+    # Whether this push to main needs a release: android/VERSION has no pre-release yet.
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(tr -d '[:space:]' < android/VERSION)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if gh release view "android-v$version" >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    # The signing key lives only in this environment, which needs Liam's approval per run.
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: android-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          gradle-version: "8.14.4"
+          cache-read-only: true
+      - name: Build the signed APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.p12"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$ANDROID_KEYSTORE_PATH"
+          gradle -p android --no-daemon :app:assembleRelease
+          rm -f "$ANDROID_KEYSTORE_PATH"
+      - name: Check the signature
+        run: |
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME"/build-tools/$(ls "$ANDROID_HOME"/build-tools | sort -V | tail -1)/apksigner verify --print-certs "$apk" | grep -q "CN=Training Coach Reader"
+      - name: Publish the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk "tc-reader-$VERSION.apk"
+          gh release create "android-v$VERSION" "tc-reader-$VERSION.apk" \
+            --prerelease --latest=false --target "$GITHUB_SHA" --title "Coach reader $VERSION" \
+            --notes "The band reader (ADR-0070). Install or update with Obtainium, filtered to android-v tags."

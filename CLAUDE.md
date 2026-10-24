@@ -103,6 +103,7 @@ formats every file you edit (ADR-0021).
 ```
 backend/     API, bot, domain, services, db, migrations, tests   (see backend/CLAUDE.md)
 frontend/    dashboard                                            (see frontend/CLAUDE.md)
+android/     the band reader app, Kotlin (ADR-0070)               (see android/CLAUDE.md)
 docs/adr/    decisions (NNNN-title.md)       docs/specs/     product + phase specs
 docs/security/  threat model                 docs/runbooks/  deploy, backup/restore, secrets
 docs/legal/  privacy notice, Impressum (drafts, unpublished)
