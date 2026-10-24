@@ -3,9 +3,11 @@
 # Run every 15 minutes by the training-coach-deploy timer (scripts/systemd/); safe to run by hand.
 #   fetch tags -> already on the newest? exit quietly -> on main and signed by GitHub? ->
 #   backup -> checkout tag -> rebuild ->
-#   wait for /healthz to report the new version. If it never does, roll the code back, unless
-#   the release changed the schema (then restoring the backup needs a person). Either way the
-#   failed tag is not tried again until someone deploys by hand or deletes .git/auto-deploy-failed.
+#   wait for /healthz to report the new version, then remove this app's older images. If it
+#   never does, roll the code back, unless the release changed the schema (then restoring the
+#   backup needs a person). Either way the failed tag is not tried again until someone deploys
+#   by hand or deletes .git/auto-deploy-failed. A deploy cut off part way (a power cut, a
+#   reboot, the unit's timeout) is finished by the next run (.git/auto-deploy-pending).
 # Env: TC_DEPLOY_REMOTE    where tags come from (default: the public repo over HTTPS)
 #      TC_HEALTH_URL       default http://127.0.0.1:8095/healthz (the port on vybe-pi)
 #      TC_HEALTH_TIMEOUT   seconds to wait for health after a rebuild (default 180)
@@ -20,6 +22,11 @@ HEALTH_TIMEOUT="${TC_HEALTH_TIMEOUT:-180}"
 HEALTH_INTERVAL="${TC_HEALTH_INTERVAL:-5}"
 GPG="${TC_DEPLOY_GPG:-gpg}"
 FAILED_MARK=".git/auto-deploy-failed"
+# "<tag> <commit deployed before> [resumed]": written before the checkout, removed once the
+# deploy is over either way, so a run that finds it knows the last one was cut off.
+PENDING_MARK=".git/auto-deploy-pending"
+IMAGE="training-coach:local"     # compose.yaml's image:
+IMAGE_LABEL="training-coach.app" # the Dockerfile's LABEL: only these images are ever removed
 # GitHub signs every commit it makes, squash merges included, with this key (ADR-0043). Pinned
 # here and read from the checkout already deployed, so a release can't vouch for itself.
 GITHUB_KEY="scripts/keys/github-web-flow.gpg"
@@ -80,6 +87,106 @@ healthy() {
   done
 }
 
+# After a healthy deploy: this app's images except the one running and the one it replaced (the
+# newest other, kept for going back by hand). Never other projects' images, never volumes.
+# Nothing here fails the deploy.
+remove_old_images() {
+  local running ids id kept=""
+  running=$(docker image inspect --format '{{.Id}}' "$IMAGE" 2>/dev/null) || return 0
+  # Newest first, one line per tag: an image tagged twice is seen once.
+  ids=$(docker image ls --quiet --no-trunc --filter "label=$IMAGE_LABEL" | awk '!seen[$0]++') ||
+    return 0
+  for id in $ids; do
+    if [ "$id" = "$running" ]; then
+      continue
+    elif [ -z "$kept" ]; then
+      kept="$id"
+    elif ! docker image rm "$id" >/dev/null 2>&1; then
+      log "could not remove the old image $id (a container still uses it?)"
+    fi
+  done
+}
+
+# Rebuild on tag $1, checked out, and wait for its version. $2 is the commit deployed before.
+finish_deploy() {
+  if docker compose up -d --build && healthy "\"version\":\"${1#v}\""; then
+    rm -f "$FAILED_MARK" "$PENDING_MARK"
+    log "deployed $1"
+    remove_old_images
+    return 0
+  fi
+  log "ERROR: $1 did not report healthy within ${HEALTH_TIMEOUT}s"
+  give_up "$1" "$2"
+}
+
+# Mark tag $1 failed and roll back to commit $2, unless the release changed the schema.
+give_up() {
+  local from
+  from=$(git describe --tags --always "$2")
+  # Marked before the rollback, so one that is cut off isn't followed by the same deploy again;
+  # but a mark that can't be written (a full disk) must not stop the rollback.
+  { echo "$1" >"$FAILED_MARK"; } 2>/dev/null ||
+    log "ERROR: could not write $FAILED_MARK (disk full?); rolling back anyway"
+  if ! git diff --quiet "$2" "$1" -- backend/migrations; then
+    rm -f "$PENDING_MARK"
+    log "ERROR: $1 changed the schema, so going back means restoring the pre-deploy" \
+      "backup; left as is for a person (docs/runbooks/deploy.md, Rollback)"
+    return 1
+  fi
+  roll_back "$2" "$from"
+}
+
+# Back to commit $1 (described as $2). On a release, wait for its version, so a container left
+# over from the bad build can't pass for it. A checkout that isn't on a release has no version
+# to wait for.
+roll_back() {
+  local previous='"status":"ok"'
+  if [[ "$2" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    previous="\"version\":\"${2#v}\""
+  fi
+  git -c advice.detachedHead=false checkout --quiet "$1"
+  if docker compose up -d --build && healthy "$previous"; then
+    log "rolled back to $2"
+  else
+    log "ERROR: rolled the code back to $2 but it is not healthy either"
+  fi
+  rm -f "$PENDING_MARK"
+  return 1
+}
+
+# The last run was cut off after the backup, so the checkout may be on the new tag while the
+# old image runs. Build once more; if that was cut off already, or the rollback was, roll back
+# instead, and only once: then the failed mark holds, as after any failed deploy.
+resume_deploy() {
+  local tag previous resumed head target before
+  read -r tag previous resumed <"$PENDING_MARK" || true
+  head=$(git rev-parse HEAD)
+  target=$(git rev-parse --verify --quiet "$tag^{commit}") || target=""
+  before=$(git rev-parse --verify --quiet "$previous^{commit}") || before=""
+  if [ -z "$target" ] || [ -z "$before" ] ||
+    { [ "$head" != "$target" ] && [ "$head" != "$before" ]; }; then
+    log "ERROR: $PENDING_MARK doesn't match the checkout (deployed by hand?); delete it"
+    return 1
+  fi
+  if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+    log "ERROR: the checkout has local changes; not finishing the deploy of $tag"
+    return 1
+  fi
+  if [ "$(cat "$FAILED_MARK" 2>/dev/null)" = "$tag" ]; then
+    log "finishing the rollback from $tag that was cut off"
+    rm -f "$PENDING_MARK"
+    roll_back "$previous" "$(git describe --tags --always "$previous")"
+  elif [ -n "$resumed" ]; then
+    log "ERROR: the deploy of $tag was cut off twice"
+    give_up "$tag" "$previous"
+  else
+    echo "$tag $previous resumed" >"$PENDING_MARK"
+    log "finishing the deploy of $tag that was cut off"
+    git -c advice.detachedHead=false checkout --quiet "$tag"
+    finish_deploy "$tag" "$previous"
+  fi
+}
+
 main() {
   cd "$REPO_DIR"
   exec 9>.git/auto-deploy.lock
@@ -87,10 +194,15 @@ main() {
     log "another deploy is running"
     return 0
   fi
+  if [ -e "$PENDING_MARK" ]; then
+    resume_deploy
+    return
+  fi
 
   # Tags are fetched without +: a release tag that moved is refused, not deployed. That stops
-  # every deploy until a person looks, which is the point: release tags never move.
-  if ! git fetch --quiet --no-tags "$REMOTE" \
+  # every deploy until a person looks, which is the point: release tags never move. --prune
+  # drops local v* tags deleted upstream, so a stray tag removed there blocks nothing here.
+  if ! git fetch --quiet --prune --no-tags "$REMOTE" \
     "+refs/heads/main:refs/remotes/deploy/main" "refs/tags/v*:refs/tags/v*"; then
     log "ERROR: fetching releases failed (network down, or a release tag moved upstream)"
     return 1
@@ -135,10 +247,7 @@ main() {
     return 1
   fi
 
-  local from schema_changed=no
-  from=$(git describe --tags --always)
-  git diff --quiet "$current" "$target" -- backend/migrations || schema_changed=yes
-  log "deploying $latest over $from"
+  log "deploying $latest over $(git describe --tags --always)"
   # In the running app if it is up; otherwise in a one-off container of the current image, so
   # a release that fixes a crashing app can still go out.
   if ! docker compose exec -T app training-coach backup &&
@@ -147,33 +256,12 @@ main() {
     return 1
   fi
 
-  git -c advice.detachedHead=false checkout --quiet "$latest"
-  if docker compose up -d --build && healthy "\"version\":\"${latest#v}\""; then
-    rm -f "$FAILED_MARK"
-    log "deployed $latest"
-    return 0
-  fi
-
-  echo "$latest" >"$FAILED_MARK"
-  log "ERROR: $latest did not report healthy within ${HEALTH_TIMEOUT}s"
-  if [ "$schema_changed" = yes ]; then
-    log "ERROR: $latest changed the schema, so going back means restoring the pre-deploy" \
-      "backup; left as is for a person (docs/runbooks/deploy.md, Rollback)"
+  if ! { echo "$latest $current" >"$PENDING_MARK"; } 2>/dev/null; then
+    log "ERROR: could not write $PENDING_MARK (disk full?); not deploying $latest"
     return 1
   fi
-  # Back on a release, wait for its version, so a container left over from the bad build can't
-  # pass for it. A checkout that isn't on a release has no version to wait for.
-  local previous='"status":"ok"'
-  if [[ "$from" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    previous="\"version\":\"${from#v}\""
-  fi
-  git -c advice.detachedHead=false checkout --quiet "$current"
-  if docker compose up -d --build && healthy "$previous"; then
-    log "rolled back to $from"
-  else
-    log "ERROR: rolled the code back to $from but it is not healthy either"
-  fi
-  return 1
+  git -c advice.detachedHead=false checkout --quiet "$latest"
+  finish_deploy "$latest" "$current"
 }
 
 # The checkout replaces this file; bash has read all of main() before it runs. Sourced (by
