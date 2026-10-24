@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [0.37.0](https://github.com/LDoyleDev/training-coach/compare/v0.36.0...v0.37.0) (2026-10-24)
+
+
+### Features
+
+* **api:** a connected AI proposes a run's distance, heart rate and start ([#305](https://github.com/LDoyleDev/training-coach/issues/305)) ([9cacda9](https://github.com/LDoyleDev/training-coach/commit/9cacda9f0304621f8c2c27fba7047eb79e216c99))
+
+
+### Documentation
+
+* wrap 21-24 Oct (v0.34.0 to v0.37.0): session log and lessons ([#302](https://github.com/LDoyleDev/training-coach/issues/302)) ([3907af8](https://github.com/LDoyleDev/training-coach/commit/3907af8cc79f2be6e931745485f470cdf9e81c0d))
+
 ## [0.36.0](https://github.com/LDoyleDev/training-coach/compare/v0.35.0...v0.36.0) (2026-10-23)
 
 
