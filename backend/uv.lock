@@ -2028,7 +2028,7 @@ wheels = [
 
 [[package]]
 name = "training-coach"
-version = "0.37.2"
+version = "0.38.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
