@@ -14,6 +14,7 @@ from sqlalchemy import Engine, select
 from structlog.testing import capture_logs
 
 from tests import hcw_payloads as hcw
+from tests.alerts import capture
 from tests.api.test_erase import ORIGIN
 from tests.api.test_erase import alerts as alerts  # shared fixtures
 from tests.api.test_erase import signed_in as signed_in
@@ -534,3 +535,91 @@ def test_the_readers_sync_is_taken_and_sending_it_again_changes_nothing(
     assert minutes == [(62, 60, 64), (70, 70, 70)]
     assert steps == 812
     assert signed_in.get("/api/account/ingest").json()["app_version"] == "tc-reader/0.0.1"
+
+
+# ------------------------------------- a stolen secret (security test, 2026-10-24)
+
+
+def test_a_flood_of_workouts_in_one_post_stores_only_the_cap(
+    signed_in: TestClient, phone: TestClient, engine: Engine
+) -> None:
+    most = health_import.MOST["exercise"]
+    start = hcw.NOW - timedelta(days=1)
+    walks = [
+        {"type": "8", "start_time": hcw.iso(at), "end_time": hcw.iso(at)}
+        for at in (start + timedelta(microseconds=n) for n in range(most + 50))
+    ]
+    answer = _post(phone, _secret(signed_in), {"exercise": walks})
+    assert answer.json() == {"taken": {"exercise": most}, "skipped": {"exercise": 50}}
+    assert _stored(engine)["ImportedWorkout"] == most
+
+
+def test_one_secret_is_limited_whatever_the_address(
+    signed_in: TestClient, phone: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    addresses = iter(range(100))
+    monkeypatch.setattr(ingest, "_client", lambda request: f"10.0.0.{next(addresses)}")
+    secret = _secret(signed_in)
+    for _ in range(ingest.MAX_PER_SECRET):
+        assert _post(phone, secret, {}).status_code == 200
+    assert _post(phone, secret, {}).status_code == 429
+
+
+def test_only_two_posts_are_parsed_at_once(signed_in: TestClient, phone: TestClient) -> None:
+    # 5 MB of raw heart rate peaks near 60 MB parsed; parallel posts mustn't pass 512 MB.
+    secret = _secret(signed_in)
+    state = phone.app.state  # type: ignore[attr-defined]  # a FastAPI app
+    state.ingest_parsing = ingest.MAX_PARSING
+    answer = _post(phone, secret)
+    assert (answer.status_code, answer.headers["retry-after"]) == (503, "60")
+    state.ingest_parsing = ingest.MAX_PARSING - 1
+    assert _post(phone, secret).status_code == 200
+    assert state.ingest_parsing == ingest.MAX_PARSING - 1
+
+
+def test_a_lone_surrogate_is_refused_and_noted(signed_in: TestClient, phone: TestClient) -> None:
+    # It was a 500: SQLite can't store half a UTF-16 pair.
+    secret = _secret(signed_in)
+    escaped = [f"{chr(92)}u{unit:04x}" for unit in (0xD800, 0xD83D, 0xDE00)]  # JSON's escapes
+    for version, code in ((escaped[0], 422), (escaped[1] + escaped[2], 200)):  # half, emoji
+        content = f'{{"app_version": "{version}", "sleep": [{json.dumps(hcw.sleep())}]}}'
+        with time_machine.travel(hcw.NOW, tick=False):
+            answer = phone.post(
+                PATH, content=content, headers={"Authorization": f"Bearer {secret}"}
+            )
+        assert answer.status_code == code
+        if code == 422:
+            assert _status(signed_in)["refused_reason"] == "not_json"
+
+
+def test_the_apps_version_loses_control_and_bidi_characters(
+    signed_in: TestClient, phone: TestClient
+) -> None:
+    secret = _secret(signed_in)
+    _post(phone, secret, {"app_version": "1.9.25‮\x00​" + "A" * 40})
+    assert _status(signed_in)["app_version"] == "1.9.25" + "A" * 26
+
+
+def test_a_declared_length_past_the_cap_is_refused_before_reading(
+    signed_in: TestClient, phone: TestClient
+) -> None:
+    secret = _secret(signed_in)
+    headers = {"Authorization": f"Bearer {secret}", "Content-Length": str(ingest.MAX_BYTES + 1)}
+    with time_machine.travel(hcw.NOW, tick=False):
+        answer = phone.post(PATH, content=b"{}", headers=headers)
+    assert answer.status_code == 413
+    assert _status(signed_in)["refused_reason"] == "too_large"
+
+
+def test_the_person_is_told_when_the_band_moves_their_max(
+    signed_in: TestClient, phone: TestClient
+) -> None:
+    told = capture(phone)
+    secret = _secret(signed_in)
+    _post(phone, secret)  # an ordinary walk: nothing moves
+    body = {"exercise": [hcw.walk()], "heart_rate": hcw.walk_heart_rate([140] * 16 + [230] * 30)}
+    _post(phone, secret, body)
+    assert told == [
+        "Your band data moved the max heart rate your zones use from 190 to 210 bpm. If that"
+        " doesn't look right, set your own max under Settings."
+    ]
