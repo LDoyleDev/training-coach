@@ -114,8 +114,8 @@ publishes no numbers for either.
   compare it with a sample committed in the repo; a backend test posts that same sample to the
   ingest and checks what is taken.
 - **Signing from the first build:** one release key, kept as secrets of the GitHub environment
-  `android-release`, which needs Liam's approval for every run that uses it, and backed up
-  encrypted with age in `~/.secrets/training-coach/android`. A debug key changes per CI runner,
+  `android-release`, which needs Liam's approval for every run that uses it; where it is kept
+  and backed up: ADR-0070, Decision. A debug key changes per CI runner,
   so every build would mean uninstalling and setting up again.
 - **Releases:** when `android/` changes on main and its version moved, a workflow of its own
   builds the signed APK in that environment and publishes a GitHub pre-release tagged

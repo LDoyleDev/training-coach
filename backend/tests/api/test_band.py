@@ -31,10 +31,12 @@ def _band(
     activity: str | None = "walk",
     minutes: int = 46,
     zones: tuple[int, ...] | None = (8, 38, 0, 0, 0),
+    at: time = time(7, 0),
+    announced: datetime | None = None,
 ) -> int:
     """A workout as the band import stores it."""
     on = _today() - timedelta(days=days_ago)
-    start = datetime.combine(on, time(7, 0), tzinfo=BERLIN).astimezone(UTC)
+    start = datetime.combine(on, at, tzinfo=BERLIN).astimezone(UTC)
     row = ImportedWorkout(
         source="com.mi.health",
         start_at=start,
@@ -43,6 +45,7 @@ def _band(
         exercise_type=79,
         activity=activity,
         minutes=minutes,
+        announced_at=announced,
     )
     if zones is not None:
         row.zone1_min, row.zone2_min, row.zone3_min, row.zone4_min, row.zone5_min = zones
@@ -166,3 +169,14 @@ def test_strangers_get_nothing(engine: Engine) -> None:
         assert stranger.get(PATH).status_code == 401
         assert stranger.post(f"{PATH}/1/count").status_code == 401
         assert stranger.post(f"{PATH}/1/dismiss").status_code == 401
+
+
+def test_made_up_workouts_cant_bury_today_or_flood_telegram(engine: Engine) -> None:
+    # Security test, 2026-10-24: 3,000 fake walks were all offered, and 3 sent every 10 min.
+    sent = datetime.now(UTC)
+    for n in range(band_cardio.ANNOUNCE_MOST):
+        _band(engine, days_ago=1, at=time(6, n), announced=sent)
+    newest = [_band(engine, at=time(8, n)) for n in range(band_cardio.MOST_OFFERED)]
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        assert [o.id for o in band_cardio.offers(mine, _today())] == newest
+        assert band_cardio.unannounced(mine, _today()) == []

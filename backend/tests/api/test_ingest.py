@@ -9,11 +9,13 @@ from datetime import UTC, datetime, timedelta
 import httpx
 import pytest
 import time_machine
+from fastapi import Request
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from structlog.testing import capture_logs
 
 from tests import hcw_payloads as hcw
+from tests.alerts import capture
 from tests.api.test_erase import ORIGIN
 from tests.api.test_erase import alerts as alerts  # shared fixtures
 from tests.api.test_erase import signed_in as signed_in
@@ -97,7 +99,7 @@ def test_a_payload_is_stored_for_the_secrets_owner(
     secret = _secret(signed_in)
     with capture_logs() as logs:
         answer = _post(phone, secret)
-    assert answer.status_code == 200
+    assert answer.status_code == 200, (answer.status_code, answer.text)
     assert answer.json() == {
         "taken": {"steps": 3, "sleep": 1, "heart_rate": 496, "exercise": 1, "weight": 2},
         "skipped": {},
@@ -290,7 +292,7 @@ def test_the_apps_test_button_stores_nothing(
     secret = _secret(signed_in)
     with capture_logs() as logs:
         answer = _post(phone, secret, hcw.mock())
-    assert answer.status_code == 200
+    assert answer.status_code == 200, (answer.status_code, answer.text)
     assert answer.json() == {
         "test": True,
         "taken": {},
@@ -523,7 +525,7 @@ def test_the_readers_sync_is_taken_and_sending_it_again_changes_nothing(
     secret = _secret(signed_in)
     for _ in range(2):
         answer = _post(phone, secret, _reader_sync())
-        assert answer.status_code == 200
+        assert answer.status_code == 200, (answer.status_code, answer.text)
         assert answer.json()["taken"] == {"steps": 1, "heart_rate": 4}
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         minutes = [
@@ -534,3 +536,138 @@ def test_the_readers_sync_is_taken_and_sending_it_again_changes_nothing(
     assert minutes == [(62, 60, 64), (70, 70, 70)]
     assert steps == 812
     assert signed_in.get("/api/account/ingest").json()["app_version"] == "tc-reader/0.0.1"
+
+
+# ------------------------------------- a stolen secret (security test, 2026-10-24)
+
+
+def test_a_flood_of_workouts_in_one_post_stores_only_the_cap(
+    signed_in: TestClient, phone: TestClient, engine: Engine
+) -> None:
+    most = health_import.MOST["exercise"]
+    start = hcw.NOW - timedelta(days=1)
+    walks = [
+        {"type": "8", "start_time": hcw.iso(at), "end_time": hcw.iso(at)}
+        for at in (start + timedelta(microseconds=n) for n in range(most + 50))
+    ]
+    answer = _post(phone, _secret(signed_in), {"exercise": walks})
+    assert answer.json() == {"taken": {"exercise": most}, "skipped": {"exercise": 50}}
+    assert _stored(engine)["ImportedWorkout"] == most
+
+
+def test_one_secret_is_limited_whatever_the_address(
+    signed_in: TestClient, phone: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    addresses = iter(range(100))
+    monkeypatch.setattr(ingest, "_client", lambda request: f"10.0.0.{next(addresses)}")
+    secret = _secret(signed_in)
+    for _ in range(ingest.MAX_PER_SECRET):
+        assert _post(phone, secret, {}).status_code == 200
+    assert _post(phone, secret, {}).status_code == 429
+
+
+def test_only_two_posts_are_parsed_at_once(signed_in: TestClient, phone: TestClient) -> None:
+    # 5 MB of raw heart rate peaks near 60 MB parsed; parallel posts mustn't pass 512 MB.
+    secret = _secret(signed_in)
+    state = phone.app.state  # type: ignore[attr-defined]  # a FastAPI app
+    state.ingest_parsing = ingest.MAX_PARSING
+    answer = _post(phone, secret)
+    assert (answer.status_code, answer.headers["retry-after"]) == (503, "60")
+    state.ingest_parsing = ingest.MAX_PARSING - 1
+    assert _post(phone, secret).status_code == 200
+    assert state.ingest_parsing == ingest.MAX_PARSING - 1
+
+
+def test_a_busy_coach_reads_no_body_and_spends_none_of_the_secrets_budget(
+    signed_in: TestClient, phone: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Review of #324: the body was read first and each 503 counted, so busy turned into 429.
+    secret = _secret(signed_in)
+    state = phone.app.state  # type: ignore[attr-defined]  # a FastAPI app
+    real, read = ingest._body, []
+
+    async def body(request: object) -> bytes:
+        read.append(True)
+        return await real(request)  # type: ignore[arg-type]  # the real request
+
+    monkeypatch.setattr(ingest, "_body", body)
+    state.ingest_parsing = ingest.MAX_PARSING
+    for _ in range(ingest.MAX_PER_SECRET + 1):
+        assert _post(phone, secret, {}).status_code == 503
+    assert read == []
+    state.ingest_parsing = 0
+    assert _post(phone, secret, {}).status_code == 200
+
+
+def test_a_slot_taken_while_the_body_was_read_refunds_the_post(
+    signed_in: TestClient, phone: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    secret = _secret(signed_in)
+    state = phone.app.state  # type: ignore[attr-defined]  # a FastAPI app
+
+    async def body(request: object) -> bytes:
+        state.ingest_parsing = ingest.MAX_PARSING  # other posts took both slots meanwhile
+        return b"{}"
+
+    monkeypatch.setattr(ingest, "_body", body)
+    assert _post(phone, secret, {}).status_code == 503
+    assert not state.ingest_limiter.secrets[str(OWNER)]
+
+
+def test_a_lone_surrogate_is_refused_and_noted(signed_in: TestClient, phone: TestClient) -> None:
+    # It was a 500: SQLite can't store half a UTF-16 pair.
+    secret = _secret(signed_in)
+    escaped = [f"{chr(92)}u{unit:04x}" for unit in (0xD800, 0xD83D, 0xDE00)]  # JSON's escapes
+    for version, code in ((escaped[0], 422), (escaped[1] + escaped[2], 200)):  # half, emoji
+        content = f'{{"app_version": "{version}", "sleep": [{json.dumps(hcw.sleep())}]}}'
+        with time_machine.travel(hcw.NOW, tick=False):
+            answer = phone.post(
+                PATH, content=content, headers={"Authorization": f"Bearer {secret}"}
+            )
+        assert answer.status_code == code
+        if code == 422:
+            assert _status(signed_in)["refused_reason"] == "not_json"
+
+
+def test_the_apps_version_loses_control_and_bidi_characters(
+    signed_in: TestClient, phone: TestClient
+) -> None:
+    secret = _secret(signed_in)
+    _post(phone, secret, {"app_version": "1.9.25‮\x00​" + "A" * 40})
+    assert _status(signed_in)["app_version"] == "1.9.25" + "A" * 26
+
+
+def test_a_declared_length_past_the_cap_is_refused_before_reading(
+    signed_in: TestClient, phone: TestClient
+) -> None:
+    secret = _secret(signed_in)
+    headers = {"Authorization": f"Bearer {secret}", "Content-Length": str(ingest.MAX_BYTES + 1)}
+    with time_machine.travel(hcw.NOW, tick=False):
+        answer = phone.post(PATH, content=b"{}", headers=headers)
+    assert answer.status_code == 413
+    assert _status(signed_in)["refused_reason"] == "too_large"
+
+
+@pytest.mark.parametrize("length", [b"\xb2", b"\xb3\xb9", b"-1", b"1e9"])
+def test_a_strange_declared_length_is_ignored(length: bytes) -> None:
+    # Review of #324: "\u00b2".isdigit() is true and int() refuses it, which was a 500. The
+    # test client sends headers as UTF-8, so the request is built here as the server gets it.
+    async def receive() -> dict[str, object]:
+        return {"type": "http.request", "body": b"{}", "more_body": False}
+
+    request = Request({"type": "http", "headers": [(b"content-length", length)]}, receive)
+    assert asyncio.run(ingest._body(request)) == b"{}"
+
+
+def test_the_person_is_told_when_the_band_moves_their_max(
+    signed_in: TestClient, phone: TestClient
+) -> None:
+    told = capture(phone)
+    secret = _secret(signed_in)
+    _post(phone, secret)  # an ordinary walk: nothing moves
+    body = {"exercise": [hcw.walk()], "heart_rate": hcw.walk_heart_rate([140] * 16 + [230] * 30)}
+    _post(phone, secret, body)
+    assert told == [
+        "Your band data moved the max heart rate your zones use from 190 to 210 bpm. If that"
+        " doesn't look right, set your own max under Settings."
+    ]

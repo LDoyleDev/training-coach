@@ -1097,7 +1097,8 @@ export interface paths {
          * @description Save it. 404 when it has expired or never was; 409 with ``already_saved`` or
          *     ``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason
          *     when it no longer fits (it is discarded then); 409 with what is saved already when its
-         *     day has its session (it keeps waiting: save it again with the answer, ADR-0060).
+         *     day has its session (it keeps waiting: save it again with the answer, ADR-0060); 422 for
+         *     a cardio one without zone 2 or moderate picked (it keeps waiting).
          */
         post: operations["save_api_proposals_save_post"];
         delete?: never;
@@ -1694,6 +1695,8 @@ export interface components {
             max_hr: number | null;
             /** Pace S Per Km */
             pace_s_per_km: number | null;
+            /** Speed Kmh */
+            speed_kmh: number | null;
         };
         /** ChangeBody */
         ChangeBody: {
@@ -2712,6 +2715,8 @@ export interface components {
          * @description The token, and the answer when the day already has its session (ADR-0060).
          */
         ProposalSave: {
+            /** Cardio */
+            cardio?: ("zone2" | "moderate-cardio") | null;
             /** Effort */
             effort?: number | null;
             /** Resolution */
@@ -2751,6 +2756,10 @@ export interface components {
             replaces: string | null;
             /** Source */
             source: string;
+            /** Suggested */
+            suggested?: ("zone2" | "moderate-cardio") | null;
+            /** Suggestion */
+            suggestion?: string | null;
             /** Summary */
             summary: string;
             /** Token */

@@ -20,7 +20,7 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.db.session import bound_user
-from training_coach.domain.cardio import pace
+from training_coach.domain.cardio import pace, speed
 from training_coach.domain.day_view import LoggedExercise as Grouped
 from training_coach.domain.day_view import LoggedSet, group
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
@@ -53,6 +53,8 @@ class CardioDetails:
     pace_s_per_km: int | None  # from the minutes and distance, never stored
     avg_hr: int | None
     max_hr: int | None
+    # km/h to one place, from the minutes and distance as on a proposal's card; a ride shows it
+    speed_kmh: float | None = None
 
 
 @dataclass(frozen=True)
@@ -147,4 +149,5 @@ def _details(workout: Workout, minutes: int) -> CardioDetails | None:
         pace_s_per_km=pace(minutes, workout.distance_m),
         avg_hr=workout.avg_hr,
         max_hr=workout.max_hr,
+        speed_kmh=round(kmh, 1) if (kmh := speed(minutes, workout.distance_m)) else None,
     )

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import ColumnElement, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import ImportedWorkout
@@ -26,6 +26,11 @@ from training_coach.services.day_clash import Clash, Refused, Resolution
 DAYS = 7  # offered for this many days, today included
 ANNOUNCE_DAYS = 2  # sent to Telegram for this many days: today and yesterday
 ANNOUNCE_AT_ONCE = 3  # at most this many each run; the rest go on the next one
+# Bounds on what made-up workouts from a stolen ingest secret can do (security test,
+# 2026-10-24): Today shows the newest this many, and Telegram sends at most ANNOUNCE_MOST for
+# today and yesterday together. A real week, even with the band spotting every walk, has fewer.
+MOST_OFFERED = 30
+ANNOUNCE_MOST = 12
 MIN_MINUTES = 10
 
 
@@ -97,29 +102,32 @@ def _open(today: date) -> list[ColumnElement[bool]]:
     ]
 
 
+def _newest(session: Session, *where: ColumnElement[bool]) -> list[Offer]:
+    """The newest ``MOST_OFFERED`` open workouts that count, oldest first."""
+    query = select(ImportedWorkout).where(*where).order_by(ImportedWorkout.start_at.desc())
+    rows = list(session.scalars(query.limit(MOST_OFFERED)))
+    return [o for o in map(_offer, reversed(rows)) if o is not None]
+
+
 def offers(session: Session, today: date) -> list[Offer]:
-    """What to offer, oldest first."""
-    rows = session.scalars(
-        select(ImportedWorkout).where(*_open(today)).order_by(ImportedWorkout.start_at)
-    )
-    return [o for o in map(_offer, rows) if o is not None]
+    """What to offer, oldest first: the newest ``MOST_OFFERED``."""
+    return _newest(session, *_open(today))
 
 
 def unannounced(session: Session, today: date) -> list[Offer]:
     """Offers not yet sent to Telegram, oldest first: from the last ``ANNOUNCE_DAYS`` days only
     (an older one stays on Today in the app), at most ``ANNOUNCE_AT_ONCE``, so the first run
-    after a long gap doesn't send a week of them at once (review of #226). Nothing is marked;
-    the caller marks each one once it is sent."""
-    rows = session.scalars(
-        select(ImportedWorkout)
-        .where(
-            *_open(today),
-            ImportedWorkout.announced_at.is_(None),
-            ImportedWorkout.local_date > today - timedelta(days=ANNOUNCE_DAYS),
+    after a long gap doesn't send a week of them at once (review of #226), and no more than
+    ``ANNOUNCE_MOST`` for those days in all. Nothing is marked; the caller marks each one once
+    it is sent."""
+    recent = ImportedWorkout.local_date > today - timedelta(days=ANNOUNCE_DAYS)
+    sent = session.scalar(
+        select(func.count(ImportedWorkout.id)).where(
+            recent, ImportedWorkout.announced_at.is_not(None)
         )
-        .order_by(ImportedWorkout.start_at)
     )
-    return [o for o in map(_offer, rows) if o is not None][:ANNOUNCE_AT_ONCE]
+    found = _newest(session, *_open(today), recent, ImportedWorkout.announced_at.is_(None))
+    return found[: max(0, min(ANNOUNCE_AT_ONCE, ANNOUNCE_MOST - (sent or 0)))]
 
 
 def announced(session: Session, import_id: int, now: datetime) -> None:

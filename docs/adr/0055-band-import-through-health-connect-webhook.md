@@ -220,6 +220,25 @@ and erasing everything removes them by the `user_id` cascade.
   covers every kind. A kind never seen counts from when the secret was made; a new or removed
   secret drops the rows. Workouts, weight and resting heart rate aren't watched: the first two
   come when they happen, and resting heart rate is derived from heart rate when it's missing.
+- **Limits on what a stolen secret can do** (2026-10-24, from a security test with a secret
+  in hand: one 5 MB post stored 38,267 workouts and held SQLite's lock for minutes, and one
+  made-up 230 bpm reading moved max heart rate and every zone). A post is read for at most
+  20,000 steps, 50 nights, 180,000 heart-rate samples, 1,000 resting heart rates, 100 workouts
+  and 100 weigh-ins; the rest are skipped and counted, never failing the post. A real sync covers
+  48 hours, far inside these. Per secret, whatever the address, at most 20 posts per 10 minutes;
+  at most two posts are parsed at once, the next gets 503 (`Retry-After: 60`) and the phone sends
+  it again; a declared length over 5 MB is refused (413) before the body is read, once the
+  secret is checked, so it is noted "too large". A lone UTF-16 surrogate is refused as not JSON
+  (422, noted), and the app version loses control and format characters before Account shows it.
+  Today offers the newest 30 open workouts, and Telegram sends at most 12 for today and
+  yesterday together. **Max heart rate** now rises only with what a workout held for 3 minutes
+  in a row (`sustained_hr`), and at most 20 bpm over the estimate (190 + 20 without a birth year);
+  above that, the person types their own. When a sync moves it, Telegram says so: "Your band
+  data moved the max heart rate your zones use from 190 to 210 bpm. If that doesn't look right,
+  set your own max under Settings." Steps and resting heart rate keep their rules (a day keeps its
+  larger steps and lower resting rate, within the bounds above), so made-up ones stick until
+  corrected by hand; whoever holds the secret can write band data, and the fix is a new secret
+  on Account (threat model).
 - Built as four PRs: ingest and schema; zones; count it; display and runbook.
 
 [mcnaveen/health-connect-webhook]: https://github.com/mcnaveen/health-connect-webhook

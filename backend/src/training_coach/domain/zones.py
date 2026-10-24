@@ -3,7 +3,8 @@
 Karvonen counts from the heart-rate reserve, max minus resting: zone 2 runs from 60 to 70% of
 it above resting. Resting heart rate is the median of the last 7 nights. Max heart rate is the
 person's own number when they typed one; otherwise the higher of 208 - 0.7 x age (Tanaka) and
-the highest any workout reached, so a hard effort raises it by itself.
+the highest any workout held for three minutes, so a hard effort raises it by itself, but one
+odd reading or a made-up workout from a stolen ingest secret can't take it far (2026-10-24).
 """
 
 from collections.abc import Sequence
@@ -17,6 +18,12 @@ DEFAULT_REST = 60  # with no nights yet
 DEFAULT_MAX = 190  # with no age, no workouts and no number of their own
 LONGEST_GAP = timedelta(minutes=5)  # a reading counts until the next one, at most this long
 MIN_AGE, MAX_AGE = 10, 100
+# A workout raises max heart rate only with what it held this many minutes in a row: an optical
+# band's one-minute glitch (cadence lock, a loose strap) isn't a max, a hard finish holds.
+SUSTAIN = 3
+# And by at most this much over the estimate: an age formula misses by about 10 bpm for most
+# people, so 20 covers a real high max; anyone above that types their own number.
+RAISE_LIMIT = 20
 
 
 @dataclass(frozen=True)
@@ -56,11 +63,33 @@ def age(birth_year: int | None, year: int) -> int | None:
 
 def max_heart_rate(own: int | None, years: int | None, peak: int | None) -> int:
     """Their own number wins; else the higher of the estimate (190 without an age) and the
-    highest a workout reached."""
+    peak a workout held, as ``counted_peak`` counts it."""
     if own is not None:
         return own
-    estimate = estimated_max(years) if years is not None else DEFAULT_MAX
-    return max(estimate, peak or 0)
+    return max(_estimate(years), peak or 0)
+
+
+def _estimate(years: int | None) -> int:
+    return estimated_max(years) if years is not None else DEFAULT_MAX
+
+
+def counted_peak(years: int | None, peak: int | None) -> int | None:
+    """A workout's peak as it counts toward max heart rate: at most ``RAISE_LIMIT`` over the
+    estimate."""
+    return None if peak is None else min(peak, _estimate(years) + RAISE_LIMIT)
+
+
+def sustained(readings: Sequence[tuple[datetime, float]], hold: int = SUSTAIN) -> int | None:
+    """The highest heart rate held ``hold`` minutes in a row, from per-minute ``(minute,
+    bpm)`` readings in time order, one per minute: the best of the lowest of each run of
+    ``hold`` back-to-back minutes. None without such a run."""
+    best: int | None = None
+    for n in range(len(readings) - hold + 1):
+        run = readings[n : n + hold]
+        if run[-1][0] - run[0][0] == timedelta(minutes=hold - 1):
+            low = round(min(bpm for _, bpm in run))
+            best = low if best is None else max(best, low)
+    return best
 
 
 def resting(nights: Sequence[int]) -> int:
