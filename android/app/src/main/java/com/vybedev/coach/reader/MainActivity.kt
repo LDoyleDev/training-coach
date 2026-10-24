@@ -124,7 +124,7 @@ private fun ReaderScreen() {
         if (busy) {
             Text(
                 "Keep this screen open until it finishes: Health Connect only lets the app read " +
-                    "while it's on screen. The first sync reads two days and takes longest.",
+                    "while it's on screen. The first sync reads a day of history and takes longest.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
