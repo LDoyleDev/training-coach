@@ -207,6 +207,36 @@ def test_bad_arguments_are_a_tool_error(client: TestClient, engine: Engine) -> N
     assert unknown["error"]["code"] == -32602
 
 
+@pytest.mark.parametrize("value", [[], "", 0, False, None])
+def test_params_or_arguments_that_are_not_an_object_are_invalid(
+    client: TestClient, engine: Engine, value: object
+) -> None:
+    """Eval of 2026-10-24: one that was falsy was read as {}."""
+    token = flow.mint(engine, ALL)
+    ping = {"jsonrpc": "2.0", "id": 1, "method": "ping", "params": value}
+    answer = client.post("/mcp", json=ping, headers={"authorization": f"Bearer {token}"})
+    assert answer.json()["error"] == {"code": -32602, "message": "params must be an object"}
+    arguments = rpc(client, token, "tools/call", {"name": "get_tests", "arguments": value})
+    assert arguments.json()["error"] == {"code": -32602, "message": "arguments must be an object"}
+
+
+def test_an_id_no_answer_can_carry_is_invalid(client: TestClient, engine: Engine) -> None:
+    """Eval of 2026-10-24: JSON lets a lone surrogate (U+D800) through, and echoing it as the
+    id made the answer impossible to encode: HTTP 500."""
+    auth = {"authorization": f"Bearer {flow.mint(engine, ['training:read'])}"}
+    answer = client.post(
+        "/mcp",
+        content=b'{"jsonrpc":"2.0","id":"\\ud800","method":"ping"}',
+        headers=auth | {"content-type": "application/json"},
+    )
+    assert answer.status_code == 200
+    assert answer.json() == {
+        "jsonrpc": "2.0",
+        "id": None,
+        "error": {"code": -32600, "message": "id must be a string or a number"},
+    }
+
+
 # -------------------------------------------------------------------- the scope matrix
 
 

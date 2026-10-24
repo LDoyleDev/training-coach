@@ -30,7 +30,7 @@ from training_coach.db.models import (
 )
 from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import mcp_tokens, proposals, workout_log
+from training_coach.services import mcp_tokens, mcp_tools, proposals, workout_log
 from training_coach.services.mcp_tools import MARK
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
@@ -151,6 +151,7 @@ def test_an_invented_exercise_is_refused(client: TestClient, engine: Engine, tok
         ({"exercise": "Zone 2", "sets": [45], "unit": "min"}, "propose it with kind cardio"),
         ({"exercise": "Pull-up", "sets": [8], "unit": "kg"}, "unit"),
         ({"exercise": "Pull-up", "sets": [8], "unit": "", "weight": 20}, "Extra inputs"),
+        ({"exercise": "Pull-up", "sets": [True], "unit": ""}, "valid integer"),  # not 1 rep
     ],
 )
 def test_extreme_or_odd_strength_values_are_refused(
@@ -418,6 +419,18 @@ def test_a_ride_shows_its_speed_not_its_pace(client: TestClient, token: str) -> 
         ({"start": "25:00"}, "start"),
         ({"effort": 6}, "effort: Extra inputs are not permitted"),  # only the person says that
         ({"calories": 480}, "calories: Extra inputs are not permitted"),
+        # Eval of 2026-10-24: the schema's types, not what pydantic could make of them.
+        ({"minutes": True}, "minutes: Input should be a valid integer"),
+        ({"minutes": "45"}, "minutes: Input should be a valid integer"),
+        ({"distance_km": True}, "distance_km: Input should be a valid number"),
+        ({"avg_hr": "150"}, "avg_hr: Input should be a valid integer"),
+        ({"start": 3600}, "start: Value error, write it like 07:10"),
+        ({"day": 1792800000}, "day: Value error, write it like 2026-10-24"),
+        ({"start": "07:05Z"}, "start: Value error, write it like 07:10"),  # an offset, dropped
+        ({"start": "07:05+14:00"}, "start: Value error"),
+        ({"start": "07:05:59"}, "start: Value error"),
+        ({"start": "07:05:00.999999"}, "start: Value error"),
+        ({"start": "17:50", "minutes": 120}, "start plus minutes can't be later than now"),
     ],
 )
 @AFTER_THE_RUN
@@ -425,6 +438,30 @@ def test_odd_run_details_are_refused(
     client: TestClient, token: str, changes: dict[str, Any], why: str
 ) -> None:
     assert why in refused(client, token, **{**RUN, **changes})
+
+
+@AFTER_THE_RUN
+def test_the_card_names_every_metre_save_writes(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    """Eval of 2026-10-24: 0.0006 km is saved as 1 m, which the card showed as "0.00 km"."""
+    proposed(client, token, **{**RUN, "distance_km": 0.0006})
+    proposed(client, token, **{**RUN, "distance_km": 7.294})
+    tiny, odd = (card["summary"] for card in client.get("/api/proposals").json())
+    assert ", 0.001 km, 43000:00 /km," in tiny
+    assert ", 7.294 km, 5:54 /km," in odd
+    assert [p.payload["distance_m"] for p in _rows(engine, LogProposal)] == [1, 7294]
+
+
+def test_a_start_the_spring_change_skips_is_refused(client: TestClient, engine: Engine) -> None:
+    """Eval of 2026-10-24: 02:30 on 29 March never happens in Berlin; the card said 02:30 and
+    03:30 was stored."""
+    with time_machine.travel(datetime(2026, 3, 29, 10, 0, tzinfo=UTC), tick=False):
+        token = flow.mint(engine, PROPOSE)
+        assert "clocks went forward" in refused(client, token, **{**RUN, "start": "02:30"})
+        assert propose(client, token, **{**RUN, "start": "03:30"})["isError"] is False
+    (row,) = _rows(engine, LogProposal)
+    assert row.payload["started_at"] == "2026-03-29T01:30:00+00:00"  # 03:30 in Berlin
 
 
 @AFTER_THE_RUN
@@ -492,6 +529,7 @@ def test_measurements_are_saved_through_the_body_service(
         ({"waist": 4}, "Waist must be from 40 to 200 cm"),
         ({"resting_hr": 60}, "measurements.resting_hr"),
         ({"bodyweight": "heavy"}, "valid number"),
+        ({"bodyweight": "82.4"}, "valid number"),  # a number, as the schema says
         ({}, "at least 1 item"),
     ],
 )
@@ -505,6 +543,37 @@ def test_odd_measurements_are_refused(
 def test_an_unknown_kind_is_refused(client: TestClient, token: str) -> None:
     assert "kind" in refused(client, token, kind="plan", exercises=[PULL_UPS])
     assert "Extra inputs" in refused(client, token, kind="habits", habits=["protein"], plan="x")
+    # Eval of 2026-10-24: a 60,000-character name came back whole.
+    long_name = refused(client, token, kind="habits", habits=["protein"], **{"x" * 60_000: 1})
+    assert "Extra inputs" in long_name
+    assert len(long_name) < 300
+    assert len(refused(client, token, kind="y" * 60_000)) < 300
+
+
+def test_an_id_no_answer_can_carry_proposes_nothing(client: TestClient, engine: Engine) -> None:
+    """Eval of 2026-10-24: the answer to a lone surrogate id (U+D800) couldn't be encoded, so
+    the AI got a 500 while the proposal waited, and each retry made another."""
+    body = (
+        '{"jsonrpc":"2.0","id":"\\ud800","method":"tools/call","params":{"name":"propose_log",'
+        '"arguments":{"kind":"habits","habits":["protein"]}}}'
+    )
+    headers = {"authorization": f"Bearer {flow.mint(engine, PROPOSE)}"}
+    answer = client.post(
+        "/mcp", content=body, headers=headers | {"content-type": "application/json"}
+    )
+    assert answer.json()["error"]["code"] == -32600
+    assert _rows(engine, LogProposal) == []
+
+
+def test_an_answer_that_cant_be_sent_saves_no_proposal(
+    client: TestClient, engine: Engine, token: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The answer is encoded before the commit: if it can't be, the proposal is rolled back."""
+    monkeypatch.setattr(mcp_tools, "envelope", lambda _data: "\ud800")
+    with pytest.raises(UnicodeEncodeError):
+        call(client, token, "propose_log", kind="habits", habits=["protein"])
+    assert _rows(engine, LogProposal) == []
+    assert _events(engine, "mcp.call") == []
 
 
 # ------------------------------------------------------------- who may save or discard

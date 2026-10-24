@@ -21,15 +21,16 @@ revoking the connection discards its waiting ones. Events name the proposal and 
 never what it held. The caller owns the transaction and passes a session bound to the person.
 """
 
+import re
 import secrets
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Annotated, Any, Literal, cast, get_args
 from zoneinfo import ZoneInfo
 
 import structlog
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, TypeAdapter, ValidationError
 from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.orm import Session
 
@@ -58,19 +59,40 @@ TTL = timedelta(hours=24)
 SUMMARY_LENGTH = 1000  # the column's size: a bigger proposal is refused, never cut
 NAME_LENGTH = 40  # of the app's claimed name, as shown on the card and in Telegram
 REASONS = 3  # problems named in one refusal
+ECHO_LENGTH = 200  # of a refusal's message, which can quote what was sent (an unknown kind)
 
 
 # ------------------------------------------------------------------ what may be proposed
+# Numbers are strict (eval of 2026-10-24): true is not 1 minute, "45" is not a number, and a
+# day or start is a string in exactly the schema's form, never a Unix timestamp or a time with
+# seconds or an offset that would be dropped.
+
+
+def _shaped(pattern: str, example: str) -> Callable[[object], object]:
+    def check(value: object) -> object:
+        if not isinstance(value, str) or not re.fullmatch(pattern, value):
+            raise ValueError(f"write it like {example}")
+        return value
+
+    return check
+
+
+Day = Annotated[date, BeforeValidator(_shaped("[0-9]{4}-[0-9]{2}-[0-9]{2}", "2026-10-24"))]
+Clock = Annotated[time, BeforeValidator(_shaped("[0-2][0-9]:[0-5][0-9]", "07:10"))]
 
 
 class _Proposal(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    day: date | None = None  # today when left out
+    day: Day | None = None  # today when left out
+
+
+class _Line(RewriteLine):
+    sets: list[Annotated[int, Field(ge=0, strict=True)]] = Field(max_length=20)
 
 
 class StrengthProposal(_Proposal):
     kind: Literal["strength"]
-    exercises: list[RewriteLine] = Field(min_length=1, max_length=30)
+    exercises: list[_Line] = Field(min_length=1, max_length=30)
 
 
 CardioKind = details.Timed
@@ -81,13 +103,13 @@ UNPICKED = "Cardio"  # a cardio summary's first word until the person picks zone
 class CardioProposal(_Proposal):
     kind: Literal["cardio"]
     cardio: CardioKind | None = None  # the AI's hint only: the person picks
-    minutes: int = Field(ge=1, le=MAX_MINUTES)
+    minutes: int = Field(ge=1, le=MAX_MINUTES, strict=True)
     activity: CardioActivity | None = None
     # From the app or watch that recorded it (ADR-0067); bounds beyond these: domain/cardio.py.
-    distance_km: float | None = Field(default=None, gt=0, allow_inf_nan=False)
-    avg_hr: int | None = None
-    max_hr: int | None = None
-    start: time | None = None  # local clock time on that day, e.g. "07:10"
+    distance_km: float | None = Field(default=None, gt=0, allow_inf_nan=False, strict=True)
+    avg_hr: int | None = Field(default=None, strict=True)
+    max_hr: int | None = Field(default=None, strict=True)
+    start: Clock | None = None  # local clock time on that day, e.g. "07:10"
 
 
 class HabitsProposal(_Proposal):
@@ -101,7 +123,7 @@ BodyKind = Literal["bodyweight", "waist", "chest", "upper_arm", "thigh"]
 
 class BodyProposal(_Proposal):
     kind: Literal["body"]
-    measurements: dict[BodyKind, Annotated[float, Field(allow_inf_nan=False)]] = Field(
+    measurements: dict[BodyKind, Annotated[float, Field(allow_inf_nan=False, strict=True)]] = Field(
         min_length=1, max_length=5
     )
 
@@ -188,14 +210,16 @@ class _Checked:
 
 
 def _reason(error: ValidationError) -> str:
-    """Pydantic's complaints as one short line, without echoing the input."""
+    """Pydantic's complaints as one short line, without echoing the input: an unknown
+    argument's name, or the kind quoted in a message, is cleaned and cut like an app's name."""
     found = error.errors(include_url=False, include_input=False, include_context=False)
     parts = []
     for item in found[:REASONS]:
         loc = item["loc"]
         loc = loc[1:] if loc[:1] in ((STRENGTH,), (CARDIO,), (HABITS,), (BODY,)) else loc
-        where = ".".join(str(p) for p in loc)  # without the kind pydantic puts first
-        parts.append(f"{where}: {item['msg']}" if where else str(item["msg"]))
+        where = ".".join(_source(str(p)) for p in loc)  # without the kind pydantic puts first
+        msg = _source(str(item["msg"]), ECHO_LENGTH)
+        parts.append(f"{where}: {msg}" if where else msg)
     return "; ".join(parts)
 
 
@@ -247,8 +271,9 @@ def _strength(
 def _details_text(found: CardioProposal, given: details.Details) -> str:
     """ ", 7.29 km, 5:54 /km, HR 139 avg, 160 max, started 07:10": what the app showed."""
     parts = []
-    if given.distance_m is not None:
-        parts.append(f"{given.distance_m / 1000:.2f} km")
+    if given.distance_m is not None:  # every metre Save writes: 1 m is 0.001 km, not 0.00
+        places = 2 if given.distance_m % 10 == 0 else 3
+        parts.append(f"{given.distance_m / 1000:.{places}f} km")
         speed = details.speed(found.minutes, given.distance_m)
         pace = details.pace(found.minutes, given.distance_m)
         if details.by_speed(found.activity) and speed is not None:  # a ride: 24.3 km/h
@@ -292,9 +317,9 @@ def _cardio(
     )
     # On the proposal's own day, never rolled back like a typed start (review of #305): the AI
     # names the day, and a moved start would not match the card.
-    started_at = (
-        datetime.combine(day, found.start, tzinfo=tz).astimezone(UTC) if found.start else None
-    )
+    started_at = cardio.at(day, found.start, tz) if found.start else None
+    if found.start and started_at is None:
+        return Refused(cardio.SKIPPED)
     if started_at is not None and started_at > now:
         return Refused("start can't be later than now")
     given = details.Details(
@@ -304,7 +329,7 @@ def _cardio(
         started_at=started_at,
     )
     # Both kinds share these bounds; which kind it was, the person picks when saving.
-    if problem := cardio.problem(details.TIMED[0], found.minutes, given):
+    if problem := cardio.problem(details.TIMED[0], found.minutes, given, now):
         return Refused(problem)
     suggested, observed = _suggestion(session, found, today)
     what = f" ({found.activity.value})" if found.activity is not None else ""
@@ -489,9 +514,9 @@ class Pending:
         return f"From “{self.source}”: {self.summary}{replaces}{pick}"
 
 
-def _source(name: str) -> str:
+def _source(name: str, length: int = NAME_LENGTH) -> str:
     clean = " ".join("".join(c if c.isprintable() else " " for c in name).split())
-    return clean if len(clean) <= NAME_LENGTH else clean[: NAME_LENGTH - 1] + "…"
+    return clean if len(clean) <= length else clean[: length - 1] + "…"
 
 
 def _replaces(session: Session, row: LogProposal) -> str | None:

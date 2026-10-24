@@ -66,7 +66,8 @@ A person can share a run's screenshot with their own AI, which proposes the log 
 `max_hr` and `start` (local HH:MM) on a cardio proposal, checked with the same bounds as
 the form, and the card shows them with the pace. A proposal's start is on the proposal's own
 day and is refused if later than now: unlike a typed start it is never moved to the day before,
-which the card would not show. It refuses `effort`: how a run felt is
+which the card would not show. A start the spring change skips (02:30 on its day), or one whose
+minutes would end after now, is refused there and in the form alike (eval of 2026-10-24). It refuses `effort`: how a run felt is
 not on a screenshot, and only the person knows it. The web card asks for it, 1 to 10, before
 Save on every cardio proposal, with or without details, as the form does: session load is
 minutes × effort, and the web is where it can be asked. So the web is deliberately stricter

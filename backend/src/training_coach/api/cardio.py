@@ -91,6 +91,8 @@ def log(body: LogBody, request: Request, user: Owner) -> LoggedView:
     now = datetime.now(UTC)
     on = local_date(now, settings.tz)
     started = cardio.started(on, body.start, settings.tz, now) if body.start else None
+    if body.start and started is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, cardio.SKIPPED)
     found = details.Details(
         effort=body.effort,
         distance_m=round(body.distance_km * 1000) if body.distance_km is not None else None,
@@ -98,7 +100,7 @@ def log(body: LogBody, request: Request, user: Owner) -> LoggedView:
         max_hr=body.max_hr,
         started_at=started,
     )
-    if (problem := cardio.problem(body.kind, body.value, found)) is not None:
+    if (problem := cardio.problem(body.kind, body.value, found, now)) is not None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, problem)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         result = cardio.log(
