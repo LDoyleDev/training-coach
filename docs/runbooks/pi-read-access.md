@@ -9,8 +9,33 @@ How it is safe: the Pi ties the key to one command, `~/bin/tc-read` (a copy of
 `scripts/pi-read.sh`), in `authorized_keys`. Whatever the client sends arrives in that script as
 text and only its fixed subcommands run; `restrict` turns off forwarding and terminals. The
 database is opened read-only with `query_only` on and an authorizer that allows only reads, and
-secret and binary columns (hashes, tokens, keys, photos) come back empty; only a fixed list of SQL functions runs, and no value may pass 1 MB. Logs are not masked like that: the app keeps secrets out of them (`backend/CLAUDE.md`, Logging) and the helper redacts query strings, Telegram bot tokens, bearer headers and ingest secrets on top. A secret stored under a harmless column name, or inside a JSON column, would not be masked; `backend/tests/test_pi_read.py` checks the models by name. Deploys don't update the installed copy:
+secret and binary columns (hashes, tokens, keys, photos) come back empty; only a fixed list of SQL functions runs, and a query has its own small memory, time and output budget (below), so it can't take the app down. Logs are not masked like that: the app keeps secrets out of them (`backend/CLAUDE.md`, Logging) and the helper redacts query strings, Telegram bot tokens, bearer headers and ingest secrets on top. A secret stored under a harmless column name, or inside a JSON column, would not be masked; `backend/tests/test_pi_read.py` checks the models by name. Deploys don't update the installed copy:
 widening what the key can do is a deliberate copy, never a side effect of a release.
+
+## Limits on `sql`
+
+The query runs inside the app's container (`docker compose exec`), so its memory counts against
+the app's 512 MB (`compose.yaml`). Had a query used that up, the kernel would kill the app, the
+biggest process there, not the query: in the review of 2026-10-24 a large sort spilled into the
+container's `/tmp` (a tmpfs, so memory too) and took the app down in 3 seconds. So each query
+has a budget of its own and fails alone, with a message:
+
+| Limit | Value | Message |
+|---|---|---|
+| Time | 20 s | `stopped at the 20 s limit` |
+| SQLite's memory | 64 MB (`hard_heap_limit`); sorts and temporary tables stay in it (`temp_store = MEMORY`), never in `/tmp` | `the query needs more than its 64 MB of memory: ...` |
+| The query's process | 192 MB of address space (`RLIMIT_AS`), a backstop | the same |
+| Output | 4 MB in all, header included | `stopped at 4 MB of output: ...`, after the rows that fit |
+| Columns | 100 (the widest table has 20) | `too many columns in result set` |
+| Rows | 500 | none: the rest isn't printed, so count with `count(*)` |
+| One value | 1 MB | `string or blob too big` (a `printf` past it comes back empty) |
+
+A sort with a `LIMIT` keeps only that many rows, so `ORDER BY ... LIMIT 50` fits where sorting
+a whole large table might not. The query can't lift its limits: setting a pragma is refused like
+any other write. Checked under the compose limits (512 MB, read-only, tmpfs `/tmp`) on the
+image the app is built from (Debian 13, SQLite 3.46.1) and on bookworm (SQLite 3.40.1): the
+queries that killed the app now fail with these messages, the container stays under 300 MB
+with a 210 MB stand-in app, and `/tmp` stays empty.
 
 ## 1. The key (desktop, PowerShell)
 
@@ -61,6 +86,7 @@ exit
 ssh tc-read status
 ssh tc-read band
 ssh tc-read logs 2h ingest
+ssh tc-read logs 2h nothing-like-this      # no matching lines in the last 2h
 ssh tc-read sql "SELECT local_date, status FROM workouts ORDER BY id DESC LIMIT 3"
 ssh tc-read sql "DELETE FROM workouts"     # refused: only SELECT, WITH or a schema PRAGMA
 ssh tc-read "cat /etc/passwd"              # prints the help: nothing else runs
