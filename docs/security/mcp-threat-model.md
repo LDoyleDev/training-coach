@@ -156,6 +156,9 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11, and 20
 15. `propose_log`:
    - input passes the typed-log Pydantic model and the rule parser, or is refused with a reason;
    - a valid proposal creates an unsaved draft only;
+   - a cardio proposal may carry distance, heart rate and start, checked with the bounds of
+     a typed cardio log, but never effort, which the person picks on the card (ADR-0067).
+     A screenshot the person shares stays with their AI: the coach gets only these numbers;
    - saving needs the person's web session or the `owner_only` bot button, and a token-authenticated request to confirm is refused;
    - at most 3 proposals are pending per connection;
    - a proposal is gone 24 hours after it was made, and revoking its connection discards it

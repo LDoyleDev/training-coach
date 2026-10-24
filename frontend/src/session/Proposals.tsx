@@ -12,6 +12,12 @@ import SignedOutNotice from '../components/SignedOutNotice'
 import ClashQuestion from './ClashQuestion'
 import { actions, card, primaryInline, secondary } from '../ui'
 
+const chip = (on: boolean) =>
+  'min-h-11 rounded-full border-2 px-2 font-bold ' +
+  (on
+    ? 'border-[var(--bell-ink)] bg-[var(--bell-ink)] text-[var(--chalk)]'
+    : 'border-[var(--ink)] text-[var(--ink)]')
+
 const GONE = 'That proposal has gone: it expired after 24 hours, or its app was disconnected.'
 
 /**
@@ -21,6 +27,8 @@ const GONE = 'That proposal has gone: it expired after 24 hours, or its app was 
  * here (and in Telegram), never to the AI. Saving goes through the normal log, so Undo
  * takes a workout back: ``onSaved`` hears what to say and the page reloads today and Undo.
  * One for a day that already has its session asks first (ADR-0060); it waits until answered.
+ * A cardio one (a run read from a screenshot, say) asks how it felt, 1 to 10, before Save, as
+ * the cardio form does: the AI never sends that, only the person knows it (ADR-0067).
  */
 export default function Proposals({ onSaved }: { onSaved: (text: string) => void }) {
   const [proposals, setProposals] = useState<Proposal[]>([])
@@ -28,6 +36,7 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
   const [note, setNote] = useState<string | null>(null)
   const [signedOut, setSignedOut] = useState(false)
   const [loads, setLoads] = useState(0)
+  const [efforts, setEfforts] = useState<Record<string, number>>({})
   const [question, setQuestion] = useState<{
     token: string
     clash: Clash
@@ -51,7 +60,7 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
         await discardProposal(proposal.token)
         setNote('Discarded. Nothing was saved.')
       } else {
-        const result = await saveProposal(proposal.token, reply)
+        const result = await saveProposal(proposal.token, reply, efforts[proposal.token])
         if (typeof result === 'object' && 'clash' in result) {
           if (result.clash.moving && question) setQuestion({ ...question, taken: result.clash })
           else setQuestion({ token: proposal.token, clash: result.clash, taken: null })
@@ -87,6 +96,25 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
             From <strong>“{proposal.source}”</strong>: {proposal.summary}
           </p>
           {proposal.replaces && <p className="m-0 mt-1 font-bold">{proposal.replaces}.</p>}
+          {proposal.kind === 'cardio' && (
+            <fieldset className="mt-2 flex flex-col gap-2 border-0 p-0">
+              <legend className="mb-2 font-bold">How it felt, 1 (very easy) to 10 (all out)</legend>
+              <div className="grid grid-cols-5 gap-2">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    aria-pressed={efforts[proposal.token] === n}
+                    aria-label={`Effort ${n}`}
+                    className={chip(efforts[proposal.token] === n)}
+                    onClick={() => setEfforts({ ...efforts, [proposal.token]: n })}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
           {question?.token === proposal.token && (
             <div className="mt-2">
               <ClashQuestion
@@ -105,10 +133,12 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
             <button
               type="button"
               className={primaryInline}
-              disabled={busy !== null}
+              disabled={busy !== null || (proposal.kind === 'cardio' && !efforts[proposal.token])}
               onClick={() => void answer(proposal, true)}
             >
-              Save
+              {proposal.kind === 'cardio' && !efforts[proposal.token]
+                ? 'Pick how it felt to save'
+                : 'Save'}
             </button>
             <button
               type="button"
