@@ -22,6 +22,9 @@ android {
         targetSdk = 36
         versionCode = major * 10_000 + minor * 100 + patch
         versionName = appVersion
+        // The one place the secret may go (security review of 24 Oct): not typed, so a pasted
+        // look-alike or a moment with the unlocked phone can't send it elsewhere.
+        buildConfigField("String", "COACH_URL", "\"https://coach.vybe-dev.com/api/ingest/health-connect\"")
     }
 
     signingConfigs {

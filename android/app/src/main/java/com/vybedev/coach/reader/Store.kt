@@ -7,15 +7,16 @@ import java.time.LocalDate
 class Store(context: Context) {
     private val prefs = context.getSharedPreferences("reader", Context.MODE_PRIVATE)
 
-    var address: String
-        get() = prefs.getString("address", "").orEmpty()
-        set(value) = prefs.edit().putString("address", value.trim()).apply()
-
     val hasSecret get() = prefs.contains("secret")
 
     fun saveSecret(secret: String) = prefs.edit().putString("secret", SecretBox.seal(secret.trim())).apply()
 
-    fun secret(): String? = prefs.getString("secret", null)?.let(SecretBox::open)
+    /** The secret, or null. One that can't be opened (its Keystore key is gone) is forgotten,
+     * so the screen asks for it again instead of saying it's saved. */
+    fun secret(): String? {
+        val sealed = prefs.getString("secret", null) ?: return null
+        return SecretBox.open(sealed) ?: null.also { prefs.edit().remove("secret").apply() }
+    }
 
     /** Health Connect's changes token for heart rate: null until the first good sync. */
     var heartToken: String?
