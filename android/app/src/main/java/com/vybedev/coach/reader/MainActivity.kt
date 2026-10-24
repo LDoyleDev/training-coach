@@ -71,9 +71,13 @@ private fun ReaderScreen() {
         // Health Connect reads only while the app is on screen, so the screen stays awake.
         window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         scope.launch {
-            result = runCatching { job() }.getOrElse { "Failed: ${it.message ?: it.javaClass.simpleName}" }
-            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            busy = false
+            try {
+                result = runCatching { job() }.getOrElse { "Failed: ${it.message ?: it.javaClass.simpleName}" }
+            } finally {
+                // Also when the screen goes away mid-sync, so it never stays awake for good.
+                window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                busy = false
+            }
         }
     }
 

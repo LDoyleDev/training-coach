@@ -19,8 +19,7 @@ data class Answer(val status: Int, val body: String) {
  * What to say when Health Connect refuses a read. The trial (ADR-0070) needs the quota error
  * seen as it came, so its own words stay in the message.
  */
-fun readFailure(message: String?): String {
-    val said = message ?: "no reason given"
+fun readFailure(said: String): String {
     return when {
         said.contains("foreground", ignoreCase = true) ->
             "Health Connect stopped reading because the app left the screen. Tap Sync now " +

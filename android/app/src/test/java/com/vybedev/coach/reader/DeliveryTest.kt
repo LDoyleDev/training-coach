@@ -55,7 +55,9 @@ class DeliveryTest {
 
     @Test
     fun `the quota error keeps Health Connect's own words`() {
-        val said = "Rate limited request quota has been exceeded"
+        // As the phone showed it on 2026-10-24 (Health Connect on Android 12).
+        val said = "Request rejected. Rate limited request quota has been exceeded. Please wait " +
+            "until quota has replenished before making further requests."
         assertEquals("Health Connect's read limit was reached: $said", readFailure(said))
     }
 
