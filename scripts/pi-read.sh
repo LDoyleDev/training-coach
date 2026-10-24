@@ -9,8 +9,9 @@
 #                     TEXT a fixed string to keep (case-insensitive)
 #   deploy            the last runs of the auto-deploy service
 #   band              band import: last sync, last refusal, what has arrived
-#   sql QUERY         one SELECT (or WITH, or a schema PRAGMA); at most 500 rows; secret columns
-#                     (hashes, tokens, keys, photos) come back empty
+#   sql QUERY         one SELECT (or WITH, or a schema PRAGMA); at most 500 rows, 100 columns and
+#                     4 MB back, 64 MB of memory and 20 s to run; secret columns (hashes, tokens,
+#                     keys, photos) come back empty
 # The installed copy is not updated by deploys: changing what the key can do is a deliberate
 # copy, not a side effect of a release.
 set -euo pipefail
@@ -21,7 +22,12 @@ DB_URI="file:/data/training_coach.db?mode=ro"
 
 # Runs inside the app container. argv[1] is the query, passed as one argument: no shell sees it.
 read -r -d '' QUERY_PY <<'PY' || true
-import re, sqlite3, sys, time
+import itertools, re, sqlite3, sys, time
+
+try:
+    import resource
+except ImportError:  # Windows, where the tests also run this; the Pi is Linux
+    resource = None
 
 # Kept in step with the models by tests/test_pi_read.py: every secret or binary column matches.
 SECRET = re.compile(r"hash|secret|token|key|credential|private|password|challenge|cookie|jpeg|photo|image", re.I)
@@ -33,11 +39,24 @@ FUNCTIONS = {
     "nullif", "printf", "replace", "round", "strftime", "substr", "substring", "sum", "time",
     "total", "trim", "typeof", "unixepoch", "upper",
 }
+# The query runs in the app's container and counts against its 512 MB (compose.yaml). Had it used
+# that up, the kernel would kill the app, the biggest process there, so the query has a budget
+# of its own and fails first (review of 2026-10-24): SQLite's heap is capped, sorts and temporary
+# tables stay in that heap instead of spilling to /tmp (a tmpfs, counted against the same 512 MB),
+# and the whole process is held to a small address space. The output is capped in total too.
+HEAP_MB, PROCESS_MB, OUTPUT_MB, MAX_COLUMNS, MAX_ROWS = 64, 192, 4, 100, 500
+if resource is not None:
+    resource.setrlimit(resource.RLIMIT_AS, (PROCESS_MB << 20, PROCESS_MB << 20))
 query = sys.argv[1].strip()
 if not re.match(r"(select|with|pragma)\b", query, re.I):
     sys.exit("only SELECT, WITH or a schema PRAGMA")
 db = sqlite3.connect(sys.argv[2], uri=True)
 db.execute("PRAGMA query_only = ON")
+db.execute("PRAGMA temp_store = MEMORY")
+db.execute(f"PRAGMA hard_heap_limit = {HEAP_MB << 20}")
+budget = (db.execute("PRAGMA temp_store").fetchone(), db.execute("PRAGMA hard_heap_limit").fetchone())
+if budget != ((2,), (HEAP_MB << 20,)):
+    sys.exit("this SQLite can't hold the query to a memory budget, so it doesn't run")
 
 
 def allow(action, arg1, arg2, _db, _source):
@@ -54,12 +73,30 @@ def allow(action, arg1, arg2, _db, _source):
 
 db.set_authorizer(allow)
 db.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, 1_000_000)  # no value over 1 MB
+db.setlimit(sqlite3.SQLITE_LIMIT_COLUMN, MAX_COLUMNS)  # the widest table has 20
 deadline = time.monotonic() + 20
 db.set_progress_handler(lambda: int(time.monotonic() > deadline), 10_000)
-cursor = db.execute(query)
-print("\t".join(c[0] for c in cursor.description or ()))
-for row in cursor.fetchmany(500):
-    print("\t".join("" if v is None else str(v) for v in row))
+
+
+def run():
+    cursor = db.execute(query)
+    header = "\t".join(c[0] for c in cursor.description or ())
+    print(header)
+    size = len(header) + 1
+    for row in itertools.islice(cursor, MAX_ROWS):  # one row at a time, not all 500 at once
+        values = ["" if v is None else str(v) for v in row]
+        size += sum(map(len, values)) + len(values)
+        if size > OUTPUT_MB * 1_000_000:
+            sys.exit(f"stopped at {OUTPUT_MB} MB of output: ask for fewer or narrower columns, or fewer rows")
+        print("\t".join(values))
+
+
+try:
+    run()
+except MemoryError:
+    sys.exit(f"the query needs more than its {HEAP_MB} MB of memory: add a LIMIT (a sort then keeps only those rows), or ask for fewer or narrower columns")
+except sqlite3.Error as error:
+    sys.exit("stopped at the 20 s limit" if time.monotonic() > deadline else f"failed: {error}")
 PY
 
 query() {
@@ -99,10 +136,14 @@ case "${sub:-}" in
     since="${since:-6h}"
     [[ "$since" =~ ^[0-9]{1,4}[smhd]$ ]] || { echo "SINCE like 30m, 6h or 2d" >&2; exit 2; }
     cd "$REPO_DIR"
-    if [[ -n "${text:-}" ]]; then
-      docker compose logs --no-color --since "$since" app 2>&1 | grep -v healthz | redact | grep -iF -- "$text" | tail -n 300
+    # grep finding nothing is an answer, not a failure: under pipefail it ended the script, silent.
+    # An empty TEXT keeps every line.
+    lines="$(docker compose logs --no-color --since "$since" app 2>&1 | { grep -v healthz || true; } |
+      redact | { grep -iF -- "${text:-}" || true; } | tail -n 300)"
+    if [[ -n "$lines" ]]; then
+      printf '%s\n' "$lines"
     else
-      docker compose logs --no-color --since "$since" app 2>&1 | grep -v healthz | redact | tail -n 300
+      echo "no matching lines in the last $since"
     fi
     ;;
   deploy)
