@@ -136,10 +136,15 @@ case "${sub:-}" in
     since="${since:-6h}"
     [[ "$since" =~ ^[0-9]{1,4}[smhd]$ ]] || { echo "SINCE like 30m, 6h or 2d" >&2; exit 2; }
     cd "$REPO_DIR"
+    # Docker failing (daemon down, no app service) is said, not lost in the filters below.
+    raw="$(docker compose logs --no-color --since "$since" app 2>&1)" || {
+      echo "docker compose logs failed: $(printf '%s\n' "$raw" | tail -n 20 | redact)" >&2
+      exit 1
+    }
     # grep finding nothing is an answer, not a failure: under pipefail it ended the script, silent.
     # An empty TEXT keeps every line.
-    lines="$(docker compose logs --no-color --since "$since" app 2>&1 | { grep -v healthz || true; } |
-      redact | { grep -iF -- "${text:-}" || true; } | tail -n 300)"
+    lines="$(printf '%s\n' "$raw" | { grep -v healthz || true; } | redact |
+      { grep -iF -- "${text:-}" || true; } | tail -n 300)"
     if [[ -n "$lines" ]]; then
       printf '%s\n' "$lines"
     else

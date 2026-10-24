@@ -215,31 +215,39 @@ def test_every_table_fits_in_the_column_cap(tmp_path: Path, engine: Engine) -> N
     assert done.returncode == 0, done.stderr
 
 
-def test_logs_with_no_match_say_so(tmp_path: Path) -> None:
-    """grep finding nothing used to end the script (pipefail) with exit 1 and not a word."""
+def _logs(tmp_path: Path, docker_script: str, command: str) -> subprocess.CompletedProcess[str]:
+    """Runs the helper's `logs` with a stub standing in for `docker compose logs`."""
     bash = shutil.which("bash")
     if bash is None:
         pytest.skip("no bash")
     bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    docker = bin_dir / "docker"  # stands in for `docker compose logs`
-    docker.write_text("#!/bin/sh\necho 'GET /healthz 200'\necho 'band.import 3 rows'\n")
+    bin_dir.mkdir(exist_ok=True)
+    docker = bin_dir / "docker"
+    docker.write_text("#!/bin/sh\n" + docker_script)
     docker.chmod(0o755)
     env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
-    env["TC_REPO_DIR"] = str(tmp_path)
+    env |= {"TC_REPO_DIR": str(tmp_path), "SSH_ORIGINAL_COMMAND": command}
+    return subprocess.run(  # noqa: S603 - our own script, fixed arguments
+        [bash, str(SCRIPT)], env=env, capture_output=True, text=True, check=False
+    )
 
-    def logs(command: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(  # noqa: S603 - our own script, fixed arguments
-            [bash, str(SCRIPT)],
-            env={**env, "SSH_ORIGINAL_COMMAND": command},
-            capture_output=True,
-            text=True,
-            check=False,
-        )
 
-    found = logs("logs 2h BAND.import")
+def test_logs_with_no_match_say_so(tmp_path: Path) -> None:
+    """grep finding nothing used to end the script (pipefail) with exit 1 and not a word."""
+    lines = "echo 'GET /healthz 200'\necho 'band.import 3 rows'\n"
+    found = _logs(tmp_path, lines, "logs 2h BAND.import")
     assert (found.returncode, found.stdout) == (0, "band.import 3 rows\n"), found.stderr
     for command in ("logs 2h nothing-like-this", "logs 2h healthz"):
-        done = logs(command)
+        done = _logs(tmp_path, lines, command)
         assert done.returncode == 0, done.stderr
         assert "no matching lines" in done.stdout
+
+
+@pytest.mark.parametrize("command", ["logs 2h", "logs 2h band"])
+def test_logs_say_when_docker_fails(tmp_path: Path, command: str) -> None:
+    """Docker's error went into the filters and the script exited 1 without a word (#317)."""
+    failing = "echo 'Cannot connect to the Docker daemon' >&2\nexit 1\n"
+    done = _logs(tmp_path, failing, command)
+    assert done.returncode == 1
+    assert "docker compose logs failed: Cannot connect to the Docker daemon" in done.stderr
+    assert "no matching lines" not in done.stdout
