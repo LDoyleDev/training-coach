@@ -64,13 +64,23 @@ An eval found three gaps; the decision above otherwise stands.
   (the backup was already taken). If that is cut off too, or the rollback was, it rolls back
   once and the failed mark holds, so neither is retried forever. We chose a marker over asking
   the running app its version on every run: the steady state stays a fetch and nothing else.
+  The marker is a file in `.git`, so a run that finds it trusts nothing in it: the tag must be a
+  release tag and the commit a full id, and the tag passes every check a new deploy does (on
+  `main`, forward, signed by GitHub with the key from the commit deployed before) before
+  anything is built. A security test the same day showed a planted marker had skipped them.
 - **The failed mark can't stop the rollback.** It is still written before the rollback, so an
   interrupted rollback isn't followed by the same deploy, but a write that fails (a full disk)
   is logged instead of ending the script.
 - **Old images are removed after a healthy deploy.** One image per release filled the SD card.
   Only images with the Dockerfile's `training-coach.app` label are removed, keeping the one
-  running and the one it replaced. Never other projects' images or volumes.
+  running and the one the app's container ran before the deploy, recorded when it starts. Not
+  the newest other image: after a rollback by hand whose build was all cached, that one never
+  ran (security test, same day). If what ran before isn't known, nothing is removed. Never
+  other projects' images or volumes.
 - **Release tags deleted upstream are deleted locally** (`git fetch --prune`, `v*` only), so a
   stray tag fixed upstream can't stay the newest and block every later release. A tag moved in
-  place is still refused. A tag deleted and later made again arrives as a new tag, and passes
-  only the checks every release does: on `main`, forward, and signed by GitHub (ADR-0043).
+  place is still refused. So is a tag deleted and made again on another commit, which the
+  fetch takes for a new tag: each healthy deploy adds `<tag> <commit>` to
+  `.git/auto-deploy-tags`, and a tag listed there at a different commit is not deployed
+  (security test, same day). A tag never deployed here, made again, still passes the checks
+  every release does: on `main`, forward, and signed by GitHub (ADR-0043).

@@ -7,7 +7,8 @@
 #   never does, roll the code back, unless the release changed the schema (then restoring the
 #   backup needs a person). Either way the failed tag is not tried again until someone deploys
 #   by hand or deletes .git/auto-deploy-failed. A deploy cut off part way (a power cut, a
-#   reboot, the unit's timeout) is finished by the next run (.git/auto-deploy-pending).
+#   reboot, the unit's timeout) is finished by the next run (.git/auto-deploy-pending), after
+#   the same checks again. A tag deployed here before is never deployed at another commit.
 # Env: TC_DEPLOY_REMOTE    where tags come from (default: the public repo over HTTPS)
 #      TC_HEALTH_URL       default http://127.0.0.1:8095/healthz (the port on vybe-pi)
 #      TC_HEALTH_TIMEOUT   seconds to wait for health after a rebuild (default 180)
@@ -25,10 +26,17 @@ FAILED_MARK=".git/auto-deploy-failed"
 # "<tag> <commit deployed before> [resumed]": written before the checkout, removed once the
 # deploy is over either way, so a run that finds it knows the last one was cut off.
 PENDING_MARK=".git/auto-deploy-pending"
+# "<tag> <commit>" for every tag deployed here, one line each, added after each healthy deploy:
+# a tag deleted upstream and made again elsewhere isn't refused by the fetch, so by this.
+DEPLOYED_TAGS=".git/auto-deploy-tags"
+# The image that ran before the deploy in progress, written with the pending mark: the one the
+# clean-up keeps for going back by hand.
+REPLACED_IMAGE=".git/auto-deploy-replaced-image"
+RELEASE='^v[0-9]+\.[0-9]+\.[0-9]+$'
 IMAGE="training-coach:local"     # compose.yaml's image:
 IMAGE_LABEL="training-coach.app" # the Dockerfile's LABEL: only these images are ever removed
 # GitHub signs every commit it makes, squash merges included, with this key (ADR-0043). Pinned
-# here and read from the checkout already deployed, so a release can't vouch for itself.
+# here and read from the commit already deployed, so a release can't vouch for itself.
 GITHUB_KEY="scripts/keys/github-web-flow.gpg"
 GITHUB_FINGERPRINT="968479A1AFF927E37D1A566BB5690EEEBB952194"
 
@@ -46,7 +54,9 @@ unsigned_commit() {
     return
   fi
   home=$(mktemp -d)
-  if ! "$GPG" --homedir "$home" --batch --quiet --import "$GITHUB_KEY" 2>/dev/null; then
+  # From $1, not the working tree: a resumed deploy may have the release checked out already.
+  if ! git show "$1:$GITHUB_KEY" >"$home/github.gpg" 2>/dev/null ||
+    ! "$GPG" --homedir "$home" --batch --quiet --import "$home/github.gpg" 2>/dev/null; then
     found="$2" # the key didn't load, so nothing is checked
   else
     for commit in $commits; do
@@ -87,21 +97,34 @@ healthy() {
   done
 }
 
-# After a healthy deploy: this app's images except the one running and the one it replaced (the
-# newest other, kept for going back by hand). Never other projects' images, never volumes.
-# Nothing here fails the deploy.
+# The image of the app's running container, or nothing.
+running_image() {
+  local container
+  container=$(docker compose ps --quiet app 2>/dev/null | head -n 1) || container=""
+  if [ -n "$container" ]; then
+    docker inspect --format '{{.Image}}' "$container" 2>/dev/null || true
+  fi
+}
+
+# After a healthy deploy: this app's images except the one running and the one that ran before
+# the deploy ($REPLACED_IMAGE), kept for going back by hand. Not the newest other: after a
+# rollback by hand whose build was all cached, the newest other never ran. If what ran before
+# isn't known, nothing is removed. Never other projects' images, never volumes. Nothing here
+# fails the deploy.
 remove_old_images() {
-  local running ids id kept=""
+  local running replaced ids id
   running=$(docker image inspect --format '{{.Id}}' "$IMAGE" 2>/dev/null) || return 0
-  # Newest first, one line per tag: an image tagged twice is seen once.
+  replaced=$(cat "$REPLACED_IMAGE" 2>/dev/null) || replaced=""
+  if [ -z "$replaced" ]; then
+    log "not removing old images: which one ran before this deploy isn't known"
+    return 0
+  fi
+  # One line per tag: an image tagged twice is seen once.
   ids=$(docker image ls --quiet --no-trunc --filter "label=$IMAGE_LABEL" | awk '!seen[$0]++') ||
     return 0
   for id in $ids; do
-    if [ "$id" = "$running" ]; then
-      continue
-    elif [ -z "$kept" ]; then
-      kept="$id"
-    elif ! docker image rm "$id" >/dev/null 2>&1; then
+    if [ "$id" != "$running" ] && [ "$id" != "$replaced" ] &&
+      ! docker image rm "$id" >/dev/null 2>&1; then
       log "could not remove the old image $id (a container still uses it?)"
     fi
   done
@@ -109,10 +132,17 @@ remove_old_images() {
 
 # Rebuild on tag $1, checked out, and wait for its version. $2 is the commit deployed before.
 finish_deploy() {
+  local deployed
   if docker compose up -d --build && healthy "\"version\":\"${1#v}\""; then
+    deployed="$1 $(git rev-parse HEAD)"
+    if ! grep -qxF -- "$deployed" "$DEPLOYED_TAGS" 2>/dev/null; then
+      { echo "$deployed" >>"$DEPLOYED_TAGS"; } 2>/dev/null ||
+        log "could not write $DEPLOYED_TAGS (disk full?); $1 is deployed but not remembered"
+    fi
     rm -f "$FAILED_MARK" "$PENDING_MARK"
     log "deployed $1"
     remove_old_images
+    rm -f "$REPLACED_IMAGE"
     return 0
   fi
   log "ERROR: $1 did not report healthy within ${HEALTH_TIMEOUT}s"
@@ -157,11 +187,19 @@ roll_back() {
 # The last run was cut off after the backup, so the checkout may be on the new tag while the
 # old image runs. Build once more; if that was cut off already, or the rollback was, roll back
 # instead, and only once: then the failed mark holds, as after any failed deploy.
+# The mark is read as if anyone could have written it: the tag must be a release and the commit
+# a full id (neither then reads as an option or another kind of name), and the release passes
+# every check a new deploy does before anything is built.
 resume_deploy() {
   local tag previous resumed head target before
   read -r tag previous resumed <"$PENDING_MARK" || true
+  if ! [[ "$tag" =~ $RELEASE && "$previous" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ &&
+    "$resumed" =~ ^(resumed)?$ ]]; then
+    log "ERROR: $PENDING_MARK is not one this script wrote; delete it"
+    return 1
+  fi
   head=$(git rev-parse HEAD)
-  target=$(git rev-parse --verify --quiet "$tag^{commit}") || target=""
+  target=$(git rev-parse --verify --quiet "refs/tags/$tag^{commit}") || target=""
   before=$(git rev-parse --verify --quiet "$previous^{commit}") || before=""
   if [ -z "$target" ] || [ -z "$before" ] ||
     { [ "$head" != "$target" ] && [ "$head" != "$before" ]; }; then
@@ -172,18 +210,55 @@ resume_deploy() {
     log "ERROR: the checkout has local changes; not finishing the deploy of $tag"
     return 1
   fi
+  if ! release_checks "$tag" "$target" "$before"; then
+    return 1
+  fi
   if [ "$(cat "$FAILED_MARK" 2>/dev/null)" = "$tag" ]; then
     log "finishing the rollback from $tag that was cut off"
     rm -f "$PENDING_MARK"
-    roll_back "$previous" "$(git describe --tags --always "$previous")"
+    roll_back "$before" "$(git describe --tags --always "$before")"
   elif [ -n "$resumed" ]; then
     log "ERROR: the deploy of $tag was cut off twice"
-    give_up "$tag" "$previous"
+    give_up "$tag" "$before"
   else
-    echo "$tag $previous resumed" >"$PENDING_MARK"
+    echo "$tag $before resumed" >"$PENDING_MARK"
     log "finishing the deploy of $tag that was cut off"
-    git -c advice.detachedHead=false checkout --quiet "$tag"
-    finish_deploy "$tag" "$previous"
+    git -c advice.detachedHead=false checkout --quiet "$target" --
+    finish_deploy "$tag" "$before"
+  fi
+}
+
+# Logs why and fails unless release $1, at commit $2, may replace commit $3 (the one deployed
+# before): on main, forward from $3, not a tag deployed here before at another commit, and every
+# commit since $3 signed by GitHub.
+release_checks() {
+  local seen unsigned
+  if ! git merge-base --is-ancestor "$2" refs/remotes/deploy/main; then
+    log "ERROR: $1 is not on main; not deploying it"
+    return 1
+  fi
+  if ! command -v "$GPG" >/dev/null; then
+    log "ERROR: gpg is needed to check $1 is genuine (sudo apt install gnupg)"
+    return 1
+  fi
+  if ! git merge-base --is-ancestor "$3" "$2"; then
+    log "ERROR: the checkout ($(git describe --tags --always "$3")) is not behind $1; deploy by hand"
+    return 1
+  fi
+  # A tag moved in place fails the fetch; one deleted and made again arrives as new, so the
+  # commit each tag was deployed at is remembered.
+  seen=$(awk -v tag="$1" -v commit="$2" '$1 == tag && $2 != commit { print $2; exit }' \
+    "$DEPLOYED_TAGS" 2>/dev/null) || seen=""
+  if [ -n "$seen" ]; then
+    log "ERROR: $1 was deployed here at ${seen:0:7} and now names ${2:0:7} (deleted and" \
+      "made again upstream?); release tags never move, so not deploying it"
+    return 1
+  fi
+  unsigned=$(unsigned_commit "$3" "$2")
+  if [ -n "$unsigned" ]; then
+    log "ERROR: $1 includes $(git rev-parse --short "$unsigned"), which GitHub didn't" \
+      "sign; not deploying it"
+    return 1
   fi
 }
 
@@ -227,23 +302,7 @@ main() {
     log "ERROR: the checkout has local changes; not deploying $latest (deploy by hand)"
     return 1
   fi
-  if ! git merge-base --is-ancestor "$target" refs/remotes/deploy/main; then
-    log "ERROR: $latest is not on main; not deploying it"
-    return 1
-  fi
-  if ! command -v "$GPG" >/dev/null; then
-    log "ERROR: gpg is needed to check $latest is genuine (sudo apt install gnupg)"
-    return 1
-  fi
-  if ! git merge-base --is-ancestor "$current" "$target"; then
-    log "ERROR: the checkout ($(git describe --tags --always)) is not behind $latest; deploy by hand"
-    return 1
-  fi
-  local unsigned
-  unsigned=$(unsigned_commit "$current" "$target")
-  if [ -n "$unsigned" ]; then
-    log "ERROR: $latest includes $(git rev-parse --short "$unsigned"), which GitHub didn't" \
-      "sign; not deploying it"
+  if ! release_checks "$latest" "$target" "$current"; then
     return 1
   fi
 
@@ -256,7 +315,8 @@ main() {
     return 1
   fi
 
-  if ! { echo "$latest $current" >"$PENDING_MARK"; } 2>/dev/null; then
+  if ! { running_image >"$REPLACED_IMAGE" && echo "$latest $current" >"$PENDING_MARK"; } \
+    2>/dev/null; then
     log "ERROR: could not write $PENDING_MARK (disk full?); not deploying $latest"
     return 1
   fi
