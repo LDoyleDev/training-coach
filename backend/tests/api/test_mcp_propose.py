@@ -385,17 +385,22 @@ def test_saving_without_an_effort_leaves_it_empty(
     assert (workout.effort, workout.distance_m) == (None, 7290)
 
 
-def test_a_cardio_proposal_from_before_the_details_still_saves(
+def test_a_cardio_proposal_from_before_the_details_waits_for_the_persons_pick(
     client: TestClient, engine: Engine, token: str
 ) -> None:
+    """Review of #321: a bare Save on one made before the person picked saved the AI's kind."""
     waiting = proposed(client, token, kind="cardio", cardio="zone2", minutes=40)
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         row = mine.scalars(select(LogProposal)).one()
         # As it was proposed before ADR-0067: no details, and the AI's kind named on the card.
         row.payload = {"cardio": "zone2", "minutes": 40, "activity": None}
     (card,) = client.get("/api/proposals").json()
-    assert card["suggested"] == "zone2"
-    assert save(client, waiting, effort=4).status_code == 200  # saved as its card named it
+    assert card["suggested"] == "zone2"  # the AI's kind is only a suggestion now
+    unpicked = save(client, waiting, effort=4)
+    assert (unpicked.status_code, unpicked.json()["detail"]) == (422, "pick zone 2 or moderate")
+    assert _rows(engine, Workout) == []
+    assert client.get("/api/proposals").json()[0]["token"] == waiting  # still waiting
+    assert save(client, waiting, effort=4, cardio="zone2").status_code == 200
     (workout,) = _rows(engine, Workout)
     assert (workout.effort, workout.distance_m, workout.started_at) == (4, None, None)
 

@@ -776,9 +776,10 @@ def save(
     row = _claim(session, token, SAVED, now)
     if not isinstance(row, LogProposal):
         return row
-    # One proposed before the person picked names its kind in the summary: saved as shown.
+    # Only the person's pick saves a kind (review of #321): one proposed before they picked
+    # keeps the AI's kind as its suggestion, though its summary names it.
     fixed = row.payload.get("cardio") if row.kind == CARDIO else None
-    kind = cardio if cardio in CARDIO_WORDS else fixed
+    kind = cardio if cardio in CARDIO_WORDS else None
     problem: str | day_clash.Clash | day_clash.Refused | Unpicked | None
     if row.kind == CARDIO and kind is None:
         problem = Unpicked()
@@ -802,6 +803,19 @@ def save(
         if summary.startswith(shown):
             summary = labels.get(kind, (kind,))[0] + summary.removeprefix(shown)
     return Saved(summary, workout=row.kind in (STRENGTH, CARDIO))
+
+
+def waiting_kind(session: Session, token: str, now: datetime) -> str | None:
+    """The kind of the proposal waiting under ``token``, or None when none waits there."""
+    user = _user(session)
+    return session.scalar(
+        select(LogProposal.kind).where(
+            LogProposal.token == token,
+            LogProposal.status == PENDING,
+            LogProposal.expires_at > now,
+            LogProposal.connection_id.in_(_live(user, now)),
+        )
+    )
 
 
 def discard(session: Session, token: str, now: datetime, by: str) -> Discarded | Already | Gone:

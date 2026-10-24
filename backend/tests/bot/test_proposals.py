@@ -200,6 +200,23 @@ async def test_save_on_a_cardio_one_asks_for_the_kind(
     assert _status(seeded, token) == "pending"
 
 
+async def test_save_on_an_older_cardio_one_asks_for_the_kind_too(
+    application: App, seeded: Sessions, engine: Engine
+) -> None:
+    """Review of #321: its message has a plain Save, which saved the AI's kind untouched."""
+    token = _propose(seeded, engine, **RIDE)
+    with seeded() as session:  # as proposed before the person picked: the AI's kind kept
+        session.scalars(select(LogProposal)).one().payload = {
+            "cardio": "zone2",
+            "minutes": 40,
+            "activity": "bike",
+        }
+        session.commit()
+    calls = await run(application, press(f"lp:save:{token}", OWNER))
+    assert texts(calls) == [proposals_ui.UNPICKED]
+    assert _status(seeded, token) == "pending"
+
+
 @pytest.mark.parametrize("action", ["zone2", "moderate"])
 async def test_strangers_cant_pick_a_kind(
     application: App, seeded: Sessions, engine: Engine, action: str
