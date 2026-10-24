@@ -32,7 +32,7 @@ app/src/test/               JVM unit tests for the pure parts
 ## Rules
 
 - **Read as little as possible** (the whole point, ADR-0070): no raw history reads beyond the
-  first sync's 48 hours, no reads on screen open beyond the permission check.
+  first sync's 24 hours (`FIRST_SYNC_HOURS`), no reads on screen open beyond the permission check.
 - **The coach's JSON is the contract** (ADR-0055, `backend/tests/hcw_payloads.py`). Change the
   body only together with the backend test that posts it (`_reader_sync` in
   `backend/tests/api/test_ingest.py`).
