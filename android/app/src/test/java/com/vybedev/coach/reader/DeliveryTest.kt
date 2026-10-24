@@ -46,4 +46,21 @@ class DeliveryTest {
         assertEquals(Delivery.Failed(Answer(401, ""), refusals = 0), deliver(three, refusals = 2, Coach(401)::send))
         assertEquals(Delivery.Failed(Answer(0, ""), refusals = 0), deliver(three, refusals = 2, Coach(0)::send))
     }
+
+    @Test
+    fun `a read stopped by leaving the screen says to keep it open`() {
+        val message = readFailure("Must be in foreground to read data")
+        assertEquals(true, message.contains("keep this screen open"))
+    }
+
+    @Test
+    fun `the quota error keeps Health Connect's own words`() {
+        val said = "Rate limited request quota has been exceeded"
+        assertEquals("Health Connect's read limit was reached: $said", readFailure(said))
+    }
+
+    @Test
+    fun `any other refusal is shown as it came`() {
+        assertEquals("Health Connect refused the read: SecurityException", readFailure("SecurityException"))
+    }
 }
