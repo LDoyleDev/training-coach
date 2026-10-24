@@ -90,6 +90,11 @@ class Limiter:
         calls.append(now)
         return True
 
+    def refund_secret(self, user: int) -> None:
+        """Give back a post turned away as busy: that wasn't the phone's doing."""
+        if calls := self.secrets.get(str(user)):
+            calls.pop()
+
 
 def _limiter(request: Request) -> Limiter:
     found = getattr(request.app.state, "ingest_limiter", None)
@@ -133,7 +138,8 @@ async def _body(request: Request) -> bytes:
     """The body, refused before reading when it declares more than the cap: the request guard
     leaves this path to us (2026-10-24)."""
     length = request.headers.get("content-length", "")
-    if length.isdigit() and int(length) > MAX_BYTES:
+    # isdigit alone passes "²", which int() refuses (review of #324): odd values are ignored.
+    if length.isascii() and length.isdigit() and int(length) > MAX_BYTES:
         raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "payload too large")
     data = bytearray()
     async for chunk in request.stream():
@@ -141,6 +147,14 @@ async def _body(request: Request) -> bytes:
         if len(data) > MAX_BYTES:
             raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "payload too large")
     return bytes(data)
+
+
+def _busy(state: object) -> bool:
+    return getattr(state, "ingest_parsing", 0) >= MAX_PARSING
+
+
+def _busy_answer() -> HTTPException:
+    return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "busy", {"Retry-After": "60"})
 
 
 def _lone_surrogate(raw: bytes, body: object) -> bool:
@@ -170,6 +184,12 @@ async def health_connect(request: Request, background: BackgroundTasks) -> Inges
     if user is None:
         limiter.failed(address, clock)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "unknown ingest secret")
+    # Busy is checked before the body is read and before the post counts against the secret,
+    # and again once it is read; a post turned away then is refunded (review of #324). The
+    # slot is taken only after reading, so a body sent slowly can't hold one.
+    state = request.app.state
+    if _busy(state):
+        raise _busy_answer()
     if not limiter.allow_secret(user, clock):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "too many requests")
     settings: Settings = request.app.state.settings
@@ -179,6 +199,9 @@ async def health_connect(request: Request, background: BackgroundTasks) -> Inges
     except HTTPException:
         await run_in_threadpool(_refuse, bound, now, Refusal.TOO_LARGE)
         raise
+    if _busy(state):
+        limiter.refund_secret(user)
+        raise _busy_answer()
 
     moved: tuple[int, int] | None = None
 
@@ -219,10 +242,7 @@ async def health_connect(request: Request, background: BackgroundTasks) -> Inges
             raise
         return batch
 
-    state = request.app.state
-    if getattr(state, "ingest_parsing", 0) >= MAX_PARSING:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "busy", {"Retry-After": "60"})
-    state.ingest_parsing = getattr(state, "ingest_parsing", 0) + 1
+    state.ingest_parsing = getattr(state, "ingest_parsing", 0) + 1  # no await since the check
     try:
         batch = await run_in_threadpool(parse_and_store)
     finally:
