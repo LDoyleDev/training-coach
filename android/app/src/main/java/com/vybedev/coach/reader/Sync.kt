@@ -23,14 +23,13 @@ object Sync {
     suspend fun test(context: Context): String = withContext(Dispatchers.IO) {
         val store = Store(context)
         val secret = store.secret() ?: return@withContext "Enter the secret first."
-        val answer = send(store.address, secret, buildJsonObject { put("test", true) })
-        if (answer.ok) "Test: the coach answered ${answer.status}. Address and secret work." else describe(answer)
+        val answer = send(secret, buildJsonObject { put("test", true) })
+        if (answer.ok) "Test: the coach answered ${answer.status}. The secret works." else describe(answer)
     }
 
     private suspend fun runLocked(context: Context): String {
         val store = Store(context)
         val secret = store.secret() ?: return "Enter the secret first."
-        if (!usableAddress(store.address)) return "Enter the address from the coach's Account page."
         if (!HealthReader.available(context)) return "Health Connect isn't available on this phone."
         val reader = HealthReader(context)
         if (!reader.granted()) return "Allow Health Connect access first."
@@ -46,7 +45,7 @@ object Sync {
         }
         val newSteps = changedDays(steps, store.sentSteps)
         val bodies = posts(now, BuildConfig.VERSION_NAME, newSteps, heart.samples)
-        return when (val delivery = deliver(bodies, store.refusals) { send(store.address, secret, it) }) {
+        return when (val delivery = deliver(bodies, store.refusals) { send(secret, it) }) {
             is Delivery.Sent -> {
                 keep(store, steps, heart.nextToken)
                 "Sent at ${now.atZone(zone).toLocalTime().withNano(0)}: " +
