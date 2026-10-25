@@ -44,8 +44,8 @@ test('each step is its own period, labelled with its step and an arrow, and said
   const chart = screen.getByRole('img')
   expect(chart).toHaveAccessibleName(
     'Best set per session, last 6 weeks: 6 sessions, from 12 to 11' +
-      '. Moved up to step 2 on 5 Oct; best 12 → 7' +
-      '. Moved down to step 1 on 16 Oct; best 8 → 10',
+      '. Moved up to step 2 on 5 Oct; best 12 to 7' +
+      '. Moved down to step 1 on 16 Oct; best 8 to 10',
   )
   expect(chart).toHaveTextContent('Step 2 ↑')
   expect(chart).toHaveTextContent('Step 1 ↓')
@@ -97,9 +97,9 @@ test('a narrow period gets the short label and keeps its change in the descripti
     />,
   )
   const chart = screen.getByRole('img')
-  expect(chart).toHaveTextContent('↓1')
+  expect(chart).toHaveTextContent(/↓︎1/) // text style, never a coloured emoji
   expect(chart).not.toHaveTextContent('Step 1 ↓')
-  expect(chart).toHaveAccessibleName(/\. Moved down to step 1 on 20 Oct; best 10 → 12$/)
+  expect(chart).toHaveAccessibleName(/\. Moved down to step 1 on 20 Oct; best 10 to 12$/)
   // Two one-session periods: two dots and no line between them.
   expect(lines(chart)).toHaveLength(0)
   expect(chart.querySelectorAll('circle')).toHaveLength(2)

@@ -2,6 +2,10 @@ import type { Standing } from '../api'
 import { BOX, BY_STEP, PAD, WEEKS, chart, local, shortDay, type Period } from './chart'
 import { amount } from './logic'
 
+/** Arrows in text style: without the selector some fonts draw them as coloured emoji, and the
+ * chart's changes must never be told by colour. */
+const asText = (label: string) => label.replace(/[↑↓]/g, (arrow) => `${arrow}︎`)
+
 /** One exercise's best set per session over the last six weeks: dates along the bottom, the
  * range up the side. Each ladder step is its own period (ADR-0072): the line breaks at a
  * change, the periods alternate plain and faintly tinted, and each change is labelled with its
@@ -14,7 +18,7 @@ export default function TrendChart({ standing, today }: { standing: Standing; to
   const sessions = found.dots.length
   const change = (p: Period, before: Period) =>
     `. Moved ${p.move} to ${BY_STEP.words(p.key)} on ${shortDay(local(p.dots[0].point.day))}` +
-    `; best ${show(before.dots.at(-1)!.point.best)} → ${show(p.dots[0].point.best)}`
+    `; best ${show(before.dots.at(-1)!.point.best)} to ${show(p.dots[0].point.best)}`
   const label =
     `Best set per session, last ${WEEKS} weeks: ${sessions} ${sessions === 1 ? 'session' : 'sessions'}` +
     `, from ${show(found.dots[0].point.best)} to ${show(found.dots[sessions - 1].point.best)}` +
@@ -76,8 +80,14 @@ export default function TrendChart({ standing, today }: { standing: Standing; to
           {found.periods.map(
             (p, i) =>
               p.label !== null && (
-                <text key={i} x={p.from + PAD} y={BOX.top - 5} fill="var(--ink)">
-                  {p.label}
+                <text
+                  key={i}
+                  x={p.from + PAD}
+                  y={BOX.top - 5}
+                  fill="var(--ink)"
+                  style={{ fontVariantEmoji: 'text' }}
+                >
+                  {asText(p.label)}
                 </text>
               ),
           )}

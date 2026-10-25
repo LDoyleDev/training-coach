@@ -66,10 +66,10 @@ test('each exercise shows its step, last session, best and status', async () => 
   expect(screen.getByText('Top of the ladder')).toBeInTheDocument()
   expect(screen.getByText('(retired)')).toBeInTheDocument()
   expect(screen.getAllByText('Strict · step 2 of 4')).toHaveLength(4)
-  const pull = screen.getByRole('img', { name: /Moved up to step 2 on 8 Oct; best 12 → 7$/ })
+  const pull = screen.getByRole('img', { name: /Moved up to step 2 on 8 Oct; best 12 to 7$/ })
   expect(pull).toHaveAccessibleName(
     'Best set per session, last 6 weeks: 3 sessions, from 12 to 9' +
-      '. Moved up to step 2 on 8 Oct; best 12 → 7',
+      '. Moved up to step 2 on 8 Oct; best 12 to 7',
   )
   expect(pull).toHaveTextContent('Step 2 ↑') // the move up, marked
   expect(pull).toHaveTextContent('Today')
