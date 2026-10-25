@@ -63,3 +63,27 @@ the shape on 21 Oct; this records it.
   home" or "all gym" (option E).
 - Every new catalogue exercise needs its figure (ADR-0063) before it's offered.
 - The cross-user test covers `equipment` (ADR-0029).
+
+## Built (backend, 25 Oct 2026)
+
+Decided while building, within this ADR:
+
+- **No kit listed, nothing locks.** Everyone starts with no kit (`settings.kit_saved_at`
+  empty) and nothing is filled in for anyone. Until a person saves a kit, every step stays open,
+  so the app works as before; Progress says `kit_listed: false` and the page can ask them to add
+  their kit. Saving an empty list is a kit: bodyweight only.
+- **Matching:** a kettlebell must be the exact weight (`kettlebell:16`); dumbbells match a fixed
+  pair of that weight or an adjustable set whose range covers it; a vest or backpack "up to N kg"
+  meets any need up to N; other kit is there or not. `dumbbells` and `backpack` needs may name a
+  load (`dumbbells:12`, `backpack:10`); bands carry a strength (light, medium, heavy) on the item,
+  not yet in needs. A step or box (`box`) joins the kit list; the ab wheel, already a need, is an
+  item too. An item can carry a short note ("two stools").
+- **Top for your kit:** a person whose next steps are all locked gets `unlock` ("a 16 kg
+  kettlebell unlocks Heavier kettlebell") on Progress, on the saved-session feedback and in
+  `/progress` on Telegram, in place of "top of the ladder". Move up skips locked steps; a stale
+  press at the top for the kit answers `no_next_step`.
+- **A locked level by hand is allowed** (the person decides): `POST /api/progress/{slug}/level`
+  moves them and answers with a `warning` naming the missing kit.
+- The AI summary (and MCP `get_summary`) lists the home kit; the guide is version 2. The export
+  includes `equipment`.
+- The concrete steps are proposed, not built: `docs/specs/kit-ladder-proposal.md`.

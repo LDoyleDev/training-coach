@@ -412,7 +412,10 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
      and push-without-pull warnings and a session's length (editing, step 6), and the
      exercises that would add to a muscle (the picker, step 7).
 4. **Equipment** on Account; concrete kettlebell and backpack steps; locked steps; Move up and
-   Progress respect the kit. The 16 kg example works from here.
+   Progress respect the kit. The 16 kg example works from here. **Backend done** (ADR-0071,
+   Built): the `equipment` table, `/api/equipment`, locks on Progress and Move up. Still to
+   come: "My equipment" on Account (web), and the concrete steps, proposed in
+   [kit-ladder-proposal.md](kit-ladder-proposal.md) for the owner to approve.
 5. **Plans per person** (A2): the migration copies the plan to every user; the seed keeps the
    catalogue and starters; the canary test (multi-user L2) covers the plan routes.
 6. **Edit the plan:** set level (done, ADR-0075), swap, sets and range; Save makes a version. Import from
