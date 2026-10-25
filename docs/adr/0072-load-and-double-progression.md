@@ -1,0 +1,75 @@
+# ADR-0072: Sets record their load; loaded exercises progress by reps, then weight
+
+- Status: Accepted
+- Date: 2026-10-25
+- Deciders: Liam
+
+## Context
+
+A set has one value: reps, seconds or minutes. Progress is more reps within a range (ADR-0027)
+and then a harder ladder step (ADR-0016). That fits bodyweight work and a single kettlebell, but
+not dumbbells, a barbell, machines or a weighted vest, where the exercise stays the same and the
+weight goes up in small steps. Liam will train at a gym some days and may get dumbbells and a
+vest (25 Oct 2026). The builder settled the shape (`program-builder.md`, option D, Decided 6).
+
+## Decision
+
+- **Two ways to get harder.** An exercise is either a `ladder` (bodyweight or fixed kit, as
+  today) or `load` (dumbbells, a barbell, a machine). A kettlebell at home stays a ladder step:
+  8 to 16 kg is a different exercise, not a small step.
+- **The top step of a ladder can take load.** "Weighted backpack" steps become "Added weight"
+  steps that need a weighted vest or a backpack, and progress by load from there. So pull-ups,
+  dips and push-ups keep their ladders and then add weight.
+- **Each set records its load** (`set_logs.load_kg`, nullable; empty for bodyweight). For an
+  added-weight step it is the weight added, not bodyweight plus.
+- **It carries over.** The set screen starts at the load of the same set last time, at the same
+  place, with − and + in the kit's increment. No typing.
+- **Double progression.** Reps go up within the range as ADR-0027 says. When every set reaches
+  the top of the range, the app suggests the next weight up, and the reps start again at the
+  bottom; a missed target holds, as in ADR-0027. **The person decides:** the suggestion is a
+  tap, never a change made for them.
+- **Increments.** At home, the next weight you own (12 kg dumbbells after 10 kg, or the vest's
+  own step). At the gym: barbell 2.5 kg, dumbbells 2 kg per hand, machines 5 kg. Each person
+  can change theirs. Kilograms only (Decided 6).
+- **Scope.** Targets and bests for a loaded exercise are kept per load as well as per block
+  kind (ADR-0028), so a heavier weight starts from its own baseline, as a new ladder step does
+  (ADR-0034). A strength block on a loaded exercise is 4-8 reps at a heavier load, instead of
+  the next ladder step.
+- **Logging by voice or text** stays reps-first: "rows 10 10 9 at 16" is parsed with the load as
+  an optional part, and the confirm step shows it (ADR-0007).
+
+- **The progress chart shows each weight, and each ladder step, as its own period** (Liam, 25
+  Oct 2026). The line breaks at a change; periods alternate between plain and a faint neutral
+  tint, each labelled with its weight or step and an arrow ("16 kg ↑", "12 kg ↓", "Step 3 ↑"),
+  so the drop in reps after a step up reads as the method working, not a decline. A step down
+  is marked too. Text carries the meaning, never colour alone, and the chart's description says
+  it in words ("moved to 16 kg; reps 12 → 8"). This applies to ladder steps straight away.
+  When loads arrive, a thin strip under the chart, on the same dates, shows the kg (or the step
+  number) as a staircase.
+- **One axis, never two.** Liam asked about a second scale on the right; it's left out because
+  two scales line up arbitrarily and suggest a link the data doesn't show, and a second set of
+  labels costs a phone chart about a tenth of its width (Datawrapper, the ONS and Stephen Few
+  advise against dual axes; the strip is the honest version). A colour per weight runs out of
+  hues and fails colour-blind readers, so the tints alternate.
+- **No converted "estimated strength" line for now.** One-rep-max formulas hold up to about
+  10-12 reps and have no validation for bodyweight work (Reynolds 2006), and converting ladder
+  steps would invent progress (ADR-0034). It may come later as an optional, labelled view for
+  loaded exercises only.
+
+## Options considered
+
+| Option | Pros | Cons |
+| --- | --- | --- |
+| Double progression with a suggested next weight (chosen) | The usual gym method; small steps; fits ADR-0027; the person decides | A new column and a second rule to explain |
+| Fixed reps, weight up every session | Simple | Stalls quickly; ignores missed reps |
+| Percentage of a tested one-rep max | Precise for strength blocks | Needs max tests; overkill for hypertrophy at home |
+| Weight only in step names (today) | Nothing to build | No small steps; dumbbells and machines don't fit |
+
+## Consequences
+
+- Builder step 8: `set_logs.load_kg` (a migration), − and + on the set screen, the carry-over,
+  the suggested next weight, bests and targets per load, and the parser's optional load. The
+  Telegram summary and the weekly review show loads where they exist.
+- The catalogue marks which exercises are `load`; the 29 gym exercises arrive with it.
+- The body map is unchanged: it counts hard sets, not tonnage.
+- Exports and the AI tools (ADR-0058) carry `load_kg`; `propose_log` accepts it.
