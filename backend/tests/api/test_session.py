@@ -494,3 +494,37 @@ def test_the_mobility_item_comes_with_its_guided_flow(
     assert (lunge["seconds"], lunge["per_side"]) == (45, True)
     assert all(lunge[k] for k in ("start", "end", "cues", "breathing", "easier", "pacing"))
     assert all(i["flow"] is None for i in items if i["slug"] != "mobility")
+
+
+def _go_to(engine: Engine, slug: str) -> None:
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
+        found = bound.scalars(select(SessionTemplate.id).where(SessionTemplate.slug == slug))
+        state = users.plan_state(bound)
+        assert state is not None
+        state.next_template_id = found.one()
+
+
+def test_each_item_says_the_muscles_it_works(signed_in: TestClient, engine: Engine) -> None:
+    """From the catalogue (ADR-0064): the most worked first, ties in the fixed muscle order."""
+    _go_to(engine, "torso")
+    items = signed_in.get("/api/session/today").json()["session"]["items"]
+    pull = next(i for i in items if i["slug"] == "pull-up")
+    assert [(m["muscle"], m["weight"]) for m in pull["muscles"]] == [
+        ("lats", 1),
+        ("upper back", 0.5),
+        ("biceps", 0.5),
+        ("rear delts", 0.25),
+        ("forearms", 0.25),
+    ]
+    assert pull["parts"] == []
+
+
+def test_an_exercise_of_qualities_only_works_no_muscles(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    _go_to(engine, "recovery")
+    items = {i["slug"]: i for i in signed_in.get("/api/session/today").json()["session"]["items"]}
+    assert (items["chin-tuck"]["muscles"], items["mobility"]["muscles"]) == ([], [])
+    nordic = items["reverse-nordic"]
+    assert [m["muscle"] for m in nordic["muscles"]] == ["quads"]
+    assert nordic["parts"] == ["rectus femoris"]

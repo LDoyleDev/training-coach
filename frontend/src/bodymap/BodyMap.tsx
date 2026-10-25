@@ -3,6 +3,7 @@ import {
   type Band,
   type Coverage,
   type Heat,
+  type ItemMuscle,
   type MuscleCoverage,
   type SessionCoverage,
 } from '../api'
@@ -19,6 +20,7 @@ import {
   sessionWarnings,
   sets,
   warnings,
+  weightHeat,
 } from './words'
 
 const slug = (s: string) => s.replace(/ /g, '-')
@@ -28,13 +30,14 @@ const heatFill = (heat: Heat) => (heat === 'over' ? fill('warning') : `var(--hea
 type FigureProps = {
   view: View
   fills: Map<string, string> // muscle -> its colour; the rest are not worked
-  selected: string | null
-  onSelect: (muscle: string) => void
+  selected?: string | null
+  onSelect?: (muscle: string) => void // none: a picture only, nothing to tap
+  small?: boolean // the set screen's, beside an exercise's how-to
 }
 
 /** One mannequin with its muscles coloured. The list below is the accessible way in; tapping
  * a region is a shortcut to the same row. */
-function BodyFigure({ view, fills, selected, onSelect }: FigureProps) {
+function BodyFigure({ view, fills, selected = null, onSelect, small = false }: FigureProps) {
   const regions = REGIONS[view]
   const half = (
     <>
@@ -49,17 +52,21 @@ function BodyFigure({ view, fills, selected, onSelect }: FigureProps) {
           fill={fills.get(r.muscle) ?? fill('grey')}
           stroke={r.muscle === selected ? 'var(--ink)' : 'var(--fig-near-line)'}
           strokeWidth={r.muscle === selected ? 2 : 0.75}
-          className="cursor-pointer"
-          onClick={() => onSelect(r.muscle)}
+          className={onSelect ? 'cursor-pointer' : undefined}
+          onClick={onSelect ? () => onSelect(r.muscle) : undefined}
         />
       ))}
     </>
   )
   return (
-    <figure className="m-0 flex flex-1 flex-col items-center">
+    <figure
+      className={
+        small ? 'm-0 flex w-14 flex-col items-center' : 'm-0 flex flex-1 flex-col items-center'
+      }
+    >
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="h-auto w-full max-w-[11rem]"
+        className={small ? 'h-auto w-full' : 'h-auto w-full max-w-[11rem]'}
         aria-hidden="true"
         strokeLinejoin="round"
       >
@@ -73,10 +80,29 @@ function BodyFigure({ view, fills, selected, onSelect }: FigureProps) {
         {half}
         <g transform={MIRROR}>{half}</g>
       </svg>
-      <figcaption className="text-sm text-[var(--slate)]">
+      <figcaption className={`${small ? 'text-xs' : 'text-sm'} text-[var(--slate)]`}>
         {view === 'front' ? 'Front' : 'Back'}
       </figcaption>
     </figure>
+  )
+}
+
+/** The muscles one exercise works, on two small figures beside its how-to on the set screen,
+ * coloured as the session map is: the main mover darkest. A picture only, hidden from assistive
+ * tech: the words beside it say the same. */
+export function ExerciseFigures({
+  muscles,
+  className = '',
+}: {
+  muscles: readonly ItemMuscle[]
+  className?: string
+}) {
+  const fills = new Map(muscles.map((m) => [m.muscle, heatFill(weightHeat(m.weight))]))
+  return (
+    <div className={`flex gap-1 ${className}`} aria-hidden="true">
+      <BodyFigure view="front" fills={fills} small />
+      <BodyFigure view="back" fills={fills} small />
+    </div>
   )
 }
 

@@ -36,6 +36,11 @@ Starting a session from Today walks through it one set at a time. Agreed on a cl
    - One-sided exercises: one number for "each side"; "Left and right differ" splits it.
    - Timed exercises: a stopwatch, adjustable by ±5 s after stopping.
    - Before a pair has started: "Do <other> first" swaps the pair for this session.
+   - Under the how-to, the muscles it works in words ("Works: Lats · helped by upper back,
+     biceps · a little: rear delts, forearms"), beside small front and back figures coloured by
+     the catalogue weights on the session map's colours (ADR-0064, ADR-0069).
+   - Below that, for an exercise with a drawn figure, its moving mannequin (ADR-0063) under
+     "Show the movement": open on an exercise's first set, folded on the sets after.
 3. **Confirm set** starts a **rest countdown** (60 s default, +15 s, Skip; the phone buzzes at
    the end) showing the next set. Back fixes the previous set.
 4. **Leave keeps the place:** progress is kept on the server, so the session resumes on any

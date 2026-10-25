@@ -1,6 +1,14 @@
 import pytest
 
-from training_coach.domain.muscles import Kit, Pattern, Stress, parse_need, step_stress
+from training_coach.domain.muscles import (
+    Kit,
+    Muscle,
+    Pattern,
+    Stress,
+    parse_need,
+    ranked,
+    step_stress,
+)
 
 
 def test_kit_with_and_without_a_weight() -> None:
@@ -32,3 +40,14 @@ def test_only_loaded_squats_load_the_spine() -> None:
     assert step_stress(spine, Pattern.SQUAT, []) == set()
     assert step_stress(spine, Pattern.HINGE, []) == {Stress.SPINE}  # a hinge always does
     assert step_stress([Stress.GRIP], Pattern.VERTICAL_PULL, ["pull-up bar"]) == {Stress.GRIP}
+
+
+def test_muscles_rank_by_weight_then_the_fixed_order() -> None:
+    worked = {Muscle.FOREARMS: 0.25, Muscle.UPPER_BACK: 0.5, Muscle.LATS: 1, Muscle.BICEPS: 0.5}
+    assert ranked(worked) == [
+        (Muscle.LATS, 1),
+        (Muscle.UPPER_BACK, 0.5),
+        (Muscle.BICEPS, 0.5),
+        (Muscle.FOREARMS, 0.25),
+    ]
+    assert ranked({}) == []

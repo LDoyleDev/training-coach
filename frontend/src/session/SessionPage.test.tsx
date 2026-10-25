@@ -26,6 +26,8 @@ const SESSION: Guided = {
       pair: 1,
       targets: [6, 6],
       baseline: true,
+      muscles: [],
+      parts: [],
     },
     {
       slug: 'calf-raise',
@@ -38,6 +40,8 @@ const SESSION: Guided = {
       pair: 1,
       targets: [15],
       baseline: false,
+      muscles: [],
+      parts: [],
     },
   ],
   order: [
@@ -847,6 +851,8 @@ test('the mobility item plays its flow and logs the minutes moved as its set', a
         pair: null,
         targets: [10],
         baseline: false,
+        muscles: [],
+        parts: [],
         flow: { seconds: 120, safety: 'If something hurts, stop.', moves: [move, move] },
       },
     ],
@@ -866,4 +872,65 @@ test('the mobility item plays its flow and logs the minutes moved as its set', a
   expect(kept.sets).toHaveLength(1)
   expect(kept.sets[0]).toMatchObject({ item: 0, set_no: 1, left: 2, right: null })
   expect(Date.parse(kept.sets[0].started_at ?? '')).toBe(started)
+})
+
+test('the set screen says the muscles an exercise works, beside a picture of them', async () => {
+  const pullUp = {
+    ...SESSION.items[0],
+    muscles: [
+      { muscle: 'lats', weight: 1 },
+      { muscle: 'upper back', weight: 0.5 },
+      { muscle: 'biceps', weight: 0.5 },
+      { muscle: 'rear delts', weight: 0.25 },
+      { muscle: 'forearms', weight: 0.25 },
+    ],
+  }
+  serve({ today: { session: { ...SESSION, items: [pullUp, SESSION.items[1]] }, progress: null } })
+  const { container } = render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.getByText('Squat, then jump.')).toBeInTheDocument()
+  expect(
+    screen.getByText('Works: Lats · helped by upper back, biceps · a little: rear delts, forearms'),
+  ).toBeInTheDocument()
+  expect(container.querySelector('path[data-muscle="lats"]')).toHaveAttribute(
+    'fill',
+    'var(--heat-hard)',
+  )
+  // The words carry the meaning; the figures are hidden from assistive tech.
+  expect(screen.queryAllByRole('figure')).toHaveLength(0)
+  expect(screen.getAllByRole('figure', { hidden: true })).toHaveLength(2)
+  expect(screen.getByRole('button', { name: 'Confirm set' })).toBeInTheDocument()
+})
+
+test('an exercise that works no muscle has no muscles line or figures', async () => {
+  serve()
+  const { container } = render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.getByText('Squat, then jump.')).toBeInTheDocument()
+  expect(screen.queryByText(/^Works:/)).not.toBeInTheDocument()
+  expect(container.querySelector('path[data-muscle]')).toBeNull()
+})
+
+test('a drawn exercise shows its movement, open on its first set and folded after', async () => {
+  const pushUp = { ...SESSION.items[0], slug: 'push-up', name: 'Push-up' }
+  serve({ today: { session: { ...SESSION, items: [pushUp, SESSION.items[1]] }, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.getByRole('button', { name: 'Hide the movement' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  )
+  expect(screen.getByRole('img', { name: /^Push-up, moving from:/ })).toBeInTheDocument()
+
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /the movement/ })).not.toBeInTheDocument()
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+
+  expect(await screen.findByText('Set 2 of 2')).toBeInTheDocument()
+  expect(screen.queryByRole('img', { name: /^Push-up/ })).not.toBeInTheDocument()
+  click('Show the movement')
+  expect(screen.getByRole('img', { name: /^Push-up, moving from:/ })).toBeInTheDocument()
 })
