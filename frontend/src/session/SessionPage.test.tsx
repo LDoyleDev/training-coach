@@ -4,7 +4,11 @@ import type { Clash, Done, Guided, Kept, Pending, Saved, TodayView } from '../ap
 import { playChange, unlockAudio } from '../hiit/sounds'
 import SessionPage from './SessionPage'
 
-vi.mock('../hiit/sounds', () => ({ unlockAudio: vi.fn(), playChange: vi.fn() }))
+vi.mock('../hiit/sounds', () => ({
+  DEFAULT_SOUND: 'ring',
+  unlockAudio: vi.fn(),
+  playChange: vi.fn(),
+}))
 
 const SESSION: Guided = {
   day: '2026-10-12',

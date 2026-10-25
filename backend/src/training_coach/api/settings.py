@@ -62,7 +62,7 @@ class SettingsView(BaseModel):
     protein_g: int | None
     blocks_since: str | None  # training blocks on since this day (ADR-0028)
     pace: Pace  # how big a step the targets take (ADR-0057)
-    sound: Sound  # what the guided timers play at each change (ADR-0062)
+    sound: Sound  # what every guided timer plays at each change (ADR-0062, ADR-0074)
     paused: bool
     timezone: str  # the server's, for every time above
 

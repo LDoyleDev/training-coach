@@ -1,8 +1,9 @@
 from training_coach.domain.stretching import (
     HOLD_SECONDS,
     MAX_ROUNDS,
+    POSITION_SECONDS,
+    RELEASE_SECONDS,
     ROUNDS,
-    SWITCH_SECONDS,
     Step,
     Stretch,
     routine,
@@ -23,10 +24,13 @@ CATALOGUE = [CHEST, LATS, QUAD, HAM, CALF]
 LEGS = {"quads": 10, "hamstrings": 6, "calves": 3}
 
 
-def test_a_hold_counts_both_sides_and_the_changeover() -> None:
-    one_round = HOLD_SECONDS + SWITCH_SECONDS
-    assert seconds(CHEST, 2) == 2 * one_round
-    assert seconds(QUAD, 2) == 4 * one_round
+def test_the_time_counts_the_holds_the_gaps_and_both_sides() -> None:
+    """Into position, hold, let go, hold: the gaps are inside the chosen time."""
+    one_side = POSITION_SECONDS + 2 * HOLD_SECONDS + RELEASE_SECONDS
+    assert seconds(CHEST, 2) == one_side == 80
+    assert seconds(QUAD, 2) == 2 * one_side  # into position again for the other side
+    assert seconds(CHEST, 1) == POSITION_SECONDS + HOLD_SECONDS  # no release after the last
+    assert seconds(QUAD, 3) == 2 * (15 + 3 * 30 + 2 * 5)
 
 
 def test_the_most_worked_muscles_come_first() -> None:
@@ -41,7 +45,7 @@ def test_the_routine_never_runs_over() -> None:
 
 def test_short_time_keeps_to_the_session_muscles() -> None:
     # 10 min: three per-side stretches at two rounds take 480 s; 120 s are left, enough for a
-    # third round of the most-worked (80 s) but not of the next, and too little for another.
+    # third round of the most-worked (70 s) but not of the next, and too little for another.
     steps = routine(CATALOGUE, LEGS, 10)
     assert [(s.stretch.slug, s.rounds) for s in steps] == [
         ("quad", MAX_ROUNDS),

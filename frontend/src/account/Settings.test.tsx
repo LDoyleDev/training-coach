@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { MessageSettings } from '../api'
 import { playChange } from '../hiit/sounds'
@@ -15,7 +15,7 @@ const PREFS: MessageSettings = {
   protein_g: null,
   blocks_since: null,
   pace: 'standard',
-  sound: 'chime',
+  sound: 'ring',
   paused: false,
   timezone: 'Europe/Berlin',
 }
@@ -154,14 +154,23 @@ test('stays hidden when it cannot load', async () => {
   expect(container).toBeEmptyDOMElement()
 })
 
-test('the timer sound is one of five, played when tapped, and saved', async () => {
+test('the timer sound is one of six, the boxing bell first, played when tapped, and saved', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true })
   const sent = serve()
   render(<Settings />)
-  expect(await screen.findByRole('button', { name: 'Chime' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
+  const group = (await screen.findByRole('group', { name: 'Timer sound' })) as HTMLElement
+  expect(
+    within(group).getByText(/Every guided timer plays it: when a rest ends/),
+  ).toBeInTheDocument()
+  const names = within(group)
+    .getAllByRole('button')
+    .map((b) => b.textContent)
+  expect(names).toEqual(['Boxing bell', 'Chime', 'Beep', 'Wood block', 'Bell', 'No sound'])
+  expect(button('Boxing bell')).toHaveAttribute('aria-pressed', 'true') // the default
+  fireEvent.click(button('Boxing bell'))
+  expect(playChange).toHaveBeenCalledWith('ring', 'switch') // tapping the chosen one plays it
+  vi.advanceTimersByTime(1000)
+  expect(playChange).toHaveBeenCalledWith('ring', 'next')
   fireEvent.click(button('Wood block'))
   expect(playChange).toHaveBeenCalledWith('wood', 'switch')
   vi.advanceTimersByTime(1000)
@@ -172,6 +181,6 @@ test('the timer sound is one of five, played when tapped, and saved', async () =
   fireEvent.click(button('No sound'))
   expect(playChange).not.toHaveBeenCalled()
   await screen.findByText('Timer sound: no sound.')
-  expect(sent).toEqual([{ sound: 'wood' }, { sound: 'none' }])
+  expect(sent).toEqual([{ sound: 'wood' }, { sound: 'none' }]) // the default was never re-sent
   vi.useRealTimers()
 })
