@@ -65,7 +65,10 @@ function Drawing({ figure, t, label }: { figure: Data; t: number; label: string 
       viewBox={`${x0} ${-y1} ${x1 - x0} ${y1 - y0}`}
       role="img"
       aria-label={label}
-      className="block max-h-72 w-full"
+      // Not the `block` utility: the app's own `.block` section style (a top rule and padding)
+      // would apply to the drawing too.
+      style={{ display: 'block' }}
+      className="max-h-72 w-full"
     >
       <defs>
         {TONES.map((tone) => (
