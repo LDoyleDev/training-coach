@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { MeasureKind, Measurement } from '../api'
+import type { BodyAverage, BodyEstimate, MeasureKind, Measurement } from '../api'
 import BodyPage from './BodyPage'
 
 const KINDS: MeasureKind[] = [
@@ -24,8 +24,27 @@ const KINDS: MeasureKind[] = [
   },
 ]
 
+const GUIDE = {
+  checklist: ['In the morning, after the toilet.', 'Measure twice; enter the average.'],
+  cadence: 'Weight daily or weekly; the tape every 2 to 4 weeks.',
+}
+
+const FAT: MeasureKind = {
+  kind: 'body_fat_scale',
+  label: 'Body fat (scale)',
+  unit: '%',
+  decimals: 1,
+  low: 3,
+  high: 60,
+  how: 'Same scale, barefoot.',
+}
+
 type Server = {
   entries?: Measurement[]
+  kinds?: MeasureKind[]
+  estimates?: BodyEstimate[]
+  averages?: BodyAverage[]
+  warnings?: string[]
   signedIn?: boolean
   save?: 'refuse' | 'fail'
   remove?: 'fail'
@@ -50,9 +69,12 @@ function serve(server: Server = {}) {
         if (server.save === 'refuse')
           return Response.json({ detail: 'Waist must be from 40 to 200 cm' }, { status: 422 })
         if (server.save === 'fail') return new Response(null, { status: 500 })
-        return Response.json({ warnings: [] })
+        return Response.json({ warnings: server.warnings ?? [] })
       }
-      if (path === '/api/body/kinds') return Response.json(KINDS)
+      if (path === '/api/body/kinds') return Response.json(server.kinds ?? KINDS)
+      if (path === '/api/body/guide') return Response.json(GUIDE)
+      if (path === '/api/body/estimates') return Response.json(server.estimates ?? [])
+      if (path === '/api/body/averages') return Response.json(server.averages ?? [])
       return Response.json(entries)
     }),
   )
@@ -206,4 +228,111 @@ test('a retry after signing in again clears the notice', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   expect(await screen.findByText('Saved.')).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: 'Sign in again' })).not.toBeInTheDocument()
+})
+
+test('the checklist and how to take each one fold open', async () => {
+  serve()
+  render(<BodyPage />)
+  const summary = await screen.findByText('Before you measure')
+  const checklist = summary.closest('details')!
+  expect(checklist).not.toHaveAttribute('open')
+  fireEvent.click(summary)
+  expect(checklist).toHaveAttribute('open')
+  expect(screen.getByText('Measure twice; enter the average.')).toBeVisible()
+  expect(screen.getByText(/the tape every 2 to 4 weeks/)).toBeInTheDocument()
+  const how = screen.getByText('(Waist)').closest('summary')!
+  expect(how).toHaveTextContent('How?')
+  fireEvent.click(how)
+  expect(how.closest('details')).toHaveAttribute('open')
+  expect(screen.getByText('At the navel.')).toBeInTheDocument()
+})
+
+test('a far value is saved with a warning that stays until dismissed', async () => {
+  const warning = 'Waist is 3.5 cm off your last (12 Oct): different landmark? Re-measure.'
+  serve({ warnings: [warning] })
+  render(<BodyPage />)
+  fireEvent.change(await screen.findByLabelText('Waist'), { target: { value: '88.5' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByText('Saved.')).toBeInTheDocument()
+  const region = screen.getByRole('region', { name: 'Saved, but worth a second look' })
+  expect(region).toHaveTextContent(warning)
+  fireEvent.click(screen.getByRole('button', { name: 'Close' })) // the toast goes, the warning stays
+  expect(screen.getByText(warning)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+  expect(screen.queryByText(warning)).not.toBeInTheDocument()
+})
+
+test('the next save clears the last warnings', async () => {
+  const warning = 'Bodyweight is 2.4 kg off your last (3 Oct): different scale or time of day?'
+  const sent = serve({ warnings: [warning] })
+  render(<BodyPage />)
+  fireEvent.change(await screen.findByLabelText('Bodyweight'), { target: { value: '85' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByText(warning)).toBeInTheDocument()
+  vi.unstubAllGlobals()
+  serve()
+  fireEvent.change(screen.getByLabelText('Bodyweight'), { target: { value: '83' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(screen.queryByText(warning)).not.toBeInTheDocument())
+  expect(sent).toHaveLength(1)
+})
+
+test("bodyweight's headline is its 7-day average", async () => {
+  serve({
+    entries: [
+      { on: '2026-10-24', kind: 'bodyweight', value: 81.8 },
+      { on: '2026-10-22', kind: 'bodyweight', value: 82.4 },
+    ],
+    averages: [
+      { on: '2026-10-24', value: 82.1, count: 2 },
+      { on: '2026-10-22', value: 82.4, count: 1 },
+    ],
+  })
+  render(<BodyPage />)
+  expect(await screen.findByText(/7-day average 82.1 kg · from 2 weigh-ins/)).toBeInTheDocument()
+  expect(screen.getByText('Last weigh-in 81.8 kg (2026-10-24)')).toBeInTheDocument()
+  expect(screen.getByRole('img', { name: 'Bodyweight, 7-day average, 2 days' })).toBeInTheDocument()
+})
+
+test('one weigh-in is one, not ones', async () => {
+  serve({
+    entries: [{ on: '2026-10-24', kind: 'bodyweight', value: 81.8 }],
+    averages: [{ on: '2026-10-24', value: 81.8, count: 1 }],
+  })
+  render(<BodyPage />)
+  expect(await screen.findByText(/from 1 weigh-in$/)).toBeInTheDocument()
+})
+
+test('body fat shows the scale and the tape estimate as two named lines', async () => {
+  serve({
+    kinds: [...KINDS, FAT],
+    entries: [
+      { on: '2026-10-24', kind: 'body_fat_scale', value: 18.2 },
+      { on: '2026-10-10', kind: 'body_fat_scale', value: 19.0 },
+    ],
+    estimates: [
+      { on: '2026-10-24', value: 21.6 },
+      { on: '2026-10-10', value: 20.9 },
+    ],
+  })
+  render(<BodyPage />)
+  const latest = await screen.findByRole('region', { name: 'Latest' })
+  expect(latest).toHaveTextContent('Body fat (scale): 18.2 % · since first -0.8 (2026-10-24)')
+  expect(latest).toHaveTextContent('Tape, estimate from waist and neck, ±4%')
+  // No headline number for the estimate: its values are only in the dots' hover titles.
+  expect(screen.queryByText(/21\.6/, { ignore: 'title, script, style' })).not.toBeInTheDocument()
+  expect(screen.getByRole('img', { name: /^Body fat, %/ })).toHaveAccessibleName(
+    'Body fat, %. Scale: 2 days, from 19.0 % to 18.2 %. Tape, estimate from waist and neck, ±4%: 2 days, from 20.9 % to 21.6 %',
+  )
+})
+
+test('the tape estimate alone still shows body fat', async () => {
+  serve({ kinds: [...KINDS, FAT], estimates: [{ on: '2026-10-24', value: 21.6 }] })
+  render(<BodyPage />)
+  expect(await screen.findByRole('heading', { name: 'Latest' })).toBeInTheDocument()
+  expect(screen.getByText('Body fat')).toBeInTheDocument()
+  expect(screen.queryByText('Scale')).not.toBeInTheDocument()
+  expect(
+    screen.getByRole('img', { name: /Tape, estimate from waist and neck, ±4%: 1 day, 21.6 %/ }),
+  ).toBeInTheDocument()
 })

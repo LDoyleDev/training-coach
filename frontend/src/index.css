@@ -60,6 +60,9 @@
   --heat-hard: #c4662c;
   /* The trend chart's periods (ADR-0072): every other one sits on this faint neutral tint. */
   --period-tint: #eceeea;
+  /* Body fat: the scale and the tape estimate, one chart (checked for colour blindness). */
+  --fat-scale: #a8325f;
+  --fat-tape: #2a78d6;
   --font: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
   color-scheme: light;
 }
@@ -113,6 +116,8 @@
     --heat-worked: #a8743f;
     --heat-hard: #d0803f;
     --period-tint: #2c3338;
+    --fat-scale: #d55181;
+    --fat-tape: #3987e5;
     color-scheme: dark;
   }
 }

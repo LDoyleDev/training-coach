@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchProgress, type Standing } from '../api'
 import AppShell from '../components/AppShell'
 import BandSummary from '../components/BandSummary'
+import BodyFatTrend from './BodyFatTrend'
 import SessionTimes from './SessionTimes'
 import TrendChart from './TrendChart'
 import { local } from './chart'
@@ -70,6 +71,7 @@ function Standings() {
         This week's review
       </a>
       <BandSummary />
+      <BodyFatTrend />
       <SessionTimes />
       <ul className="flex flex-col gap-3">
         {loaded.standings.map((s) => {
