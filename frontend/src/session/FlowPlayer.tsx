@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type Flow, fetchSettings } from '../api'
 import Figure from '../figures/Figure'
-import { type Sound, playChange, unlockAudio } from '../hiit/sounds'
+import { DEFAULT_SOUND, type Sound, playChange, unlockAudio } from '../hiit/sounds'
 import { card, primary, secondary } from '../ui'
 import { type Cue, at, clock, cues, jump, minutesDone, schedule, totalSeconds } from './flow'
 
@@ -40,13 +40,13 @@ export default function FlowPlayer({
   const [paused, setPaused] = useState(false)
   const [t, setT] = useState(0) // where the flow is, in seconds
   const [moved, setMoved] = useState(0) // seconds actually moving, once finished
-  const [sound, setSound] = useState<Sound>('chime') // the person's choice, from Settings
+  const [sound, setSound] = useState<Sound>(DEFAULT_SOUND) // the person's choice, from Settings
 
   useEffect(() => {
     const ask = new AbortController()
     fetchSettings(ask.signal)
       .then((found) => found && setSound(found.sound))
-      .catch(() => {}) // the default chime still plays
+      .catch(() => {}) // the default sound still plays
     return () => ask.abort()
   }, [])
 

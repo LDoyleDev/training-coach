@@ -7,6 +7,7 @@ import FlowPlayer from './FlowPlayer'
 vi.mock('../hiit/sounds', () => ({
   unlockAudio: vi.fn(),
   playChange: vi.fn(),
+  DEFAULT_SOUND: 'ring',
 }))
 
 const played = (change: string) =>
@@ -35,12 +36,12 @@ const FLOW: Flow = {
 
 const vibrate = vi.fn()
 
-let chosen: string | number = 'chime' // what /api/settings answers: a sound, or a status
+let chosen: string | number = 'ring' // what /api/settings answers: a sound, or a status
 
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
-  chosen = 'chime'
+  chosen = 'ring'
   vi.stubGlobal(
     'fetch',
     vi.fn(async () =>
@@ -95,7 +96,7 @@ test('one movement at a time: countdown, cues, then the next starts by itself', 
   expect(played('count')).toBe(1) // 3 s left
   advance(3_000)
   expect(played('count')).toBe(3)
-  expect(playChange).toHaveBeenLastCalledWith('chime', 'next') // the next movement
+  expect(playChange).toHaveBeenLastCalledWith('ring', 'next') // the next movement
   expect(vibrate).toHaveBeenCalledWith(400)
   expect(screen.getByRole('heading', { name: 'Kneeling lunge' })).toBeInTheDocument()
   expect(screen.getByText('First side')).toBeInTheDocument()
@@ -106,7 +107,7 @@ test('one movement at a time: countdown, cues, then the next starts by itself', 
 test('a one-sided movement switches sides halfway with its own sound and buzz', () => {
   start()
   advance(105_200)
-  expect(playChange).toHaveBeenLastCalledWith('chime', 'switch')
+  expect(playChange).toHaveBeenLastCalledWith('ring', 'switch')
   expect(vibrate).toHaveBeenCalledWith([200, 100, 200])
   expect(screen.getByText('Second side')).toBeInTheDocument()
   expect(timer()).toBe('0:45')
@@ -116,7 +117,7 @@ test('at the end it finishes and logs the minutes moved, from when it started', 
   const started = Date.now()
   const onDone = start()
   advance(150_400)
-  expect(playChange).toHaveBeenLastCalledWith('chime', 'finish')
+  expect(playChange).toHaveBeenLastCalledWith('ring', 'finish')
   expect(screen.getByText('Flow done: 3 min of moving.')).toBeInTheDocument()
   click('Log 3 min')
   expect(onDone).toHaveBeenCalledWith(3, started)
@@ -170,7 +171,7 @@ test('a long gap (a locked screen) plays only the latest sound', () => {
     document.dispatchEvent(new Event('visibilitychange'))
   })
   expect(playChange).toHaveBeenCalledTimes(1) // the counts and the next movement are past
-  expect(playChange).toHaveBeenCalledWith('chime', 'switch') // the latest: switch sides
+  expect(playChange).toHaveBeenCalledWith('ring', 'switch') // the latest: switch sides
   expect(screen.getByText('Second side')).toBeInTheDocument()
 })
 
@@ -194,10 +195,10 @@ test('it plays the sound chosen in Settings', async () => {
   expect(playChange).toHaveBeenLastCalledWith('wood', 'next')
 })
 
-test('settings it cannot read leave the chime', async () => {
+test('settings it cannot read leave the default boxing bell', async () => {
   chosen = 500
   start()
   await act(async () => {})
   advance(60_100)
-  expect(playChange).toHaveBeenLastCalledWith('chime', 'next')
+  expect(playChange).toHaveBeenLastCalledWith('ring', 'next')
 })
