@@ -155,8 +155,9 @@ max) and a maintenance mode (about a third of the building volume, at the same i
 - **Per person already:** the place in the queue (`plan_state`, ADR-0006), the ladder step per
   exercise (`exercise_state`), settings, blocks (ADR-0028), test days (ADR-0037), every log.
 - **Nobody can change the plan in the app.** `GET /api/plan` is read-only. Today's session can
-  be moved, swapped or rested (ADR-0052), never edited. Ladder steps only go up, through Move up
-  after a ready session (ADR-0016, ADR-0025); there is no way to choose a level.
+  be moved, swapped or rested (ADR-0052), never edited. Levels are the one exception: Move up
+  after a ready session, Not yet, or any step by hand on the Plan page (ADR-0016, ADR-0025,
+  ADR-0075).
 - Multi-user decided **D1 now, D3 later** (multi-user-plan.md, Decided 7; ADR-0059 "Plans"):
   everyone on the owner's plan with their own progress; each person's own copy is the goal, and
   new code should take the person's plan where that's as cheap as assuming one.
