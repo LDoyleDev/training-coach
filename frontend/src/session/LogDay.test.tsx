@@ -22,6 +22,8 @@ const item = (name: string, slug: string, targets: number[], perSide = false) =>
   pair: null,
   targets,
   baseline: false,
+  muscles: [],
+  parts: [],
 })
 
 const LEGS: LogPlan = {

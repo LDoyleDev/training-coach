@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.auth import Owner
 from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
-from training_coach.api.session import UNITS, DoneView, ItemView
+from training_coach.api.session import UNITS, DoneView, ItemView, muscle_views
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.dates import day_problem
@@ -109,6 +109,8 @@ def plan(day: date, template_id: int, request: Request, user: Owner) -> LogPlanV
                 pair=i.pair,
                 targets=list(i.targets),
                 baseline=i.baseline,
+                muscles=muscle_views(i),
+                parts=list(i.parts),
             )
             for i in found.items
         ],

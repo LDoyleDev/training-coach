@@ -20,6 +20,7 @@ from training_coach.db.models import (
 )
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.muscles import Muscle, Part, ranked
 from training_coach.domain.queue import ADVANCING, Position, advance
 from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
@@ -42,6 +43,16 @@ class ItemPlan:
     # No history at this step yet: this session finds the level the targets grow from
     # (ADR-0027, ADR-0034).
     baseline: bool = False
+    # What it works, from the catalogue (ADR-0064): the most worked first; empty for an
+    # exercise that trains only qualities (cardio, mobility, a chin tuck).
+    muscles: tuple[tuple[Muscle, float], ...] = ()
+    parts: tuple[Part, ...] = ()
+
+
+@dataclass(frozen=True)
+class Worked:
+    muscles: tuple[tuple[Muscle, float], ...] = ()
+    parts: tuple[Part, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -95,6 +106,19 @@ def _summaries() -> dict[str, str]:
     return {e.slug: e.summary for e in bundled_plan().exercises if e.summary}
 
 
+def worked(slug: str) -> Worked:
+    """The muscles an exercise works and the parts it reaches, from the bundled plan like the
+    summary; nothing for an exercise it doesn't know."""
+    return _worked().get(slug, Worked())
+
+
+@lru_cache(maxsize=1)
+def _worked() -> dict[str, Worked]:
+    return {
+        e.slug: Worked(tuple(ranked(e.muscles)), tuple(e.parts)) for e in bundled_plan().exercises
+    }
+
+
 def _item_plan(session: Session, item: TemplateItem, strength: bool, pace: Pace) -> ItemPlan:
     """One exercise: its step, cue and targets, under the strength prescription if it applies
     (ADR-0028), with targets from the matching block's history (ADR-0027) at the person's
@@ -106,6 +130,7 @@ def _item_plan(session: Session, item: TemplateItem, strength: bool, pace: Pace)
             session, item.exercise_id, plan.step.id, item.per_side, plan.history
         )
     ]
+    found = worked(item.exercise.slug)
     return ItemPlan(
         exercise=item.exercise.name,
         kind=ExerciseKind(item.exercise.kind),
@@ -117,6 +142,8 @@ def _item_plan(session: Session, item: TemplateItem, strength: bool, pace: Pace)
         targets=targets(plan.prescription, history, pace),
         pair=item.pair,
         baseline=not history,
+        muscles=found.muscles,
+        parts=found.parts,
     )
 
 
