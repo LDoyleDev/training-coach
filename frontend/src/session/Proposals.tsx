@@ -125,6 +125,11 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
             From <strong>“{proposal.source}”</strong>: {proposal.summary}
           </p>
           {proposal.replaces && <p className="m-0 mt-1 font-bold">{proposal.replaces}.</p>}
+          {proposal.warnings.map((warning) => (
+            <p key={warning} className="m-0 mt-1">
+              {warning}
+            </p>
+          ))}
           {proposal.kind === 'cardio' && (
             <fieldset className="mt-2 flex flex-col gap-2 border-0 p-0">
               <legend className="mb-2 font-bold">Zone 2 or moderate: you pick</legend>

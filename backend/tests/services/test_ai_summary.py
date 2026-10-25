@@ -8,9 +8,10 @@ import pytest
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import FitnessTestDay, HabitCheck, Measurement, ReadinessAnswers
+from training_coach.domain.measurements import BodyFatEstimate, Kind
 from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import KEYS, VERSION
-from training_coach.services import workout_log
+from training_coach.services import measurements, workout_log
 from training_coach.services.ai_summary import GUIDE_URL, GUIDE_VERSION, Options, summary
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -108,3 +109,24 @@ def test_the_guide_is_the_version_the_summary_names() -> None:
     guide = Path(__file__).resolve().parents[3] / "docs" / "ai-guide.md"
     assert f"Guide version: {GUIDE_VERSION}\n" in guide.read_text(encoding="utf-8")
     assert GUIDE_URL.endswith("/docs/ai-guide.md")
+
+
+def test_the_body_section_says_how_and_carries_the_estimate_when_on(session: Session) -> None:
+    """ADR-0074: how they were measured first, then each kind's way; the tape estimate only
+    when the person turned it on, labelled as one."""
+    measurements.save(session, TODAY, TODAY, {Kind.WAIST: 93.0, Kind.NECK: 39.0})
+    measurements.save(session, TODAY, TODAY, {Kind.THIGH: 58.0})
+    text = summary(session, TODAY, Options(weeks=4, body=True))
+    section = _section(text, "## Body measurements")
+    assert section.index("How these were measured: In the morning") < section.index("Measurements:")
+    assert "- Waist: Horizontal at the navel, relaxed." in section
+    assert "15 cm above the top of the kneecap" in section
+    assert "Chest" not in section  # nothing measured, so no how
+    assert "Body fat" not in section  # the estimate is off
+    chosen = measurements.BodySettings(182, 12, BodyFatEstimate.NAVY_MALE)
+    measurements.save_settings(session, chosen)
+    section = _section(summary(session, TODAY, Options(weeks=4, body=True)), "## Body")
+    assert "12 cm above the top of the kneecap" in section
+    assert "Body fat, estimate from waist and neck, ±4%" in section
+    assert f"- {TODAY.isoformat()}: 20.9 %" in section
+    assert "20.9" not in summary(session, TODAY, Options(weeks=4))  # not without body data

@@ -628,8 +628,10 @@ export async function fetchBody(
   }
 }
 
-/** Save a day's measurements: true, or why the server refused them. */
-export async function saveBody(body: MeasureBody): Promise<true | string> {
+export type MeasureSaved = Schemas['MeasureSaved']
+
+/** Save a day's measurements: any "re-measure?" warnings, or why the server refused them. */
+export async function saveBody(body: MeasureBody): Promise<MeasureSaved | string> {
   const res = signedIn(
     await fetch('/api/body', {
       method: 'PUT',
@@ -643,7 +645,7 @@ export async function saveBody(body: MeasureBody): Promise<true | string> {
     return typeof detail === 'string' ? detail : 'Those values could not be saved.'
   }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
-  return true
+  return (await res.json()) as MeasureSaved
 }
 
 export async function deleteMeasurement(on: string, kind: string): Promise<void> {

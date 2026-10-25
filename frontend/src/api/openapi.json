@@ -156,6 +156,30 @@
         "title": "ApproveBody",
         "type": "object"
       },
+      "AverageView": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "on",
+          "value",
+          "count"
+        ],
+        "title": "AverageView",
+        "type": "object"
+      },
       "Band": {
         "enum": [
           "grey",
@@ -307,6 +331,71 @@
           "week"
         ],
         "title": "BlockView",
+        "type": "object"
+      },
+      "BodySettingsBody": {
+        "properties": {
+          "body_fat_estimate": {
+            "default": "off",
+            "enum": [
+              "off",
+              "navy_male"
+            ],
+            "title": "Body Fat Estimate",
+            "type": "string"
+          },
+          "height_cm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Cm"
+          },
+          "thigh_offset_cm": {
+            "default": 15,
+            "title": "Thigh Offset Cm",
+            "type": "integer"
+          }
+        },
+        "title": "BodySettingsBody",
+        "type": "object"
+      },
+      "BodySettingsView": {
+        "properties": {
+          "body_fat_estimate": {
+            "enum": [
+              "off",
+              "navy_male"
+            ],
+            "title": "Body Fat Estimate",
+            "type": "string"
+          },
+          "height_cm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Cm"
+          },
+          "thigh_offset_cm": {
+            "title": "Thigh Offset Cm",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "height_cm",
+          "thigh_offset_cm",
+          "body_fat_estimate"
+        ],
+        "title": "BodySettingsView",
         "type": "object"
       },
       "CardioActivity": {
@@ -1239,6 +1328,27 @@
         "title": "GoTo",
         "type": "object"
       },
+      "GuideView": {
+        "properties": {
+          "cadence": {
+            "title": "Cadence",
+            "type": "string"
+          },
+          "checklist": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Checklist",
+            "type": "array"
+          }
+        },
+        "required": [
+          "checklist",
+          "cadence"
+        ],
+        "title": "GuideView",
+        "type": "object"
+      },
       "GuidedView": {
         "properties": {
           "after_run": {
@@ -2125,10 +2235,16 @@
             "title": "High",
             "type": "number"
           },
+          "how": {
+            "title": "How",
+            "type": "string"
+          },
           "kind": {
             "enum": [
               "bodyweight",
+              "body_fat_scale",
               "waist",
+              "neck",
               "chest",
               "upper_arm",
               "thigh",
@@ -2156,7 +2272,8 @@
           "unit",
           "decimals",
           "low",
-          "high"
+          "high",
+          "how"
         ],
         "title": "KindView",
         "type": "object"
@@ -2751,11 +2868,13 @@
             "additionalProperties": {
               "type": "number"
             },
-            "maxProperties": 6,
+            "maxProperties": 8,
             "propertyNames": {
               "enum": [
                 "bodyweight",
+                "body_fat_scale",
                 "waist",
+                "neck",
                 "chest",
                 "upper_arm",
                 "thigh",
@@ -2772,12 +2891,30 @@
         "title": "MeasureBody",
         "type": "object"
       },
+      "MeasureSaved": {
+        "properties": {
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "warnings"
+        ],
+        "title": "MeasureSaved",
+        "type": "object"
+      },
       "MeasurementView": {
         "properties": {
           "kind": {
             "enum": [
               "bodyweight",
+              "body_fat_scale",
               "waist",
+              "neck",
               "chest",
               "upper_arm",
               "thigh",
@@ -3383,30 +3520,6 @@
         "title": "PlannedView",
         "type": "object"
       },
-      "PointView": {
-        "properties": {
-          "best": {
-            "title": "Best",
-            "type": "integer"
-          },
-          "day": {
-            "format": "date",
-            "title": "Day",
-            "type": "string"
-          },
-          "step_number": {
-            "title": "Step Number",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "day",
-          "best",
-          "step_number"
-        ],
-        "title": "PointView",
-        "type": "object"
-      },
       "ProgressView": {
         "properties": {
           "first": {
@@ -3610,6 +3723,14 @@
           "token": {
             "title": "Token",
             "type": "string"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
           }
         },
         "required": [
@@ -4834,7 +4955,7 @@
           },
           "trend": {
             "items": {
-              "$ref": "#/components/schemas/PointView"
+              "$ref": "#/components/schemas/training_coach__api__progress__PointView"
             },
             "title": "Trend",
             "type": "array"
@@ -5536,6 +5657,49 @@
         ],
         "title": "ZoneView",
         "type": "object"
+      },
+      "training_coach__api__body__PointView": {
+        "properties": {
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "on",
+          "value"
+        ],
+        "title": "PointView",
+        "type": "object"
+      },
+      "training_coach__api__progress__PointView": {
+        "properties": {
+          "best": {
+            "title": "Best",
+            "type": "integer"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "step_number": {
+            "title": "Step Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "best",
+          "step_number"
+        ],
+        "title": "PointView",
+        "type": "object"
       }
     }
   },
@@ -5801,6 +5965,67 @@
           }
         },
         "summary": "Test Key",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/body": {
+      "get": {
+        "operationId": "get_body_settings_api_account_body_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodySettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Body Settings",
+        "tags": [
+          "account"
+        ]
+      },
+      "put": {
+        "description": "Save all three (the height may be empty).",
+        "operationId": "set_body_settings_api_account_body_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BodySettingsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodySettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Body Settings",
         "tags": [
           "account"
         ]
@@ -6516,7 +6741,7 @@
         ]
       },
       "put": {
-        "description": "Save a day's measurements (any of them), replacing the same kind that day.",
+        "description": "Save a day's measurements (any of them), replacing the same kind that day; with a\nwarning for each one far from the last earlier entry of its kind.",
         "operationId": "save_api_body_put",
         "requestBody": {
           "content": {
@@ -6529,7 +6754,14 @@
           "required": true
         },
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasureSaved"
+                }
+              }
+            },
             "description": "Successful Response"
           },
           "422": {
@@ -6549,9 +6781,83 @@
         ]
       }
     },
+    "/api/body/averages": {
+      "get": {
+        "description": "Bodyweight's 7-day average at each day with a weigh-in, newest first: the first is the\nlatest, the rest are its trend.",
+        "operationId": "averages_api_body_averages_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AverageView"
+                  },
+                  "title": "Response Averages Api Body Averages Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Averages",
+        "tags": [
+          "body"
+        ]
+      }
+    },
+    "/api/body/estimates": {
+      "get": {
+        "description": "The tape body-fat estimate (%, \u00b14) for each day with a waist and a neck, newest first;\nempty unless the estimate is turned on and the height is set. Worked out, never stored.",
+        "operationId": "estimates_api_body_estimates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/training_coach__api__body__PointView"
+                  },
+                  "title": "Response Estimates Api Body Estimates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Estimates",
+        "tags": [
+          "body"
+        ]
+      }
+    },
+    "/api/body/guide": {
+      "get": {
+        "description": "The \"Before you measure\" checklist and how often to measure.",
+        "operationId": "guide_api_body_guide_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuideView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Guide",
+        "tags": [
+          "body"
+        ]
+      }
+    },
     "/api/body/kinds": {
       "get": {
-        "description": "What can be measured, in order, with units and ranges.",
+        "description": "What can be measured, in order, with units, ranges and how to take each.",
         "operationId": "kinds_api_body_kinds_get",
         "responses": {
           "200": {
@@ -6596,7 +6902,9 @@
             "schema": {
               "enum": [
                 "bodyweight",
+                "body_fat_scale",
                 "waist",
+                "neck",
                 "chest",
                 "upper_arm",
                 "thigh",

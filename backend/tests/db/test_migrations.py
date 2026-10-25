@@ -220,3 +220,40 @@ def test_blocks_migration_sets_session_kinds_without_the_seed(
     }
     engine.dispose()
     get_settings.cache_clear()
+
+
+def test_body_protocol_keeps_measurements_and_refuses_to_lose_new_kinds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR-0074: the kind check is rebuilt with the old rows in place; going back refuses
+    while a neck or scale body-fat measurement would no longer fit the old check."""
+    from sqlalchemy import create_engine, text
+
+    from training_coach.config import get_settings
+
+    url = f"sqlite:///{tmp_path / 'body.db'}"
+    monkeypatch.setenv("TC_DATABASE_URL", url)
+    get_settings.cache_clear()
+    cfg = Config(str(BACKEND / "alembic.ini"))
+    command.upgrade(cfg, "c4f1a7e9d2b6")  # before the body protocol
+    engine = create_engine(url)
+    insert = (
+        "INSERT INTO measurements (user_id, local_date, kind, tenths, created_at)"
+        " VALUES (1, '2026-10-10', :kind, 850, '2026-10-10 07:00:00')"
+    )
+    with engine.begin() as db:
+        db.execute(text(insert), {"kind": "waist"})
+    command.upgrade(cfg, "head")
+    with engine.begin() as db:
+        db.execute(text(insert), {"kind": "neck"})
+        found = db.execute(text("SELECT thigh_offset_cm, body_fat_estimate FROM settings"))
+        assert all(tuple(row) == (15, "off") for row in found)
+    with pytest.raises(RuntimeError, match="neck or scale body-fat measurements exist"):
+        command.downgrade(cfg, "c4f1a7e9d2b6")
+    with engine.begin() as db:
+        db.execute(text("DELETE FROM measurements WHERE kind = 'neck'"))
+    command.downgrade(cfg, "c4f1a7e9d2b6")
+    with engine.connect() as db:
+        assert db.execute(text("SELECT kind FROM measurements")).scalars().all() == ["waist"]
+    engine.dispose()
+    get_settings.cache_clear()
