@@ -348,11 +348,11 @@ def review_text(review: Review) -> str:
                 parts.append(f"{_amount(best.bests.total, best.kind)} in total")
             where = f"{best.step}, strength block" if best.strength else best.step
             lines.append(f"- {best.exercise} ({where}): {' and '.join(parts)}")
+    names = ", ".join(r.exercise for r in review.ready)
     if review.ready and review.strength_block:
-        names = ", ".join(review.ready)
         lines += ["", f"Ready to move up when the hypertrophy block starts: {names}."]
     elif review.ready:
-        lines += ["", f"Ready to move up: {', '.join(review.ready)}. See /progress."]
+        lines += ["", f"Ready to move up: {names}. See /progress."]
     if review.habits:
         lines += ["", "Habits:"]
         for week in review.habits:

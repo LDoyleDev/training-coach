@@ -8,7 +8,10 @@ const today = new Date(2026, 9, 21)
 const standing = (trend: Standing['trend'], unit: Standing['unit'] = 'reps'): Standing => ({
   exercise: 'Pull-up',
   unit,
+  slug: 'pull-up',
   step: 'Strict',
+  step_id: 2,
+  ladder: [],
   step_number: 1,
   steps: 4,
   last: [],

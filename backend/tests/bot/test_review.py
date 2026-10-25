@@ -9,6 +9,7 @@ from training_coach.bot.messages import review_text
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.habits import Habit, HabitWeek
 from training_coach.domain.records import NewBests
+from training_coach.services.progress import Ready
 from training_coach.services.review import Best, Review
 
 App = Application  # type: ignore[type-arg]  # see build_bot
@@ -47,7 +48,7 @@ def test_a_full_review() -> None:
                     "Pull-up", "Strict pull-up", ExerciseKind.REPS, NewBests(best_set=12, total=44)
                 )
             ],
-            ready=["Pull-up", "Dip (chairs)"],
+            ready=[Ready("Pull-up", "pull-up"), Ready("Dip (chairs)", "dip")],
         )
     )
     assert "Sessions: 5 of 7 done (2 rest days, 1 extra)." in text
@@ -87,7 +88,7 @@ def test_in_a_strength_block_moving_up_waits_and_strength_bests_say_so() -> None
     text = review_text(
         _review(
             strength_block=True,
-            ready=["Pull-up"],
+            ready=[Ready("Pull-up", "pull-up")],
             bests=[
                 Best(
                     "Pull-up",

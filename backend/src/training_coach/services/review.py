@@ -18,7 +18,6 @@ from training_coach.domain.blocks import BlockKind
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.habits import HabitWeek
 from training_coach.domain.muscles import Muscle
-from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
 from training_coach.domain.volume import weekly_sets
 from training_coach.services import blocks, habits, progress
@@ -46,7 +45,7 @@ class Review:
     extras: int  # unplanned sessions
     volume: list[tuple[Muscle, float]]  # fractional hard sets logged per muscle, largest first
     bests: list[Best]
-    ready: list[str]  # exercises ready to move up
+    ready: list[progress.Ready]  # exercises ready to move up
     strength_block: bool = False  # moving up waits for the hypertrophy block (ADR-0028)
     habits: list[HabitWeek] = field(default_factory=list)  # empty in a week with no check-off
     # Cardio minutes from done workouts, whatever logged them (#124).
@@ -166,7 +165,7 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
         extras=len(done) - planned_done,
         volume=_volume(session, start, end),
         bests=_bests(session, done),
-        ready=[s.exercise for s in progress.overview(session) if s.status is Progress.READY],
+        ready=progress.ready(progress.overview(session)),
         strength_block=(
             tz is not None
             and (block := blocks.current(session, on, tz)) is not None

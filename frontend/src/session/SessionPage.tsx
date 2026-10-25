@@ -695,7 +695,18 @@ export default function SessionPage() {
                 <li key={e.exercise}>
                   {e.exercise}
                   {e.best_set !== null ? `: new best ${e.best_set} in one set` : ''}
-                  {e.next_step ? ` · ready to move up to ${e.next_step}` : ''}
+                  {e.next_step && (
+                    <>
+                      {' '}
+                      ·{' '}
+                      <a
+                        href={`/plan?move=${encodeURIComponent(e.slug)}`}
+                        className="font-bold underline"
+                      >
+                        ready to move up to {e.next_step}
+                      </a>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
