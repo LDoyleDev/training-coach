@@ -164,6 +164,18 @@ With the owner's kit listed (8 kg and 16 kg bells, bands, pull-up bar, stools as
 carry (8 steps). With these ladders it opens 16 steps in seven ladders, each with a cue. A 24 kg bell adds the heaviest swing; a vest that loads to 15 kg opens 8 steps in pull-ups,
 chin-ups and dips (a 5 kg one opens 3).
 
+## Figures (follow-up, not drawn)
+
+Figures are per exercise (ADR-0063), so most new steps reuse theirs. These change the set-up
+and need a figure or a prop when the figures can vary by step:
+
+- Bulgarian split squat, **Suitcase hold, 16 kg + 8 kg**: bells at the sides, not the chest.
+- Pull-up, chin-up and dip, the **vest or backpack** steps: a load prop on the torso.
+- Dip, **Dip bars, bodyweight, full range**: bars in place of two chairs.
+- Kettlebell curl, **16 kg, hammer grip**: the handle held upright.
+- Overhead triceps extension, **8 kg, 1.5 reps**: the same pose, a different motion (a half
+  rep in the middle); worth a note on the set screen rather than a new figure.
+
 ## Decided (Liam, 25 Oct 2026)
 
 1. The renames and appends above, as written.

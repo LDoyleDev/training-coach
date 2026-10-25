@@ -86,4 +86,7 @@ Decided while building, within this ADR:
   moves them and answers with a `warning` naming the missing kit.
 - The AI summary (and MCP `get_summary`) lists the home kit; the guide is version 2. The export
   includes `equipment`.
-- The concrete steps are proposed, not built: `docs/specs/kit-ladder-proposal.md`.
+- The concrete steps are built as accepted (`docs/specs/kit-ladder-proposal.md`, Liam,
+  25 Oct 2026): each vague top step renamed in place and the rest appended, so nobody's place
+  moves. `plan.toml` gained step cues (`[exercises.cues]`) and band strengths in needs
+  (`band:medium`, met by that band or a stronger one).
