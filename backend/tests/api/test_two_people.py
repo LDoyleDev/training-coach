@@ -27,6 +27,7 @@ from training_coach.config import Settings
 from training_coach.db.models import (
     AiComment,
     DailyCheck,
+    Equipment,
     Exercise,
     ExerciseState,
     FitnessTestDay,
@@ -63,15 +64,17 @@ class Marks:
     steps: int
     protein_g: int
     day: date  # a done workout, a test day, a band workout
+    kit: str  # a home kit item's note (ADR-0071)
 
     @property
     def visible(self) -> list[str]:
         """What the web app shows of these rows somewhere."""
-        return [self.name, f"{self.tenths / 10:.1f}", str(self.steps), self.day.isoformat()]
+        shown = [self.name, f"{self.tenths / 10:.1f}", str(self.steps), self.day.isoformat()]
+        return [*shown, self.kit]
 
 
-ALPHA = Marks("Alphacanary", 1234, 12345, 173, date(2026, 10, 6))
-BRAVO = Marks("Bravocanary", 1087, 6789, 141, date(2026, 10, 8))
+ALPHA = Marks("Alphacanary", 1234, 12345, 173, date(2026, 10, 6), "Alphastools")
+BRAVO = Marks("Bravocanary", 1087, 6789, 141, date(2026, 10, 8), "Bravostools")
 
 
 @dataclass(frozen=True)
@@ -102,12 +105,14 @@ def _give(engine: Engine, user: int, marks: Marks) -> Ids:
         photo = ProgressPhoto(local_date=marks.day, pose="front", jpeg=marks.name.encode(), size=9)
         prefs = s.scalars(select(UserSettings)).one()
         prefs.protein_g = marks.protein_g
+        prefs.kit_saved_at = NOW
         s.add_all(
             [
                 workout,
                 photo,
                 Measurement(local_date=marks.day, kind="waist", tenths=marks.tenths),
                 HabitCheck(local_date=marks.day, habit=Habit.PROTEIN),
+                Equipment(kit="bench", note=marks.kit),
                 FitnessTestDay(
                     local_date=marks.day,
                     day=1,
@@ -172,6 +177,7 @@ OTHERS: dict[str, str] = {
 QUERIES: dict[str, dict[str, str]] = {
     "/api/session/stretching/{workout_id}": {"minutes": "10"},
     "/api/log/plan": {"day": NOW.date().isoformat(), "template_id": "1"},
+    "/api/equipment/unlocks": {"add": "kettlebell:16"},
 }
 
 

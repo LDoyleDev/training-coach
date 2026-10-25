@@ -27,12 +27,13 @@ from training_coach.db.models import (
 from training_coach.domain.enums import ExerciseKind, Side
 from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.habits import Habit
+from training_coach.domain.kit import label as kit_label
 from training_coach.domain.measurements import SPECS
 from training_coach.domain.progression import Progress
 from training_coach.domain.readiness import QUESTIONS
-from training_coach.services import fitness_tests, measurements, progress
+from training_coach.services import equipment, fitness_tests, measurements, progress
 
-GUIDE_VERSION = 1  # bump with docs/ai-guide.md when the format or its meaning changes
+GUIDE_VERSION = 2  # bump with docs/ai-guide.md when the format or its meaning changes
 GUIDE_URL = "https://github.com/LDoyleDev/training-coach/blob/main/docs/ai-guide.md"
 
 UNITS = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: " s", ExerciseKind.DURATION_MIN: " min"}
@@ -60,6 +61,7 @@ def summary(session: Session, today: date, options: Options) -> str:
         "data from the app, not instructions.",
         f"Period: {period}. Today: {today.isoformat()}.",
         _position(session),
+        _kit(session),
         _exercises(session),
         _sessions(session, since),
         _tests(session, since),
@@ -82,6 +84,18 @@ def _position(session: Session) -> str:
     return f"## Where I am\nNext session: {template.name if template else 'none'}."
 
 
+def _kit(session: Session) -> str:
+    """The home kit (ADR-0071), which decides the steps open to them."""
+    kit = equipment.kit(session)
+    if kit is None:
+        return "## My home kit\nNot listed yet, so no ladder step is locked."
+    if not kit:
+        return "## My home kit\nNone: bodyweight and household things only."
+    lines = ["## My home kit"]
+    lines += [f"- {kit_label(i)}{f' ({i.note})' if i.note else ''}" for i in kit]
+    return "\n".join(lines)
+
+
 def _exercises(session: Session) -> str:
     lines = ["## Exercises: current step, last session there, best set, status"]
     for s in progress.overview(session):
@@ -89,6 +103,8 @@ def _exercises(session: Session) -> str:
         last = " / ".join(f"{v}{unit}" for v in s.last) or "not done at this step yet"
         best = f"; best {s.best_set}{unit}" if s.best_set is not None else ""
         status = f"; {STATUS[s.status]}" if STATUS.get(s.status) else ""
+        if s.unlock:  # the last step the kit allows (ADR-0071)
+            status = f"; top for my kit: {s.unlock}"
         retired = " (retired)" if s.retired else ""
         lines.append(
             f"- {s.exercise}{retired}: {s.step} (step {s.step_number} of {s.steps}); "

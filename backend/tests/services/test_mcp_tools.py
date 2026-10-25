@@ -43,6 +43,6 @@ def test_the_guide_falls_back_to_its_address(monkeypatch: pytest.MonkeyPatch) ->
     mcp_tools.guide.cache_clear()
     monkeypatch.setattr(mcp_tools, "__file__", str(Path("/nowhere/at/all.py")))
     try:
-        assert mcp_tools.guide() == f"Read the guide at {GUIDE_URL} (version 1)."
+        assert mcp_tools.guide() == f"Read the guide at {GUIDE_URL} (version 2)."
     finally:
         mcp_tools.guide.cache_clear()

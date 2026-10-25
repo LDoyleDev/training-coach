@@ -1,0 +1,200 @@
+"""The home kit and the steps it locks (ADR-0071): saving the list, what an item unlocks, and
+Move up, the levels list and a level by hand respecting the kit."""
+
+from datetime import UTC, date, datetime, timedelta
+
+import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from training_coach.db.models import (
+    Equipment,
+    Event,
+    Exercise,
+    LadderStep,
+    SessionTemplate,
+    SetLog,
+    Workout,
+)
+from training_coach.domain.enums import Side, WorkoutStatus
+from training_coach.domain.kit import Item, Resistance
+from training_coach.domain.muscles import Kit
+from training_coach.domain.progression import Progress
+from training_coach.services import equipment, progress, users
+from training_coach.services.progress import MoveOutcome
+from training_coach.services.seed import apply_seed, load_plan
+
+NOW = datetime(2026, 10, 25, 9, tzinfo=UTC)
+DAY = date(2026, 10, 20)
+KB8 = Item(Kit.KETTLEBELL, kg=8)
+KB16 = Item(Kit.KETTLEBELL, kg=16)
+TOP = [20, 20, 20]  # kb-swing in Legs: 3 x 15-20
+
+
+@pytest.fixture
+def plan(session: Session) -> Session:
+    apply_seed(session, load_plan())
+    session.flush()
+    return session
+
+
+def _exercise(session: Session, slug: str) -> Exercise:
+    found = session.scalar(select(Exercise).where(Exercise.slug == slug))
+    assert found is not None
+    return found
+
+
+def _put(session: Session, slug: str, position: int) -> LadderStep:
+    exercise = _exercise(session, slug)
+    state = users.exercise_state(session, exercise.id)
+    assert state is not None
+    state.ladder_step_id = exercise.ladder[position].id
+    session.flush()
+    return exercise.ladder[position]
+
+
+def _on(session: Session, exercise_id: int) -> int:
+    state = users.exercise_state(session, exercise_id)
+    assert state is not None
+    return state.ladder_step_id
+
+
+def _standing(session: Session, slug: str) -> progress.Standing:
+    return next(s for s in progress.overview(session) if s.slug == slug)
+
+
+def _ready(
+    session: Session,
+    step: LadderStep,
+    template: str = "legs",
+    values: list[int] = TOP,
+    sides: tuple[Side, ...] = (Side.BOTH,),
+) -> int:
+    """Two sessions at the top of the range at ``step``; returns the second workout."""
+    template_id = session.scalar(select(SessionTemplate.id).where(SessionTemplate.slug == template))
+    workout_id = 0
+    for days in (0, 2):
+        workout = Workout(
+            local_date=DAY + timedelta(days=days),
+            template_id=template_id,
+            status=WorkoutStatus.DONE,
+        )
+        workout.sets = [
+            SetLog(
+                exercise_id=step.exercise_id,
+                ladder_step_id=step.id,
+                set_no=n,
+                side=side,
+                value=v,
+            )
+            for n, v in enumerate(values, start=1)
+            for side in sides
+        ]
+        session.add(workout)
+        session.flush()
+        workout_id = workout.id
+    return workout_id
+
+
+def test_no_kit_is_listed_until_one_is_saved(plan: Session) -> None:
+    assert equipment.kit(plan) is None
+    assert equipment.save(plan, [], NOW) is None
+    assert equipment.kit(plan) == []  # bodyweight only: a kit too
+    assert equipment.saved_at(plan) == NOW
+
+
+def test_saving_replaces_the_whole_list(plan: Session) -> None:
+    stools = Item(Kit.BENCH, note="two stools")
+    assert equipment.save(plan, [KB8, Item(Kit.BAND, resistance=Resistance.LIGHT)], NOW) is None
+    assert equipment.save(plan, [KB8, KB16, stools], NOW) is None
+    plan.flush()
+    assert equipment.items(plan) == [KB8, KB16, stools]
+    assert len(plan.scalars(select(Equipment)).all()) == 3
+    kinds = plan.scalars(select(Event.payload).where(Event.kind == equipment.SAVED)).all()
+    assert kinds == [{"items": 2}, {"items": 3}]
+
+
+def test_a_bad_list_changes_nothing(plan: Session) -> None:
+    equipment.save(plan, [KB8], NOW)
+    assert equipment.save(plan, [KB16, KB16], NOW) == "16 kg kettlebell is listed twice"
+    assert equipment.items(plan) == [KB8]
+
+
+def test_what_a_16_kg_kettlebell_unlocks(plan: Session) -> None:
+    equipment.save(plan, [KB8, Item(Kit.PULL_UP_BAR)], NOW)
+    found = {(u.slug, u.step) for u in equipment.unlocks(plan, KB16)}
+    assert ("kb-swing", "Heavier kettlebell") in found
+    assert ("suitcase-carry", "Farmer carry, 16 kg + 8 kg, swap hands each set") in found
+    assert ("goblet-squat", "Heavier kettlebell") not in found  # retired
+    assert all(step != "Two-hand, 8 kg" for _, step in found)  # already open
+
+
+def test_move_up_and_the_levels_list_ignore_kit_until_it_is_listed(plan: Session) -> None:
+    step = _put(plan, "kb-swing", 1)
+    last = _ready(plan, step)
+    (item,) = progress.feedback(plan, last)
+    assert (item.status, item.next_step, item.unlock) == (
+        Progress.READY,
+        "Heavier kettlebell",
+        None,
+    )
+    swing = _standing(plan, "kb-swing")
+    assert all(not r.missing for r in swing.ladder)
+
+
+def test_at_the_top_for_the_kit_progress_names_what_unlocks_the_next_step(plan: Session) -> None:
+    equipment.save(plan, [KB8], NOW)
+    step = _put(plan, "kb-swing", 1)
+    last = _ready(plan, step)
+    (item,) = progress.feedback(plan, last)
+    assert item.status is Progress.TOP_OF_LADDER
+    assert item.unlock == "a 16 kg kettlebell unlocks Heavier kettlebell"
+    assert item.note_top
+    swing = _standing(plan, "kb-swing")
+    assert swing.status is Progress.TOP_OF_LADDER
+    assert swing.unlock == "a 16 kg kettlebell unlocks Heavier kettlebell"
+    assert [r.missing for r in swing.ladder] == [(), (), ("a 16 kg kettlebell",)]
+    move = progress.move_up(plan, step.exercise_id, step.id)
+    assert move is not None
+    assert move.outcome is MoveOutcome.NO_NEXT_STEP
+    assert _on(plan, step.exercise_id) == step.id
+
+
+def test_adding_the_kettlebell_opens_the_next_step(plan: Session) -> None:
+    equipment.save(plan, [KB8, KB16], NOW)
+    step = _put(plan, "kb-swing", 1)
+    _ready(plan, step)
+    move = progress.move_up(plan, step.exercise_id, step.id)
+    assert move is not None
+    assert (move.outcome, move.step) == (MoveOutcome.MOVED, "Heavier kettlebell")
+
+
+def test_move_up_goes_to_the_next_step_the_kit_allows(plan: Session) -> None:
+    """Suitcase carry: 8 kg, 16 kg, then 16 + 8 kg. With only the 16 kg bell, both 8 kg steps
+    are locked: from the first, Move up goes to 16 kg, which is then the top for the kit."""
+    equipment.save(plan, [KB16], NOW)
+    carry = _standing(plan, "suitcase-carry")
+    lacks_8 = ("an 8 kg kettlebell",)
+    assert [r.missing for r in carry.ladder] == [lacks_8, (), lacks_8]
+    assert carry.unlock is None  # a harder step is open
+    first = _put(plan, "suitcase-carry", 0)
+    _ready(plan, first, "recovery", [45, 45], (Side.LEFT, Side.RIGHT))
+    move = progress.move_up(plan, first.exercise_id, first.id)
+    assert move is not None
+    assert (move.outcome, move.step) == (MoveOutcome.MOVED, "16 kg")
+    assert _standing(plan, "suitcase-carry").unlock == (
+        "an 8 kg kettlebell unlocks Farmer carry, 16 kg + 8 kg, swap hands each set"
+    )
+
+
+def test_a_locked_level_can_be_chosen_with_a_warning(plan: Session) -> None:
+    equipment.save(plan, [KB8], NOW)
+    exercise = _exercise(plan, "kb-swing")
+    move = progress.set_level(plan, exercise.id, exercise.ladder[2].id)
+    assert move is not None
+    assert move.outcome is MoveOutcome.LEVEL_SET
+    assert move.warning == "Heavier kettlebell needs a 16 kg kettlebell, not in your kit."
+    assert _on(plan, exercise.id) == exercise.ladder[2].id
+    back = progress.set_level(plan, exercise.id, exercise.ladder[0].id)
+    assert back is not None
+    assert back.warning is None

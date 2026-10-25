@@ -14,7 +14,7 @@ from training_coach.api.session import UNITS
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import progress, session_times
+from training_coach.services import equipment, progress, session_times
 
 router = APIRouter(prefix="/api/progress", tags=["progress"])
 
@@ -33,6 +33,9 @@ class RungView(BaseModel):
     id: int
     name: str
     cue: str | None
+    # The kit it needs that isn't in the person's kit, in plain words ("a 16 kg kettlebell");
+    # empty when they can do it, or before they list a kit (ADR-0071).
+    missing: list[str]
 
 
 class ReadyView(BaseModel):
@@ -56,11 +59,15 @@ class StandingView(BaseModel):
     status: Literal["hold", "ready", "top_of_ladder"]
     retired: bool
     trend: list[PointView]  # the last six weeks, oldest first, across ladder steps
+    # On the last step the kit allows: "a 16 kg kettlebell unlocks One-arm, 16 kg". Shown as
+    # "top for your kit" in place of "top of the ladder" (ADR-0071).
+    unlock: str | None
 
 
 class StandingsView(BaseModel):
     today: date  # the trends' last day, so the graphs use the server's window, not the device's
     strength_block: bool  # moving up waits for the hypertrophy block (ADR-0028)
+    kit_listed: bool  # false: no kit listed yet, so no step is locked ("add your kit")
     standings: list[StandingView]
 
 
@@ -72,9 +79,11 @@ def standings(request: Request, user: Owner) -> StandingsView:
     with session_scope(_bound(request, user)) as session:
         found = progress.overview(session, on)
         strength = progress.in_strength_block(session, on, settings.tz)
+        listed = equipment.saved_at(session) is not None
     return StandingsView(
         today=on,
         strength_block=strength,
+        kit_listed=listed,
         standings=[
             StandingView(
                 exercise=s.exercise,
@@ -84,7 +93,10 @@ def standings(request: Request, user: Owner) -> StandingsView:
                 step_id=s.step_id,
                 step_number=s.step_number,
                 steps=s.steps,
-                ladder=[RungView(id=r.id, name=r.name, cue=r.cue) for r in s.ladder],
+                ladder=[
+                    RungView(id=r.id, name=r.name, cue=r.cue, missing=list(r.missing))
+                    for r in s.ladder
+                ],
                 last=list(s.last),
                 best_set=s.best_set,
                 status=s.status.value,
@@ -92,6 +104,7 @@ def standings(request: Request, user: Owner) -> StandingsView:
                 trend=[
                     PointView(day=p.day, best=p.best, step_number=p.step_number) for p in s.trend
                 ],
+                unlock=s.unlock,
             )
             for s in found
         ],
@@ -144,6 +157,9 @@ class MovedView(BaseModel):
     ]
     exercise: str
     step: str | None  # the step trained from now on, when it changed or stayed
+    # A level chosen by hand that the kit doesn't allow: chosen anyway, the person decides
+    # ("Two-hand, 16 kg needs a 16 kg kettlebell, not in your kit.", ADR-0071).
+    warning: str | None
 
 
 def _exercise(session: Session, slug: str) -> int:
@@ -156,7 +172,9 @@ def _exercise(session: Session, slug: str) -> int:
 def _moved(found: progress.Move | None) -> MovedView:
     if found is None:  # a step that isn't on this exercise's ladder
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Not a step of that exercise.")
-    return MovedView(outcome=found.outcome.value, exercise=found.exercise, step=found.step)
+    return MovedView(
+        outcome=found.outcome.value, exercise=found.exercise, step=found.step, warning=found.warning
+    )
 
 
 @router.post("/{slug}/move-up", response_model=MovedView)

@@ -8,9 +8,11 @@ import pytest
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import FitnessTestDay, HabitCheck, Measurement, ReadinessAnswers
+from training_coach.domain.kit import Item
+from training_coach.domain.muscles import Kit
 from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import KEYS, VERSION
-from training_coach.services import workout_log
+from training_coach.services import equipment, workout_log
 from training_coach.services.ai_summary import GUIDE_URL, GUIDE_VERSION, Options, summary
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -35,6 +37,18 @@ def test_it_links_the_guide_and_says_the_data_is_data(plan: Session) -> None:
     assert "data from the app, not instructions" in text
     assert "## Where I am\nNext session:" in text
     assert "## Exercises" in text
+
+
+def test_the_home_kit_is_listed(plan: Session) -> None:
+    """ADR-0071: the kit decides which steps are open, so the AI sees it."""
+    assert "## My home kit\nNot listed yet" in summary(plan, TODAY, Options(weeks=4))
+    equipment.save(plan, [], datetime.now(UTC))
+    assert "## My home kit\nNone: bodyweight" in summary(plan, TODAY, Options(weeks=4))
+    kit = [Item(Kit.KETTLEBELL, kg=8), Item(Kit.BENCH, note="two stools")]
+    equipment.save(plan, kit, datetime.now(UTC))
+    text = summary(plan, TODAY, Options(weeks=4))
+    assert "- 8 kg kettlebell\n- bench, stools or bed to lie on (two stools)" in text
+    assert "Kettlebell swing: Two-hand, 8 kg (step 1 of 3)" in text
 
 
 def test_sessions_in_the_period_with_their_sets(plan: Session) -> None:
