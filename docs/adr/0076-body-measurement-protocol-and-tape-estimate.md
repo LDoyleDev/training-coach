@@ -1,4 +1,4 @@
-# ADR-0074: One way to take each measurement, and a tape body-fat estimate
+# ADR-0076: One way to take each measurement, and a tape body-fat estimate
 
 - Status: Accepted
 - Date: 2026-10-25
