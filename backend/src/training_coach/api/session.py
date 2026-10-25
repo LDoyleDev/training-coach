@@ -32,7 +32,7 @@ from training_coach.services import (
 )
 from training_coach.services import progress as feedback
 from training_coach.services.day_clash import Clash, Refused
-from training_coach.services.today import position
+from training_coach.services.today import ItemPlan, position
 
 router = APIRouter(prefix="/api/session", tags=["session"])
 
@@ -100,6 +100,11 @@ def flow_view(flow: Flow | None) -> FlowView | None:
     )
 
 
+class ItemMuscleView(BaseModel):
+    muscle: str  # domain/muscles.py's names
+    weight: float  # 1 prime mover, 0.5 synergist, 0.25 a small part (ADR-0064)
+
+
 class ItemView(BaseModel):
     slug: str
     name: str
@@ -111,7 +116,13 @@ class ItemView(BaseModel):
     pair: int | None
     targets: list[int]
     baseline: bool  # first session at this step (ADR-0034)
+    muscles: list[ItemMuscleView]  # what it works, the most worked first; [] for cardio, mobility
+    parts: list[str]  # muscle parts it reaches: "triceps long head", "rectus femoris"
     flow: FlowView | None = None  # guided one movement at a time (ADR-0062)
+
+
+def muscle_views(item: ItemPlan) -> list[ItemMuscleView]:
+    return [ItemMuscleView(muscle=m, weight=w) for m, w in item.muscles]
 
 
 class SetView(BaseModel):
@@ -337,6 +348,8 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                     pair=i.pair,
                     targets=list(i.targets),
                     baseline=i.baseline,
+                    muscles=muscle_views(i),
+                    parts=list(i.parts),
                     flow=flow_view(mobility_flow.flow_for(i.slug)),
                 )
                 for i in plan.items

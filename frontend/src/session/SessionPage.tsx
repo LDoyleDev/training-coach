@@ -45,6 +45,9 @@ import BandOffers from './BandOffers'
 import Proposals from './Proposals'
 import LogDay from './LogDay'
 import ClashQuestion from './ClashQuestion'
+import { ExerciseFigures } from '../bodymap/BodyMap'
+import { worksLine } from '../bodymap/words'
+import Movement from './Movement'
 import { card, primary, primaryInline, secondary } from '../ui'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
@@ -525,7 +528,23 @@ export default function SessionPage() {
                   Do {partner.name} first
                 </button>
               )}
-              {item.summary && <p className={card}>{item.summary}</p>}
+              {(item.summary || item.muscles.length > 0) && (
+                <div className={card + ' flow-root'}>
+                  {item.muscles.length > 0 && (
+                    <ExerciseFigures
+                      muscles={item.muscles}
+                      className="mb-2 justify-center min-[340px]:float-right min-[340px]:mb-1 min-[340px]:ml-3"
+                    />
+                  )}
+                  <div className="space-y-2">
+                    {item.summary && <p>{item.summary}</p>}
+                    {item.muscles.length > 0 && (
+                      <p className="text-[var(--slate)]">{worksLine(item.muscles, item.parts)}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              <Movement key={position} slug={item.slug} name={item.name} open={step.set_no === 1} />
               {item.unit === 'seconds' && (
                 <div className={card + ' flex flex-col items-center gap-2'}>
                   <span aria-live="polite" className="text-6xl font-extrabold">

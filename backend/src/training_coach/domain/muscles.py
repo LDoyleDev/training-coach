@@ -6,7 +6,7 @@ stabiliser isn't listed (it counts 0). The weights come from growth studies wher
 and are estimates otherwise (docs/specs/program-builder-research.md, Weights by exercise).
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from enum import StrEnum
 
 
@@ -99,6 +99,12 @@ WEIGHTS = (1.0, 0.5, 0.25)
 WEIGHED = frozenset({Kit.KETTLEBELL})  # kit that comes in weights, each one owned apart
 LOADS = frozenset({Kit.KETTLEBELL, Kit.DUMBBELLS, Kit.BACKPACK})  # kit that is a weight to carry
 SQUATS = frozenset({Pattern.SQUAT, Pattern.LUNGE})
+
+
+def ranked(muscles: Mapping[Muscle, float]) -> list[tuple[Muscle, float]]:
+    """An exercise's muscles, the most worked first, ties in the fixed list's order."""
+    order = list(Muscle)
+    return sorted(muscles.items(), key=lambda mw: (-mw[1], order.index(mw[0])))
 
 
 def step_stress(stress: Iterable[Stress], pattern: Pattern, needs: Iterable[str]) -> set[Stress]:

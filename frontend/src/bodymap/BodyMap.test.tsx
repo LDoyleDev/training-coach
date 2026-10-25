@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Coverage, MuscleCoverage } from '../api'
-import { BodyMap, SessionMap } from './BodyMap'
+import { BodyMap, ExerciseFigures, SessionMap } from './BodyMap'
 import { useCoverage } from './useCoverage'
 import { BACK, FRONT } from './regions'
-import { amount, goal, sessionWarnings, warnings } from './words'
+import { amount, goal, sessionWarnings, warnings, worksLine } from './words'
 
 const muscle = (over: Partial<MuscleCoverage>): MuscleCoverage => ({
   muscle: 'quads',
@@ -246,6 +246,43 @@ describe('words', () => {
     )
     expect(warnings(lats, coverage)).toEqual([])
     expect(sessionWarnings({ ...coverage, sessions: [] })).toEqual([])
+  })
+})
+
+describe('one exercise', () => {
+  it('colours its muscles by weight on figures that are only a picture', () => {
+    const { container } = render(
+      <ExerciseFigures
+        muscles={[
+          { muscle: 'quads', weight: 1 },
+          { muscle: 'glutes', weight: 0.5 },
+          { muscle: 'lower back', weight: 0.25 },
+        ]}
+      />,
+    )
+    const colour = (m: string) =>
+      container.querySelector(`path[data-muscle="${m}"]`)?.getAttribute('fill')
+    expect(colour('quads')).toBe('var(--heat-hard)')
+    expect(colour('glutes')).toBe('var(--heat-worked)')
+    expect(colour('lower back')).toBe('var(--heat-light)')
+    expect(colour('chest')).toBe('var(--band-grey)')
+    expect(screen.queryAllByRole('figure')).toHaveLength(0)
+    expect(screen.getAllByRole('figure', { hidden: true })).toHaveLength(2)
+    expect(container.querySelector('path[data-muscle="quads"]')).not.toHaveClass('cursor-pointer')
+  })
+
+  it('says what it works, in words', () => {
+    expect(worksLine([])).toBe('')
+    expect(
+      worksLine([
+        { muscle: 'glutes', weight: 0.5 },
+        { muscle: 'hamstrings', weight: 0.5 },
+        { muscle: 'forearms', weight: 0.25 },
+      ]),
+    ).toBe('Works: Glutes, hamstrings · a little: forearms')
+    expect(worksLine([{ muscle: 'triceps', weight: 1 }], ['triceps long head'])).toBe(
+      'Works: Triceps · reaches the triceps long head',
+    )
   })
 })
 

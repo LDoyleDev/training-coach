@@ -2211,6 +2211,13 @@ export interface components {
             /** Url */
             url: string | null;
         };
+        /** ItemMuscleView */
+        ItemMuscleView: {
+            /** Muscle */
+            muscle: string;
+            /** Weight */
+            weight: number;
+        };
         /** ItemView */
         ItemView: {
             /** Baseline */
@@ -2218,10 +2225,14 @@ export interface components {
             /** Cue */
             cue: string | null;
             flow?: components["schemas"]["FlowView"] | null;
+            /** Muscles */
+            muscles: components["schemas"]["ItemMuscleView"][];
             /** Name */
             name: string;
             /** Pair */
             pair: number | null;
+            /** Parts */
+            parts: string[];
             /** Per Side */
             per_side: boolean;
             /** Slug */

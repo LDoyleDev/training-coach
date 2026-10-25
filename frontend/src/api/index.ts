@@ -195,6 +195,7 @@ export async function signOut(): Promise<void> {
 export type TodayView = Schemas['TodayView']
 export type Guided = Schemas['GuidedView']
 export type GuidedItem = Schemas['ItemView']
+export type ItemMuscle = Schemas['ItemMuscleView'] // what an exercise works, with its weight
 export type Flow = Schemas['FlowView'] // the mobility flow (ADR-0062)
 export type FlowMove = Schemas['MoveView']
 export type GuidedSet = Schemas['SetView']

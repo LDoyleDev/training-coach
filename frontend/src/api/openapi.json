@@ -1914,6 +1914,24 @@
         "title": "IngestView",
         "type": "object"
       },
+      "ItemMuscleView": {
+        "properties": {
+          "muscle": {
+            "title": "Muscle",
+            "type": "string"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "muscle",
+          "weight"
+        ],
+        "title": "ItemMuscleView",
+        "type": "object"
+      },
       "ItemView": {
         "properties": {
           "baseline": {
@@ -1941,6 +1959,13 @@
               }
             ]
           },
+          "muscles": {
+            "items": {
+              "$ref": "#/components/schemas/ItemMuscleView"
+            },
+            "title": "Muscles",
+            "type": "array"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -1955,6 +1980,13 @@
               }
             ],
             "title": "Pair"
+          },
+          "parts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Parts",
+            "type": "array"
           },
           "per_side": {
             "title": "Per Side",
@@ -2006,7 +2038,9 @@
           "per_side",
           "pair",
           "targets",
-          "baseline"
+          "baseline",
+          "muscles",
+          "parts"
         ],
         "title": "ItemView",
         "type": "object"

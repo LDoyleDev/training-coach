@@ -1,4 +1,4 @@
-import type { Band, Coverage, Heat, MuscleCoverage } from '../api'
+import type { Band, Coverage, Heat, ItemMuscle, MuscleCoverage } from '../api'
 
 /** The six bands as people read them (program-builder.md, Decided 3). */
 export const BANDS: readonly { band: Band; label: string; means: string }[] = [
@@ -84,4 +84,23 @@ export function sessionWarnings(c: Coverage): string[] {
         ]
       : []),
   ])
+}
+
+/** How hard one exercise works a muscle, on the session map's colours: the main mover (1) worked
+ * hard, a helper (½) worked, a small part (¼) a little. */
+export const weightHeat = (weight: number): Heat =>
+  weight >= 1 ? 'hard' : weight >= 0.5 ? 'worked' : 'light'
+
+/** "Works: Lats · helped by biceps, upper back · a little: rear delts, forearms", for the set
+ * screen; "" for an exercise that works no muscle (cardio, mobility). */
+export function worksLine(muscles: readonly ItemMuscle[], parts: readonly string[] = []): string {
+  const groups = (['hard', 'worked', 'light'] as const)
+    .map((heat) => muscles.filter((m) => weightHeat(m.weight) === heat).map((m) => m.muscle))
+    .map((names, i) => ({ names, label: ['', 'helped by ', 'a little: '][i] }))
+    .filter((g) => g.names.length > 0)
+  if (groups.length === 0) return ''
+  const said = groups.map((g, i) =>
+    i === 0 ? `Works: ${muscleName(g.names.join(', '))}` : g.label + g.names.join(', '),
+  )
+  return [...said, ...parts.map((p) => `reaches the ${p}`)].join(' · ')
 }
