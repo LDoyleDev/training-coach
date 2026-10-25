@@ -77,6 +77,13 @@ def _kinds(items: tuple[ItemPlan, ...]) -> list[Kind | None]:
     return kinds
 
 
+def work_groups(items: tuple[ItemPlan, ...], first: Collection[int] = ()) -> list[list[SetRef]]:
+    """The session's sets in the order they're done, for the guided session and the bot's work
+    list alike: no exercise twice in a row where a pair can avoid it, then no main muscle."""
+    primes = [kind.primes if kind is not None else frozenset[str]() for kind in _kinds(items)]
+    return work_order([len(i.targets) for i in items], [i.pair for i in items], first, primes)
+
+
 def _ordered(items: tuple[ItemPlan, ...], groups: list[list[SetRef]]) -> tuple[GuidedSet, ...]:
     """The sets in work order, each with the rest that follows it (ADR-0065)."""
     flat = [ref for group in groups for ref in group]
@@ -126,7 +133,7 @@ def _guided(
     *,
     after_run: bool,
 ) -> Guided:
-    groups = work_order([len(i.targets) for i in items], [i.pair for i in items], first)
+    groups = work_groups(items, first)
     order = _ordered(items, groups)
     warm_up = plan.kind == "strength"
     return Guided(

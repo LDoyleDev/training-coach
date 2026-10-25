@@ -7,9 +7,37 @@ def test_a_pair_alternates_set_by_set() -> None:
     assert work_order([3, 3], [1, 1]) == [[(0, 1), (1, 1), (0, 2), (1, 2), (0, 3), (1, 3)]]
 
 
-def test_the_longer_exercise_finishes_its_sets_alone() -> None:
-    assert work_order([2, 4], [1, 1]) == [[(0, 1), (1, 1), (0, 2), (1, 2), (1, 3), (1, 4)]]
+def test_the_longer_exercise_starts_so_it_never_comes_twice_in_a_row() -> None:
+    """Hamstring curls 3, kettlebell curls 4 (Liam, 25 Oct 2026): the curls start and end it."""
+    assert work_order([3, 4], [1, 1]) == [[(1, 1), (0, 1), (1, 2), (0, 2), (1, 3), (0, 3), (1, 4)]]
+    assert work_order([4, 3], [1, 1])[0][0] == (0, 1)  # already the longer first: plan order
+
+
+def test_two_or_more_extra_sets_still_finish_alone() -> None:
+    assert work_order([2, 4], [1, 1]) == [[(1, 1), (0, 1), (1, 2), (0, 2), (1, 3), (1, 4)]]
     assert work_order([3, 1], [2, 2]) == [[(0, 1), (1, 1), (0, 2), (0, 3)]]
+
+
+def test_a_pair_avoids_a_main_muscle_straight_after_the_last_pair() -> None:
+    """Pull-ups and dips, then rows and push-ups: starting with push-ups would put chest after
+    the last dips, so the rows start (the push-ups' extra set is the smaller cost)."""
+    lats, chest = frozenset({"lats"}), frozenset({"chest"})
+    order = work_order([3, 3, 4, 4], [1, 1, 2, 2], primes=[lats, chest, lats, chest])
+    flat = [ref for group in order for ref in group]
+    assert flat[5] == (1, 3)  # the last dip
+    assert flat[6] == (2, 1)  # then rows, not push-ups
+
+
+def test_do_this_one_first_swaps_from_the_usual_order() -> None:
+    usual = work_order([3, 4], [1, 1])
+    swapped = work_order([3, 4], [1, 1], first={1})
+    assert usual[0][0] == (1, 1)
+    assert swapped[0][0] == (0, 1)  # the person's choice, even with a repeat at the end
+
+
+def test_primes_must_describe_the_same_items() -> None:
+    with pytest.raises(ValueError, match="primes"):
+        work_order([1, 1], [1, 1], primes=[frozenset()])
 
 
 def test_unpaired_items_are_done_straight_through_in_their_own_group() -> None:
@@ -40,9 +68,16 @@ def test_no_sets_no_group_and_mismatched_lengths_raise() -> None:
         work_order([1], [])
 
 
-def test_a_pair_can_start_with_its_second_exercise() -> None:
-    assert work_order([2, 3], [1, 1], first={1}) == [[(1, 1), (0, 1), (1, 2), (0, 2), (1, 3)]]
+def test_a_pair_can_start_with_its_other_exercise() -> None:
+    assert work_order([2, 2], [1, 1], first={1}) == [[(1, 1), (0, 1), (1, 2), (0, 2)]]
     assert work_order([1, 1, 1, 1], [1, 1, 2, 2], first={2}) == [
         [(0, 1), (1, 1)],
         [(3, 1), (2, 1)],
     ]
+
+
+def test_past_the_most_pairs_the_plans_order_is_kept() -> None:
+    sets = [3, 4] * 11
+    pairs = [n for n in range(1, 12) for _ in range(2)]
+    order = work_order(sets, pairs)
+    assert [group[0] for group in order] == [(i, 1) for i in range(0, 22, 2)]  # not searched

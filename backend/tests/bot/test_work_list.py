@@ -41,7 +41,9 @@ def test_the_list_pasted_back_logs_every_set_in_order(session: Session) -> None:
     assert draft.problems == ()
     by_slug = {entry.slug: entry.sets for entry in draft.entries}
     assert len(by_slug) == 8
-    for item, slug in zip(plan.items, by_slug, strict=True):
+    assert set(by_slug) == {item.slug for item in plan.items}
+    for item in plan.items:  # by name: a pair may start with its second exercise (ADR-0031)
+        slug = item.slug
         sides = (Side.LEFT, Side.RIGHT) if item.per_side else (Side.BOTH,)
         expected = tuple(
             (n, side, value) for n, value in enumerate(item.targets, start=1) for side in sides
