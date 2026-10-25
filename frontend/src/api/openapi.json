@@ -4105,6 +4105,7 @@
         "type": "object"
       },
       "RoutineView": {
+        "description": "The routine and its timing: each side starts with getting into position, then the\nholds with a release between them; all of it fits in ``minutes`` (ADR-0032 addendum).",
         "properties": {
           "hold_seconds": {
             "title": "Hold Seconds",
@@ -4112,6 +4113,14 @@
           },
           "minutes": {
             "title": "Minutes",
+            "type": "integer"
+          },
+          "position_seconds": {
+            "title": "Position Seconds",
+            "type": "integer"
+          },
+          "release_seconds": {
+            "title": "Release Seconds",
             "type": "integer"
           },
           "session": {
@@ -4130,6 +4139,8 @@
           "session",
           "minutes",
           "hold_seconds",
+          "position_seconds",
+          "release_seconds",
           "steps"
         ],
         "title": "RoutineView",
@@ -4917,9 +4928,14 @@
           "rounds": {
             "title": "Rounds",
             "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
           }
         },
         "required": [
+          "slug",
           "name",
           "rounds",
           "per_side",
@@ -7924,7 +7940,7 @@
         ]
       },
       "post": {
-        "description": "Log the stretching minutes on the workout, once.",
+        "description": "Log the stretching minutes on the workout, once: the minutes actually done, 1 up to\nthe longest choice.",
         "operationId": "stretching_done_api_session_stretching__workout_id__post",
         "parameters": [
           {

@@ -43,3 +43,33 @@ mobility flow on the Recovery day.
 - The "Saved" reply to a resistance log offers Stretch 10 / 20 / 30 min. A choice sends the
   routine with a Done button, and Done logs the minutes on that workout as the plan's mobility
   exercise. That is one per workout, so a second tap can't double it.
+
+## Addendum (2026-10-25): guided stretching, the chosen minutes as the real total
+
+Liam asked for an overview of what's coming, then a timed routine he follows by the bells
+alone: time to get into each stretch, the hold counted down, a bell at each change. The
+choice of stretches above stands; the timing and the web page change.
+
+- **Timing.** 15 s to get into position before each stretch and before its other side; 5 s
+  to let go between rounds on the same side; a one-sided stretch does all its rounds on one
+  side, then the other. A stretch takes sides × (15 + rounds × 30 + (rounds − 1) × 5) s,
+  replacing the flat 10 s per hold.
+- **The chosen 10, 20 or 30 minutes are the real total**, gaps included. The routine still
+  fills them without going over, so it never needs fewer than two rounds of a stretch; when
+  time runs short the least important stretches are the ones left out. Against the bundled
+  catalogue every strength session's routine comes within a minute of the choice
+  (`tests/services/test_stretching.py`).
+- **Web.** Choosing a time shows the overview: the stretches in order with hold, rounds and
+  sides, and the true total. Start runs the guided player (`StretchPlayer.tsx`), built on the
+  mobility flow's pure clock (`session/flow.ts`, ADR-0062): each position, hold and release is
+  a section of one timeline, so countdowns, Back and Skip, "Next: …" over a stretch's last 5 s
+  and the sounds use the same functions. The person's Sound from Settings plays at every change
+  (a new stretch and a hold: next; the other side: switch; letting go: count; the end: finish),
+  with a buzz where the phone has one, never on tapping Start. The screen stays on; pause, Back
+  and Skip work as in the flow. The stretch's figure shows while getting into position, when
+  there is one.
+- **Logging.** Run to the end, the player logs the minutes it actually ran by itself (whole
+  minutes, never more than chosen). Stopped early, it offers to log the whole minutes done (at
+  least 1) or nothing. The API accepts 1 to 30 minutes, no longer only a choice. "Done
+  stretching" stays on the overview for stretching without the phone and logs the chosen time.
+- The bot keeps its list and Done button; its routine uses the same timing.

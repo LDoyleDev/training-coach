@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { fetchStretching, logStretching, SignedOutError, type Routine } from '../api'
 import SignedOutNotice from '../components/SignedOutNotice'
-import { card, primary } from '../ui'
+import { card } from '../ui'
+import StretchPlayer from './StretchPlayer'
 
 const CHOICES = [10, 20, 30] // minutes, as the bot offers (ADR-0032)
 
@@ -12,8 +13,10 @@ type State =
   | { status: 'choose' }
   | { status: 'routine'; routine: Routine }
   | { status: 'done'; minutes: number; logged: boolean }
+  | { status: 'discarded' }
 
-/** After a saved resistance session: pick a time, follow the stretches, log them (#135). */
+/** After a saved resistance session: pick a time, see what's coming, then follow the bells
+ * (or stretch without the phone) and log the minutes (#135, ADR-0032 addendum). */
 export default function Stretching({ workoutId }: { workoutId: number }) {
   const [state, setState] = useState<State>({ status: 'choose' })
   const [busy, setBusy] = useState(false)
@@ -78,29 +81,12 @@ export default function Stretching({ workoutId }: { workoutId: number }) {
       )}
 
       {state.status === 'routine' && (
-        <>
-          <p className="text-[var(--slate)]">
-            Hold each stretch {state.routine.hold_seconds} s at a gentle pull, 3-4 out of 10, never
-            pain.
-          </p>
-          <ol className="flex list-decimal flex-col gap-2 pl-5">
-            {state.routine.steps.map((step) => (
-              <li key={step.name}>
-                <span className="font-bold">{step.name}</span>: {step.rounds} rounds of{' '}
-                {state.routine.hold_seconds} s{step.per_side ? ' each side' : ''}
-                <p className="text-[var(--slate)]">{step.cue}</p>
-              </li>
-            ))}
-          </ol>
-          <button
-            type="button"
-            className={primary}
-            disabled={busy}
-            onClick={() => done(state.routine.minutes)}
-          >
-            Done stretching
-          </button>
-        </>
+        <StretchPlayer
+          routine={state.routine}
+          busy={busy}
+          onLog={done}
+          onDiscard={() => setState({ status: 'discarded' })}
+        />
       )}
 
       {state.status === 'done' && (
@@ -110,6 +96,8 @@ export default function Stretching({ workoutId }: { workoutId: number }) {
             : 'Stretching was already logged for this session.'}
         </p>
       )}
+
+      {state.status === 'discarded' && <p>Not logged.</p>}
     </section>
   )
 }

@@ -56,6 +56,18 @@ def test_every_choice_fits_and_longer_choices_cover_more(session: Session) -> No
     assert sizes[0] < sizes[-1]
 
 
+@pytest.mark.parametrize("slug", [s.slug for s in load_plan().sessions if s.type == "strength"])
+@pytest.mark.parametrize("minutes", [10, 20, 30])
+def test_the_chosen_minutes_are_the_real_total(session: Session, slug: str, minutes: int) -> None:
+    """Holds plus the gaps to get into position and let go fit inside the time chosen, and
+    fill it to within a minute, against the real catalogue."""
+    steps = stretching.for_session(session, _template(session, slug), minutes)
+    assert steps is not None
+    total = sum(s.seconds for s in steps)
+    assert minutes * 60 - 60 < total <= minutes * 60
+    assert all(s.rounds >= 1 for s in steps)
+
+
 def test_an_unknown_session_has_no_routine(session: Session) -> None:
     assert stretching.for_session(session, 999_999, 10) is None
 
@@ -101,8 +113,15 @@ def test_done_adds_the_minutes_once(session: Session) -> None:
 
 def test_done_refuses_what_it_cannot_log(session: Session) -> None:
     assert stretching.log(session, _workout(session, "zone2"), 10) is None
-    assert stretching.log(session, _workout(session, "legs"), 7) is None
+    assert stretching.log(session, _workout(session, "legs"), 0) is None
+    assert stretching.log(session, _workout(session, "legs"), 31) is None
     assert stretching.log(session, 999_999, 10) is None
+
+
+def test_done_early_logs_the_minutes_actually_done(session: Session) -> None:
+    legs = _workout(session, "legs")
+    assert stretching.log(session, legs, 7) is True
+    assert _stretching_sets(session, legs) == [7]
 
 
 def test_another_persons_workout_is_not_there(engine: Engine) -> None:

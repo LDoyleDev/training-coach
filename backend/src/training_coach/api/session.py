@@ -18,7 +18,7 @@ from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import HARD_SESSIONS
 from training_coach.domain.readiness import note as readiness_note
 from training_coach.domain.session_times import Timing, minutes
-from training_coach.domain.stretching import HOLD_SECONDS
+from training_coach.domain.stretching import HOLD_SECONDS, POSITION_SECONDS, RELEASE_SECONDS
 from training_coach.services import (
     daily_check,
     guided,
@@ -449,16 +449,22 @@ def pending(request: Request, user: Owner) -> list[PendingView]:
 
 
 class StretchView(BaseModel):
+    slug: str  # also names its picture, when there is one
     name: str
-    rounds: int
+    rounds: int  # on each side when per_side
     per_side: bool
     cue: str
 
 
 class RoutineView(BaseModel):
+    """The routine and its timing: each side starts with getting into position, then the
+    holds with a release between them; all of it fits in ``minutes`` (ADR-0032 addendum)."""
+
     session: str
     minutes: int
     hold_seconds: int
+    position_seconds: int
+    release_seconds: int
     steps: list[StretchView]
 
 
@@ -484,9 +490,15 @@ def stretching_routine(workout_id: int, minutes: int, request: Request, user: Ow
         session=routine.session,
         minutes=routine.minutes,
         hold_seconds=HOLD_SECONDS,
+        position_seconds=POSITION_SECONDS,
+        release_seconds=RELEASE_SECONDS,
         steps=[
             StretchView(
-                name=s.stretch.name, rounds=s.rounds, per_side=s.stretch.per_side, cue=s.stretch.cue
+                slug=s.stretch.slug,
+                name=s.stretch.name,
+                rounds=s.rounds,
+                per_side=s.stretch.per_side,
+                cue=s.stretch.cue,
             )
             for s in routine.steps
         ],
@@ -497,7 +509,8 @@ def stretching_routine(workout_id: int, minutes: int, request: Request, user: Ow
 def stretching_done(
     workout_id: int, body: StretchBody, request: Request, user: Owner
 ) -> StretchedView:
-    """Log the stretching minutes on the workout, once."""
+    """Log the stretching minutes on the workout, once: the minutes actually done, 1 up to
+    the longest choice."""
     with session_scope(_bound(request, user)) as session:
         logged = stretching.log(session, workout_id, body.minutes)
     if logged is None:

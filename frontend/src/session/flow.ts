@@ -1,6 +1,7 @@
 import type { FlowMove as Move } from '../api'
 
-/** The guided mobility flow's clock (ADR-0062). Pure: the player feeds it seconds. */
+/** The guided mobility flow's clock (ADR-0062), also guided stretching's (ADR-0032 addendum).
+ * Pure: the player feeds it seconds. */
 
 /** One movement's place on the flow's timeline, in seconds. `half` is the side switch of a
  * one-sided movement. */
@@ -89,4 +90,73 @@ export function minutesDone(seconds: number): number {
 export function clock(seconds: number): string {
   const s = Math.max(0, seconds)
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+// ------------------------------------------------ guided stretching (ADR-0032 addendum)
+
+/** A stretch as the timeline needs it: its rounds, on each side when one-sided. */
+export type StretchStep = { rounds: number; per_side: boolean }
+export type StretchTiming = { hold: number; position: number; release: number }
+
+/** What a stretch's time is spent on: getting into position (into the stretch, or onto its
+ * other side), holding, or letting go between rounds on the same side. */
+export type Kind = 'position' | 'hold' | 'release'
+
+/** One stretch of time, as a `Section` so `at` and `totalSeconds` read it. `stretch` is the
+ * step's index, `side` 1 or 2 for a one-sided stretch, `round` from 1. */
+export type Part = Section & { kind: Kind; stretch: number; side: 1 | 2 | null; round: number }
+
+/** The stretching timeline: every position, hold and release in order (`parts`), and each
+ * stretch as one `Section` (`stretches`, its second side at `half`) for the stretch on screen,
+ * "Next: …", Back and Skip. Its total is what the routine was built to fit. */
+export function stretchSchedule(
+  steps: StretchStep[],
+  timing: StretchTiming,
+): { parts: Part[]; stretches: Section[] } {
+  const parts: Part[] = []
+  const stretches: Section[] = []
+  let t = 0
+  const add = (kind: Kind, length: number, stretch: number, side: 1 | 2 | null, round: number) => {
+    const index = parts.length
+    parts.push({ index, start: t, end: t + length, half: null, kind, stretch, side, round })
+    t += length
+  }
+  steps.forEach((step, stretch) => {
+    const start = t
+    let half: number | null = null
+    for (const side of step.per_side ? ([1, 2] as const) : [null]) {
+      if (side === 2) half = t
+      add('position', timing.position, stretch, side, 1)
+      for (let round = 1; round <= step.rounds; round++) {
+        if (round > 1) add('release', timing.release, stretch, side, round)
+        add('hold', timing.hold, stretch, side, round)
+      }
+    }
+    stretches.push({ index: stretch, start, end: t, half })
+  })
+  return { parts, stretches }
+}
+
+/** What to play for the time from `from` to `to` (later), in order: at each change a sound
+ * for what starts (a new stretch: next; the other side: switch; a hold: next; letting go: a
+ * count), then finish at the end. Nothing at the very start: tapping Start is the start. */
+export function stretchCues(parts: Part[], from: number, to: number): Cue[] {
+  const crossed = (mark: number) => from < mark && mark <= to
+  const found: Cue[] = []
+  for (const p of parts) {
+    if (!crossed(p.start)) continue
+    if (p.kind === 'hold') found.push('next')
+    else if (p.kind === 'release') found.push('count')
+    else found.push(p.side === 2 ? 'switch' : 'next')
+  }
+  if (parts.length && crossed(totalSeconds(parts))) found.push('finish')
+  return found
+}
+
+/** "9 min 55 s", or "10 min" on the minute. */
+export function duration(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  if (m === 0) return `${s} s`
+  return s ? `${m} min ${s} s` : `${m} min`
 }
