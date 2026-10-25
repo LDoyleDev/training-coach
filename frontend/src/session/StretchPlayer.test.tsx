@@ -6,6 +6,7 @@ import { duration } from './flow'
 import StretchPlayer from './StretchPlayer'
 
 vi.mock('../hiit/sounds', () => ({
+  DEFAULT_SOUND: 'ring',
   unlockAudio: vi.fn(),
   playChange: vi.fn(),
 }))
@@ -218,7 +219,7 @@ test('without Settings the default sound plays', async () => {
   )
   await start()
   advance(15_200)
-  expect(playChange).toHaveBeenLastCalledWith('chime', 'next')
+  expect(playChange).toHaveBeenLastCalledWith('ring', 'next')
 })
 
 test('a duration reads in minutes and seconds', () => {
