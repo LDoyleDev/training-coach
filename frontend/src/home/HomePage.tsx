@@ -3,6 +3,7 @@ import { fetchHome, type Home } from '../api'
 import AppShell from '../components/AppShell'
 import BandSummary from '../components/BandSummary'
 import { RetryCard, SignInCard } from '../components/StateCards'
+import { moveButton, moveHref } from '../plan/ladder'
 import { InstallHint } from '../pwa/InstallApp'
 import { card, primary, secondary } from '../ui'
 import { ago, day } from './logic'
@@ -93,9 +94,18 @@ export default function HomePage() {
           {progress.steps_climbed === 1 ? 'ladder step' : 'ladder steps'} climbed
         </p>
         {progress.ready.length > 0 && (
-          <p className="m-0 font-bold text-[var(--bell-ink)]">
-            Ready to move up: {progress.ready.join(', ')}
-          </p>
+          <div className="flex flex-col gap-2">
+            <p className="m-0 font-bold text-[var(--bell-ink)]">Ready to move up:</p>
+            <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+              {progress.ready.map((r) => (
+                <li key={r.slug}>
+                  <a href={moveHref(r.slug)} className={moveButton}>
+                    {r.exercise}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
         {progress.bests.length > 0 && (
           <p className="m-0">Personal bests this week: {progress.bests.join(', ')}</p>

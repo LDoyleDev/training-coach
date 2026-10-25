@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import Event, Exercise, SessionTemplate, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.services import guided, retests, review, session_times
+from training_coach.services.progress import Ready
 
 MOVED_UP = "progress.moved_up"  # written by progress.move_up
 RECENT_DAYS = 7
@@ -43,7 +44,7 @@ class Week:
 @dataclass(frozen=True)
 class Ladder:
     steps_climbed: int  # ladder steps moved up so far
-    ready: list[str]  # exercises ready to move up now
+    ready: list[Ready]  # exercises ready to move up now
     bests: list[str]  # exercises with a personal best this week
 
 

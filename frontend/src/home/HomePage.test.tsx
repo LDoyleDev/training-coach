@@ -21,7 +21,11 @@ const make = (over: Partial<Home> = {}): Home => ({
     zone2_minutes: 90,
     zone2_target: [180, 200],
   },
-  progress: { steps_climbed: 5, ready: ['Pull-up'], bests: ['Dip (chairs)'] },
+  progress: {
+    steps_climbed: 5,
+    ready: [{ exercise: 'Pull-up', slug: 'pull-up' }],
+    bests: ['Dip (chairs)'],
+  },
   recent: [
     { day: '2026-10-10', session: 'Torso + neck' },
     { day: '2026-10-08', session: 'Extra' },
@@ -53,7 +57,11 @@ test('totals first, then progress and the week, then the button to today', async
   expect(screen.getByText('cardio minutes')).toBeInTheDocument()
   expect(screen.getByText(/Training since Tue 1 Sept?, 40 days ago/)).toBeInTheDocument()
   expect(screen.getByText('ladder steps climbed', { exact: false })).toBeInTheDocument()
-  expect(screen.getByText('Ready to move up: Pull-up')).toBeInTheDocument()
+  expect(screen.getByText(/Ready to move up:/)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Pull-up' })).toHaveAttribute(
+    'href',
+    '/plan?move=pull-up',
+  )
   expect(screen.getByText('Personal bests this week: Dip (chairs)')).toBeInTheDocument()
   expect(screen.getByText('3 of 7 sessions done · 1 extra')).toBeInTheDocument()
   expect(screen.getByText('Zone 2: 90 of 180–200 min')).toBeInTheDocument()
