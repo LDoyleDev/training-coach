@@ -26,14 +26,22 @@ const PACES: { pace: Pace; label: string; line: string }[] = [
   { pace: 'fast', label: 'Fast', line: 'At least two reps at a time.' },
 ]
 
-/** What the mobility flow plays at each change (ADR-0062). */
-const SOUNDS: { sound: Sound; label: string }[] = [
-  { sound: 'chime', label: 'Chime' },
-  { sound: 'beep', label: 'Beep' },
-  { sound: 'wood', label: 'Wood block' },
-  { sound: 'bell', label: 'Bell' },
-  { sound: 'none', label: 'No sound' },
-]
+/**
+ * What every guided timer plays at each change (ADR-0062), in the order shown: the boxing bell,
+ * everyone's default, first (ADR-0074). A record, so a new sound can't be left out.
+ */
+const SOUND_LABELS: Record<Sound, string> = {
+  ring: 'Boxing bell',
+  chime: 'Chime',
+  beep: 'Beep',
+  wood: 'Wood block',
+  bell: 'Bell',
+  none: 'No sound',
+}
+const SOUNDS = Object.entries(SOUND_LABELS).map(([sound, label]) => ({
+  sound: sound as Sound,
+  label,
+}))
 
 /** A sound's switch and next-movement change, a moment apart, to hear before choosing. */
 function preview(sound: Sound) {
@@ -279,7 +287,11 @@ export default function Settings() {
       </fieldset>
 
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-2 font-bold">Timer sound: at each change in the mobility flow</legend>
+        <legend className="mb-2 font-bold">Timer sound</legend>
+        <p className="m-0 text-sm text-[var(--slate)]">
+          Every guided timer plays it: when a rest ends, and at each change in the mobility flow and
+          guided stretching.
+        </p>
         <div className="grid grid-cols-2 gap-2">
           {SOUNDS.map(({ sound, label }) => (
             <button

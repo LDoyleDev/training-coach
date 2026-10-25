@@ -278,8 +278,8 @@ class UserSettings(Owned, Base):
     max_hr: Mapped[int | None] = mapped_column(Integer)
     # How big a step the targets take (ADR-0057).
     pace: Mapped[str] = mapped_column(String(16), server_default=Pace.STANDARD.value)
-    # What the guided timers play at each change (ADR-0062).
-    sound: Mapped[str] = mapped_column(String(16), server_default=Sound.CHIME.value)
+    # What every guided timer plays at each change (ADR-0062, ADR-0074).
+    sound: Mapped[str] = mapped_column(String(16), server_default=Sound.RING.value)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

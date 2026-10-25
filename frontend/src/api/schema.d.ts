@@ -3162,10 +3162,11 @@ export interface components {
         Soreness: "none" | "some" | "a_lot";
         /**
          * Sound
-         * @description What a guided timer plays at each change (ADR-0062). A per-person setting.
+         * @description What every guided timer plays at each change (ADR-0062, ADR-0074). A per-person setting;
+         *     the boxing-ring bell is everyone's default.
          * @enum {string}
          */
-        Sound: "chime" | "beep" | "wood" | "bell" | "none";
+        Sound: "ring" | "chime" | "beep" | "wood" | "bell" | "none";
         /** SourceView */
         SourceView: {
             /** Exercise */
