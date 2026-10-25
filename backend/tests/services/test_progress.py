@@ -308,3 +308,65 @@ def test_a_one_sided_retired_exercise_keeps_its_sides(plan: Session) -> None:
     lunge = _exercise(plan, "reverse-lunge")
     assert progress.per_side_for(plan, lunge.id, None)
     assert not progress.per_side_for(plan, _exercise(plan, "goblet-squat").id, None)
+
+
+def _last_step(session: Session, slug: str) -> LadderStep:
+    return max(_exercise(session, slug).ladder, key=lambda s: s.position)
+
+
+def test_a_level_can_be_set_up_or_down_without_being_ready(plan: Session) -> None:
+    """ADR-0075: choosing a level by hand never needs "ready"; each change is an event."""
+    start = _step(plan, "pull-up")
+    top = _last_step(plan, "pull-up")
+    up = progress.set_level(plan, start.exercise_id, top.id)
+    assert up is not None
+    assert (up.outcome, up.step) == (MoveOutcome.LEVEL_SET, top.name)
+    assert _step(plan, "pull-up").id == top.id
+    down = progress.set_level(plan, start.exercise_id, start.id)
+    assert down is not None
+    assert down.outcome is MoveOutcome.LEVEL_SET
+    assert _step(plan, "pull-up").id == start.id
+    payloads = plan.scalars(select(Event.payload).where(Event.kind == progress.LEVEL_SET)).all()
+    assert [(p["from_step_id"], p["to_step_id"]) for p in payloads] == [
+        (start.id, top.id),
+        (top.id, start.id),
+    ]
+    assert plan.scalars(select(Event).where(Event.kind == "progress.moved_up")).all() == []
+
+
+def test_setting_the_level_it_is_on_changes_nothing(plan: Session) -> None:
+    step = _step(plan, "pull-up")
+    same = progress.set_level(plan, step.exercise_id, step.id)
+    assert same is not None
+    assert same.outcome is MoveOutcome.SAME_LEVEL
+    assert plan.scalars(select(Event).where(Event.kind == progress.LEVEL_SET)).all() == []
+
+
+def test_a_step_of_another_exercise_is_refused(plan: Session) -> None:
+    pull_up = _step(plan, "pull-up")
+    dip = _step(plan, "dip")
+    assert progress.set_level(plan, pull_up.exercise_id, dip.id) is None
+    assert progress.set_level(plan, 999, dip.id) is None
+    assert progress.stay(plan, pull_up.exercise_id, dip.id) is None
+    assert _step(plan, "pull-up").id == pull_up.id
+
+
+def test_not_yet_from_a_stale_page_changes_nothing(plan: Session) -> None:
+    step = _step(plan, "pull-up")
+    stayed = progress.stay(plan, step.exercise_id, step.id)
+    assert stayed is not None
+    assert (stayed.outcome, stayed.step) == (MoveOutcome.STAYED, "Strict pull-up")
+    progress.set_level(plan, step.exercise_id, _last_step(plan, "pull-up").id)
+    stale = progress.stay(plan, step.exercise_id, step.id)
+    assert stale is not None
+    assert stale.outcome is MoveOutcome.ALREADY_MOVED
+    assert len(plan.scalars(select(Event).where(Event.kind == "progress.not_yet")).all()) == 1
+
+
+def test_overview_carries_the_slug_and_the_whole_ladder(plan: Session) -> None:
+    pull_up = next(s for s in overview(plan) if s.exercise == "Pull-up")
+    assert pull_up.slug == "pull-up"
+    assert [r.name for r in pull_up.ladder][:2] == ["Slow negatives", "Strict pull-up"]
+    assert len(pull_up.ladder) == pull_up.steps
+    assert progress.exercise_id_for(plan, "pull-up") == pull_up.exercise_id
+    assert progress.exercise_id_for(plan, "no-such") is None

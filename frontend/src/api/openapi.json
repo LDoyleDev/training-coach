@@ -1139,6 +1139,10 @@
             ],
             "title": "Next Step"
           },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
           "total": {
             "anyOf": [
               {
@@ -1165,7 +1169,8 @@
           "unit",
           "best_set",
           "total",
-          "next_step"
+          "next_step",
+          "slug"
         ],
         "title": "EarnedView",
         "type": "object"
@@ -2308,7 +2313,7 @@
           },
           "ready": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ReadyView"
             },
             "title": "Ready",
             "type": "array"
@@ -2960,6 +2965,19 @@
         "title": "MeasurementView",
         "type": "object"
       },
+      "MoveUpBody": {
+        "properties": {
+          "from_step_id": {
+            "title": "From Step Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "from_step_id"
+        ],
+        "title": "MoveUpBody",
+        "type": "object"
+      },
       "MoveView": {
         "description": "One movement of the guided mobility flow (ADR-0062).",
         "properties": {
@@ -3025,6 +3043,47 @@
           "pacing"
         ],
         "title": "MoveView",
+        "type": "object"
+      },
+      "MovedView": {
+        "description": "What a press did. Anything but ``moved``, ``stayed`` or ``level_set`` changed nothing.",
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "moved",
+              "already_moved",
+              "not_ready",
+              "no_next_step",
+              "strength_block",
+              "stayed",
+              "level_set",
+              "same_level"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          }
+        },
+        "required": [
+          "outcome",
+          "exercise",
+          "step"
+        ],
+        "title": "MovedView",
         "type": "object"
       },
       "MuscleView": {
@@ -3910,6 +3969,25 @@
         "title": "ReadinessView",
         "type": "object"
       },
+      "ReadyView": {
+        "description": "An exercise ready to move up; ``slug`` links to its ladder on /plan (ADR-0075).",
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exercise",
+          "slug"
+        ],
+        "title": "ReadyView",
+        "type": "object"
+      },
       "RecentView": {
         "properties": {
           "day": {
@@ -4180,7 +4258,7 @@
           },
           "ready": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ReadyView"
             },
             "title": "Ready",
             "type": "array"
@@ -4269,6 +4347,7 @@
         "type": "object"
       },
       "RoutineView": {
+        "description": "The routine and its timing: each side starts with getting into position, then the\nholds with a release between them; all of it fits in ``minutes`` (ADR-0032 addendum).",
         "properties": {
           "hold_seconds": {
             "title": "Hold Seconds",
@@ -4276,6 +4355,14 @@
           },
           "minutes": {
             "title": "Minutes",
+            "type": "integer"
+          },
+          "position_seconds": {
+            "title": "Position Seconds",
+            "type": "integer"
+          },
+          "release_seconds": {
+            "title": "Release Seconds",
             "type": "integer"
           },
           "session": {
@@ -4294,9 +4381,41 @@
           "session",
           "minutes",
           "hold_seconds",
+          "position_seconds",
+          "release_seconds",
           "steps"
         ],
         "title": "RoutineView",
+        "type": "object"
+      },
+      "RungView": {
+        "properties": {
+          "cue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cue"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "cue"
+        ],
+        "title": "RungView",
         "type": "object"
       },
       "SaveBody": {
@@ -4965,6 +5084,13 @@
             "title": "Exercise",
             "type": "string"
           },
+          "ladder": {
+            "items": {
+              "$ref": "#/components/schemas/RungView"
+            },
+            "title": "Ladder",
+            "type": "array"
+          },
           "last": {
             "items": {
               "type": "integer"
@@ -4975,6 +5101,10 @@
           "retired": {
             "title": "Retired",
             "type": "boolean"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
           },
           "status": {
             "enum": [
@@ -4988,6 +5118,10 @@
           "step": {
             "title": "Step",
             "type": "string"
+          },
+          "step_id": {
+            "title": "Step Id",
+            "type": "integer"
           },
           "step_number": {
             "title": "Step Number",
@@ -5016,10 +5150,13 @@
         },
         "required": [
           "exercise",
+          "slug",
           "unit",
           "step",
+          "step_id",
           "step_number",
           "steps",
+          "ladder",
           "last",
           "best_set",
           "status",
@@ -5038,6 +5175,10 @@
             "title": "Standings",
             "type": "array"
           },
+          "strength_block": {
+            "title": "Strength Block",
+            "type": "boolean"
+          },
           "today": {
             "format": "date",
             "title": "Today",
@@ -5046,9 +5187,23 @@
         },
         "required": [
           "today",
+          "strength_block",
           "standings"
         ],
         "title": "StandingsView",
+        "type": "object"
+      },
+      "StepBody": {
+        "properties": {
+          "step_id": {
+            "title": "Step Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step_id"
+        ],
+        "title": "StepBody",
         "type": "object"
       },
       "StretchBody": {
@@ -5081,9 +5236,14 @@
           "rounds": {
             "title": "Rounds",
             "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
           }
         },
         "required": [
+          "slug",
           "name",
           "rounds",
           "per_side",
@@ -7837,6 +7997,165 @@
         ]
       }
     },
+    "/api/progress/{slug}/level": {
+      "post": {
+        "description": "Choose any step of the exercise's own ladder, up or down; never needs \"ready\".",
+        "operationId": "set_level_api_progress__slug__level_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Level",
+        "tags": [
+          "progress"
+        ]
+      }
+    },
+    "/api/progress/{slug}/move-up": {
+      "post": {
+        "description": "Move up, as the bot's button: checked again now, so a stale or forged press changes\nnothing, and held in a strength block (ADR-0025, ADR-0028).",
+        "operationId": "move_up_api_progress__slug__move_up_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveUpBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Move Up",
+        "tags": [
+          "progress"
+        ]
+      }
+    },
+    "/api/progress/{slug}/not-yet": {
+      "post": {
+        "description": "Not yet: stay on the step the page showed; asked again after the next session that still\nmeets the rule.",
+        "operationId": "not_yet_api_progress__slug__not_yet_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Not Yet",
+        "tags": [
+          "progress"
+        ]
+      }
+    },
     "/api/proposals": {
       "get": {
         "operationId": "waiting_api_proposals_get",
@@ -8232,7 +8551,7 @@
         ]
       },
       "post": {
-        "description": "Log the stretching minutes on the workout, once.",
+        "description": "Log the stretching minutes on the workout, once: the minutes actually done, 1 up to\nthe longest choice.",
         "operationId": "stretching_done_api_session_stretching__workout_id__post",
         "parameters": [
           {

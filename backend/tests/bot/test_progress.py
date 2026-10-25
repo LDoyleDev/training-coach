@@ -119,6 +119,33 @@ async def test_move_up_moves_the_exercise(application: App, seeded: Sessions) ->
     assert _step_name(seeded) == "Pause at top"
 
 
+@pytest.mark.parametrize("on_the_web", ["move_up", "set_level"])
+async def test_a_prompt_pressed_after_a_web_move_says_already_moved(
+    application: App, seeded: Sessions, on_the_web: str
+) -> None:
+    """ADR-0075: Move up or a level chosen on /plan, then the old Telegram prompt pressed."""
+    _top_session(seeded, days_ago=3)
+    _top_session(seeded, days_ago=1)
+    exercise_id, step_id = _pull_up(seeded)
+    with seeded() as session:
+        if on_the_web == "move_up":
+            moved = progress_service.move_up(session, exercise_id, step_id)
+        else:
+            first = session.scalars(
+                select(LadderStep)
+                .where(LadderStep.exercise_id == exercise_id)
+                .order_by(LadderStep.position)
+            ).first()
+            assert first is not None
+            moved = progress_service.set_level(session, exercise_id, first.id)
+        assert moved is not None
+        session.commit()
+    web_step = _step_name(seeded)
+    calls = await run(application, press(f"p:up:{exercise_id}:{step_id}", OWNER))
+    assert texts(calls) == ["Pull-up has already moved on since that message."]
+    assert _step_name(seeded) == web_step
+
+
 async def test_not_yet_stays(application: App, seeded: Sessions) -> None:
     exercise_id, step_id = _pull_up(seeded)
     calls = await run(application, press(f"p:no:{exercise_id}:{step_id}", OWNER))

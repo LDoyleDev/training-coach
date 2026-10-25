@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from training_coach.api.auth import Owner
+from training_coach.api.progress import ReadyView
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
@@ -34,7 +35,7 @@ class HomeWeekView(BaseModel):
 
 class LadderView(BaseModel):
     steps_climbed: int
-    ready: list[str]
+    ready: list[ReadyView]  # each links to its ladder on /plan (ADR-0075)
     bests: list[str]  # personal bests this week
 
 
@@ -64,7 +65,11 @@ def home(request: Request, user: Owner) -> HomeView:
     return HomeView(
         totals=TotalsView(**vars(found.totals)),
         week=HomeWeekView(**vars(found.week)),
-        progress=LadderView(**vars(found.progress)),
+        progress=LadderView(
+            steps_climbed=found.progress.steps_climbed,
+            ready=[ReadyView(exercise=r.exercise, slug=r.slug) for r in found.progress.ready],
+            bests=found.progress.bests,
+        ),
         recent=[RecentView(day=r.day, session=r.session) for r in found.recent],
         today=found.today,
         today_minutes=found.today_minutes,

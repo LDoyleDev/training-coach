@@ -303,6 +303,8 @@ home stays a ladder step, because 8 to 16 kg is a different exercise, not a smal
 
 G1 for everything, G2 as a suggestion where a test exists, G3 always available. A level can be
 set by hand on the Plan tab too (down as well as up; it records an event, like Move up does).
+**Set by hand: done** (ADR-0075): the Plan page's ladder panels, with Move up and Not yet, and
+every "Ready to move up" links there. G1 and G2 are still to come.
 
 ### H. Setting up, for a new person (and the owner, again)
 
@@ -413,7 +415,7 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
    Progress respect the kit. The 16 kg example works from here.
 5. **Plans per person** (A2): the migration copies the plan to every user; the seed keeps the
    catalogue and starters; the canary test (multi-user L2) covers the plan routes.
-6. **Edit the plan:** set level, swap, sets and range; Save makes a version. Import from
+6. **Edit the plan:** set level (done, ADR-0075), swap, sets and range; Save makes a version. Import from
    `plan.toml` the same way.
 7. **The picker and an interactive map:** add and remove exercises; add a session.
 8. **Load:** the 29 gym exercises in the catalogue, `load_kg`, carry-over with − and +, double
