@@ -368,7 +368,9 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
    items open that day once the cardio is logged (from the band, Telegram or the web), so the
    block is guided, saved with the day's workout and its ladders move.
 4. **Upper traps stay grey** at home: no study shows shrugs grow them; a gym version can add
-   farmer carries.
+   farmer carries. **Revisited 25 Oct 2026:** with the 16 kg kettlebell coming, Liam chose
+   suitcase carries on Recovery and Cardio + core (upper traps 0 → 4, an estimate), with band
+   face pulls for the rear delts (7.25 → 9.25), plan version "Rear delts + carries".
 
 ## API, in outline
 

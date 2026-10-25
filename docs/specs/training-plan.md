@@ -67,20 +67,21 @@ are measured against their own, lower bands (low evidence; Core and hips).
 | Quads | 12.5 | split squat (Legs + Arms), pistol, jump squat, reverse Nordic (the rectus femoris) |
 | Hamstrings | 10.5 | hamstring curl (Legs + Arms), RDL, swing |
 | Lats | 10 | pull-up, row, chin-up |
-| Upper back | 10 | row, Y-T-W, reverse fly, pull-up, chin-up |
+| Upper back | 11 | row, Y-T-W, reverse fly, band face pull, pull-up, chin-up |
 | Biceps | 10 | curl (Arms + Torso), pull-up, row, chin-up |
 | Triceps | 10 | overhead extension (the long head), dip, push-up, pike, diamond |
 | Side delts | 8.5 | lateral raise (Arms + Torso), pike |
 | Front delts | 8.5 | pike, dip, push-up, diamond |
 | Calves | 8 | twice a week (Legs + Arms) |
-| Rear delts | 7.25 | reverse fly, row, Y-T-W, pull-up, chin-up |
+| Rear delts | 9.25 | reverse fly (Torso), band face pull (Cardio + core), row, Y-T-W, pull-up, chin-up |
 | Abs | 7 | ab rollout, hanging raise, side plank hip dip |
 | Neck | 7 | flexion, extension, side bend (Torso + Recovery days) |
 | Adductors | 6.5 | Copenhagen plank, split squat, pistol |
-| Forearms | 6.5 | dead hang, curl, hanging raise, pull-up, chin-up, swing |
-| Obliques | 5.75 | side plank hip dip (Recovery + Cardio), Copenhagen plank, ab rollout |
+| Forearms | 9.5 | suitcase carry (Recovery + Cardio), dead hang, curl, hanging raise, pull-up, chin-up, swing |
+| Obliques | 7.75 | side plank hip dip (Recovery + Cardio), suitcase carry, Copenhagen plank, ab rollout |
 | Lower back | 5.5 | back extension (Recovery + Cardio), swing, RDL |
 | Hip flexors | 3 | hanging raises |
+| Upper traps | 4 | suitcase carry (Recovery + Cardio) |
 | Tibialis | 3 | tibialis raises |
 
 Conditioning covers Galpin's endurance adaptations: long zone 2 (long-duration endurance),
@@ -94,12 +95,14 @@ in `plan.toml`.
 
 ## Known limits
 
-- Upper traps get nothing: no study shows shrugs grow them (Core and hips).
+- Upper traps get 4 sets from suitcase carries (light green), chosen by Liam on 25 Oct 2026
+  with the 16 kg kettlebell coming: no study shows shrugs or carries grow them, so the weight
+  is an estimate (Core and hips). One dead-hang set went to keep forearms in their band.
 - The core bands (abs 6-12, obliques 4-10, lower back 4-10, hip flexors 3-8, adductors 4-10)
   are estimates: no growth trial sets a dose for these muscles. On the general 10-20 band they
   would show light green.
 - Skipping the optional Recovery day now also skips the hanging raises, dead hangs, neck side
-  work, reverse Nordics and half the oblique work.
+  work, reverse Nordics, half the suitcase carries and half the oblique work.
 - Once the split squats and pistols hold a kettlebell, Legs passes the 8-set spine-loading
   limit (12 sets at the top steps: swing, both squats, RDL); the map warns then.
 - Most muscles sit at the bottom of their band: a skipped set drops lats, upper back, biceps
