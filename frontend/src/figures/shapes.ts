@@ -27,7 +27,13 @@ export type Part = 'armN' | 'armF' | 'legN' | 'legF' | 'torso' | 'head' | 'bell'
 export interface Props {
   mat?: readonly [number, number] // from x to x, on the floor
   chair?: { x0: number; x1: number; seat: number }
-  bell?: boolean // a kettlebell in both hands
+  /** A bench or a bed; ``behind`` puts it on the far side of the figure, in the far tone, so
+   * the near leg and arm read as in front of it. */
+  bench?: { x0: number; x1: number; top: number; behind?: boolean }
+  bar?: Vec // a pull-up bar seen end on: its centre, on a bracket from the wall in front
+  /** A kettlebell in both hands, hanging along the forearms; 'near' hangs it straight down
+   * from the near hand, as in a one-arm row. */
+  bell?: boolean | 'near'
 }
 
 /** Radii in cm: [at the first joint, at the second]. */
@@ -146,33 +152,68 @@ function torso(j: Joints, tone: Tone): Shape[] {
   ]
 }
 
-/** A kettlebell held in both hands, hanging along the forearms. */
-function bell(j: Joints): Shape[] {
-  const w: Vec = [(j.armN.wrist[0] + j.armF.wrist[0]) / 2, (j.armN.wrist[1] + j.armF.wrist[1]) / 2]
-  const dir = heading(j.armN.elbow, j.armN.wrist)
+/** A kettlebell held in both hands, hanging along the forearms, or in the near hand, hanging
+ * straight down. */
+function bell(j: Joints, hold: true | 'near'): Shape[] {
+  const w: Vec =
+    hold === 'near'
+      ? j.armN.wrist
+      : [(j.armN.wrist[0] + j.armF.wrist[0]) / 2, (j.armN.wrist[1] + j.armF.wrist[1]) / 2]
+  const dir = hold === 'near' ? -90 : heading(j.armN.elbow, j.armN.wrist)
   return [
     { kind: 'ring', c: svg(along(w, dir, 3.5)), r: 4.6, width: 2.2, tone: 'bell' },
     ball(along(w, dir, 13), 8.6, 'bell'),
   ]
 }
 
+const rect = (a: number, b: number, c: number, d: number, tone: Tone = 'prop'): Shape => ({
+  kind: 'path',
+  d: polygon([
+    [a, b],
+    [c, b],
+    [c, d],
+    [a, d],
+  ]),
+  tone,
+})
+
 function chair({ x0, x1, seat }: NonNullable<Props['chair']>): Shape[] {
-  const rect = (a: number, b: number, c: number, d: number): Shape => ({
-    kind: 'path',
-    d: polygon([
-      [a, b],
-      [c, b],
-      [c, d],
-      [a, d],
-    ]),
-    tone: 'prop',
-  })
   return [
     rect(x0 + 1, 0, x0 + 4, seat - 4),
     rect(x1 - 4, 0, x1 - 1, seat - 4),
     rect(x0, seat - 4, x1, seat),
     rect(x0, seat, x0 + 3.5, seat + 44),
     rect(x0 - 0.5, seat + 36, x0 + 4, seat + 46),
+  ]
+}
+
+function bench({ x0, x1, top, behind }: NonNullable<Props['bench']>): Shape[] {
+  const tone: Tone = behind ? 'far' : 'prop'
+  return [
+    rect(x0 + 3, 0, x0 + 8, top - 6, tone),
+    rect(x1 - 8, 0, x1 - 3, top - 6, tone),
+    rect(x0, top - 6, x1, top, tone),
+  ]
+}
+
+/** A bar on a bracket from a wall 40 cm in front, drawn behind the figure; the bar's end goes
+ * in front of the hands, as the bar is wider than the grip. */
+const BAR = 3
+function bracket([x, y]: Vec): Shape[] {
+  const wall = x + 40
+  return [
+    rect(wall, 0, wall + 5, y + 40),
+    rect(x, y - 1.6, wall, y + 1.6, 'bell'),
+    {
+      kind: 'path',
+      d: polygon([
+        [wall, y - 24],
+        [wall, y - 19],
+        [x + 18, y - 1],
+        [x + 12, y - 1],
+      ]),
+      tone: 'bell',
+    },
   ]
 }
 
@@ -191,6 +232,8 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
       height: 1.2,
     })
   if (props.chair) out.push(...chair(props.chair))
+  if (props.bench) out.push(...bench(props.bench))
+  if (props.bar) out.push(...bracket(props.bar))
   for (const part of order) {
     if (part === 'armF') out.push(...arm(j.armF, 'far'))
     else if (part === 'armN') out.push(...arm(j.armN, 'near'))
@@ -198,7 +241,8 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
     else if (part === 'legN') out.push(...leg(j.legN, 'near'))
     else if (part === 'torso') out.push(...torso(j, 'near'))
     else if (part === 'head') out.push(...head(j, 'near'))
-    else if (props.bell) out.push(...bell(j))
+    else if (props.bell) out.push(...bell(j, props.bell))
   }
+  if (props.bar) out.push(ball(props.bar, BAR, 'bell'))
   return out
 }

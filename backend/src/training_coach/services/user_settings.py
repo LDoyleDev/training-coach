@@ -27,7 +27,7 @@ class Prefs:
     habits_enabled: bool = True  # habit buttons in the evening message (D5)
     protein_g: int | None = None  # daily protein target for the habit
     pace: Pace = Pace.STANDARD  # how big a step the targets take (ADR-0057)
-    sound: Sound = Sound.CHIME  # what the guided timers play at each change (ADR-0062)
+    sound: Sound = Sound.RING  # what every guided timer plays at each change (ADR-0074)
 
 
 def load(session: Session) -> Prefs:

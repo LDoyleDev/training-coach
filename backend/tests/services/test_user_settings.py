@@ -61,10 +61,11 @@ def test_the_pace_is_standard_until_changed_and_logged(session: Session) -> None
     assert list(payloads) == [{"pace": "steady"}]
 
 
-def test_the_sound_is_a_chime_until_changed_and_logged(session: Session) -> None:
+def test_the_sound_is_the_boxing_bell_until_changed_and_logged(session: Session) -> None:
+    assert Prefs().sound is Sound.RING  # no row yet (ADR-0074)
     session.add(UserSettings())  # a row made by another setting: the column default applies
     session.flush()
-    assert user_settings.load(session).sound is Sound.CHIME
+    assert user_settings.load(session).sound is Sound.RING
     assert user_settings.update(session, sound=Sound.BELL).sound is Sound.BELL
     session.flush()
     assert user_settings.load(session) == Prefs(sound=Sound.BELL)

@@ -1,4 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest'
+import type { MessageSettings } from '../api'
+import type { Sound } from './sounds'
 
 /** A stand-in for Web Audio, recording the oscillators it is asked to play. */
 function fakeAudio(state = 'suspended') {
@@ -106,8 +108,9 @@ test('the beep is one 880 Hz tone; work is a four-partial bell, rest a softer, l
 test('each timer sound plays every change, and none plays nothing', async () => {
   const { frequencies } = fakeAudio('running')
   const sounds = await import('./sounds')
-  for (const sound of ['chime', 'beep', 'wood', 'bell'] as const) {
-    for (const change of ['count', 'switch', 'next', 'finish'] as const) {
+  expect(sounds.SOUNDS).toContain('none')
+  for (const sound of sounds.SOUNDS.filter((s) => s !== 'none')) {
+    for (const change of sounds.CHANGES) {
       const before = frequencies.length
       sounds.playChange(sound, change)
       expect(frequencies.length, `${sound} ${change}`).toBeGreaterThan(before)
@@ -116,4 +119,29 @@ test('each timer sound plays every change, and none plays nothing', async () => 
   const before = frequencies.length
   sounds.playChange('none', 'next')
   expect(frequencies).toHaveLength(before)
+})
+
+test('the timer sounds match the API, with the boxing bell first and the default', async () => {
+  type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
+  const sameAsApi: Same<Sound, MessageSettings['sound']> = true
+  expect(sameAsApi).toBe(true)
+  const sounds = await import('./sounds')
+  expect(sounds.SOUNDS[0]).toBe('ring')
+  expect(sounds.DEFAULT_SOUND).toBe('ring')
+})
+
+test('the boxing bell strikes once for a switch, ding-ding for next, three times at the end', async () => {
+  const { frequencies } = fakeAudio('running')
+  const sounds = await import('./sounds')
+  const strikes = (change: 'count' | 'switch' | 'next' | 'finish') => {
+    frequencies.length = 0
+    sounds.playChange('ring', change)
+    return frequencies.filter((f) => f === 1100).length // each strike's fundamental
+  }
+  expect(strikes('switch')).toBe(1)
+  expect(frequencies).toHaveLength(6) // six partials a strike
+  expect(strikes('next')).toBe(2)
+  expect(strikes('finish')).toBe(3)
+  expect(strikes('count')).toBe(1)
+  expect(frequencies).toEqual([2550, 1100]) // the count is a soft tick, not a strike
 })

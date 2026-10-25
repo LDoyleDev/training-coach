@@ -3,6 +3,14 @@ import { BODY, blend, dist, progress, solve, type Pose } from './body'
 import { FIGURES } from './poses'
 import { capsule, shapes } from './shapes'
 
+/** Every drawn point of ``pose``: the joints, the hands' and feet's ends, the head. */
+function points(j: ReturnType<typeof solve>) {
+  const out = [j.hip, j.waist, j.midChest, j.neckBase, j.shoulder, j.neckTop, j.head.c]
+  for (const a of [j.armN, j.armF]) out.push(a.shoulder, a.elbow, a.wrist, a.tip)
+  for (const l of [j.legN, j.legF]) out.push(l.knee, l.ankle, l.heel, l.ball, l.tip, l.instep)
+  return out
+}
+
 const STEPS = [0, 0.25, 0.5, 0.75, 1]
 const near = (a: readonly number[], b: readonly number[], within = 0.05) =>
   expect(Math.hypot(a[0] - b[0], a[1] - b[1])).toBeLessThan(within)
@@ -21,6 +29,91 @@ test('every figure keeps its limbs their length all the way through', () => {
         expect(dist(j[side].elbow, j[side].wrist), slug).toBeCloseTo(BODY.forearm, 1)
       }
     }
+})
+
+test('every figure is a number all the way through, inside its picture, with two captions', () => {
+  for (const [slug, figure] of Object.entries(FIGURES)) {
+    expect(
+      figure.frames.every((text) => text.length > 0),
+      slug,
+    ).toBe(true)
+    const [x0, x1, , y1] = figure.view
+    for (const t of STEPS) {
+      const j = solve(blend(figure.start, figure.end, t))
+      for (const p of points(j)) {
+        expect(Number.isFinite(p[0]) && Number.isFinite(p[1]), `${slug} at ${t}`).toBe(true)
+        expect(p[0], `${slug} at ${t}`).toBeGreaterThan(x0)
+        expect(p[0], `${slug} at ${t}`).toBeLessThan(x1)
+        expect(p[1], `${slug} at ${t}`).toBeLessThan(y1)
+      }
+      expect(j.head.c[1] + 11.5, `${slug}'s head at ${t}`).toBeLessThan(y1)
+      for (const shape of shapes(blend(figure.start, figure.end, t), figure.props))
+        expect(JSON.stringify(shape), slug).not.toMatch(/NaN|null/)
+    }
+  }
+})
+
+test('an arm drawn turned towards you never looks longer than it is', () => {
+  for (const [slug, figure] of Object.entries(FIGURES))
+    for (const t of STEPS) {
+      const j = solve(blend(figure.start, figure.end, t))
+      for (const side of ['armN', 'armF'] as const) {
+        if (!figure.start[side].mid) continue
+        expect(dist(j[side].shoulder, j[side].elbow), slug).toBeLessThan(BODY.upperArm + 0.05)
+        expect(dist(j[side].elbow, j[side].wrist), slug).toBeLessThan(BODY.forearm + 0.05)
+      }
+    }
+})
+
+test('hands stay on the bar, the seats, the bench or the floor all the way through', () => {
+  const grip = (slug: string, side: 'armN' | 'armF', at: readonly number[]) => {
+    for (const t of STEPS)
+      near(solve(blend(FIGURES[slug].start, FIGURES[slug].end, t))[side].wrist, at)
+  }
+  for (const slug of ['pull-up', 'chin-up']) {
+    const bar = FIGURES[slug].props!.bar!
+    grip(slug, 'armN', [bar[0], bar[1] - 4.5]) // the hand wraps the bar
+    grip(slug, 'armF', [bar[0], bar[1] - 4.5])
+    const top = solve(FIGURES[slug].end)
+    expect(top.head.c[1] - 8, `${slug}: chin over the bar`).toBeGreaterThan(bar[1])
+    expect(top.head.c[0] + 11.5, `${slug}: face behind the bar`).toBeLessThan(bar[0] - 3)
+  }
+  grip('dip', 'armN', [-21, 48.4]) // on the seat's front edge
+  grip('pike-push-up', 'armN', [60, 3])
+  grip('diamond-push-up', 'armN', [110.9, 3])
+  grip('kb-row', 'armF', [58, 52.9]) // the supporting hand on the bench
+  const { seat } = FIGURES.dip.props!.chair!
+  const bottom = solve(FIGURES.dip.end)
+  expect(Math.abs(bottom.armN.elbow[1] - bottom.shoulder[1]), 'dip: upper arms level').toBeLessThan(
+    2,
+  )
+  expect(bottom.armN.wrist[1]).toBeGreaterThan(seat)
+})
+
+test('a chin-up keeps the elbows in front, a pull-up takes them out to the sides', () => {
+  const chin = solve(FIGURES['chin-up'].end)
+  const pull = solve(FIGURES['pull-up'].end)
+  expect(chin.armN.elbow[0] - chin.shoulder[0]).toBeGreaterThan(15)
+  expect(Math.abs(pull.armN.elbow[0] - pull.shoulder[0])).toBeLessThan(5)
+})
+
+test('the row keeps a knee and a hand on the bench and the back flat', () => {
+  const row = FIGURES['kb-row']
+  const { top } = row.props!.bench!
+  for (const t of STEPS) {
+    const j = solve(blend(row.start, row.end, t))
+    expect(j.legF.knee[1] - 5.4, 'the knee rests on the bench').toBeGreaterThan(top - 0.5)
+    expect(j.legF.knee[1] - 5.4).toBeLessThan(top + 1)
+    expect(j.shoulder[1] - j.hip[1], 'back about level').toBeLessThan(15)
+  }
+  // The bell hangs on the near side of the bench, below its top, until it's pulled up.
+  const hanging = shapes(row.start, row.props, row.order)
+    .filter((s) => s.kind === 'ball')
+    .at(-1)!
+  expect(hanging.kind === 'ball' && -hanging.c[1] + hanging.r).toBeLessThan(top - 5)
+  const pulled = solve(row.end)
+  expect(pulled.armN.elbow[1], 'elbow above the back').toBeGreaterThan(pulled.shoulder[1])
+  expect(dist(pulled.armN.wrist, pulled.hip)).toBeLessThan(20) // the bell at the hip
 })
 
 test('no joint of any figure goes through the floor', () => {
@@ -55,7 +148,7 @@ test('a hand can be placed on the body, and moves with it', () => {
   const turn = FIGURES['quadruped-t-spine-rotation'].end
   const j = solve(turn)
   expect(dist(j.head.c, j.armN.wrist)).toBeCloseTo(8, 1) // behind the head
-  near(j.armN.elbow, [j.shoulder[0] + 8, j.shoulder[1] + 30]) // the elbow as given
+  near(j.armN.elbow, [j.shoulder[0] + 8, j.shoulder[1] + 28.9]) // the elbow as given
 })
 
 test('a plank keeps the legs straight along the body line', () => {
@@ -145,4 +238,23 @@ test('props are drawn with the figure', () => {
   expect(kinds('kb-swing')).toContain('ringbell')
   expect(kinds('bulgarian-split-squat').filter((k) => k === 'pathprop')).toHaveLength(5) // the chair
   expect(kinds('y-reach').filter((k) => k.endsWith('far')).length).toBeGreaterThan(0)
+  expect(kinds('kb-row').slice(0, 3)).toEqual(['pathfar', 'pathfar', 'pathfar']) // bench, behind
+  const bar = kinds('pull-up')
+  expect(bar.at(-1)).toBe('ballbell') // the bar's end, in front of the hands
+  expect(bar.slice(0, 3)).toEqual(['pathprop', 'pathbell', 'pathbell']) // wall and bracket
+})
+
+test('a one-arm kettlebell hangs straight down from the near hand', () => {
+  const row = FIGURES['kb-row']
+  for (const pose of [row.start, row.end]) {
+    const wrist = solve(pose).armN.wrist
+    const ring = shapes(pose, row.props, row.order).find((s) => s.kind === 'ring')!
+    expect(ring.kind === 'ring' && ring.c[0]).toBeCloseTo(wrist[0], 5) // under the hand
+    expect(ring.kind === 'ring' && -ring.c[1]).toBeCloseTo(wrist[1] - 3.5, 5)
+  }
+})
+
+test('a hand turned towards you is drawn shorter', () => {
+  const j = solve(FIGURES['diamond-push-up'].start)
+  expect(dist(j.armN.wrist, j.armN.tip)).toBeCloseTo(BODY.hand / 2, 5)
 })
