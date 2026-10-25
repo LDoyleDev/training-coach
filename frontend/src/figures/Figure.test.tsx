@@ -83,3 +83,10 @@ test('a still drawing at any point of the movement', () => {
   expect(drawing.querySelectorAll('path').length).toBeGreaterThan(10)
   expect(drawing).toHaveAttribute('viewBox', '-14 -86 188 89')
 })
+
+test("a drawing doesn't take the page's section style (no top rule, no padding)", () => {
+  render(<FigureAt slug="push-up" t={0} label="Push-up, top" />)
+  const drawing = screen.getByRole('img', { name: 'Push-up, top' })
+  expect(drawing).not.toHaveClass('block') // index.css styles `.block` as a page section
+  expect(drawing).toHaveStyle({ display: 'block' })
+})
