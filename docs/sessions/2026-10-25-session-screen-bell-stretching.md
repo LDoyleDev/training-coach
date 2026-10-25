@@ -8,7 +8,7 @@ log is `2026-10-25-restore-drill-builder.md`.
 
 | Release | PRs |
 | --- | --- |
-| 1.1.0 (released with this log) | #345 the set screen puts the counter and Confirm first, then the explanation, the movement and the muscles; the screen stays on; the rest counts its last 3 s and ends in the timer sound; Check and save shows each set's time, marking slow sets and long rests; #346 figures for pull-up, chin-up, dip, row, pike and diamond; #347 a boxing-ring bell is everyone's timer sound, chosen in Settings; #348 guided stretching: an overview, 15 s to get into each stretch, a countdown and a bell at every change, and Skip past the end counts as stopping early; #350 Move up, Not yet and any level by hand on the Plan page ("Ready to move up" opens it); #353 Torso curls get a second set; #354 stretching falls back to the bell; this log |
+| 1.1.0 (released with this log) | #345 the set screen puts the counter and Confirm first, then the explanation, the movement and the muscles; the screen stays on; the rest counts its last 3 s and ends in the timer sound; Check and save shows each set's time, marking slow sets and long rests; #346 figures for pull-up, chin-up, dip, row, pike and diamond; #347 a boxing-ring bell is everyone's timer sound, chosen in Settings; #348 guided stretching: an overview, 15 s to get into each stretch, a countdown and a bell at every change, and Skip past the end counts as stopping early; #350 Move up, Not yet and any level by hand on the Plan page ("Ready to move up" opens it); #353 Torso curls get a second set; #354 stretching falls back to the bell; #357 a flaky test fixed; this log |
 
 ## Decisions and where they live
 
