@@ -32,6 +32,7 @@ out="$2"; { printf 'ENCRYPTED(%s):' "$keys"; cat "$3"; } > "$out"
 SECOND = "age1zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
 RCLONE = """#!/usr/bin/env bash
 echo "$*" >> "$STUB_DIR/rclone.log"
+[ "$1" = "${STUB_FAIL:-}" ] && exit 1
 bucket="$STUB_DIR/bucket"; mkdir -p "$bucket"
 case "$1" in
   lsf) ls "$bucket" ;;
@@ -61,9 +62,10 @@ def pi(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _run(pi: Path) -> subprocess.CompletedProcess[str]:
+def _run(pi: Path, **extra: str) -> subprocess.CompletedProcess[str]:
     assert BASH is not None
     env = {
+        **extra,
         **os.environ,
         "PATH": f"{pi / 'stubs'}{os.pathsep}{os.environ['PATH']}",
         "STUB_DIR": str(pi),
@@ -207,3 +209,12 @@ def test_a_ping_url_that_isnt_https_is_refused(pi: Path) -> None:
     assert done.returncode == 1
     assert "must be an https:// URL" in done.stderr
     assert _pings(pi) == []  # never sent over plain http
+
+
+def test_a_failing_upload_reports_the_failure_once(pi: Path) -> None:
+    """set -e stops the script outside fail(); the exit trap still pings /fail (review of #338)."""
+    _backup(pi, "2026-10-10")
+    _with_ping(pi)
+    done = _run(pi, STUB_FAIL="copyto")
+    assert done.returncode != 0
+    assert _pings(pi) == [f"{PING}/fail"]

@@ -31,11 +31,21 @@ ping() {
   curl -fsS --max-time 10 --retry 3 -o /dev/null "$TC_OFFSITE_PING_URL$1" ||
     echo "offsite-backup: WARNING: the ping to the monitor didn't go out" >&2
 }
+pinged=""
 fail() {
   echo "offsite-backup: ERROR: $*" >&2
   ping /fail
+  pinged=1
   exit 1
 }
+work=""
+# Any other failure (age, rclone under set -e) reports too, once (review of #338).
+on_exit() {
+  local status=$?
+  [ -z "$work" ] || rm -rf "$work"
+  if [ "$status" -ne 0 ] && [ -z "$pinged" ]; then ping /fail; fi
+}
+trap on_exit EXIT
 
 [ -f "$ENV_FILE" ] || fail "no settings at $ENV_FILE (see the runbook)"
 mode=$(stat -c '%a' "$ENV_FILE")
@@ -71,7 +81,6 @@ if rclone lsf "$remote/" --include "$name" | grep -qx "$name"; then
   log "$name is already off-site"
 else
   work=$(mktemp -d)
-  trap 'rm -rf "$work"' EXIT
   age "${recipients[@]}" -o "$work/$name" "$newest"
   rclone copyto --s3-no-check-bucket "$work/$name" "$remote/$name"
   rclone lsf "$remote/" --include "$name" | grep -qx "$name" || fail "upload of $name not found afterwards"
