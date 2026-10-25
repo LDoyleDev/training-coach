@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { fetchReview, type WeekReview } from '../api'
 import AppShell from '../components/AppShell'
 import { RetryCard, SignInCard } from '../components/StateCards'
+import { moveButton, moveHref } from '../plan/ladder'
 import { card, secondary } from '../ui'
 
 type Loaded =
@@ -140,11 +141,19 @@ export default function ReviewPage() {
 
       {r.ready.length > 0 && (
         <Section title="Ready to move up">
+          <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+            {r.ready.map((x) => (
+              <li key={x.slug}>
+                <a href={moveHref(x.slug)} className={moveButton}>
+                  {x.exercise}
+                </a>
+              </li>
+            ))}
+          </ul>
           <p className="m-0">
-            {r.ready.join(', ')}
             {r.strength_block
-              ? ': when the hypertrophy block starts.'
-              : ": you'll be asked after your next session."}
+              ? 'When the hypertrophy block starts.'
+              : 'Choose on the Plan page, or when asked after your next session.'}
           </p>
         </Section>
       )}

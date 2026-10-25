@@ -1,6 +1,6 @@
 # ADR-0025: Personal bests and the "ready to progress" prompt
 
-- Status: Accepted
+- Status: Accepted; amended by ADR-0075 (Move up and Not yet on the web, and any level by hand)
 - Date: 2026-10-07
 - Deciders: Liam
 
