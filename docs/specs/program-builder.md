@@ -386,8 +386,11 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
 
 ## Suggested order (small PRs, each usable on its own)
 
-1. **ADRs:** each person's own plan (A2; amends ADR-0059's Plans and multi-user Decided 7),
-   equipment and places (C, E), load and double progression (D).
+1. **ADRs** (written 2026-10-25, Proposed): equipment and places (C, E: ADR-0071), load and
+   double progression (D: ADR-0072), each person's own plan (A2: ADR-0073; amends ADR-0059's
+   Plans and multi-user Decided 7). **Order changed (Liam, 25 Oct 2026):** the gym steps come
+   before plans per person, so the build order is 4, 8, 9, then 5, 6, 7, 10. The gym versions
+   live in the shared plan until step 5.
 2. **Catalogue facts** (done, ADR-0064): fixed muscles with their weights, patterns, needs in
    `plan.toml`. The Plan tab's volume chart uses the fixed list and fractional counting.
 3. **Body map, read-only** (done): on the Plan page, from the current plan (each open session also shows its own map on a heat scale, and the week's is at the bottom: ADR-0069), with the six bands
@@ -416,9 +419,9 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
 9. **Home and gym versions**, `workouts.place`, the switch on Today.
 10. **Setup flow** (H), the 3- and 4-day starters, and the level questions (G1).
 
-Pictures arrive alongside, as poses are drawn: the set screen first, then the picker. Steps 2-4
+Pictures arrive alongside, as poses are drawn: the set screen first, then the picker. Steps 2-4, 8 and 9
 help the owner straight away with no change to how plans are stored; step 5 is the point of no
-return and should wait until 2-4 have settled.
+return and waits until they have settled (ADR-0073).
 
 ## Risks
 
