@@ -220,3 +220,56 @@ def test_blocks_migration_sets_session_kinds_without_the_seed(
     }
     engine.dispose()
     get_settings.cache_clear()
+
+
+def test_boxing_bell_migration_moves_the_old_default_and_keeps_choices(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR-0074: rows on the old default (chime) ring the boxing bell, another choice stays,
+    new rows start at ring, and downgrading turns ring back into chime."""
+    from sqlalchemy import create_engine, text
+
+    from training_coach.config import get_settings
+
+    url = f"sqlite:///{tmp_path / 'ring.db'}"
+    monkeypatch.setenv("TC_DATABASE_URL", url)
+    get_settings.cache_clear()
+    cfg = Config(str(BACKEND / "alembic.ini"))
+    command.upgrade(cfg, "c4f1a7e9d2b6")  # before the boxing bell
+    engine = create_engine(url)
+    insert = (
+        "INSERT INTO settings (user_id, morning_time, nudge_time, nudges_enabled, paused,"
+        " updated_at, sound) VALUES (:u, '07:30:00', '20:00:00', 1, 0, '2026-10-01', :s)"
+    )
+    with engine.begin() as db:
+        for user, sound in ((11, "chime"), (12, "wood")):
+            db.execute(
+                text("INSERT INTO users (id, created_at) VALUES (:u, '2026-10-01')"), {"u": user}
+            )
+            db.execute(text(insert), {"u": user, "s": sound})
+
+    def sounds() -> dict[int, str]:
+        with engine.connect() as db:
+            found = db.execute(text("SELECT user_id, sound FROM settings WHERE user_id > 10"))
+            return {int(user): str(sound) for user, sound in found}
+
+    command.upgrade(cfg, "4aa795c75305")
+    assert sounds() == {11: "ring", 12: "wood"}
+    with engine.begin() as db:
+        db.execute(text("INSERT INTO users (id, created_at) VALUES (13, '2026-10-25')"))
+        db.execute(
+            text(
+                "INSERT INTO settings (user_id, morning_time, nudge_time, nudges_enabled,"
+                " paused, updated_at) VALUES (13, '07:30:00', '20:00:00', 1, 0, '2026-10-25')"
+            )
+        )
+    assert sounds()[13] == "ring"  # the column's new default
+    with pytest.raises(Exception, match="CHECK"), engine.begin() as db:
+        db.execute(text("UPDATE settings SET sound = 'gong' WHERE user_id = 11"))
+
+    command.downgrade(cfg, "c4f1a7e9d2b6")
+    assert sounds() == {11: "chime", 12: "wood", 13: "chime"}
+    with pytest.raises(Exception, match="CHECK"), engine.begin() as db:
+        db.execute(text("UPDATE settings SET sound = 'ring' WHERE user_id = 11"))
+    engine.dispose()
+    get_settings.cache_clear()

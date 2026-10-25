@@ -45,8 +45,10 @@ class CardioActivity(StrEnum):
 
 
 class Sound(StrEnum):
-    """What a guided timer plays at each change (ADR-0062). A per-person setting."""
+    """What every guided timer plays at each change (ADR-0062, ADR-0074). A per-person setting;
+    the boxing-ring bell is everyone's default."""
 
+    RING = "ring"
     CHIME = "chime"
     BEEP = "beep"
     WOOD = "wood"
