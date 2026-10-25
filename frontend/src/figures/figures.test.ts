@@ -81,7 +81,7 @@ test('hands stay on the bar, the seats, the bench or the floor all the way throu
   grip('dip', 'armN', [-21, 48.4]) // on the seat's front edge
   grip('pike-push-up', 'armN', [60, 3])
   grip('diamond-push-up', 'armN', [110.9, 3])
-  grip('kb-row', 'armF', [47, 47.9]) // the supporting hand on the bench
+  grip('kb-row', 'armF', [58, 52.9]) // the supporting hand on the bench
   const { seat } = FIGURES.dip.props!.chair!
   const bottom = solve(FIGURES.dip.end)
   expect(Math.abs(bottom.armN.elbow[1] - bottom.shoulder[1]), 'dip: upper arms level').toBeLessThan(
@@ -106,6 +106,11 @@ test('the row keeps a knee and a hand on the bench and the back flat', () => {
     expect(j.legF.knee[1] - 5.4).toBeLessThan(top + 1)
     expect(j.shoulder[1] - j.hip[1], 'back about level').toBeLessThan(15)
   }
+  // The bell hangs on the near side of the bench, below its top, until it's pulled up.
+  const hanging = shapes(row.start, row.props, row.order)
+    .filter((s) => s.kind === 'ball')
+    .at(-1)!
+  expect(hanging.kind === 'ball' && -hanging.c[1] + hanging.r).toBeLessThan(top - 5)
   const pulled = solve(row.end)
   expect(pulled.armN.elbow[1], 'elbow above the back').toBeGreaterThan(pulled.shoulder[1])
   expect(dist(pulled.armN.wrist, pulled.hip)).toBeLessThan(20) // the bell at the hip
@@ -233,7 +238,7 @@ test('props are drawn with the figure', () => {
   expect(kinds('kb-swing')).toContain('ringbell')
   expect(kinds('bulgarian-split-squat').filter((k) => k === 'pathprop')).toHaveLength(5) // the chair
   expect(kinds('y-reach').filter((k) => k.endsWith('far')).length).toBeGreaterThan(0)
-  expect(kinds('kb-row').filter((k) => k === 'pathprop')).toHaveLength(3) // the bench
+  expect(kinds('kb-row').slice(0, 3)).toEqual(['pathfar', 'pathfar', 'pathfar']) // bench, behind
   const bar = kinds('pull-up')
   expect(bar.at(-1)).toBe('ballbell') // the bar's end, in front of the hands
   expect(bar.slice(0, 3)).toEqual(['pathprop', 'pathbell', 'pathbell']) // wall and bracket

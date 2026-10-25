@@ -27,7 +27,9 @@ export type Part = 'armN' | 'armF' | 'legN' | 'legF' | 'torso' | 'head' | 'bell'
 export interface Props {
   mat?: readonly [number, number] // from x to x, on the floor
   chair?: { x0: number; x1: number; seat: number }
-  bench?: { x0: number; x1: number; top: number } // a bench or a bed
+  /** A bench or a bed; ``behind`` puts it on the far side of the figure, in the far tone, so
+   * the near leg and arm read as in front of it. */
+  bench?: { x0: number; x1: number; top: number; behind?: boolean }
   bar?: Vec // a pull-up bar seen end on: its centre, on a bracket from the wall in front
   /** A kettlebell in both hands, hanging along the forearms; 'near' hangs it straight down
    * from the near hand, as in a one-arm row. */
@@ -185,11 +187,12 @@ function chair({ x0, x1, seat }: NonNullable<Props['chair']>): Shape[] {
   ]
 }
 
-function bench({ x0, x1, top }: NonNullable<Props['bench']>): Shape[] {
+function bench({ x0, x1, top, behind }: NonNullable<Props['bench']>): Shape[] {
+  const tone: Tone = behind ? 'far' : 'prop'
   return [
-    rect(x0 + 3, 0, x0 + 8, top - 6),
-    rect(x1 - 8, 0, x1 - 3, top - 6),
-    rect(x0, top - 6, x1, top),
+    rect(x0 + 3, 0, x0 + 8, top - 6, tone),
+    rect(x1 - 8, 0, x1 - 3, top - 6, tone),
+    rect(x0, top - 6, x1, top, tone),
   ]
 }
 
