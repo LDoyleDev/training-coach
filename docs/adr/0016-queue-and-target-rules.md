@@ -1,6 +1,6 @@
 # ADR-0016: Queue edge cases and target rules
 
-- Status: Accepted; the **Targets** rules are superseded by ADR-0027
+- Status: Accepted; the **Targets** rules are superseded by ADR-0027; moving up is also on the web, and a level can be set by hand (ADR-0075)
 - Date: 2026-09-29
 - Deciders: Liam
 
