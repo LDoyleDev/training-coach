@@ -39,6 +39,9 @@ export interface Limb {
   bend?: number
   /** The hand's or foot's own angle. Hands carry on from the forearm, feet lie flat (0). */
   angle?: number
+  /** A share of the hand's length, for a hand turned towards you (fingers pointing in). Give it
+   * in both poses, as a number one pose leaves out blends from 0. */
+  hand?: number
 }
 
 export interface Pose {
@@ -199,7 +202,7 @@ export function solve(input: Pose): Joints {
       shoulder,
       elbow: mid,
       wrist: end,
-      tip: along(end, limb.angle ?? heading(mid, end), BODY.hand),
+      tip: along(end, limb.angle ?? heading(mid, end), BODY.hand * (limb.hand ?? 1)),
     }
   }
   const leg = (limb: Limb): LegJoints => {
