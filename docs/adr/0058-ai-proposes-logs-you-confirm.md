@@ -118,3 +118,6 @@ Also decided while building it:
 - 2026-10-24, ADR-0067: a cardio proposal's summary names no kind. Save writes the summary with
   the kind the person picked, zone 2 or moderate, on the card or a Telegram button; the AI's
   `cardio` is only a hint.
+- 2026-10-25, ADR-0074: a neck and a scale's body fat can be proposed too. A body proposal far
+  from the last earlier value of its kind carries a "re-measure?" line naming that day, on the
+  card and in Telegram, and in the AI's answer only when the connection has `body:read`.

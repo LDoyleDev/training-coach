@@ -17,7 +17,7 @@ progress. To do that it stores:
 | --- | --- | --- |
 | Your Telegram user id and settings (reminder times, habits) | To know it's you on Telegram and send reminders when you asked | Contract (Art. 6(1)(b) GDPR) |
 | Workouts, sets, test results, habit check-offs, where you are in the plan | The training itself | Contract (Art. 6(1)(b)) |
-| Body measurements (bodyweight, waist, chest, upper arm, thigh, resting heart rate) and progress photos | Showing your progress. These are **health data** | Your explicit consent (Art. 9(2)(a)), which you can withdraw at any time [consent step in sign-up] |
+| Body measurements (bodyweight, body fat from a scale, height, waist, neck, chest, upper arm, thigh, resting heart rate; a body-fat estimate worked out from them if you turn it on) and progress photos | Showing your progress. These are **health data** | Your explicit consent (Art. 9(2)(a)), which you can withdraw at any time [consent step in sign-up] |
 | Answers to the readiness questions | Warning you before hard efforts if a doctor should be asked first. **Health data** | Your explicit consent (Art. 9(2)(a)) |
 | The daily check (how you slept, how sore you are, your energy), kept for a year | Advising you to train as planned, lighter or rest that day. **Health data** | Your explicit consent (Art. 9(2)(a)) |
 | Band data you choose to send from your phone (Health Connect): workouts with heart rate, sleep times and stages, daily steps, resting heart rate, weight; per-minute heart rate kept 8 days, the rest until you delete it | Counting cardio (after you confirm), heart-rate zones, sleep and steps on your dashboard. **Health data** | Your explicit consent (Art. 9(2)(a)) |
