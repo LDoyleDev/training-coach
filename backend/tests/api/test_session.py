@@ -311,7 +311,7 @@ def test_progress_and_saving_need_a_signed_in_browser(engine: Engine) -> None:
 def test_a_swap_kept_for_another_session_does_not_apply(
     signed_in: TestClient, engine: Engine
 ) -> None:
-    """Kept on Legs, then today's session changes: Torso's pairs stay in order."""
+    """Kept on Legs, then today's session changes: Torso keeps its usual order, unswapped."""
     template = signed_in.get("/api/session/today").json()["session"]["template_id"]
     body = {"template_id": template, "position": 0, "first": [1], "sets": []}
     assert signed_in.put("/api/session/progress", json=body).status_code == 200
@@ -322,7 +322,7 @@ def test_a_swap_kept_for_another_session_does_not_apply(
         state.next_template_id = torso.one()
     view = signed_in.get("/api/session/today").json()
     assert view["progress"] is None
-    assert _first_slug(signed_in) == "pull-up"
+    assert _first_slug(signed_in) == "dip"  # Torso's usual order, not the swap (ADR-0031 addendum)
 
 
 def test_a_stale_tab_gets_a_conflict_not_an_overwrite(signed_in: TestClient) -> None:
