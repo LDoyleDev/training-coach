@@ -1,8 +1,9 @@
 import AppShell from '../components/AppShell'
 import SignedOutNotice from '../components/SignedOutNotice'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   fetchPending,
+  fetchSettings,
   fetchToday,
   keepProgress,
   saveSession,
@@ -48,6 +49,9 @@ import ClashQuestion from './ClashQuestion'
 import { ExerciseFigures } from '../bodymap/BodyMap'
 import { worksLine } from '../bodymap/words'
 import Movement from './Movement'
+import { duration, soFar, times, type SetTime } from './times'
+import useWakeLock from './useWakeLock'
+import { type Sound, playChange, unlockAudio } from '../hiit/sounds'
 import { card, primary, primaryInline, secondary } from '../ui'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
@@ -102,6 +106,21 @@ export default function SessionPage() {
     day?: Pending
   } | null>(null)
 
+  const [sound, setSound] = useState<Sound>('chime') // the person's choice, from Settings
+  const counting = useRef(0) // the last of a rest's final 3 seconds that sounded
+  const rang = useRef(0) // the rest whose end has sounded, by its end time
+
+  useEffect(() => {
+    const ask = new AbortController()
+    fetchSettings(ask.signal)
+      .then((found) => found && setSound(found.sound))
+      .catch(() => {}) // the default sound still plays
+    return () => ask.abort()
+  }, [])
+
+  // The screen stays on through the sets and rests of a guided session.
+  useWakeLock(loaded.status === 'ready' && (stage === 'set' || stage === 'rest'))
+
   const running = watchFrom !== null
   const resting = stage === 'rest'
   useEffect(() => {
@@ -109,10 +128,22 @@ export default function SessionPage() {
     const tick = () => {
       const at = Date.now()
       setNow(at)
-      // The rest is over: the phone buzzes and the next set shows, timed from the rest's end
-      // (the same on every tick that sees it, ADR-0061).
-      if (resting && at >= restUntil) {
-        navigator.vibrate?.(300)
+      if (!resting) return
+      // A soft count for each of the rest's last 3 seconds (again after a "+ 15 s").
+      const left = Math.ceil((restUntil - at) / 1000)
+      if (left > 3) counting.current = 0
+      else if (left >= 1 && counting.current !== left) {
+        counting.current = left
+        playChange(sound, 'count')
+      }
+      // The rest is over: the phone buzzes, the timer sound plays and the next set shows,
+      // timed from the rest's end (the same on every tick that sees it, ADR-0061).
+      if (at >= restUntil) {
+        if (rang.current !== restUntil) {
+          rang.current = restUntil
+          navigator.vibrate?.(300)
+          playChange(sound, 'next')
+        }
         setShownAt(restUntil)
         setStage('set')
       }
@@ -123,7 +154,7 @@ export default function SessionPage() {
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', tick)
     }
-  }, [resting, running, restUntil])
+  }, [resting, running, restUntil, sound])
 
   const restLeft = Math.max(0, Math.ceil((restUntil - now) / 1000))
   const startRest = (seconds: number) => {
@@ -278,6 +309,7 @@ export default function SessionPage() {
     }
   }
 
+  const timesSoFar = stage === 'check' ? times(session, values) : null
   const step = session.order[Math.min(position, total - 1)]
   const item = session.items[step.item]
   const value = valueFor(values, step.item, step.set_no, step.target)
@@ -286,6 +318,7 @@ export default function SessionPage() {
   /** Confirm this set: the counter's value, or the clock's reading when it runs; the mobility
    * flow passes its minutes and when it started (ADR-0062). */
   const confirm = async (given?: Value, from: number = shownAt) => {
+    unlockAudio() // inside the tap: browsers only allow sound after a gesture
     const reading = given ?? (watch === null ? value : { ...value, left: watch, right: watch })
     const done = timed(reading, from, Date.now())
     const nextValues = { ...values, [key(step.item, step.set_no)]: done }
@@ -448,7 +481,10 @@ export default function SessionPage() {
             <Overview
               session={session}
               resumeAt={position > 0 && position < total ? position : null}
-              onStart={() => goTo(position >= total ? 'check' : 'set')}
+              onStart={() => {
+                unlockAudio() // so the rests can sound; nothing plays on Start
+                goTo(position >= total ? 'check' : 'set')
+              }}
             />
           )}
           {!cardioSaved && (
@@ -528,23 +564,15 @@ export default function SessionPage() {
                   Do {partner.name} first
                 </button>
               )}
-              {(item.summary || item.muscles.length > 0) && (
-                <div className={card + ' flow-root'}>
-                  {item.muscles.length > 0 && (
-                    <ExerciseFigures
-                      muscles={item.muscles}
-                      className="mb-2 justify-center min-[340px]:float-right min-[340px]:mb-1 min-[340px]:ml-3"
-                    />
-                  )}
-                  <div className="space-y-2">
-                    {item.summary && <p>{item.summary}</p>}
-                    {item.muscles.length > 0 && (
-                      <p className="text-[var(--slate)]">{worksLine(item.muscles, item.parts)}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-              <Movement key={position} slug={item.slug} name={item.name} open={step.set_no === 1} />
+              <div className="flex items-baseline justify-between">
+                <span className="text-lg font-bold">
+                  Set {step.set_no} of {item.targets.length}
+                </span>
+                <span className="text-[var(--slate)]">
+                  Target {unitText(item, step.target)}
+                  {item.per_side ? ' each side' : ''}
+                </span>
+              </div>
               {item.unit === 'seconds' && (
                 <div className={card + ' flex flex-col items-center gap-2'}>
                   <span aria-live="polite" className="text-6xl font-extrabold">
@@ -559,15 +587,6 @@ export default function SessionPage() {
                   </button>
                 </div>
               )}
-              <div className="flex items-baseline justify-between">
-                <span className="text-lg font-bold">
-                  Set {step.set_no} of {item.targets.length}
-                </span>
-                <span className="text-[var(--slate)]">
-                  Target {unitText(item, step.target)}
-                  {item.per_side ? ' each side' : ''}
-                </span>
-              </div>
               {item.per_side && value.split ? (
                 <>
                   <Counter
@@ -607,6 +626,17 @@ export default function SessionPage() {
               <button type="button" className={primary} disabled={busy} onClick={() => confirm()}>
                 Confirm set
               </button>
+              {item.summary && <p className={card}>{item.summary}</p>}
+              <Movement key={position} slug={item.slug} name={item.name} />
+              {item.muscles.length > 0 && (
+                <div className={card + ' flow-root'}>
+                  <ExerciseFigures
+                    muscles={item.muscles}
+                    className="mb-2 justify-center min-[340px]:float-right min-[340px]:mb-1 min-[340px]:ml-3"
+                  />
+                  <p className="text-[var(--slate)]">{worksLine(item.muscles, item.parts)}</p>
+                </div>
+              )}
             </>
           )}
         </section>
@@ -646,8 +676,9 @@ export default function SessionPage() {
             Check and save
           </h1>
           <p className="text-[var(--slate)]">Nothing is saved until you save.</p>
+          {timesSoFar && <p className="font-bold">{soFar(timesSoFar)}</p>}
           <ul className={card}>
-            {summary(session, values).map((row) => (
+            {summary(session, values).map((row, index) => (
               <li
                 key={row.name}
                 className="flex justify-between gap-3 border-b border-[var(--line)] py-2"
@@ -657,7 +688,10 @@ export default function SessionPage() {
                   <br />
                   <span className="text-sm text-[var(--slate)]">target {row.target}</span>
                 </span>
-                <span className="font-bold">{row.done}</span>
+                <span className="flex flex-col items-end text-right">
+                  <span className="font-bold">{row.done}</span>
+                  <SetTimes sets={timesSoFar?.rows[index] ?? []} />
+                </span>
               </li>
             ))}
           </ul>
@@ -730,6 +764,27 @@ export default function SessionPage() {
         </section>
       )}
     </AppShell>
+  )
+}
+
+/** Each set's time under its reps, "34s / 31s / 38s": a much slower set in bold, and a rest
+ * that ran over its plan by its amount on the set after it. Nothing for sets without times. */
+function SetTimes({ sets }: { sets: (SetTime | null)[] }) {
+  const shown = sets.filter((set): set is SetTime => set !== null)
+  if (shown.length === 0) return null
+  return (
+    <span className="text-sm text-[var(--slate)]">
+      {shown.map((set, n) => (
+        <span key={n}>
+          {n > 0 && ' / '}
+          <span className={set.slow ? 'font-bold text-[var(--ink)]' : ''}>
+            {duration(set.seconds)}
+            {set.slow && <span className="sr-only"> (slow)</span>}
+          </span>
+          {set.overran !== null && ` (+${duration(set.overran)} rest)`}
+        </span>
+      ))}
+    </span>
   )
 }
 
