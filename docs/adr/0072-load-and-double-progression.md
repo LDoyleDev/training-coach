@@ -1,6 +1,6 @@
 # ADR-0072: Sets record their load; loaded exercises progress by reps, then weight
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-25
 - Deciders: Liam
 
@@ -38,10 +38,23 @@ vest (25 Oct 2026). The builder settled the shape (`program-builder.md`, option 
 - **Logging by voice or text** stays reps-first: "rows 10 10 9 at 16" is parsed with the load as
   an optional part, and the confirm step shows it (ADR-0007).
 
-**Open before accepting (Liam, 25 Oct 2026):** how the progress chart shows, and links, a
-step up or down in weight, and a move to a harder ladder step. Liam's idea: a different
-background colour per weight period, and a second scale on the right. Being researched; the
-answer goes here.
+- **The progress chart shows each weight, and each ladder step, as its own period** (Liam, 25
+  Oct 2026). The line breaks at a change; periods alternate between plain and a faint neutral
+  tint, each labelled with its weight or step and an arrow ("16 kg ↑", "12 kg ↓", "Step 3 ↑"),
+  so the drop in reps after a step up reads as the method working, not a decline. A step down
+  is marked too. Text carries the meaning, never colour alone, and the chart's description says
+  it in words ("moved to 16 kg; reps 12 → 8"). This applies to ladder steps straight away.
+  When loads arrive, a thin strip under the chart, on the same dates, shows the kg (or the step
+  number) as a staircase.
+- **One axis, never two.** Liam asked about a second scale on the right; it's left out because
+  two scales line up arbitrarily and suggest a link the data doesn't show, and a second set of
+  labels costs a phone chart about a tenth of its width (Datawrapper, the ONS and Stephen Few
+  advise against dual axes; the strip is the honest version). A colour per weight runs out of
+  hues and fails colour-blind readers, so the tints alternate.
+- **No converted "estimated strength" line for now.** One-rep-max formulas hold up to about
+  10-12 reps and have no validation for bodyweight work (Reynolds 2006), and converting ladder
+  steps would invent progress (ADR-0034). It may come later as an optional, labelled view for
+  loaded exercises only.
 
 ## Options considered
 

@@ -386,7 +386,7 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
 
 ## Suggested order (small PRs, each usable on its own)
 
-1. **ADRs** (written 2026-10-25, Proposed): equipment and places (C, E: ADR-0071), load and
+1. **ADRs** (written and accepted by Liam 2026-10-25): equipment and places (C, E: ADR-0071), load and
    double progression (D: ADR-0072), each person's own plan (A2: ADR-0073; amends ADR-0059's
    Plans and multi-user Decided 7). **Order changed (Liam, 25 Oct 2026):** the gym steps come
    before plans per person, so the build order is 4, 8, 9, then 5, 6, 7, 10. The gym versions

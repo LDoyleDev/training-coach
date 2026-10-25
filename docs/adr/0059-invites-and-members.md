@@ -56,7 +56,9 @@ backups, that the app offers no way to, and that nobody does.
 queue, ladder steps, settings, tests and blocks. Each person having **their own plan** (a copy
 they can change) is the goal for later and is not built now. Until then, new code takes the
 person's plan where that costs no more than assuming one global plan, so the later change is
-not made harder.
+not made harder. (To be superseded by ADR-0073, accepted 2026-10-25, when it is built: each
+person owns their sessions, the exercises stay a shared catalogue. Until then the shared plan
+also carries the home and gym versions, ADR-0071, which is safe only while there is one plan.)
 
 **Telegram.** Optional. One bot, many private chats: a member connects from Account with a
 one-time token (hashed, 10 minutes) in a `t.me/<bot>?start=<token>` link; the bot then finds

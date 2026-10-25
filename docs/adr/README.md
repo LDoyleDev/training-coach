@@ -76,5 +76,5 @@ Code). Template: [template.md](template.md).
 | [0069](0069-plan-page-and-session-maps.md) | Plan gets its own tab, Tests moves into Body, each session has its own body map | Accepted |
 | [0070](0070-our-own-android-reader.md) | Our own Android reader replaces HC Webhook as the bridge from Health Connect | Proposed |
 | [0071](0071-equipment-and-places.md) | Each person lists their home kit; a gym has everything; steps lock by kit | Accepted |
-| [0072](0072-load-and-double-progression.md) | Sets record their load; loaded exercises progress by reps, then weight | Proposed |
+| [0072](0072-load-and-double-progression.md) | Sets record their load; loaded exercises progress by reps, then weight | Accepted |
 | [0073](0073-each-person-owns-their-sessions.md) | Each person owns their sessions; exercises are a shared catalogue | Accepted |
