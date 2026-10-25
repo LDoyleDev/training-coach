@@ -539,7 +539,7 @@ def test_the_bundled_resistance_sessions_are_fully_paired() -> None:
     for slug in ("legs", "torso", "arms"):
         assert all(item.pair is not None for item in sessions[slug].items), slug
     alone = [item.exercise for item in sessions["recovery"].items if item.pair is None]
-    assert alone == ["chin-tuck", "mobility"]
+    assert alone == ["mobility"]
 
 
 STRETCH = """

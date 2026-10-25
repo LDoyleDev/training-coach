@@ -39,14 +39,24 @@ def test_the_core_block_covers_the_trunk_and_hips(plan: Session) -> None:
     trunk = (Muscle.ABS, Muscle.OBLIQUES, Muscle.LOWER_BACK, Muscle.ADDUCTORS)
     assert {m: (by[m].sets, by[m].days, by[m].band) for m in trunk} == {
         Muscle.ABS: (7, 2, Band.GREEN),
-        Muscle.OBLIQUES: (5.75, 2, Band.GREEN),
+        Muscle.OBLIQUES: (7.75, 2, Band.GREEN),  # + the suitcase carries
         Muscle.LOWER_BACK: (5.5, 2, Band.GREEN),
         Muscle.ADDUCTORS: (6.5, 2, Band.GREEN),
     }
     assert by[Muscle.HIP_FLEXORS].band is Band.GREEN  # 3 on its own 3-8 band
     days = {d.name: d for d in plan_coverage(plan).days}
-    assert (days["Cardio + core"].spine_sets, days["Cardio + core"].grip_sets) == (2, 0)
+    assert (days["Cardio + core"].spine_sets, days["Cardio + core"].grip_sets) == (4, 2)
     assert not any(d.spine_heavy or d.grip_heavy for d in days.values())
+
+
+def test_face_pulls_and_carries_reach_the_rear_delts_and_traps(plan: Session) -> None:
+    """Plan version "Rear delts + carries" (25 Oct 2026, training-plan.md)."""
+    by = {m.muscle: m for m in plan_coverage(plan).muscles}
+    assert (by[Muscle.REAR_DELTS].sets, by[Muscle.REAR_DELTS].days) == (9.25, 2)
+    assert by[Muscle.REAR_DELTS].band is Band.GREEN
+    assert (by[Muscle.UPPER_TRAPS].sets, by[Muscle.UPPER_TRAPS].days) == (4, 2)
+    assert by[Muscle.UPPER_TRAPS].band is Band.LIGHT_GREEN
+    assert by[Muscle.FOREARMS].band is Band.GREEN  # one dead-hang set fewer keeps it under 10
 
 
 def test_a_loaded_step_adds_to_the_spine_count(plan: Session) -> None:

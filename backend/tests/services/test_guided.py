@@ -133,7 +133,7 @@ def test_timed_sets_count_their_seconds(session: Session) -> None:
     assert hang.kind.value == "seconds"
     paired = [plan.items[o.item].slug for o in plan.order]
     paired = [s for s in paired if s in ("dead-hang", "neck-extension")]
-    assert paired == ["dead-hang", "neck-extension", "dead-hang"]  # its extra set alone
+    assert paired == ["dead-hang", "neck-extension"]  # one set each since "Rear delts + carries"
 
 
 def _plan(session: Session) -> guided.Guided:
