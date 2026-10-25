@@ -1,19 +1,31 @@
 import type { Standing } from '../api'
-import { BOX, WEEKS, chart, shortDay } from './chart'
+import { BOX, BY_STEP, PAD, WEEKS, chart, local, shortDay, type Period } from './chart'
 import { amount } from './logic'
 
+/** Arrows in text style: without the selector some fonts draw them as coloured emoji, and the
+ * chart's changes must never be told by colour. */
+const asText = (label: string) => label.replace(/[↑↓]/g, (arrow) => `${arrow}︎`)
+
 /** One exercise's best set per session over the last six weeks: dates along the bottom, the
- * range up the side, and a dashed line where it moved up a step (fewer reps, harder step). */
+ * range up the side. Each ladder step is its own period (ADR-0072): the line breaks at a
+ * change, the periods alternate plain and faintly tinted, and each change is labelled with its
+ * step and an arrow, so fewer reps after a step up reads as the method working. */
 export default function TrendChart({ standing, today }: { standing: Standing; today: Date }) {
   const found = chart(standing.trend, today)
   if (!found)
     return <p className="m-0 text-sm text-[var(--slate)]">No sessions in the last {WEEKS} weeks.</p>
   const show = (v: number) => amount(standing, v)
   const sessions = found.dots.length
+  const change = (p: Period, before: Period) =>
+    `. Moved ${p.move} to ${BY_STEP.words(p.key)} on ${shortDay(local(p.dots[0].point.day))}` +
+    `; best ${show(before.dots.at(-1)!.point.best)} to ${show(p.dots[0].point.best)}`
   const label =
     `Best set per session, last ${WEEKS} weeks: ${sessions} ${sessions === 1 ? 'session' : 'sessions'}` +
     `, from ${show(found.dots[0].point.best)} to ${show(found.dots[sessions - 1].point.best)}` +
-    found.moves.map((m) => `, moved up to step ${m.step}`).join('')
+    found.periods
+      .slice(1)
+      .map((p, i) => change(p, found.periods[i]))
+      .join('')
   const bottom = BOX.height - BOX.bottom
   return (
     <figure className="m-0 flex flex-col gap-1">
@@ -26,6 +38,20 @@ export default function TrendChart({ standing, today }: { standing: Standing; to
         aria-label={label}
         className="w-full"
       >
+        {found.periods.map(
+          (p, i) =>
+            p.tinted && (
+              <rect
+                key={i}
+                data-period-tint=""
+                x={p.from}
+                y={BOX.top}
+                width={p.to - p.from}
+                height={bottom - BOX.top}
+                fill="var(--period-tint)"
+              />
+            ),
+        )}
         {found.weeks.map((x) => (
           <line key={x} x1={x} x2={x} y1={BOX.top} y2={bottom} stroke="var(--line)" />
         ))}
@@ -51,30 +77,33 @@ export default function TrendChart({ standing, today }: { standing: Standing; to
           <text x={BOX.width - BOX.right} y={BOX.height - 4} textAnchor="end">
             Today
           </text>
+          {found.periods.map(
+            (p, i) =>
+              p.label !== null && (
+                <text
+                  key={i}
+                  x={p.from + PAD}
+                  y={BOX.top - 5}
+                  fill="var(--ink)"
+                  style={{ fontVariantEmoji: 'text' }}
+                >
+                  {asText(p.label)}
+                </text>
+              ),
+          )}
         </g>
-        {found.moves.map((m) => (
-          <g key={m.x}>
-            <line
-              x1={m.x}
-              x2={m.x}
-              y1={BOX.top}
-              y2={bottom}
-              stroke="var(--bell-ink)"
-              strokeDasharray="3 3"
-            />
-            <text x={m.x + 3} y={BOX.top - 4} fontSize="10" fill="var(--bell-ink)">
-              Step {m.step}
-            </text>
-          </g>
-        ))}
-        {sessions > 1 && (
-          <polyline
-            points={found.line}
-            fill="none"
-            stroke="var(--bell-ink)"
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
+        {found.periods.map(
+          (p, i) =>
+            p.line !== '' && (
+              <polyline
+                key={i}
+                points={p.line}
+                fill="none"
+                stroke="var(--bell-ink)"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+            ),
         )}
         {found.dots.map((d) => (
           <circle key={d.point.day + d.x} cx={d.x} cy={d.y} r="3.5" fill="var(--bell-ink)" />
