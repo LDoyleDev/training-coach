@@ -14,6 +14,9 @@
 #   RCLONE_CONFIG_R2_TYPE=s3, RCLONE_CONFIG_R2_PROVIDER=Cloudflare,
 #   RCLONE_CONFIG_R2_ACCESS_KEY_ID, RCLONE_CONFIG_R2_SECRET_ACCESS_KEY,
 #   RCLONE_CONFIG_R2_ENDPOINT   (https://<account id>.r2.cloudflarestorage.com)
+#   TC_OFFSITE_PING_URL       optional: a Healthchecks.io check's ping URL; pinged after each
+#                             good run and on a failure, so a job that stops running is noticed
+#                             (the restore drill of 2026-10-25 found it had never run)
 # Setup and restore: docs/runbooks/backup-restore.md, "Off-site copies".
 set -euo pipefail
 
@@ -22,7 +25,27 @@ BACKUPS="${TC_BACKUPS_DIR:-$HOME/training-coach/data/backups}"
 KEEP_DAYS="${TC_OFFSITE_KEEP_DAYS:-35}"
 
 log() { echo "offsite-backup: $*"; }
-fail() { echo "offsite-backup: ERROR: $*" >&2; exit 1; }
+# Best effort: a ping that can't go out never hides the job's own result.
+ping() {
+  [ -n "${TC_OFFSITE_PING_URL:-}" ] || return 0
+  curl -fsS --max-time 10 --retry 3 -o /dev/null "$TC_OFFSITE_PING_URL$1" ||
+    echo "offsite-backup: WARNING: the ping to the monitor didn't go out" >&2
+}
+pinged=""
+fail() {
+  echo "offsite-backup: ERROR: $*" >&2
+  ping /fail
+  pinged=1
+  exit 1
+}
+work=""
+# Any other failure (age, rclone under set -e) reports too, once (review of #338).
+on_exit() {
+  local status=$?
+  [ -z "$work" ] || rm -rf "$work"
+  if [ "$status" -ne 0 ] && [ -z "$pinged" ]; then ping /fail; fi
+}
+trap on_exit EXIT
 
 [ -f "$ENV_FILE" ] || fail "no settings at $ENV_FILE (see the runbook)"
 mode=$(stat -c '%a' "$ENV_FILE")
@@ -31,6 +54,11 @@ set -a
 # shellcheck source=/dev/null
 . "$ENV_FILE"
 set +a
+case "${TC_OFFSITE_PING_URL:-}" in
+  "") log "WARNING: no TC_OFFSITE_PING_URL: nobody is told if this job stops running" ;;
+  https://*) ;;
+  *) TC_OFFSITE_PING_URL="" && fail "TC_OFFSITE_PING_URL must be an https:// URL" ;;
+esac
 : "${TC_BACKUP_AGE_RECIPIENT:?set in $ENV_FILE}"
 : "${TC_OFFSITE_BUCKET:?set in $ENV_FILE}"
 recipients=()
@@ -53,7 +81,6 @@ if rclone lsf "$remote/" --include "$name" | grep -qx "$name"; then
   log "$name is already off-site"
 else
   work=$(mktemp -d)
-  trap 'rm -rf "$work"' EXIT
   age "${recipients[@]}" -o "$work/$name" "$newest"
   rclone copyto --s3-no-check-bucket "$work/$name" "$remote/$name"
   rclone lsf "$remote/" --include "$name" | grep -qx "$name" || fail "upload of $name not found afterwards"
@@ -63,3 +90,4 @@ fi
 # Retention: nothing off-site is older than KEEP_DAYS.
 rclone delete --min-age "${KEEP_DAYS}d" --include 'training_coach-*.db.age' "$remote/"
 log "ok: kept the last $KEEP_DAYS days off-site"
+ping ""

@@ -1,7 +1,8 @@
 """scripts/offsite-backup.sh (ADR-0042), run for real with stub ``age`` and ``rclone``.
 
 ``age`` writes "ENCRYPTED(<recipient>):" plus the input to its output; ``rclone`` keeps the
-"bucket" as a folder and supports the lsf, copyto and delete calls the script makes.
+"bucket" as a folder and supports the lsf, copyto and delete calls the script makes; ``curl``
+writes the URL it was asked for to curl.log.
 """
 
 import os
@@ -31,6 +32,7 @@ out="$2"; { printf 'ENCRYPTED(%s):' "$keys"; cat "$3"; } > "$out"
 SECOND = "age1zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
 RCLONE = """#!/usr/bin/env bash
 echo "$*" >> "$STUB_DIR/rclone.log"
+[ "$1" = "${STUB_FAIL:-}" ] && exit 1
 bucket="$STUB_DIR/bucket"; mkdir -p "$bucket"
 case "$1" in
   lsf) ls "$bucket" ;;
@@ -39,12 +41,18 @@ case "$1" in
 esac
 """
 
+CURL = """#!/usr/bin/env bash
+for last; do :; done
+echo "$last" >> "$STUB_DIR/curl.log"
+"""
+PING = "https://hc-ping.example/0000"
+
 
 @pytest.fixture
 def pi(tmp_path: Path) -> Path:
     stubs = tmp_path / "stubs"
     stubs.mkdir()
-    for name, body in (("age", AGE), ("rclone", RCLONE)):
+    for name, body in (("age", AGE), ("rclone", RCLONE), ("curl", CURL)):
         (stubs / name).write_text(body)
         (stubs / name).chmod(0o755)
     (tmp_path / "backups").mkdir()
@@ -54,9 +62,10 @@ def pi(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _run(pi: Path) -> subprocess.CompletedProcess[str]:
+def _run(pi: Path, **extra: str) -> subprocess.CompletedProcess[str]:
     assert BASH is not None
     env = {
+        **extra,
         **os.environ,
         "PATH": f"{pi / 'stubs'}{os.pathsep}{os.environ['PATH']}",
         "STUB_DIR": str(pi),
@@ -157,3 +166,55 @@ def test_a_blank_list_of_keys_is_refused(pi: Path) -> None:
     done = _run(pi)
     assert done.returncode == 1
     assert "lists no age public key" in done.stderr
+
+
+def _with_ping(pi: Path, url: str = PING) -> None:
+    env = pi / "offsite.env"
+    env.write_text(env.read_text() + f"TC_OFFSITE_PING_URL={url}\n")
+
+
+def _pings(pi: Path) -> list[str]:
+    log = pi / "curl.log"
+    return log.read_text().split() if log.exists() else []
+
+
+def test_a_good_run_pings_the_monitor(pi: Path) -> None:
+    """The 2026-10-25 drill found the job had never run: a missing ping is what tells."""
+    _backup(pi, "2026-10-10")
+    _with_ping(pi)
+    done = _run(pi)
+    assert done.returncode == 0, done.stderr
+    assert _pings(pi) == [PING]
+
+
+def test_a_failed_run_reports_the_failure(pi: Path) -> None:
+    _backup(pi, "2026-10-01", age_days=9)
+    _with_ping(pi)
+    assert _run(pi).returncode == 1
+    assert _pings(pi) == [f"{PING}/fail"]
+
+
+def test_without_a_ping_url_it_warns_and_still_runs(pi: Path) -> None:
+    _backup(pi, "2026-10-10")
+    done = _run(pi)
+    assert done.returncode == 0, done.stderr
+    assert "nobody is told if this job stops running" in done.stdout
+    assert _pings(pi) == []
+
+
+def test_a_ping_url_that_isnt_https_is_refused(pi: Path) -> None:
+    _backup(pi, "2026-10-10")
+    _with_ping(pi, "http://hc-ping.example/0000")
+    done = _run(pi)
+    assert done.returncode == 1
+    assert "must be an https:// URL" in done.stderr
+    assert _pings(pi) == []  # never sent over plain http
+
+
+def test_a_failing_upload_reports_the_failure_once(pi: Path) -> None:
+    """set -e stops the script outside fail(); the exit trap still pings /fail (review of #338)."""
+    _backup(pi, "2026-10-10")
+    _with_ping(pi)
+    done = _run(pi, STUB_FAIL="copyto")
+    assert done.returncode != 0
+    assert _pings(pi) == [f"{PING}/fail"]

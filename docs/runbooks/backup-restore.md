@@ -9,7 +9,7 @@ checked with `PRAGMA integrity_check`, and only then renamed into place.
 | --- | --- | --- |
 | Nightly | `data/backups/training_coach-YYYY-MM-DD.db` | newest 7, plus the newest of each of the 4 weeks before them |
 | Manual (and before every deploy) | `data/backups/training_coach-manual-<UTC time>.db` | 35 days (ADR-0044) |
-| Desktop copy | `~/backups/training-coach/` via `scripts/pull-backup.sh` | 35 days |
+| Desktop copy (not set up yet) | `~/backups/training-coach/` via `scripts/pull-backup.sh` | 35 days |
 | Off-site | Cloudflare R2 bucket, encrypted with age, via `scripts/offsite-backup.sh` | 35 days |
 
 A failed backup logs `backup.failed` and, when the bot is on, sends you a Telegram message.
@@ -108,7 +108,13 @@ The desktop dual-boots Windows and Linux, so the key mustn't live on only one si
    RCLONE_CONFIG_R2_ACCESS_KEY_ID=<access key id>
    RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=<secret access key>
    RCLONE_CONFIG_R2_ENDPOINT=https://<account id>.r2.cloudflarestorage.com
+   TC_OFFSITE_PING_URL=https://hc-ping.com/<uuid>
    ```
+
+   The ping URL is a second Healthchecks.io check (period 1 day, grace a few hours), next to
+   the app's heartbeat (`deploy.md`, "Uptime monitoring"). The job pings it after each good run
+   and on a failure, so a job that stops running, or never started, sends an email. Without it
+   the job still runs and logs a warning.
 
    For a second key (recommended: any one of them can decrypt, so losing one loses nothing),
    list both public halves in quotes:
@@ -118,10 +124,12 @@ The desktop dual-boots Windows and Linux, so the key mustn't live on only one si
    `winget install FiloSottile.age`, `mkdir $HOME\.age` and
    `age-keygen -o $HOME\.age\training-coach-backups.txt`;
    `age-keygen -y` on that file prints it again.)
-4. **Try it once**, then install the timer:
+4. **Try it once**, then install the timer. Your SSH user needs the `coach-data` group first
+   (see "Pulling backups to the desktop"), or the script can't read the backups:
 
    ```
    ~/training-coach/scripts/offsite-backup.sh       # "uploaded training_coach-....db.age"
+   sudo cp ~/training-coach/scripts/systemd/training-coach-alert@.service /etc/systemd/system/
    sudo cp ~/training-coach/scripts/systemd/training-coach-offsite.{service,timer} /etc/systemd/system/
    sudo systemctl daemon-reload && sudo systemctl enable --now training-coach-offsite.timer
    systemctl list-timers training-coach-offsite.timer
@@ -141,15 +149,31 @@ file restored from the password manager), and restore that file as in "Restore" 
 
 ## Rehearsal
 
-Rehearse a restore once per phase and note it in the release PR:
+Rehearse a restore once per phase and note it in the release PR. It runs beside the live app,
+which is never stopped or touched:
 
-1. Take a manual backup (above) and note the row counts: `sqlite3 data/backups/<file>.db
-   "select count(*) from workouts; select count(*) from set_logs; select count(*) from
-   measurements; select count(*) from progress_photos; select count(*) from test_days;"`.
-2. Restore it as above.
-3. Check `/today` in the bot, open a photo on `/body`, and compare the counts again.
+1. Take a manual backup (above), and note `PRAGMA integrity_check` and the row counts of
+   workouts, set_logs, measurements, progress_photos and test_days, plus the photos' total size.
+   The backups are readable only inside the container or by `coach-data`; with sqlite3 missing
+   on the Pi, `docker compose exec -T app python -` with a short script does it.
+2. Copy it into a scratch folder (`mkdir -m 700 ~/tc-drill`; `docker compose cp
+   app:/data/backups/<file>.db ~/tc-drill/data/training_coach.db`) and start a second container
+   of the same image on it, with no `.env` (so no bot and no messages) and no network:
+   `docker run -d --name tc-drill --user "$(id -u):$(id -g)" -v "$HOME/tc-drill/data:/data"
+   --read-only --tmpfs /tmp --cap-drop ALL --network none training-coach:local`.
+3. When it's healthy, compare the integrity check, the migration (`alembic_version`) and the
+   counts with step 1.
+4. With no photos or measurements in the live data yet, add a test photo and measurement to the
+   drill copy, back the drill copy up (`docker exec tc-drill training-coach backup`), restore
+   that into a second drill container and check the photo comes back byte for byte.
+5. Off-site: download last night's copy (`rclone copyto r2:<bucket>/<name> ...`, with
+   `offsite.env` sourced), decrypt it on the desktop with the backup key (above), compare its
+   counts, and delete the decrypted file.
+6. `docker rm -f tc-drill ...`, `rm -rf ~/tc-drill`.
 
-Last rehearsed: 2026-10-07 on the desktop (#14): a seeded database with one logged workout was
-backed up with `training-coach backup`, replaced with garbage (start-up then logs `seed.failed`),
-and restored with the commands above. Migrations had nothing to do, the seed was unchanged, and
-every row count and `PRAGMA integrity_check` matched. Still to do once on the Pi itself.
+Last rehearsed: **2026-10-25 on the Pi** (v0.38.1), as above. The restore, the migration check,
+every count and the test photo's bytes matched, and the off-site copy decrypted with the backup
+key and matched its nightly backup. The drill also found the off-site job had never run (the
+timer, the alert unit and the `coach-data` group were never installed, and the bucket was
+empty); they were installed the same day and the first copy uploaded. Before that: 2026-10-07 on
+the desktop (#14), with a seeded database.
