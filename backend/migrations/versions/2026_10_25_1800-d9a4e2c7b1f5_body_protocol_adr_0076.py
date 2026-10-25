@@ -1,4 +1,4 @@
-"""body protocol (ADR-0074): neck and scale body fat, height, thigh landmark, estimate setting
+"""body protocol (ADR-0076): neck and scale body fat, height, thigh landmark, estimate setting
 
 Two new measurement kinds, so the kind check is rebuilt (existing rows are untouched), and three
 body settings: height for the tape estimate (empty), how far above the kneecap the thigh is
@@ -8,7 +8,7 @@ Downgrade refuses while any neck or scale body-fat measurement exists: the old c
 reject those rows, and dropping them silently would lose the person's data.
 
 Revision ID: d9a4e2c7b1f5
-Revises: c4f1a7e9d2b6
+Revises: 4aa795c75305
 Create Date: 2026-10-25 18:00:00.000000
 
 """
@@ -20,7 +20,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "d9a4e2c7b1f5"
-down_revision: str | Sequence[str] | None = "c4f1a7e9d2b6"
+down_revision: str | Sequence[str] | None = "4aa795c75305"  # the boxing bell (#347)
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

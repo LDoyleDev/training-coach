@@ -1,4 +1,4 @@
-"""/api/account/body (ADR-0074): height, the thigh's landmark and the estimate setting."""
+"""/api/account/body (ADR-0076): height, the thigh's landmark and the estimate setting."""
 
 import pytest
 from fastapi.testclient import TestClient

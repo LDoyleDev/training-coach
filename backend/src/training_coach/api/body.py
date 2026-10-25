@@ -1,4 +1,4 @@
-"""Body measurements for the web app (2-B, #142; the protocol and the estimate, ADR-0074).
+"""Body measurements for the web app (2-B, #142; the protocol and the estimate, ADR-0076).
 Owner-only; never in a share view."""
 
 from datetime import UTC, date, datetime
@@ -78,18 +78,18 @@ def guide(user: Owner) -> GuideView:
     return GuideView(checklist=list(CHECKLIST), cadence=CADENCE)
 
 
-class PointView(BaseModel):
+class EstimateView(BaseModel):
     on: date
     value: float
 
 
-@router.get("/estimates", response_model=list[PointView])
-def estimates(request: Request, user: Owner) -> list[PointView]:
+@router.get("/estimates", response_model=list[EstimateView])
+def estimates(request: Request, user: Owner) -> list[EstimateView]:
     """The tape body-fat estimate (%, ±4) for each day with a waist and a neck, newest first;
     empty unless the estimate is turned on and the height is set. Worked out, never stored."""
     with session_scope(_bound(request, user)) as session:
         found = measurements.estimates(session)
-    return [PointView(on=p.on, value=p.value) for p in found]
+    return [EstimateView(on=p.on, value=p.value) for p in found]
 
 
 class AverageView(BaseModel):

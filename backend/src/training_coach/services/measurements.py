@@ -1,6 +1,6 @@
 """Body measurements (2-B, #142): saving a day's values and reading them back, the body
 settings, and what is worked out from them on read (the 7-day average, the tape estimate,
-ADR-0074), never stored. Values are personal: never log them (threat model)."""
+ADR-0076), never stored. Values are personal: never log them (threat model)."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -120,7 +120,7 @@ def _last_before(session: Session, on: date, kind: Kind) -> tuple[date, float] |
 
 def remeasure(session: Session, on: date, values: Mapping[Kind, float]) -> list[str]:
     """A "re-measure?" warning for each value far from the last earlier entry of its kind
-    (ADR-0074), in the kinds' order. Never refuses anything."""
+    (ADR-0076), in the kinds' order. Never refuses anything."""
     found = []
     for kind in Kind:
         if kind in values:
@@ -166,7 +166,7 @@ class Point:
 
 def estimates(session: Session, since: date | None = None) -> list[Point]:
     """The tape body-fat estimate for each day with both a waist and a neck, newest first;
-    none unless the person turned it on and set their height (ADR-0074)."""
+    none unless the person turned it on and set their height (ADR-0076)."""
     chosen = body_settings(session)
     if chosen.body_fat_estimate is BodyFatEstimate.OFF or chosen.height_cm is None:
         return []

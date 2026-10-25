@@ -172,7 +172,7 @@ def _propose(
         "expires in 24 hours if they don't. What Save would log:\n"
         + mcp_tools.envelope(found.summary)
     )
-    # The app's own words, as on the card (ADR-0074); they tell of earlier measurements, so
+    # The app's own words, as on the card (ADR-0076); they tell of earlier measurements, so
     # only with the body scope.
     if found.warnings and Scope.BODY.value in access.scopes:
         text += "\nThe card also says:\n" + "\n".join(found.warnings)

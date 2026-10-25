@@ -286,7 +286,7 @@ class UserSettings(Owned, Base):
     pace: Mapped[str] = mapped_column(String(16), server_default=Pace.STANDARD.value)
     # What the guided timers play at each change (ADR-0062).
     sound: Mapped[str] = mapped_column(String(16), server_default=Sound.CHIME.value)
-    # Body measurements (ADR-0074): height for the tape estimate, where the thigh is taken, and
+    # Body measurements (ADR-0076): height for the tape estimate, where the thigh is taken, and
     # whether the body-fat estimate is worked out at all (off unless the person turns it on).
     height_cm: Mapped[int | None] = mapped_column(Integer)
     thigh_offset_cm: Mapped[int] = mapped_column(Integer, server_default="15")

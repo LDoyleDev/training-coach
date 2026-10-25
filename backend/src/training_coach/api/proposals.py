@@ -29,7 +29,7 @@ class ProposalView(BaseModel):
     # person picks zone 2 or moderate on the card (ADR-0067, 2026-10-24).
     suggested: proposals.CardioKind | None = None
     suggestion: str | None = None
-    # Body: "Waist is 3.5 cm off your last (12 Oct): different landmark? Re-measure." (ADR-0074)
+    # Body: "Waist is 3.5 cm off your last (12 Oct): different landmark? Re-measure." (ADR-0076)
     warnings: list[str] = []
 
 

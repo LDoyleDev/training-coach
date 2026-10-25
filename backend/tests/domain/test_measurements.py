@@ -47,7 +47,7 @@ def test_a_whole_number_kind_takes_a_whole_number() -> None:
     assert to_tenths(Kind.RESTING_HR, 52.0) == 520
 
 
-# ------------------------------------------------- the protocol and the estimate (ADR-0074)
+# ------------------------------------------------- the protocol and the estimate (ADR-0076)
 
 
 def test_the_new_kinds_have_their_ranges() -> None:

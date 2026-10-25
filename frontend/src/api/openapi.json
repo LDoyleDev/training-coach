@@ -1193,6 +1193,25 @@
         "title": "EraseRequest",
         "type": "object"
       },
+      "EstimateView": {
+        "properties": {
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "on",
+          "value"
+        ],
+        "title": "EstimateView",
+        "type": "object"
+      },
       "Evidence": {
         "description": "How well a muscle's own band is supported; the app marks the weak ones.",
         "enum": [
@@ -3520,6 +3539,30 @@
         "title": "PlannedView",
         "type": "object"
       },
+      "PointView": {
+        "properties": {
+          "best": {
+            "title": "Best",
+            "type": "integer"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "step_number": {
+            "title": "Step Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "best",
+          "step_number"
+        ],
+        "title": "PointView",
+        "type": "object"
+      },
       "ProgressView": {
         "properties": {
           "first": {
@@ -4955,7 +4998,7 @@
           },
           "trend": {
             "items": {
-              "$ref": "#/components/schemas/training_coach__api__progress__PointView"
+              "$ref": "#/components/schemas/PointView"
             },
             "title": "Trend",
             "type": "array"
@@ -5656,49 +5699,6 @@
           "high"
         ],
         "title": "ZoneView",
-        "type": "object"
-      },
-      "training_coach__api__body__PointView": {
-        "properties": {
-          "on": {
-            "format": "date",
-            "title": "On",
-            "type": "string"
-          },
-          "value": {
-            "title": "Value",
-            "type": "number"
-          }
-        },
-        "required": [
-          "on",
-          "value"
-        ],
-        "title": "PointView",
-        "type": "object"
-      },
-      "training_coach__api__progress__PointView": {
-        "properties": {
-          "best": {
-            "title": "Best",
-            "type": "integer"
-          },
-          "day": {
-            "format": "date",
-            "title": "Day",
-            "type": "string"
-          },
-          "step_number": {
-            "title": "Step Number",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "day",
-          "best",
-          "step_number"
-        ],
-        "title": "PointView",
         "type": "object"
       }
     }
@@ -6817,7 +6817,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/training_coach__api__body__PointView"
+                    "$ref": "#/components/schemas/EstimateView"
                   },
                   "title": "Response Estimates Api Body Estimates Get",
                   "type": "array"

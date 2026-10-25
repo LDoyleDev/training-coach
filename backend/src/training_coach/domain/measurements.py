@@ -1,4 +1,4 @@
-"""Body measurements (2-B, #142; the protocol and the estimate, ADR-0074). Pure logic, no I/O.
+"""Body measurements (2-B, #142; the protocol and the estimate, ADR-0076). Pure logic, no I/O.
 
 Values are kept in tenths (83.4 kg is 834), so no floating point creeps into stored data;
 resting heart rate is whole beats. Each kind has a range wide enough for anyone and narrow
@@ -113,7 +113,7 @@ REMEASURE: dict[Kind, float | None] = {
 }
 SCALE_KINDS = frozenset({Kind.BODYWEIGHT, Kind.BODY_FAT_SCALE})
 
-# Per-person settings (ADR-0074).
+# Per-person settings (ADR-0076).
 HEIGHT_CM = (120, 230)
 THIGH_OFFSET_CM = (5, 30)
 DEFAULT_THIGH_OFFSET_CM = 15

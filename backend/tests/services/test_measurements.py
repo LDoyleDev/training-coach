@@ -75,7 +75,7 @@ def test_a_save_racing_another_for_the_same_day_and_kind_keeps_one_row(
     assert len(calls) == 2  # missed, lost the insert, then found and updated the row
 
 
-# ------------------------------------------------- the protocol and the estimate (ADR-0074)
+# ------------------------------------------------- the protocol and the estimate (ADR-0076)
 
 
 def test_a_far_value_is_warned_about_against_the_last_earlier_day(session: Session) -> None:

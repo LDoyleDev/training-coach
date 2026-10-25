@@ -2079,6 +2079,16 @@ export interface components {
              */
             confirm: "erase";
         };
+        /** EstimateView */
+        EstimateView: {
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Value */
+            value: number;
+        };
         /**
          * Evidence
          * @description How well a muscle's own band is supported; the app marks the weak ones.
@@ -2832,6 +2842,18 @@ export interface components {
             /** Target */
             target: number;
         };
+        /** PointView */
+        PointView: {
+            /** Best */
+            best: number;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Step Number */
+            step_number: number;
+        };
         /** ProgressView */
         ProgressView: {
             /** First */
@@ -3321,7 +3343,7 @@ export interface components {
             /** Steps */
             steps: number;
             /** Trend */
-            trend: components["schemas"]["training_coach__api__progress__PointView"][];
+            trend: components["schemas"]["PointView"][];
             /**
              * Unit
              * @enum {string}
@@ -3563,28 +3585,6 @@ export interface components {
             low: number;
             /** Zone */
             zone: number;
-        };
-        /** PointView */
-        training_coach__api__body__PointView: {
-            /**
-             * On
-             * Format: date
-             */
-            on: string;
-            /** Value */
-            value: number;
-        };
-        /** PointView */
-        training_coach__api__progress__PointView: {
-            /** Best */
-            best: number;
-            /**
-             * Day
-             * Format: date
-             */
-            day: string;
-            /** Step Number */
-            step_number: number;
         };
     };
     responses: never;
@@ -4555,7 +4555,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["training_coach__api__body__PointView"][];
+                    "application/json": components["schemas"]["EstimateView"][];
                 };
             };
         };

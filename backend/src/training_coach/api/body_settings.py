@@ -1,4 +1,4 @@
-"""Body settings on Account (ADR-0074): height for the tape estimate, how far above the kneecap
+"""Body settings on Account (ADR-0076): height for the tape estimate, how far above the kneecap
 the thigh is measured, and whether the body-fat estimate is worked out. Owner-only."""
 
 from typing import Literal

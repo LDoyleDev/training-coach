@@ -112,7 +112,7 @@ def test_the_guide_is_the_version_the_summary_names() -> None:
 
 
 def test_the_body_section_says_how_and_carries_the_estimate_when_on(session: Session) -> None:
-    """ADR-0074: how they were measured first, then each kind's way; the tape estimate only
+    """ADR-0076: how they were measured first, then each kind's way; the tape estimate only
     when the person turned it on, labelled as one."""
     measurements.save(session, TODAY, TODAY, {Kind.WAIST: 93.0, Kind.NECK: 39.0})
     measurements.save(session, TODAY, TODAY, {Kind.THIGH: 58.0})

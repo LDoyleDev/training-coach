@@ -914,7 +914,7 @@ def test_a_measurement_it_replaces_is_named_on_the_card_only(
 def test_a_far_measurement_warns_on_the_card_and_with_the_body_scope(
     client: TestClient, engine: Engine, token: str
 ) -> None:
-    """ADR-0074: the same "re-measure?" line as the Body page, on the card, in Telegram and
+    """ADR-0076: the same "re-measure?" line as the Body page, on the card, in Telegram and
     in the answer; the answer only for an AI that may read body data anyway."""
     before = _today() - timedelta(days=13)
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:

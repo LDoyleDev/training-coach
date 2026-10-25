@@ -1,4 +1,4 @@
-"""Every measurement kind reaches every place that lists kinds (ADR-0074): a new Kind that one
+"""Every measurement kind reaches every place that lists kinds (ADR-0076): a new Kind that one
 list misses fails here, not in front of the person."""
 
 import io

@@ -118,7 +118,7 @@ class HabitsProposal(_Proposal):
 
 
 # Body weight, scale body fat and girths: resting heart rate comes from the band or the Body
-# page, and the tape body-fat estimate is worked out, never logged (ADR-0074).
+# page, and the tape body-fat estimate is worked out, never logged (ADR-0076).
 BodyKind = Literal["bodyweight", "body_fat_scale", "waist", "neck", "chest", "upper_arm", "thigh"]
 
 
@@ -212,7 +212,7 @@ class Refused:
 class Proposed:
     id: int
     summary: str
-    # "Waist is 3.5 cm off your last (12 Oct): ..." (ADR-0074): the AI hears it only with the
+    # "Waist is 3.5 cm off your last (12 Oct): ..." (ADR-0076): the AI hears it only with the
     # body scope, since it says something about earlier measurements.
     warnings: tuple[str, ...] = ()
 
@@ -520,7 +520,7 @@ class Pending:
     # "Average 131 bpm is in your zone 2 (120-132 bpm), so zone 2 is suggested". The person picks.
     suggested: CardioKind | None = None
     suggestion: str | None = None
-    # Body: "Waist is 3.5 cm off your last (12 Oct): different landmark? Re-measure." (ADR-0074)
+    # Body: "Waist is 3.5 cm off your last (12 Oct): different landmark? Re-measure." (ADR-0076)
     warnings: tuple[str, ...] = ()
 
     @property

@@ -195,7 +195,7 @@ def _body(session: Session, since: date | None) -> str:
         spec = SPECS[e.kind]
         lines.append(f"- {e.on.isoformat()} {spec.label}: {e.value:.{spec.decimals}f} {spec.unit}")
     estimates = measurements.estimates(session, since)
-    if estimates:  # only when the person turned it on (ADR-0074); never stored or proposable
+    if estimates:  # only when the person turned it on (ADR-0076); never stored or proposable
         lines.append(f"Body fat, {ESTIMATE_LABEL} (worked out by the app, not measured):")
         lines += [f"- {p.on.isoformat()}: {p.value:.1f} %" for p in estimates]
     return "\n".join(lines)
