@@ -1076,3 +1076,59 @@ export async function removeBandSecret(): Promise<void> {
   if (res.status !== 204 && res.status !== 404)
     throw new Error(`The server answered ${res.status}.`)
 }
+
+// ------------------------------------------------------------ my equipment (ADR-0071)
+
+export type Equipment = Schemas['EquipmentView']
+export type KitItem = Schemas['KitItemView']
+export type KitItemBody = Schemas['KitItemBody']
+export type KitKind = Schemas['Kit']
+export type KitUnlocks = Schemas['KitUnlocksView']
+
+/** The 422's reason when it is a sentence, else a plain fallback. */
+async function reason(res: Response, fallback: string): Promise<string> {
+  const detail = ((await res.json().catch(() => ({}))) as { detail?: unknown }).detail
+  return typeof detail === 'string' ? detail : fallback
+}
+
+/** My home kit; `listed` is false until a kit is saved (nothing locks until then). Null when
+ * not signed in. */
+export async function fetchEquipment(signal?: AbortSignal): Promise<Equipment | null> {
+  const res = await fetch('/api/equipment', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Equipment
+}
+
+/** Replace the whole kit (an empty list: bodyweight only). A string: why it was refused, and
+ * nothing was saved. */
+export async function saveEquipment(items: KitItemBody[]): Promise<Equipment | string> {
+  const res = signedIn(
+    await fetch('/api/equipment', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ items }),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 422) return reason(res, 'That kit can’t be saved. Check the weights.')
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Equipment
+}
+
+/** What adding one item would open: `kettlebell:16`, `dumbbells:2-24`, `band:light`,
+ * `pull-up bar`. A string: why the item isn't valid. */
+export async function fetchUnlocks(
+  add: string,
+  signal?: AbortSignal,
+): Promise<KitUnlocks | string> {
+  const res = signedIn(
+    await fetch(`/api/equipment/unlocks?add=${encodeURIComponent(add)}`, {
+      signal,
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 422) return reason(res, 'Check the weight.')
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as KitUnlocks
+}

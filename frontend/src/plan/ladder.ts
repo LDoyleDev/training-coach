@@ -14,10 +14,24 @@ export function wanted(search: string): string | null {
   return new URLSearchParams(search).get('move')
 }
 
-/** The step after the current one, if there is one. */
-export function nextRung(s: Standing): Standing['ladder'][number] | null {
+type Rung = Standing['ladder'][number]
+
+/** The next step the kit allows, if there is one: Move up skips locked steps (ADR-0071). */
+export function nextRung(s: Standing): Rung | null {
   const at = s.ladder.findIndex((r) => r.id === s.step_id)
-  return at >= 0 && at + 1 < s.ladder.length ? s.ladder[at + 1] : null
+  if (at < 0) return null
+  return s.ladder.slice(at + 1).find((r) => r.missing.length === 0) ?? null
+}
+
+/** A locked step in words, never colour alone: "needs a 16 kg kettlebell". Null when open. */
+export function needs(r: Rung): string | null {
+  return r.missing.length > 0 ? `needs ${r.missing.join(' and ')}` : null
+}
+
+/** "Top for your kit" when the steps above are all locked, else the plain top or nothing. */
+export function topLabel(s: Standing): string | null {
+  if (s.unlock) return 'Top for your kit'
+  return s.status === 'top_of_ladder' ? 'Top of the ladder' : null
 }
 
 export const WAITS =
@@ -45,7 +59,7 @@ export function said(m: Moved): string {
     case 'stayed':
       return `Staying on ${step}. You'll be asked again after your next session at the top of the range.`
     case 'level_set':
-      return `${exercise} is now on ${step}. ${confirmText(step ?? 'it')}`
+      return `${exercise} is now on ${step}. ${confirmText(step ?? 'it')}${m.warning ? ` ${m.warning}` : ''}`
     case 'same_level':
       return `${exercise} is already on ${step}.`
   }

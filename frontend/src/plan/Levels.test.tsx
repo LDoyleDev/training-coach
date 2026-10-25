@@ -33,7 +33,7 @@ type Calls = { path: string; body: unknown }[]
 
 /** Serves /api/progress (each answer in turn, the last repeated) and records each move. */
 function serve(
-  answers: ({ standings: Standing[]; strength_block?: boolean } | number)[],
+  answers: ({ standings: Standing[]; strength_block?: boolean; kit_listed?: boolean } | number)[],
   moved: Moved | number = {
     outcome: 'moved',
     exercise: 'Pull-up',
@@ -55,7 +55,7 @@ function serve(
       const answer = answers[Math.min(n++, answers.length - 1)]
       return typeof answer === 'number'
         ? new Response(null, { status: answer })
-        : Response.json({ today: '2026-10-25', strength_block: false, ...answer })
+        : Response.json({ today: '2026-10-25', strength_block: false, kit_listed: true, ...answer })
     }),
   )
   return calls
@@ -235,4 +235,96 @@ test('every outcome is said in plain words', () => {
   expect(moveHref('a b')).toBe('/plan?move=a%20b')
   expect(nextRung(make({ step_id: 4 }))).toBeNull()
   expect(nextRung(make({ step_id: 99 }))).toBeNull()
+})
+
+const LOCKED = [
+  { id: 1, name: 'Two-hand, 8 kg', cue: null, missing: [] },
+  { id: 2, name: 'One-arm, 8 kg', cue: null, missing: [] },
+  { id: 3, name: 'Two-hand, 16 kg', cue: null, missing: ['a 16 kg kettlebell'] },
+  { id: 4, name: 'One-arm, 16 kg', cue: null, missing: ['a 16 kg kettlebell'] },
+]
+
+const swing = (over: Partial<Standing> = {}) =>
+  make({
+    exercise: 'Swing',
+    slug: 'swing',
+    step: 'One-arm, 8 kg',
+    ladder: LOCKED,
+    status: 'top_of_ladder',
+    unlock: 'a 16 kg kettlebell unlocks Two-hand, 16 kg',
+    ...over,
+  })
+
+test('a locked step says what it needs; at the top for the kit, what unlocks the next', async () => {
+  serve([{ standings: [swing()], kit_listed: true }])
+  render(<Levels />)
+  await showAll()
+  expect(screen.getByRole('button', { name: /Swing.*Top for your kit/ })).toBeInTheDocument()
+  expect(screen.queryByText(/No kit listed/)).not.toBeInTheDocument()
+  await open(/Swing/)
+  const steps = screen.getAllByRole('listitem').filter((li) => li.closest('ol'))
+  expect(steps.map((li) => li.textContent)).toEqual([
+    'Two-hand, 8 kg',
+    'One-arm, 8 kg (now)',
+    'Two-hand, 16 kg · Locked: needs a 16 kg kettlebell',
+    'One-arm, 16 kg · Locked: needs a 16 kg kettlebell',
+  ])
+  expect(screen.getByText(/a 16 kg kettlebell unlocks Two-hand, 16 kg\./)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'My equipment' })).toHaveAttribute(
+    'href',
+    '/account#my-equipment',
+  )
+  expect(screen.queryByText('This is the last step on the ladder.')).not.toBeInTheDocument()
+})
+
+test('Move up goes past a locked step to the next one the kit allows', async () => {
+  const ladder = [LOCKED[0], LOCKED[2], { id: 5, name: 'Two-hand, 12 kg', cue: null, missing: [] }]
+  serve([
+    {
+      standings: [
+        swing({ step: 'Two-hand, 8 kg', step_id: 1, ladder, status: 'ready', unlock: null }),
+      ],
+      kit_listed: true,
+    },
+  ])
+  render(<Levels />)
+  await open(/Swing/)
+  expect(screen.getByRole('button', { name: 'Move up to Two-hand, 12 kg' })).toBeInTheDocument()
+})
+
+test('choosing a locked level by hand is allowed, with the warning', async () => {
+  const calls = serve([{ standings: [swing({ status: 'hold' })], kit_listed: true }], {
+    outcome: 'level_set',
+    exercise: 'Swing',
+    step: 'Two-hand, 16 kg',
+    warning: 'Two-hand, 16 kg needs a 16 kg kettlebell, not in your kit.',
+  })
+  render(<Levels />)
+  await showAll()
+  await open(/Swing/)
+  fireEvent.click(screen.getByRole('button', { name: 'Change level' }))
+  const choose = screen.getByRole('group', { name: 'Choose a level for Swing' })
+  fireEvent.click(within(choose).getByRole('radio', { name: /Two-hand, 16 kg/ }))
+  expect(
+    within(choose).getByText(
+      'Two-hand, 16 kg needs a 16 kg kettlebell, not in your kit. You can still choose it.',
+    ),
+  ).toBeInTheDocument()
+  const set = within(choose).getByRole('button', { name: 'Set level to Two-hand, 16 kg' })
+  expect(set).toBeEnabled()
+  fireEvent.click(set)
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'Swing is now on Two-hand, 16 kg. Targets for Two-hand, 16 kg start fresh from its own history. Two-hand, 16 kg needs a 16 kg kettlebell, not in your kit.',
+  )
+  expect(calls).toEqual([{ path: '/api/progress/swing/level', body: { step_id: 3 } }])
+})
+
+test('no kit listed: says nothing is locked and links to My equipment', async () => {
+  serve([{ standings: [make()], kit_listed: false }])
+  render(<Levels />)
+  expect(await screen.findByText(/No kit listed, so no step is locked/)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'List your kit in My equipment' })).toHaveAttribute(
+    'href',
+    '/account#my-equipment',
+  )
 })
