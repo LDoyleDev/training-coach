@@ -1,7 +1,8 @@
 # Concrete kit steps for the vague ladder tops
 
-Status: **Proposed** (25 Oct 2026). Nothing here is built: `plan.toml` is unchanged until the
-owner approves. Builder step 4 (`program-builder.md`, ADR-0071) says "Heavier kettlebell" steps
+Status: **Accepted (Liam, 25 Oct 2026; Option B for curl and triceps).** Built in
+`plan.toml` by the follow-up to builder step 4. Nobody stood on any ladder's top step when it was
+accepted (checked read-only on the Pi), so every rename below is safe. Builder step 4 (`program-builder.md`, ADR-0071) says "Heavier kettlebell" steps
 become concrete steps with name, needs and cue, written in the seed, never generated.
 
 Written for the owner's kit: 8 kg and 16 kg kettlebells (the 16 kg on its way), resistance
@@ -78,25 +79,35 @@ and household things need nothing (ADR-0064).
 ### Overhead triceps extension (`overhead-triceps-extension`, Arms 3 x 10-15)
 
 8 kg to 16 kg doubles the load on a small muscle overhead; few people make that jump at 10-15.
+**Chosen: Option B**, a harder 8 kg middle step, then 16 kg. It moves the meaning of the top
+step, which was safe because nobody stood on it (Liam is on step 1 of 3).
 
-- **Option A (no meaning moves):** rename "Heavier kettlebell" -> **16 kg, both hands, 6-10
-  reps feel** (kettlebell:16, cue "Elbows in, lower only as far as the shoulders allow"), and
-  append **16 kg, 3 s lowering**. Honest, but a hard jump.
-- **Option B, Moves meaning:** rename "Heavier kettlebell" -> **8 kg, 1.5 reps** (kettlebell:8),
-  then append the two 16 kg steps. Anyone on "Heavier kettlebell" now would be put on an 8 kg
-  step: only if the Pi check shows nobody stands there. Recommended if so.
-- Later, with dumbbells: **Dumbbell 10-12 kg, both hands** (dumbbells:12) is the natural middle.
+| Step | Needs | Cue |
+| --- | --- | --- |
+| 8 kg, both hands | kettlebell:8 | (as now) |
+| 8 kg, 3 s lowering | kettlebell:8 | (as now) |
+| rename "Heavier kettlebell" -> **8 kg, 1.5 reps** | kettlebell:8 | Lower all the way, press halfway, lower again, then press to the top: that's one rep. |
+| + **16 kg, both hands** | kettlebell:16 | Elbows in; lower only as far as your shoulders allow. |
+| + **16 kg, 3 s lowering** | kettlebell:16 | Three seconds down behind the head, then press up in one. |
+
+Not chosen, Option A: the top step becomes 16 kg straight away. Later, with dumbbells:
+**Dumbbell 10-12 kg, both hands** (dumbbells:12) would be a natural middle step.
 
 ### Kettlebell curl (`kb-curl`, Torso 2 x 12-20, Arms 4 x 12-20)
 
-Same jump as the extension: 16 kg curls for 12-20 are far off for most people.
+Same jump as the extension: 16 kg curls for 12-20 are far off for most people. **Chosen:
+Option B**, safe for the same reason (Liam is on step 1 of 3).
 
-- **Option A:** rename "Heavier kettlebell" -> **16 kg, hammer grip** (kettlebell:16, cue "Hold
-  the handle upright; elbows stay pinned"), append **16 kg, slow tempo**.
-- **Option B, Moves meaning:** rename -> **8 kg, 3 s lowering, pause at top** (kettlebell:8), then
-  append the two 16 kg steps. Same check as above.
-- Later, with dumbbells: **Dumbbells 10 kg** (dumbbells:10), **12 kg** (dumbbells:12), which
-  suit curls better than a bell.
+| Step | Needs | Cue |
+| --- | --- | --- |
+| 8 kg | kettlebell:8 | (as now) |
+| 8 kg, slow tempo | kettlebell:8 | (as now) |
+| rename "Heavier kettlebell" -> **8 kg, 3 s lowering, pause at top** | kettlebell:8 | Squeeze for one second at the top, then take three seconds down. |
+| + **16 kg, hammer grip** | kettlebell:16 | Hold the handle upright; elbows stay pinned to your sides. |
+| + **16 kg, slow tempo** | kettlebell:16 | Two seconds up, three down; no swinging. |
+
+Not chosen, Option A: the top step becomes 16 kg straight away. Later, with dumbbells:
+**Dumbbells 10 kg** (dumbbells:10) and **12 kg** (dumbbells:12) suit curls better than a bell.
 
 ### Pull-up and chin-up (`pull-up` Torso 4 x 5-12, `chin-up` Arms 3 x 6-12)
 
@@ -119,7 +130,8 @@ owner wants one: **Backpack with the 8 kg bell** (pull-up bar, backpack, kettleb
 | + **Dip bars, bodyweight, full range** | dip bars | Lean slightly forward; elbows back. |
 
 The last one is a different set-up, not more load: listing "dip bars or two chairs" covers
-chairs today, so it is only open once someone owns bars or trains at the gym. Optional.
+chairs today, so it is only open once someone owns bars or trains at the gym (accepted as
+written).
 
 ### Band face pull (`band-face-pull`, Cardio + core 2 x 12-20)
 
@@ -149,15 +161,13 @@ need (`backpack`) is already concrete. No change proposed.
 
 With the owner's kit listed (8 kg and 16 kg bells, bands, pull-up bar, stools as a bench), the
 16 kg bell opens today: the six "Heavier kettlebell" steps, suitcase carry 16 kg and the farmer
-carry (8 steps). With this proposal (options A) it opens 16 steps in seven ladders, each with a
-cue. A 24 kg bell adds the heaviest swing; a vest that loads to 15 kg opens 8 steps in pull-ups,
+carry (8 steps). With these ladders it opens 16 steps in seven ladders, each with a cue. A 24 kg bell adds the heaviest swing; a vest that loads to 15 kg opens 8 steps in pull-ups,
 chin-ups and dips (a 5 kg one opens 3).
 
-## To decide
+## Decided (Liam, 25 Oct 2026)
 
-1. Apply the renames-and-appends above (ladders listed as proposed)?
-2. Triceps extension and curl: option A (16 kg straight away) or B (an 8 kg middle step, only
-   if nobody stands on "Heavier kettlebell")?
-3. Build the two code changes (step cues in the seed, band strength in needs) in the same PR as
-   the ladders?
-4. Dip bars as the dip's last step, or leave the dip at 10 kg?
+1. The renames and appends above, as written.
+2. Triceps extension and curl: Option B, an 8 kg middle step, then 16 kg.
+3. The two code changes (step cues in the seed, band strength in needs) are built with the
+   ladders.
+4. Dip bars stay as the dip's last step.
