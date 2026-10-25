@@ -698,8 +698,8 @@ items = [
   { exercise = "copenhagen-plank", sets = 2, rep_min = 6, rep_max = 12, per_side = true, pair = 1 },
   { exercise = "back-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 2 },
   { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
-  { exercise = "band-face-pull", sets = 2, rep_min = 12, rep_max = 20 },
-  { exercise = "suitcase-carry", sets = 2, rep_min = 30, rep_max = 45, per_side = true },
+  { exercise = "band-face-pull", sets = 2, rep_min = 12, rep_max = 20, pair = 3 },
+  { exercise = "suitcase-carry", sets = 2, rep_min = 30, rep_max = 45, per_side = true, pair = 3 },
 ]
 
 [[sessions]]

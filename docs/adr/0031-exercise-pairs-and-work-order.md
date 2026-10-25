@@ -47,3 +47,16 @@ push-up + reverse fly, neck flexion + neck extension. Arms: chin-up + diamond pu
 - The dashboard (D1) will get the same order from the API, computed by the same domain function.
 - The rest between sets is by transition (ADR-0065): 15 s to switch inside a pair, the rest after
   the round. Before that, the guided session rested 60 s after every set, so pairs saved no time.
+
+## Addendum (2026-10-25): which exercise of a pair starts
+
+A pair always started with the plan's first exercise, so a pair of 3 and 4 sets ended with the
+longer exercise twice in a row (Arms: hamstring curls 3, kettlebell curls 4, ending curl,
+curl). Liam asked that the same exercise, or the same muscles, never come one after another
+where that can be avoided. Now each pair starts with whichever exercise gives, across the whole
+session, the fewest sets of the same exercise in a row, then the fewest sets of the same main
+muscles (prime movers, ADR-0064) straight after each other, as between the last set of one pair
+and the first of the next; on a tie, the plan's order. "Do this one first" swaps from that
+order. A pair two or more sets apart still ends with the longer exercise's extra sets (Torso:
+lateral raises 3, curls 1). The face pulls and suitcase carries on Cardio + core became a pair
+for the same reason, so neither is done twice running.

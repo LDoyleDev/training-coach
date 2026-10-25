@@ -9,7 +9,7 @@ from training_coach.domain.habits import WEEK_DAYS
 from training_coach.domain.parser import sets_text
 from training_coach.domain.progression import Progress
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
-from training_coach.domain.work_order import work_order
+from training_coach.services.guided import work_groups
 from training_coach.services.progress import Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.review import Review
@@ -35,7 +35,7 @@ FILL_IN = "Copy the list, put in what you did and send it back to log it."
 def work_list(items: tuple[ItemPlan, ...]) -> list[str]:
     """One numbered line per set in the order they're done (#97), a gap between pairs. The
     lines read back as a log once the numbers are what was done."""
-    groups = work_order([len(item.targets) for item in items], [item.pair for item in items])
+    groups = work_groups(items)
     lines: list[str] = []
     number = 0
     for group in groups:
