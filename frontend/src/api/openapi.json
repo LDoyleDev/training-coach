@@ -4744,8 +4744,9 @@
         "type": "string"
       },
       "Sound": {
-        "description": "What a guided timer plays at each change (ADR-0062). A per-person setting.",
+        "description": "What every guided timer plays at each change (ADR-0062, ADR-0074). A per-person setting;\nthe boxing-ring bell is everyone's default.",
         "enum": [
+          "ring",
           "chime",
           "beep",
           "wood",
