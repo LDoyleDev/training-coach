@@ -38,6 +38,11 @@ vest (25 Oct 2026). The builder settled the shape (`program-builder.md`, option 
 - **Logging by voice or text** stays reps-first: "rows 10 10 9 at 16" is parsed with the load as
   an optional part, and the confirm step shows it (ADR-0007).
 
+**Open before accepting (Liam, 25 Oct 2026):** how the progress chart shows, and links, a
+step up or down in weight, and a move to a harder ladder step. Liam's idea: a different
+background colour per weight period, and a second scale on the right. Being researched; the
+answer goes here.
+
 ## Options considered
 
 | Option | Pros | Cons |

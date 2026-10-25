@@ -1,6 +1,6 @@
 # ADR-0071: Each person lists their home kit; a gym has everything; steps lock by kit
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-25
 - Deciders: Liam
 

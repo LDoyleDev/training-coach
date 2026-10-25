@@ -1,6 +1,6 @@
 # ADR-0073: Each person owns their sessions; exercises are a shared catalogue
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-25
 - Deciders: Liam
 
