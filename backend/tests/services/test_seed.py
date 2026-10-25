@@ -868,7 +868,7 @@ def test_split_squats_load_the_spine_only_with_a_kettlebell() -> None:
     """program-builder.md, Decided 3: loaded squats count; bodyweight and jump squats don't."""
     exercises = {e.slug: e for e in load_plan().exercises}
     split = exercises["bulgarian-split-squat"]
-    assert [bool(split.step_stress(s)) for s in split.ladder] == [False, True, True, True]
+    assert [bool(split.step_stress(s)) for s in split.ladder] == [False, *[True] * 5]
     jump = exercises["jump-squat"]
     assert not any(jump.step_stress(s) for s in jump.ladder)
     assert all(exercises["kb-swing"].step_stress(s) for s in exercises["kb-swing"].ladder)

@@ -62,6 +62,14 @@ def test_other_kit_is_there_or_not() -> None:
     assert need_label("kettlebell:18") == "an 18 kg kettlebell"
 
 
+def test_a_band_step_takes_that_strength_or_a_stronger_one() -> None:
+    medium = Item(Kit.BAND, resistance=Resistance.MEDIUM)
+    assert missing([medium], ["band:light"]) == []
+    assert missing([medium], ["band:medium"]) == []
+    assert missing([medium], ["band:heavy"]) == ["a heavy band"]
+    assert missing([Item(Kit.MAT)], ["band:light"]) == ["a light band"]
+
+
 def test_move_up_skips_locked_steps() -> None:
     ladder = [[], ["kettlebell:16"], ["pull-up bar"], ["kettlebell:16"]]
     assert next_open(ladder, 0, [BAR]) == 2

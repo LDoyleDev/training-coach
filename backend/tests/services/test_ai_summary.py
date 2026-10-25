@@ -48,7 +48,7 @@ def test_the_home_kit_is_listed(plan: Session) -> None:
     equipment.save(plan, kit, datetime.now(UTC))
     text = summary(plan, TODAY, Options(weeks=4))
     assert "- 8 kg kettlebell\n- bench, stools or bed to lie on (two stools)" in text
-    assert "Kettlebell swing: Two-hand, 8 kg (step 1 of 3)" in text
+    assert "Kettlebell swing: Two-hand, 8 kg (step 1 of 5)" in text
 
 
 def test_sessions_in_the_period_with_their_sets(plan: Session) -> None:

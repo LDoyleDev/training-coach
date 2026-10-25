@@ -239,7 +239,7 @@ def test_overview_lists_every_exercise_in_plan_order(plan: Session) -> None:
     names = [s.exercise for s in standings]
     assert names.index("Pull-up") < names.index("Dip (chairs)")  # Torso lists pull-ups first
     pull = standings[names.index("Pull-up")]
-    assert (pull.step, pull.step_number, pull.steps) == ("Strict pull-up", 2, 4)
+    assert (pull.step, pull.step_number, pull.steps) == ("Strict pull-up", 2, 6)
     assert (pull.last, pull.best_set, pull.status) == ((), None, Progress.HOLD)
 
 

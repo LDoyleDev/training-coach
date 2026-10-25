@@ -3,8 +3,9 @@
 A kit is a list of items, each with a weight where it has one. A ladder step's ``needs`` (the
 catalogue's, ADR-0064) are met when every need has an item: a kettlebell of that exact weight
 (each weight is owned apart), dumbbells of that weight (a fixed pair, or an adjustable set whose
-range covers it), a weighted vest or backpack that goes up to at least that load, and any one of
-the other kit. A need without a weight takes any item of its kind.
+range covers it), a weighted vest or backpack that goes up to at least that load, a band of that
+strength or a stronger one, and any one of the other kit. A need without a weight takes any
+item of its kind.
 
 ``None`` for a kit means the person hasn't listed one yet: then nothing is locked, so the app
 works as before until they add their kit.
@@ -14,7 +15,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
-from training_coach.domain.muscles import Kit, parse_need
+from training_coach.domain.muscles import STRENGTHS, Kit, parse_need
 
 KG_MAX = 100
 MAX_ITEMS = 60  # more than anyone's home holds; a bound for a PUT of the whole list
@@ -84,6 +85,8 @@ def need_label(need: str) -> str:
     kit, kg = parse_need(need)
     if kit is Kit.BACKPACK and kg is not None:
         return f"a weighted vest or backpack of {kg} kg"
+    if kit is Kit.BAND and kg is not None:
+        return f"a {STRENGTHS[kg - 1]} band"
     name = f"{kg} kg {NAMES[kit]}" if kg is not None else NAMES[kit]
     if kit in PLURAL:
         return name
@@ -151,6 +154,8 @@ def parse_item(token: str) -> Item:
 def _meets(item: Item, kit: Kit, kg: int | None) -> bool:
     if item.kit is not kit:
         return False
+    if kit is Kit.BAND and kg is not None:  # ``kg`` is the strength's rank here
+        return item.resistance is not None and STRENGTHS.index(item.resistance) + 1 >= kg
     if kg is None or item.kg is None:
         return kg is None
     if kit is Kit.BACKPACK:
