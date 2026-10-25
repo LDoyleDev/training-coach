@@ -1,9 +1,9 @@
-# Phase 2: the overview (draft)
+# Phase 2: the overview
 
-Status: **draft, not agreed.** Scope comes from the product spec; the steps and acceptance
-criteria below are a proposal to react to. Settle the open decisions with Liam, then turn each
-step into an issue in milestone **Phase 2 - Overview** and remove "draft" from this file.
-Target version: 1.0.0 (phase 2 complete and in daily use, ADR-0005).
+Status: **done, released as 1.0.0** (October 2026). Every step below is built, the app has been
+in daily use since the start of October, and the restore drill was repeated on the Pi with
+photos and measurements on 2026-10-25 (`docs/runbooks/backup-restore.md`, Rehearsal). Scope came
+from the product spec; what follows is the plan as it was built. Target version: 1.0.0 (ADR-0005).
 
 Goal: Liam can see whether the training is working (baselines, retests, measurements, weekly
 volume and bests) on his phone, and share a read-only view with others. Phase 1 must be done
