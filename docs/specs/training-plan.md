@@ -68,7 +68,7 @@ are measured against their own, lower bands (low evidence; Core and hips).
 | Hamstrings | 10.5 | hamstring curl (Legs + Arms), RDL, swing |
 | Lats | 10 | pull-up, row, chin-up |
 | Upper back | 11 | row, Y-T-W, reverse fly, band face pull, pull-up, chin-up |
-| Biceps | 10 | curl (Arms + Torso), pull-up, row, chin-up |
+| Biceps | 11 | curl (Arms + Torso), pull-up, row, chin-up |
 | Triceps | 10 | overhead extension (the long head), dip, push-up, pike, diamond |
 | Side delts | 8.5 | lateral raise (Arms + Torso), pike |
 | Front delts | 8.5 | pike, dip, push-up, diamond |
@@ -77,7 +77,7 @@ are measured against their own, lower bands (low evidence; Core and hips).
 | Abs | 7 | ab rollout, hanging raise, side plank hip dip |
 | Neck | 7 | flexion, extension, side bend (Torso + Recovery days) |
 | Adductors | 6.5 | Copenhagen plank, split squat, pistol |
-| Forearms | 9.5 | suitcase carry (Recovery + Cardio), dead hang, curl, hanging raise, pull-up, chin-up, swing |
+| Forearms | 9.75 | suitcase carry (Recovery + Cardio), dead hang, curl, hanging raise, pull-up, chin-up, swing |
 | Obliques | 7.75 | side plank hip dip (Recovery + Cardio), suitcase carry, Copenhagen plank, ab rollout |
 | Lower back | 5.5 | back extension (Recovery + Cardio), swing, RDL |
 | Hip flexors | 3 | hanging raises |
@@ -105,8 +105,8 @@ in `plan.toml`.
   work, reverse Nordics, half the suitcase carries and half the oblique work.
 - Once the split squats and pistols hold a kettlebell, Legs passes the 8-set spine-loading
   limit (12 sets at the top steps: swing, both squats, RDL); the map warns then.
-- Most muscles sit at the bottom of their band: a skipped set drops lats, upper back, biceps
-  and triceps below 10.
+- Most muscles sit at the bottom of their band: a skipped set drops lats and triceps
+  below 10.
 - Legs outgrow an 8 kg kettlebell first. A 16 kg (then 24 kg) bell is the most useful upgrade;
   the ladders already include "heavier kettlebell" steps.
 - Huberman alternates monthly between strength blocks (4-8 reps, 3-4 sets, 2-4 min rest) and
