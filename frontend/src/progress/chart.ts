@@ -9,14 +9,61 @@ export type Point = Standing['trend'][number]
 /** The plot area inside the graph's viewBox; the gaps left and below hold the labels. */
 export const BOX = { width: 300, height: 96, left: 34, right: 8, top: 14, bottom: 18 }
 
+/** A label's width per character in viewBox units at the chart's 10-unit text: Archivo's
+ * figures and capitals run about 5.5 to 6, small letters and spaces less, so this is generous. */
+const CHAR = 5.5
+/** The gap between a period's edge and its label, and between a label and the next edge. */
+export const PAD = 3
+
+export interface Dot {
+  x: number
+  y: number
+  point: Point
+}
+
+/** What makes a period (ADR-0072): consecutive sessions with the same key are one period, and
+ * the chart names a change by its key. Ladder steps today; a load in kg later, the same way. */
+export interface PeriodKind {
+  key: (point: Point) => number
+  name: (key: number) => string // on the chart, before the arrow: "Step 3"
+  words: (key: number) => string // in the description: "step 3"
+}
+
+export const BY_STEP: PeriodKind = {
+  key: (p) => p.step_number,
+  name: (k) => `Step ${k}`,
+  words: (k) => `step ${k}`,
+}
+
+export interface Period {
+  key: number
+  dots: Dot[]
+  line: string // the polyline through its sessions; empty for a one-session period
+  from: number // x of its left edge
+  to: number // x of its right edge
+  tinted: boolean // every other period, from the second, has a faint background
+  move: 'up' | 'down' | null // against the period before; null for the first
+  label: string | null // what fits at its top-left: "Step 3 ↑", "↑3", or nothing
+}
+
 export interface Chart {
-  dots: { x: number; y: number; point: Point }[]
-  line: string
-  moves: { x: number; step: number }[] // where a session is on a higher step than the one before
+  dots: Dot[]
+  periods: Period[]
   weeks: number[] // x of each week's gridline
   low: number
   high: number
   start: Date // the window's first day
+}
+
+/** Runs of consecutive items with the same key, in order. */
+export function split<T>(items: readonly T[], key: (item: T) => number): T[][] {
+  const runs: T[][] = []
+  for (const item of items) {
+    const last = runs.at(-1)
+    if (last && key(last[0]) === key(item)) last.push(item)
+    else runs.push([item])
+  }
+  return runs
 }
 
 /** A date from the server ("2026-10-21") as local midnight. */
@@ -29,9 +76,11 @@ function midnight(day: Date): Date {
   return new Date(day.getFullYear(), day.getMonth(), day.getDate())
 }
 
+const fits = (text: string, room: number) => text.length * CHAR <= room
+
 /** Where each session sits on a graph of the last six weeks to ``today``: dates along the
- * bottom, the best set up the side (lowest to highest seen), and a mark at each move up. */
-export function chart(points: Point[], today: Date): Chart | null {
+ * bottom, the best set up the side (lowest to highest seen), split into periods by ``kind``. */
+export function chart(points: Point[], today: Date, kind: PeriodKind = BY_STEP): Chart | null {
   if (points.length === 0) return null
   const end = midnight(today)
   const start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - (DAYS - 1))
@@ -47,21 +96,35 @@ export function chart(points: Point[], today: Date): Chart | null {
   const y = (v: number) =>
     high === low ? BOX.top + height / 2 : BOX.top + height - ((v - low) / (high - low)) * height
   const dots = points.map((point) => ({ x: at(local(point.day)), y: y(point.best), point }))
-  const moves = dots
-    .filter((d, i) => i > 0 && d.point.step_number > points[i - 1].step_number)
-    .map((d) => ({ x: d.x, step: d.point.step_number }))
+  const runs = split(dots, (d) => kind.key(d.point))
+  // A period starts halfway between the last session before it and its own first one.
+  const edges = runs.map((run, i) => (i === 0 ? BOX.left : (runs[i - 1].at(-1)!.x + run[0].x) / 2))
+  const periods = runs.map((run, i): Period => {
+    const key = kind.key(run[0].point)
+    const before = i === 0 ? null : kind.key(runs[i - 1][0].point)
+    const move = before === null ? null : key > before ? 'up' : 'down'
+    const from = edges[i]
+    const to = i + 1 < runs.length ? edges[i + 1] : BOX.width - BOX.right
+    // The label may run to the next period's label, or to the edge of the picture.
+    const room = (i + 1 < runs.length ? edges[i + 1] : BOX.width) - from - 2 * PAD
+    const arrow = move === 'up' ? '↑' : '↓'
+    const full = `${kind.name(key)} ${arrow}`
+    const short = `${arrow}${key}`
+    return {
+      key,
+      dots: run,
+      line: run.length > 1 ? run.map((d) => `${d.x.toFixed(1)},${d.y.toFixed(1)}`).join(' ') : '',
+      from,
+      to,
+      tinted: i % 2 === 1,
+      move,
+      label: move === null ? null : fits(full, room) ? full : fits(short, room) ? short : null,
+    }
+  })
   const weeks = Array.from({ length: WEEKS + 1 }, (_, w) =>
     at(new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7)),
   )
-  return {
-    dots,
-    line: dots.map((d) => `${d.x.toFixed(1)},${d.y.toFixed(1)}`).join(' '),
-    moves,
-    weeks,
-    low,
-    high,
-    start,
-  }
+  return { dots, periods, weeks, low, high, start }
 }
 
 export function shortDay(day: Date): string {

@@ -58,6 +58,8 @@
   --heat-light: #f3dcb8;
   --heat-worked: #e9a65f;
   --heat-hard: #c4662c;
+  /* The trend chart's periods (ADR-0072): every other one sits on this faint neutral tint. */
+  --period-tint: #eceeea;
   --font: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
   color-scheme: light;
 }
@@ -110,6 +112,7 @@
     --heat-light: #6e5a40;
     --heat-worked: #a8743f;
     --heat-hard: #d0803f;
+    --period-tint: #2c3338;
     color-scheme: dark;
   }
 }

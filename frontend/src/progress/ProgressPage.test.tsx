@@ -66,11 +66,12 @@ test('each exercise shows its step, last session, best and status', async () => 
   expect(screen.getByText('Top of the ladder')).toBeInTheDocument()
   expect(screen.getByText('(retired)')).toBeInTheDocument()
   expect(screen.getAllByText('Strict · step 2 of 4')).toHaveLength(4)
-  const pull = screen.getByRole('img', { name: /from 12 to 9, moved up to step 2$/ })
+  const pull = screen.getByRole('img', { name: /Moved up to step 2 on 8 Oct; best 12 → 7$/ })
   expect(pull).toHaveAccessibleName(
-    'Best set per session, last 6 weeks: 3 sessions, from 12 to 9, moved up to step 2',
+    'Best set per session, last 6 weeks: 3 sessions, from 12 to 9' +
+      '. Moved up to step 2 on 8 Oct; best 12 → 7',
   )
-  expect(pull).toHaveTextContent('Step 2') // the move up, marked
+  expect(pull).toHaveTextContent('Step 2 ↑') // the move up, marked
   expect(pull).toHaveTextContent('Today')
   expect(screen.getByRole('img', { name: /1 session, from 45 s to 45 s$/ })).toBeInTheDocument()
   expect(screen.getAllByText('No sessions in the last 6 weeks.')).toHaveLength(2)
@@ -99,7 +100,7 @@ test('the graph puts sessions on their dates over six weeks, best set up the sid
   expect([found!.low, found!.high]).toEqual([8, 12])
   expect(found!.start).toEqual(new Date(2026, 8, 10)) // 42 days, today included
   expect(found!.weeks).toHaveLength(7) // six weeks of gridlines, both ends
-  expect(found!.moves).toEqual([])
+  expect(found!.periods).toHaveLength(1) // one step all along: one period
   expect(chart([], today)).toBeNull()
   // Two sessions on one day share an x, the better one higher.
   const twice = chart(
