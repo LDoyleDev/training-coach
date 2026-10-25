@@ -11,7 +11,8 @@ export type Stage = 'ready' | 'running' | 'finished'
  * wall-clock time, not tick counts (a phone throttles timers), so pauses, a locked screen and
  * Back or Skip all land where they should. It plays `cuesFor` the time each tick crossed, keeps
  * the screen on while running, and stops by itself at `total`. `active` is the time actually
- * run, pauses and jumps left out: what gets logged. */
+ * run, pauses and jumps left out: what gets logged. `ranOut` says the clock reached `total` by
+ * itself; a Skip past the end or Stop early is a stop, for the person to log or not. */
 export function useGuidedClock(
   total: number,
   cuesFor: (from: number, to: number) => Cue[],
@@ -21,6 +22,7 @@ export function useGuidedClock(
   const [paused, setPaused] = useState(false)
   const [t, setT] = useState(0) // where the timeline is, in seconds
   const [ran, setRan] = useState(0) // seconds actually run, once finished
+  const [ranOut, setRanOut] = useState(false)
 
   const banked = useRef(0)
   const since = useRef<number | null>(null)
@@ -30,13 +32,15 @@ export function useGuidedClock(
     (banked.current + (since.current === null ? 0 : Date.now() - since.current)) / 1000
   const position = () => Math.max(0, offset.current + active())
 
-  const finish = () => {
+  const end = (byItself: boolean) => {
     const seconds = active()
     banked.current = seconds * 1000
     since.current = null
     setRan(seconds)
+    setRanOut(byItself)
     setStage('finished')
   }
+  const finish = () => end(false)
 
   const tick = () => {
     const now = position()
@@ -44,7 +48,7 @@ export function useGuidedClock(
     for (const cue of now - last.current > CATCH_UP ? due.slice(-1) : due) play(cue)
     last.current = now
     setT(now)
-    if (now >= total) finish()
+    if (now >= total) end(true)
   }
   const latestTick = useRef(tick)
   useEffect(() => {
@@ -121,5 +125,5 @@ export function useGuidedClock(
     if (to >= total) finish()
   }
 
-  return { stage, paused, t, ran, begin, pause, jumpTo, finish, position }
+  return { stage, paused, t, ran, ranOut, begin, pause, jumpTo, finish, position }
 }

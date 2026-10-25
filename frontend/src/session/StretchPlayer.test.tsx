@@ -173,6 +173,16 @@ test('at the end the finish bell rings and the minutes done are logged by themse
   expect(onLog).toHaveBeenCalledTimes(2)
 })
 
+test('Skip past the last stretch is a stop, not a finish: nothing logs by itself', async () => {
+  const { onLog } = await start()
+  advance(30_000)
+  click('Skip') // to the fold, the last stretch
+  click('Skip') // past the end
+  expect(screen.getByText(/Stopped early: log the 1 min you did, or nothing/)).toBeInTheDocument()
+  expect(onLog).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: "Don't log it" })).toBeInTheDocument()
+})
+
 test('stopped early it offers to log the whole minutes done, or nothing', async () => {
   const { onLog, onDiscard } = await start()
   advance(100_000)

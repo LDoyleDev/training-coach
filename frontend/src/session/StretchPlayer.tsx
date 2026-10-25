@@ -68,11 +68,11 @@ export default function StretchPlayer({
       navigator.vibrate?.(BUZZ[cue])
     },
   )
-  const { stage, paused, t, ran, begin, pause, jumpTo, finish, position } = clockState
+  const { stage, paused, t, ran, ranOut, begin, pause, jumpTo, finish, position } = clockState
 
   // Whole minutes done, never more than chosen (Back can repeat a stretch).
   const minutes = Math.min(minutesDone(Math.round(ran)), routine.minutes)
-  const completed = stage === 'finished' && t >= total
+  const completed = stage === 'finished' && ranOut // not a Skip past the end
 
   // Finished on its own: log it, once. A failed log leaves the Log button to try again.
   const logged = useRef(false)
