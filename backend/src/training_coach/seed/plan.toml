@@ -42,6 +42,10 @@ name = "Rebuild (Oct 2026, ADR-0017)"
 since = 2026-10-23
 name = "Coverage + core (Oct 2026, ADR-0064)"
 
+[[versions]]
+since = 2026-10-26
+name = "Rear delts + carries (Oct 2026)"
+
 # ------------------------------------------------------------------- baseline tests
 # The product spec's performance tests (2-A, ADR-0037), on two days. Retest under the same
 # conditions. A test with results can't leave the plan; its name and cue can change.
@@ -317,6 +321,38 @@ ladder = ["Chest on bench/bed, water bottles", "Chest on bench/bed, 8 kg one arm
 [exercises.needs]
 "Chest on bench/bed, 8 kg one arm" = ["kettlebell:8"]
 "Chest-supported, 3 s lowering" = ["kettlebell:8"]
+
+[[exercises]]
+slug = "band-face-pull"
+name = "Band face pull"
+summary = "Loop a band round the pull-up bar at face height. Step back until it's taut, then pull the ends towards your forehead, elbows high and out, until your hands are beside your ears. Return slowly."
+kind = "reps"
+muscles = { "rear delts" = 1, "upper back" = 0.5 }
+qualities = ["posture"]
+pattern = "isolation"
+aliases = ["face pull", "face pulls", "facepull"]
+start = 0
+ladder = ["Light band", "Light band, 2 s hold", "Heavier band"]
+[exercises.needs]
+"Light band" = ["band", "pull-up bar"]
+"Light band, 2 s hold" = ["band", "pull-up bar"]
+"Heavier band" = ["band", "pull-up bar"]
+
+[[exercises]]
+slug = "suitcase-carry"
+name = "Suitcase carry"
+summary = "Hold a kettlebell in one hand at your side, stand tall and walk slowly without leaning towards it or shrugging. Swap hands for the other side."
+kind = "seconds"
+muscles = { forearms = 1, "upper traps" = 1, obliques = 0.5 }
+pattern = "carry"
+stress = ["grip", "spine"]
+aliases = ["carry", "carries", "suitcase carry", "farmer carry", "farmers walk"]
+start = 0
+ladder = ["8 kg", "16 kg", "Farmer carry, 16 kg + 8 kg, swap hands each set"]
+[exercises.needs]
+"8 kg" = ["kettlebell:8"]
+"16 kg" = ["kettlebell:16"]
+"Farmer carry, 16 kg + 8 kg, swap hands each set" = ["kettlebell:8", "kettlebell:16"]
 
 [[exercises]]
 slug = "neck-flexion"
@@ -622,10 +658,11 @@ is_rest_optional = true
 items = [
   { exercise = "prone-ytw", sets = 2, rep_min = 8, rep_max = 12, pair = 1 },
   { exercise = "back-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 1 },
-  { exercise = "chin-tuck", sets = 2, rep_min = 8, rep_max = 12 },
+  { exercise = "chin-tuck", sets = 2, rep_min = 8, rep_max = 12, pair = 5 },
+  { exercise = "suitcase-carry", sets = 2, rep_min = 30, rep_max = 45, per_side = true, pair = 5 },
   { exercise = "hanging-raise", sets = 3, rep_min = 8, rep_max = 15, pair = 2 },
   { exercise = "neck-lateral", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
-  { exercise = "dead-hang", sets = 2, rep_min = 30, rep_max = 60, pair = 3 },
+  { exercise = "dead-hang", sets = 1, rep_min = 30, rep_max = 60, pair = 3 },
   { exercise = "neck-extension", sets = 1, rep_min = 10, rep_max = 15, pair = 3 },
   { exercise = "reverse-nordic", sets = 2, rep_min = 5, rep_max = 10, pair = 4 },
   { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 4 },
@@ -661,6 +698,8 @@ items = [
   { exercise = "copenhagen-plank", sets = 2, rep_min = 6, rep_max = 12, per_side = true, pair = 1 },
   { exercise = "back-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 2 },
   { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
+  { exercise = "band-face-pull", sets = 2, rep_min = 12, rep_max = 20 },
+  { exercise = "suitcase-carry", sets = 2, rep_min = 30, rep_max = 45, per_side = true },
 ]
 
 [[sessions]]
