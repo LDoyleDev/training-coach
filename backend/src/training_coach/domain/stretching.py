@@ -1,7 +1,9 @@
 """Choosing a stretching routine after a resistance session (#98, ADR-0032). Pure logic.
 
 Static stretches held about 30 s at a gentle effort, a few rounds each (Huberman Lab, the
-flexibility episode). The routine fills the chosen time without going over, in three steps:
+flexibility episode). The chosen time is the real total, the gaps included (ADR-0032
+addendum): 15 s to get into position before each stretch and each side, 5 s to let go between
+rounds on the same side. The routine fills it without going over, in three steps:
 1. two rounds of a stretch for each muscle the session worked, most-worked first;
 2. a third round of those, in the same order;
 3. two rounds of stretches for the rest of the body.
@@ -11,7 +13,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 HOLD_SECONDS = 30
-SWITCH_SECONDS = 10  # getting into position, or changing sides
+POSITION_SECONDS = 15  # getting into a stretch, or onto its other side
+RELEASE_SECONDS = 5  # letting go between rounds on the same side
 ROUNDS = 2
 MAX_ROUNDS = 3
 CHOICES = (10, 20, 30)  # minutes offered
@@ -37,9 +40,10 @@ class Step:
 
 
 def seconds(stretch: Stretch, rounds: int) -> int:
-    """Time for ``rounds`` holds of ``stretch``, on each side when it's one-sided."""
+    """Time for ``rounds`` holds of ``stretch`` with its gaps, on each side when it's one-sided:
+    each side is getting into position, then the holds with a release between them."""
     sides = 2 if stretch.per_side else 1
-    return rounds * sides * (HOLD_SECONDS + SWITCH_SECONDS)
+    return sides * (POSITION_SECONDS + rounds * HOLD_SECONDS + (rounds - 1) * RELEASE_SECONDS)
 
 
 def routine(catalogue: Sequence[Stretch], worked: Mapping[str, float], minutes: int) -> list[Step]:

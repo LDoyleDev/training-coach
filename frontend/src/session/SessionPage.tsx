@@ -51,7 +51,7 @@ import { worksLine } from '../bodymap/words'
 import Movement from './Movement'
 import { duration, soFar, times, type SetTime } from './times'
 import useWakeLock from './useWakeLock'
-import { type Sound, playChange, unlockAudio } from '../hiit/sounds'
+import { DEFAULT_SOUND, type Sound, playChange, unlockAudio } from '../hiit/sounds'
 import { card, primary, primaryInline, secondary } from '../ui'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
@@ -106,7 +106,7 @@ export default function SessionPage() {
     day?: Pending
   } | null>(null)
 
-  const [sound, setSound] = useState<Sound>('chime') // the person's choice, from Settings
+  const [sound, setSound] = useState<Sound>(DEFAULT_SOUND) // the person's choice, from Settings
   const counting = useRef(0) // the last of a rest's final 3 seconds that sounded
   const rang = useRef(0) // the rest whose end has sounded, by its end time
 

@@ -1222,7 +1222,8 @@ export interface paths {
         put?: never;
         /**
          * Stretching Done
-         * @description Log the stretching minutes on the workout, once.
+         * @description Log the stretching minutes on the workout, once: the minutes actually done, 1 up to
+         *     the longest choice.
          */
         post: operations["stretching_done_api_session_stretching__workout_id__post"];
         delete?: never;
@@ -2941,12 +2942,20 @@ export interface components {
                 number
             ] | null;
         };
-        /** RoutineView */
+        /**
+         * RoutineView
+         * @description The routine and its timing: each side starts with getting into position, then the
+         *     holds with a release between them; all of it fits in ``minutes`` (ADR-0032 addendum).
+         */
         RoutineView: {
             /** Hold Seconds */
             hold_seconds: number;
             /** Minutes */
             minutes: number;
+            /** Position Seconds */
+            position_seconds: number;
+            /** Release Seconds */
+            release_seconds: number;
             /** Session */
             session: string;
             /** Steps */
@@ -3153,10 +3162,11 @@ export interface components {
         Soreness: "none" | "some" | "a_lot";
         /**
          * Sound
-         * @description What a guided timer plays at each change (ADR-0062). A per-person setting.
+         * @description What every guided timer plays at each change (ADR-0062, ADR-0074). A per-person setting;
+         *     the boxing-ring bell is everyone's default.
          * @enum {string}
          */
-        Sound: "chime" | "beep" | "wood" | "bell" | "none";
+        Sound: "ring" | "chime" | "beep" | "wood" | "bell" | "none";
         /** SourceView */
         SourceView: {
             /** Exercise */
@@ -3222,6 +3232,8 @@ export interface components {
             per_side: boolean;
             /** Rounds */
             rounds: number;
+            /** Slug */
+            slug: string;
         };
         /** StretchedView */
         StretchedView: {
