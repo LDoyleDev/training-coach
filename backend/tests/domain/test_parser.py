@@ -1,7 +1,14 @@
 import pytest
 
 from training_coach.domain.enums import ExerciseKind, Side
-from training_coach.domain.parser import MAX_TEXT, Entry, Known, parse_log, sets_text
+from training_coach.domain.parser import (
+    MAX_TEXT,
+    NO_WEIGHT,
+    Entry,
+    Known,
+    parse_log,
+    sets_text,
+)
 
 REPS, SECONDS, MINUTES = ExerciseKind.REPS, ExerciseKind.SECONDS, ExerciseKind.DURATION_MIN
 L, R, B = Side.LEFT, Side.RIGHT, Side.BOTH
@@ -323,3 +330,18 @@ def test_the_confirm_step_shows_the_weight() -> None:
     assert sets_text(same, REPS) == "10 / 10 / 9 at 16 kg"
     mixed = parse_log("rows 8 8 at 16\nrows 6 at 18.5", LOADED).entries[0]
     assert sets_text(mixed, REPS) == "8 / 8 / 6 at 16 / 16 / 18.5 kg"
+
+
+@pytest.mark.parametrize(
+    ("text", "shown"),
+    [
+        ("rows 8 8 at 16\nrows 6", f"8 / 8 / 6 at 16 / 16 / {NO_WEIGHT} kg"),
+        ("rows 8 at 16\nrows 6\nrows 5 at 18", f"8 / 6 / 5 at 16 / {NO_WEIGHT} / 18 kg"),
+    ],
+    ids=["last-unweighed", "middle-unweighed"],
+)
+def test_the_confirm_step_lines_each_weight_up_with_its_set(text: str, shown: str) -> None:
+    """A set given no weight shows a dash in its place: it is saved without one (review of
+    #380), and the person decides whether that's right."""
+    (entry,) = parse_log(text, LOADED).entries
+    assert sets_text(entry, REPS) == shown
