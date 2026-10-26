@@ -94,6 +94,8 @@ class Known:
 class Entry:
     slug: str
     sets: tuple[tuple[int, Side, int], ...]  # (set_no, side, value), as combine_sides takes
+    # (set_no, kg) for the sets done with a weight, on a loaded step (ADR-0072)
+    loads: tuple[tuple[int, float], ...] = ()
 
 
 @dataclass(frozen=True)

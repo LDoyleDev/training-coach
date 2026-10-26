@@ -359,8 +359,16 @@ def _file(
     for entry in confirmed.entries:
         exercise = exercises[entry.slug]
         step_id = blocks.step_for(session, exercise, strength)[0].id
+        kg = dict(entry.loads)
         workout.sets.extend(
-            SetLog(exercise_id=exercise.id, ladder_step_id=step_id, set_no=n, side=side, value=v)
+            SetLog(
+                exercise_id=exercise.id,
+                ladder_step_id=step_id,
+                set_no=n,
+                side=side,
+                value=v,
+                load_kg=kg.get(n),
+            )
             for n, side, v in entry.sets
         )
 

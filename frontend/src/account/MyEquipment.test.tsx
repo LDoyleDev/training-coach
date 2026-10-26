@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Equipment, KitItem } from '../api'
 import { blank, bodyOf, draftOf, token } from './kit'
@@ -269,7 +269,7 @@ test('a link to #my-equipment scrolls to the card once it loads', async () => {
   serve({ 'GET /api/equipment': [{ status: 200, body: kit([]) }] })
   render(<MyEquipment />)
   expect(await screen.findByText('Bodyweight only.')).toBeInTheDocument()
-  expect(scroll).toHaveBeenCalledOnce()
+  await waitFor(() => expect(scroll).toHaveBeenCalledOnce()) // the scroll runs after the render
 })
 
 test('the short forms the unlocks question takes', () => {

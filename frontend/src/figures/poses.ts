@@ -3,14 +3,23 @@
  * what is around it (ADR-0063). Pose keys are in body.ts: hip, lean (trunk forward of vertical),
  * spine (+ rounds), neck (+ tucks), and a target for each hand and foot (N near, F far side).
  */
-import type { Motion } from './body'
+import type { Motion, Vec } from './body'
+import type { FrontPose } from './front'
 import type { Part, Props } from './shapes'
 
+type Box = readonly [number, number, number, number] // x0, x1, y0, y1 in cm, the floor at y = 0
+
 export interface Figure extends Motion {
-  view: readonly [number, number, number, number] // x0, x1, y0, y1 in cm, the floor at y = 0
+  view: Box
   frames: readonly [string, string] // what the start and the end show
   props?: Props
   order?: readonly Part[]
+  /** The same movement seen from the front (front.ts), at the same pace, for one that happens
+   * side-on to the body. It is shown first. */
+  front?: { view: Box; start: FrontPose; end: FrontPose; props?: Props }
+  /** A close-up in the side view: the circle of radius ``r`` around ``of``, drawn larger in a
+   * circle of radius ``size`` at ``at``, for a small movement such as a heel lifting. */
+  inset?: { of: Vec; r: number; at: Vec; size: number }
 }
 
 const STAND = { legN: { at: [0, 7] }, legF: { at: [3, 7] } } as const
@@ -255,25 +264,77 @@ export const FIGURES: Readonly<Record<string, Figure>> = {
     },
   },
   'calf-raise': {
-    frames: ['Ball of one foot on a step, heel below it', 'Up as high as you can, pause'],
-    view: [-62, 50, -3, 200],
+    frames: [
+      "Ball of one foot on the step's edge, heel below it",
+      'Heel up as high as you can, pause',
+    ],
+    view: [-122, 50, -3, 200],
     props: { step: { x0: 0, x1: 34, top: 18 }, wall: { x0: 40, x1: 45, top: 200 } },
+    // The foot on the step's edge, twice the size, where the space behind the figure is empty.
+    inset: { of: [-3, 21], r: 20, at: [-78, 132], size: 42 },
     tempo: [900, 700, 1300, 400],
     start: {
-      hip: [-11, 106.4],
+      hip: [-11.5, 104.4],
       lean: 0,
-      legN: { at: [-13.61, 20.13], angle: 20, floor: 18 },
-      legF: { at: [-37, 40.4], angle: -55 },
+      legN: { at: [-13.76, 18.08], angle: 28, floor: 18 },
+      legF: { at: [-37.5, 38.4], angle: -55 },
       armN: { at: [32, 140], angle: 10 },
       armF: { at: [4, -2], from: 'waist' },
     },
     end: {
-      hip: [-4, 117],
+      hip: [-4, 117.8],
       lean: 0,
-      legN: { at: [-6.76, 30.56], angle: -30, floor: 18 },
-      legF: { at: [-30, 51], angle: -55 },
+      legN: { at: [-4.93, 31.52], angle: -38, floor: 18 },
+      legF: { at: [-30, 51.8], angle: -55 },
       armN: { at: [32, 140], angle: 10 },
       armF: { at: [4, -2], from: 'waist' },
+    },
+  },
+  'copenhagen-plank': {
+    frames: [
+      'On your side, top knee on a chair, forearm under the shoulder, hips low',
+      'Hips up until the body is straight, pressing down through the top leg',
+    ],
+    // Seen from the side the body is drawn as if face down, so the front view is shown first.
+    view: [-150, 35, -3, 95],
+    props: { bench: { x0: -122, x1: -74, top: 45 } },
+    order: ['armF', 'legF', 'torso', 'head', 'legN', 'armN'],
+    tempo: [1200, 1200, 1800, 500],
+    start: {
+      hip: [-42.3, 21.87],
+      lean: 74,
+      legN: { at: [-118.8, 49], angle: 180, bend: -1 },
+      legF: { at: [-130, 5], angle: 180 },
+      armN: { at: [4, -2], from: 'waist' },
+      armF: { at: [4, 4], mid: [0, -30], angle: 0 },
+    },
+    end: {
+      hip: [-43.22, 42.24],
+      lean: 100.8,
+      legN: { at: [-129.4, 49], angle: 180, bend: -1 },
+      legF: { at: [-126, 25], angle: 180 },
+      armN: { at: [4, -2], from: 'waist' },
+      armF: { at: [4, 4], mid: [0, -30], angle: 0 },
+    },
+    front: {
+      view: [-150, 35, -3, 95],
+      props: { bench: { x0: -122, x1: -74, top: 45 } },
+      start: {
+        hip: [-44.74, 17.94],
+        tilt: 42,
+        legR: { at: [-129.4, 49], bend: -1 },
+        legL: { at: [-122, 7], bend: -1 },
+        armR: { at: [-11, -6], from: 'waist', bend: -1 },
+        armL: { at: [4, 4], mid: [0, -30], angle: 0 },
+      },
+      end: {
+        hip: [-45.86, 46.51],
+        tilt: 7,
+        legR: { at: [-140, 47.8], bend: -1 },
+        legL: { at: [-128, 27], bend: -1 },
+        armR: { at: [-11, -6], from: 'waist', bend: -1 },
+        armL: { at: [4, 4], mid: [0, -30], angle: 0 },
+      },
     },
   },
   'hamstring-curl': {

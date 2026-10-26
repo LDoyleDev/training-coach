@@ -13,6 +13,7 @@ from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.daily_check import summary as daily_summary
 from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.load import MAX_KG, Load
 from training_coach.domain.mobility_flow import Flow
 from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import HARD_SESSIONS
@@ -105,6 +106,24 @@ class ItemMuscleView(BaseModel):
     weight: float  # 1 prime mover, 0.5 synergist, 0.25 a small part (ADR-0064)
 
 
+class LoadView(BaseModel):
+    """A loaded step (ADR-0072): - and + move the weight by ``increment``; each set starts at
+    its ``kg``, the same set's weight last time when ``carried``, else the kit's first weight."""
+
+    kit: Literal["barbell", "dumbbells", "machine"]  # dumbbells: the weight of one
+    increment: float
+    kg: list[float]  # one per planned set
+    carried: bool
+
+
+def load_view(load: Load | None) -> LoadView | None:
+    if load is None:
+        return None
+    return LoadView(
+        kit=load.kit.value, increment=load.increment, kg=list(load.kg), carried=load.carried
+    )
+
+
 class ItemView(BaseModel):
     slug: str
     name: str
@@ -119,6 +138,7 @@ class ItemView(BaseModel):
     muscles: list[ItemMuscleView]  # what it works, the most worked first; [] for cardio, mobility
     parts: list[str]  # muscle parts it reaches: "triceps long head", "rectus femoris"
     flow: FlowView | None = None  # guided one movement at a time (ADR-0062)
+    load: LoadView | None = None  # a loaded step: the set screen records a weight (ADR-0072)
 
 
 def muscle_views(item: ItemPlan) -> list[ItemMuscleView]:
@@ -167,6 +187,7 @@ class DoneView(BaseModel):
     right: int | None = Field(default=None, ge=0, le=3600)
     started_at: AwareDatetime | None = None
     done_at: AwareDatetime | None = None
+    load_kg: float | None = Field(default=None, gt=0, le=MAX_KG)  # a loaded step's weight
 
 
 class ProgressView(BaseModel):
@@ -356,6 +377,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                     muscles=muscle_views(i),
                     parts=list(i.parts),
                     flow=flow_view(mobility_flow.flow_for(i.slug)),
+                    load=load_view(i.load),
                 )
                 for i in plan.items
             ],

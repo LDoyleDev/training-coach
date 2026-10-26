@@ -1,0 +1,77 @@
+"""Load on a set (ADR-0072): the kit a loaded step uses, its increment, and the weight each set
+starts at on the set screen. Pure logic, no I/O.
+
+A step takes load when the catalogue says so (``plan.toml``, ``[exercises.loads]``): one step,
+and the weight goes up. Each set records its weight in kilograms; empty for bodyweight.
+
+The set screen starts at the weight of the same set last time (the carry-over), with - and +
+in the kit's increment, so nothing is typed. With no history it starts at the kit's first
+weight, which the person changes to theirs.
+"""
+
+from collections.abc import Sequence
+from dataclasses import dataclass
+from enum import StrEnum
+
+MAX_KG = 500.0  # a bound for a typed or kept value, far above anyone's lift
+
+
+class LoadKit(StrEnum):
+    """What carries the weight on a loaded step: its increment and first weight follow."""
+
+    BARBELL = "barbell"
+    DUMBBELLS = "dumbbells"  # the weight of one, per hand
+    MACHINE = "machine"  # a machine's or a cable's stack
+
+
+# The smallest step up or down at the gym (program-builder.md, Decided 6); a person's own
+# increments, and the next weight owned at home, come later.
+INCREMENT: dict[LoadKit, float] = {
+    LoadKit.BARBELL: 2.5,
+    LoadKit.DUMBBELLS: 2.0,
+    LoadKit.MACHINE: 5.0,
+}
+
+# Where a first set starts: the empty bar, a light pair, a light stack. A starting point for
+# - and +, never a suggestion of what to lift.
+FIRST_KG: dict[LoadKit, float] = {
+    LoadKit.BARBELL: 20.0,
+    LoadKit.DUMBBELLS: 8.0,
+    LoadKit.MACHINE: 20.0,
+}
+
+
+@dataclass(frozen=True)
+class Load:
+    """A loaded item in a session: its kit, the increment - and + move by, and the weight each
+    set starts at. ``carried`` is False when nothing was logged at this step yet."""
+
+    kit: LoadKit
+    increment: float
+    kg: tuple[float, ...]  # one per planned set
+    carried: bool
+
+
+def carried(kit: LoadKit, sets: int, last: Sequence[tuple[int, float]]) -> Load:
+    """Each planned set's starting weight from ``last``, the (set number, kg) pairs of the
+    last session at this step: the same set's weight, else that of the nearest set before it,
+    else the first set's. With no history, every set starts at the kit's first weight."""
+    by_set = dict(last)
+    if not by_set:
+        return Load(kit, INCREMENT[kit], (FIRST_KG[kit],) * sets, carried=False)
+    first = by_set[min(by_set)]
+    kg: list[float] = []
+    for number in range(1, sets + 1):
+        before = [n for n in by_set if n <= number]
+        kg.append(by_set[max(before)] if before else first)
+    return Load(kit, INCREMENT[kit], tuple(kg), carried=True)
+
+
+def valid_kg(kg: float) -> bool:
+    """A weight a set can record: above nothing, within the bound."""
+    return 0 < kg <= MAX_KG
+
+
+def kg_text(kg: float) -> str:
+    """``20.0`` -> ``"20"``, ``22.5`` -> ``"22.5"``: as a person writes it."""
+    return f"{kg:g}"

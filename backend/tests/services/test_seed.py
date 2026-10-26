@@ -435,6 +435,31 @@ def test_rename_must_name_a_step_in_the_ladder() -> None:
         load_plan(bad)
 
 
+LOADED = 'ladder = ["Negatives", "Strict", "Weighted"]\nloads = { Weighted = "barbell" }'
+
+
+def test_a_step_can_take_load_with_the_kit_that_carries_it() -> None:
+    plan = load_plan(MINI_PLAN.replace('ladder = ["Negatives", "Strict", "Weighted"]', LOADED))
+    assert plan.exercises[0].loads == {"Weighted": "barbell"}
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        (lambda t: t.replace("Weighted = ", "Archer = "), "not in its ladder"),
+        (lambda t: t.replace('"barbell"', '"kettlebell"'), "loads.Weighted"),
+        (lambda t: t.replace('kind = "reps"', 'kind = "seconds"', 1), "counted in reps"),
+    ],
+    ids=["unknown-step", "unknown-kit", "timed"],
+)
+def test_loads_must_name_a_step_a_kit_and_count_reps(
+    change: Callable[[str], str], message: str
+) -> None:
+    loaded = MINI_PLAN.replace('ladder = ["Negatives", "Strict", "Weighted"]', LOADED)
+    with pytest.raises(ValidationError, match=message):
+        load_plan(change(loaded))
+
+
 @pytest.mark.parametrize(
     ("ladder", "renames"),
     [

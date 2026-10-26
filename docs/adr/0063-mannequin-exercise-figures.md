@@ -32,6 +32,14 @@ figures follow light and dark.
   positions side by side with captions. People who ask for reduced motion start on the two
   positions; off screen it stops redrawing. `<FigureAt slug t label />` draws one still. A slug
   with no figure draws nothing, so screens can ask for one before every exercise has it.
+- **A front view, or a close-up, where the side view can't show it** (added 26 Oct 2026,
+  Liam): a movement that happens side-on to the body, such as the Copenhagen plank (lying on
+  your side), looks face down from the side. Its figure can carry a `front` motion too, drawn by
+  a front-facing mannequin (`front.ts`: shoulders and hips as wide as the body, faceless head,
+  the down side in the far tone) at the same pace and with the same captions. It is shown first,
+  with a Front / Side switch under it. A small movement can carry an `inset`: a circle of the
+  side view drawn about twice as big where the picture is empty, with a ring round the part it
+  shows (the calf raise's heel on the step's edge).
 - **Figures are keyed by slug**: plan exercises use their seed slug (`kb-swing`), the flow's
   movements their own.
 - **Checked by tests**: limbs keep their length through the whole movement, no joint goes

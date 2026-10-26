@@ -17,7 +17,7 @@ from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import or_, select
+from sqlalchemy import Select, or_, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import (
@@ -129,15 +129,45 @@ def sessions_at_step(
         )
         .order_by(Workout.local_date.desc(), Workout.created_at.desc(), Workout.id.desc())
     )
-    if block is BlockKind.STRENGTH:
-        query = query.where(Workout.block == BlockKind.STRENGTH)
-    elif block is BlockKind.HYPERTROPHY:
-        query = query.where(or_(Workout.block.is_(None), Workout.block != BlockKind.STRENGTH))
-    rows = session.execute(query)
+    rows = session.execute(_in_block(query, block))
     grouped: dict[int, list[tuple[int, Side, int]]] = {}
     for workout_id, set_no, side, value in rows:
         grouped.setdefault(workout_id, []).append((set_no, Side(side), value))
     return [(w, combine_sides(sets, unilateral=per_side)) for w, sets in grouped.items()]
+
+
+def _in_block[*Ts](query: Select[*Ts], block: BlockKind | None) -> Select[*Ts]:
+    """``query`` kept to one block's workouts (ADR-0028): ``STRENGTH`` only strength-block
+    workouts, ``HYPERTROPHY`` everything else, None both."""
+    if block is BlockKind.STRENGTH:
+        return query.where(Workout.block == BlockKind.STRENGTH)
+    if block is BlockKind.HYPERTROPHY:
+        return query.where(or_(Workout.block.is_(None), Workout.block != BlockKind.STRENGTH))
+    return query
+
+
+def last_loads(
+    session: Session, exercise_id: int, step_id: int, block: BlockKind | None = None
+) -> list[tuple[int, float]]:
+    """The (set number, kg) of the last done workout with a weight for this exercise at this
+    step, in ``block`` as ``sessions_at_step`` reads it: where the set screen starts (ADR-0072).
+    Empty with no weight logged there yet."""
+    query = (
+        select(SetLog.workout_id, SetLog.set_no, SetLog.load_kg)
+        .join(Workout)
+        .where(
+            Workout.status == WorkoutStatus.DONE,
+            SetLog.exercise_id == exercise_id,
+            SetLog.ladder_step_id == step_id,
+            SetLog.load_kg.is_not(None),
+        )
+        .order_by(
+            Workout.local_date.desc(), Workout.created_at.desc(), Workout.id.desc(), SetLog.set_no
+        )
+    )
+    rows = list(session.execute(_in_block(query, block)))
+    last = rows[0].workout_id if rows else None
+    return [(n, kg) for w, n, kg in rows if w == last and kg is not None]
 
 
 Kit = Sequence[Item] | None  # None: no kit listed yet, so nothing locks

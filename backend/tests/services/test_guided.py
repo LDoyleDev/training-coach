@@ -3,13 +3,15 @@
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import pytest
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import SessionProgress, SessionTemplate, Workout
 from training_coach.db.session import make_session_factory
 from training_coach.domain.enums import WorkoutStatus
-from training_coach.services import guided, queue_actions, users, workout_log
+from training_coach.domain.load import Load, LoadKit
+from training_coach.services import guided, queue_actions, today, users, workout_log
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -347,3 +349,67 @@ def test_sets_without_times_save_without_them(session: Session) -> None:
     assert isinstance(saved, workout_log.Saved)
     (row,) = seeded.get_one(Workout, saved.workout_id).sets
     assert (row.started_at, row.done_at) == (None, None)
+
+
+# ---------------------------------------------------------------- load (ADR-0072)
+
+
+@pytest.fixture
+def loaded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The jump squat, Legs' first exercise, as if its step took dumbbells."""
+    monkeypatch.setattr(
+        today,
+        "load_kit",
+        lambda slug, step: LoadKit.DUMBBELLS if slug == "jump-squat" else None,
+    )
+
+
+@pytest.mark.usefixtures("loaded")
+def test_a_loaded_step_starts_at_the_kits_first_weight_then_carries_over(
+    session: Session,
+) -> None:
+    seeded = _seeded(session)
+    plan = _plan(seeded)
+    assert plan.items[0].load == Load(LoadKit.DUMBBELLS, 2.0, (8.0, 8.0, 8.0), carried=False)
+    assert all(item.load is None for item in plan.items[1:])
+    done = [guided.Done(0, 1, 8, load_kg=12.0), guided.Done(0, 2, 7, load_kg=14.0)]
+    assert guided.keep(seeded, plan, 0, 2, [], done) == 1
+    kept = guided.kept(seeded, DAY)
+    assert kept is not None
+    assert [d.load_kg for d in kept.sets] == [12.0, 14.0]
+    saved = guided.save(seeded, DAY, DAY, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    rows = seeded.get_one(Workout, saved.workout_id).sets
+    assert sorted((r.set_no, r.load_kg) for r in rows) == [(1, 12.0), (2, 14.0)]
+    again = today.session_plan(seeded, plan.template_id)
+    assert again is not None
+    load = again.items[0].load
+    assert load is not None
+    assert (load.kg, load.carried) == ((12.0, 14.0, 14.0), True)
+
+
+@pytest.mark.usefixtures("loaded")
+@pytest.mark.parametrize(
+    ("done", "problem"),
+    [
+        (guided.Done(1, 1, 8, load_kg=10.0), "isn't done with a weight"),
+        (guided.Done(0, 1, 8, load_kg=0.0), "more than 0 and at most 500 kg"),
+        (guided.Done(0, 1, 8, load_kg=600.0), "more than 0 and at most 500 kg"),
+    ],
+    ids=["unloaded-step", "nothing", "too-heavy"],
+)
+def test_a_weight_only_goes_with_a_loaded_step_and_in_range(
+    session: Session, done: guided.Done, problem: str
+) -> None:
+    seeded = _seeded(session)
+    result = guided.keep(seeded, _plan(seeded), 0, 1, [], [done])
+    assert isinstance(result, str)
+    assert problem in result
+
+
+def test_progress_kept_before_loads_still_loads(session: Session) -> None:
+    seeded = _seeded(session)
+    guided.keep(seeded, _plan(seeded), 0, 1, [], [guided.Done(0, 1, 5)])
+    kept = guided.kept(seeded, DAY)
+    assert kept is not None
+    assert kept.sets[0].load_kg is None
