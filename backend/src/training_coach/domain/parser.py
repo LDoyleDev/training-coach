@@ -81,6 +81,7 @@ TOKEN = re.compile(
 SIDE_WORDS = {"left": Side.LEFT, "l": Side.LEFT, "right": Side.RIGHT, "r": Side.RIGHT}
 EACH_WORDS = frozenset({"each", "per", "side", "sides", "leg", "legs", "arm", "arms"})
 ACTIVITY_WORDS = frozenset().union(*WORDS.values())  # "walk", "ran", "cycling"...
+NO_WEIGHT = chr(0x2013)  # an en dash on the confirm step, for a set given no weight
 # One weight for a line's sets (ADR-0072): "at 16", "@ 22.5", or a number with its unit, "60 kg".
 LOAD = re.compile(
     r"(?:\bat\b|@)\s*(?P<at>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:kgs?\b|kilos?\b)?(?![\d:.,])"
@@ -445,9 +446,13 @@ def sets_text(entry: Entry, kind: ExerciseKind) -> str:
             if left == right
             else f"left {join(left)}, right {join(right)}"
         )
-    weights = sorted({kg for _, kg in entry.loads})
-    if not weights:
+    # Each set's weight in set order, a dash for a set given none (it is saved without one).
+    by_set = dict(entry.loads)
+    numbers = sorted({n for n, _, _ in entry.sets})
+    weights = [by_set.get(n) for n in numbers]
+    if not by_set:
         return text
-    if len(weights) == 1:
+    if len(set(weights)) == 1 and weights[0] is not None:
         return f"{text} at {kg_text(weights[0])} kg"
-    return f"{text} at " + " / ".join(f"{kg_text(kg)}" for _, kg in sorted(entry.loads)) + " kg"
+    shown = " / ".join(kg_text(kg) if kg is not None else NO_WEIGHT for kg in weights)
+    return f"{text} at {shown} kg"
