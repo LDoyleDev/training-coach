@@ -25,8 +25,9 @@ function Big({ value, label }: { value: number; label: string }) {
   )
 }
 
-/** /: the first screen (B1). What you've done, to motivate; the week and the ladders as a
- * summary; then the button to today's session. */
+/** /: the first screen (B1). What you've done, to motivate; the last 7 days and the ladders
+ * as a summary; then the button to today's session. The last 7 days are a running total, not
+ * the calendar week, so a Monday still shows the weekend (ADR-0077). */
 export default function HomePage() {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
 
@@ -108,13 +109,13 @@ export default function HomePage() {
           </div>
         )}
         {progress.bests.length > 0 && (
-          <p className="m-0">Personal bests this week: {progress.bests.join(', ')}</p>
+          <p className="m-0">Personal bests in the last 7 days: {progress.bests.join(', ')}</p>
         )}
       </section>
 
       <section aria-labelledby="week" className={card + ' flex flex-col gap-2'}>
         <h2 id="week" className="m-0 text-xl font-bold">
-          This week
+          Last 7 days
         </h2>
         <p className="m-0">
           {week.done} of {week.planned} sessions done
@@ -124,11 +125,12 @@ export default function HomePage() {
           <span>
             Zone 2: {week.zone2_minutes}
             {week.zone2_target && ` of ${week.zone2_target[0]}–${week.zone2_target[1]}`} min
+            {week.moderate_minutes > 0 && `, ${week.moderate_minutes}\u00a0moderate`}
           </span>
           {target !== null && (
             <div
               role="meter"
-              aria-label="Zone 2 minutes this week"
+              aria-label="Zone 2 minutes in the last 7 days"
               aria-valuemin={0}
               aria-valuemax={target}
               aria-valuenow={Math.min(week.zone2_minutes, target)}
@@ -138,7 +140,7 @@ export default function HomePage() {
             </div>
           )}
         </div>
-        <h3 className="m-0 mt-2 text-base font-bold">Last 7 days</h3>
+        <h3 className="m-0 mt-2 text-base font-bold">Day by day</h3>
         {recent.length > 0 ? (
           <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {recent.map((r, i) => (
@@ -149,7 +151,7 @@ export default function HomePage() {
             ))}
           </ul>
         ) : (
-          <p className="m-0 text-[var(--slate)]">Nothing logged in the last seven days.</p>
+          <p className="m-0 text-[var(--slate)]">Nothing logged in the last 7 days.</p>
         )}
       </section>
 

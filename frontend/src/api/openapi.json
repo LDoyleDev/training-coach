@@ -1891,6 +1891,7 @@
         "type": "object"
       },
       "HomeWeekView": {
+        "description": "The last 7 days, today included, the same days as ``recent`` (ADR-0077).",
         "properties": {
           "done": {
             "title": "Done",
@@ -1898,6 +1899,10 @@
           },
           "extras": {
             "title": "Extras",
+            "type": "integer"
+          },
+          "moderate_minutes": {
+            "title": "Moderate Minutes",
             "type": "integer"
           },
           "planned": {
@@ -1941,6 +1946,7 @@
           "planned",
           "extras",
           "zone2_minutes",
+          "moderate_minutes",
           "zone2_target"
         ],
         "title": "HomeWeekView",
@@ -6102,6 +6108,7 @@
         "type": "object"
       },
       "WeekView": {
+        "description": "Minutes over the last 7 days, today included (ADR-0077).",
         "properties": {
           "moderate": {
             "title": "Moderate",
@@ -7987,7 +7994,7 @@
     },
     "/api/home": {
       "get": {
-        "description": "All-time totals, this week against the plan, ladder progress, the last seven days and\ntoday's session.",
+        "description": "All-time totals, the last 7 days against the plan, ladder progress, what was done on\neach of those days and today's session.",
         "operationId": "home_api_home_get",
         "responses": {
           "200": {

@@ -73,7 +73,8 @@ class Marks:
         return [*shown, self.kit]
 
 
-ALPHA = Marks("Alphacanary", 1234, 12345, 173, date(2026, 10, 6), "Alphastools")
+# Not 6 Oct: that is the first of Home's last 7 days on NOW (ADR-0077), a date every view shows.
+ALPHA = Marks("Alphacanary", 1234, 12345, 173, date(2026, 10, 7), "Alphastools")
 BRAVO = Marks("Bravocanary", 1087, 6789, 141, date(2026, 10, 8), "Bravostools")
 
 

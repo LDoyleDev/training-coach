@@ -1,12 +1,13 @@
 """The home screen (B1 in docs/specs/ux-flow-plan.md): what has been done, then today.
 
-All-time totals to motivate, this week against the plan (the weekly review's numbers, reused),
-progress on the ladders, the last seven days, and today's session for the button. It only
-reads; the caller owns the session.
+All-time totals to motivate, the last 7 days against the plan (counted as the weekly review
+counts, over today and the six days before, ADR-0077), progress on the ladders, what was done
+on each of those days, and today's session for the button. It only reads; the caller owns the
+session.
 """
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
@@ -14,11 +15,11 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, Exercise, SessionTemplate, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
-from training_coach.services import guided, retests, review, session_times
+from training_coach.services import guided, progress, retests, review, session_times
 from training_coach.services.progress import Ready
+from training_coach.services.seed import bundled_plan
 
 MOVED_UP = "progress.moved_up"  # written by progress.move_up
-RECENT_DAYS = 7
 
 
 @dataclass(frozen=True)
@@ -33,11 +34,14 @@ class Totals:
 
 @dataclass(frozen=True)
 class Week:
-    start: date  # Monday
+    """The last 7 days, the same days as ``Home.recent`` (ADR-0077)."""
+
+    start: date  # the first of the 7 days
     done: int  # planned sessions done
     planned: int  # sessions in the plan's cycle
     extras: int
     zone2_minutes: int
+    moderate_minutes: int
     zone2_target: tuple[int, int] | None
 
 
@@ -45,7 +49,7 @@ class Week:
 class Ladder:
     steps_climbed: int  # ladder steps moved up so far
     ready: list[Ready]  # exercises ready to move up now
-    bests: list[str]  # exercises with a personal best this week
+    bests: list[str]  # exercises with a personal best in the last 7 days
 
 
 @dataclass(frozen=True)
@@ -59,7 +63,7 @@ class Home:
     totals: Totals
     week: Week
     progress: Ladder
-    recent: list[Recent]  # done in the last seven days, newest first
+    recent: list[Recent]  # done in the last 7 days, newest first
     today: str | None  # today's session (or a test day due today); None when done or rested
     today_minutes: int | None  # about how long, from the plan; None for a test day
     today_usual_minutes: int | None  # how long it usually takes, once timed (ADR-0061)
@@ -95,7 +99,7 @@ def _totals(session: Session, on: date) -> Totals:
 
 
 def _recent(session: Session, on: date) -> list[Recent]:
-    since = on - timedelta(days=RECENT_DAYS - 1)
+    since = review.last_days(on)
     names = {t.id: t.name for t in session.scalars(select(SessionTemplate))}
     workouts = session.scalars(
         select(Workout)
@@ -135,22 +139,25 @@ def _today(session: Session, on: date, tz: ZoneInfo) -> tuple[str | None, int | 
 def home(session: Session, on: date, tz: ZoneInfo) -> Home:
     """The home screen for local day ``on``."""
     today, minutes, usual = _today(session, on, tz)
-    weekly = review.weekly(session, on, tz)
+    start = review.last_days(on)
+    span = review.span(session, start, on)
+    targets = bundled_plan().targets
     climbed = session.scalar(select(func.count()).select_from(Event).where(Event.kind == MOVED_UP))
     return Home(
         totals=_totals(session, on),
         week=Week(
-            start=weekly.start,
-            done=weekly.done,
-            planned=weekly.planned,
-            extras=weekly.extras,
-            zone2_minutes=weekly.zone2_minutes,
-            zone2_target=weekly.zone2_target,
+            start=start,
+            done=span.done,
+            planned=review.planned_sessions(session),
+            extras=span.extras,
+            zone2_minutes=span.zone2_minutes,
+            moderate_minutes=span.moderate_minutes,
+            zone2_target=targets.zone2_minutes if targets is not None else None,
         ),
         progress=Ladder(
             steps_climbed=climbed or 0,
-            ready=list(weekly.ready),
-            bests=list(dict.fromkeys(b.exercise for b in weekly.bests)),
+            ready=progress.ready(progress.overview(session)),
+            bests=list(dict.fromkeys(b.exercise for b in span.bests)),
         ),
         recent=_recent(session, on),
         today=today,

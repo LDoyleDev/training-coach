@@ -110,7 +110,7 @@ def feeds_text(notices: FeedNotices) -> str:
 def counted_text(week: cardio.Week, planned: bool) -> str:
     done = "Counted, and today's session is done." if planned else "Counted."
     target = f" of {week.zone2_target[0]}-{week.zone2_target[1]}" if week.zone2_target else ""
-    return f"{done} Zone 2 this week: {week.zone2}{target} min. /undo takes it back."
+    return f"{done} Zone 2 in the last 7 days: {week.zone2}{target} min. /undo takes it back."
 
 
 class BandHandlers:

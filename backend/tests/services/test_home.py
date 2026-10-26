@@ -1,4 +1,4 @@
-"""The home screen (B1): all-time totals, this week, ladder progress, recent days and today."""
+"""The home screen (B1): all-time totals, the last 7 days, ladder progress and today."""
 
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -103,6 +103,27 @@ def test_week_recent_and_progress(plan: Session) -> None:
         (MONDAY + timedelta(days=2), "Long zone 2"),
         (MONDAY, "Torso + neck"),
     ]  # last week's Friday is more than seven days ago
+
+
+def test_on_a_monday_the_card_counts_the_last_seven_days(plan: Session) -> None:
+    """Owner, 26 Oct 2026: on a Monday the card said ~0 while the list under it showed the
+    weekend's cardio; and moderate cardio was in the list but never added (ADR-0077)."""
+    on = SUNDAY + timedelta(days=1)  # a Monday
+    saturday = on - timedelta(days=2)
+    _log(plan, "zone2", [50], saturday, template=_template(plan, "zone2"))
+    torso = _template(plan, "torso")
+    _log(plan, "pull-up", [5, 5, 5], on - timedelta(days=9), template=torso)  # the bar
+    _log(plan, "pull-up", [8, 8, 8], saturday, template=torso)  # a best
+    _log(plan, "moderate-cardio", [25], on - timedelta(days=6))  # the oldest of the 7 days
+    _log(plan, "zone2", [40], on - timedelta(days=7))  # a week ago: outside
+    _log(plan, "zone2", [30], on - timedelta(days=8))
+    found = home(plan, on, TZ)
+    week = found.week
+    assert week.start == on - timedelta(days=6)
+    assert (week.done, week.planned, week.extras) == (2, 7, 1)
+    assert (week.zone2_minutes, week.moderate_minutes) == (50, 25)
+    assert set(found.progress.bests) == {"Pull-up", "Zone 2 (conversational pace)"}
+    assert [r.day for r in found.recent] == [saturday, saturday, on - timedelta(days=6)]
 
 
 def test_an_extra_is_named_as_such(plan: Session) -> None:

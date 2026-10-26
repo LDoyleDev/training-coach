@@ -25,6 +25,7 @@ from training_coach.services.seed import bundled_plan
 
 ZONE2 = "zone2"  # walks, rides and easy runs log as this exercise through its aliases
 MODERATE = "moderate-cardio"
+LAST_DAYS = 7  # running totals: today and the six days before (ADR-0077)
 
 
 @dataclass(frozen=True)
@@ -54,8 +55,26 @@ class Review:
     zone2_target: tuple[int, int] | None = None  # from plan.toml
 
 
+@dataclass(frozen=True)
+class Span:
+    """What was done in done workouts from one local day to another, both included."""
+
+    done: int  # planned sessions completed, each once
+    extras: int  # unplanned sessions, and a planned one done again
+    zone2_minutes: int
+    moderate_minutes: int
+    bests: list[Best]
+
+
 def week_start(day: date) -> date:
     return day - timedelta(days=day.weekday())
+
+
+def last_days(on: date, n: int = LAST_DAYS) -> date:
+    """The first of the ``n`` local days ending ``on``: today and the ``n - 1`` before. Running
+    totals count these, so a Monday still shows the weekend (ADR-0077); the weekly review stays
+    a calendar week (``week_start``)."""
+    return on - timedelta(days=n - 1)
 
 
 def _volume(session: Session, start: date, end: date) -> list[tuple[Muscle, float]]:
@@ -142,29 +161,54 @@ def _bests(session: Session, workouts: list[Workout]) -> list[Best]:
     return list(found.values())
 
 
-def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
-    """The review of the week containing ``on``; with ``tz``, aware of a strength block."""
-    start = week_start(on)
-    end = start + timedelta(days=6)
-    workouts = list(
+def _workouts(session: Session, start: date, end: date) -> list[Workout]:
+    return list(
         session.scalars(
             select(Workout).where(Workout.local_date >= start, Workout.local_date <= end)
         )
     )
+
+
+def _span(session: Session, workouts: list[Workout], start: date, end: date) -> Span:
     done = [w for w in workouts if w.status == WorkoutStatus.DONE]
-    # Each planned session counts once; doing one again that week is an extra.
+    # Each planned session counts once; doing one again in the span is an extra.
     planned_done = len({w.template_id for w in done if w.template_id is not None})
-    ticked = habits.week(session, start, on)
     minutes = _minutes(session, start, end)
+    return Span(
+        done=planned_done,
+        extras=len(done) - planned_done,
+        zone2_minutes=minutes.get(ZONE2, 0),
+        moderate_minutes=minutes.get(MODERATE, 0),
+        bests=_bests(session, done),
+    )
+
+
+def span(session: Session, start: date, end: date) -> Span:
+    """Sessions, cardio minutes and personal bests from ``start`` to ``end``."""
+    return _span(session, _workouts(session, start, end), start, end)
+
+
+def planned_sessions(session: Session) -> int:
+    """Sessions in the plan's cycle."""
+    return session.scalar(select(func.count()).select_from(SessionTemplate)) or 0
+
+
+def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
+    """The review of the week containing ``on``; with ``tz``, aware of a strength block."""
+    start = week_start(on)
+    end = start + timedelta(days=6)
+    workouts = _workouts(session, start, end)
+    found = _span(session, workouts, start, end)
+    ticked = habits.week(session, start, on)
     targets = bundled_plan().targets
     return Review(
         start=start,
-        planned=session.scalar(select(func.count()).select_from(SessionTemplate)) or 0,
-        done=planned_done,
+        planned=planned_sessions(session),
+        done=found.done,
         rested=sum(1 for w in workouts if w.status == WorkoutStatus.REST),
-        extras=len(done) - planned_done,
+        extras=found.extras,
         volume=_volume(session, start, end),
-        bests=_bests(session, done),
+        bests=found.bests,
         ready=progress.ready(progress.overview(session)),
         strength_block=(
             tz is not None
@@ -172,7 +216,7 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
             and block.kind is BlockKind.STRENGTH
         ),
         habits=ticked if any(h.done for h in ticked) else [],
-        zone2_minutes=minutes.get(ZONE2, 0),
-        moderate_minutes=minutes.get(MODERATE, 0),
+        zone2_minutes=found.zone2_minutes,
+        moderate_minutes=found.moderate_minutes,
         zone2_target=targets.zone2_minutes if targets is not None else None,
     )

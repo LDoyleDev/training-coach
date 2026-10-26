@@ -127,7 +127,7 @@ async def test_count_it(application: App, seeded: Sessions) -> None:
     walk = _walk(seeded)
     calls = await run(application, press(f"bc:{walk}", OWNER))
     (reply,) = texts(calls)
-    assert reply.startswith("Counted. Zone 2 this week: 38 of 180-200 min.")
+    assert reply.startswith("Counted. Zone 2 in the last 7 days: 38 of 180-200 min.")
     assert _workouts(seeded) == 1
     again = await run(application, press(f"bc:{walk}", OWNER))
     assert texts(again)[0].startswith("Counted.")
@@ -155,7 +155,8 @@ async def test_strangers_get_nothing(application: App, seeded: Sessions, action:
 def test_counted_text_without_a_target() -> None:
     week = band_ui.cardio.Week(zone2=40, moderate=0, zone2_target=None)
     assert band_ui.counted_text(week, planned=True) == (
-        "Counted, and today's session is done. Zone 2 this week: 40 min. /undo takes it back."
+        "Counted, and today's session is done. Zone 2 in the last 7 days: 40 min. "
+        "/undo takes it back."
     )
 
 
