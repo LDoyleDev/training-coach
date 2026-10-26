@@ -113,3 +113,11 @@ Decided while building, within this ADR:
   under the chart draws the weight as a staircase on the same dates, labelled with its lowest
   and highest kg and described in words. An exercise without weights keeps its step periods
   and has no strip.
+- **The gym catalogue:** 23 exercises from Decided 5 that the home plan lacks, each one step
+  that takes load (the 45° back extension: bodyweight, then holding a plate), with the
+  research file's weights, a summary and typed-log aliases. The split squat, Copenhagen plank,
+  tibialis raise, carries, neck work and hanging raises stay the home exercises' own ladders.
+  They name no kit (a gym has everything) and are in no session until the gym versions
+  (builder step 9); until then they are logged by text or voice, and an exercise in no
+  session shows on Progress once it has been logged. Their figures (ADR-0063) are still to
+  be drawn; they are needed before step 9 offers them on the set screen.
