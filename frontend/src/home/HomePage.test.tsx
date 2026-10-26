@@ -19,6 +19,7 @@ const make = (over: Partial<Home> = {}): Home => ({
     planned: 7,
     extras: 1,
     zone2_minutes: 90,
+    moderate_minutes: 35,
     zone2_target: [180, 200],
   },
   progress: {
@@ -62,10 +63,16 @@ test('totals first, then progress and the week, then the button to today', async
     'href',
     '/plan?move=pull-up',
   )
-  expect(screen.getByText('Personal bests this week: Dip (chairs)')).toBeInTheDocument()
+  expect(screen.getByText('Personal bests in the last 7 days: Dip (chairs)')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Last 7 days' })).toBeInTheDocument()
   expect(screen.getByText('3 of 7 sessions done · 1 extra')).toBeInTheDocument()
-  expect(screen.getByText('Zone 2: 90 of 180–200 min')).toBeInTheDocument()
-  expect(screen.getByRole('meter', { name: 'Zone 2 minutes this week' })).toHaveAttribute(
+  // zone 2 and moderate, so the minutes in the list add up to the card (ADR-0077)
+  expect(screen.getByText('Zone 2: 90 of 180–200 min, 35 moderate')).toBeInTheDocument()
+  // the number stays with its word on a narrow phone
+  expect(screen.getByText('Zone 2: 90 of 180–200 min, 35 moderate').textContent).toContain(
+    '35\u00a0moderate',
+  )
+  expect(screen.getByRole('meter', { name: 'Zone 2 minutes in the last 7 days' })).toHaveAttribute(
     'aria-valuenow',
     '90',
   )
@@ -89,6 +96,7 @@ test('before the first session, and with nothing left today', async () => {
         planned: 7,
         extras: 0,
         zone2_minutes: 0,
+        moderate_minutes: 0,
         zone2_target: null,
       },
       progress: { steps_climbed: 1, ready: [], bests: [] },
@@ -104,9 +112,9 @@ test('before the first session, and with nothing left today', async () => {
   expect(screen.queryByText(/Since/)).not.toBeInTheDocument()
   expect(screen.getByText('ladder step climbed', { exact: false })).toBeInTheDocument()
   expect(screen.queryByText(/Ready to move up/)).not.toBeInTheDocument()
-  expect(screen.getByText('Zone 2: 0 min')).toBeInTheDocument()
+  expect(screen.getByText('Zone 2: 0 min')).toBeInTheDocument() // no moderate to add
   expect(screen.queryByRole('meter')).not.toBeInTheDocument()
-  expect(screen.getByText('Nothing logged in the last seven days.')).toBeInTheDocument()
+  expect(screen.getByText('Nothing logged in the last 7 days.')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Go to today' })).toHaveAttribute('href', '/session')
 })
 

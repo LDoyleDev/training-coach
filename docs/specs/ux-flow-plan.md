@@ -70,14 +70,14 @@ and start time from a watch or app; pace is shown, not stored.
 
 **Recommendation:** A1 + A2 for zone 2 and moderate cardio, an A3 interval timer for HIIT
 only, and A4 later as the default with A1 as the fallback. After saving a cardio day, show
-"This week: 95 of 180-200 zone-2 min".
+"Last 7 days: 95 of 180-200 zone 2 min" (a running total since ADR-0077).
 
 ### B. What should the first screen be?
 
 | Option | What |
 | --- | --- |
 | B1 **Today as home** (recommended) | One screen answering "what now?": today's session with Start or Log, plus Rest today and Swap; when done, a short summary and what's next; zone 2 minutes this week; anything ready to move up; tests or readiness due; a session left unsaved. Every empty state links to its next step |
-| B1 as chosen (being built) | The owner chose a motivating summary first (all-time sessions, sets, reps and cardio minutes, ladder steps climbed, this week and the last 7 days, from `GET /api/home`), then a button to Today. `/` shows it; Today stays at `/session` |
+| B1 as chosen (being built) | The owner chose a motivating summary first (all-time sessions, sets, reps and cardio minutes, ladder steps climbed, and the last 7 days as a running total (ADR-0077), from `GET /api/home`), then a button to Today. `/` shows it; Today stays at `/session` |
 | B2 Keep `/session` as is | Fix the dead end only: Done shows the summary and next up |
 
 ### C. One app across Telegram and the web

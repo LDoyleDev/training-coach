@@ -56,7 +56,7 @@ test('count it saves and says how the week stands', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Count it' }))
   await vi.waitFor(() =>
     expect(counted).toHaveBeenCalledWith(
-      'Counted, and today’s session is done. Zone 2 this week: 38 of 180-200 min.',
+      'Counted, and today’s session is done. Zone 2 in the last 7 days: 38 of 180-200 min.',
     ),
   )
   expect(asked).toContain('POST /api/band/offers/5/count')
@@ -77,7 +77,9 @@ test('an extra without a target, from an earlier day', async () => {
   render(<BandOffers onCounted={counted} />)
   expect(await screen.findByText(/Fri: Walk, 46 min/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Count it' }))
-  await vi.waitFor(() => expect(counted).toHaveBeenCalledWith('Counted. Zone 2 this week: 38 min.'))
+  await vi.waitFor(() =>
+    expect(counted).toHaveBeenCalledWith('Counted. Zone 2 in the last 7 days: 38 min.'),
+  )
 })
 
 test('not this one takes it away', async () => {

@@ -27,6 +27,8 @@ class PlannedView(BaseModel):
 
 
 class WeekView(BaseModel):
+    """Minutes over the last 7 days, today included (ADR-0077)."""
+
     zone2: int
     moderate: int
     zone2_target: list[int] | None  # [low, high] minutes
