@@ -6,7 +6,8 @@ import SessionTimes from './SessionTimes'
 import TrendChart from './TrendChart'
 import { local } from './chart'
 import { amount } from './logic'
-import { moveButton, moveHref } from '../plan/ladder'
+import { KIT_HREF } from '../account/kit'
+import { moveButton, moveHref, needs, topLabel } from '../plan/ladder'
 import { card, secondary } from '../ui'
 import { RetryCard, SignInCard } from '../components/StateCards'
 
@@ -15,12 +16,6 @@ type Loaded =
   | { status: 'signed-out' }
   | { status: 'error' }
   | { status: 'ready'; standings: Standing[]; today: Date }
-
-const STATUS: Record<Standing['status'], string | null> = {
-  ready: 'Ready to move up',
-  top_of_ladder: 'Top of the ladder',
-  hold: null,
-}
 
 /** /progress: each exercise's step and trend, and session times. The plan has its own page
  * now (/plan, ADR-0069). */
@@ -85,7 +80,9 @@ function Standings() {
       <SessionTimes />
       <ul className="flex flex-col gap-3">
         {loaded.standings.map((s) => {
-          const status = STATUS[s.status]
+          const status = s.status === 'ready' ? 'Ready to move up' : topLabel(s)
+          const here = s.ladder.find((r) => r.id === s.step_id)
+          const locked = here ? needs(here) : null
           return (
             <li key={s.exercise} className={card + ' flex flex-col gap-3'}>
               <div className="flex flex-col gap-1">
@@ -109,6 +106,15 @@ function Standings() {
                 ) : (
                   status && <span className="font-bold text-[var(--bell-ink)]">{status}</span>
                 )}
+                {s.unlock && (
+                  <span>
+                    {s.unlock[0].toUpperCase() + s.unlock.slice(1)}.{' '}
+                    <a href={KIT_HREF} className="font-bold underline">
+                      My equipment
+                    </a>
+                  </span>
+                )}
+                {locked && <span>This step {locked}, not in your kit.</span>}
               </div>
               <TrendChart standing={s} today={loaded.today} />
             </li>

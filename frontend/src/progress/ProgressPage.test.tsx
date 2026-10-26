@@ -143,3 +143,32 @@ test('the plan is not a tab here any more: it has its own page', async () => {
   expect(screen.queryByRole('tab')).toBeNull()
   expect(screen.queryByText('the plan')).toBeNull()
 })
+
+test('at the top for the kit: says so, what unlocks the next, and links to My equipment', async () => {
+  const ladder = [
+    { id: 1, name: 'Two-hand, 8 kg', cue: null, missing: [] },
+    { id: 2, name: 'Two-hand, 16 kg', cue: null, missing: ['a 16 kg kettlebell'] },
+  ]
+  serve([
+    make({
+      exercise: 'Swing',
+      step: 'Two-hand, 8 kg',
+      step_id: 1,
+      ladder,
+      status: 'top_of_ladder',
+      unlock: 'a 16 kg kettlebell unlocks Two-hand, 16 kg',
+    }),
+    make({ exercise: 'Press', step: 'Two-hand, 16 kg', ladder }), // chosen by hand
+  ])
+  render(<ProgressPage />)
+  expect(await screen.findByText('Top for your kit')).toBeInTheDocument()
+  expect(screen.queryByText('Top of the ladder')).not.toBeInTheDocument()
+  expect(screen.getByText(/A 16 kg kettlebell unlocks Two-hand, 16 kg\./)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'My equipment' })).toHaveAttribute(
+    'href',
+    '/account#my-equipment',
+  )
+  expect(
+    screen.getByText('This step needs a 16 kg kettlebell, not in your kit.'),
+  ).toBeInTheDocument()
+})
