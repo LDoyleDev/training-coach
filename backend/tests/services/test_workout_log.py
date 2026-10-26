@@ -19,8 +19,9 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.domain.enums import Side, WorkoutStatus
+from training_coach.domain.load import LoadKit
 from training_coach.domain.queue import local_date
-from training_coach.services import queue_actions, user_settings, users, workout_log
+from training_coach.services import blocks, queue_actions, user_settings, users, workout_log
 from training_coach.services.seed import apply_seed, load_plan
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -516,3 +517,20 @@ def test_a_past_cardio_line_keeps_its_activity(session: Session) -> None:
 def test_strength_logs_carry_no_activity(seeded: Session) -> None:
     """Only a log of one timed cardio exercise carries one: "run" here is not the zone2 slug."""
     assert workout_log.draft(seeded, "pull-ups 8 8 7", TODAY, BERLIN).activity is None
+
+
+def test_a_typed_weight_is_saved_on_a_step_that_takes_load(
+    seeded: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ "pull-ups 8 7 at 10" on a step that takes load keeps the weight on each set (ADR-0072);
+    on any other step the weight is a problem to fix, not a number dropped."""
+    assert workout_log.draft(seeded, "pull-ups 8 7 at 10", TODAY, BERLIN).problems == (
+        "Pull-up isn't done with a weight",
+    )
+    monkeypatch.setattr(blocks, "_load_kits", lambda: {("pull-up", "Strict"): LoadKit.MACHINE})
+    draft = workout_log.draft(seeded, "pull-ups 8 7 at 10", TODAY, BERLIN)
+    assert draft.problems == ()
+    saved = workout_log.save(seeded, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    sets = seeded.get_one(Workout, saved.workout_id).sets
+    assert sorted((s.set_no, s.value, s.load_kg) for s in sets) == [(1, 8, 10.0), (2, 7, 10.0)]

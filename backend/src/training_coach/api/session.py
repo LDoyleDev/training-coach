@@ -106,6 +106,14 @@ class ItemMuscleView(BaseModel):
     weight: float  # 1 prime mover, 0.5 synergist, 0.25 a small part (ADR-0064)
 
 
+class NextWeightView(BaseModel):
+    """Every set reached the top of the range last time: this weight next, with these targets
+    (the bottom of the range). A suggestion the person taps to take (ADR-0072)."""
+
+    kg: float
+    targets: list[int]
+
+
 class LoadView(BaseModel):
     """A loaded step (ADR-0072): - and + move the weight by ``increment``; each set starts at
     its ``kg``, the same set's weight last time when ``carried``, else the kit's first weight."""
@@ -114,13 +122,19 @@ class LoadView(BaseModel):
     increment: float
     kg: list[float]  # one per planned set
     carried: bool
+    suggested: NextWeightView | None = None
 
 
 def load_view(load: Load | None) -> LoadView | None:
     if load is None:
         return None
+    up = load.suggested
     return LoadView(
-        kit=load.kit.value, increment=load.increment, kg=list(load.kg), carried=load.carried
+        kit=load.kit.value,
+        increment=load.increment,
+        kg=list(load.kg),
+        carried=load.carried,
+        suggested=NextWeightView(kg=up.kg, targets=list(up.targets)) if up is not None else None,
     )
 
 

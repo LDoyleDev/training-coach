@@ -1,6 +1,16 @@
 """Where each set's weight starts on the set screen (ADR-0072)."""
 
-from training_coach.domain.load import Load, LoadKit, carried, kg_text, valid_kg
+from training_coach.domain.load import (
+    Load,
+    LoadKit,
+    NextWeight,
+    carried,
+    kg_text,
+    next_weight,
+    top_weight,
+    valid_kg,
+)
+from training_coach.domain.targets import Prescription
 
 
 def test_with_no_history_every_set_starts_at_the_kits_first_weight() -> None:
@@ -23,9 +33,28 @@ def test_a_first_set_missing_last_time_starts_at_the_first_one_done() -> None:
 
 
 def test_a_weight_is_above_nothing_and_within_the_bound() -> None:
-    assert valid_kg(0.5) and valid_kg(500)
-    assert not valid_kg(0) and not valid_kg(500.5)
+    assert [valid_kg(kg) for kg in (0.5, 500, 0, 500.5)] == [True, True, False, False]
 
 
 def test_weights_read_as_a_person_writes_them() -> None:
     assert (kg_text(20.0), kg_text(22.5)) == ("20", "22.5")
+
+
+ROWS = Prescription(sets=3, rep_min=8, rep_max=12)
+
+
+def test_every_set_at_the_top_suggests_the_next_weight_from_the_bottom() -> None:
+    assert next_weight(ROWS, [12, 12, 12], 20.0, 2.0) == NextWeight(22.0, (8, 8, 8))
+    assert next_weight(ROWS, [12, 12, 13, 5], 60.0, 2.5) == NextWeight(62.5, (8, 8, 8))
+
+
+def test_a_missed_set_or_no_history_holds_the_weight() -> None:
+    assert next_weight(ROWS, [12, 12, 11], 20.0, 2.0) is None
+    assert next_weight(ROWS, [12, 12], 20.0, 2.0) is None
+    assert next_weight(ROWS, None, 20.0, 2.0) is None
+    assert next_weight(ROWS, [12, 12, 12], 498.0, 5.0) is None  # past the bound
+
+
+def test_a_sessions_weight_is_its_heaviest_set() -> None:
+    assert top_weight([(1, 20.0), (2, 22.0), (3, 21.0)]) == 22.0
+    assert top_weight([]) is None

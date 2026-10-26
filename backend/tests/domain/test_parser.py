@@ -1,7 +1,7 @@
 import pytest
 
 from training_coach.domain.enums import ExerciseKind, Side
-from training_coach.domain.parser import MAX_TEXT, Entry, Known, parse_log
+from training_coach.domain.parser import MAX_TEXT, Entry, Known, parse_log, sets_text
 
 REPS, SECONDS, MINUTES = ExerciseKind.REPS, ExerciseKind.SECONDS, ExerciseKind.DURATION_MIN
 L, R, B = Side.LEFT, Side.RIGHT, Side.BOTH
@@ -118,9 +118,9 @@ def test_parses(text: str, entries: list[Entry]) -> None:
         pytest.param("12 12", "no exercise name", id="no-name"),
         pytest.param("dips 250", "250 is more than 200 reps for Dip", id="reps-bound"),
         pytest.param("plank 2h", "7200 is more than 3600 seconds for Plank", id="seconds-bound"),
-        pytest.param("dips 10 kg 10", "I don't understand 'kg'", id="unknown-word"),
+        pytest.param("dips 10 kg 10", "Dip isn't done with a weight", id="unknown-word"),
         # A weight after the sets is read, not dropped, so it can't pass silently.
-        pytest.param("dips 10 10 (8 kg)", "I don't understand 'kg'", id="weight-after-sets"),
+        pytest.param("dips 10 10 (8 kg)", "Dip isn't done with a weight", id="weight-after-sets"),
         pytest.param("dips left 10", "Dip isn't done one side at a time", id="side-on-two-sided"),
         pytest.param("dips 21x1", "more than 20 sets of Dip", id="too-many-sets"),
         pytest.param("", "nothing to log", id="empty"),
@@ -272,3 +272,54 @@ def test_other_words_on_a_cardio_line_are_still_problems(text: str, problem: str
     result = parse_log(text, CARDIO)
     assert result.entries == ()
     assert any(problem in p for p in result.problems), result.problems
+
+
+# ---------------------------------------------------------------- weights (ADR-0072)
+
+LOADED = (
+    *KNOWN,
+    Known("db-row", ("Dumbbell row", "rows"), REPS, False, loaded=True),
+    Known("db-lunge", ("Dumbbell lunge",), REPS, True, loaded=True),
+)
+
+
+@pytest.mark.parametrize(
+    ("text", "sets", "loads"),
+    [
+        ("rows 10 10 9 at 16", both(10, 10, 9), ((1, 16.0), (2, 16.0), (3, 16.0))),
+        ("rows 8 8 @ 22.5kg", both(8, 8), ((1, 22.5), (2, 22.5))),
+        ("rows 60 kg 8 8", both(8, 8), ((1, 60.0), (2, 60.0))),
+        ("rows at 17,5 kilos 8", both(8), ((1, 17.5),)),
+        ("rows 8 8 at 16\nrows 6 at 18", both(8, 8, 6), ((1, 16.0), (2, 16.0), (3, 18.0))),
+        ("rows 8 8", both(8, 8), ()),
+        ("dumbbell lunge left 8 7 right 8 7 at 12", each_side(8, 7), ((1, 12.0), (2, 12.0))),
+    ],
+    ids=["at", "at-sign", "kg-first", "comma", "two-lines", "no-weight", "sides"],
+)
+def test_a_weight_goes_with_the_sets_of_its_line(
+    text: str, sets: tuple[tuple[int, Side, int], ...], loads: tuple[tuple[int, float], ...]
+) -> None:
+    (entry,) = parse_log(text, LOADED).entries
+    assert sorted(entry.sets) == sorted(sets)
+    assert entry.loads == loads
+
+
+@pytest.mark.parametrize(
+    ("text", "problem"),
+    [
+        ("pull-ups 8 8 at 10", "Pull-up isn't done with a weight"),
+        ("rows 8 at 16 at 18", "give one weight for Dumbbell row"),
+        ("rows 8 at 999", "isn't a weight for Dumbbell row"),
+    ],
+)
+def test_a_weight_where_none_belongs_is_a_problem(text: str, problem: str) -> None:
+    result = parse_log(text, LOADED)
+    assert result.entries == ()
+    assert problem in result.problems[0]
+
+
+def test_the_confirm_step_shows_the_weight() -> None:
+    same = parse_log("rows 10 10 9 at 16", LOADED).entries[0]
+    assert sets_text(same, REPS) == "10 / 10 / 9 at 16 kg"
+    mixed = parse_log("rows 8 8 at 16\nrows 6 at 18.5", LOADED).entries[0]
+    assert sets_text(mixed, REPS) == "8 / 8 / 6 at 16 / 16 / 18.5 kg"

@@ -39,6 +39,7 @@ from training_coach.domain.queue import (
     resettled,
 )
 from training_coach.services import blocks, day_clash, undo, users
+from training_coach.services.blocks import load_kit, loadable
 from training_coach.services.day_clash import Clash, Refused, Resolution, Resolved
 from training_coach.services.groq import Rewrite
 from training_coach.services.today import position
@@ -142,8 +143,16 @@ def catalogue(session: Session, template: SessionTemplate | None) -> list[Known]
         # A retired exercise is in no session: its own flag says (#107).
         return in_target.get(exercise.id, anywhere.get(exercise.id, exercise.per_side))
 
+    def loaded(exercise: Exercise) -> bool:
+        # A typed weight goes with the step the person trains, when it takes load (ADR-0072).
+        if not loadable(exercise.slug):
+            return False
+        return (
+            load_kit(exercise.slug, blocks.step_for(session, exercise, False)[0].name) is not None
+        )
+
     return [
-        Known(e.slug, (e.name, *e.aliases), ExerciseKind(e.kind), one_sided(e))
+        Known(e.slug, (e.name, *e.aliases), ExerciseKind(e.kind), one_sided(e), loaded(e))
         for e in session.scalars(select(Exercise).order_by(Exercise.id))
     ]
 
