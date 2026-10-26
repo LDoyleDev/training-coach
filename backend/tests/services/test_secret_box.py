@@ -36,7 +36,12 @@ def test_rotation_moves_secrets_to_the_newest_key() -> None:
     assert opened.get_secret_value() == "x"
 
 
-@pytest.mark.parametrize("value", ["", " , ", "not-a-key", f"{NEW},nope"])
+# Fixed ids: NEW is random, and xdist needs every worker to collect the same test names.
+@pytest.mark.parametrize(
+    "value",
+    ["", " , ", "not-a-key", f"{NEW},nope"],
+    ids=["empty", "commas", "not-a-key", "key-then-junk"],
+)
 def test_anything_but_fernet_keys_is_refused(value: str) -> None:
     assert fernet_keys(value) == []
     with pytest.raises(ValueError, match="no valid Fernet key"):
