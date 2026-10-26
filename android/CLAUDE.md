@@ -8,9 +8,10 @@ Rules for `android/`, the band reader (ADR-0070, `docs/specs/android-reader.md`)
 ```
 VERSION                     the app's one version; a release is made on main when it moves
 build.gradle.kts            plugin versions; app/build.gradle.kts has the dependencies
-app/src/main/java/.../      Payload.kt, Delivery.kt, Reads.kt and Week.kt (pure: what a sync
-                            sends, whether it all arrived, how many reads it may make, the
-                            7-day view's wording),
+app/src/main/java/.../      Payload.kt, Delivery.kt, Reads.kt, Runs.kt and Week.kt (pure:
+                            what a sync sends, whether it all arrived, how many reads it may
+                            make, what a background run may do and leaves behind, the 7-day
+                            view's wording),
                             HealthReader.kt (every Health Connect call),
                             Sync.kt (one sync at a time), Background.kt (WorkManager, where
                             Health Connect allows it), Sender.kt (HTTPS post), Store.kt and
@@ -42,6 +43,6 @@ app/src/test/               JVM unit tests for the pure parts
 - **Nothing moves on until the coach answered 2xx:** tokens and "sent" totals are saved after
   the last post succeeded (`Delivery.kt`). The one exception: a batch refused for good (413 or
   422) three syncs in a row is skipped, and the screen says how many posts were lost.
-- Keep `Payload.kt`, `Delivery.kt`, `Reads.kt` and `Week.kt` free of Android imports so they stay
+- Keep `Payload.kt`, `Delivery.kt`, `Reads.kt`, `Runs.kt` and `Week.kt` free of Android imports so they stay
   unit-tested on the JVM.
 - New dependencies need a reason in the PR description, as everywhere in the repo.

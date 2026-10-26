@@ -23,12 +23,19 @@ object Sync {
         val store = Store(context)
         val before = store.sentAt
         val said = withContext(Dispatchers.IO) { runLocked(context) }
-        val result = if (background) "In the background, ${stamp()}: $said" else said
-        store.lastResult = result
-        // One that sent nothing (the quota, no network) waits for the screen's next opening, even
-        // if a later sync's result has replaced it by then.
-        if (background && store.sentAt == before) store.backgroundProblem = result
-        result
+        keep(store, afterRun(said, background, before, store.sentAt, stamp()))
+    }
+
+    /** A background run that failed outright: its error waits for the screen like any other. */
+    fun backgroundFailed(context: Context, error: Exception) {
+        val said = "Failed: ${error.message ?: error.javaClass.simpleName}"
+        keep(Store(context), afterRun(said, background = true, sentBefore = 0, sentAfter = 0, stamp = stamp()))
+    }
+
+    private fun keep(store: Store, kept: Kept): String {
+        store.lastResult = kept.result
+        kept.problem?.let { store.backgroundProblem = it }
+        return kept.result
     }
 
     private fun stamp(): String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEE HH:mm", Locale.ENGLISH))

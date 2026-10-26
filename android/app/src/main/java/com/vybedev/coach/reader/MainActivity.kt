@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,8 +57,11 @@ private fun ReaderScreen() {
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf(store.lastResult) }
     var week by remember { mutableStateOf("") }
-    // A background sync that sent nothing, shown once.
-    val problem = remember { store.takeBackgroundProblem() }
+    // A background sync that sent nothing: loaded once, kept across recreation (rotation, dark
+    // mode), and cleared from the store only once it is on screen.
+    var problem by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { if (problem == null) problem = store.backgroundProblem }
+    LaunchedEffect(problem) { if (!problem.isNullOrEmpty()) store.backgroundProblem = "" }
     val available = remember { HealthReader.available(context) }
     // The background read permission is asked for only where Health Connect supports it.
     val background = remember { available && Background.supported(context) }
@@ -171,8 +175,8 @@ private fun ReaderScreen() {
             )
         }
         Text(result, style = MaterialTheme.typography.bodyMedium)
-        if (problem.isNotEmpty() && problem != result) {
-            Text("Since you last looked: $problem", style = MaterialTheme.typography.bodyMedium)
+        problem?.takeIf { it.isNotEmpty() && it != result }?.let {
+            Text("Since you last looked: $it", style = MaterialTheme.typography.bodyMedium)
         }
         // Four reads, so only when tapped (spec "One screen").
         OutlinedButton(enabled = !busy && missing.isEmpty() && granted != null, onClick = {

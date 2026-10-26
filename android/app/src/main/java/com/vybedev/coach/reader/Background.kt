@@ -11,6 +11,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -50,7 +51,19 @@ object Background {
 /** One background sync, under the same lock as Sync now. */
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        Sync.run(applicationContext, background = true)
+        val context = applicationContext
+        // Permissions revoked or the secret gone since the screen last scheduled this: no run,
+        // no reads spent, nothing noted (Runs.kt).
+        val granted = runCatching { HealthReader(context).granted() }.getOrDefault(emptySet())
+        val needs = HealthReader.PERMISSIONS + Background.PERMISSION
+        if (!mayRunInBackground(Store(context).secret() != null, granted, needs)) return Result.success()
+        try {
+            Sync.run(context, background = true)
+        } catch (e: CancellationException) {
+            throw e // WorkManager stopped it; the next run tries again
+        } catch (e: Exception) {
+            Sync.backgroundFailed(context, e)
+        }
         // Its outcome is on the screen; a failed one is sent again with the next run, not retried
         // at once, so a quota error doesn't spend more quota.
         return Result.success()
