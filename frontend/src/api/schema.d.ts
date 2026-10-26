@@ -2161,6 +2161,8 @@ export interface components {
         };
         /** EarnedView */
         EarnedView: {
+            /** At Top */
+            at_top: boolean;
             /** Best Set */
             best_set: number | null;
             /** Exercise */
@@ -2176,6 +2178,8 @@ export interface components {
              * @enum {string}
              */
             unit: "reps" | "seconds" | "minutes";
+            /** Unlock */
+            unlock: string | null;
         };
         /**
          * Energy

@@ -70,6 +70,8 @@ const SAVED: Saved = {
       best_set: 7,
       total: 13,
       next_step: null,
+      at_top: false,
+      unlock: null,
     },
   ],
   stretching: true,
@@ -839,6 +841,33 @@ test('an untimed save says nothing about time', async () => {
   click('Save session')
   expect(await screen.findByRole('heading', { name: 'Legs done' })).toBeInTheDocument()
   expect(screen.queryByText(/^Took /)).not.toBeInTheDocument()
+})
+
+test.each([
+  [
+    'an 8 kg kettlebell unlocks Holding 8 kg',
+    /top of the range on the last level your kit allows\. An 8 kg kettlebell unlocks Holding 8 kg\./,
+  ],
+  [null, /top of the range on the last level of its ladder\./],
+])('the rule met with no level to move to says so (unlock %s)', async (unlock, text) => {
+  const progress: Kept = {
+    template_id: 3,
+    position: 3,
+    first: [],
+    sets: [],
+    saved: false,
+    revision: 1,
+  }
+  const earned = { ...SAVED.earned[0], best_set: null, total: null, at_top: true, unlock }
+  serve({ today: { session: SESSION, progress }, save: { ...SAVED, earned: [earned] } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Save session')
+  expect(await screen.findByText(text)).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: /ready to move up/ })).not.toBeInTheDocument()
+  const kit = screen.queryByRole('link', { name: 'My equipment' })
+  expect(kit === null).toBe(unlock === null)
+  if (kit) expect(kit).toHaveAttribute('href', '/account#my-equipment')
 })
 
 test('the mobility item plays its flow and logs the minutes moved as its set', async () => {

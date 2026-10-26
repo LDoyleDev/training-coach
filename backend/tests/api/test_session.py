@@ -539,3 +539,39 @@ def test_an_exercise_of_qualities_only_works_no_muscles(
     nordic = items["reverse-nordic"]
     assert [m["muscle"] for m in nordic["muscles"]] == ["quads"]
     assert nordic["parts"] == ["rectus femoris"]
+
+
+def _put_on_step(engine: Engine, slug: str, position: int) -> None:
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
+        exercise = bound.scalars(select(Exercise).where(Exercise.slug == slug)).one()
+        state = users.exercise_state(bound, exercise.id)
+        assert state is not None
+        state.ladder_step_id = exercise.ladder[position].id
+
+
+@pytest.mark.parametrize(
+    ("position", "kit", "unlock"),
+    [
+        (1, [], "an 8 kg kettlebell unlocks Holding 8 kg"),  # top for the kit (ADR-0071)
+        (2, None, None),  # the last step of the ladder
+    ],
+)
+def test_the_saved_screen_says_when_there_is_no_step_to_move_to(
+    signed_in: TestClient,
+    engine: Engine,
+    position: int,
+    kit: list[dict[str, Any]] | None,
+    unlock: str | None,
+) -> None:
+    """ADR-0078: the rule met with nowhere to move says so, and what would open the next step."""
+    _put_on_step(engine, "jump-squat", position)
+    if kit is not None:
+        assert signed_in.put("/api/equipment", json={"items": kit}).status_code == 200
+    _log_yesterday(engine, {"jump-squat": 8})  # 3 sets at the top of 5-8
+    session = _today_view(signed_in)["session"]
+    sets = [{"item": 0, "set_no": n, "left": 8} for n in (1, 2, 3)]
+    body = {"template_id": session["template_id"], "position": 6, "sets": sets}
+    assert signed_in.put("/api/session/progress", json=body).status_code == 200
+    (earned,) = signed_in.post("/api/session/save", json={}).json()["earned"]
+    assert (earned["exercise"], earned["next_step"]) == ("Jump squat", None)
+    assert (earned["at_top"], earned["unlock"]) == (True, unlock)

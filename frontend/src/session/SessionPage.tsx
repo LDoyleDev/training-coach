@@ -53,6 +53,7 @@ import { duration, soFar, times, type SetTime } from './times'
 import useWakeLock from './useWakeLock'
 import { DEFAULT_SOUND, type Sound, playChange, unlockAudio } from '../hiit/sounds'
 import { card, primary, primaryInline, secondary } from '../ui'
+import { KIT_HREF } from '../account/kit'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
 
@@ -741,6 +742,7 @@ export default function SessionPage() {
                       </a>
                     </>
                   )}
+                  {e.at_top && <TopNote unlock={e.unlock} />}
                 </li>
               ))}
             </ul>
@@ -764,6 +766,22 @@ export default function SessionPage() {
         </section>
       )}
     </AppShell>
+  )
+}
+
+/** The ready rule met with no level to move to (ADR-0078): says so, and when the kit is what's
+ * missing, what would open the next level (ADR-0071). The person decides; nothing moves. */
+function TopNote({ unlock }: { unlock: string | null }) {
+  if (!unlock) return <> · top of the range on the last level of its ladder.</>
+  return (
+    <>
+      {' '}
+      · top of the range on the last level your kit allows.{' '}
+      {unlock[0].toUpperCase() + unlock.slice(1)}.{' '}
+      <a href={KIT_HREF} className="font-bold underline">
+        My equipment
+      </a>
+    </>
   )
 }
 
