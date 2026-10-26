@@ -850,6 +850,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/equipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Equipment
+         * @description The kit as listed; ``listed`` is false until it has been saved once.
+         */
+        get: operations["get_equipment_api_equipment_get"];
+        /**
+         * Put Equipment
+         * @description Replace the whole kit. An empty list is a kit too: bodyweight only, so every step that
+         *     needs kit locks. Refused whole, with the reason, if any item doesn't fit.
+         */
+        put: operations["put_equipment_api_equipment_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/equipment/unlocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Unlocks
+         * @description What adding one item would open, against the kit as listed: ``kettlebell:16``,
+         *     ``dumbbells:12``, ``dumbbells:2-24``, ``backpack:10``, ``band:light``, ``pull-up bar``.
+         */
+        get: operations["get_unlocks_api_equipment_unlocks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/habits": {
         parameters: {
             query?: never;
@@ -2136,6 +2182,22 @@ export interface components {
          * @enum {string}
          */
         Energy: "high" | "normal" | "low";
+        /** EquipmentBody */
+        EquipmentBody: {
+            /** Items */
+            items: components["schemas"]["KitItemBody"][];
+        };
+        /** EquipmentView */
+        EquipmentView: {
+            /** Items */
+            items: components["schemas"]["KitItemView"][];
+            /** Kinds */
+            kinds: components["schemas"]["KitKindView"][];
+            /** Listed */
+            listed: boolean;
+            /** Saved At */
+            saved_at: string | null;
+        };
         /** EraseRequest */
         EraseRequest: {
             /**
@@ -2504,6 +2566,69 @@ export interface components {
             /** Unit */
             unit: string;
         };
+        /**
+         * Kit
+         * @description Equipment a ladder step needs. Household things (a chair, a bed, a wall, a towel, water
+         *     bottles, a stair) need nothing. A kettlebell names its weight: ``kettlebell:16``; dumbbells
+         *     and a weighted vest or backpack may name the load a step needs: ``dumbbells:12``,
+         *     ``backpack:10``; a band may name its strength: ``band:medium`` (ADR-0071).
+         * @enum {string}
+         */
+        Kit: "kettlebell" | "dumbbells" | "pull-up bar" | "dip bars" | "bench" | "band" | "backpack" | "rings" | "mat" | "ab wheel" | "box";
+        /** KitItemBody */
+        KitItemBody: {
+            /** Kg */
+            kg?: number | null;
+            kit: components["schemas"]["Kit"];
+            /** Min Kg */
+            min_kg?: number | null;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            resistance?: components["schemas"]["Resistance"] | null;
+        };
+        /** KitItemView */
+        KitItemView: {
+            /** Kg */
+            kg?: number | null;
+            kit: components["schemas"]["Kit"];
+            /** Label */
+            label: string;
+            /** Min Kg */
+            min_kg?: number | null;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            resistance?: components["schemas"]["Resistance"] | null;
+        };
+        /** KitKindView */
+        KitKindView: {
+            kit: components["schemas"]["Kit"];
+            /** Name */
+            name: string;
+        };
+        /** KitUnlockedView */
+        KitUnlockedView: {
+            /** Exercise */
+            exercise: string;
+            /** Slug */
+            slug: string;
+            /** Step */
+            step: string;
+        };
+        /** KitUnlocksView */
+        KitUnlocksView: {
+            /** Item */
+            item: string;
+            /** Steps */
+            steps: components["schemas"]["KitUnlockedView"][];
+            /** Summary */
+            summary: string;
+        };
         /** LadderView */
         LadderView: {
             /** Bests */
@@ -2746,6 +2871,8 @@ export interface components {
             outcome: "moved" | "already_moved" | "not_ready" | "no_next_step" | "strength_block" | "stayed" | "level_set" | "same_level";
             /** Step */
             step: string | null;
+            /** Warning */
+            warning: string | null;
         };
         /** MuscleView */
         MuscleView: {
@@ -3099,6 +3226,12 @@ export interface components {
          * @enum {string}
          */
         Refusal: "too_large" | "not_json" | "failed" | "skipped";
+        /**
+         * Resistance
+         * @description A resistance band's strength.
+         * @enum {string}
+         */
+        Resistance: "light" | "medium" | "heavy";
         /** ResourceMetadata */
         ResourceMetadata: {
             /** Authorization Servers */
@@ -3214,6 +3347,8 @@ export interface components {
             cue: string | null;
             /** Id */
             id: number;
+            /** Missing */
+            missing: string[];
             /** Name */
             name: string;
         };
@@ -3468,9 +3603,13 @@ export interface components {
              * @enum {string}
              */
             unit: "reps" | "seconds" | "minutes";
+            /** Unlock */
+            unlock: string | null;
         };
         /** StandingsView */
         StandingsView: {
+            /** Kit Listed */
+            kit_listed: boolean;
             /** Standings */
             standings: components["schemas"]["StandingView"][];
             /** Strength Block */
@@ -5021,6 +5160,90 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DayView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_equipment_api_equipment_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentView"];
+                };
+            };
+        };
+    };
+    put_equipment_api_equipment_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipmentBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_unlocks_api_equipment_unlocks_get: {
+        parameters: {
+            query: {
+                add: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KitUnlocksView"];
                 };
             };
             /** @description Validation Error */

@@ -19,7 +19,9 @@
 # counts for each (1 prime mover, 0.5 synergist, 0.25 a small part; a stabiliser is left out),
 # from docs/specs/program-builder-research.md; `qualities` that aren't muscles; its `pattern`;
 # the `stress` it shares with other exercises (spine, grip); and under `[exercises.needs]`, the
-# kit each ladder step needs ("kettlebell:16"). Bodyweight and household things need nothing.
+# kit each ladder step needs ("kettlebell:16", "backpack:10", "band:medium": that band or a
+# stronger one). Bodyweight and household things need nothing. `[exercises.cues]` gives a step
+# its cue, shown with the ladder; the seed rewrites cues on every run (ADR-0071).
 
 # Weekly targets the review reports against (#124). Zone 2: 180-200 minutes a week, built up
 # over time (Huberman Lab newsletter, "Foundational Fitness Protocol", Nov 2022).
@@ -161,11 +163,18 @@ pattern = "hinge"
 stress = ["spine", "grip"]
 aliases = ["swings", "swing", "kb swings"]
 start = 0
-ladder = ["Two-hand, 8 kg", "One-arm, 8 kg", "Heavier kettlebell"]
+ladder = ["Two-hand, 8 kg", "One-arm, 8 kg", "Two-hand, 16 kg", "One-arm, 16 kg", "Two-hand, 24 kg"]
+renames = { "Heavier kettlebell" = "Two-hand, 16 kg" }
 [exercises.needs]
 "Two-hand, 8 kg" = ["kettlebell:8"]
 "One-arm, 8 kg" = ["kettlebell:8"]
-"Heavier kettlebell" = ["kettlebell:16"]
+"Two-hand, 16 kg" = ["kettlebell:16"]
+"One-arm, 16 kg" = ["kettlebell:16"]
+"Two-hand, 24 kg" = ["kettlebell:24"]
+[exercises.cues]
+"Two-hand, 16 kg" = "Same snap from the hips; the heavier bell floats lower, chest height is not the goal."
+"One-arm, 16 kg" = "Free hand out to the side; don't let the bell twist your shoulders."
+"Two-hand, 24 kg" = "Hike it deep between the legs before each rep."
 
 [[exercises]]
 slug = "bulgarian-split-squat"
@@ -177,11 +186,18 @@ pattern = "lunge"
 stress = ["spine"]
 aliases = ["split squat", "bulgarian", "bss"]
 start = 0
-ladder = ["Bodyweight, back foot on chair", "Goblet hold, 8 kg", "Goblet hold, 3 s lowering", "Heavier kettlebell"]
+ladder = ["Bodyweight, back foot on chair", "Goblet hold, 8 kg", "Goblet hold, 3 s lowering", "Goblet hold, 16 kg", "Goblet hold 16 kg, 3 s lowering", "Suitcase hold, 16 kg + 8 kg"]
+renames = { "Heavier kettlebell" = "Goblet hold, 16 kg" }
 [exercises.needs]
 "Goblet hold, 8 kg" = ["kettlebell:8"]
 "Goblet hold, 3 s lowering" = ["kettlebell:8"]
-"Heavier kettlebell" = ["kettlebell:16"]
+"Goblet hold, 16 kg" = ["kettlebell:16"]
+"Goblet hold 16 kg, 3 s lowering" = ["kettlebell:16"]
+"Suitcase hold, 16 kg + 8 kg" = ["kettlebell:8", "kettlebell:16"]
+[exercises.cues]
+"Goblet hold, 16 kg" = "Bell at the chest, elbows in; lower straight down."
+"Goblet hold 16 kg, 3 s lowering" = "Three seconds down, drive up."
+"Suitcase hold, 16 kg + 8 kg" = "A bell in each hand, heavier on the side of the front leg; swap each set."
 
 [[exercises]]
 slug = "pistol-squat"
@@ -207,11 +223,16 @@ pattern = "hinge"
 stress = ["spine"]
 aliases = ["rdl", "single leg rdl", "romanian deadlift"]
 start = 0
-ladder = ["8 kg", "8 kg, pause at bottom", "Heavier kettlebell"]
+ladder = ["8 kg", "8 kg, pause at bottom", "16 kg", "16 kg, pause at bottom"]
+renames = { "Heavier kettlebell" = "16 kg" }
 [exercises.needs]
 "8 kg" = ["kettlebell:8"]
 "8 kg, pause at bottom" = ["kettlebell:8"]
-"Heavier kettlebell" = ["kettlebell:16"]
+"16 kg" = ["kettlebell:16"]
+"16 kg, pause at bottom" = ["kettlebell:16"]
+[exercises.cues]
+"16 kg" = "Bell in the hand opposite the standing leg; hips square to the floor."
+"16 kg, pause at bottom" = "One second at the stretch, back flat."
 
 [[exercises]]
 slug = "hamstring-curl"
@@ -250,12 +271,19 @@ pattern = "vertical pull"
 stress = ["grip"]
 aliases = ["pullups", "pull ups", "pull-ups"]
 start = 1
-ladder = ["Slow negatives", "Strict pull-up", "Pause at top", "Weighted backpack"]
+ladder = ["Slow negatives", "Strict pull-up", "Pause at top", "Vest or backpack, 5 kg", "Vest or backpack, 10 kg", "Vest or backpack, 15 kg"]
+renames = { "Weighted backpack" = "Vest or backpack, 5 kg" }
 [exercises.needs]
 "Slow negatives" = ["pull-up bar"]
 "Strict pull-up" = ["pull-up bar"]
 "Pause at top" = ["pull-up bar"]
-"Weighted backpack" = ["pull-up bar", "backpack"]
+"Vest or backpack, 5 kg" = ["pull-up bar", "backpack:5"]
+"Vest or backpack, 10 kg" = ["pull-up bar", "backpack:10"]
+"Vest or backpack, 15 kg" = ["pull-up bar", "backpack:15"]
+[exercises.cues]
+"Vest or backpack, 5 kg" = "Pack it tight and high so it doesn't swing."
+"Vest or backpack, 10 kg" = "Same reps, chest to the bar."
+"Vest or backpack, 15 kg" = "Add load only when every set of 5-12 is clean."
 
 [[exercises]]
 slug = "dip"
@@ -266,9 +294,16 @@ muscles = { chest = 1, triceps = 0.5, "front delts" = 0.5 }
 pattern = "vertical push"
 aliases = ["dips"]
 start = 0
-ladder = ["Feet on floor", "Feet off floor", "Weighted backpack"]
+ladder = ["Feet on floor", "Feet off floor", "Feet off floor, 5 kg vest or backpack", "Feet off floor, 10 kg", "Dip bars, bodyweight, full range"]
+renames = { "Weighted backpack" = "Feet off floor, 5 kg vest or backpack" }
 [exercises.needs]
-"Weighted backpack" = ["backpack"]
+"Feet off floor, 5 kg vest or backpack" = ["backpack:5"]
+"Feet off floor, 10 kg" = ["backpack:10"]
+"Dip bars, bodyweight, full range" = ["dip bars"]
+[exercises.cues]
+"Feet off floor, 5 kg vest or backpack" = "Chairs back to back and braced against a wall; stop if they rock."
+"Feet off floor, 10 kg" = "Shoulders down, lower to upper arms level with the floor."
+"Dip bars, bodyweight, full range" = "Lean slightly forward; elbows back."
 
 [[exercises]]
 slug = "kb-row"
@@ -279,11 +314,18 @@ muscles = { "upper back" = 1, lats = 1, biceps = 0.5, "rear delts" = 0.5 }
 pattern = "horizontal pull"
 aliases = ["row", "rows", "kb row"]
 start = 0
-ladder = ["8 kg", "8 kg, 3 s lowering", "Heavier kettlebell"]
+ladder = ["8 kg", "8 kg, 3 s lowering", "16 kg", "16 kg, 3 s lowering", "16 kg, pause at top"]
+renames = { "Heavier kettlebell" = "16 kg" }
 [exercises.needs]
 "8 kg" = ["kettlebell:8"]
 "8 kg, 3 s lowering" = ["kettlebell:8"]
-"Heavier kettlebell" = ["kettlebell:16"]
+"16 kg" = ["kettlebell:16"]
+"16 kg, 3 s lowering" = ["kettlebell:16"]
+"16 kg, pause at top" = ["kettlebell:16"]
+[exercises.cues]
+"16 kg" = "Hand and knee on the stools; check they're stable before loading."
+"16 kg, 3 s lowering" = "Pull to the hip, three seconds down."
+"16 kg, pause at top" = "Hold one second with the elbow past the ribs."
 
 [[exercises]]
 slug = "push-up"
@@ -332,11 +374,16 @@ qualities = ["posture"]
 pattern = "isolation"
 aliases = ["face pull", "face pulls", "facepull"]
 start = 0
-ladder = ["Light band", "Light band, 2 s hold", "Heavier band"]
+ladder = ["Light band", "Light band, 2 s hold", "Medium band", "Heavy band"]
+renames = { "Heavier band" = "Medium band" }
 [exercises.needs]
-"Light band" = ["band", "pull-up bar"]
-"Light band, 2 s hold" = ["band", "pull-up bar"]
-"Heavier band" = ["band", "pull-up bar"]
+"Light band" = ["band:light", "pull-up bar"]
+"Light band, 2 s hold" = ["band:light", "pull-up bar"]
+"Medium band" = ["band:medium", "pull-up bar"]
+"Heavy band" = ["band:heavy", "pull-up bar"]
+[exercises.cues]
+"Medium band" = "Step back until taut; hands finish beside the ears."
+"Heavy band" = "Same height and pace; don't lean back to cheat it."
 
 [[exercises]]
 slug = "suitcase-carry"
@@ -389,11 +436,18 @@ pattern = "vertical pull"
 stress = ["grip"]
 aliases = ["chinups", "chin ups", "chin-ups"]
 start = 0
-ladder = ["Strict", "3 s lowering", "Weighted backpack"]
+ladder = ["Strict", "3 s lowering", "Vest or backpack, 5 kg", "Vest or backpack, 10 kg", "Vest or backpack, 15 kg"]
+renames = { "Weighted backpack" = "Vest or backpack, 5 kg" }
 [exercises.needs]
 "Strict" = ["pull-up bar"]
 "3 s lowering" = ["pull-up bar"]
-"Weighted backpack" = ["pull-up bar", "backpack"]
+"Vest or backpack, 5 kg" = ["pull-up bar", "backpack:5"]
+"Vest or backpack, 10 kg" = ["pull-up bar", "backpack:10"]
+"Vest or backpack, 15 kg" = ["pull-up bar", "backpack:15"]
+[exercises.cues]
+"Vest or backpack, 5 kg" = "Pack it tight and high so it doesn't swing."
+"Vest or backpack, 10 kg" = "Same reps, chest to the bar."
+"Vest or backpack, 15 kg" = "Add load only when every set of 6-12 is clean."
 
 [[exercises]]
 slug = "diamond-push-up"
@@ -416,11 +470,18 @@ parts = ["triceps long head"]
 pattern = "isolation"
 aliases = ["overhead extension", "overhead extensions", "triceps extension", "triceps extensions", "overhead triceps"]
 start = 0
-ladder = ["8 kg, both hands", "8 kg, 3 s lowering", "Heavier kettlebell"]
+ladder = ["8 kg, both hands", "8 kg, 3 s lowering", "8 kg, 1.5 reps", "16 kg, both hands", "16 kg, 3 s lowering"]
+renames = { "Heavier kettlebell" = "8 kg, 1.5 reps" }
 [exercises.needs]
 "8 kg, both hands" = ["kettlebell:8"]
 "8 kg, 3 s lowering" = ["kettlebell:8"]
-"Heavier kettlebell" = ["kettlebell:16"]
+"8 kg, 1.5 reps" = ["kettlebell:8"]
+"16 kg, both hands" = ["kettlebell:16"]
+"16 kg, 3 s lowering" = ["kettlebell:16"]
+[exercises.cues]
+"8 kg, 1.5 reps" = "Lower all the way, press halfway, lower again, then press to the top: that's one rep."
+"16 kg, both hands" = "Elbows in; lower only as far as your shoulders allow."
+"16 kg, 3 s lowering" = "Three seconds down behind the head, then press up in one."
 
 [[exercises]]
 slug = "kb-curl"
@@ -431,11 +492,18 @@ muscles = { biceps = 1, forearms = 0.25 }
 pattern = "isolation"
 aliases = ["curls", "curl", "bicep curls"]
 start = 0
-ladder = ["8 kg", "8 kg, slow tempo", "Heavier kettlebell"]
+ladder = ["8 kg", "8 kg, slow tempo", "8 kg, 3 s lowering, pause at top", "16 kg, hammer grip", "16 kg, slow tempo"]
+renames = { "Heavier kettlebell" = "8 kg, 3 s lowering, pause at top" }
 [exercises.needs]
 "8 kg" = ["kettlebell:8"]
 "8 kg, slow tempo" = ["kettlebell:8"]
-"Heavier kettlebell" = ["kettlebell:16"]
+"8 kg, 3 s lowering, pause at top" = ["kettlebell:8"]
+"16 kg, hammer grip" = ["kettlebell:16"]
+"16 kg, slow tempo" = ["kettlebell:16"]
+[exercises.cues]
+"8 kg, 3 s lowering, pause at top" = "Squeeze for one second at the top, then take three seconds down."
+"16 kg, hammer grip" = "Hold the handle upright; elbows stay pinned to your sides."
+"16 kg, slow tempo" = "Two seconds up, three down; no swinging."
 
 [[exercises]]
 slug = "lateral-raise"

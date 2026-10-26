@@ -266,6 +266,11 @@ def feedback_text(items: list[Feedback]) -> str:
                 f"{item.exercise}: top of the range two sessions running. "
                 f"Ready to move up to {item.next_step}?"
             )
+        elif item.note_top and item.unlock:
+            lines.append(
+                f"{item.exercise}: top of the range on the last step your kit allows. "
+                f"{item.unlock[0].upper()}{item.unlock[1:]}."
+            )
         elif item.note_top:
             lines.append(
                 f"{item.exercise}: top of the range on the last step in your plan. Add a harder "
@@ -299,7 +304,7 @@ def progress_text(standings: list[Standing]) -> str:
         if s.status is Progress.READY:
             line += ". Ready to move up"
         elif s.status is Progress.TOP_OF_LADDER:
-            line += ". Top of the ladder"
+            line += ". Top for your kit" if s.unlock else ". Top of the ladder"
         lines.append(line)
     return "\n".join(_fit(lines, []))
 

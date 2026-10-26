@@ -249,6 +249,16 @@ def test_feedback_text_units_and_cases() -> None:
     assert "last step in your plan" in feedback_text([top])
     quiet = _feedback(exercise="Dip", status=Progress.TOP_OF_LADDER, note_top=False)
     assert feedback_text([quiet]) == ""
+    kit = _feedback(
+        exercise="Swing",
+        status=Progress.TOP_OF_LADDER,
+        note_top=True,
+        unlock="a 16 kg kettlebell unlocks Two-hand, 16 kg",
+    )
+    assert feedback_text([kit]) == (
+        "Swing: top of the range on the last step your kit allows. "
+        "A 16 kg kettlebell unlocks Two-hand, 16 kg."
+    )
 
 
 async def test_a_feedback_bug_never_undoes_the_save(
@@ -295,9 +305,9 @@ async def test_progress_shows_each_exercise_and_offers_move_up(
     (reply,) = texts(calls)
     assert reply.startswith("Progress: current step, last session, best set at this step")
     assert (
-        "- Pull-up: Strict pull-up (2/4), last 12 / 12 / 12 / 12, best 12 reps. Ready to move up"
+        "- Pull-up: Strict pull-up (2/6), last 12 / 12 / 12 / 12, best 12 reps. Ready to move up"
     ) in reply
-    assert "- Dip (chairs): Feet on floor (1/3), not logged at this step yet" in reply
+    assert "- Dip (chairs): Feet on floor (1/5), not logged at this step yet" in reply
     exercise_id, step_id = _pull_up(seeded)
     assert button_data(calls["sendMessage"][0]) == [
         f"p:up:{exercise_id}:{step_id}",
@@ -330,6 +340,8 @@ def test_progress_text_units_and_limits() -> None:
     text = progress_text([_standing(), _standing(status=Progress.TOP_OF_LADDER)])
     assert "- Plank: Front plank (1/3), last 45s / 40s, best 60s" in text
     assert text.endswith("Top of the ladder")
+    kit = progress_text([_standing(status=Progress.TOP_OF_LADDER, unlock="a mat unlocks X")])
+    assert kit.endswith("Top for your kit")  # ADR-0071
     long = progress_text([_standing(exercise="X" * 120, step="Y" * 120)] * 40)
     assert len(long) <= 4096
     assert "more not shown" in long

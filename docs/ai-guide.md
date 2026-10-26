@@ -1,6 +1,6 @@
 # Training Coach: a guide for AI assistants
 
-Guide version: 2
+Guide version: 3
 
 You've been given a summary from **Training Coach**, a personal training app, by the person
 whose training it is. This page explains what the numbers mean and how to help. It contains no
@@ -33,12 +33,18 @@ personal data; the summary does.
 - **Moving up.** An exercise is "ready to move up" when every planned set reached the top of the
   range in each of the last two sessions at that step; one-sided exercises count the weaker
   side. The person decides; "top of the ladder" means there's no harder step yet.
+- **Home kit.** Each step may need kit (a 16 kg kettlebell, a pull-up bar). Once the person
+  lists their home kit, a step it doesn't allow is locked: moving up skips to the next step
+  they can do, and "top for my kit" names what would unlock the next one. Before a kit is
+  listed nothing is locked. A gym has everything.
 - **Blocks (optional).** With blocks on, 4-week strength blocks (one step harder, 4-8 reps, 3-4
   sets) alternate with 4-week hypertrophy blocks (the plan's ranges). A session's block is shown
   after its status. Strength and hypertrophy numbers aren't compared with each other.
 
 ## Reading the summary
 
+- **My home kit:** each item, with its weight where it has one; "not listed yet" means no step
+  is locked.
 - **Exercises:** current step, the last session there (one value per set, separated by " / "),
   the best set at this step, and whether it's ready to move up.
 - **Sessions, newest first:** date, session, and `done`, `rest` or `skipped`. Sets per exercise

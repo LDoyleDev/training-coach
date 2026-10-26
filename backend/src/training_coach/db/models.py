@@ -14,6 +14,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
+    Float,
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
@@ -37,8 +38,10 @@ from training_coach.domain.daily_check import Energy, Sleep, Soreness
 from training_coach.domain.enums import CardioActivity, ExerciseKind, Side, Sound, WorkoutStatus
 from training_coach.domain.fitness_tests import TimeOfDay
 from training_coach.domain.habits import Habit
+from training_coach.domain.kit import Resistance
 from training_coach.domain.measurements import BodyFatEstimate
 from training_coach.domain.measurements import Kind as MeasurementKind
+from training_coach.domain.muscles import Kit
 from training_coach.domain.photos import Pose
 from training_coach.domain.targets import Pace
 
@@ -286,6 +289,8 @@ class UserSettings(Owned, Base):
     pace: Mapped[str] = mapped_column(String(16), server_default=Pace.STANDARD.value)
     # What every guided timer plays at each change (ADR-0062, ADR-0074).
     sound: Mapped[str] = mapped_column(String(16), server_default=Sound.RING.value)
+    # When the home kit was last saved (ADR-0071). Empty: no kit listed yet, so no step locks.
+    kit_saved_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     # Body measurements (ADR-0076): height for the tape estimate, where the thigh is taken, and
     # whether the body-fat estimate is worked out at all (off unless the person turns it on).
     height_cm: Mapped[int | None] = mapped_column(Integer)
@@ -294,6 +299,31 @@ class UserSettings(Owned, Base):
         String(16), server_default=BodyFatEstimate.OFF.value
     )
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
+
+
+class Equipment(Owned, Base):
+    """One item of a person's home kit (ADR-0071), with a weight where it has one: a
+    kettlebell's, a dumbbell pair's (an adjustable set's range is ``min_kg`` to ``kg``), how far
+    a weighted vest or backpack loads. ``domain.kit`` checks a whole list before it is saved."""
+
+    __tablename__ = "equipment"
+    __table_args__ = (
+        CheckConstraint(_in("kit", Kit), name="kit_valid"),
+        CheckConstraint(
+            "resistance IS NULL OR " + _in("resistance", Resistance), name="resistance_valid"
+        ),
+        CheckConstraint("kg IS NULL OR (kg > 0 AND kg <= 100)", name="kg_range"),
+        CheckConstraint("min_kg IS NULL OR (min_kg > 0 AND min_kg < kg)", name="min_kg_range"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    kit: Mapped[str] = mapped_column(String(32))
+    kg: Mapped[float | None] = mapped_column(Float)
+    min_kg: Mapped[float | None] = mapped_column(Float)
+    resistance: Mapped[str | None] = mapped_column(String(8))
+    note: Mapped[str] = mapped_column(String(40), server_default="")
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
 # ------------------------------------------------------------------------ logs
@@ -1007,6 +1037,7 @@ class Event(Owned, Base):
 __all__ = [
     "AiConnection",
     "Base",
+    "Equipment",
     "Event",
     "Exercise",
     "ExerciseState",

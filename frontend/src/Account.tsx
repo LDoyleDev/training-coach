@@ -4,6 +4,7 @@ import AiComments from './account/AiComments'
 import BandImport from './account/BandImport'
 import BodySettings from './account/BodySettings'
 import HeartRateZones from './account/HeartRateZones'
+import MyEquipment from './account/MyEquipment'
 import CopyForAI from './account/CopyForAI'
 import Settings from './account/Settings'
 import Toast from './components/Toast'
@@ -159,6 +160,8 @@ export default function Account() {
           <Toast text={note} onClose={() => setNote(null)} />
 
           <Settings />
+
+          <MyEquipment />
 
           <section aria-labelledby="passkeys" className={card}>
             <h2 id="passkeys" className="mb-2 text-xl">

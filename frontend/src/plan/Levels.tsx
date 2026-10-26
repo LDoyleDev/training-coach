@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchProgress, moveOnLadder, SignedOutError, type LadderMove, type Standing } from '../api'
 import { amount } from '../progress/logic'
 import { actions, card, primaryInline, secondary } from '../ui'
-import { WAITS, confirmText, nextRung, said, wanted } from './ladder'
+import { KIT_HREF } from '../account/kit'
+import { WAITS, confirmText, needs, nextRung, said, topLabel, wanted } from './ladder'
 
 type Loaded =
   | { status: 'loading' }
   | { status: 'hidden' } // signed out: the plan below says to sign in
   | { status: 'error' }
-  | { status: 'ready'; standings: Standing[]; strength: boolean }
+  | { status: 'ready'; standings: Standing[]; strength: boolean; kitListed: boolean }
 
 /** Your level on each exercise's ladder (ADR-0075): Move up / Not yet when ready, as the bot's
  * prompt, and Change level to choose any step, up or down. `?move=<slug>` opens that one. */
@@ -28,6 +29,7 @@ export default function Levels() {
                   status: 'ready',
                   standings: found.standings.filter((s) => !s.retired),
                   strength: found.strength_block,
+                  kitListed: found.kit_listed,
                 },
           ),
         )
@@ -63,6 +65,15 @@ export default function Levels() {
       {loaded.status === 'error' && (
         <p className="status status-error" role="alert">
           Couldn't load your levels. Check your connection, then reload the page.
+        </p>
+      )}
+      {loaded.status === 'ready' && !loaded.kitListed && (
+        <p className="m-0">
+          No kit listed, so no step is locked.{' '}
+          <a href={KIT_HREF} className="font-bold underline">
+            List your kit in My equipment
+          </a>{' '}
+          to see which steps it allows.
         </p>
       )}
       {loaded.status === 'ready' && (
@@ -167,7 +178,9 @@ function Panel({
     }
   }
 
-  const pickedName = s.ladder.find((r) => r.id === picked)?.name ?? s.step
+  const pickedRung = s.ladder.find((r) => r.id === picked)
+  const pickedName = pickedRung?.name ?? s.step
+  const pickedNeeds = pickedRung ? needs(pickedRung) : null
   return (
     <li id={`move-${s.slug}`} className={card + ' flex scroll-mt-4 flex-col gap-3'}>
       <button
@@ -183,7 +196,7 @@ function Panel({
             Step {s.step_number} of {s.steps}: {s.step}
           </span>
           {ready && <span className="text-[var(--bell-ink)]">Ready to move up</span>}
-          {s.status === 'top_of_ladder' && <span>Top of the ladder</span>}
+          {topLabel(s) && <span>{topLabel(s)}</span>}
         </span>
         <span aria-hidden="true" className="shrink-0 text-2xl">
           {open ? '−' : '+'}
@@ -195,6 +208,7 @@ function Panel({
           <ol className="m-0 flex list-decimal flex-col gap-1 pl-6">
             {s.ladder.map((r) => {
               const now = r.id === s.step_id
+              const locked = needs(r)
               return (
                 <li
                   key={r.id}
@@ -203,6 +217,9 @@ function Panel({
                 >
                   {r.name}
                   {now && ' (now)'}
+                  {locked && (
+                    <span className="font-normal text-[var(--slate)]"> · Locked: {locked}</span>
+                  )}
                 </li>
               )
             })}
@@ -217,6 +234,13 @@ function Panel({
             <p className="m-0">
               Next: <span className="font-bold">{upcoming.name}</span>
               {upcoming.cue && `. ${upcoming.cue}`}
+            </p>
+          ) : s.unlock ? (
+            <p className="m-0">
+              <span className="font-bold">Top for your kit:</span> {s.unlock}.{' '}
+              <a href={KIT_HREF} className="font-bold underline">
+                My equipment
+              </a>
             </p>
           ) : (
             <p className="m-0">This is the last step on the ladder.</p>
@@ -273,10 +297,16 @@ function Panel({
                   <span>
                     {r.name}
                     {r.id === s.step_id && ' (now)'}
+                    {needs(r) && <span className="text-[var(--slate)]"> · Locked: {needs(r)}</span>}
                   </span>
                 </label>
               ))}
               {picked !== s.step_id && <p className="m-0">{confirmText(pickedName)}</p>}
+              {picked !== s.step_id && pickedNeeds && (
+                <p className="m-0">
+                  {pickedName} {pickedNeeds}, not in your kit. You can still choose it.
+                </p>
+              )}
               <div className={actions}>
                 <button
                   type="button"

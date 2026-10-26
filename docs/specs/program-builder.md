@@ -165,8 +165,8 @@ max) and a maintenance mode (about a third of the building volume, at the same i
 ### There is no equipment and no load
 
 - The product spec fixes the kit: 8 kg kettlebell, pull-up bar, chairs, floor. Weight exists only
-  in ladder step names: `kb-swing` is "Two-hand, 8 kg", "One-arm, 8 kg", "Heavier kettlebell".
-  Seven ladders end in "Heavier kettlebell" or "Weighted backpack".
+  in ladder step names: `kb-swing` was "Two-hand, 8 kg", "One-arm, 8 kg", "Heavier kettlebell".
+  Seven ladders ended in "Heavier kettlebell" or "Weighted backpack" (concrete since step 4).
 - `set_logs` has one `value` (reps, seconds or minutes). No load column, no place.
 - Progression is reps within a range (ADR-0027: +10% of the top of the range per set) and then a
   harder ladder step (ADR-0016). Targets and bests are scoped to the step and the block kind
@@ -413,7 +413,13 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
      and push-without-pull warnings and a session's length (editing, step 6), and the
      exercises that would add to a muscle (the picker, step 7).
 4. **Equipment** on Account; concrete kettlebell and backpack steps; locked steps; Move up and
-   Progress respect the kit. The 16 kg example works from here.
+   Progress respect the kit. The 16 kg example works from here. **Backend done** (ADR-0071,
+   Built): the `equipment` table, `/api/equipment`, locks on Progress and Move up. **Web
+   done:** "My equipment" on Account (tap to add, what an item unlocks before adding it),
+   locked steps and "Top for your kit" on the Plan page's levels and on Progress. The concrete
+   steps are in `plan.toml` (accepted 25 Oct 2026,
+   [kit-ladder-proposal.md](kit-ladder-proposal.md)), with step cues and band strengths. Still
+   to come: figures for the new set-ups (the proposal's Figures section).
 5. **Plans per person** (A2): the migration copies the plan to every user; the seed keeps the
    catalogue and starters; the canary test (multi-user L2) covers the plan routes.
 6. **Edit the plan:** set level (done, ADR-0075), swap, sets and range; Save makes a version. Import from

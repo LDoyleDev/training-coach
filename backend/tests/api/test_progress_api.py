@@ -143,7 +143,10 @@ def test_the_standing_carries_what_the_plan_page_needs(
         "id": expected["ladder"][0],
         "name": "Slow negatives",
         "cue": None,
+        "missing": [],  # no kit listed yet: nothing is locked (ADR-0071)
     }
+    assert found["kit_listed"] is False
+    assert pull_up["unlock"] is None
 
 
 def test_move_up_when_ready_and_a_second_press_changes_nothing(
@@ -153,7 +156,12 @@ def test_move_up_when_ready_and_a_second_press_changes_nothing(
     start = _pull_up(engine)
     body = {"from_step_id": start["step_id"]}
     moved = signed_in.post("/api/progress/pull-up/move-up", json=body)
-    assert moved.json() == {"outcome": "moved", "exercise": "Pull-up", "step": "Pause at top"}
+    assert moved.json() == {
+        "outcome": "moved",
+        "exercise": "Pull-up",
+        "step": "Pause at top",
+        "warning": None,
+    }
     again = signed_in.post("/api/progress/pull-up/move-up", json=body).json()
     assert again["outcome"] == "already_moved"
     assert _pull_up(engine)["step_id"] == start["ladder"][2]
@@ -203,7 +211,12 @@ def test_not_yet_is_recorded_once_and_not_from_a_stale_page(
     start = _pull_up(engine)
     url = "/api/progress/pull-up/not-yet"
     stayed = signed_in.post(url, json={"step_id": start["step_id"]})
-    assert stayed.json() == {"outcome": "stayed", "exercise": "Pull-up", "step": "Strict pull-up"}
+    assert stayed.json() == {
+        "outcome": "stayed",
+        "exercise": "Pull-up",
+        "step": "Strict pull-up",
+        "warning": None,
+    }
     signed_in.post("/api/progress/pull-up/level", json={"step_id": start["ladder"][0]})
     stale = signed_in.post(url, json={"step_id": start["step_id"]})
     assert stale.json()["outcome"] == "already_moved"
@@ -217,9 +230,14 @@ def test_a_level_can_be_chosen_down_and_up(signed_in: TestClient, engine: Engine
     first, top = start["ladder"][0], start["ladder"][-1]
     url = "/api/progress/pull-up/level"
     down = signed_in.post(url, json={"step_id": first}).json()
-    assert down == {"outcome": "level_set", "exercise": "Pull-up", "step": "Slow negatives"}
+    assert down == {
+        "outcome": "level_set",
+        "exercise": "Pull-up",
+        "step": "Slow negatives",
+        "warning": None,
+    }
     up = signed_in.post(url, json={"step_id": top}).json()
-    assert up["step"] == "Weighted backpack"
+    assert up["step"] == "Vest or backpack, 15 kg"
     same = signed_in.post(url, json={"step_id": top}).json()
     assert same["outcome"] == "same_level"
     assert _pull_up(engine)["step_id"] == top
