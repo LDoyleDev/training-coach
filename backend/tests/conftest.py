@@ -1,4 +1,7 @@
+import shutil
+import sqlite3
 from collections.abc import Iterator
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -27,13 +30,38 @@ def client(settings: Settings) -> Iterator[TestClient]:
         yield test_client
 
 
-@pytest.fixture
-def engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Engine]:
-    """A file-backed SQLite database migrated to head (the real schema, not create_all)."""
-    url = f"sqlite:///{tmp_path / 'test.db'}"
-    monkeypatch.setenv("TC_DATABASE_URL", url)
+@pytest.fixture(scope="session")
+def migrated_database(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A SQLite file migrated to head once per test process (each xdist worker has its own).
+
+    Running every migration for each test was most of the suite's time; `engine` copies this.
+    """
+    folder = tmp_path_factory.mktemp("migrated")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("TC_DATABASE_URL", f"sqlite:///{folder / 'upgrade.db'}")
+        get_settings.cache_clear()
+        command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
     get_settings.cache_clear()
-    command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
+    # The backup API reads through the WAL, so the snapshot is complete and self-contained
+    # even though alembic's engine still holds the upgraded file open.
+    snapshot = folder / "head.db"
+    with (
+        closing(sqlite3.connect(folder / "upgrade.db")) as source,
+        closing(sqlite3.connect(snapshot)) as target,
+    ):
+        source.backup(target)
+    return snapshot
+
+
+@pytest.fixture
+def engine(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, migrated_database: Path
+) -> Iterator[Engine]:
+    """A file-backed SQLite database migrated to head (the real schema, not create_all)."""
+    path = tmp_path / "test.db"
+    shutil.copyfile(migrated_database, path)
+    url = f"sqlite:///{path}"
+    monkeypatch.setenv("TC_DATABASE_URL", url)
     get_settings.cache_clear()
     eng = make_engine(url)
     yield eng
