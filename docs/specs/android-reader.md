@@ -1,7 +1,7 @@
 # Our own Android reader for band data: plan
 
-Status: being built (2026-10-24), decision in ADR-0070 (Proposed until the first build passes
-its trial). HC Webhook 1.9.31 still ran out of Health Connect's quota on the phone on 24 Oct
+Status: being built (2026-10-24), decision in ADR-0070 (Accepted 26 Oct after reader 0.0.4's
+first clean sync; Liam chose not to wait for the 3-day trial). HC Webhook 1.9.31 still ran out of Health Connect's quota on the phone on 24 Oct
 (`band-import.md`), so Liam chose to build the reader. This plan replaces HC Webhook as the
 bridge chosen in ADR-0055 (Q9). The review of 24 Oct is folded in below, and its full list is
 in `docs/sessions/2026-10-24-evals-dst.md`.
@@ -146,8 +146,9 @@ Each PR under about 400 changed lines, not counting generated files.
 
 1. **Spike:** ADR-0070 and this update first, then the app with the secret, Test,
    Sync now reading steps and heart rate only, the last error; the CI workflow, signing and
-   the pre-release workflow. Trial: HC Webhook switched off, three days of opening Mi Fitness
-   and then the reader (ADR-0070, Consequences).
+   the pre-release workflow. Trial: HC Webhook switched off, opening Mi Fitness and then the
+   reader. Done: 0.0.4's first sync took 3 reads (0.0.3's took 202, see "At most 20 reads"),
+   and Liam accepted ADR-0070 after it without waiting the planned three days.
 2. Sleep, exercise and deletions, with the contract test on both sides. Done in reader 0.0.5
    (26 Oct); the screen asks once to allow reading sleep and exercise.
 3. The background sync and the "In Health Connect, last 7 days" view.
@@ -157,8 +158,10 @@ Each PR under about 400 changed lines, not counting generated files.
 ## Risks
 
 - **The quota still exists.** We use far less of it, but Google doesn't publish the limits.
-  The screen shows the quota error when it happens. If the spike hits it, readers built on
-  Health Connect reads are ruled out (ADR-0070).
+  The screen shows the quota error when it happens, with the read that hit it and the sync's
+  read count, so a reader bug that loops (0.0.3's 202 reads) is told apart from the limit. A
+  quota error with a minimal read pattern would rule out readers built on Health Connect reads
+  (ADR-0070).
 - **Mi Fitness still waits to be opened,** so a daily open (or automation) stays part of the
   routine whatever the bridge.
 - **MIUI can stop the reader too,** as it stops Mi Fitness: the same battery settings.
