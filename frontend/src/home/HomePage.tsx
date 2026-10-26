@@ -125,7 +125,7 @@ export default function HomePage() {
           <span>
             Zone 2: {week.zone2_minutes}
             {week.zone2_target && ` of ${week.zone2_target[0]}–${week.zone2_target[1]}`} min
-            {week.moderate_minutes > 0 && `, ${week.moderate_minutes} moderate`}
+            {week.moderate_minutes > 0 && `, ${week.moderate_minutes}\u00a0moderate`}
           </span>
           {target !== null && (
             <div

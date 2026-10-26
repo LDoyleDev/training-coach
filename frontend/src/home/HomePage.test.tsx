@@ -68,6 +68,10 @@ test('totals first, then progress and the week, then the button to today', async
   expect(screen.getByText('3 of 7 sessions done · 1 extra')).toBeInTheDocument()
   // zone 2 and moderate, so the minutes in the list add up to the card (ADR-0077)
   expect(screen.getByText('Zone 2: 90 of 180–200 min, 35 moderate')).toBeInTheDocument()
+  // the number stays with its word on a narrow phone
+  expect(screen.getByText('Zone 2: 90 of 180–200 min, 35 moderate').textContent).toContain(
+    '35\u00a0moderate',
+  )
   expect(screen.getByRole('meter', { name: 'Zone 2 minutes in the last 7 days' })).toHaveAttribute(
     'aria-valuenow',
     '90',

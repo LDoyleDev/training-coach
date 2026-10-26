@@ -560,7 +560,7 @@ function WeekBar({ week }: { week: CardioOptions['week'] }) {
       <p className="m-0 text-sm">
         Last 7 days: <span className="font-bold">{week.zone2}</span>
         {target ? ` of ${target[0]}–${target[1]}` : ''} zone 2 min
-        {week.moderate > 0 ? `, ${week.moderate} moderate` : ''}
+        {week.moderate > 0 ? `, ${week.moderate}\u00a0moderate` : ''}
       </p>
       {target && (
         <div
