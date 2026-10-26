@@ -83,7 +83,7 @@ class Kit(StrEnum):
     """Equipment a ladder step needs. Household things (a chair, a bed, a wall, a towel, water
     bottles, a stair) need nothing. A kettlebell names its weight: ``kettlebell:16``; dumbbells
     and a weighted vest or backpack may name the load a step needs: ``dumbbells:12``,
-    ``backpack:10`` (ADR-0071)."""
+    ``backpack:10``; a band may name its strength: ``band:medium`` (ADR-0071)."""
 
     KETTLEBELL = "kettlebell"
     DUMBBELLS = "dumbbells"
@@ -101,6 +101,7 @@ class Kit(StrEnum):
 WEIGHTS = (1.0, 0.5, 0.25)
 WEIGHED = frozenset({Kit.KETTLEBELL})  # kit that comes in weights, each one owned apart
 LOADED = frozenset({Kit.DUMBBELLS, Kit.BACKPACK})  # may name the load a step needs
+STRENGTHS = ("light", "medium", "heavy")  # a band's, weakest first
 LOADS = frozenset({Kit.KETTLEBELL, Kit.DUMBBELLS, Kit.BACKPACK})  # kit that is a weight to carry
 SQUATS = frozenset({Pattern.SQUAT, Pattern.LUNGE})
 
@@ -126,9 +127,14 @@ def parse_need(need: str) -> tuple[Kit, int | None]:
 
     Raises ValueError for unknown kit, or a weight missing, given where it doesn't belong, or
     not a whole number of kilograms from 1 to 100. Dumbbells and a backpack may leave it out.
+    A band's strength comes back as its rank: ``"band:medium"`` -> ``(Kit.BAND, 2)``.
     """
     name, sep, kg = need.partition(":")
     kit = Kit(name)
+    if kit is Kit.BAND and sep:
+        if kg not in STRENGTHS:
+            raise ValueError(f"{need!r}: a band is {', '.join(STRENGTHS)}")
+        return kit, STRENGTHS.index(kg) + 1
     if kit not in WEIGHED | LOADED:
         if sep:
             raise ValueError(f"{need!r}: {kit} has no weight")

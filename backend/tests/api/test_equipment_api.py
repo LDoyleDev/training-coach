@@ -85,7 +85,7 @@ def test_what_an_item_unlocks(signed_in: TestClient) -> None:
     found = signed_in.get("/api/equipment/unlocks", params={"add": "kettlebell:16"}).json()
     assert found["item"] == "16 kg kettlebell"
     assert found["summary"] == f"16 kg kettlebell: {len(found['steps'])} new steps"
-    assert {"exercise": "Kettlebell swing", "slug": "kb-swing", "step": "Heavier kettlebell"} in (
+    assert {"exercise": "Kettlebell swing", "slug": "kb-swing", "step": "Two-hand, 16 kg"} in (
         found["steps"]
     )
     nothing = signed_in.get("/api/equipment/unlocks", params={"add": "rings"}).json()
@@ -106,7 +106,12 @@ def test_progress_shows_the_locks_once_a_kit_is_listed(
     found = signed_in.get("/api/progress").json()
     assert found["kit_listed"] is True
     swing = next(s for s in found["standings"] if s["slug"] == "kb-swing")
-    assert [r["missing"] for r in swing["ladder"]] == [[], [], ["a 16 kg kettlebell"]]
+    assert [r["missing"] for r in swing["ladder"]] == [
+        [],
+        [],
+        *[["a 16 kg kettlebell"]] * 2,
+        ["a 24 kg kettlebell"],
+    ]
     pull_up = next(s for s in found["standings"] if s["slug"] == "pull-up")
     assert all(r["missing"] for r in pull_up["ladder"])  # no bar listed
     with make_session_factory(engine, user_id=OWNER)() as bound:
@@ -114,7 +119,7 @@ def test_progress_shows_the_locks_once_a_kit_is_listed(
         step = heavier.ladder[2].id
     chosen = signed_in.post("/api/progress/kb-swing/level", json={"step_id": step}).json()
     assert chosen["outcome"] == "level_set"  # the person decides: allowed, with a warning
-    assert chosen["warning"] == "Heavier kettlebell needs a 16 kg kettlebell, not in your kit."
+    assert chosen["warning"] == "Two-hand, 16 kg needs a 16 kg kettlebell, not in your kit."
 
 
 def test_equipment_needs_a_signed_in_browser(engine: Engine) -> None:

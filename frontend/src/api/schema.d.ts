@@ -2571,7 +2571,7 @@ export interface components {
          * @description Equipment a ladder step needs. Household things (a chair, a bed, a wall, a towel, water
          *     bottles, a stair) need nothing. A kettlebell names its weight: ``kettlebell:16``; dumbbells
          *     and a weighted vest or backpack may name the load a step needs: ``dumbbells:12``,
-         *     ``backpack:10`` (ADR-0071).
+         *     ``backpack:10``; a band may name its strength: ``band:medium`` (ADR-0071).
          * @enum {string}
          */
         Kit: "kettlebell" | "dumbbells" | "pull-up bar" | "dip bars" | "bench" | "band" | "backpack" | "rings" | "mat" | "ab wheel" | "box";

@@ -2362,7 +2362,7 @@
         "type": "object"
       },
       "Kit": {
-        "description": "Equipment a ladder step needs. Household things (a chair, a bed, a wall, a towel, water\nbottles, a stair) need nothing. A kettlebell names its weight: ``kettlebell:16``; dumbbells\nand a weighted vest or backpack may name the load a step needs: ``dumbbells:12``,\n``backpack:10`` (ADR-0071).",
+        "description": "Equipment a ladder step needs. Household things (a chair, a bed, a wall, a towel, water\nbottles, a stair) need nothing. A kettlebell names its weight: ``kettlebell:16``; dumbbells\nand a weighted vest or backpack may name the load a step needs: ``dumbbells:12``,\n``backpack:10``; a band may name its strength: ``band:medium`` (ADR-0071).",
         "enum": [
           "kettlebell",
           "dumbbells",

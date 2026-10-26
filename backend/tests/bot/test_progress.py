@@ -253,11 +253,11 @@ def test_feedback_text_units_and_cases() -> None:
         exercise="Swing",
         status=Progress.TOP_OF_LADDER,
         note_top=True,
-        unlock="a 16 kg kettlebell unlocks Heavier kettlebell",
+        unlock="a 16 kg kettlebell unlocks Two-hand, 16 kg",
     )
     assert feedback_text([kit]) == (
         "Swing: top of the range on the last step your kit allows. "
-        "A 16 kg kettlebell unlocks Heavier kettlebell."
+        "A 16 kg kettlebell unlocks Two-hand, 16 kg."
     )
 
 
@@ -305,9 +305,9 @@ async def test_progress_shows_each_exercise_and_offers_move_up(
     (reply,) = texts(calls)
     assert reply.startswith("Progress: current step, last session, best set at this step")
     assert (
-        "- Pull-up: Strict pull-up (2/4), last 12 / 12 / 12 / 12, best 12 reps. Ready to move up"
+        "- Pull-up: Strict pull-up (2/6), last 12 / 12 / 12 / 12, best 12 reps. Ready to move up"
     ) in reply
-    assert "- Dip (chairs): Feet on floor (1/3), not logged at this step yet" in reply
+    assert "- Dip (chairs): Feet on floor (1/5), not logged at this step yet" in reply
     exercise_id, step_id = _pull_up(seeded)
     assert button_data(calls["sendMessage"][0]) == [
         f"p:up:{exercise_id}:{step_id}",

@@ -123,7 +123,7 @@ def test_a_bad_list_changes_nothing(plan: Session) -> None:
 def test_what_a_16_kg_kettlebell_unlocks(plan: Session) -> None:
     equipment.save(plan, [KB8, Item(Kit.PULL_UP_BAR)], NOW)
     found = {(u.slug, u.step) for u in equipment.unlocks(plan, KB16)}
-    assert ("kb-swing", "Heavier kettlebell") in found
+    assert ("kb-swing", "Two-hand, 16 kg") in found
     assert ("suitcase-carry", "Farmer carry, 16 kg + 8 kg, swap hands each set") in found
     assert ("goblet-squat", "Heavier kettlebell") not in found  # retired
     assert all(step != "Two-hand, 8 kg" for _, step in found)  # already open
@@ -135,7 +135,7 @@ def test_move_up_and_the_levels_list_ignore_kit_until_it_is_listed(plan: Session
     (item,) = progress.feedback(plan, last)
     assert (item.status, item.next_step, item.unlock) == (
         Progress.READY,
-        "Heavier kettlebell",
+        "Two-hand, 16 kg",
         None,
     )
     swing = _standing(plan, "kb-swing")
@@ -148,12 +148,19 @@ def test_at_the_top_for_the_kit_progress_names_what_unlocks_the_next_step(plan: 
     last = _ready(plan, step)
     (item,) = progress.feedback(plan, last)
     assert item.status is Progress.TOP_OF_LADDER
-    assert item.unlock == "a 16 kg kettlebell unlocks Heavier kettlebell"
+    assert item.unlock == "a 16 kg kettlebell unlocks Two-hand, 16 kg"
     assert item.note_top
     swing = _standing(plan, "kb-swing")
     assert swing.status is Progress.TOP_OF_LADDER
-    assert swing.unlock == "a 16 kg kettlebell unlocks Heavier kettlebell"
-    assert [r.missing for r in swing.ladder] == [(), (), ("a 16 kg kettlebell",)]
+    assert swing.unlock == "a 16 kg kettlebell unlocks Two-hand, 16 kg"
+    lacks_16 = ("a 16 kg kettlebell",)
+    assert [r.missing for r in swing.ladder] == [
+        (),
+        (),
+        lacks_16,
+        lacks_16,
+        ("a 24 kg kettlebell",),
+    ]
     move = progress.move_up(plan, step.exercise_id, step.id)
     assert move is not None
     assert move.outcome is MoveOutcome.NO_NEXT_STEP
@@ -166,7 +173,7 @@ def test_adding_the_kettlebell_opens_the_next_step(plan: Session) -> None:
     _ready(plan, step)
     move = progress.move_up(plan, step.exercise_id, step.id)
     assert move is not None
-    assert (move.outcome, move.step) == (MoveOutcome.MOVED, "Heavier kettlebell")
+    assert (move.outcome, move.step) == (MoveOutcome.MOVED, "Two-hand, 16 kg")
 
 
 def test_move_up_goes_to_the_next_step_the_kit_allows(plan: Session) -> None:
@@ -203,16 +210,17 @@ def test_move_up_skips_a_locked_step_to_the_next_open_one(
         monkeypatch,
         "pull-up",
         {"Slow negatives": bar, "Strict pull-up": bar, "Pause at top": ["rings"]}
-        | {"Weighted backpack": bar},
+        | {"Vest or backpack, 5 kg": bar},
     )
     equipment.save(plan, [Item(Kit.PULL_UP_BAR)], NOW)
     strict = _put(plan, "pull-up", 1)
     _ready(plan, strict, "torso", [12, 12, 12, 12])
     move = progress.move_up(plan, strict.exercise_id, strict.id)
     assert move is not None
-    assert (move.outcome, move.step) == (MoveOutcome.MOVED, "Weighted backpack")
+    assert (move.outcome, move.step) == (MoveOutcome.MOVED, "Vest or backpack, 5 kg")
 
-    _needs(monkeypatch, "pull-up", {"Pause at top": ["rings"], "Weighted backpack": ["rings"]})
+    vest = ("Vest or backpack, 5 kg", "Vest or backpack, 10 kg", "Vest or backpack, 15 kg")
+    _needs(monkeypatch, "pull-up", {name: ["rings"] for name in ("Pause at top", *vest)})
     _put(plan, "pull-up", 1)
     blocked = progress.move_up(plan, strict.exercise_id, strict.id)
     assert blocked is not None
@@ -231,7 +239,7 @@ def test_with_no_kit_listed_nothing_locks_through_the_service(plan: Session) -> 
     assert move is not None
     assert (move.outcome, move.step, move.warning) == (
         MoveOutcome.MOVED,
-        "Heavier kettlebell",
+        "Two-hand, 16 kg",
         None,
     )
     back = progress.set_level(plan, step.exercise_id, _exercise(plan, "kb-swing").ladder[0].id)
@@ -245,7 +253,7 @@ def test_a_locked_level_can_be_chosen_with_a_warning(plan: Session) -> None:
     move = progress.set_level(plan, exercise.id, exercise.ladder[2].id)
     assert move is not None
     assert move.outcome is MoveOutcome.LEVEL_SET
-    assert move.warning == "Heavier kettlebell needs a 16 kg kettlebell, not in your kit."
+    assert move.warning == "Two-hand, 16 kg needs a 16 kg kettlebell, not in your kit."
     assert _on(plan, exercise.id) == exercise.ladder[2].id
     back = progress.set_level(plan, exercise.id, exercise.ladder[0].id)
     assert back is not None

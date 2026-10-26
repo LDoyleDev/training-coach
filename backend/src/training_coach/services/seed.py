@@ -90,6 +90,10 @@ class ExerciseSeed(_Strict):
     pattern: Pattern
     stress: list[Stress] = Field(default_factory=list)
     needs: dict[str, list[str]] = Field(default_factory=dict)  # ladder step -> kit
+    # ladder step -> how to do it (kit-ladder-proposal.md); written on every run, not history
+    cues: dict[str, Annotated[str, Field(min_length=1, max_length=200)]] = Field(
+        default_factory=dict
+    )
     aliases: list[str] = Field(default_factory=list)
     start: int = Field(ge=0)
     ladder: list[str] = Field(min_length=1)
@@ -130,6 +134,9 @@ class ExerciseSeed(_Strict):
         unknown = sorted(set(self.needs) - set(self.ladder))
         if unknown:
             raise ValueError(f"{self.slug}: needs for {unknown}, which is not in its ladder")
+        unknown = sorted(set(self.cues) - set(self.ladder))
+        if unknown:
+            raise ValueError(f"{self.slug}: cues for {unknown}, which is not in its ladder")
         for step, kit in self.needs.items():
             try:
                 for need in kit:
@@ -521,11 +528,12 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
         steps = {step.position: step for step in exercise.ladder}
         for position, name in enumerate(seed.ladder):
             step = steps.get(position)
+            cue = seed.cues.get(name)
             if step is None:
-                exercise.ladder.append(LadderStep(position=position, name=name))
+                exercise.ladder.append(LadderStep(position=position, name=name, cue=cue))
                 result.created += 1
             else:
-                _set(step, result, name=name)
+                _set(step, result, name=name, cue=cue)
     session.flush()
 
     # Each person's own rows: where they are on every ladder (ADR-0026). The seed runs in an

@@ -107,8 +107,13 @@ in `plan.toml`.
   limit (12 sets at the top steps: swing, both squats, RDL); the map warns then.
 - Most muscles sit at the bottom of their band: a skipped set drops lats and triceps
   below 10.
-- Legs outgrow an 8 kg kettlebell first. A 16 kg (then 24 kg) bell is the most useful upgrade;
-  the ladders already include "heavier kettlebell" steps.
+- Legs outgrow an 8 kg kettlebell first. A 16 kg (then 24 kg) bell is the most useful upgrade.
+  The ladders name their kit (accepted 25 Oct 2026, `kit-ladder-proposal.md`): swings go to
+  two-hand 16 kg, one-arm 16 kg and two-hand 24 kg; split squats, single-leg RDLs and rows get
+  16 kg steps; curls and overhead triceps extensions get a harder 8 kg step before 16 kg;
+  pull-ups, chin-ups and dips take a vest or backpack of 5, 10 and 15 kg (dips: 10 kg, then
+  dip bars); band face pulls go light, medium, heavy. A step the person's kit doesn't allow is
+  locked once they list their kit (ADR-0071).
 - Huberman alternates monthly between strength blocks (4-8 reps, 3-4 sets, 2-4 min rest) and
   hypertrophy blocks (8-15 reps, 2-3 sets, ~90 s rest). The app runs hypertrophy ranges for
   now; block periodisation is a planned feature.
