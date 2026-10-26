@@ -111,7 +111,7 @@ function twoBone(root: Vec, target: Vec, a: number, b: number, bend: number) {
 }
 
 /** A point given as [forward, up] in a frame whose "up" is ``dir``. */
-const inFrame = (origin: Vec, dir: number, [forward, up]: Vec): Vec =>
+export const inFrame = (origin: Vec, dir: number, [forward, up]: Vec): Vec =>
   along(along(origin, dir - 90, forward), dir, up)
 
 /** Blend two poses: numbers are interpolated, a number one pose leaves out counts as 0 (as

@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { blend, progress } from './body'
-import { FIGURES, type Figure as Data } from './poses'
+import { type Figure as Data } from './poses'
 import { ORDER, shapes, type Shape, type Tone } from './shapes'
+import { figureFor } from './steps'
 
 const TONES: readonly Tone[] = ['near', 'far', 'prop', 'bell']
 
@@ -24,10 +25,11 @@ function Drawn({ shape, id }: { shape: Shape; id: string }) {
     )
   if (shape.kind === 'ring')
     return (
-      <circle
+      <ellipse
         cx={shape.c[0]}
         cy={shape.c[1]}
-        r={shape.r}
+        rx={shape.r}
+        ry={shape.ry ?? shape.r}
         fill="none"
         stroke={`var(--fig-${shape.tone}-base)`}
         strokeWidth={shape.width}
@@ -104,16 +106,34 @@ function Drawing({ figure, t, label }: { figure: Data; t: number; label: string 
 
 /** One still of an exercise's figure, ``t`` from its start (0) to its end (1); nothing for a
  * slug without a figure. */
-export function FigureAt({ slug, t, label }: { slug: string; t: number; label: string }) {
-  const figure: Data | undefined = FIGURES[slug]
+export function FigureAt({
+  slug,
+  t,
+  label,
+  step,
+}: {
+  slug: string
+  t: number
+  label: string
+  step?: string
+}) {
+  const figure = figureFor(slug, step)
   return figure ? <Drawing figure={figure} t={t} label={label} /> : null
 }
 
 /** An exercise's mannequin (ADR-0063), moving from its start to its end and back, or the two
- * positions side by side. Starts still for people who ask for less motion; nothing for a slug
- * without a figure. */
-export default function Figure({ slug, name }: { slug: string; name: string }) {
-  const figure: Data | undefined = FIGURES[slug]
+ * positions side by side, as set up at ladder ``step``. Starts still for people who ask for less
+ * motion; nothing for a slug without a figure. */
+export default function Figure({
+  slug,
+  name,
+  step,
+}: {
+  slug: string
+  name: string
+  step?: string
+}) {
+  const figure = figureFor(slug, step)
   const [still, setStill] = useState(reducedMotion)
   const [t, setT] = useState(0)
   const box = useRef<HTMLDivElement>(null)
