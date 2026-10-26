@@ -33,7 +33,9 @@ Android 12 doesn't have Health Connect built in (it is part of Android from 14 o
    - Not the "Health Connect Webhook App" by Wonkru: that is a different app.
    - **Use v1.9.26 or later.** v1.9.31, tried on 2026-10-24, still ran out of Health
      Connect's quota on a one-day sync, so the coach's own reader is being built to replace it
-     (ADR-0070, `docs/specs/android-reader.md`); until then this section stands. v1.9.24 and v1.9.25 fail every normal sync with "Payload
+     (ADR-0070, `docs/specs/android-reader.md`); until then this section stands. The reader
+     reads steps, heart rate, sleep and exercise (sleep and exercise from 0.0.5: after that
+     update its screen asks once to allow them). v1.9.24 and v1.9.25 fail every normal sync with "Payload
      too large" (upstream issue #100, fixed in v1.9.26). Since v1.9.24 a sync reads Health
      Connect's changes rather than 48 hours of records, and since v1.9.26 a large one is sent
      as several posts; the coach reads both (ADR-0055). If Obtainium's update checks for HC

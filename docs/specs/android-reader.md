@@ -1,7 +1,7 @@
 # Our own Android reader for band data: plan
 
-Status: being built (2026-10-24), decision in ADR-0070 (Proposed until the first build passes
-its trial). HC Webhook 1.9.31 still ran out of Health Connect's quota on the phone on 24 Oct
+Status: being built (2026-10-24), decision in ADR-0070 (Accepted 26 Oct after reader 0.0.4's
+first clean sync; Liam chose not to wait for the 3-day trial). HC Webhook 1.9.31 still ran out of Health Connect's quota on the phone on 24 Oct
 (`band-import.md`), so Liam chose to build the reader. This plan replaces HC Webhook as the
 bridge chosen in ADR-0055 (Q9). The review of 24 Oct is folded in below, and its full list is
 in `docs/sessions/2026-10-24-evals-dst.md`.
@@ -46,7 +46,11 @@ publishes no numbers for either.
   reader read the same day again and again. An empty token now ends the read. At the limit, a
   history read sends what it read and keeps its token (failing would leave no token, so every
   later sync would spend the same reads again), and a long run of changes stops where it got to
-  and goes on at the next sync. The result line shows each sync's read count.
+  and goes on at the next sync. The result line shows each sync's read count. A normal sync
+  makes four: the steps aggregate, then one changes read each for sleep, exercise and heart
+  rate (heart rate last, as the heaviest, so its catch-up can't leave sleep unread). A type's
+  first sync takes two (a token and a page of history), so the first sync after updating from
+  0.0.4 takes six, and a first sync on a new phone seven or more.
 - **Changes are collapsed per record id, last one wins,** so a record written and deleted in
   the same batch isn't sent as both (the ingest applies deletions first).
 - **Steps:** one aggregate call for today and yesterday, grouped by local day, and a day is sent
@@ -54,8 +58,11 @@ publishes no numbers for either.
   keep the coach's "nothing new from the band" alert from ever firing (ADR-0055).
 - **Heart rate:** the changed heart-rate records' raw samples as `{bpm, time}`. The ingest
   already averages samples per minute.
-- **Sleep and exercise:** the changed records with their Health Connect ids; deletions go in
-  `deleted` as `{type, id}`.
+- **Sleep and exercise:** the changed sessions with their Health Connect ids, each type with
+  its own changes token (a deletion names only the record's id, so its token says its type);
+  deletions go in `deleted` as `{type, id}`, `sleep` or `exercise`. Sleep goes with its stages,
+  exercise with its type, as HC Webhook sends them. Heart-rate deletions are dropped: the coach
+  keeps heart rate per minute and can't apply them.
 - **Resting heart rate** isn't read: the coach derives it from heart rate.
 - **Weight isn't read:** Mi Fitness doesn't write it (`band-import.md` step 2).
 
@@ -82,11 +89,18 @@ publishes no numbers for either.
 ### Syncs when it can
 
 - **When opened, or on "Sync now":** the foreground quota is the larger one.
-- **Later, in the background, once or twice a day** with WorkManager, if the installed Health
-  Connect supports reading in the background (`FEATURE_READ_HEALTH_DATA_IN_BACKGROUND`, which
-  depends on the Health Connect version, not Android's [read data]). Without it the reader
-  syncs only when opened, and the coach's existing Telegram message ("No band data has arrived
-  for a day") is the nudge.
+- **In the background, about every 12 hours** with WorkManager (0.0.6, `Background.kt`), if
+  the installed Health Connect supports reading in the background
+  (`FEATURE_READ_HEALTH_DATA_IN_BACKGROUND`, checked with its feature client: it depends on the
+  Health Connect version, not Android's [read data]). Only then does the screen ask for the
+  background-read permission, and the job is scheduled only once it, every read permission and
+  the secret are there. A periodic job with a network constraint: no exact alarm and no
+  foreground service, which Android 12 and MIUI restrict, so Android picks the time and a sync
+  can come hours late. It shares Sync now's lock and its read limit, and a failed one isn't
+  retried at once (that would spend more quota): the next run sends it again. One that sent
+  nothing (the quota, no network) is shown on the screen the next time it is opened. Without
+  the feature nothing is scheduled, the screen says the reader syncs only when opened, and
+  the coach's existing Telegram message ("No band data has arrived for a day") is the nudge.
 
 ### One screen
 
@@ -95,14 +109,15 @@ publishes no numbers for either.
 - **Sync now**, and **Test**, which posts `{"test": true}` to check the secret.
 - Per type: last read, last sent, records in the last sync.
 - The last error as it happened: the quota, 401, 413, no network.
-- Later, **In Health Connect, last 7 days:** which apps wrote each type, from an aggregate's
-  data origins and only when tapped. Reading 7 days of raw records would spend the quota this
-  plan is saving.
+- **In Health Connect, last 7 days** (0.0.6): per type, how much there is (steps, heart-rate
+  samples, hours of sleep and exercise) and which apps wrote it, from one aggregate a type and
+  its data origins: four reads, only when tapped. Reading 7 days of raw records would spend the
+  quota this plan is saving.
 
 ### Permissions and Android 12
 
-- Reads Steps, Heart rate, Sleep and Exercise, plus reading in the background later. Nothing
-  else, and no write permissions.
+- Reads Steps, Heart rate, Sleep and Exercise, plus reading in the background where Health
+  Connect supports it. Nothing else, and no write permissions.
 - On Android 13 and lower, Health Connect's permission screen only opens for an app that
   declares the permissions-rationale activity and a `<queries>` entry for Health Connect.
 - `allowBackup=false`, so the secret and tokens never go to a cloud backup.
@@ -112,15 +127,15 @@ publishes no numbers for either.
 ## Build and ship
 
 - **Where:** `android/` in this repo, with its own `android/CLAUDE.md`, the same PR flow and
-  review. Kotlin, Jetpack Compose, `androidx.health.connect:connect-client`, WorkManager later;
+  review. Kotlin, Jetpack Compose, `androidx.health.connect:connect-client`, WorkManager;
   the fewest dependencies that do the job, each with a reason in its PR.
 - **No Android tools needed on the desktop to build:** a CI workflow builds the app, runs its
   unit tests and Android lint whenever `android/` changes. It isn't a required check, so PRs
   that don't touch `android/` never wait for it. `adb` is installed on the desktop for reading
   the phone's logs during the trial.
-- **One contract, tested on both sides:** the app's tests build a sync from fixed records and
-  compare it with a sample committed in the repo; a backend test posts that same sample to the
-  ingest and checks what is taken.
+- **One contract, tested on both sides:** the app's tests (`PayloadTest.kt`) build a sync from
+  fixed records and check its JSON; a backend test (`_reader_sync` in `test_ingest.py`) posts
+  the same records, as that JSON, to the ingest and checks what is taken and deleted.
 - **Signing from the first build:** one release key, kept as secrets of the GitHub environment
   `android-release`, which needs Liam's approval for every run that uses it; where it is kept
   and backed up: ADR-0070, Decision. A debug key changes per CI runner,
@@ -139,18 +154,27 @@ Each PR under about 400 changed lines, not counting generated files.
 
 1. **Spike:** ADR-0070 and this update first, then the app with the secret, Test,
    Sync now reading steps and heart rate only, the last error; the CI workflow, signing and
-   the pre-release workflow. Trial: HC Webhook switched off, three days of opening Mi Fitness
-   and then the reader (ADR-0070, Consequences).
-2. Sleep, exercise and deletions, with the contract test on both sides.
-3. The background sync and the "In Health Connect, last 7 days" view.
+   the pre-release workflow. Trial: HC Webhook switched off, opening Mi Fitness and then the
+   reader. Done: 0.0.4's first sync took 3 reads (0.0.3's took 202, see "At most 20 reads"),
+   and Liam accepted ADR-0070 after it without waiting the planned three days.
+2. Sleep, exercise and deletions, with the contract test on both sides. Done in reader 0.0.5
+   (26 Oct); the screen asks once to allow reading sleep and exercise.
+3. The background sync and the "In Health Connect, last 7 days" view. Done in reader 0.0.6
+   (26 Oct).
 4. `band-import.md` rewritten for the reader; Account and the bot name the sending app from its
    version string instead of "HC Webhook"; HC Webhook retired.
 
 ## Risks
 
+- **An expired changes token loses deletions.** Health Connect keeps a token for about 30 days;
+  after that the reader reads the last 24 hours again, which brings back what was written but
+  not what was deleted meanwhile. A night or workout deleted in Health Connect during that gap
+  stays in the coach until it is deleted there by hand (review of #374).
 - **The quota still exists.** We use far less of it, but Google doesn't publish the limits.
-  The screen shows the quota error when it happens. If the spike hits it, readers built on
-  Health Connect reads are ruled out (ADR-0070).
+  The screen shows the quota error when it happens, with the read that hit it and the sync's
+  read count, so a reader bug that loops (0.0.3's 202 reads) is told apart from the limit. A
+  quota error with a minimal read pattern would rule out readers built on Health Connect reads
+  (ADR-0070).
 - **Mi Fitness still waits to be opened,** so a daily open (or automation) stays part of the
   routine whatever the bridge.
 - **MIUI can stop the reader too,** as it stops Mi Fitness: the same battery settings.
