@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest'
-import { BODY, blend, dist, progress, solve, type Pose } from './body'
+import { BODY, blend, dist, heading, progress, solve, type Pose } from './body'
+import { WIDTH, frontShapes, solveFront } from './front'
 import { FIGURES } from './poses'
 import { capsule, shapes } from './shapes'
 
@@ -261,6 +262,8 @@ test('a hand turned towards you is drawn shorter', () => {
   expect(dist(j.armN.wrist, j.armN.tip)).toBeCloseTo(BODY.hand / 2, 5)
 })
 
+const SEAT_KNEE = 5.4 // a knee's radius: its centre sits this far above what it rests on
+
 /** Every pose of ``slug`` along its movement. */
 const along = (slug: string) =>
   STEPS.map((t) => solve(blend(FIGURES[slug].start, FIGURES[slug].end, t)))
@@ -277,8 +280,8 @@ test('a calf raise rises from the ball of the foot on the step, a hand on the wa
     near(j.legN.ball, [1, top]) // the ball of the foot on the step's edge
     expect(j.armN.tip[0], 'a finger on the wall').toBeCloseTo(calf.props!.wall!.x0, 0)
   }
-  expect(low.legN.heel[1], 'heel below the step').toBeLessThan(top - 3)
-  expect(high.legN.heel[1], 'up high').toBeGreaterThan(top + 8)
+  expect(low.legN.heel[1], 'heel well below the step').toBeLessThan(top - 5)
+  expect(high.legN.heel[1], 'up high').toBeGreaterThan(top + 10)
   expect(low.legN.heel[0]).toBeLessThan(x0) // hanging off the back of it
   for (const j of along('calf-raise')) {
     expect(j.legN.tip[1], 'toes on the step, not in it').toBeGreaterThan(top - 1.5)
@@ -379,4 +382,90 @@ test('a reverse Nordic leans back from the knees in one straight line', () => {
     'knees to head straight',
   ).toBeGreaterThan(175)
   expect(back.shoulder[0], 'leaning back').toBeLessThan(back.legN.knee[0] - 35)
+})
+
+test('a close-up stays inside the picture and keeps the foot on the step in it', () => {
+  for (const [slug, { inset, view }] of Object.entries(FIGURES)) {
+    if (!inset) continue
+    const [x0, x1, y0, y1] = view
+    expect(inset.at[0] - inset.size, slug).toBeGreaterThan(x0)
+    expect(inset.at[0] + inset.size, slug).toBeLessThan(x1)
+    expect(inset.at[1] - inset.size, slug).toBeGreaterThan(y0)
+    expect(inset.at[1] + inset.size, slug).toBeLessThan(y1)
+  }
+  const { inset, props } = FIGURES['calf-raise']
+  for (const j of along('calf-raise')) {
+    // the heel and the ball of the foot, and the step's edge, all in the close-up
+    for (const p of [j.legN.heel, j.legN.ball, [props!.step!.x0, props!.step!.top] as const])
+      expect(dist(p, inset!.of)).toBeLessThan(inset!.r - 2)
+  }
+})
+
+/** Every pose of ``slug``'s front view along its movement. */
+const fromFront = (slug: string) => {
+  const front = FIGURES[slug].front!
+  return STEPS.map((t) => solveFront(blend(front.start, front.end, t)))
+}
+
+test('a front view keeps its limbs their length and stays inside its picture', () => {
+  for (const [slug, { front }] of Object.entries(FIGURES)) {
+    if (!front) continue
+    const [x0, x1, , y1] = front.view
+    for (const j of fromFront(slug)) {
+      for (const leg of [j.legL, j.legR]) {
+        expect(dist(leg.root, leg.mid), slug).toBeCloseTo(BODY.thigh, 1)
+        expect(dist(leg.mid, leg.end), slug).toBeCloseTo(BODY.shin, 1)
+      }
+      for (const arm of [j.armL, j.armR]) {
+        expect(dist(arm.root, arm.mid), slug).toBeLessThan(BODY.upperArm + 0.05)
+        expect(dist(arm.mid, arm.end), slug).toBeLessThan(BODY.forearm + 0.05)
+      }
+      const limbs = [j.armL, j.armR, j.legL, j.legR].flatMap((l) => [l.mid, l.end, l.tip])
+      for (const p of [j.hip, j.waist, j.shoulders, j.head, ...limbs]) {
+        expect(p[0], slug).toBeGreaterThan(x0)
+        expect(p[0], slug).toBeLessThan(x1)
+        expect(p[1], slug).toBeGreaterThan(-0.5)
+        expect(p[1], slug).toBeLessThan(y1)
+      }
+      expect(j.head[1] + 11.5, `${slug}'s head`).toBeLessThan(y1)
+    }
+    for (const t of STEPS)
+      for (const shape of frontShapes(blend(front.start, front.end, t), front.props))
+        expect(JSON.stringify(shape), slug).not.toMatch(/NaN|null/)
+  }
+})
+
+test('from the front, the shoulders are as wide apart as the body, and the hips', () => {
+  const j = solveFront(FIGURES['copenhagen-plank'].front!.end)
+  expect(dist(j.armL.root, j.armR.root)).toBeCloseTo(2 * WIDTH.shoulder, 5)
+  expect(dist(j.legL.root, j.legR.root)).toBeCloseTo(2 * WIDTH.hip, 5)
+})
+
+test('a Copenhagen plank lifts the hips from the forearm and the top knee on the chair', () => {
+  const plank = FIGURES['copenhagen-plank']
+  const { top, x0, x1 } = plank.front!.props!.bench!
+  const knee = (p: readonly number[]) => {
+    expect(p[1] - SEAT_KNEE, 'the top knee on the seat').toBeGreaterThan(top - 2)
+    expect(p[1] - SEAT_KNEE).toBeLessThan(top + 3) // within 3 cm, as it rolls on the seat
+    expect(p[0]).toBeGreaterThan(x0)
+    expect(p[0]).toBeLessThan(x1)
+  }
+  for (const j of fromFront('copenhagen-plank')) {
+    near(j.armL.mid, [0, 4], 3) // the bottom elbow on the floor, under its shoulder
+    expect(Math.abs(j.armL.root[0]), 'shoulder over the elbow').toBeLessThan(3)
+    knee(j.legR.mid)
+    expect(j.armR.root[1], 'the top shoulder above the bottom one').toBeGreaterThan(
+      j.armL.root[1] + 25,
+    )
+  }
+  for (const j of along('copenhagen-plank')) {
+    near(j.armF.elbow, [0, 4], 3)
+    knee(j.legN.knee)
+  }
+  const [low, high] = [solveFront(plank.front!.start), solveFront(plank.front!.end)]
+  expect(high.hip[1] - low.hip[1], 'hips lifted').toBeGreaterThan(20)
+  // The top thigh carries on the line of the trunk at the top, and bends from it at the bottom.
+  const bend = (j: typeof high, tilt: number) => Math.abs(heading(j.legR.mid, j.legR.root) - tilt)
+  expect(bend(high, plank.front!.end.tilt), 'body straight').toBeLessThan(6)
+  expect(bend(low, plank.front!.start.tilt), 'hips low').toBeGreaterThan(20)
 })

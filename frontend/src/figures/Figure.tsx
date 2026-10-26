@@ -1,7 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { blend, progress } from './body'
+import { frontShapes } from './front'
 import { FIGURES, type Figure as Data } from './poses'
 import { ORDER, shapes, type Shape, type Tone } from './shapes'
+
+/** Which way a figure is seen: from the side (every figure) or from the front (a few). */
+export type View = 'side' | 'front'
 
 const TONES: readonly Tone[] = ['near', 'far', 'prop', 'bell']
 
@@ -55,11 +59,48 @@ function Drawn({ shape, id }: { shape: Shape; id: string }) {
   )
 }
 
+/** The shapes of ``figure`` seen from ``view``, ``t`` of the way from its start to its end. */
+function scene(figure: Data, view: View, t: number) {
+  const at = <P,>(start: P, end: P) => (t <= 0 ? start : t >= 1 ? end : blend(start, end, t))
+  const { front } = figure
+  if (view === 'front' && front)
+    return { box: front.view, drawn: frontShapes(at(front.start, front.end), front.props) }
+  const pose = at(figure.start, figure.end)
+  return { box: figure.view, drawn: shapes(pose, figure.props, figure.order ?? ORDER) }
+}
+
 /** One drawing of ``figure``, ``t`` of the way from its start (0) to its end (1). */
-function Drawing({ figure, t, label }: { figure: Data; t: number; label: string }) {
+function Drawing({
+  figure,
+  t,
+  label,
+  view = 'side',
+}: {
+  figure: Data
+  t: number
+  label: string
+  view?: View
+}) {
   const id = 'fig' + useId().replace(/[^a-zA-Z0-9]/g, '')
-  const [x0, x1, y0, y1] = figure.view
-  const pose = t <= 0 ? figure.start : t >= 1 ? figure.end : blend(figure.start, figure.end, t)
+  const { box, drawn } = scene(figure, view, t)
+  const [x0, x1, y0, y1] = box
+  const inset = view === 'side' ? figure.inset : undefined
+  const world = (
+    <>
+      <line
+        x1={x0}
+        x2={x1}
+        y1={0}
+        y2={0}
+        stroke="var(--fig-floor)"
+        strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
+      />
+      {drawn.map((shape, i) => (
+        <Drawn key={i} shape={shape} id={id} />
+      ))}
+    </>
+  )
   return (
     <svg
       viewBox={`${x0} ${-y1} ${x1 - x0} ${y1 - y0}`}
@@ -86,36 +127,70 @@ function Drawing({ figure, t, label }: { figure: Data; t: number; label: string 
           </g>
         ))}
       </defs>
-      <line
-        x1={x0}
-        x2={x1}
-        y1={0}
-        y2={0}
-        stroke="var(--fig-floor)"
-        strokeWidth={1.5}
-        vectorEffect="non-scaling-stroke"
-      />
-      {shapes(pose, figure.props, figure.order ?? ORDER).map((shape, i) => (
-        <Drawn key={i} shape={shape} id={id} />
-      ))}
+      {world}
+      {inset && (
+        <g>
+          <circle
+            cx={inset.of[0]}
+            cy={-inset.of[1]}
+            r={inset.r}
+            fill="none"
+            stroke="var(--fig-floor)"
+            strokeWidth={1.5}
+            vectorEffect="non-scaling-stroke"
+          />
+          <clipPath id={`${id}-inset`}>
+            <circle cx={inset.at[0]} cy={-inset.at[1]} r={inset.size} />
+          </clipPath>
+          <circle cx={inset.at[0]} cy={-inset.at[1]} r={inset.size} fill="var(--paper)" />
+          <g clipPath={`url(#${id}-inset)`}>
+            <g
+              transform={`translate(${inset.at[0]} ${-inset.at[1]}) scale(${inset.size / inset.r}) translate(${-inset.of[0]} ${inset.of[1]})`}
+            >
+              {world}
+            </g>
+          </g>
+          <circle
+            cx={inset.at[0]}
+            cy={-inset.at[1]}
+            r={inset.size}
+            fill="none"
+            stroke="var(--fig-floor)"
+            strokeWidth={1.5}
+            vectorEffect="non-scaling-stroke"
+          />
+        </g>
+      )}
     </svg>
   )
 }
 
 /** One still of an exercise's figure, ``t`` from its start (0) to its end (1); nothing for a
  * slug without a figure. */
-export function FigureAt({ slug, t, label }: { slug: string; t: number; label: string }) {
+export function FigureAt({
+  slug,
+  t,
+  label,
+  view,
+}: {
+  slug: string
+  t: number
+  label: string
+  view?: View
+}) {
   const figure: Data | undefined = FIGURES[slug]
-  return figure ? <Drawing figure={figure} t={t} label={label} /> : null
+  return figure ? <Drawing figure={figure} t={t} label={label} view={view} /> : null
 }
 
 /** An exercise's mannequin (ADR-0063), moving from its start to its end and back, or the two
  * positions side by side. Starts still for people who ask for less motion; nothing for a slug
- * without a figure. */
+ * without a figure. A figure drawn from the front as well starts there, with a switch to the
+ * side. */
 export default function Figure({ slug, name }: { slug: string; name: string }) {
   const figure: Data | undefined = FIGURES[slug]
   const [still, setStill] = useState(reducedMotion)
   const [t, setT] = useState(0)
+  const [view, setView] = useState<View>(figure?.front ? 'front' : 'side')
   const box = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -142,15 +217,23 @@ export default function Figure({ slug, name }: { slug: string; name: string }) {
 
   if (!figure) return null
   const [first, last] = figure.frames
-  const [x0, x1, y0, y1] = figure.view
+  const [x0, x1, y0, y1] = view === 'front' && figure.front ? figure.front.view : figure.view
   const wide = (x1 - x0) / (y1 - y0) > 1.3
+  const seen = figure.front ? ` from the ${view}` : ''
+  const toggle =
+    'min-h-11 rounded-xl border-2 border-[var(--line)] px-3 text-sm font-bold text-[var(--ink)] aria-pressed:border-[var(--ink)] aria-pressed:bg-[var(--line)]'
   return (
     <div ref={box} className="flex flex-col gap-2">
       {still ? (
         <div className={'grid gap-3 ' + (wide ? 'grid-cols-1' : 'grid-cols-2')}>
           {[first, last].map((text, i) => (
             <figure key={i} className="m-0 flex flex-col gap-1">
-              <Drawing figure={figure} t={i} label={`${name}, ${i ? 'end' : 'start'}: ${text}`} />
+              <Drawing
+                figure={figure}
+                t={i}
+                view={view}
+                label={`${name}${seen}, ${i ? 'end' : 'start'}: ${text}`}
+              />
               <figcaption className="text-sm text-[var(--slate)]">
                 <b className="text-[var(--ink)]">{i ? 'End.' : 'Start.'}</b> {text}
               </figcaption>
@@ -158,16 +241,38 @@ export default function Figure({ slug, name }: { slug: string; name: string }) {
           ))}
         </div>
       ) : (
-        <Drawing figure={figure} t={t} label={`${name}, moving from: ${first}, to: ${last}`} />
+        <Drawing
+          figure={figure}
+          t={t}
+          view={view}
+          label={`${name}${seen}, moving from: ${first}, to: ${last}`}
+        />
       )}
-      <button
-        type="button"
-        aria-pressed={still}
-        onClick={() => setStill((s) => !s)}
-        className="min-h-11 self-start rounded-xl border-2 border-[var(--line)] px-3 text-sm font-bold text-[var(--ink)] aria-pressed:border-[var(--ink)]"
-      >
-        Start and end
-      </button>
+      <div className="flex flex-wrap gap-2">
+        {figure.front && (
+          <div role="group" aria-label="Seen from" className="flex gap-2">
+            {(['front', 'side'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                onClick={() => setView(v)}
+                className={toggle}
+              >
+                {v === 'front' ? 'Front' : 'Side'}
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          aria-pressed={still}
+          onClick={() => setStill((s) => !s)}
+          className={toggle}
+        >
+          Start and end
+        </button>
+      </div>
     </div>
   )
 }
