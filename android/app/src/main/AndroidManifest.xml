@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <!-- Asked for only where the installed Health Connect supports it (Background.kt). -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
 
     <!-- On Android 13 and lower Health Connect is an app, and its permission screen needs this. -->
     <queries>
