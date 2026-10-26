@@ -18,9 +18,15 @@ import java.time.temporal.ChronoUnit
 
 /**
  * The heart-rate samples one sync read, and the token to keep once the coach has them. [more]:
- * changes are left for the next sync, which carries on from [nextToken].
+ * changes are left for the next sync, which carries on from [nextToken]. [cut]: a history read
+ * stopped at the read limit, so the rest of that day won't come across.
  */
-class HeartRead(val samples: List<HeartSample>, val nextToken: String, val more: Boolean = false)
+class HeartRead(
+    val samples: List<HeartSample>,
+    val nextToken: String,
+    val more: Boolean = false,
+    val cut: Boolean = false,
+)
 
 /**
  * Every Health Connect call the app makes, kept few (ADR-0070): one aggregate for steps, and
@@ -93,6 +99,9 @@ class HealthReader(context: Context) {
         val found = mutableListOf<HeartSample>()
         var page: String? = null
         do {
+            // At the limit, send what was read and keep the token: failing would leave no token,
+            // and every later sync would spend the same reads again (review of #370).
+            if (reads.left <= 0) return HeartRead(found, token, cut = true)
             // The largest page Health Connect allows, so the first sync takes as few reads as it can.
             val response = read("heart-rate history") {
                 client.readRecords(
