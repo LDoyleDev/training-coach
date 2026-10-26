@@ -936,7 +936,8 @@ test('an exercise that works no muscle has no muscles line or figures', async ()
 
 test('a drawn exercise always shows its movement, with no toggle', async () => {
   const pushUp = { ...SESSION.items[0], slug: 'push-up', name: 'Push-up' }
-  serve({ today: { session: { ...SESSION, items: [pushUp, SESSION.items[1]] }, progress: null } })
+  const undrawn = { ...SESSION.items[1], slug: 'not-drawn-yet' }
+  serve({ today: { session: { ...SESSION, items: [pushUp, undrawn] }, progress: null } })
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
   expect(screen.getByRole('img', { name: /^Push-up, moving from:/ })).toBeInTheDocument()

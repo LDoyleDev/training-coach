@@ -8,7 +8,7 @@ log is `2026-10-25-reader-diagnostics.md`.
 
 | Release | PRs |
 | --- | --- |
-| 1.0.0 (released with this log) | #338 the off-site job pings its own monitor and reports any failure; #340 plan version "Rear delts + carries" from 26 Oct (band face pulls, suitcase carries, one dead-hang set fewer); #341 the trend chart shows each ladder step as its own labelled period; #336 a flaky test fixed; docs #339 (ADR-0071 to 0073), this log |
+| 1.0.0 (released with this log) | #338 the off-site job pings its own monitor and reports any failure; #340 plan version "Rear delts + carries" from 26 Oct (band face pulls, suitcase carries, one dead-hang set fewer); #341 the trend chart shows each ladder step as its own labelled period; #343 the set screen shows the muscles an exercise works; #344 a pair starts so no exercise or main muscle comes twice running; #336 a flaky test fixed; docs #339 (ADR-0071 to 0073), this log |
 
 ## Decisions and where they live
 
@@ -34,17 +34,18 @@ was empty. Liam installed them the same day; the first copy uploaded (its first 
 
 ## State at the wrap
 
-- **Pi.** v0.38.1 live; 1.0.0 deploys after its release PR merges, which waits for the first
-  nightly off-site run at 04:30 on 26 Oct to succeed on its own.
+- **Pi.** v0.38.1 live at the wrap. Correction: 1.0.0 did not wait for the 04:30 off-site run;
+  it was released the same evening and has been live since 18:17 on 25 Oct
+  (`2026-10-25-session-screen-bell-stretching.md`).
 - **Backups.** Nightly on the Pi and off-site in R2; no desktop copy (not set up, by choice).
 - **Band data.** None since 2026-10-19; reader 0.0.3's one fresh-quota sync is due on 26 Oct.
 
 ## Open items and next steps
 
-1. **26 Oct:** check the 04:30 off-site run and the bucket, then release 1.0.0; Liam's band sync
+1. **26 Oct:** check the 04:30 off-site run and the bucket; Liam's band sync
    on reader 0.0.3 decides between the Health Connect reader and Gadgetbridge (ADR-0070).
 2. **Next build:** body measurements protocol and a tape-based estimate (Liam's brief of 25 Oct,
-   plan first, ADR-0074); then builder step 4, equipment on Account (ADR-0071).
+   plan first, ADR-0076); then builder step 4, equipment on Account (ADR-0071).
 3. **Liam to check** (carried over): the backup key in the password manager; Cloudflare
    "Always Use HTTPS"; the desktop's `User` account; BitLocker status.
 4. **Follow-ups:** Gradle dependency verification; `/healthz` shows the version publicly; a

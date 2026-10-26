@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Moved, Standing } from '../api'
 import Levels from './Levels'
@@ -167,7 +167,7 @@ test('a link with ?move= opens that exercise and scrolls to it', async () => {
   render(<Levels />)
   expect(await screen.findByRole('button', { name: /Dip/, expanded: true })).toBeInTheDocument()
   expect(screen.getByText('This is the last step on the ladder.')).toBeInTheDocument()
-  expect(scroll).toHaveBeenCalledOnce()
+  await waitFor(() => expect(scroll).toHaveBeenCalledOnce()) // the scroll runs after the render
   // Only the ready ones and the one asked for, until all are asked for.
   expect(screen.queryByRole('button', { name: /Pull-up/ })).not.toBeInTheDocument()
   await showAll()
