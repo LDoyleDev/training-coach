@@ -553,6 +553,7 @@ export default function SessionPage() {
               {item.name}
             </h1>
             <p className="text-[var(--slate)]">{item.step}</p>
+            {item.cue && <p className="text-[var(--slate)]">{item.cue}</p>}
             {item.baseline && (
               <p className="font-bold text-[var(--bell-ink)]">
                 Baseline: first time at this step. Do what you can; targets grow from it.
@@ -658,7 +659,7 @@ export default function SessionPage() {
                 Confirm set
               </button>
               {item.summary && <p className={card}>{item.summary}</p>}
-              <Movement key={position} slug={item.slug} name={item.name} />
+              <Movement key={position} slug={item.slug} name={item.name} step={item.step} />
               {item.muscles.length > 0 && (
                 <div className={card + ' flow-root'}>
                   <ExerciseFigures
