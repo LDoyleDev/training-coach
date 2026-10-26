@@ -128,6 +128,11 @@ def load_kit(slug: str, step: str) -> LoadKit | None:
     return _load_kits().get((slug, step))
 
 
+def loadable(slug: str) -> bool:
+    """Whether any step of this exercise takes load."""
+    return any(found == slug for found, _ in _load_kits())
+
+
 @lru_cache(maxsize=1)
 def _load_kits() -> dict[tuple[str, str], LoadKit]:
     return {(e.slug, step): kit for e in bundled_plan().exercises for step, kit in e.loads.items()}
