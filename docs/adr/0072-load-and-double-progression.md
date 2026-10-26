@@ -96,4 +96,5 @@ Decided while building, within this ADR:
   "@ 22.5", or "60 kg" before or after the reps; a decimal comma is fine. A weight on a step
   that doesn't take load is a problem shown at confirm ("Dip isn't done with a weight"), never
   dropped silently; two weights on one line ask for a line each. The confirm step shows "10 /
-  10 / 9 at 16 kg". The AI's `propose_log` and the summaries follow in their own PR.
+  10 / 9 at 16 kg"; a set given no weight shows a dash in its place ("8 / 8 / 6 at 16 / 16 / –
+  kg") and is saved without one: the person decides. The AI's `propose_log` and the summaries follow in their own PR.
