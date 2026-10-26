@@ -47,13 +47,13 @@ figures follow light and dark.
 
 ## Options considered
 
-| Option                                              | Pros                                                                                                                 | Cons                                                                                                                                   |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Our own mannequins from poses (chosen)              | Ours to use anywhere; one consistent style; tiny; offline; light and dark; an exercise is two poses, not new artwork | We have to get each pose right; side view only, so twists and sideways moves need a cue in the text                                    |
-| Photos from an open library (e.g. free-exercise-db) | Realistic; many exercises at once                                                                                    | Licence and model consent to check before a public app; no neck, tibialis or flow moves, so mixed styles; hundreds of KB each to cache |
-| AI-generated images                                 | Any exercise, any style                                                                                              | Costs money or a key; inconsistent from one picture to the next; licence unclear                                                       |
-| Stick figures                                       | Simplest                                                                                                             | Liam asked for bodies you can see                                                                                                      |
-| Video links per exercise (the spec's fallback)      | No drawing at all                                                                                                    | Leaves the app; useless offline; no glance at start and end                                                                            |
+| Option | Pros | Cons |
+| --- | --- | --- |
+| Our own mannequins from poses (chosen) | Ours to use anywhere; one consistent style; tiny; offline; light and dark; an exercise is two poses, not new artwork | We have to get each pose right; side view only, so twists and sideways moves need a cue in the text |
+| Photos from an open library (e.g. free-exercise-db) | Realistic; many exercises at once | Licence and model consent to check before a public app; no neck, tibialis or flow moves, so mixed styles; hundreds of KB each to cache |
+| AI-generated images | Any exercise, any style | Costs money or a key; inconsistent from one picture to the next; licence unclear |
+| Stick figures | Simplest | Liam asked for bodies you can see |
+| Video links per exercise (the spec's fallback) | No drawing at all | Leaves the app; useless offline; no glance at start and end |
 
 ## Consequences
 
