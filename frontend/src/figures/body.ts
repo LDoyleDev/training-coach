@@ -103,7 +103,7 @@ export const dist = (a: Vec, b: Vec) => Math.hypot(b[0] - a[0], b[1] - a[1])
 const plus = (a: Vec, b: Vec): Vec => [a[0] + b[0], a[1] + b[1]]
 
 /** Two bones from ``root`` towards ``target``; out of reach, the limb points at it, straight. */
-function twoBone(root: Vec, target: Vec, a: number, b: number, bend: number) {
+export function twoBone(root: Vec, target: Vec, a: number, b: number, bend: number) {
   const d = Math.min(Math.max(dist(root, target), Math.abs(a - b) + 0.01), a + b - 0.01)
   const alpha = deg(Math.acos((a * a + d * d - b * b) / (2 * a * d)))
   const mid = along(root, heading(root, target) + (bend > 0 ? alpha : -alpha), a)
@@ -111,7 +111,7 @@ function twoBone(root: Vec, target: Vec, a: number, b: number, bend: number) {
 }
 
 /** A point given as [forward, up] in a frame whose "up" is ``dir``. */
-const inFrame = (origin: Vec, dir: number, [forward, up]: Vec): Vec =>
+export const inFrame = (origin: Vec, dir: number, [forward, up]: Vec): Vec =>
   along(along(origin, dir - 90, forward), dir, up)
 
 /** Blend two poses: numbers are interpolated, a number one pose leaves out counts as 0 (as

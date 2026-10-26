@@ -43,7 +43,7 @@ export interface Props {
 }
 
 /** Radii in cm: [at the first joint, at the second]. */
-const SIZE = {
+export const SIZE = {
   pelvis: [12.5, 11],
   chestLow: [11, 13.5],
   chestHigh: [13.5, 9],
@@ -58,7 +58,7 @@ const SIZE = {
 } as const
 
 /** World (y up) to SVG (y down). */
-const svg = (p: Vec): Vec => [p[0], -p[1]]
+export const svg = (p: Vec): Vec => [p[0], -p[1]]
 const n = (v: number) => Number(v.toFixed(2))
 const pt = (p: Vec) => `${n(p[0])} ${n(p[1])}`
 
@@ -91,8 +91,8 @@ export function capsule(a: Vec, b: Vec, ra: number, rb: number): string {
 
 const polygon = (points: Vec[]) => `M ${points.map((p) => pt(svg(p))).join(' L ')} Z`
 
-const ball = (c: Vec, r: number, tone: Tone): Shape => ({ kind: 'ball', c: svg(c), r, tone })
-const limb = (a: Vec, b: Vec, [ra, rb]: readonly number[], tone: Tone): Shape => ({
+export const ball = (c: Vec, r: number, tone: Tone): Shape => ({ kind: 'ball', c: svg(c), r, tone })
+export const limb = (a: Vec, b: Vec, [ra, rb]: readonly number[], tone: Tone): Shape => ({
   kind: 'path',
   d: capsule(a, b, ra, rb),
   tone,
@@ -137,7 +137,7 @@ function head(j: Joints, tone: Tone): Shape[] {
 }
 
 /** A closed curve through ``points`` (Catmull-Rom as cubic Béziers). */
-function smooth(points: Vec[]): string {
+export function smooth(points: Vec[]): string {
   const at = (i: number) => points[(i + points.length) % points.length]
   const parts = [`M ${pt(points[0])}`]
   for (let i = 0; i < points.length; i++) {
@@ -231,9 +231,8 @@ function bracket([x, y]: Vec): Shape[] {
 
 export const ORDER: readonly Part[] = ['armF', 'legF', 'torso', 'head', 'legN', 'armN']
 
-/** Everything to draw for ``pose``, back to front. */
-export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = ORDER): Shape[] {
-  const j = solve(pose)
+/** The props that don't move with the body, back to front. */
+export function scenery(props: Props): Shape[] {
   const out: Shape[] = []
   if (props.mat)
     out.push({
@@ -248,6 +247,13 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
   if (props.bar) out.push(...bracket(props.bar))
   for (const block of [props.wall, props.step])
     if (block) out.push(rect(block.x0, 0, block.x1, block.top))
+  return out
+}
+
+/** Everything to draw for ``pose``, back to front. */
+export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = ORDER): Shape[] {
+  const j = solve(pose)
+  const out = scenery(props)
   if (props.towel) out.push(...towel(j))
   for (const part of order) {
     if (part === 'armF') out.push(...arm(j.armF, 'far'))
