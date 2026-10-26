@@ -5,6 +5,7 @@
  */
 import type { Motion, Vec } from './body'
 import type { FrontPose } from './front'
+import type { Bench3, Camera } from './perspective'
 import type { Part, Props } from './shapes'
 
 type Box = readonly [number, number, number, number] // x0, x1, y0, y1 in cm, the floor at y = 0
@@ -16,7 +17,7 @@ export interface Figure extends Motion {
   order?: readonly Part[]
   /** The same movement seen from the front (front.ts), at the same pace, for one that happens
    * side-on to the body. It is shown first. */
-  front?: { view: Box; start: FrontPose; end: FrontPose; props?: Props }
+  front?: { view: Box; camera: Camera; seat?: Bench3; start: FrontPose; end: FrontPose }
   /** A close-up in the side view: the circle of radius ``r`` around ``of``, drawn larger in a
    * circle of radius ``size`` at ``at``, for a small movement such as a heel lifting. */
   inset?: { of: Vec; r: number; at: Vec; size: number }
@@ -316,23 +317,28 @@ export const FIGURES: Readonly<Record<string, Figure>> = {
       armN: { at: [4, -2], from: 'waist' },
       armF: { at: [4, 4], mid: [0, -30], angle: 0 },
     },
+    // Facing you, lying on the left side: shoulders stacked over the bottom elbow (at x = 0),
+    // the top knee on the seat and the bottom leg under it. Low, the trunk bends sideways at the
+    // waist, so the hips drop while the chest stays nearly level; up, one straight line.
     front: {
-      view: [-150, 35, -3, 95],
-      props: { bench: { x0: -122, x1: -74, top: 45 } },
+      view: [-76, 82, -60, 70],
+      camera: { at: [195, 187, 298], look: [-55, 30, 0] },
+      seat: { x0: -138, x1: -82, top: 45, depth: 40 },
       start: {
-        hip: [-44.74, 17.94],
-        tilt: 42,
-        legR: { at: [-129.4, 49], bend: -1 },
-        legL: { at: [-122, 7], bend: -1 },
-        armR: { at: [-11, -6], from: 'waist', bend: -1 },
+        hip: [-40.61, 28.64],
+        tilt: 55,
+        bend: -37,
+        legR: { at: [-132, 48.6], bend: -1 },
+        legL: { at: [-120, 34], bend: -1 },
+        armR: { at: [-12, -4], from: 'waist', bend: -1 },
         armL: { at: [4, 4], mid: [0, -30], angle: 0 },
       },
       end: {
-        hip: [-45.86, 46.51],
+        hip: [-45.86, 46.81],
         tilt: 7,
-        legR: { at: [-140, 47.8], bend: -1 },
-        legL: { at: [-128, 27], bend: -1 },
-        armR: { at: [-11, -6], from: 'waist', bend: -1 },
+        legR: { at: [-136, 48], bend: -1 },
+        legL: { at: [-133, 30], bend: -1 },
+        armR: { at: [-12, -4], from: 'waist', bend: -1 },
         armL: { at: [4, 4], mid: [0, -30], angle: 0 },
       },
     },

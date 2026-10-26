@@ -25,11 +25,41 @@ const fist = (pose: Pose): Pose => ({
 
 const VEST = ['Vest or backpack, 5 kg', 'Vest or backpack, 10 kg', 'Vest or backpack, 15 kg']
 
+/** Dips with the feet off the floor: between two chairs, one each side, seen as one chair under
+ * the hands, its back in front of you; knees bent about square behind you, feet up. The seats are
+ * 50 cm high, so at the bottom, upper arms nearly level, the knees are still well off the floor. */
+const OFF_FLOOR: Change = {
+  frames: [
+    'Hands on two chairs, one each side, arms straight, feet tucked up behind',
+    'Down until the upper arms are nearly level, knees and feet off the floor',
+  ],
+  view: [-88, 48, -3, 148],
+  props: { chair: { x0: 40, x1: -6, seat: 50, beside: true } },
+  start: {
+    hip: [-3.1, 65.7],
+    lean: 8,
+    legN: { at: [-55.4, 45.9], angle: 178 },
+    legF: { at: [-52.4, 45.9], angle: 176 },
+    armN: { at: [0, 53.4], angle: 0 },
+    armF: { at: [0, 53.4], angle: 0 },
+  },
+  end: {
+    hip: [-8, 50.9],
+    lean: 30,
+    legN: { at: [-63.8, 55], angle: 172 },
+    legF: { at: [-60.8, 55], angle: 170 },
+    armN: { at: [0, 53.4], angle: 0 },
+    armF: { at: [0, 53.4], angle: 0 },
+  },
+}
+const OFF_FLOOR_LOADED: Change = { ...OFF_FLOOR, props: { ...OFF_FLOOR.props, load: true } }
+
 export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
   'pull-up': LOADED(VEST, FIGURES['pull-up']),
   'chin-up': LOADED(VEST, FIGURES['chin-up']),
   dip: {
-    ...LOADED(['Feet off floor, 5 kg vest or backpack', 'Feet off floor, 10 kg'], FIGURES.dip),
+    'Feet off floor': OFF_FLOOR,
+    ...each(['Feet off floor, 5 kg vest or backpack', 'Feet off floor, 10 kg'], OFF_FLOOR_LOADED),
     'Dip bars, bodyweight, full range': {
       frames: ['Arms straight on the bars, knees bent', 'Leaning slightly forward, elbows back'],
       view: [-60, 70, -3, 230],

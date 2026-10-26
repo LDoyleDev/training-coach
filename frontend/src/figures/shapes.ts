@@ -22,12 +22,15 @@ export type Shape =
   | { kind: 'ball'; c: Vec; r: number; tone: Tone }
   | { kind: 'ring'; c: Vec; r: number; ry?: number; width: number; tone: Tone }
   | { kind: 'mat'; x: number; y: number; width: number; height: number }
+  | { kind: 'floor'; d: string } // a mat on the floor, seen in perspective
 
 export type Part = 'armN' | 'armF' | 'legN' | 'legF' | 'torso' | 'head' | 'bell'
 
 export interface Props {
   mat?: readonly [number, number] // from x to x, on the floor
-  chair?: { x0: number; x1: number; seat: number }
+  /** A chair, its back at ``x0``; ``beside`` is one each side of you, seen as one chair in
+   * front of the figure, as the near one hides the far one. */
+  chair?: { x0: number; x1: number; seat: number; beside?: boolean }
   /** A bench or a bed; ``behind`` puts it on the far side of the figure, in the far tone, so
    * the near leg and arm read as in front of it. */
   bench?: { x0: number; x1: number; top: number; behind?: boolean }
@@ -214,13 +217,15 @@ const rect = (a: number, b: number, c: number, d: number, tone: Tone = 'prop'): 
   tone,
 })
 
+/** A chair seen side on, its back at ``x0``: on the left, or on the right if ``x0 > x1``. */
 function chair({ x0, x1, seat }: NonNullable<Props['chair']>): Shape[] {
+  const s = Math.sign(x1 - x0) // into the seat from its back
   return [
-    rect(x0 + 1, 0, x0 + 4, seat - 4),
-    rect(x1 - 4, 0, x1 - 1, seat - 4),
+    rect(x0 + s, 0, x0 + 4 * s, seat - 4),
+    rect(x1 - 4 * s, 0, x1 - s, seat - 4),
     rect(x0, seat - 4, x1, seat),
-    rect(x0, seat, x0 + 3.5, seat + 44),
-    rect(x0 - 0.5, seat + 36, x0 + 4, seat + 46),
+    rect(x0, seat, x0 + 3.5 * s, seat + 44),
+    rect(x0 - 0.5 * s, seat + 36, x0 + 4 * s, seat + 46),
   ]
 }
 
@@ -282,7 +287,7 @@ export function scenery(props: Props): Shape[] {
       width: props.mat[1] - props.mat[0],
       height: 1.2,
     })
-  if (props.chair) out.push(...chair(props.chair))
+  if (props.chair && !props.chair.beside) out.push(...chair(props.chair))
   if (props.bench) out.push(...bench(props.bench))
   if (props.bar) out.push(...bracket(props.bar))
   if (props.bars) out.push(...bars(props.bars))
@@ -310,5 +315,6 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
     if (part === 'armF' && props.bell === 'sides') out.push(...hanging(j.armF.wrist, 6.8))
   }
   if (props.bar) out.push(ball(props.bar, BAR, 'bell'))
+  if (props.chair?.beside) out.push(...chair(props.chair))
   return out
 }
