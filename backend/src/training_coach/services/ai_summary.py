@@ -107,7 +107,7 @@ def _exercises(session: Session) -> str:
         last = " / ".join(f"{v}{unit}" for v in s.last) or "not done at this step yet"
         best = f"; best {s.best_set}{unit}" if s.best_set is not None else ""
         status = f"; {STATUS[s.status]}" if STATUS.get(s.status) else ""
-        if s.unlock:  # the last step the kit allows (ADR-0071)
+        if s.status is Progress.TOP_OF_LADDER and s.unlock:  # top for the kit (ADR-0071)
             status = f"; top for my kit: {s.unlock}"
         retired = " (retired)" if s.retired else ""
         lines.append(

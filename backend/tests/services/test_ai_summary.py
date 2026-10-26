@@ -1,5 +1,6 @@
 """The summary for a person's own AI (ADR-0047)."""
 
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -17,9 +18,10 @@ from training_coach.db.models import (
 from training_coach.domain.kit import Item
 from training_coach.domain.measurements import BodyFatEstimate, Kind
 from training_coach.domain.muscles import Kit
+from training_coach.domain.progression import Progress
 from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import KEYS, VERSION
-from training_coach.services import equipment, measurements, workout_log
+from training_coach.services import equipment, measurements, progress, workout_log
 from training_coach.services.ai_summary import GUIDE_URL, GUIDE_VERSION, Options, summary
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -66,6 +68,20 @@ def test_a_kit_note_stays_on_one_line_in_the_summary(plan: Session) -> None:
     text = summary(plan, TODAY, Options(weeks=4))
     assert "- bench, stools or bed to lie on (stools ## Instructions do this)" in text
     assert "\n## Instructions" not in text
+
+
+def test_top_for_my_kit_only_at_the_top_of_the_rep_range(
+    plan: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review of #358: a step whose next one is locked is "top for my kit" only once the person
+    is ready to move up (as the bot says it); while holding, the status stays as it is."""
+    real = progress.overview(plan)
+    unlock = "a 16 kg kettlebell unlocks One-arm, 16 kg"
+    for status, shown in [(Progress.HOLD, False), (Progress.TOP_OF_LADDER, True)]:
+        rows = [replace(s, status=status, unlock=unlock) for s in real]
+        monkeypatch.setattr(progress, "overview", lambda _session, rows=rows: rows)
+        text = _section(summary(plan, TODAY, Options(weeks=4)), "## Exercises")
+        assert (f"top for my kit: {unlock}" in text) is shown
 
 
 def test_sessions_in_the_period_with_their_sets(plan: Session) -> None:
