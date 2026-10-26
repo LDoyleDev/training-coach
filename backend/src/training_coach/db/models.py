@@ -416,6 +416,9 @@ class SetLog(Owned, Base):
         CheckConstraint("set_no >= 1", name="set_no_positive"),
         CheckConstraint("value >= 0 AND value <= 3600", name="value_in_range"),
         CheckConstraint(_in("side", Side), name="side_valid"),
+        CheckConstraint(
+            "load_kg IS NULL OR (load_kg > 0 AND load_kg <= 500)", name="load_kg_range"
+        ),
         ForeignKeyConstraint(
             ["exercise_id", "ladder_step_id"],
             ["ladder_steps.exercise_id", "ladder_steps.id"],
@@ -435,6 +438,9 @@ class SetLog(Owned, Base):
     set_no: Mapped[int] = mapped_column(Integer)
     value: Mapped[int] = mapped_column(Integer)
     side: Mapped[str] = mapped_column(String(8), default=Side.BOTH, server_default=Side.BOTH.value)
+    # The weight it was done with, on a loaded step (ADR-0072): per hand for dumbbells, the
+    # weight added for an added-weight step. Empty for bodyweight and a step's own kit.
+    load_kg: Mapped[float | None] = mapped_column(Float)
     # When a guided session showed the set and when it was confirmed (ADR-0061); both sides of
     # a one-sided set share them. Empty for every other way of logging.
     started_at: Mapped[datetime | None] = mapped_column(UTCDateTime)

@@ -22,6 +22,8 @@
 # kit each ladder step needs ("kettlebell:16", "backpack:10", "band:medium": that band or a
 # stronger one). Bodyweight and household things need nothing. `[exercises.cues]` gives a step
 # its cue, shown with the ladder; the seed rewrites cues on every run (ADR-0071).
+# `[exercises.loads]` names the steps that take load and what carries the weight ("barbell",
+# "dumbbells", "machine"): each set records its kg, and the kit gives the increment (ADR-0072).
 
 # Weekly targets the review reports against (#124). Zone 2: 180-200 minutes a week, built up
 # over time (Huberman Lab newsletter, "Foundational Fitness Protocol", Nov 2022).

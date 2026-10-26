@@ -244,7 +244,7 @@ def _set_aside(session: Session, workout: Workout) -> int:
             "plan_version_id": workout.plan_version_id,
             "created_at": workout.created_at.isoformat(),
             "sets": [
-                [s.exercise_id, s.ladder_step_id, s.set_no, s.side, s.value, *_times(s)]
+                [s.exercise_id, s.ladder_step_id, s.set_no, s.side, s.value, *_times(s), s.load_kg]
                 for s in workout.sets
             ],
             "imports": list(imports),
@@ -315,7 +315,8 @@ def put_back(session: Session, undo: dict[str, Any]) -> None:
             plan_version_id=data["plan_version_id"],
             created_at=datetime.fromisoformat(data["created_at"]).astimezone(UTC),
         )
-        # Kept before ADR-0061, a set has no times: [e, s, n, side, v].
+        # Kept before ADR-0061, a set has no times: [e, s, n, side, v]; before ADR-0072, no
+        # weight after them.
         workout.sets.extend(
             SetLog(
                 exercise_id=e,
@@ -323,10 +324,11 @@ def put_back(session: Session, undo: dict[str, Any]) -> None:
                 set_no=n,
                 side=side,
                 value=v,
-                started_at=_time(times[0]) if times else None,
-                done_at=_time(times[1]) if times else None,
+                started_at=_time(rest[0]) if rest else None,
+                done_at=_time(rest[1]) if rest else None,
+                load_kg=rest[2] if len(rest) > 2 else None,
             )
-            for e, s, n, side, v, *times in data["sets"]
+            for e, s, n, side, v, *rest in data["sets"]
         )
         session.add(workout)
         session.flush()

@@ -42,6 +42,7 @@ from training_coach.db.models import (
 from training_coach.db.session import ALL_USERS
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.fitness_tests import DAYS, FitnessTest, Unit
+from training_coach.domain.load import LoadKit
 from training_coach.domain.mobility_flow import Flow, Move
 from training_coach.domain.muscles import (
     PART_OF,
@@ -94,6 +95,9 @@ class ExerciseSeed(_Strict):
     cues: dict[str, Annotated[str, Field(min_length=1, max_length=200)]] = Field(
         default_factory=dict
     )
+    # ladder step -> what carries its weight: the step takes load (ADR-0072); read from the
+    # bundled plan like needs
+    loads: dict[str, LoadKit] = Field(default_factory=dict)
     aliases: list[str] = Field(default_factory=list)
     start: int = Field(ge=0)
     ladder: list[str] = Field(min_length=1)
@@ -137,6 +141,11 @@ class ExerciseSeed(_Strict):
         unknown = sorted(set(self.cues) - set(self.ladder))
         if unknown:
             raise ValueError(f"{self.slug}: cues for {unknown}, which is not in its ladder")
+        unknown = sorted(set(self.loads) - set(self.ladder))
+        if unknown:
+            raise ValueError(f"{self.slug}: loads for {unknown}, which is not in its ladder")
+        if self.loads and self.kind is not ExerciseKind.REPS:
+            raise ValueError(f"{self.slug}: only an exercise counted in reps takes load")
         for step, kit in self.needs.items():
             try:
                 for need in kit:

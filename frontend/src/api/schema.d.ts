@@ -2152,6 +2152,8 @@ export interface components {
             item: number;
             /** Left */
             left: number;
+            /** Load Kg */
+            load_kg?: number | null;
             /** Right */
             right?: number | null;
             /** Set No */
@@ -2502,6 +2504,7 @@ export interface components {
             /** Cue */
             cue: string | null;
             flow?: components["schemas"]["FlowView"] | null;
+            load?: components["schemas"]["LoadView"] | null;
             /** Muscles */
             muscles: components["schemas"]["ItemMuscleView"][];
             /** Name */
@@ -2646,6 +2649,24 @@ export interface components {
             ready: components["schemas"]["ReadyView"][];
             /** Steps Climbed */
             steps_climbed: number;
+        };
+        /**
+         * LoadView
+         * @description A loaded step (ADR-0072): - and + move the weight by ``increment``; each set starts at
+         *     its ``kg``, the same set's weight last time when ``carried``, else the kit's first weight.
+         */
+        LoadView: {
+            /** Carried */
+            carried: boolean;
+            /** Increment */
+            increment: number;
+            /** Kg */
+            kg: number[];
+            /**
+             * Kit
+             * @enum {string}
+             */
+            kit: "barbell" | "dumbbells" | "machine";
         };
         /** LogBody */
         LogBody: {
