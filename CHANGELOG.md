@@ -4,6 +4,24 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.2.0](https://github.com/LDoyleDev/training-coach/compare/v1.1.0...v1.2.0) (2026-10-26)
+
+
+### Features
+
+* **api:** home kit per person, and steps lock by kit (ADR-0071) ([#358](https://github.com/LDoyleDev/training-coach/issues/358)) ([7cc2baa](https://github.com/LDoyleDev/training-coach/commit/7cc2baaa32f735fb08e1dda0b1b8ec31733ef330))
+* **api:** one way to take each measurement, and a tape estimate ([#349](https://github.com/LDoyleDev/training-coach/issues/349)) ([7959bc7](https://github.com/LDoyleDev/training-coach/commit/7959bc7a3434c1177444c1af92deef3e78a4b1d1))
+* **domain:** concrete kit ladders, with step cues and band strengths ([#360](https://github.com/LDoyleDev/training-coach/issues/360)) ([360b74b](https://github.com/LDoyleDev/training-coach/commit/360b74b1addc1d3e4f6e2d35461cc7fb09853aac))
+* **web:** cardio and Home totals count the last 7 days ([#364](https://github.com/LDoyleDev/training-coach/issues/364)) ([5c61179](https://github.com/LDoyleDev/training-coach/commit/5c61179f869ef82bad80fca0c7be87934be9df05))
+* **web:** draw seven leg figures, calf raise to reverse Nordic ([#356](https://github.com/LDoyleDev/training-coach/issues/356)) ([bb682ba](https://github.com/LDoyleDev/training-coach/commit/bb682baaeefa9a11233b7b9d1c06f506d3dc4517))
+* **web:** how to measure, 7-day weight and a body-fat trend ([#351](https://github.com/LDoyleDev/training-coach/issues/351)) ([654ec1c](https://github.com/LDoyleDev/training-coach/commit/654ec1c92175e1d213a684ef50e816c202c0d345))
+* **web:** My equipment on Account, and locked steps on levels ([#359](https://github.com/LDoyleDev/training-coach/issues/359)) ([ca546e3](https://github.com/LDoyleDev/training-coach/commit/ca546e3dc7565be258b3d6ae00485269fda88037))
+
+
+### Documentation
+
+* session log for the 1.2.0 wrap ([#368](https://github.com/LDoyleDev/training-coach/issues/368)) ([8ef0077](https://github.com/LDoyleDev/training-coach/commit/8ef0077a81de67e2d96fb1f810368aef9116687f))
+
 ## [1.1.0](https://github.com/LDoyleDev/training-coach/compare/v1.0.0...v1.1.0) (2026-10-25)
 
 
