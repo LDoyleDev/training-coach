@@ -133,8 +133,9 @@ def test_a_strength_proposal_waits_for_save_and_then_is_a_log(
 
 
 def test_an_invented_exercise_is_refused(client: TestClient, engine: Engine, token: str) -> None:
-    bench = {"exercise": "Barbell bench press", "sets": [5, 5], "unit": ""}
-    reason = refused(client, token, kind="strength", exercises=[PULL_UPS, bench])
+    # Not in the catalogue (the dumbbell bench press is, since the gym exercises, ADR-0072).
+    getup = {"exercise": "Turkish get-up", "sets": [5, 5], "unit": ""}
+    reason = refused(client, token, kind="strength", exercises=[PULL_UPS, getup])
     assert "I don't know the exercise" in reason
     assert _rows(engine, LogProposal) == []
 
