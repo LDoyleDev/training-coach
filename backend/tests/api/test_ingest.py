@@ -498,11 +498,17 @@ def test_deletions_are_counted_in_the_answer(signed_in: TestClient, phone: TestC
 
 def _reader_sync() -> dict[str, object]:
     """A sync as the band reader sends it (android/.../Payload.kt, ADR-0070): one record per
-    local day of steps and raw heart-rate samples, each naming the app that wrote it."""
+    local day of steps, raw heart-rate samples, and sleep and exercise sessions with their
+    Health Connect ids, each naming the app that wrote it. The night and the walk are
+    PayloadTest.kt's, as it builds them."""
     mi = {"data_origin": "com.mi.health"}
+
+    def meta(record_id: str) -> dict[str, str]:
+        return {**mi, "id": record_id, "last_modified_time": "2026-10-11T05:10:00.123Z"}
+
     return {
         "timestamp": hcw.iso(hcw.NOW),
-        "app_version": "tc-reader/0.0.1",
+        "app_version": "tc-reader/0.0.5",
         "steps": [
             {
                 "count": 812,
@@ -515,6 +521,36 @@ def _reader_sync() -> dict[str, object]:
             {"bpm": bpm, "time": f"2026-10-11T07:{at}Z", "metadata": mi}
             for bpm, at in ((60, "00:05"), (62, "00:25"), (64, "00:45"), (70, "01:10"))
         ],
+        "sleep": [
+            {
+                "session_end_time": "2026-10-11T05:00:00Z",
+                "duration_seconds": 27000,
+                "stages": [
+                    {
+                        "stage": "4",
+                        "start_time": "2026-10-10T21:30:00Z",
+                        "end_time": "2026-10-11T01:30:00Z",
+                        "duration_seconds": 14400,
+                    },
+                    {
+                        "stage": "5",
+                        "start_time": "2026-10-11T01:30:00Z",
+                        "end_time": "2026-10-11T05:00:00Z",
+                        "duration_seconds": 12600,
+                    },
+                ],
+                "metadata": meta("night-1"),
+            }
+        ],
+        "exercise": [
+            {
+                "type": "79",
+                "start_time": "2026-10-10T15:00:00.250Z",
+                "end_time": "2026-10-10T15:46:00Z",
+                "duration_seconds": 2759,
+                "metadata": meta("walk-1"),
+            }
+        ],
     }
 
 
@@ -526,16 +562,43 @@ def test_the_readers_sync_is_taken_and_sending_it_again_changes_nothing(
     for _ in range(2):
         answer = _post(phone, secret, _reader_sync())
         assert answer.status_code == 200, (answer.status_code, answer.text)
-        assert answer.json()["taken"] == {"steps": 1, "heart_rate": 4}
+        assert answer.json()["taken"] == {"steps": 1, "heart_rate": 4, "sleep": 1, "exercise": 1}
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         minutes = [
             (s.bpm, s.low, s.high)
             for s in mine.scalars(select(HeartRateSample).order_by(HeartRateSample.at))
         ]
         steps = mine.scalar(select(HealthDay.steps))
+        night = mine.scalars(select(SleepSession)).one()
+        walk = mine.scalars(select(ImportedWorkout)).one()
     assert minutes == [(62, 60, 64), (70, 70, 70)]
     assert steps == 812
-    assert signed_in.get("/api/account/ingest").json()["app_version"] == "tc-reader/0.0.1"
+    assert (night.record_id, night.light_min, night.deep_min, night.asleep_min) == (
+        "night-1",
+        240,
+        210,
+        450,
+    )
+    # Its start to the millisecond, so a resend finds the same row by source and start too.
+    assert walk.start_at.replace(tzinfo=UTC) == datetime(2026, 10, 10, 15, 0, 0, 250000, UTC)
+    assert (walk.record_id, walk.activity, walk.minutes) == ("walk-1", "walk", 45)
+    assert signed_in.get("/api/account/ingest").json()["app_version"] == "tc-reader/0.0.5"
+
+
+def test_the_readers_deletions_remove_the_night_and_the_workout(
+    signed_in: TestClient, phone: TestClient, engine: Engine
+) -> None:
+    secret = _secret(signed_in)
+    assert _post(phone, secret, _reader_sync()).status_code == 200
+    gone = {
+        "timestamp": hcw.iso(hcw.NOW),
+        "app_version": "tc-reader/0.0.5",
+        "deleted": [{"type": "sleep", "id": "night-1"}, {"type": "exercise", "id": "walk-1"}],
+    }
+    answer = _post(phone, secret, gone)
+    assert answer.json() == {"taken": {}, "skipped": {}, "deleted": {"sleep": 1, "exercise": 1}}
+    assert _stored(engine)["SleepSession"] == 0
+    assert _stored(engine)["ImportedWorkout"] == 0
 
 
 # ------------------------------------- a stolen secret (security test, 2026-10-24)

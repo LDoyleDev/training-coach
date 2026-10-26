@@ -193,6 +193,23 @@ test('inside a pair the rest is a 15 s switch; after the pair it is a rest (ADR-
   expect(screen.getByText('1:00')).toBeInTheDocument()
 })
 
+test("the set screen shows the step's cue, and the figure set up for that step", async () => {
+  const dip = {
+    ...SESSION.items[0],
+    slug: 'dip',
+    name: 'Dip',
+    step: 'Dip bars, bodyweight, full range',
+    cue: 'Lean slightly forward; elbows back.',
+  }
+  serve({ today: { session: { ...SESSION, items: [dip, SESSION.items[1]] }, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.getByText('Lean slightly forward; elbows back.')).toBeInTheDocument()
+  expect(
+    screen.getByRole('img', { name: /^Dip, moving from: Arms straight on the bars/ }),
+  ).toBeVisible()
+})
+
 test('left and right can differ on a one-sided exercise', async () => {
   const kept: Kept = { template_id: 3, position: 1, first: [], sets: [], saved: false, revision: 4 }
   const sent = serve({ today: { session: SESSION, progress: kept } })

@@ -40,9 +40,11 @@ tests/        mirrors src/: tests/api/, tests/bot/, tests/db/, tests/domain/, te
 
 ## Tests
 
-- Single test: `uv run pytest tests/api/test_app.py::test_healthz_reports_ok`.
-- `tests/conftest.py`: `settings`, `client` (TestClient), `engine` and `session` (a SQLite file
-  migrated to head, the real schema rather than `create_all`).
+- `uv run pytest` runs in parallel (pytest-xdist, `-n auto`), so tests must not share files,
+  ports or order. Single test, serial and without the coverage floor:
+  `uv run pytest -n0 --no-cov tests/api/test_app.py::test_healthz_reports_ok`.
+- `tests/conftest.py`: `settings`, `client` (TestClient), `engine` and `session` (a copy of a
+  SQLite file migrated to head once per worker: the real schema rather than `create_all`).
 - `tests/factories.py`: row builders with defaults; override only what the test is about.
 - `respx` fakes HTTP (Groq, Telegram); `time-machine` freezes or moves the clock. Tests never
   call a real external API and never sleep.
