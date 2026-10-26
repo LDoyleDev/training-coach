@@ -4,6 +4,24 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.3.0](https://github.com/LDoyleDev/training-coach/compare/v1.2.0...v1.3.0) (2026-10-26)
+
+
+### Features
+
+* **domain:** rep ranges top out at 18; say what opens the next level ([#372](https://github.com/LDoyleDev/training-coach/issues/372)) ([959cff6](https://github.com/LDoyleDev/training-coach/commit/959cff684dfa3cb82917a89eb58a01bfc2a7624e))
+
+
+### Bug Fixes
+
+* **infra:** reader ends a read on an empty page token, at most 20 reads ([#370](https://github.com/LDoyleDev/training-coach/issues/370)) ([0754f74](https://github.com/LDoyleDev/training-coach/commit/0754f744363e5e6c1d23c456bb9c2d526d37556d))
+* **infra:** skip rclone's HEAD by version id that R2 answers with 501 ([#369](https://github.com/LDoyleDev/training-coach/issues/369)) ([a140c96](https://github.com/LDoyleDev/training-coach/commit/a140c9680bb99938e95e9b772a84208ee0f42d2f))
+
+
+### Documentation
+
+* session log for the 1.3.0 wrap ([#373](https://github.com/LDoyleDev/training-coach/issues/373)) ([ccd24e9](https://github.com/LDoyleDev/training-coach/commit/ccd24e96ebe36027b106696b91b106e7a6636b3c))
+
 ## [1.2.0](https://github.com/LDoyleDev/training-coach/compare/v1.1.0...v1.2.0) (2026-10-26)
 
 
