@@ -162,7 +162,8 @@ Each PR under about 400 changed lines, not counting generated files.
 3. The background sync and the "In Health Connect, last 7 days" view. Done in reader 0.0.6
    (26 Oct).
 4. `band-import.md` rewritten for the reader; Account and the bot name the sending app from its
-   version string instead of "HC Webhook"; HC Webhook retired.
+   version string instead of "HC Webhook"; HC Webhook retired. Done (26 Oct): with no version
+   yet, the reader is assumed.
 
 ## Risks
 
