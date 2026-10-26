@@ -9,7 +9,9 @@ seconds (``30s``, ``1:30``, ``2 min``), minutes (``45``, ``45 min``, ``1h``, ``1
 one-sided exercises ``each side`` (default) or ``left 10 9 right 9 9``. Lines copied from the
 bot's own message work too: ``- Pistol squat (Sit to chair): 7, 7, 7 per side``. A timed cardio
 line may name what it was, once, before or after the minutes: ``zone 2 walk 60``,
-``moderate cardio 45 min run`` (ux-flow-plan A1; ``services.workout_log`` keeps it).
+``moderate cardio 45 min run`` (ux-flow-plan A1; ``services.workout_log`` keeps it). On a step
+that takes load, one weight in kg goes with the line's sets: ``rows 10 10 9 at 16``,
+``bench 8 8 8 @ 62.5``, ``bench 60 kg 8 8 8`` (ADR-0072).
 """
 
 import re
@@ -19,6 +21,7 @@ from difflib import SequenceMatcher
 
 from training_coach.domain.cardio import TIMED, WORDS
 from training_coach.domain.enums import ExerciseKind, Side
+from training_coach.domain.load import kg_text, valid_kg
 
 MAX_TEXT = 2000
 MAX_ENTRIES = 30
@@ -78,6 +81,14 @@ TOKEN = re.compile(
 SIDE_WORDS = {"left": Side.LEFT, "l": Side.LEFT, "right": Side.RIGHT, "r": Side.RIGHT}
 EACH_WORDS = frozenset({"each", "per", "side", "sides", "leg", "legs", "arm", "arms"})
 ACTIVITY_WORDS = frozenset().union(*WORDS.values())  # "walk", "ran", "cycling"...
+NO_WEIGHT = chr(0x2013)  # an en dash on the confirm step, for a set given no weight
+# One weight for a line's sets (ADR-0072): "at 16", "@ 22.5", or a number with its unit, "60 kg".
+# A full stop or comma may end it ("at 16 kg." in a voice transcript) unless a digit follows, and
+# a weight is never the tail of a longer number ("1250 kg" isn't "250 kg").
+LOAD = re.compile(
+    r"(?:\bat\b|@)\s*(?P<at>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:kgs?\b|kilos?\b)?(?![\d:]|[.,]\d)"
+    r"|(?<![\d.,])(?P<kg>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:kgs?|kilos?)\b"
+)
 
 
 @dataclass(frozen=True)
@@ -88,6 +99,7 @@ class Known:
     names: tuple[str, ...]  # name and aliases
     kind: ExerciseKind
     per_side: bool
+    loaded: bool = False  # the step the person trains takes load (ADR-0072)
 
 
 @dataclass(frozen=True)
@@ -186,9 +198,9 @@ def _value(number: str, unit: str | None, exercise: Known) -> int | str:
 
 def _split(text: str, start: int) -> tuple[str, str]:
     """Name and numbers. Side words just before the numbers belong to the numbers
-    ("split squat left 10 9"), not to the name."""
+    ("split squat left 10 9"), not to the name, as does a weight's "at" ("rows at 16 8 8")."""
     phrase, rest = text[:start], text[start:]
-    side_tail = re.search(r"\b(left|right|l|r)\s*$", phrase.lower())
+    side_tail = re.search(r"(?:\b(?:left|right|l|r|at)|@)\s*$", phrase.lower())
     if side_tail:
         phrase, rest = phrase[: side_tail.start()], phrase[side_tail.start() :] + rest
     return phrase, rest
@@ -204,8 +216,30 @@ def _drop_activity(phrase: str) -> str:
     return phrase[: last.start()] if last and last.group(1) in ACTIVITY_WORDS else phrase
 
 
-def _entry(text: str, known: Sequence[Known]) -> tuple[Known, list[tuple[Side | None, int]]] | str:
-    """One exercise and its values in order (side None = not given), or a problem."""
+Values = list[tuple[Side | None, int]]
+
+
+def _load(rest: str, exercise: Known) -> tuple[str, float | None] | str:
+    """The line's numbers without its weight, and the weight in kg (None: not given); or a
+    problem. Only a step that takes load has one, and only one per line."""
+    found = list(LOAD.finditer(rest))
+    if not found:
+        return rest, None
+    name = exercise.names[0]
+    if not exercise.loaded:
+        return f"{name} isn't done with a weight"
+    if len(found) > 1:
+        return f"give one weight for {name} on a line; put another weight on a line of its own"
+    match = found[0]
+    kg = float((match["at"] or match["kg"]).replace(",", "."))
+    if not valid_kg(kg):
+        return f"{_quote(match.group())} isn't a weight for {name}"
+    return rest[: match.start()] + " " + rest[match.end() :], kg
+
+
+def _entry(text: str, known: Sequence[Known]) -> tuple[Known, Values, float | None] | str:
+    """One exercise, its values in order (side None = not given) and its weight; or a
+    problem."""
     starts = [m.start() for m in re.finditer(r"(?<![a-z0-9])\d", text.lower())]
     if not starts:
         return f"no numbers for {_quote(text)}"
@@ -232,7 +266,11 @@ def _entry(text: str, known: Sequence[Known]) -> tuple[Known, list[tuple[Side | 
     dash = re.search(r"\d+\s*-\s*\d+", rest)
     if dash:
         return f"{_quote(dash.group())} looks like a range; give each set, like 8 9 10"
-    rest = re.sub(r"(?<=\d)/(?=\d)", " ", rest.lower())
+    weighed = _load(rest.lower(), exercise)
+    if isinstance(weighed, str):
+        return weighed
+    rest, kg = weighed
+    rest = re.sub(r"(?<=\d)/(?=\d)", " ", rest)
     name = exercise.names[0]
     for token in TOKEN.finditer(rest):
         if token["sets"]:
@@ -265,7 +303,7 @@ def _entry(text: str, known: Sequence[Known]) -> tuple[Known, list[tuple[Side | 
             return f"that's more than {MAX_SETS} sets of {name}"
     if not values:  # e.g. "10x": digits that never formed a set
         return f"couldn't read any sets for {name}"
-    return exercise, values
+    return exercise, values, kg
 
 
 def _sets(
@@ -284,6 +322,37 @@ def _sets(
             count[s] += 1
             rows.append((count[s], s, value))
     return tuple(rows)
+
+
+def _loads(values: Values, loads: list[float | None]) -> tuple[tuple[int, float], ...]:
+    """Each set's weight by its number as ``_sets`` numbers it: a right-side value shares the
+    number of the left one it pairs with."""
+    numbered: list[tuple[int, float]] = []
+    number = 0
+    for (side, _), kg in zip(values, loads, strict=True):
+        if side is Side.RIGHT:
+            continue
+        number += 1
+        if kg is not None:
+            numbered.append((number, kg))
+    return tuple(numbered)
+
+
+def _side_weights(exercise: Known, values: Values, loads: list[float | None]) -> str | None:
+    """A set's weight covers both its sides, so a right side weighed differently from its left
+    one would be lost: a problem to fix rather than a weight silently dropped (ADR-0072). Sets
+    logged "each side" have no right-hand values, so the zip is not strict."""
+    left: list[float | None] = []
+    right: list[float | None] = []
+    for (side, _), kg in zip(values, loads, strict=True):
+        (right if side is Side.RIGHT else left).append(kg)
+    for number, (kg_left, kg_right) in enumerate(zip(left, right, strict=False), start=1):
+        if kg_right is not None and kg_right != kg_left:
+            return (
+                f"{exercise.names[0]}: set {number} has a different weight on the right; "
+                "give one weight for both sides of a set"
+            )
+    return None
 
 
 def _unbalanced(exercise: Known, values: list[tuple[Side | None, int]]) -> str | None:
@@ -348,7 +417,8 @@ def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
     if len(chunks) > MAX_ENTRIES:
         return ParseResult((), (f"That's more than {MAX_ENTRIES} exercises in one log.",))
 
-    by_slug: dict[str, list[tuple[Side | None, int]]] = {}
+    by_slug: dict[str, Values] = {}
+    loads: dict[str, list[float | None]] = {}
     known_by_slug = {k.slug: k for k in known}
     problems: list[str] = []
     for chunk in chunks:
@@ -356,8 +426,9 @@ def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
         if isinstance(parsed, str):
             problems.append(parsed)
             continue
-        exercise, values = parsed
+        exercise, values, kg = parsed
         by_slug.setdefault(exercise.slug, []).extend(values)  # a repeated exercise adds sets
+        loads.setdefault(exercise.slug, []).extend([kg] * len(values))
 
     entries: list[Entry] = []
     for slug, values in by_slug.items():
@@ -370,8 +441,10 @@ def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
             problems.append(f"that's more than {MAX_SETS} sets of {name}")
         elif unbalanced := _unbalanced(exercise, values):
             problems.append(unbalanced)
+        elif uneven := _side_weights(exercise, values, loads[slug]):
+            problems.append(uneven)
         else:
-            entries.append(Entry(slug, _sets(exercise, values)))
+            entries.append(Entry(slug, _sets(exercise, values), _loads(values, loads[slug])))
     return ParseResult(tuple(entries), tuple(problems))
 
 
@@ -386,8 +459,21 @@ def sets_text(entry: Entry, kind: ExerciseKind) -> str:
         return " / ".join(f"{v}{unit[kind]}" for v in values)
 
     if set(by_side) == {Side.BOTH}:
-        return join(by_side[Side.BOTH])
-    left, right = by_side.get(Side.LEFT, []), by_side.get(Side.RIGHT, [])
-    if left == right:
-        return f"{join(left)} each side"
-    return f"left {join(left)}, right {join(right)}"
+        text = join(by_side[Side.BOTH])
+    else:
+        left, right = by_side.get(Side.LEFT, []), by_side.get(Side.RIGHT, [])
+        text = (
+            f"{join(left)} each side"
+            if left == right
+            else f"left {join(left)}, right {join(right)}"
+        )
+    # Each set's weight in set order, a dash for a set given none (it is saved without one).
+    by_set = dict(entry.loads)
+    numbers = sorted({n for n, _, _ in entry.sets})
+    weights = [by_set.get(n) for n in numbers]
+    if not by_set:
+        return text
+    if len(set(weights)) == 1 and weights[0] is not None:
+        return f"{text} at {kg_text(weights[0])} kg"
+    shown = " / ".join(kg_text(kg) if kg is not None else NO_WEIGHT for kg in weights)
+    return f"{text} at {shown} kg"
