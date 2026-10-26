@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import plan from '../../../backend/src/training_coach/seed/plan.toml?raw'
-import { BODY, blend, dist, solve } from './body'
+import { BODY, blend, dist, heading, solve } from './body'
 import Figure from './Figure'
 import { FIGURES } from './poses'
 import { shapes, type Shape } from './shapes'
@@ -110,9 +110,13 @@ test('feet off the floor, the dip hangs between two chairs, knees bent, feet beh
       const j = solve(blend(dip.start, dip.end, t))
       for (const arm of [j.armN, j.armF]) expect(arm.wrist[1] - seat).toBeCloseTo(3.4, 0)
       for (const leg of [j.legN, j.legF]) {
-        expect(leg.knee[1] - 5.4, `${step}: knee off the floor`).toBeGreaterThan(5)
-        expect(Math.min(leg.heel[1], leg.ball[1], leg.tip[1]), 'feet off').toBeGreaterThan(20)
-        expect(leg.ankle[0], 'feet behind the knees').toBeLessThan(leg.knee[0] - 25)
+        expect(leg.knee[1] - 5.4, `${step}: knees well off the floor`).toBeGreaterThan(10)
+        expect(Math.min(leg.heel[1], leg.ball[1], leg.tip[1]), 'feet up').toBeGreaterThan(40)
+        expect(leg.ankle[1], 'feet above the knees').toBeGreaterThan(leg.knee[1] + 20)
+        expect(leg.ankle[0], 'feet behind').toBeLessThan(leg.knee[0] - 15)
+        const knee = Math.abs(heading(leg.knee, leg.hip) - heading(leg.knee, leg.ankle))
+        expect(knee, 'knee bent about square').toBeGreaterThan(70)
+        expect(knee).toBeLessThan(100)
       }
     }
     const [up, down] = [solve(dip.start), solve(dip.end)]

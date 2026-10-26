@@ -1,10 +1,10 @@
 /**
- * The mannequin from the front (ADR-0063, addendum): for a movement that happens side-on to the
- * body, such as a side plank, which the side view draws as if face down. Same units and angles
- * as body.ts. Facing you, the person's left is on your right while they stand upright.
+ * The mannequin's body in its own front plane (ADR-0063, addendum): for a movement that happens
+ * side-on to the body, such as a side plank, which the side view draws as if face down. Same
+ * units and angles as body.ts, x and y in the plane of the chest; perspective.ts stands it up
+ * and draws it. Facing you, the person's left is on your right while they stand upright.
  */
 import { BODY, along, heading, inFrame, twoBone, type Vec } from './body'
-import { SIZE, ball, limb, scenery, smooth, svg, type Props, type Shape, type Tone } from './shapes'
 
 /** A hand or foot target; the elbow or knee is worked out, unless ``mid`` gives it. */
 export interface FrontLimb {
@@ -29,8 +29,6 @@ export interface FrontPose {
   legL: FrontLimb
   legR: FrontLimb
 }
-
-export type FrontPart = 'armL' | 'armR' | 'legL' | 'legR' | 'torso' | 'head'
 
 /** Half the width between the shoulder joints and between the hip joints. */
 export const WIDTH = { shoulder: 18, hip: 9 }
@@ -97,67 +95,4 @@ export function solveFront(pose: FrontPose): FrontJoints {
     legL: leg(pose.legL, true),
     legR: leg(pose.legR, false),
   }
-}
-
-function frontArm(j: FrontLimbJoints, tone: Tone): Shape[] {
-  return [
-    limb(j.root, j.mid, SIZE.upperArm, tone),
-    limb(j.end, j.tip, SIZE.hand, tone),
-    limb(j.mid, j.end, SIZE.forearm, tone),
-    ball(j.end, SIZE.joint.wrist, tone),
-    ball(j.mid, SIZE.joint.elbow, tone),
-    ball(j.root, SIZE.joint.shoulder, tone),
-  ]
-}
-
-function frontLeg(j: FrontLimbJoints, tone: Tone): Shape[] {
-  return [
-    limb(j.mid, j.end, SIZE.shin, tone),
-    limb(j.end, j.tip, [3.8, 3.2], tone),
-    ball(j.end, SIZE.joint.ankle, tone),
-    limb(j.root, j.mid, SIZE.thigh, tone),
-    ball(j.mid, SIZE.joint.knee, tone),
-  ]
-}
-
-/** Hips, waist and chest, wider than deep, and a faceless oval head: it faces you. */
-function frontTrunk(j: FrontJoints, tilt: number, tone: Tone): Shape[] {
-  return [
-    limb(along(j.hip, tilt, -3), j.waist, [13.5, 12], tone),
-    limb(j.waist, j.shoulders, [12, 16], tone),
-  ]
-}
-
-function frontHead(j: FrontJoints, tilt: number, tone: Tone): Shape[] {
-  const [rx, ry] = [8, 11.5]
-  const points = Array.from({ length: 24 }, (_, i) => {
-    const a = (i / 24) * 2 * Math.PI
-    return along(along(j.head, tilt - 90, rx * Math.cos(a)), tilt, ry * Math.sin(a))
-  })
-  return [
-    limb(j.neckBase, j.neckTop, SIZE.neck, tone),
-    { kind: 'path', d: smooth(points.map(svg)), tone },
-  ]
-}
-
-export const FRONT_ORDER: readonly FrontPart[] = ['legL', 'armL', 'legR', 'torso', 'head', 'armR']
-
-/** Everything to draw for ``pose`` seen from the front, back to front. The person's left side
- * is drawn in the far tone. */
-export function frontShapes(
-  pose: FrontPose,
-  props: Props = {},
-  order: readonly FrontPart[] = FRONT_ORDER,
-): Shape[] {
-  const j = solveFront(pose)
-  const out = scenery(props)
-  for (const part of order) {
-    if (part === 'armL') out.push(...frontArm(j.armL, 'far'))
-    else if (part === 'armR') out.push(...frontArm(j.armR, 'near'))
-    else if (part === 'legL') out.push(...frontLeg(j.legL, 'far'))
-    else if (part === 'legR') out.push(...frontLeg(j.legR, 'near'))
-    else if (part === 'torso') out.push(...frontTrunk(j, pose.tilt, 'near'))
-    else out.push(...frontHead(j, pose.tilt + (pose.bend ?? 0), 'near'))
-  }
-  return out
 }

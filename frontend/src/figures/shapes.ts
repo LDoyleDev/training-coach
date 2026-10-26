@@ -22,6 +22,7 @@ export type Shape =
   | { kind: 'ball'; c: Vec; r: number; tone: Tone }
   | { kind: 'ring'; c: Vec; r: number; ry?: number; width: number; tone: Tone }
   | { kind: 'mat'; x: number; y: number; width: number; height: number }
+  | { kind: 'floor'; d: string } // a mat on the floor, seen in perspective
 
 export type Part = 'armN' | 'armF' | 'legN' | 'legF' | 'torso' | 'head' | 'bell'
 
@@ -216,13 +217,15 @@ const rect = (a: number, b: number, c: number, d: number, tone: Tone = 'prop'): 
   tone,
 })
 
+/** A chair seen side on, its back at ``x0``: on the left, or on the right if ``x0 > x1``. */
 function chair({ x0, x1, seat }: NonNullable<Props['chair']>): Shape[] {
+  const s = Math.sign(x1 - x0) // into the seat from its back
   return [
-    rect(x0 + 1, 0, x0 + 4, seat - 4),
-    rect(x1 - 4, 0, x1 - 1, seat - 4),
+    rect(x0 + s, 0, x0 + 4 * s, seat - 4),
+    rect(x1 - 4 * s, 0, x1 - s, seat - 4),
     rect(x0, seat - 4, x1, seat),
-    rect(x0, seat, x0 + 3.5, seat + 44),
-    rect(x0 - 0.5, seat + 36, x0 + 4, seat + 46),
+    rect(x0, seat, x0 + 3.5 * s, seat + 44),
+    rect(x0 - 0.5 * s, seat + 36, x0 + 4 * s, seat + 46),
   ]
 }
 

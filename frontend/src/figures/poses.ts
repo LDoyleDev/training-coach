@@ -5,6 +5,7 @@
  */
 import type { Motion, Vec } from './body'
 import type { FrontPose } from './front'
+import type { Bench3, Camera } from './perspective'
 import type { Part, Props } from './shapes'
 
 type Box = readonly [number, number, number, number] // x0, x1, y0, y1 in cm, the floor at y = 0
@@ -16,7 +17,7 @@ export interface Figure extends Motion {
   order?: readonly Part[]
   /** The same movement seen from the front (front.ts), at the same pace, for one that happens
    * side-on to the body. It is shown first. */
-  front?: { view: Box; start: FrontPose; end: FrontPose; props?: Props }
+  front?: { view: Box; camera: Camera; seat?: Bench3; start: FrontPose; end: FrontPose }
   /** A close-up in the side view: the circle of radius ``r`` around ``of``, drawn larger in a
    * circle of radius ``size`` at ``at``, for a small movement such as a heel lifting. */
   inset?: { of: Vec; r: number; at: Vec; size: number }
@@ -320,8 +321,9 @@ export const FIGURES: Readonly<Record<string, Figure>> = {
     // the top knee on the seat and the bottom leg under it. Low, the trunk bends sideways at the
     // waist, so the hips drop while the chest stays nearly level; up, one straight line.
     front: {
-      view: [-150, 35, -3, 95],
-      props: { bench: { x0: -138, x1: -82, top: 45 } },
+      view: [-76, 82, -60, 70],
+      camera: { at: [195, 187, 298], look: [-55, 30, 0] },
+      seat: { x0: -138, x1: -82, top: 45, depth: 40 },
       start: {
         hip: [-40.61, 28.64],
         tilt: 55,

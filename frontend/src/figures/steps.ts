@@ -26,29 +26,30 @@ const fist = (pose: Pose): Pose => ({
 const VEST = ['Vest or backpack, 5 kg', 'Vest or backpack, 10 kg', 'Vest or backpack, 15 kg']
 
 /** Dips with the feet off the floor: between two chairs, one each side, seen as one chair under
- * the hands; knees bent, feet behind. It starts as the dip bars do, 75 cm lower; at the bottom
- * the knees come forward, as the hips are down at the seats. */
+ * the hands, its back in front of you; knees bent about square behind you, feet up. The seats are
+ * 50 cm high, so at the bottom, upper arms nearly level, the knees are still well off the floor. */
 const OFF_FLOOR: Change = {
   frames: [
-    'Hands on two chairs, one each side, arms straight, feet off the floor',
-    'Upper arms level with the seats, knees bent, feet still up',
+    'Hands on two chairs, one each side, arms straight, feet tucked up behind',
+    'Down until the upper arms are nearly level, knees and feet off the floor',
   ],
-  props: { chair: { x0: -38, x1: 8, seat: 45, beside: true } },
+  view: [-88, 48, -3, 148],
+  props: { chair: { x0: 40, x1: -6, seat: 50, beside: true } },
   start: {
-    hip: [-3.1, 60.8],
+    hip: [-3.1, 65.7],
     lean: 8,
-    legN: { at: [-28, 28], angle: 190 },
-    legF: { at: [-25, 28], angle: 188 },
-    armN: { at: [0, 48.4], angle: 0 },
-    armF: { at: [0, 48.4], angle: 0 },
+    legN: { at: [-55.4, 45.9], angle: 178 },
+    legF: { at: [-52.4, 45.9], angle: 176 },
+    armN: { at: [0, 53.4], angle: 0 },
+    armF: { at: [0, 53.4], angle: 0 },
   },
   end: {
-    hip: [-3.5, 38.2],
-    lean: 22,
-    legN: { at: [-9, 25], angle: 190 },
-    legF: { at: [-6, 25], angle: 188 },
-    armN: { at: [0, 48.4], angle: 0 },
-    armF: { at: [0, 48.4], angle: 0 },
+    hip: [-8, 50.9],
+    lean: 30,
+    legN: { at: [-63.8, 55], angle: 172 },
+    legF: { at: [-60.8, 55], angle: 170 },
+    armN: { at: [0, 53.4], angle: 0 },
+    armF: { at: [0, 53.4], angle: 0 },
   },
 }
 const OFF_FLOOR_LOADED: Change = { ...OFF_FLOOR, props: { ...OFF_FLOOR.props, load: true } }
