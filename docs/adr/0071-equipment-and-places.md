@@ -84,6 +84,6 @@ Decided while building, within this ADR:
   press at the top for the kit answers `no_next_step`.
 - **A locked level by hand is allowed** (the person decides): `POST /api/progress/{slug}/level`
   moves them and answers with a `warning` naming the missing kit.
-- The AI summary (and MCP `get_summary`) lists the home kit; the guide is version 2. The export
-  includes `equipment`.
+- The AI summary (and MCP `get_summary`) lists the home kit; the guide is version 3 (#349 took
+  2). The export includes `equipment`.
 - The concrete steps are proposed, not built: `docs/specs/kit-ladder-proposal.md`.

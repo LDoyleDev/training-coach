@@ -39,6 +39,7 @@ from training_coach.domain.enums import CardioActivity, ExerciseKind, Side, Soun
 from training_coach.domain.fitness_tests import TimeOfDay
 from training_coach.domain.habits import Habit
 from training_coach.domain.kit import Resistance
+from training_coach.domain.measurements import BodyFatEstimate
 from training_coach.domain.measurements import Kind as MeasurementKind
 from training_coach.domain.muscles import Kit
 from training_coach.domain.photos import Pose
@@ -258,6 +259,11 @@ class UserSettings(Owned, Base):
         CheckConstraint("max_hr IS NULL OR max_hr BETWEEN 120 AND 230", name="max_hr_range"),
         CheckConstraint(_in("pace", Pace), name="pace_valid"),
         CheckConstraint(_in("sound", Sound), name="sound_valid"),
+        CheckConstraint(
+            "height_cm IS NULL OR height_cm BETWEEN 120 AND 230", name="height_cm_range"
+        ),
+        CheckConstraint("thigh_offset_cm BETWEEN 5 AND 30", name="thigh_offset_cm_range"),
+        CheckConstraint(_in("body_fat_estimate", BodyFatEstimate), name="body_fat_estimate_valid"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -285,6 +291,13 @@ class UserSettings(Owned, Base):
     sound: Mapped[str] = mapped_column(String(16), server_default=Sound.RING.value)
     # When the home kit was last saved (ADR-0071). Empty: no kit listed yet, so no step locks.
     kit_saved_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    # Body measurements (ADR-0076): height for the tape estimate, where the thigh is taken, and
+    # whether the body-fat estimate is worked out at all (off unless the person turns it on).
+    height_cm: Mapped[int | None] = mapped_column(Integer)
+    thigh_offset_cm: Mapped[int] = mapped_column(Integer, server_default="15")
+    body_fat_estimate: Mapped[str] = mapped_column(
+        String(16), server_default=BodyFatEstimate.OFF.value
+    )
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

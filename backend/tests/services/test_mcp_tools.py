@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import DailyCheck
 from training_coach.services import ai_summary, mcp_tools
-from training_coach.services.ai_summary import GUIDE_URL
+from training_coach.services.ai_summary import GUIDE_URL, GUIDE_VERSION
 
 TODAY = date(2026, 10, 11)
 
@@ -43,6 +43,6 @@ def test_the_guide_falls_back_to_its_address(monkeypatch: pytest.MonkeyPatch) ->
     mcp_tools.guide.cache_clear()
     monkeypatch.setattr(mcp_tools, "__file__", str(Path("/nowhere/at/all.py")))
     try:
-        assert mcp_tools.guide() == f"Read the guide at {GUIDE_URL} (version 2)."
+        assert mcp_tools.guide() == f"Read the guide at {GUIDE_URL} (version {GUIDE_VERSION})."
     finally:
         mcp_tools.guide.cache_clear()

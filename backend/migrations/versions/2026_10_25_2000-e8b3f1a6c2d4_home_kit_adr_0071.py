@@ -7,7 +7,7 @@ kit. The check constraints repeat the models' values by hand (autogenerate doesn
 Downgrading drops the table and the column, and with them every kit listed.
 
 Revision ID: e8b3f1a6c2d4
-Revises: 4aa795c75305
+Revises: d9a4e2c7b1f5
 Create Date: 2026-10-25 20:00:00.000000
 
 """
@@ -19,7 +19,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "e8b3f1a6c2d4"
-down_revision: str | Sequence[str] | None = "4aa795c75305"
+down_revision: str | Sequence[str] | None = "d9a4e2c7b1f5"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

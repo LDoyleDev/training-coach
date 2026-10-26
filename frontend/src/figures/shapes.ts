@@ -34,6 +34,12 @@ export interface Props {
   /** A kettlebell in both hands, hanging along the forearms; 'near' hangs it straight down
    * from the near hand, as in a one-arm row. */
   bell?: boolean | 'near'
+  /** A step or a box, its top ``top`` cm off the floor. */
+  step?: { x0: number; x1: number; top: number }
+  /** A wall from x to x, from the floor to ``top``: behind your back or under a hand. */
+  wall?: { x0: number; x1: number; top: number }
+  /** A towel under the near heel, sliding with it. */
+  towel?: boolean
 }
 
 /** Radii in cm: [at the first joint, at the second]. */
@@ -196,6 +202,12 @@ function bench({ x0, x1, top, behind }: NonNullable<Props['bench']>): Shape[] {
   ]
 }
 
+/** A folded towel on the floor, under the near heel. */
+function towel(j: Joints): Shape[] {
+  const x = j.legN.heel[0]
+  return [rect(x - 10, 0, x + 12, 1.6)]
+}
+
 /** A bar on a bracket from a wall 40 cm in front, drawn behind the figure; the bar's end goes
  * in front of the hands, as the bar is wider than the grip. */
 const BAR = 3
@@ -234,6 +246,9 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
   if (props.chair) out.push(...chair(props.chair))
   if (props.bench) out.push(...bench(props.bench))
   if (props.bar) out.push(...bracket(props.bar))
+  for (const block of [props.wall, props.step])
+    if (block) out.push(rect(block.x0, 0, block.x1, block.top))
+  if (props.towel) out.push(...towel(j))
   for (const part of order) {
     if (part === 'armF') out.push(...arm(j.armF, 'far'))
     else if (part === 'armN') out.push(...arm(j.armN, 'near'))
