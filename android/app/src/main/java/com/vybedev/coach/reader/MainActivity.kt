@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -51,28 +52,47 @@ private fun ReaderScreen() {
     val scope = rememberCoroutineScope()
     var secret by remember { mutableStateOf("") }
     var hasSecret by remember { mutableStateOf(store.hasSecret) }
-    var granted by remember { mutableStateOf(false) }
+    // Health Connect permissions the reader has: null until checked.
+    var granted by remember { mutableStateOf<Set<String>?>(null) }
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf(store.lastResult) }
+    var week by remember { mutableStateOf("") }
+    // A background sync that sent nothing: loaded once, kept across recreation (rotation, dark
+    // mode), and cleared from the store only once it is on screen.
+    var problem by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { if (problem == null) problem = store.backgroundProblem }
+    LaunchedEffect(problem) { if (!problem.isNullOrEmpty()) store.backgroundProblem = "" }
     val available = remember { HealthReader.available(context) }
+    // The background read permission is asked for only where Health Connect supports it.
+    val background = remember { available && Background.supported(context) }
+
+    val missing = HealthReader.READS.filterKeys { granted?.contains(it) != true }
+    val inBackground = granted?.contains(Background.PERMISSION) == true
+    val askBackground = background && !inBackground
+    val ask = missing.keys + (if (askBackground) setOf(Background.PERMISSION) else emptySet())
 
     val askAccess = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract(),
-    ) { allowed -> granted = allowed.containsAll(HealthReader.PERMISSIONS) }
+    ) { allowed -> granted = granted.orEmpty() + allowed }
 
     LaunchedEffect(available) {
         if (available) granted = HealthReader(context).granted()
     }
 
+    // Once the check is done: the twice-daily sync runs only with every permission and a secret.
+    LaunchedEffect(granted, hasSecret) {
+        if (granted != null) Background.schedule(context, background && missing.isEmpty() && inBackground && hasSecret)
+    }
+
     val window = (context as? ComponentActivity)?.window
 
-    fun work(job: suspend () -> String) {
+    fun work(show: (String) -> Unit = { result = it }, job: suspend () -> String) {
         busy = true
         // Health Connect reads only while the app is on screen, so the screen stays awake.
         window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         scope.launch {
             try {
-                result = runCatching { job() }.getOrElse { "Failed: ${it.message ?: it.javaClass.simpleName}" }
+                show(runCatching { job() }.getOrElse { "Failed: ${it.message ?: it.javaClass.simpleName}" })
             } finally {
                 // Also when the screen goes away mid-sync, so it never stays awake for good.
                 window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -87,7 +107,8 @@ private fun ReaderScreen() {
     ) {
         Text("Coach reader", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Reads steps and heart rate from Health Connect and sends them to your coach. " +
+            "Reads steps, heart rate, sleep and exercise from Health Connect and sends them to " +
+                "your coach. " +
                 "Open Mi Fitness first, so the band's latest data is in Health Connect.",
         )
         Text("Sends to ${java.net.URI(BuildConfig.COACH_URL).host} only.", style = MaterialTheme.typography.bodySmall)
@@ -113,16 +134,37 @@ private fun ReaderScreen() {
 
         when {
             !available -> Text("Health Connect isn't installed or needs an update (Play Store).")
-            !granted -> Button(onClick = { askAccess.launch(HealthReader.PERMISSIONS) }) {
-                Text("Allow Health Connect access")
+            granted == null -> Unit
+            // Only the missing ones, so an update that reads a new type asks for just that.
+            ask.isNotEmpty() -> Button(onClick = { askAccess.launch(ask) }) {
+                val what = missing.values.joinToString()
+                Text(
+                    when {
+                        what.isEmpty() -> "Allow Health Connect to let the reader sync in the background"
+                        askBackground -> "Allow Health Connect to read $what, and in the background"
+                        else -> "Allow Health Connect to read $what"
+                    },
+                )
             }
-            else -> Text("Health Connect: steps and heart rate allowed.")
+            else -> Text("Health Connect: steps, heart rate, sleep and exercise allowed.")
+        }
+        if (available && granted != null) {
+            Text(
+                when {
+                    !background -> "This phone's Health Connect doesn't let apps read in the background, " +
+                        "so the reader syncs only when you open it and tap Sync now."
+                    inBackground && missing.isEmpty() -> "It also syncs by itself about every " +
+                        "${Background.EVERY_HOURS} hours; Android picks the time, so it can come late."
+                    else -> "Allow the above and it also syncs by itself, about every ${Background.EVERY_HOURS} hours."
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
 
         OutlinedButton(enabled = !busy && hasSecret, onClick = { work { Sync.test(context) } }) {
             Text("Test the secret")
         }
-        Button(enabled = !busy && hasSecret && granted, onClick = { work { Sync.run(context) } }) {
+        Button(enabled = !busy && hasSecret && granted != null && missing.isEmpty(), onClick = { work { Sync.run(context) } }) {
             Text(if (busy) "Working..." else "Sync now")
         }
         if (busy) {
@@ -133,6 +175,14 @@ private fun ReaderScreen() {
             )
         }
         Text(result, style = MaterialTheme.typography.bodyMedium)
+        problem?.takeIf { it.isNotEmpty() && it != result }?.let {
+            Text("Since you last looked: $it", style = MaterialTheme.typography.bodyMedium)
+        }
+        // Four reads, so only when tapped (spec "One screen").
+        OutlinedButton(enabled = !busy && missing.isEmpty() && granted != null, onClick = {
+            work(show = { week = it }) { Sync.week(context) }
+        }) { Text("In Health Connect, last 7 days") }
+        if (week.isNotEmpty()) Text(week, style = MaterialTheme.typography.bodyMedium)
         Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall)
     }
 }

@@ -16,12 +16,34 @@ function failure(error: unknown): string {
   return "That didn't work. Check your connection and try again."
 }
 
+/** The start of the coach's own reader's version string (ADR-0070); HC Webhook's is bare. */
+const READER = 'tc-reader/'
+
+/** Whether the phone sends with HC Webhook: before any sync, the reader that replaced it. */
+const fromWebhook = (version: string | null) => version !== null && !version.startsWith(READER)
+
+/** The app that sent the last stored sync, named from its version string. */
+const sender = (version: string) =>
+  fromWebhook(version)
+    ? `HC Webhook ${version}`
+    : `the Coach reader ${version.slice(READER.length)}`
+
 /** Why the last sync with the right secret stored nothing, and what to do about it. */
-const REFUSED: Record<NonNullable<Status['refused_reason']>, string> = {
-  too_large: 'it was over 5 MB. In HC Webhook, set heart rate to 1 minute, not Full.',
-  not_json: 'it wasn’t JSON. In HC Webhook, set the delivery format to JSON.',
-  failed: 'the coach couldn’t store it. The app sends it again at its next sync.',
-  skipped: 'nothing in it made sense, so all of it was left out. Check the phone’s clock.',
+function refused(reason: NonNullable<Status['refused_reason']>, webhook: boolean): string {
+  switch (reason) {
+    case 'too_large':
+      return webhook
+        ? 'it was over 5 MB. In HC Webhook, set heart rate to 1 minute, not Full.'
+        : 'it was over 5 MB. The reader tries it again, and after three refusals skips it and says so on its screen.'
+    case 'not_json':
+      return webhook
+        ? 'it wasn’t JSON. In HC Webhook, set the delivery format to JSON.'
+        : 'it wasn’t JSON. Update the Coach reader.'
+    case 'failed':
+      return 'the coach couldn’t store it. The app sends it again at its next sync.'
+    case 'skipped':
+      return 'nothing in it made sense, so all of it was left out. Check the phone’s clock.'
+  }
 }
 
 const when = (iso: string) =>
@@ -33,8 +55,8 @@ const when = (iso: string) =>
   })
 
 /**
- * Band import (ADR-0055): the secret the Health Connect Webhook app on the phone sends with
- * band data. Made here and shown once; the server keeps only its hash. Steps for the phone are
+ * Band import (ADR-0055, ADR-0070): the secret the Coach reader on the phone (or, before it,
+ * HC Webhook) sends with band data. Made here and shown once; the server keeps only its hash. Steps for the phone are
  * in docs/runbooks/band-import.md. "Last data arrived" is the last sync that brought a record,
  * not just the last call: the two drift apart when the band stops syncing to the phone. A sync
  * with the right secret that stored nothing is shown with why, while it is the newest.
@@ -53,6 +75,7 @@ export default function BandImport() {
   }, [])
 
   if (!status) return null
+  const webhook = fromWebhook(status.app_version)
 
   const make = async () => {
     setNote(null)
@@ -92,16 +115,19 @@ export default function BandImport() {
         Band import
       </h2>
       <p>
-        Your band’s workouts, sleep, steps, heart rate and weight reach the coach from the Health
-        Connect Webhook app on your phone. It needs the address and a secret from here.
+        {webhook
+          ? 'Your band’s workouts, sleep, steps, heart rate and weight reach the coach from the Health Connect Webhook app on your phone. It needs the address and a secret from here.'
+          : 'Your band’s workouts, sleep, steps and heart rate reach the coach from the Coach reader app on your phone. It needs a secret from here.'}
       </p>
-      {status.url ? (
-        <p className="break-all">
-          Address: <code>{status.url}</code>
-        </p>
-      ) : (
-        <p>Band import needs the server’s public address set first.</p>
-      )}
+      {/* The reader has the address built in, so only HC Webhook is shown it (review of #376). */}
+      {webhook &&
+        (status.url ? (
+          <p className="break-all">
+            Address: <code>{status.url}</code>
+          </p>
+        ) : (
+          <p>Band import needs the server’s public address set first.</p>
+        ))}
       {status.exists && (
         <p>
           {status.last_taken_at
@@ -110,20 +136,26 @@ export default function BandImport() {
           {status.last_used_at &&
             status.last_used_at !== status.last_taken_at &&
             ` Last sync ${when(status.last_used_at)}.`}
-          {status.app_version && ` From HC Webhook ${status.app_version}.`}
+          {status.app_version && ` From ${sender(status.app_version)}.`}
         </p>
       )}
       {status.exists && status.refused_at && status.refused_reason && (
         <p>
-          Last refused sync {when(status.refused_at)}: {REFUSED[status.refused_reason]}
+          Last refused sync {when(status.refused_at)}: {refused(status.refused_reason, webhook)}
         </p>
       )}
       {secret && (
         <div role="status" className="my-2 rounded-xl border-2 border-[var(--ink)] p-2">
           <p>
-            Your new secret. Copy it into the app now: it won’t be shown again. In the app, add the
-            header <code>Authorization</code> with the value <code>Bearer</code>, a space and the
-            secret.
+            Your new secret. Copy it into the app now: it won’t be shown again.{' '}
+            {webhook ? (
+              <>
+                In the app, add the header <code>Authorization</code> with the value{' '}
+                <code>Bearer</code>, a space and the secret.
+              </>
+            ) : (
+              'In the Coach reader, paste it under Secret and tap Save the secret.'
+            )}
           </p>
           <p className="font-mono break-all select-all">{secret}</p>
         </div>

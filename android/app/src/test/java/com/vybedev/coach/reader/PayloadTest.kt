@@ -61,6 +61,9 @@ class PayloadTest {
         val body = parse(payload(now, "0.0.1", emptyList(), emptyList()))
         assertFalse("steps" in body)
         assertFalse("heart_rate" in body)
+        assertFalse("sleep" in body)
+        assertFalse("exercise" in body)
+        assertFalse("deleted" in body)
     }
 
     @Test
@@ -82,6 +85,85 @@ class PayloadTest {
     @Test
     fun `an empty sync is still one post, so the coach hears from the phone`() {
         assertEquals(1, posts(now, "0.0.1", emptyList(), emptyList()).size)
+    }
+
+    // The night and the walk of backend/tests/api/test_ingest.py's _reader_sync: the same values,
+    // so the coach's test posts what this builds.
+    private val modified = Instant.parse("2026-10-11T05:10:00.123Z")
+    private val night = Night(
+        Instant.parse("2026-10-10T21:30:00Z"),
+        Instant.parse("2026-10-11T05:00:00Z"),
+        listOf(
+            Stage(Instant.parse("2026-10-10T21:30:00Z"), Instant.parse("2026-10-11T01:30:00Z"), 4),
+            Stage(Instant.parse("2026-10-11T01:30:00Z"), Instant.parse("2026-10-11T05:00:00Z"), 5),
+        ),
+        Meta("night-1", "com.mi.health", modified),
+    )
+    private val walk = Workout(
+        Instant.parse("2026-10-10T15:00:00.250Z"),
+        Instant.parse("2026-10-10T15:46:00Z"),
+        79,
+        Meta("walk-1", "com.mi.health", modified),
+    )
+
+    @Test
+    fun `sleep goes as the coach's ingest reads it`() {
+        val body = parse(payload(now, "0.0.5", emptyList(), emptyList(), Sessions(sleep = listOf(night))))
+        val sent = body["sleep"]!!.jsonArray.single().jsonObject
+        assertEquals("2026-10-11T05:00:00Z", sent["session_end_time"]!!.jsonPrimitive.content)
+        assertEquals("27000", sent["duration_seconds"]!!.jsonPrimitive.content)
+        val stages = sent["stages"]!!.jsonArray.map { it.jsonObject }
+        // Stage numbers go as strings, as HC Webhook sends them; the coach counts their seconds.
+        assertEquals(listOf("4", "5"), stages.map { it["stage"]!!.jsonPrimitive.content })
+        assertTrue(stages[0]["stage"]!!.jsonPrimitive.isString)
+        assertEquals(listOf("14400", "12600"), stages.map { it["duration_seconds"]!!.jsonPrimitive.content })
+        val meta = sent["metadata"]!!.jsonObject
+        assertEquals("night-1", meta["id"]!!.jsonPrimitive.content)
+        assertEquals("com.mi.health", meta["data_origin"]!!.jsonPrimitive.content)
+        assertEquals("2026-10-11T05:10:00.123Z", meta["last_modified_time"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `exercise goes with its type and times at full precision`() {
+        val body = parse(payload(now, "0.0.5", emptyList(), emptyList(), Sessions(exercise = listOf(walk))))
+        val sent = body["exercise"]!!.jsonArray.single().jsonObject
+        assertEquals("79", sent["type"]!!.jsonPrimitive.content)
+        assertTrue(sent["type"]!!.jsonPrimitive.isString)
+        // The coach knows a workout by where it came from and when it started, to the nanosecond.
+        assertEquals("2026-10-10T15:00:00.250Z", sent["start_time"]!!.jsonPrimitive.content)
+        assertEquals("2026-10-10T15:46:00Z", sent["end_time"]!!.jsonPrimitive.content)
+        assertEquals("walk-1", sent["metadata"]!!.jsonObject["id"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `deletions go as type and id`() {
+        val gone = listOf(Removed(SLEEP, "night-0"), Removed(EXERCISE, "walk-0"))
+        val body = parse(payload(now, "0.0.5", emptyList(), emptyList(), Sessions(deleted = gone)))
+        val sent = body["deleted"]!!.jsonArray.map { it.jsonObject }
+        assertEquals(listOf("sleep", "exercise"), sent.map { it["type"]!!.jsonPrimitive.content })
+        assertEquals(listOf("night-0", "walk-0"), sent.map { it["id"]!!.jsonPrimitive.content })
+        assertFalse("sleep" in body)
+        assertFalse("exercise" in body)
+    }
+
+    @Test
+    fun `a session naming no app gets the coach's unknown source`() {
+        // The coach refuses an empty data_origin, which would drop the whole record.
+        val unnamed = walk.copy(meta = walk.meta.copy(origin = ""))
+        val body = parse(payload(now, "0.0.5", emptyList(), emptyList(), Sessions(exercise = listOf(unnamed))))
+        val meta = body["exercise"]!!.jsonArray.single().jsonObject["metadata"]!!.jsonObject
+        assertEquals(UNKNOWN_ORIGIN, meta["data_origin"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `sleep, exercise and deletions go with the first post only`() {
+        val sessions = Sessions(listOf(night), listOf(walk), listOf(Removed(SLEEP, "night-0")))
+        val bodies = posts(now, "0.0.5", emptyList(), heart(3), perPost = 2, sessions = sessions).map(::parse)
+        assertEquals(2, bodies.size)
+        assertTrue(listOf("sleep", "exercise", "deleted").all { it in bodies[0] })
+        assertTrue(listOf("sleep", "exercise", "deleted").none { it in bodies[1] })
+        // With no heart rate, they still go, in the one post.
+        assertTrue("sleep" in posts(now, "0.0.5", emptyList(), emptyList(), sessions = sessions).single())
     }
 
     @Test

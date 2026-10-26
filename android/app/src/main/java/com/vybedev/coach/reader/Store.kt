@@ -18,10 +18,18 @@ class Store(context: Context) {
         return SecretBox.open(sealed) ?: null.also { prefs.edit().remove("secret").apply() }
     }
 
-    /** Health Connect's changes token for heart rate: null until the first good sync. */
+    /** Health Connect's changes token per type: null until the type's first good sync. */
     var heartToken: String?
         get() = prefs.getString("heart_token", null)
         set(value) = prefs.edit().putString("heart_token", value).apply()
+
+    var sleepToken: String?
+        get() = prefs.getString("sleep_token", null)
+        set(value) = prefs.edit().putString("sleep_token", value).apply()
+
+    var exerciseToken: String?
+        get() = prefs.getString("exercise_token", null)
+        set(value) = prefs.edit().putString("exercise_token", value).apply()
 
     /** Each recent day's step total as last sent, so an unchanged day isn't sent again. */
     var sentSteps: Map<LocalDate, Long>
@@ -32,6 +40,16 @@ class Store(context: Context) {
     var refusals: Int
         get() = prefs.getInt("refusals", 0)
         set(value) = prefs.edit().putInt("refusals", value).apply()
+
+    /** When a sync last delivered everything (Runs.kt's [delivered]), in epoch milliseconds; 0 never. */
+    var sentAt: Long
+        get() = prefs.getLong("sent_at", 0)
+        set(value) = prefs.edit().putLong("sent_at", value).apply()
+
+    /** A background sync that sent nothing, kept for the screen until it has shown it. */
+    var backgroundProblem: String
+        get() = prefs.getString("background_problem", "").orEmpty()
+        set(value) = prefs.edit().putString("background_problem", value).apply()
 
     /** The last sync's outcome, as shown on the screen. */
     var lastResult: String
