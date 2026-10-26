@@ -89,11 +89,18 @@ publishes no numbers for either.
 ### Syncs when it can
 
 - **When opened, or on "Sync now":** the foreground quota is the larger one.
-- **Later, in the background, once or twice a day** with WorkManager, if the installed Health
-  Connect supports reading in the background (`FEATURE_READ_HEALTH_DATA_IN_BACKGROUND`, which
-  depends on the Health Connect version, not Android's [read data]). Without it the reader
-  syncs only when opened, and the coach's existing Telegram message ("No band data has arrived
-  for a day") is the nudge.
+- **In the background, about every 12 hours** with WorkManager (0.0.6, `Background.kt`), if
+  the installed Health Connect supports reading in the background
+  (`FEATURE_READ_HEALTH_DATA_IN_BACKGROUND`, checked with its feature client: it depends on the
+  Health Connect version, not Android's [read data]). Only then does the screen ask for the
+  background-read permission, and the job is scheduled only once it, every read permission and
+  the secret are there. A periodic job with a network constraint: no exact alarm and no
+  foreground service, which Android 12 and MIUI restrict, so Android picks the time and a sync
+  can come hours late. It shares Sync now's lock and its read limit, and a failed one isn't
+  retried at once (that would spend more quota): the next run sends it again. One that sent
+  nothing (the quota, no network) is shown on the screen the next time it is opened. Without
+  the feature nothing is scheduled, the screen says the reader syncs only when opened, and
+  the coach's existing Telegram message ("No band data has arrived for a day") is the nudge.
 
 ### One screen
 
@@ -102,14 +109,15 @@ publishes no numbers for either.
 - **Sync now**, and **Test**, which posts `{"test": true}` to check the secret.
 - Per type: last read, last sent, records in the last sync.
 - The last error as it happened: the quota, 401, 413, no network.
-- Later, **In Health Connect, last 7 days:** which apps wrote each type, from an aggregate's
-  data origins and only when tapped. Reading 7 days of raw records would spend the quota this
-  plan is saving.
+- **In Health Connect, last 7 days** (0.0.6): per type, how much there is (steps, heart-rate
+  samples, hours of sleep and exercise) and which apps wrote it, from one aggregate a type and
+  its data origins: four reads, only when tapped. Reading 7 days of raw records would spend the
+  quota this plan is saving.
 
 ### Permissions and Android 12
 
-- Reads Steps, Heart rate, Sleep and Exercise, plus reading in the background later. Nothing
-  else, and no write permissions.
+- Reads Steps, Heart rate, Sleep and Exercise, plus reading in the background where Health
+  Connect supports it. Nothing else, and no write permissions.
 - On Android 13 and lower, Health Connect's permission screen only opens for an app that
   declares the permissions-rationale activity and a `<queries>` entry for Health Connect.
 - `allowBackup=false`, so the secret and tokens never go to a cloud backup.
@@ -119,7 +127,7 @@ publishes no numbers for either.
 ## Build and ship
 
 - **Where:** `android/` in this repo, with its own `android/CLAUDE.md`, the same PR flow and
-  review. Kotlin, Jetpack Compose, `androidx.health.connect:connect-client`, WorkManager later;
+  review. Kotlin, Jetpack Compose, `androidx.health.connect:connect-client`, WorkManager;
   the fewest dependencies that do the job, each with a reason in its PR.
 - **No Android tools needed on the desktop to build:** a CI workflow builds the app, runs its
   unit tests and Android lint whenever `android/` changes. It isn't a required check, so PRs
@@ -151,7 +159,8 @@ Each PR under about 400 changed lines, not counting generated files.
    and Liam accepted ADR-0070 after it without waiting the planned three days.
 2. Sleep, exercise and deletions, with the contract test on both sides. Done in reader 0.0.5
    (26 Oct); the screen asks once to allow reading sleep and exercise.
-3. The background sync and the "In Health Connect, last 7 days" view.
+3. The background sync and the "In Health Connect, last 7 days" view. Done in reader 0.0.6
+   (26 Oct).
 4. `band-import.md` rewritten for the reader; Account and the bot name the sending app from its
    version string instead of "HC Webhook"; HC Webhook retired.
 

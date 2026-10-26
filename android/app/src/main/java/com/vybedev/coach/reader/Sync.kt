@@ -9,14 +9,40 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /** One sync at a time, whatever starts it, so an older token never overwrites a newer one. */
 object Sync {
     private val lock = Mutex()
 
-    suspend fun run(context: Context): String = lock.withLock {
-        withContext(Dispatchers.IO) { runLocked(context) }.also { Store(context).lastResult = it }
+    /** A sync from Sync now or, with [background], from WorkManager (Background.kt). */
+    suspend fun run(context: Context, background: Boolean = false): String = lock.withLock {
+        val store = Store(context)
+        val before = store.sentAt
+        val said = withContext(Dispatchers.IO) { runLocked(context) }
+        val result = if (background) "In the background, ${stamp()}: $said" else said
+        store.lastResult = result
+        // One that sent nothing (the quota, no network) waits for the screen's next opening, even
+        // if a later sync's result has replaced it by then.
+        if (background && store.sentAt == before) store.backgroundProblem = result
+        result
+    }
+
+    private fun stamp(): String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEE HH:mm", Locale.ENGLISH))
+
+    /** "In Health Connect, last 7 days": four aggregate reads, only when the person taps it. */
+    suspend fun week(context: Context): String = withContext(Dispatchers.IO) {
+        if (!HealthReader.available(context)) return@withContext "Health Connect isn't available on this phone."
+        val reader = HealthReader(context)
+        if (reader.missing().isNotEmpty()) return@withContext "Allow Health Connect access first."
+        try {
+            "In Health Connect, last 7 days:\n" + reader.lastWeek(Instant.now()).joinToString("\n", transform = ::weekLine)
+        } catch (e: Exception) {
+            readFailure(e.message ?: e.javaClass.simpleName) + " (at ${reader.reads.last})"
+        }
     }
 
     /** Posts `{"test": true}`: the coach checks the secret and stores nothing (ADR-0055). */
@@ -116,6 +142,7 @@ object Sync {
         store.exerciseToken = read.exercise.nextToken
         store.heartToken = read.heart.nextToken
         store.sentSteps = read.steps.associate { it.day to it.count }
+        store.sentAt = System.currentTimeMillis()
         store.refusals = 0
     }
 

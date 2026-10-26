@@ -63,6 +63,9 @@ dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // The background sync, once or twice a day: Android's own scheduler, which survives reboots
+    // and needs no exact alarm or foreground service (Android 12, MIUI).
+    implementation("androidx.work:work-runtime-ktx:2.11.2")
     // JSON built as JsonObject, no compiler plugin; also what the unit tests parse.
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 
