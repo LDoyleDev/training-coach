@@ -552,20 +552,20 @@ function Detail({
   )
 }
 
-/** This week's zone 2 minutes against the plan's target. */
+/** Zone 2 minutes over the last 7 days against the plan's weekly target (ADR-0077). */
 function WeekBar({ week }: { week: CardioOptions['week'] }) {
   const target = week.zone2_target
   return (
     <div className="flex flex-col gap-1">
       <p className="m-0 text-sm">
-        This week: <span className="font-bold">{week.zone2}</span>
+        Last 7 days: <span className="font-bold">{week.zone2}</span>
         {target ? ` of ${target[0]}–${target[1]}` : ''} zone 2 min
         {week.moderate > 0 ? `, ${week.moderate} moderate` : ''}
       </p>
       {target && (
         <div
           role="meter"
-          aria-label="Zone 2 this week"
+          aria-label="Zone 2 in the last 7 days"
           aria-valuemin={0}
           aria-valuemax={target[0]}
           aria-valuenow={Math.min(week.zone2, target[0])}

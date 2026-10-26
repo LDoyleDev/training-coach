@@ -39,7 +39,7 @@ class Planned:
 
 @dataclass(frozen=True)
 class Week:
-    zone2: int  # minutes this week, Monday to today
+    zone2: int  # minutes in the last 7 days, today included (ADR-0077)
     moderate: int
     zone2_target: tuple[int, int] | None  # from plan.toml
 
@@ -64,7 +64,8 @@ def planned(session: Session, on: date, tz: ZoneInfo) -> Planned | None:
 
 
 def week(session: Session, on: date) -> Week:
-    minutes = review.cardio_minutes(session, review.week_start(on), on)
+    """Zone 2 and moderate minutes over the last 7 days, so a Monday still shows the weekend."""
+    minutes = review.cardio_minutes(session, review.last_days(on), on)
     targets = bundled_plan().targets
     return Week(
         minutes.get(ZONE2, 0),

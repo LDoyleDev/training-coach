@@ -42,6 +42,7 @@ def test_home_before_anything_is_done(signed_in: TestClient) -> None:
         "days": 0,
     }
     assert (found["week"]["done"], found["week"]["planned"]) == (0, 7)
+    assert (found["week"]["zone2_minutes"], found["week"]["moderate_minutes"]) == (0, 0)
     assert found["week"]["zone2_target"] == [180, 200]
     assert found["progress"] == {"steps_climbed": 0, "ready": [], "bests": []}
     assert found["recent"] == []

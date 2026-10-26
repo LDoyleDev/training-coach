@@ -71,14 +71,19 @@ test('a planned zone 2 day is done in one tap', async () => {
   const sent = serve()
   render(<Cardio featured />)
   expect(await screen.findByRole('heading', { name: 'Long zone 2' })).toBeInTheDocument()
-  expect(screen.getByText(/This week:/)).toHaveTextContent('This week: 40 of 180–200 zone 2 min')
+  expect(screen.getByText(/Last 7 days:/)).toHaveTextContent(
+    'Last 7 days: 40 of 180–200 zone 2 min',
+  )
+  expect(screen.getByRole('meter', { name: 'Zone 2 in the last 7 days' })).toBeInTheDocument()
   click('Done as planned: 45 min')
   expect(await screen.findByRole('heading', { name: 'Long zone 2 done' })).toBeInTheDocument()
   expect(sent).toEqual([
     { token: expect.stringMatching(/^[0-9a-f]{32}$/), kind: 'zone2', value: 45, activity: null },
   ])
   expect(screen.getByText('Next up: Legs.')).toBeInTheDocument()
-  expect(screen.getByText(/This week:/)).toHaveTextContent('This week: 85 of 180–200 zone 2 min')
+  expect(screen.getByText(/Last 7 days:/)).toHaveTextContent(
+    'Last 7 days: 85 of 180–200 zone 2 min',
+  )
   expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/')
 })
 

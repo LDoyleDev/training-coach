@@ -960,8 +960,8 @@ export interface paths {
         };
         /**
          * Home
-         * @description All-time totals, this week against the plan, ladder progress, the last seven days and
-         *     today's session.
+         * @description All-time totals, the last 7 days against the plan, ladder progress, what was done on
+         *     each of those days and today's session.
          */
         get: operations["home_api_home_get"];
         put?: never;
@@ -2416,12 +2416,17 @@ export interface components {
             totals: components["schemas"]["TotalsView"];
             week: components["schemas"]["HomeWeekView"];
         };
-        /** HomeWeekView */
+        /**
+         * HomeWeekView
+         * @description The last 7 days, today included, the same days as ``recent`` (ADR-0077).
+         */
         HomeWeekView: {
             /** Done */
             done: number;
             /** Extras */
             extras: number;
+            /** Moderate Minutes */
+            moderate_minutes: number;
             /** Planned */
             planned: number;
             /**
@@ -3835,7 +3840,10 @@ export interface components {
             /** Sets */
             sets: number;
         };
-        /** WeekView */
+        /**
+         * WeekView
+         * @description Minutes over the last 7 days, today included (ADR-0077).
+         */
         WeekView: {
             /** Moderate */
             moderate: number;

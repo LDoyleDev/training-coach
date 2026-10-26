@@ -67,7 +67,7 @@ export default function BandOffers({ onCounted }: { onCounted: (text: string) =>
       else if (result === 'stale') setNote('Today’s session changed meanwhile. Try again.')
       else {
         const target = result.week.zone2_target
-        const week = `Zone 2 this week: ${result.week.zone2}${target ? ` of ${target[0]}-${target[1]}` : ''} min.`
+        const week = `Zone 2 in the last 7 days: ${result.week.zone2}${target ? ` of ${target[0]}-${target[1]}` : ''} min.`
         onCounted(`Counted${result.planned ? ', and today’s session is done' : ''}. ${week}`)
       }
       setLoads((n) => n + 1)

@@ -325,7 +325,7 @@ export type CardioLogged = Schemas['LoggedView']
 export type CardioKind = CardioLog['kind']
 export type CardioActivity = Schemas['CardioActivity']
 
-/** Today's planned cardio, the activities and this week's minutes; null when signed out. */
+/** Today's planned cardio, the activities and the last 7 days' minutes; null when signed out. */
 export async function fetchCardio(signal?: AbortSignal): Promise<CardioOptions | null> {
   const res = await fetch('/api/cardio', { signal, credentials: 'same-origin' })
   if (res.status === 401) return null
@@ -743,7 +743,7 @@ export async function fetchSessionTimes(signal?: AbortSignal): Promise<SessionTi
 
 export type Home = Schemas['HomeView']
 
-/** What has been done, this week, the ladders and today's session; null when not signed in. */
+/** What has been done, the last 7 days, the ladders and today's session; null when signed out. */
 export async function fetchHome(signal?: AbortSignal): Promise<Home | null> {
   const res = await fetch('/api/home', { signal, credentials: 'same-origin' })
   if (res.status === 401) return null
