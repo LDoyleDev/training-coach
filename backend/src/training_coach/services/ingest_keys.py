@@ -42,7 +42,7 @@ class Status:
     last_taken_at: datetime | None  # the last sync that took a record: data actually arrived
     refused_at: datetime | None = None  # a sync that stored nothing, since the last stored one
     refused_reason: Refusal | None = None
-    app_version: str | None = None  # of HC Webhook, from the last stored sync
+    app_version: str | None = None  # the sending app's, from the last stored sync
 
 
 def _refusal_open(row: IngestKey) -> bool:

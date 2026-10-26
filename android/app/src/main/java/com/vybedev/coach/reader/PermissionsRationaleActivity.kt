@@ -24,10 +24,11 @@ class PermissionsRationaleActivity : ComponentActivity() {
                     Column(Modifier.padding(16.dp)) {
                         Text("Why Coach reader reads your health data", style = MaterialTheme.typography.titleLarge)
                         Text(
-                            "It reads your steps and heart rate and sends them only to your coach " +
+                            "It reads your steps, heart rate, sleep and exercise and sends them only to your coach " +
                                 "(coach.vybe-dev.com), with your own secret. It writes nothing to " +
                                 "Health Connect and sends nothing anywhere else. It keeps only the last " +
-                                "two days' step totals, so it knows what it already sent.",
+                                "two days' step totals, so it knows what it already sent. If you allow it, it " +
+                                "also reads in the background, about twice a day.",
                             Modifier.padding(top = 12.dp),
                         )
                     }

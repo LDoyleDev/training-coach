@@ -45,7 +45,20 @@ FAILED = "Couldn't save that just now. Try again, or count it on Today in the ap
 NOT_COUNTED = "Not counted. It's still on offer."
 WATCH_EVERY = timedelta(hours=1)
 WATCH_JOB = "band.watch"
+READER = "tc-reader/"  # the start of the coach's own reader's app_version (ADR-0070)
 NOTICES = {
+    Notice.QUIET: (
+        "No band data has arrived for a day. Open Mi Fitness to sync the band, then the Coach "
+        "reader, and tap Sync now. Band import: Account → Band import."
+    ),
+    Notice.EMPTY: (
+        "The Coach reader is syncing, but nothing new has come from the band for a day. Open Mi "
+        "Fitness to sync the band, and check that Mi Fitness still shares with Health Connect."
+    ),
+    Notice.BACK: "Band data is arriving again.",
+}
+# The same for a phone that still sends with HC Webhook (ADR-0055), told apart by its version.
+WEBHOOK_NOTICES = {
     Notice.QUIET: (
         "No band data has arrived for a day. Open Mi Fitness to sync the band, and check HC "
         "Webhook's log. Band import: Account → Band import."
@@ -91,14 +104,28 @@ def _names(feeds: tuple[Feed, ...], joiner: str) -> str:
     return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} {joiner} {names[-1]}"
 
 
-def feeds_text(notices: FeedNotices) -> str:
+def webhook(app_version: str | None) -> bool:
+    """Whether the phone's last stored sync came from HC Webhook rather than the coach's own
+    reader, from the version string it sent. With none (no sync yet, a sync that named no
+    version, or a secret just remade, which clears it) the reader is assumed: it replaced HC
+    Webhook (ADR-0070), and a new secret means the phone was set up again, as the runbook says
+    with the reader. The next versioned sync corrects it."""
+    return app_version is not None and not app_version.startswith(READER)
+
+
+def feeds_text(notices: FeedNotices, from_webhook: bool = False) -> str:
     """The message for kinds of band data that stopped or came back."""
     lines = []
     if notices.stopped:
+        where = (
+            "In HC Webhook, check Data Types, and look under Sync Now for an error."
+            if from_webhook
+            else "In the Coach reader, tap Sync now: it says what it sent of each kind, or why "
+            "it couldn't."
+        )
         lines.append(
             f"No {_names(notices.stopped, 'or')} data has come from the band for two days, "
-            "though other band data has. In HC Webhook, check Data Types, and look under Sync "
-            "Now for an error."
+            f"though other band data has. {where}"
         )
     if notices.back:
         names = _names(notices.back, "and")
@@ -163,13 +190,15 @@ class BandHandlers:
                     return
                 notice = ingest_keys.watch(session, now)
                 feeds = ingest_keys.watch_feeds(session, now)
+                from_webhook = webhook(ingest_keys.status(session).app_version)
         except SQLAlchemyError as exc:
             log.error("bot.band_watch_failed", error=type(exc).__name__)
             return
         if notice is not None:
-            text, stopped, kind = NOTICES[notice], notice is not Notice.BACK, notice.value
+            texts = WEBHOOK_NOTICES if from_webhook else NOTICES
+            text, stopped, kind = texts[notice], notice is not Notice.BACK, notice.value
         elif feeds:
-            text, stopped, kind = feeds_text(feeds), bool(feeds.stopped), "feeds"
+            text, stopped, kind = feeds_text(feeds, from_webhook), bool(feeds.stopped), "feeds"
         else:
             return
         owner = self.settings.telegram_allowed_user_id
