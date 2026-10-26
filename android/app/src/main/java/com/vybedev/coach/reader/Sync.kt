@@ -96,7 +96,7 @@ object Sync {
         val bodies = posts(now, BuildConfig.VERSION_NAME, newSteps, read.heart.written, sessions = sessions)
         return when (val delivery = deliver(bodies, store.refusals) { send(secret, it) }) {
             is Delivery.Sent -> {
-                keep(store, read)
+                keep(store, read, delivery)
                 "Sent at ${now.atZone(zone).toLocalTime().withNano(0)}, in ${delivery.posts} post(s), " +
                     "${reader.reads.made} read(s).\n" + sent(newSteps.size, read) + later(read)
             }
@@ -105,7 +105,7 @@ object Sync {
                 describe(delivery.answer)
             }
             is Delivery.Skipped -> {
-                keep(store, read)
+                keep(store, read, delivery)
                 "The coach refused this batch $REFUSALS_BEFORE_SKIPPING syncs in a row " +
                     "(${delivery.answer.status}), so it was skipped: the last ${delivery.dropped} of " +
                     "${delivery.of} post(s) won't be sent" +
@@ -143,13 +143,14 @@ object Sync {
                 "$MAX_READS_PER_SYNC reads, so part of that day won't come across; later data comes as usual.")
     }
 
-    /** Only after the coach took everything: the tokens move on and the totals count as sent. */
-    private fun keep(store: Store, read: Read) {
+    /** Only after the coach took everything, or a refused batch was skipped: the tokens move on
+     * and the totals count as sent. Only the first counts as delivered (Runs.kt). */
+    private fun keep(store: Store, read: Read, delivery: Delivery) {
         store.sleepToken = read.sleep.nextToken
         store.exerciseToken = read.exercise.nextToken
         store.heartToken = read.heart.nextToken
         store.sentSteps = read.steps.associate { it.day to it.count }
-        store.sentAt = System.currentTimeMillis()
+        if (delivered(delivery)) store.sentAt = System.currentTimeMillis()
         store.refusals = 0
     }
 

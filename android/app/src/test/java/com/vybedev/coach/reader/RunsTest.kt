@@ -32,6 +32,17 @@ class RunsTest {
     }
 
     @Test
+    fun `a skipped batch is not delivered, so a background run that ended so is kept`() {
+        // Review of #375: the skip moved sentAt, and "skipped N posts" never reached the screen.
+        val skipped = Delivery.Skipped(Answer(422, ""), dropped = 2, of = 3)
+        assertFalse(delivered(skipped))
+        assertTrue(delivered(Delivery.Sent(posts = 1)))
+        assertFalse(delivered(Delivery.Failed(Answer(500, ""), refusals = 0)))
+        val kept = afterRun("The coach refused this batch 3 syncs in a row", true, 5, 5, "Mon 09:00")
+        assertEquals(kept.result, kept.problem)
+    }
+
+    @Test
     fun `a background run that sent leaves the earlier problem alone`() {
         val kept = afterRun("Sent at 21:00", true, 5, 6, "Mon 21:00")
         assertEquals("In the background, Mon 21:00: Sent at 21:00", kept.result)

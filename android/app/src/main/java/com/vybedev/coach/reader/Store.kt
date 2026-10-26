@@ -41,7 +41,7 @@ class Store(context: Context) {
         get() = prefs.getInt("refusals", 0)
         set(value) = prefs.edit().putInt("refusals", value).apply()
 
-    /** When a sync last moved on (the coach took everything), in epoch milliseconds; 0 never. */
+    /** When a sync last delivered everything (Runs.kt's [delivered]), in epoch milliseconds; 0 never. */
     var sentAt: Long
         get() = prefs.getLong("sent_at", 0)
         set(value) = prefs.edit().putLong("sent_at", value).apply()
