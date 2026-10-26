@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { BOX, type Point, chart, split } from './chart'
+import { BOX, BY_LOAD, BY_STEP, type Point, chart, kindFor, split, strip } from './chart'
 
 const today = new Date(2026, 9, 21) // the window runs 10 Sep to 21 Oct
 const at = (day: string, best: number, step_number: number): Point => ({ day, best, step_number })
@@ -64,4 +64,19 @@ test('a period too narrow for even the short label goes unlabelled', () => {
   )!
   expect(found.periods.map((p) => p.move)).toEqual([null, 'up', 'up'])
   expect(found.periods.map((p) => p.label)).toEqual([null, null, 'Step 3 ↑'])
+})
+
+test('a session without a weight is its own period among weighed ones', () => {
+  const points = [
+    { day: '2026-10-01', best: 8, step_number: 1, kg: null },
+    { day: '2026-10-05', best: 8, step_number: 1, kg: 20 },
+  ]
+  expect(kindFor(points)).toBe(BY_LOAD)
+  expect(kindFor([points[0]])).toBe(BY_STEP)
+  const found = chart(points, new Date(2026, 9, 21), BY_LOAD)!
+  expect(found.periods.map((p) => p.key)).toEqual([0, 20])
+  expect(BY_LOAD.name(0)).toBe('No weight')
+  expect(BY_LOAD.words(20)).toBe('20 kg')
+  expect(BY_LOAD.words(0)).toBe('no weight')
+  expect(strip([])).toBeNull()
 })

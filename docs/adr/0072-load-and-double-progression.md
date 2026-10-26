@@ -108,3 +108,8 @@ Decided while building, within this ADR:
   cue; its weights and targets come from strength-block sessions, so the first strength block
   starts at the kit's first weight and the person sets theirs. The weekly review's bests still
   count every weight.
+- **The chart by weight:** once any session in the six weeks has a weight, the periods follow
+  the session's heaviest set ("22 kg ↑"; a session without one is "No weight"), and a strip
+  under the chart draws the weight as a staircase on the same dates, labelled with its lowest
+  and highest kg and described in words. An exercise without weights keeps its step periods
+  and has no strip.

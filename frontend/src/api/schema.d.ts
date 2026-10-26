@@ -3105,6 +3105,8 @@ export interface components {
              * Format: date
              */
             day: string;
+            /** Kg */
+            kg?: number | null;
             /** Step Number */
             step_number: number;
         };

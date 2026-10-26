@@ -35,6 +35,44 @@ export const BY_STEP: PeriodKind = {
   words: (k) => `step ${k}`,
 }
 
+/** Periods by the session's weight, on a loaded step (ADR-0072); a session without one is 0. */
+export const BY_LOAD: PeriodKind = {
+  key: (p) => p.kg ?? 0,
+  name: (k) => (k === 0 ? 'No weight' : `${k} kg`),
+  words: (k) => (k === 0 ? 'no weight' : `${k} kg`),
+}
+
+/** By weight when any session in the window has one, else by ladder step. */
+export const kindFor = (points: Point[]): PeriodKind =>
+  points.some((p) => p.kg != null) ? BY_LOAD : BY_STEP
+
+/** The thin strip under a loaded exercise's chart (ADR-0072): its weight per session as a
+ * staircase on the same dates, never a second scale on the chart itself. */
+export const STRIP = { height: 30, top: 6, bottom: 6 }
+
+export interface Strip {
+  path: string // a staircase through each weighed session
+  low: number
+  high: number
+}
+
+export function strip(dots: Dot[]): Strip | null {
+  const weighed = dots.filter((d) => d.point.kg != null)
+  if (weighed.length === 0) return null
+  const kg = weighed.map((d) => d.point.kg!)
+  const low = Math.min(...kg)
+  const high = Math.max(...kg)
+  const room = STRIP.height - STRIP.top - STRIP.bottom
+  const y = (v: number) =>
+    high === low ? STRIP.top + room / 2 : STRIP.top + room - ((v - low) / (high - low)) * room
+  const steps = weighed.map((d, i) => {
+    const at = `${d.x.toFixed(1)},${y(kg[i]).toFixed(1)}`
+    return i === 0 ? `M${at}` : `H${d.x.toFixed(1)}V${y(kg[i]).toFixed(1)}`
+  })
+  const end = Math.max(weighed.at(-1)!.x, BOX.width - BOX.right)
+  return { path: `${steps.join('')}H${end.toFixed(1)}`, low, high }
+}
+
 export interface Period {
   key: number
   dots: Dot[]

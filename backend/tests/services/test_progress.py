@@ -285,6 +285,18 @@ def test_the_trend_is_six_weeks_of_best_sets_across_steps(plan: Session) -> None
     ]
 
 
+def test_each_point_on_the_trend_carries_its_sessions_heaviest_weight(plan: Session) -> None:
+    """For the chart's period per weight (ADR-0072); empty for bodyweight sessions."""
+    on = DAY + timedelta(days=50)
+    _log(plan, "dip", [10], 20)
+    loaded = _log(plan, "dip", [8, 8], 30)
+    for row, kg in zip(plan.get_one(Workout, loaded).sets, (10.0, 12.5), strict=True):
+        row.load_kg = kg
+    plan.flush()
+    dip = next(s for s in overview(plan, on) if s.exercise == "Dip (chairs)")
+    assert [p.kg for p in dip.trend] == [None, 12.5]
+
+
 def test_overview_reports_the_top_of_the_ladder(plan: Session) -> None:
     exercise = _exercise(plan, "pull-up")
     last = max(exercise.ladder, key=lambda s: s.position)

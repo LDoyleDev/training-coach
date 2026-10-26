@@ -464,6 +464,7 @@ class Point:
     day: date
     best: int  # the session's best set, as "best" counts it
     step_number: int  # 1-based, so the graph can mark a move up
+    kg: float | None = None  # its heaviest set's weight, on a loaded step (ADR-0072)
 
 
 @dataclass(frozen=True)
@@ -502,6 +503,7 @@ def _trend(
             SetLog.set_no,
             SetLog.side,
             SetLog.value,
+            SetLog.load_kg,
         )
         .join(Workout)
         .join(LadderStep, LadderStep.id == SetLog.ladder_step_id)
@@ -519,12 +521,20 @@ def _trend(
     days: dict[int, date] = {}
     steps: dict[int, int] = {}
     sets: dict[int, list[tuple[int, Side, int]]] = {}
-    for workout_id, on, position, set_no, side, value in session.execute(query):
+    loads: dict[int, list[tuple[int, float]]] = {}
+    for workout_id, on, position, set_no, side, value, kg in session.execute(query):
         days[workout_id] = on
         steps[workout_id] = max(steps.get(workout_id, 0), position)
         sets.setdefault(workout_id, []).append((set_no, Side(side), value))
+        if kg is not None:
+            loads.setdefault(workout_id, []).append((set_no, kg))
     return tuple(
-        Point(days[w], max(combine_sides(sets[w], unilateral=per_side), default=0), steps[w] + 1)
+        Point(
+            days[w],
+            max(combine_sides(sets[w], unilateral=per_side), default=0),
+            steps[w] + 1,
+            top_weight(loads.get(w, [])),
+        )
         for w in days
     )
 

@@ -108,3 +108,52 @@ test('a narrow period gets the short label and keeps its change in the descripti
   expect(lines(chart)).toHaveLength(0)
   expect(chart.querySelectorAll('circle')).toHaveLength(2)
 })
+
+test('on a loaded step each weight is a period, and a strip shows the weight (ADR-0072)', () => {
+  const { container } = render(
+    <TrendChart
+      standing={standing([
+        { day: '2026-10-01', best: 12, step_number: 1, kg: 20 },
+        { day: '2026-10-05', best: 12, step_number: 1, kg: 20 },
+        { day: '2026-10-09', best: 8, step_number: 1, kg: 22.5 },
+        { day: '2026-10-14', best: 10, step_number: 1, kg: 22.5 },
+        { day: '2026-10-19', best: 12, step_number: 1, kg: 20 },
+      ])}
+      today={today}
+    />,
+  )
+  const [chart, weights] = screen.getAllByRole('img')
+  expect(chart).toHaveAccessibleName(
+    'Best set per session, last 6 weeks: 5 sessions, from 12 to 12' +
+      '. Moved up to 22.5 kg on 9 Oct; best 12 to 8' +
+      '. Moved down to 20 kg on 19 Oct; best 10 to 12',
+  )
+  expect(chart).toHaveTextContent('22.5 kg ↑')
+  expect(lines(chart).map((l) => l.length)).toEqual([2, 2]) // the last period has one session
+  expect(weights).toHaveAccessibleName('Weight per session, from 20 kg to 22.5 kg')
+  expect(weights).toHaveTextContent('22.5 kg')
+  expect(container.querySelector('path')?.getAttribute('d')).toMatch(/^M[\d.]+,[\d.]+H/)
+})
+
+test('a bodyweight exercise has no weight strip', () => {
+  render(
+    <TrendChart
+      standing={standing([{ day: '2026-10-01', best: 12, step_number: 1, kg: null }])}
+      today={today}
+    />,
+  )
+  expect(screen.getAllByRole('img')).toHaveLength(1)
+})
+
+test('one weight throughout says so', () => {
+  render(
+    <TrendChart
+      standing={standing([
+        { day: '2026-10-01', best: 8, step_number: 1, kg: 40 },
+        { day: '2026-10-08', best: 9, step_number: 1, kg: 40 },
+      ])}
+      today={today}
+    />,
+  )
+  expect(screen.getAllByRole('img')[1]).toHaveAccessibleName('Weight: 40 kg every session')
+})
