@@ -21,7 +21,8 @@ private val APP_NAMES = mapOf(
 
 fun appName(packageName: String): String = APP_NAMES[packageName] ?: packageName
 
-fun hoursAndMinutes(total: Duration): String = "${total.toHours()} h ${total.toMinutesPart()} min"
+// toMinutesPart needs API 31; the reader runs from 28.
+fun hoursAndMinutes(total: Duration): String = "${total.toHours()} h ${total.toMinutes() % 60} min"
 
 fun weekLine(week: WeekType): String {
     if (week.amount == null || week.apps.isEmpty()) return "${week.type}: none"
