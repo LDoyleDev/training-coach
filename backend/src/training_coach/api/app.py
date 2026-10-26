@@ -21,12 +21,14 @@ from training_coach.api.alerts import Send
 from training_coach.api.auth import router as auth_router
 from training_coach.api.band import router as band_router
 from training_coach.api.body import router as body_router
+from training_coach.api.body_settings import router as body_settings_router
 from training_coach.api.cardio import router as cardio_router
 from training_coach.api.change import router as change_router
 from training_coach.api.connections import router as connections_router
 from training_coach.api.coverage import router as coverage_router
 from training_coach.api.daily_check import router as daily_check_router
 from training_coach.api.day import router as day_router
+from training_coach.api.equipment import router as equipment_router
 from training_coach.api.fitness import router as fitness_router
 from training_coach.api.habits import router as habits_router
 from training_coach.api.health import router as health_router
@@ -237,6 +239,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(plan_router)
     app.include_router(coverage_router)
+    app.include_router(equipment_router)
     app.include_router(auth_router)
     app.include_router(passkeys_router)
     app.include_router(account_router)
@@ -248,6 +251,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(change_router)
     app.include_router(fitness_router)
     app.include_router(body_router)
+    app.include_router(body_settings_router)
     app.include_router(photos_router)
     app.include_router(home_router)
     app.include_router(progress_router)

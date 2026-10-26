@@ -156,6 +156,30 @@
         "title": "ApproveBody",
         "type": "object"
       },
+      "AverageView": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "on",
+          "value",
+          "count"
+        ],
+        "title": "AverageView",
+        "type": "object"
+      },
       "Band": {
         "enum": [
           "grey",
@@ -307,6 +331,71 @@
           "week"
         ],
         "title": "BlockView",
+        "type": "object"
+      },
+      "BodySettingsBody": {
+        "properties": {
+          "body_fat_estimate": {
+            "default": "off",
+            "enum": [
+              "off",
+              "navy_male"
+            ],
+            "title": "Body Fat Estimate",
+            "type": "string"
+          },
+          "height_cm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Cm"
+          },
+          "thigh_offset_cm": {
+            "default": 15,
+            "title": "Thigh Offset Cm",
+            "type": "integer"
+          }
+        },
+        "title": "BodySettingsBody",
+        "type": "object"
+      },
+      "BodySettingsView": {
+        "properties": {
+          "body_fat_estimate": {
+            "enum": [
+              "off",
+              "navy_male"
+            ],
+            "title": "Body Fat Estimate",
+            "type": "string"
+          },
+          "height_cm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Cm"
+          },
+          "thigh_offset_cm": {
+            "title": "Thigh Offset Cm",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "height_cm",
+          "thigh_offset_cm",
+          "body_fat_estimate"
+        ],
+        "title": "BodySettingsView",
         "type": "object"
       },
       "CardioActivity": {
@@ -1095,6 +1184,65 @@
         "title": "Energy",
         "type": "string"
       },
+      "EquipmentBody": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KitItemBody"
+            },
+            "maxItems": 60,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "EquipmentBody",
+        "type": "object"
+      },
+      "EquipmentView": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KitItemView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kinds": {
+            "items": {
+              "$ref": "#/components/schemas/KitKindView"
+            },
+            "title": "Kinds",
+            "type": "array"
+          },
+          "listed": {
+            "title": "Listed",
+            "type": "boolean"
+          },
+          "saved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved At"
+          }
+        },
+        "required": [
+          "listed",
+          "saved_at",
+          "items",
+          "kinds"
+        ],
+        "title": "EquipmentView",
+        "type": "object"
+      },
       "EraseRequest": {
         "properties": {
           "confirm": {
@@ -1107,6 +1255,25 @@
           "confirm"
         ],
         "title": "EraseRequest",
+        "type": "object"
+      },
+      "EstimateView": {
+        "properties": {
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "on",
+          "value"
+        ],
+        "title": "EstimateView",
         "type": "object"
       },
       "Evidence": {
@@ -1242,6 +1409,27 @@
           "redirect"
         ],
         "title": "GoTo",
+        "type": "object"
+      },
+      "GuideView": {
+        "properties": {
+          "cadence": {
+            "title": "Cadence",
+            "type": "string"
+          },
+          "checklist": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Checklist",
+            "type": "array"
+          }
+        },
+        "required": [
+          "checklist",
+          "cadence"
+        ],
+        "title": "GuideView",
         "type": "object"
       },
       "GuidedView": {
@@ -2130,10 +2318,16 @@
             "title": "High",
             "type": "number"
           },
+          "how": {
+            "title": "How",
+            "type": "string"
+          },
           "kind": {
             "enum": [
               "bodyweight",
+              "body_fat_scale",
               "waist",
+              "neck",
               "chest",
               "upper_arm",
               "thigh",
@@ -2161,9 +2355,199 @@
           "unit",
           "decimals",
           "low",
-          "high"
+          "high",
+          "how"
         ],
         "title": "KindView",
+        "type": "object"
+      },
+      "Kit": {
+        "description": "Equipment a ladder step needs. Household things (a chair, a bed, a wall, a towel, water\nbottles, a stair) need nothing. A kettlebell names its weight: ``kettlebell:16``; dumbbells\nand a weighted vest or backpack may name the load a step needs: ``dumbbells:12``,\n``backpack:10`` (ADR-0071).",
+        "enum": [
+          "kettlebell",
+          "dumbbells",
+          "pull-up bar",
+          "dip bars",
+          "bench",
+          "band",
+          "backpack",
+          "rings",
+          "mat",
+          "ab wheel",
+          "box"
+        ],
+        "title": "Kit",
+        "type": "string"
+      },
+      "KitItemBody": {
+        "properties": {
+          "kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kg"
+          },
+          "kit": {
+            "$ref": "#/components/schemas/Kit"
+          },
+          "min_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Kg"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 40,
+            "title": "Note",
+            "type": "string"
+          },
+          "resistance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resistance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kit"
+        ],
+        "title": "KitItemBody",
+        "type": "object"
+      },
+      "KitItemView": {
+        "properties": {
+          "kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kg"
+          },
+          "kit": {
+            "$ref": "#/components/schemas/Kit"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "min_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Kg"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 40,
+            "title": "Note",
+            "type": "string"
+          },
+          "resistance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resistance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kit",
+          "label"
+        ],
+        "title": "KitItemView",
+        "type": "object"
+      },
+      "KitKindView": {
+        "properties": {
+          "kit": {
+            "$ref": "#/components/schemas/Kit"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kit",
+          "name"
+        ],
+        "title": "KitKindView",
+        "type": "object"
+      },
+      "KitUnlockedView": {
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exercise",
+          "slug",
+          "step"
+        ],
+        "title": "KitUnlockedView",
+        "type": "object"
+      },
+      "KitUnlocksView": {
+        "properties": {
+          "item": {
+            "title": "Item",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/KitUnlockedView"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item",
+          "summary",
+          "steps"
+        ],
+        "title": "KitUnlocksView",
         "type": "object"
       },
       "LadderView": {
@@ -2756,11 +3140,13 @@
             "additionalProperties": {
               "type": "number"
             },
-            "maxProperties": 6,
+            "maxProperties": 8,
             "propertyNames": {
               "enum": [
                 "bodyweight",
+                "body_fat_scale",
                 "waist",
+                "neck",
                 "chest",
                 "upper_arm",
                 "thigh",
@@ -2777,12 +3163,30 @@
         "title": "MeasureBody",
         "type": "object"
       },
+      "MeasureSaved": {
+        "properties": {
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "warnings"
+        ],
+        "title": "MeasureSaved",
+        "type": "object"
+      },
       "MeasurementView": {
         "properties": {
           "kind": {
             "enum": [
               "bodyweight",
+              "body_fat_scale",
               "waist",
+              "neck",
               "chest",
               "upper_arm",
               "thigh",
@@ -2920,12 +3324,24 @@
               }
             ],
             "title": "Step"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
           }
         },
         "required": [
           "outcome",
           "exercise",
-          "step"
+          "step",
+          "warning"
         ],
         "title": "MovedView",
         "type": "object"
@@ -3669,6 +4085,14 @@
           "token": {
             "title": "Token",
             "type": "string"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
           }
         },
         "required": [
@@ -3890,6 +4314,16 @@
           "skipped"
         ],
         "title": "Refusal",
+        "type": "string"
+      },
+      "Resistance": {
+        "description": "A resistance band's strength.",
+        "enum": [
+          "light",
+          "medium",
+          "heavy"
+        ],
+        "title": "Resistance",
         "type": "string"
       },
       "ResourceMetadata": {
@@ -4241,6 +4675,13 @@
             "title": "Id",
             "type": "integer"
           },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -4249,7 +4690,8 @@
         "required": [
           "id",
           "name",
-          "cue"
+          "cue",
+          "missing"
         ],
         "title": "RungView",
         "type": "object"
@@ -4982,6 +5424,17 @@
             ],
             "title": "Unit",
             "type": "string"
+          },
+          "unlock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unlock"
           }
         },
         "required": [
@@ -4997,13 +5450,18 @@
           "best_set",
           "status",
           "retired",
-          "trend"
+          "trend",
+          "unlock"
         ],
         "title": "StandingView",
         "type": "object"
       },
       "StandingsView": {
         "properties": {
+          "kit_listed": {
+            "title": "Kit Listed",
+            "type": "boolean"
+          },
           "standings": {
             "items": {
               "$ref": "#/components/schemas/StandingView"
@@ -5024,6 +5482,7 @@
         "required": [
           "today",
           "strength_block",
+          "kit_listed",
           "standings"
         ],
         "title": "StandingsView",
@@ -5967,6 +6426,67 @@
         ]
       }
     },
+    "/api/account/body": {
+      "get": {
+        "operationId": "get_body_settings_api_account_body_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodySettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Body Settings",
+        "tags": [
+          "account"
+        ]
+      },
+      "put": {
+        "description": "Save all three (the height may be empty).",
+        "operationId": "set_body_settings_api_account_body_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BodySettingsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodySettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Body Settings",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/account/connections": {
       "get": {
         "operationId": "list_connections_api_account_connections_get",
@@ -6677,7 +7197,7 @@
         ]
       },
       "put": {
-        "description": "Save a day's measurements (any of them), replacing the same kind that day.",
+        "description": "Save a day's measurements (any of them), replacing the same kind that day; with a\nwarning for each one far from the last earlier entry of its kind.",
         "operationId": "save_api_body_put",
         "requestBody": {
           "content": {
@@ -6690,7 +7210,14 @@
           "required": true
         },
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasureSaved"
+                }
+              }
+            },
             "description": "Successful Response"
           },
           "422": {
@@ -6710,9 +7237,83 @@
         ]
       }
     },
+    "/api/body/averages": {
+      "get": {
+        "description": "Bodyweight's 7-day average at each day with a weigh-in, newest first: the first is the\nlatest, the rest are its trend.",
+        "operationId": "averages_api_body_averages_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AverageView"
+                  },
+                  "title": "Response Averages Api Body Averages Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Averages",
+        "tags": [
+          "body"
+        ]
+      }
+    },
+    "/api/body/estimates": {
+      "get": {
+        "description": "The tape body-fat estimate (%, \u00b14) for each day with a waist and a neck, newest first;\nempty unless the estimate is turned on and the height is set. Worked out, never stored.",
+        "operationId": "estimates_api_body_estimates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EstimateView"
+                  },
+                  "title": "Response Estimates Api Body Estimates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Estimates",
+        "tags": [
+          "body"
+        ]
+      }
+    },
+    "/api/body/guide": {
+      "get": {
+        "description": "The \"Before you measure\" checklist and how often to measure.",
+        "operationId": "guide_api_body_guide_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuideView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Guide",
+        "tags": [
+          "body"
+        ]
+      }
+    },
     "/api/body/kinds": {
       "get": {
-        "description": "What can be measured, in order, with units and ranges.",
+        "description": "What can be measured, in order, with units, ranges and how to take each.",
         "operationId": "kinds_api_body_kinds_get",
         "responses": {
           "200": {
@@ -6757,7 +7358,9 @@
             "schema": {
               "enum": [
                 "bodyweight",
+                "body_fat_scale",
                 "waist",
+                "neck",
                 "chest",
                 "upper_arm",
                 "thigh",
@@ -7130,6 +7733,115 @@
         "summary": "Get Day",
         "tags": [
           "day"
+        ]
+      }
+    },
+    "/api/equipment": {
+      "get": {
+        "description": "The kit as listed; ``listed`` is false until it has been saved once.",
+        "operationId": "get_equipment_api_equipment_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Equipment",
+        "tags": [
+          "equipment"
+        ]
+      },
+      "put": {
+        "description": "Replace the whole kit. An empty list is a kit too: bodyweight only, so every step that\nneeds kit locks. Refused whole, with the reason, if any item doesn't fit.",
+        "operationId": "put_equipment_api_equipment_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EquipmentBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Equipment",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/api/equipment/unlocks": {
+      "get": {
+        "description": "What adding one item would open, against the kit as listed: ``kettlebell:16``,\n``dumbbells:12``, ``dumbbells:2-24``, ``backpack:10``, ``band:light``, ``pull-up bar``.",
+        "operationId": "get_unlocks_api_equipment_unlocks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "add",
+            "required": true,
+            "schema": {
+              "examples": [
+                "kettlebell:16"
+              ],
+              "maxLength": 40,
+              "title": "Add",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitUnlocksView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Unlocks",
+        "tags": [
+          "equipment"
         ]
       }
     },

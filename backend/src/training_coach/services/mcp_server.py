@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from training_coach import __version__
 from training_coach.db.models import Event
+from training_coach.domain.connections import Scope
 from training_coach.domain.queue import local_date
 from training_coach.services import mcp_tools, proposals
 from training_coach.services.mcp_tokens import Access
@@ -171,6 +172,10 @@ def _propose(
         "expires in 24 hours if they don't. What Save would log:\n"
         + mcp_tools.envelope(found.summary)
     )
+    # The app's own words, as on the card (ADR-0076); they tell of earlier measurements, so
+    # only with the body scope.
+    if found.warnings and Scope.BODY.value in access.scopes:
+        text += "\nThe card also says:\n" + "\n".join(found.warnings)
     return _result(id_, {"content": [{"type": "text", "text": text}], "isError": False})
 
 

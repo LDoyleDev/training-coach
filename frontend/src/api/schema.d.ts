@@ -152,6 +152,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/body": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Body Settings */
+        get: operations["get_body_settings_api_account_body_get"];
+        /**
+         * Set Body Settings
+         * @description Save all three (the height may be empty).
+         */
+        put: operations["set_body_settings_api_account_body_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/account/connections": {
         parameters: {
             query?: never;
@@ -575,9 +596,72 @@ export interface paths {
         get: operations["history_api_body_get"];
         /**
          * Save
-         * @description Save a day's measurements (any of them), replacing the same kind that day.
+         * @description Save a day's measurements (any of them), replacing the same kind that day; with a
+         *     warning for each one far from the last earlier entry of its kind.
          */
         put: operations["save_api_body_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/body/averages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Averages
+         * @description Bodyweight's 7-day average at each day with a weigh-in, newest first: the first is the
+         *     latest, the rest are its trend.
+         */
+        get: operations["averages_api_body_averages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/body/estimates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estimates
+         * @description The tape body-fat estimate (%, ±4) for each day with a waist and a neck, newest first;
+         *     empty unless the estimate is turned on and the height is set. Worked out, never stored.
+         */
+        get: operations["estimates_api_body_estimates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/body/guide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Guide
+         * @description The "Before you measure" checklist and how often to measure.
+         */
+        get: operations["guide_api_body_guide_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -594,7 +678,7 @@ export interface paths {
         };
         /**
          * Kinds
-         * @description What can be measured, in order, with units and ranges.
+         * @description What can be measured, in order, with units, ranges and how to take each.
          */
         get: operations["kinds_api_body_kinds_get"];
         put?: never;
@@ -758,6 +842,52 @@ export interface paths {
          * @description What was logged on ``on`` (default: today).
          */
         get: operations["get_day_api_day_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/equipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Equipment
+         * @description The kit as listed; ``listed`` is false until it has been saved once.
+         */
+        get: operations["get_equipment_api_equipment_get"];
+        /**
+         * Put Equipment
+         * @description Replace the whole kit. An empty list is a kit too: bodyweight only, so every step that
+         *     needs kit locks. Refused whole, with the reason, if any item doesn't fit.
+         */
+        put: operations["put_equipment_api_equipment_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/equipment/unlocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Unlocks
+         * @description What adding one item would open, against the kit as listed: ``kettlebell:16``,
+         *     ``dumbbells:12``, ``dumbbells:2-24``, ``backpack:10``, ``band:light``, ``pull-up bar``.
+         */
+        get: operations["get_unlocks_api_equipment_unlocks_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1685,6 +1815,18 @@ export interface components {
             /** Scopes */
             scopes: string[];
         };
+        /** AverageView */
+        AverageView: {
+            /** Count */
+            count: number;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Value */
+            value: number;
+        };
         /**
          * Band
          * @enum {string}
@@ -1739,6 +1881,34 @@ export interface components {
             kind: "strength" | "hypertrophy";
             /** Week */
             week: number;
+        };
+        /** BodySettingsBody */
+        BodySettingsBody: {
+            /**
+             * Body Fat Estimate
+             * @default off
+             * @enum {string}
+             */
+            body_fat_estimate: "off" | "navy_male";
+            /** Height Cm */
+            height_cm?: number | null;
+            /**
+             * Thigh Offset Cm
+             * @default 15
+             */
+            thigh_offset_cm: number;
+        };
+        /** BodySettingsView */
+        BodySettingsView: {
+            /**
+             * Body Fat Estimate
+             * @enum {string}
+             */
+            body_fat_estimate: "off" | "navy_male";
+            /** Height Cm */
+            height_cm: number | null;
+            /** Thigh Offset Cm */
+            thigh_offset_cm: number;
         };
         /**
          * CardioActivity
@@ -2012,6 +2182,22 @@ export interface components {
          * @enum {string}
          */
         Energy: "high" | "normal" | "low";
+        /** EquipmentBody */
+        EquipmentBody: {
+            /** Items */
+            items: components["schemas"]["KitItemBody"][];
+        };
+        /** EquipmentView */
+        EquipmentView: {
+            /** Items */
+            items: components["schemas"]["KitItemView"][];
+            /** Kinds */
+            kinds: components["schemas"]["KitKindView"][];
+            /** Listed */
+            listed: boolean;
+            /** Saved At */
+            saved_at: string | null;
+        };
         /** EraseRequest */
         EraseRequest: {
             /**
@@ -2019,6 +2205,16 @@ export interface components {
              * @constant
              */
             confirm: "erase";
+        };
+        /** EstimateView */
+        EstimateView: {
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Value */
+            value: number;
         };
         /**
          * Evidence
@@ -2073,6 +2269,13 @@ export interface components {
         GoTo: {
             /** Redirect */
             redirect: string;
+        };
+        /** GuideView */
+        GuideView: {
+            /** Cadence */
+            cadence: string;
+            /** Checklist */
+            checklist: string[];
         };
         /** GuidedView */
         GuidedView: {
@@ -2349,17 +2552,82 @@ export interface components {
             decimals: number;
             /** High */
             high: number;
+            /** How */
+            how: string;
             /**
              * Kind
              * @enum {string}
              */
-            kind: "bodyweight" | "waist" | "chest" | "upper_arm" | "thigh" | "resting_hr";
+            kind: "bodyweight" | "body_fat_scale" | "waist" | "neck" | "chest" | "upper_arm" | "thigh" | "resting_hr";
             /** Label */
             label: string;
             /** Low */
             low: number;
             /** Unit */
             unit: string;
+        };
+        /**
+         * Kit
+         * @description Equipment a ladder step needs. Household things (a chair, a bed, a wall, a towel, water
+         *     bottles, a stair) need nothing. A kettlebell names its weight: ``kettlebell:16``; dumbbells
+         *     and a weighted vest or backpack may name the load a step needs: ``dumbbells:12``,
+         *     ``backpack:10`` (ADR-0071).
+         * @enum {string}
+         */
+        Kit: "kettlebell" | "dumbbells" | "pull-up bar" | "dip bars" | "bench" | "band" | "backpack" | "rings" | "mat" | "ab wheel" | "box";
+        /** KitItemBody */
+        KitItemBody: {
+            /** Kg */
+            kg?: number | null;
+            kit: components["schemas"]["Kit"];
+            /** Min Kg */
+            min_kg?: number | null;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            resistance?: components["schemas"]["Resistance"] | null;
+        };
+        /** KitItemView */
+        KitItemView: {
+            /** Kg */
+            kg?: number | null;
+            kit: components["schemas"]["Kit"];
+            /** Label */
+            label: string;
+            /** Min Kg */
+            min_kg?: number | null;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            resistance?: components["schemas"]["Resistance"] | null;
+        };
+        /** KitKindView */
+        KitKindView: {
+            kit: components["schemas"]["Kit"];
+            /** Name */
+            name: string;
+        };
+        /** KitUnlockedView */
+        KitUnlockedView: {
+            /** Exercise */
+            exercise: string;
+            /** Slug */
+            slug: string;
+            /** Step */
+            step: string;
+        };
+        /** KitUnlocksView */
+        KitUnlocksView: {
+            /** Item */
+            item: string;
+            /** Steps */
+            steps: components["schemas"]["KitUnlockedView"][];
+            /** Summary */
+            summary: string;
         };
         /** LadderView */
         LadderView: {
@@ -2536,13 +2804,18 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** MeasureSaved */
+        MeasureSaved: {
+            /** Warnings */
+            warnings: string[];
+        };
         /** MeasurementView */
         MeasurementView: {
             /**
              * Kind
              * @enum {string}
              */
-            kind: "bodyweight" | "waist" | "chest" | "upper_arm" | "thigh" | "resting_hr";
+            kind: "bodyweight" | "body_fat_scale" | "waist" | "neck" | "chest" | "upper_arm" | "thigh" | "resting_hr";
             /**
              * On
              * Format: date
@@ -2598,6 +2871,8 @@ export interface components {
             outcome: "moved" | "already_moved" | "not_ready" | "no_next_step" | "strength_block" | "stayed" | "level_set" | "same_level";
             /** Step */
             step: string | null;
+            /** Warning */
+            warning: string | null;
         };
         /** MuscleView */
         MuscleView: {
@@ -2860,6 +3135,11 @@ export interface components {
             summary: string;
             /** Token */
             token: string;
+            /**
+             * Warnings
+             * @default []
+             */
+            warnings: string[];
         };
         /** QuestionView */
         QuestionView: {
@@ -2946,6 +3226,12 @@ export interface components {
          * @enum {string}
          */
         Refusal: "too_large" | "not_json" | "failed" | "skipped";
+        /**
+         * Resistance
+         * @description A resistance band's strength.
+         * @enum {string}
+         */
+        Resistance: "light" | "medium" | "heavy";
         /** ResourceMetadata */
         ResourceMetadata: {
             /** Authorization Servers */
@@ -3061,6 +3347,8 @@ export interface components {
             cue: string | null;
             /** Id */
             id: number;
+            /** Missing */
+            missing: string[];
             /** Name */
             name: string;
         };
@@ -3315,9 +3603,13 @@ export interface components {
              * @enum {string}
              */
             unit: "reps" | "seconds" | "minutes";
+            /** Unlock */
+            unlock: string | null;
         };
         /** StandingsView */
         StandingsView: {
+            /** Kit Listed */
+            kit_listed: boolean;
             /** Standings */
             standings: components["schemas"]["StandingView"][];
             /** Strength Block */
@@ -3782,6 +4074,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    get_body_settings_api_account_body_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BodySettingsView"];
+                };
+            };
+        };
+    };
+    set_body_settings_api_account_body_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BodySettingsBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BodySettingsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -4423,11 +4768,13 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MeasureSaved"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -4436,6 +4783,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    averages_api_body_averages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AverageView"][];
+                };
+            };
+        };
+    };
+    estimates_api_body_estimates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstimateView"][];
+                };
+            };
+        };
+    };
+    guide_api_body_guide_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuideView"];
                 };
             };
         };
@@ -4466,7 +4873,7 @@ export interface operations {
             header?: never;
             path: {
                 on: string;
-                kind: "bodyweight" | "waist" | "chest" | "upper_arm" | "thigh" | "resting_hr";
+                kind: "bodyweight" | "body_fat_scale" | "waist" | "neck" | "chest" | "upper_arm" | "thigh" | "resting_hr";
             };
             cookie?: never;
         };
@@ -4753,6 +5160,90 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DayView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_equipment_api_equipment_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentView"];
+                };
+            };
+        };
+    };
+    put_equipment_api_equipment_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipmentBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_unlocks_api_equipment_unlocks_get: {
+        parameters: {
+            query: {
+                add: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KitUnlocksView"];
                 };
             };
             /** @description Validation Error */

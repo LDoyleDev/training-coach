@@ -19,6 +19,7 @@ from training_coach.db.models import (
     AiConnection,
     BandFeed,
     DailyCheck,
+    Equipment,
     Event,
     Exercise,
     ExerciseState,
@@ -69,6 +70,7 @@ TABLES: dict[str, type] = {
     "progress_photos": ProgressPhoto,
     "habit_checks": HabitCheck,
     "settings": UserSettings,
+    "equipment": Equipment,  # the home kit (ADR-0071)
     "plan_state": PlanState,
     "exercise_state": ExerciseState,
     "session_progress": SessionProgress,
