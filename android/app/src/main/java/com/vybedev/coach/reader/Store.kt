@@ -46,12 +46,10 @@ class Store(context: Context) {
         get() = prefs.getLong("sent_at", 0)
         set(value) = prefs.edit().putLong("sent_at", value).apply()
 
-    /** A background sync that sent nothing, kept for the screen until it has shown it once. */
+    /** A background sync that sent nothing, kept for the screen until it has shown it. */
     var backgroundProblem: String
         get() = prefs.getString("background_problem", "").orEmpty()
         set(value) = prefs.edit().putString("background_problem", value).apply()
-
-    fun takeBackgroundProblem(): String = backgroundProblem.also { backgroundProblem = "" }
 
     /** The last sync's outcome, as shown on the screen. */
     var lastResult: String
