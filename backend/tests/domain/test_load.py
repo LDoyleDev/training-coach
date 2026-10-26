@@ -23,8 +23,7 @@ def test_a_first_set_missing_last_time_starts_at_the_first_one_done() -> None:
 
 
 def test_a_weight_is_above_nothing_and_within_the_bound() -> None:
-    assert valid_kg(0.5) and valid_kg(500)
-    assert not valid_kg(0) and not valid_kg(500.5)
+    assert [valid_kg(kg) for kg in (0.5, 500, 0, 500.5)] == [True, True, False, False]
 
 
 def test_weights_read_as_a_person_writes_them() -> None:
