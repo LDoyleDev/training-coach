@@ -90,3 +90,40 @@ test("a drawing doesn't take the page's section style (no top rule, no padding)"
   expect(drawing).not.toHaveClass('block') // index.css styles `.block` as a page section
   expect(drawing).toHaveStyle({ display: 'block' })
 })
+
+test('a figure drawn from the front as well starts there and switches to the side', () => {
+  motion(true)
+  render(<Figure slug="copenhagen-plank" name="Copenhagen plank" />)
+  const front = screen.getByRole('button', { name: 'Front' })
+  expect(front).toHaveAttribute('aria-pressed', 'true')
+  expect(
+    screen.getByRole('img', { name: /^Copenhagen plank from the front, start: On your side/ }),
+  ).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Side' }))
+  expect(screen.getByRole('button', { name: 'Side' })).toHaveAttribute('aria-pressed', 'true')
+  expect(front).toHaveAttribute('aria-pressed', 'false')
+  expect(
+    screen.getByRole('img', { name: /^Copenhagen plank from the side, end: Hips up/ }),
+  ).toBeVisible()
+  expect(screen.getByRole('group', { name: 'Seen from' })).toBeInTheDocument()
+})
+
+test('a figure with one view has no view switch', () => {
+  motion(true)
+  render(<Figure slug="glute-bridge" name="Glute bridge" />)
+  expect(screen.queryByRole('group', { name: 'Seen from' })).not.toBeInTheDocument()
+  expect(screen.getByRole('img', { name: /^Glute bridge, start/ })).toBeVisible()
+})
+
+test('a still from the front draws the front view', () => {
+  render(<FigureAt slug="copenhagen-plank" t={1} label="Top" view="front" />)
+  expect(screen.getByRole('img', { name: 'Top' })).toHaveAttribute('viewBox', '-150 -95 185 98')
+})
+
+test('a calf raise shows the foot on the step close up, and where it is', () => {
+  render(<FigureAt slug="calf-raise" t={0} label="Calf raise" />)
+  const drawing = screen.getByRole('img', { name: 'Calf raise' })
+  expect(drawing.querySelector('clipPath circle')).toHaveAttribute('r', '42')
+  const plain = render(<FigureAt slug="push-up" t={0} label="Push-up" />)
+  expect(plain.container.querySelector('clipPath')).toBeNull()
+})

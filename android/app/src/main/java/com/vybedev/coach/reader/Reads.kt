@@ -4,7 +4,8 @@ package com.vybedev.coach.reader
  * How many Health Connect reads one sync may make. Pure, so the limits are unit-tested (ADR-0070).
  */
 
-/** A normal sync makes three or four; a week's catch-up of heart-rate changes some more. */
+/** A normal sync makes four (steps, then the changes of sleep, exercise and heart rate); a
+ * week's catch-up of heart-rate changes some more. */
 const val MAX_READS_PER_SYNC = 20
 
 /**
@@ -33,4 +34,48 @@ class ReadCount(private val max: Int = MAX_READS_PER_SYNC) {
         made += 1
         last = name
     }
+}
+
+/** One change Health Connect reported for a record: written (new or edited) or deleted. */
+sealed interface RecordChange<out T> {
+    val id: String
+
+    data class Written<T>(override val id: String, val record: T) : RecordChange<T>
+
+    data class Deleted(override val id: String) : RecordChange<Nothing>
+}
+
+/**
+ * What one type's read found, and the token to keep once the coach has it. [nextToken] is null
+ * while the type has none yet: its first read waits for a sync with reads left. [more]: changes
+ * are left for the next sync, which carries on from [nextToken]. [cut]: a history read stopped
+ * at the read limit, so the rest of that day won't come across.
+ */
+class TypeRead<T>(
+    val written: List<T>,
+    val deleted: List<String>,
+    val nextToken: String?,
+    val more: Boolean = false,
+    val cut: Boolean = false,
+) {
+    fun <U> flatMap(each: (T) -> List<U>) = TypeRead(written.flatMap(each), deleted, nextToken, more, cut)
+
+    fun <U> map(each: (T) -> U) = flatMap { listOf(each(it)) }
+}
+
+/**
+ * A run of changes as one per record id, the last winning, so a record written and then deleted
+ * in the same batch goes only as a deletion (the ingest applies deletions first).
+ */
+fun <T> collapse(
+    changes: List<RecordChange<T>>,
+    nextToken: String?,
+    more: Boolean = false,
+    cut: Boolean = false,
+): TypeRead<T> {
+    val last = LinkedHashMap<String, RecordChange<T>>()
+    changes.forEach { last.remove(it.id); last[it.id] = it }
+    val written = last.values.filterIsInstance<RecordChange.Written<T>>().map { it.record }
+    val deleted = last.values.filterIsInstance<RecordChange.Deleted>().map { it.id }
+    return TypeRead(written, deleted, nextToken, more, cut)
 }

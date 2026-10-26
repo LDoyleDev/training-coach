@@ -39,13 +39,13 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-test('a secret is made and shown once, with the address to post to', async () => {
+test('a secret is made and shown once', async () => {
   serve({
     'GET /api/account/ingest': [{ status: 200, body: NONE }],
     'POST /api/account/ingest': [{ status: 200, body: { ...MADE, secret: SECRET } }],
   })
   render(<BandImport />)
-  expect(await screen.findByText(URL)).toBeInTheDocument()
+  expect(await screen.findByText(/It needs a secret from here/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Make a secret' }))
   expect(await screen.findByText(SECRET)).toBeInTheDocument()
   expect(screen.getByText(/it won’t be shown again/)).toBeInTheDocument()
@@ -87,10 +87,33 @@ test('syncs that bring nothing new show apart from data arriving', async () => {
   expect(await screen.findByText(/No data has arrived yet\. Last sync/)).toBeInTheDocument()
 })
 
-test('without a public address it says so', async () => {
-  serve({ 'GET /api/account/ingest': [{ status: 200, body: { ...NONE, url: null } }] })
+test('HC Webhook is shown the address to post to', async () => {
+  serve({ 'GET /api/account/ingest': [{ status: 200, body: { ...MADE, app_version: '1.9.31' } }] })
+  render(<BandImport />)
+  expect(await screen.findByText(URL)).toBeInTheDocument()
+})
+
+test('without a public address it says so to HC Webhook', async () => {
+  const webhook = { ...MADE, app_version: '1.9.31', url: null }
+  serve({ 'GET /api/account/ingest': [{ status: 200, body: webhook }] })
   render(<BandImport />)
   expect(await screen.findByText(/needs the server’s public address/)).toBeInTheDocument()
+})
+
+test('the reader, with its address built in, is shown none', async () => {
+  // Review of #376: "needs a secret" above an address, or a missing-address warning, contradicted it.
+  for (const url of [URL, null]) {
+    serve({
+      'GET /api/account/ingest': [
+        { status: 200, body: { ...MADE, url, app_version: 'tc-reader/0.0.6' } },
+      ],
+    })
+    const { unmount } = render(<BandImport />)
+    expect(await screen.findByText(/It needs a secret from here/)).toBeInTheDocument()
+    expect(screen.queryByText(/Address:/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/public address/)).not.toBeInTheDocument()
+    unmount()
+  }
 })
 
 test.each([
@@ -155,6 +178,54 @@ test('a refused sync is shown with why, and the app version', async () => {
     'it was over 5 MB. In HC Webhook, set heart rate to 1 minute, not Full.',
   )
   expect(screen.getByText(/From HC Webhook 1\.9\.22\./)).toBeInTheDocument()
+})
+
+test('the Coach reader is named from its version, with its own advice', async () => {
+  // Spec step 4 (docs/specs/android-reader.md): the sending app from its version string.
+  serve({
+    'GET /api/account/ingest': [
+      {
+        status: 200,
+        body: {
+          ...MADE,
+          last_used_at: '2026-10-11T09:30:00Z',
+          last_taken_at: '2026-10-11T09:30:00Z',
+          refused_at: '2026-10-11T10:00:00Z',
+          refused_reason: 'too_large',
+          app_version: 'tc-reader/0.0.6',
+        },
+      },
+    ],
+    'POST /api/account/ingest': [{ status: 200, body: { ...MADE, secret: SECRET } }],
+  })
+  render(<BandImport />)
+  expect(await screen.findByText(/From the Coach reader 0\.0\.6\./)).toBeInTheDocument()
+  expect(screen.getByText(/Last refused sync/)).toHaveTextContent('after three refusals skips it')
+  expect(screen.getByText(/from the Coach reader app on your phone/)).toBeInTheDocument()
+  expect(screen.queryByText(/HC Webhook/)).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Make a new secret' }))
+  expect(await screen.findByText(/paste it under Secret/)).toBeInTheDocument()
+})
+
+test('a sync HC Webhook couldn’t send as JSON says where to fix it', async () => {
+  serve({
+    'GET /api/account/ingest': [
+      {
+        status: 200,
+        body: {
+          ...MADE,
+          refused_at: '2026-10-11T10:00:00Z',
+          refused_reason: 'not_json',
+          app_version: '1.9.31',
+        },
+      },
+    ],
+  })
+  render(<BandImport />)
+  expect(await screen.findByText(/Last refused sync/)).toHaveTextContent(
+    'In HC Webhook, set the delivery format to JSON.',
+  )
+  expect(screen.getByText(/Health Connect Webhook app/)).toBeInTheDocument()
 })
 
 test('no refusal line without one', async () => {

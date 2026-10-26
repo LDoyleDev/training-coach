@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { defineConfig, type Plugin } from 'vite'
 
 /**
@@ -40,6 +41,13 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8080',
       '/healthz': 'http://localhost:8080',
+    },
+    // Besides the app, only the seed: a figures test checks step names against plan.toml.
+    fs: {
+      allow: [
+        fileURLToPath(new URL('.', import.meta.url)),
+        fileURLToPath(new URL('../backend/src/training_coach/seed/', import.meta.url)),
+      ],
     },
   },
   build: {

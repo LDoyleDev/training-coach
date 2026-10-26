@@ -32,6 +32,14 @@ figures follow light and dark.
   positions side by side with captions. People who ask for reduced motion start on the two
   positions; off screen it stops redrawing. `<FigureAt slug t label />` draws one still. A slug
   with no figure draws nothing, so screens can ask for one before every exercise has it.
+- **A front view, or a close-up, where the side view can't show it** (added 26 Oct 2026,
+  Liam): a movement that happens side-on to the body, such as the Copenhagen plank (lying on
+  your side), looks face down from the side. Its figure can carry a `front` motion too, drawn by
+  a front-facing mannequin (`front.ts`: shoulders and hips as wide as the body, faceless head,
+  the down side in the far tone) at the same pace and with the same captions. It is shown first,
+  with a Front / Side switch under it. A small movement can carry an `inset`: a circle of the
+  side view drawn about twice as big where the picture is empty, with a ring round the part it
+  shows (the calf raise's heel on the step's edge).
 - **Figures are keyed by slug**: plan exercises use their seed slug (`kb-swing`), the flow's
   movements their own.
 - **Checked by tests**: limbs keep their length through the whole movement, no joint goes
@@ -54,3 +62,24 @@ figures follow light and dark.
 - One view (from the side) suits most of the plan. A movement that mainly turns or goes sideways
   shows its turn as an arm or elbow moving towards you and leans on its cue.
 - Adding a prop (bench, bar, bands) is a small drawing function in `shapes.ts`.
+
+## Addendum (26 Oct 2026): a figure can change with the ladder step
+
+Figures stay keyed by slug. A few ladder steps change the set-up rather than the load
+(`docs/specs/kit-ladder-proposal.md`, "Figures"), so `frontend/src/figures/steps.ts` maps a
+slug and a step's name, as `plan.toml` writes it, to what changes over the figure: its props,
+or its poses and captions too. `<Figure slug name step />` draws that; any other step, or none,
+draws the figure as it is. The set screen passes the step it shows.
+
+- The vest or backpack steps of the pull-up, chin-up and dip: a pack high on the upper back
+  (`load`).
+- The split squat's suitcase hold: a bell hanging from each hand, the heavier one on the
+  front leg's side (`bell: 'sides'`).
+- The dip's last step: dip bars (`bars`) in place of the two chairs, with its own poses.
+- The curl's hammer grip: the handle stood upright round the fist (`bell: 'hammer'`). The curl
+  had no figure, so this adds one.
+
+Keyed by name, a renamed step would quietly lose its change, so a test checks every name in
+`steps.ts` against the ladders in `plan.toml` (Vite may read the seed folder for it). A step that
+only changes the motion, such as the overhead extension's 1.5 reps, gets no figure: its cue
+says what to do, and the set screen now shows the step's cue under the step's name.
