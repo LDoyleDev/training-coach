@@ -1139,3 +1139,70 @@ test('Check and save shows no times for sets without them', async () => {
   expect(screen.queryByText(/^So far/)).not.toBeInTheDocument()
   expect(screen.queryByText(/^\d+s$/)).not.toBeInTheDocument()
 })
+
+const LOADED: Guided = {
+  ...SESSION,
+  items: [
+    {
+      ...SESSION.items[0],
+      name: 'Bench press',
+      load: { kit: 'barbell', increment: 2.5, kg: [40, 42.5], carried: true },
+    },
+    SESSION.items[1],
+  ],
+}
+
+test('a loaded step starts at last time and takes − and + in its increment (ADR-0072)', async () => {
+  const sent = serve({ today: { session: LOADED, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const weight = screen.getByRole('group', { name: 'Weight, kg' })
+  expect(weight).toHaveTextContent('40')
+  expect(weight).toHaveTextContent('Same as last time')
+  click('2.5 kg heavier')
+  expect(weight).toHaveTextContent('42.5')
+  expect(weight).toHaveTextContent('Last time 40 kg')
+  expect(screen.queryByRole('group', { name: 'Each dumbbell, kg' })).not.toBeInTheDocument()
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  await screen.findByRole('heading', { name: 'Calf raise' })
+  expect(screen.queryByRole('group', { name: 'Weight, kg' })).not.toBeInTheDocument()
+  click('Confirm set')
+  expect(await screen.findByText(/set 2 of 2, target 6 at 42.5 kg/)).toBeInTheDocument()
+  click('Skip rest')
+  await screen.findByRole('heading', { name: 'Bench press' })
+  click('Confirm set')
+  expect(await screen.findByText('6 · 6 at 42.5 kg')).toBeInTheDocument()
+  const kept = sent['PUT /api/session/progress']
+  expect(kept[0]).toMatchObject({ sets: [{ item: 0, set_no: 1, left: 6, load_kg: 42.5 }] })
+  expect((kept[1] as { sets: Done[] }).sets[1]).not.toHaveProperty('load_kg')
+})
+
+test('a first time at a loaded step says to set the weight, and the next set follows it', async () => {
+  const first: Guided = {
+    ...LOADED,
+    items: [
+      {
+        ...LOADED.items[0],
+        load: { kit: 'dumbbells', increment: 2, kg: [8, 8], carried: false },
+      },
+      LOADED.items[1],
+    ],
+  }
+  serve({ today: { session: first, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const weight = screen.getByRole('group', { name: 'Each dumbbell, kg' })
+  expect(weight).toHaveTextContent('First time at this step: set your weight')
+  click('2 kg lighter')
+  click('2 kg lighter')
+  click('2 kg lighter')
+  expect(screen.getByRole('button', { name: '2 kg lighter' })).toBeDisabled()
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  await screen.findByRole('heading', { name: 'Calf raise' })
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  const next = await screen.findByRole('group', { name: 'Each dumbbell, kg' })
+  expect(next).toHaveTextContent('−2+')
+})

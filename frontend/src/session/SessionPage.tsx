@@ -19,11 +19,14 @@ import {
   type TodayView,
   type Undone,
   type UndoOffer,
+  type GuidedItem,
 } from '../api'
 import {
   CARDIO,
   fromKept,
   key,
+  kgText,
+  loadFor,
   partnerOf,
   restTitle,
   stepOf,
@@ -313,7 +316,9 @@ export default function SessionPage() {
   const timesSoFar = stage === 'check' ? times(session, values) : null
   const step = session.order[Math.min(position, total - 1)]
   const item = session.items[step.item]
-  const value = valueFor(values, step.item, step.set_no, step.target)
+  const kg = loadFor(session, values, step.item, step.set_no)
+  const base = valueFor(values, step.item, step.set_no, step.target)
+  const value = kg === undefined ? base : { ...base, load_kg: kg }
   const change = (v: Value) => setValues({ ...values, [key(step.item, step.set_no)]: v })
 
   /** Confirm this set: the counter's value, or the clock's reading when it runs; the mobility
@@ -614,6 +619,14 @@ export default function SessionPage() {
                   onChange={(v) => change({ ...value, left: v, right: v })}
                 />
               )}
+              {item.load && kg !== undefined && (
+                <LoadCounter
+                  load={item.load}
+                  kg={kg}
+                  last={item.load.kg[step.set_no - 1]}
+                  onChange={(load_kg) => change({ ...value, load_kg })}
+                />
+              )}
               {item.per_side && (
                 <button
                   type="button"
@@ -659,6 +672,7 @@ export default function SessionPage() {
             Next: <span className="font-bold">{item.name}</span>, set {step.set_no} of{' '}
             {item.targets.length}, target {unitText(item, step.target)}
             {item.per_side ? ' each side' : ''}
+            {kg !== undefined ? ` at ${kgText(kg)}` : ''}
           </p>
           <div className="flex w-full gap-3">
             <button type="button" className={secondary} onClick={() => startRest(restLeft + 15)}>
@@ -969,6 +983,57 @@ function Counter({
         </button>
       </div>
       <span className="text-sm text-[var(--slate)]">{versus(value, target)}</span>
+    </div>
+  )
+}
+
+/** The weight on a loaded step (ADR-0072): − and + in the kit's increment, no typing. It says
+ * where the weight came from; what to lift is the person's call. */
+function LoadCounter({
+  load,
+  kg,
+  last,
+  onChange,
+}: {
+  load: NonNullable<GuidedItem['load']>
+  kg: number
+  last: number
+  onChange: (kg: number) => void
+}) {
+  const label = load.kit === 'dumbbells' ? 'Each dumbbell, kg' : 'Weight, kg'
+  const by = (sign: number) => onChange(Math.round((kg + sign * load.increment) * 100) / 100)
+  const note = !load.carried
+    ? 'First time at this step: set your weight'
+    : kg === last
+      ? 'Same as last time'
+      : `Last time ${kgText(last)}`
+  return (
+    <div className={card + ' flex flex-col items-center gap-2'} role="group" aria-label={label}>
+      <span className="text-sm font-bold text-[var(--slate)]">{label}</span>
+      <div className="flex items-center gap-5">
+        <button
+          type="button"
+          aria-label={`${load.increment} kg lighter`}
+          disabled={kg - load.increment <= 0}
+          className="size-14 rounded-full border-2 border-[var(--ink)] text-2xl disabled:opacity-40"
+          onClick={() => by(-1)}
+        >
+          −
+        </button>
+        <span aria-live="polite" className="min-w-24 text-center text-5xl font-extrabold">
+          {kg}
+        </span>
+        <button
+          type="button"
+          aria-label={`${load.increment} kg heavier`}
+          disabled={kg + load.increment > 500}
+          className="size-14 rounded-full border-2 border-[var(--ink)] text-2xl disabled:opacity-40"
+          onClick={() => by(1)}
+        >
+          +
+        </button>
+      </div>
+      <span className="text-sm text-[var(--slate)]">{note}</span>
     </div>
   )
 }

@@ -2,6 +2,8 @@ import { expect, test } from 'vitest'
 import type { Guided, GuidedItem } from '../api'
 import {
   fromKept,
+  kgText,
+  loadFor,
   partnerOf,
   restTitle,
   stepOf,
@@ -142,4 +144,45 @@ test('the rest title says switch inside a pair and rest otherwise', () => {
   expect(restTitle(set, 'Rows')).toBe('Switch to Rows · 15 s')
   expect(restTitle({ ...set, rest_seconds: 90, switch: false }, 'Rows')).toBe('Rest · 90 s')
   expect(restTitle(undefined, 'Rows')).toBe('Rest')
+})
+
+test('a loaded set keeps its weight, starts where it should, and shows it (ADR-0072)', () => {
+  const load = (carried: boolean) => ({
+    kit: 'barbell' as const,
+    increment: 2.5,
+    kg: [40, 45],
+    carried,
+  })
+  const lifted = (carried: boolean) =>
+    ({
+      items: [item({ name: 'Bench', targets: [5, 5], load: load(carried) }), item({ name: 'Dip' })],
+      order: [
+        { item: 0, set_no: 1, target: 5 },
+        { item: 0, set_no: 2, target: 5 },
+        { item: 1, set_no: 1, target: 5 },
+      ],
+    }) as unknown as Guided
+  const values = fromKept({
+    template_id: 1,
+    position: 1,
+    first: [],
+    revision: 1,
+    saved: false,
+    sets: [{ item: 0, set_no: 1, left: 5, right: null, load_kg: 42.5 }],
+  })
+  expect(values['0:1'].load_kg).toBe(42.5)
+  expect(loadFor(lifted(true), values, 0, 1)).toBe(42.5) // what was confirmed
+  expect(loadFor(lifted(true), values, 0, 2)).toBe(45) // the same set last time
+  expect(loadFor(lifted(false), values, 0, 2)).toBe(42.5) // a first time follows today's set
+  expect(loadFor(lifted(false), {}, 0, 2)).toBe(45)
+  expect(loadFor(lifted(true), values, 1, 1)).toBeUndefined()
+  const withDip = { ...values, '1:1': { left: 8, right: 8, split: false, load_kg: 10 } }
+  expect(toDone(lifted(true), withDip)).toEqual([
+    { item: 0, set_no: 1, left: 5, right: null, load_kg: 42.5 },
+    { item: 1, set_no: 1, left: 8, right: null }, // no weight on a step without load
+  ])
+  expect(summary(lifted(true), values)[0].done).toBe(`5 at ${kgText(42.5)}`)
+  const two = { ...values, '0:2': { left: 4, right: 4, split: false, load_kg: 45 } }
+  const different = `5 × ${kgText(42.5)} · 4 × ${kgText(45)}` // each set with its weight
+  expect(summary(lifted(true), two)[0].done).toBe(different)
 })
