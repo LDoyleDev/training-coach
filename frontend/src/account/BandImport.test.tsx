@@ -157,6 +157,54 @@ test('a refused sync is shown with why, and the app version', async () => {
   expect(screen.getByText(/From HC Webhook 1\.9\.22\./)).toBeInTheDocument()
 })
 
+test('the Coach reader is named from its version, with its own advice', async () => {
+  // Spec step 4 (docs/specs/android-reader.md): the sending app from its version string.
+  serve({
+    'GET /api/account/ingest': [
+      {
+        status: 200,
+        body: {
+          ...MADE,
+          last_used_at: '2026-10-11T09:30:00Z',
+          last_taken_at: '2026-10-11T09:30:00Z',
+          refused_at: '2026-10-11T10:00:00Z',
+          refused_reason: 'too_large',
+          app_version: 'tc-reader/0.0.6',
+        },
+      },
+    ],
+    'POST /api/account/ingest': [{ status: 200, body: { ...MADE, secret: SECRET } }],
+  })
+  render(<BandImport />)
+  expect(await screen.findByText(/From the Coach reader 0\.0\.6\./)).toBeInTheDocument()
+  expect(screen.getByText(/Last refused sync/)).toHaveTextContent('after three refusals skips it')
+  expect(screen.getByText(/from the Coach reader app on your phone/)).toBeInTheDocument()
+  expect(screen.queryByText(/HC Webhook/)).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Make a new secret' }))
+  expect(await screen.findByText(/paste it under Secret/)).toBeInTheDocument()
+})
+
+test('a sync HC Webhook couldn’t send as JSON says where to fix it', async () => {
+  serve({
+    'GET /api/account/ingest': [
+      {
+        status: 200,
+        body: {
+          ...MADE,
+          refused_at: '2026-10-11T10:00:00Z',
+          refused_reason: 'not_json',
+          app_version: '1.9.31',
+        },
+      },
+    ],
+  })
+  render(<BandImport />)
+  expect(await screen.findByText(/Last refused sync/)).toHaveTextContent(
+    'In HC Webhook, set the delivery format to JSON.',
+  )
+  expect(screen.getByText(/Health Connect Webhook app/)).toBeInTheDocument()
+})
+
 test('no refusal line without one', async () => {
   serve({ 'GET /api/account/ingest': [{ status: 200, body: MADE }] })
   render(<BandImport />)

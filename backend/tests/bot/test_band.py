@@ -202,9 +202,9 @@ def _secret(sessions: Sessions, at: datetime = MADE) -> None:
         session.commit()
 
 
-def _sync(sessions: Sessions, at: datetime, took: bool = True) -> None:
+def _sync(sessions: Sessions, at: datetime, took: bool = True, app: str | None = None) -> None:
     with sessions() as session:
-        ingest_keys.received(session, at, took)
+        ingest_keys.received(session, at, took, app_version=app)
         session.commit()
 
 
@@ -242,9 +242,28 @@ async def test_empty_syncs_get_the_empty_message(seeded: Sessions) -> None:
     send = AsyncMock(return_value=True)
     await _watch(band_ui.BandHandlers(SETTINGS, seeded, send), MADE + 25 * HOUR)
     assert _sent(send) == [
-        "HC Webhook is syncing, but nothing new has come from the band for a day. Open Mi "
+        "The Coach reader is syncing, but nothing new has come from the band for a day. Open Mi "
         "Fitness to sync the band, and check that Mi Fitness still shares with Health Connect."
     ]
+
+
+@pytest.mark.parametrize(
+    ("app", "named"), [("tc-reader/0.0.5", "The Coach reader"), ("1.9.31", "HC Webhook")]
+)
+async def test_the_alert_names_the_app_that_sends(seeded: Sessions, app: str, named: str) -> None:
+    # Step 4 of docs/specs/android-reader.md: the app named from its version string.
+    _secret(seeded)
+    _sync(seeded, MADE, app=app)
+    _sync(seeded, MADE + 20 * HOUR, took=False, app=app)
+    send = AsyncMock(return_value=True)
+    await _watch(band_ui.BandHandlers(SETTINGS, seeded, send), MADE + 25 * HOUR)
+    assert _sent(send)[0].startswith(f"{named} is syncing")
+
+
+def test_hc_webhook_is_told_apart_by_its_version() -> None:
+    assert band_ui.webhook("1.9.22")
+    assert not band_ui.webhook("tc-reader/0.0.6")
+    assert not band_ui.webhook(None)  # no sync yet: the reader replaced HC Webhook
 
 
 async def test_no_band_import_means_no_alert(seeded: Sessions) -> None:
@@ -328,7 +347,8 @@ async def test_kinds_that_stop_while_steps_flow_are_told_then_their_return(
     await _watch(handlers, MADE + 50 * HOUR)
     assert _sent(send) == [
         "No sleep or heart-rate data has come from the band for two days, though other band "
-        "data has. In HC Webhook, check Data Types, and look under Sync Now for an error."
+        "data has. In the Coach reader, tap Sync now: it says what it sent of each kind, or "
+        "why it couldn't."
     ]
     assert send.await_args_list[0].kwargs["reply_markup"] is not None
     _kinds(seeded, MADE + 51 * HOUR, "steps", "sleep", "heart_rate")
@@ -339,7 +359,7 @@ async def test_kinds_that_stop_while_steps_flow_are_told_then_their_return(
 
 def test_the_kinds_message_names_each_one() -> None:
     every = FeedNotices((Feed.STEPS, Feed.SLEEP, Feed.HEART_RATE), (Feed.STEPS,))
-    assert band_ui.feeds_text(every).split("\n\n") == [
+    assert band_ui.feeds_text(every, from_webhook=True).split("\n\n") == [
         "No step, sleep or heart-rate data has come from the band for two days, though other "
         "band data has. In HC Webhook, check Data Types, and look under Sync Now for an error.",
         "Step data is arriving again.",
