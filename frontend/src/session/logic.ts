@@ -90,6 +90,57 @@ export function loadFor(session: Guided, values: Values, item: number, setNo: nu
   return load.kg[setNo - 1]
 }
 
+/** The items whose suggested weight the person took (ADR-0072): as they chose in this
+ * screen, else any item with a set already confirmed at the suggested weight (a resume). */
+export function taken(session: Guided, values: Values, chosen: Record<number, boolean>) {
+  const found = new Set<number>()
+  session.items.forEach((item, index) => {
+    const up = item.load?.suggested
+    if (!up) return
+    const confirmed = item.targets.some((_, n) => values[key(index, n + 1)]?.load_kg === up.kg)
+    if (chosen[index] ?? confirmed) found.add(index)
+  })
+  return found
+}
+
+/** The session as the screen shows it: an item whose suggested weight was taken starts every
+ * set at that weight, with targets from the bottom of the range. Nothing changes until the
+ * person taps; the server gets only what each set records. */
+export function taking(session: Guided, items: Set<number>): Guided {
+  if (items.size === 0) return session
+  const shown = session.items.map((item, index) => {
+    const up = item.load?.suggested
+    if (!item.load || !up || !items.has(index)) return item
+    return {
+      ...item,
+      targets: up.targets,
+      load: { ...item.load, kg: item.load.kg.map(() => up.kg) },
+    }
+  })
+  const order = session.order.map((s) =>
+    items.has(s.item) && shown[s.item] !== session.items[s.item]
+      ? { ...s, target: shown[s.item].targets[s.set_no - 1] }
+      : s,
+  )
+  return { ...session, items: shown, order }
+}
+
+/** The session as the screen shows it, with the suggested weights the person took. */
+export const shown = (session: Guided, values: Values, chosen: Record<number, boolean>) =>
+  taking(session, taken(session, values, chosen))
+
+/** Which items of ``session`` show a suggested weight taken in ``screen``. */
+export const chosenIn = (session: Guided, screen: Guided): Record<number, boolean> =>
+  Object.fromEntries(session.items.map((item, i) => [i, screen.items[i] !== item]))
+
+/** ``values`` without ``item``'s sets not yet confirmed, so they start afresh at the weight
+ * just taken or given back, and its targets. */
+export function unweighed(values: Values, item: number): Values {
+  return Object.fromEntries(
+    Object.entries(values).filter(([at, value]) => !at.startsWith(`${item}:`) || value.done_at),
+  )
+}
+
 /** "22.5 kg", as a person writes it. */
 export const kgText = (kg: number) => `${kg}${NBSP}kg`
 const NBSP = String.fromCharCode(0xa0) // the number and its unit stay on one line

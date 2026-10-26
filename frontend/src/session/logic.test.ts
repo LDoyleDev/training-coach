@@ -1,11 +1,13 @@
 import { expect, test } from 'vitest'
 import type { Guided, GuidedItem } from '../api'
 import {
+  chosenIn,
   fromKept,
   kgText,
   loadFor,
   partnerOf,
   restTitle,
+  shown,
   stepOf,
   summary,
   timed,
@@ -185,4 +187,33 @@ test('a loaded set keeps its weight, starts where it should, and shows it (ADR-0
   const two = { ...values, '0:2': { left: 4, right: 4, split: false, load_kg: 45 } }
   const different = `5 × ${kgText(42.5)} · 4 × ${kgText(45)}` // each set with its weight
   expect(summary(lifted(true), two)[0].done).toBe(different)
+})
+
+test('a taken suggestion shows the new weight and targets; a resume finds it again', () => {
+  const up = { kg: 45, targets: [8, 8] }
+  const plan = {
+    items: [
+      item({
+        targets: [12, 12],
+        load: { kit: 'barbell', increment: 2.5, kg: [42.5, 42.5], carried: true, suggested: up },
+      }),
+      item({ name: 'Dip' }),
+    ],
+    order: [
+      { item: 0, set_no: 1, target: 12 },
+      { item: 1, set_no: 1, target: 5 },
+      { item: 0, set_no: 2, target: 12 },
+    ],
+  } as unknown as Guided
+  expect(shown(plan, {}, {})).toBe(plan) // nothing taken: as sent
+  const taken = shown(plan, {}, { 0: true })
+  expect(taken.items[0].targets).toEqual([8, 8])
+  expect(taken.items[0].load?.kg).toEqual([45, 45])
+  expect(taken.order.map((s) => s.target)).toEqual([8, 5, 8])
+  expect(chosenIn(plan, taken)).toEqual({ 0: true, 1: false })
+  const resumed = shown(plan, { '0:1': { left: 8, right: 8, split: false, load_kg: 45 } }, {})
+  expect(resumed.items[0].targets).toEqual([8, 8])
+  expect(
+    shown(plan, { '0:1': { left: 8, right: 8, split: false, load_kg: 45 } }, { 0: false }),
+  ).toBe(plan)
 })

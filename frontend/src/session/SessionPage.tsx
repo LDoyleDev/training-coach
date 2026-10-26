@@ -31,8 +31,11 @@ import {
   restTitle,
   stepOf,
   summary,
+  chosenIn,
+  shown,
   timed,
   toDone,
+  unweighed,
   unitText,
   valueFor,
   versus,
@@ -84,6 +87,8 @@ export default function SessionPage() {
   const [saved, setSaved] = useState<Saved | null>(null)
   const [busy, setBusy] = useState(false)
   const [first, setFirst] = useState<number[]>([]) // pairs started with their second exercise
+  // As the set screen shows it, once a suggested weight is taken (ADR-0072); null: as sent.
+  const [view, setView] = useState<Guided | null>(null)
   // Clocks keep wall-clock times, not tick counts: a phone throttles timers while the screen
   // is locked, which is exactly when someone rests. Each tick just reads the time again.
   const [now, setNow] = useState(() => Date.now())
@@ -190,7 +195,9 @@ export default function SessionPage() {
     // An empty order can't be guided; treat it like nothing planned.
     if (!today.session || today.session.order.length === 0) return setLoaded({ status: 'none' })
     setLoaded({ status: 'ready', session: today.session })
-    setValues(fromKept(today.progress))
+    const kept = fromKept(today.progress)
+    setValues(kept)
+    setView(shown(today.session, kept, {}))
     setPosition(today.progress?.position ?? 0)
     setFurthest(today.progress?.position ?? 0)
     setRevision(today.progress?.revision ?? 0)
@@ -279,6 +286,7 @@ export default function SessionPage() {
       </AppShell>
     )
   const session = loaded.session
+  const screen = view ?? session
   const total = session.order.length
 
   /** Keep the place and the sets; another device having moved on reloads its version. */
@@ -314,11 +322,12 @@ export default function SessionPage() {
   }
 
   const timesSoFar = stage === 'check' ? times(session, values) : null
-  const step = session.order[Math.min(position, total - 1)]
-  const item = session.items[step.item]
-  const kg = loadFor(session, values, step.item, step.set_no)
+  const step = screen.order[Math.min(position, total - 1)]
+  const item = screen.items[step.item]
+  const kg = loadFor(screen, values, step.item, step.set_no)
   const base = valueFor(values, step.item, step.set_no, step.target)
   const value = kg === undefined ? base : { ...base, load_kg: kg }
+  const sentLoad = session.items[step.item].load // before a suggested weight is taken
   const change = (v: Value) => setValues({ ...values, [key(step.item, step.set_no)]: v })
 
   /** Confirm this set: the counter's value, or the clock's reading when it runs; the mobility
@@ -619,12 +628,20 @@ export default function SessionPage() {
                   onChange={(v) => change({ ...value, left: v, right: v })}
                 />
               )}
-              {item.load && kg !== undefined && (
-                <LoadCounter
+              {item.load && sentLoad && kg !== undefined && (
+                <Weight
                   load={item.load}
+                  sent={sentLoad}
                   kg={kg}
-                  last={item.load.kg[step.set_no - 1]}
+                  setNo={step.set_no}
                   onChange={(load_kg) => change({ ...value, load_kg })}
+                  onChoose={(take) => {
+                    const fresh = unweighed(values, step.item) // a touched set starts afresh too
+                    setValues(fresh)
+                    setView(
+                      shown(session, fresh, { ...chosenIn(session, screen), [step.item]: take }),
+                    )
+                  }}
                 />
               )}
               {item.per_side && (
@@ -693,7 +710,7 @@ export default function SessionPage() {
           <p className="text-[var(--slate)]">Nothing is saved until you save.</p>
           {timesSoFar && <p className="font-bold">{soFar(timesSoFar)}</p>}
           <ul className={card}>
-            {summary(session, values).map((row, index) => (
+            {summary(screen, values).map((row, index) => (
               <li
                 key={row.name}
                 className="flex justify-between gap-3 border-b border-[var(--line)] py-2"
@@ -1034,6 +1051,62 @@ function LoadCounter({
         </button>
       </div>
       <span className="text-sm text-[var(--slate)]">{note}</span>
+    </div>
+  )
+}
+
+/** The weight on a loaded step and, when there is one, the suggested next weight. */
+function Weight({
+  load,
+  sent,
+  kg,
+  setNo,
+  onChange,
+  onChoose,
+}: {
+  load: NonNullable<GuidedItem['load']>
+  sent: NonNullable<GuidedItem['load']>
+  kg: number
+  setNo: number
+  onChange: (kg: number) => void
+  onChoose: (take: boolean) => void
+}) {
+  return (
+    <>
+      <LoadCounter load={load} kg={kg} last={sent.kg[setNo - 1]} onChange={onChange} />
+      {sent.suggested && <Suggested load={sent} taken={load !== sent} onChoose={onChoose} />}
+    </>
+  )
+}
+
+/** Double progression's suggestion (ADR-0072): every set reached the top last time, so the
+ * next weight up is offered, reps from the bottom. A tap takes it or goes back. */
+function Suggested({
+  load,
+  taken,
+  onChoose,
+}: {
+  load: NonNullable<GuidedItem['load']>
+  taken: boolean
+  onChoose: (take: boolean) => void
+}) {
+  const up = load.suggested!
+  const last = Math.max(...load.kg)
+  return (
+    <div className={card + ' flex flex-col gap-2'} role="group" aria-label="Next weight">
+      <p className="m-0">
+        {taken
+          ? `Taking ${kgText(up.kg)}: reps start again from ${up.targets[0]}.`
+          : `Every set reached the top of the range last time. Ready for ${kgText(up.kg)}? Reps start again from ${up.targets[0]}.`}
+      </p>
+      <button
+        type="button"
+        aria-pressed={taken}
+        className="min-h-11 rounded-xl border-2 border-[var(--ink)] font-bold"
+        onClick={() => onChoose(!taken)}
+      >
+        {taken ? `Stay at ${kgText(last)}` : `Use ${kgText(up.kg)}`}
+      </button>
     </div>
   )
 }

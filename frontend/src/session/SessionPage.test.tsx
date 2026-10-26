@@ -1206,3 +1206,43 @@ test('a first time at a loaded step says to set the weight, and the next set fol
   const next = await screen.findByRole('group', { name: 'Each dumbbell, kg' })
   expect(next).toHaveTextContent('−2+')
 })
+
+test('every set at the top last time offers the next weight; a tap takes it or goes back', async () => {
+  const ready: Guided = {
+    ...LOADED,
+    items: [
+      {
+        ...LOADED.items[0],
+        load: {
+          kit: 'barbell',
+          increment: 2.5,
+          kg: [40, 40],
+          carried: true,
+          suggested: { kg: 42.5, targets: [4, 4] },
+        },
+      },
+      LOADED.items[1],
+    ],
+  }
+  const sent = serve({ today: { session: ready, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const next = screen.getByRole('group', { name: 'Next weight' })
+  expect(next).toHaveTextContent('Every set reached the top of the range last time.')
+  expect(screen.getByRole('group', { name: 'Weight, kg' })).toHaveTextContent('40')
+  expect(screen.getByText('Target 6')).toBeInTheDocument() // nothing changes until a tap
+  click('1 more') // a set touched before the tap still takes the new weight
+  click(/^Use 42\.5\skg$/)
+  expect(screen.getByRole('group', { name: 'Weight, kg' })).toHaveTextContent('42.5')
+  expect(screen.getByRole('group', { name: 'Weight, kg' })).toHaveTextContent('Last time 40 kg')
+  expect(screen.getByText('Target 4')).toBeInTheDocument()
+  expect(next).toHaveTextContent('Taking 42.5 kg: reps start again from 4.')
+  click(/^Stay at 40\skg$/)
+  expect(screen.getByText('Target 6')).toBeInTheDocument()
+  click(/^Use 42\.5\skg$/)
+  click('Confirm set')
+  await waitFor(() => expect(sent['PUT /api/session/progress']).toHaveLength(1))
+  expect(sent['PUT /api/session/progress'][0]).toMatchObject({
+    sets: [{ item: 0, set_no: 1, left: 4, load_kg: 42.5 }],
+  })
+})
