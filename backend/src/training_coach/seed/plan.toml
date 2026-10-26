@@ -48,6 +48,10 @@ name = "Coverage + core (Oct 2026, ADR-0064)"
 since = 2026-10-26
 name = "Rear delts + carries (Oct 2026)"
 
+[[versions]]
+since = 2026-10-27
+name = "Rep tops at 18 (Oct 2026, ADR-0078)"
+
 # ------------------------------------------------------------------- baseline tests
 # The product spec's performance tests (2-A, ADR-0037), on two days. Retest under the same
 # conditions. A test with results can't leave the plan; its name and cue can change.
@@ -700,6 +704,9 @@ start = 0
 ladder = ["Brisk walk / hike", "Easy jog / bike", "Easy jog with weight vest or backpack"]
 
 # ---------------------------------------------------------------- sessions (queue order)
+# A range counted in reps tops out at 18 (ADR-0078): at 18 on every set, twice, the next step is
+# due. Calf raise, tibialis raise, kettlebell swing and band face pull are high-rep work and keep
+# theirs. A test holds every range to this.
 
 [[sessions]]
 slug = "legs"
@@ -745,14 +752,14 @@ focus = "Strength / hypertrophy: back, chest, shoulders, neck"
 items = [
   { exercise = "pull-up", sets = 4, rep_min = 5, rep_max = 12, pair = 1 },
   { exercise = "dip", sets = 4, rep_min = 8, rep_max = 15, pair = 1 },
-  { exercise = "kb-row", sets = 3, rep_min = 10, rep_max = 20, per_side = true, pair = 2 },
-  { exercise = "push-up", sets = 4, rep_min = 10, rep_max = 20, pair = 2 },
+  { exercise = "kb-row", sets = 3, rep_min = 10, rep_max = 18, per_side = true, pair = 2 },
+  { exercise = "push-up", sets = 4, rep_min = 10, rep_max = 18, pair = 2 },
   { exercise = "pike-push-up", sets = 3, rep_min = 6, rep_max = 12, pair = 3 },
-  { exercise = "reverse-fly", sets = 3, rep_min = 12, rep_max = 20, pair = 3 },
+  { exercise = "reverse-fly", sets = 3, rep_min = 12, rep_max = 18, pair = 3 },
   { exercise = "neck-flexion", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
   { exercise = "neck-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
-  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 20, pair = 5 },
-  { exercise = "kb-curl", sets = 2, rep_min = 12, rep_max = 20, pair = 5 },
+  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 18, pair = 5 },
+  { exercise = "kb-curl", sets = 2, rep_min = 12, rep_max = 18, pair = 5 },
 ]
 
 [[sessions]]
@@ -788,8 +795,8 @@ items = [
   { exercise = "bulgarian-split-squat", sets = 3, rep_min = 8, rep_max = 15, per_side = true, pair = 2 },
   { exercise = "overhead-triceps-extension", sets = 3, rep_min = 10, rep_max = 15, pair = 2 },
   { exercise = "hamstring-curl", sets = 3, rep_min = 6, rep_max = 15, pair = 3 },
-  { exercise = "kb-curl", sets = 4, rep_min = 12, rep_max = 20, pair = 3 },
-  { exercise = "lateral-raise", sets = 4, rep_min = 12, rep_max = 20, pair = 4 },
+  { exercise = "kb-curl", sets = 4, rep_min = 12, rep_max = 18, pair = 3 },
+  { exercise = "lateral-raise", sets = 4, rep_min = 12, rep_max = 18, pair = 4 },
   { exercise = "calf-raise", sets = 4, rep_min = 12, rep_max = 20, per_side = true, pair = 4 },
 ]
 

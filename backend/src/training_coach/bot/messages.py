@@ -304,7 +304,7 @@ def progress_text(standings: list[Standing]) -> str:
         if s.status is Progress.READY:
             line += ". Ready to move up"
         elif s.status is Progress.TOP_OF_LADDER:
-            line += ". Top for your kit" if s.unlock else ". Top of the ladder"
+            line += f". Top for your kit: {s.unlock}" if s.unlock else ". Top of the ladder"
         lines.append(line)
     return "\n".join(_fit(lines, []))
 

@@ -58,7 +58,8 @@ AI-generated daily workouts (the plan is fixed and edited deliberately).
 Each exercise has a ladder of variations and a rep range. When every working set reaches the
 top of the range in two consecutive sessions, the exercise is flagged "ready to progress";
 the user confirms moving to the next ladder step, and the target resets to the bottom of the
-range. Timed exercises use seconds instead of reps.
+range. Timed exercises use seconds instead of reps. A range counted in reps tops out at 18,
+except high-rep calf, tibialis, swing and face-pull work (ADR-0078).
 
 ## Baseline tests (phase 2)
 

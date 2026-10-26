@@ -24,7 +24,7 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.domain.enums import WorkoutStatus
+from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.volume import weekly_sets
 from training_coach.services import users
 from training_coach.services.seed import PlanSeed, SeedError, apply_seed, load_plan
@@ -540,6 +540,33 @@ def test_the_bundled_resistance_sessions_are_fully_paired() -> None:
         assert all(item.pair is not None for item in sessions[slug].items), slug
     alone = [item.exercise for item in sessions["recovery"].items if item.pair is None]
     assert alone == ["mobility"]
+
+
+REP_TOP = 18  # ADR-0078: at 18 reps on every set, the next step is due
+HIGH_REP = {"calf-raise", "tibialis-raise", "kb-swing", "band-face-pull"}  # keep their ranges
+
+
+def test_every_reps_range_tops_out_at_18_except_high_rep_work() -> None:
+    plan = load_plan()
+    kinds = {e.slug: e.kind for e in plan.exercises}
+    assert {kinds[slug] for slug in HIGH_REP} == {ExerciseKind.REPS}  # still in the catalogue
+    over = {
+        f"{s.slug}: {item.exercise} {item.rep_min}-{item.rep_max}"
+        for s in plan.sessions
+        for item in s.items
+        if kinds[item.exercise] is ExerciseKind.REPS
+        and item.exercise not in HIGH_REP
+        and item.rep_max > REP_TOP
+    }
+    assert not over
+    # Timed work is counted in seconds or minutes, so a long range there is no exception.
+    tops = {item.exercise: item.rep_max for s in plan.sessions for item in s.items}
+    assert tops["dead-hang"] > REP_TOP
+    assert kinds["dead-hang"] is ExerciseKind.SECONDS
+
+
+def test_the_rep_tops_take_effect_as_their_own_plan_version() -> None:
+    assert load_plan().versions[-1].since == date(2026, 10, 27)
 
 
 STRETCH = """

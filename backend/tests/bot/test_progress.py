@@ -341,7 +341,7 @@ def test_progress_text_units_and_limits() -> None:
     assert "- Plank: Front plank (1/3), last 45s / 40s, best 60s" in text
     assert text.endswith("Top of the ladder")
     kit = progress_text([_standing(status=Progress.TOP_OF_LADDER, unlock="a mat unlocks X")])
-    assert kit.endswith("Top for your kit")  # ADR-0071
+    assert kit.endswith("Top for your kit: a mat unlocks X")  # names what opens it (ADR-0078)
     long = progress_text([_standing(exercise="X" * 120, step="Y" * 120)] * 40)
     assert len(long) <= 4096
     assert "more not shown" in long
