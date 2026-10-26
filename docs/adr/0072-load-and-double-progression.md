@@ -101,8 +101,9 @@ Decided while building, within this ADR:
 - **A session's weight is its heaviest set's.** Targets come from the sessions at the weight
   last used, so a heavier weight starts from its own first session; bests after a save count
   only sessions at the same weight. The suggestion is the next weight by the kit's increment
-  once every planned set of the last session at that weight reached the top of the range (one
-  session, as option D says; a ladder's Move up needs two). It comes with targets at the bottom
+  once the last session did every planned set at that one weight and every set reached the top
+  of the range (one session, as option D says; a ladder's Move up needs two). A pyramid, one
+  heavy set and the rest lighter, suggests nothing: it is no session at the heavy weight. It comes with targets at the bottom
   of the range and changes nothing until the person takes it on the set screen. A loaded step
   is never "ready to move up" or "top of the ladder": it gets harder by weight.
 - **Strength blocks:** a loaded step stays on its step with the 4-8 prescription and no tempo

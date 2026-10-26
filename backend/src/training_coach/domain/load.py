@@ -90,11 +90,21 @@ def top_weight(last: Sequence[tuple[int, float]]) -> float | None:
 
 
 def next_weight(
-    item: Prescription, last: Sequence[int] | None, kg: float, increment: float
+    item: Prescription,
+    last: Sequence[int] | None,
+    loads: Sequence[tuple[int, float]],
+    increment: float,
 ) -> NextWeight | None:
-    """The next weight up when every planned set of ``last``, the last session's values at
-    weight ``kg``, reached the top of the range; None otherwise, or past the bound."""
-    if last is None or not session_met_top(item, last) or not valid_kg(kg + increment):
+    """The next weight up when the last session, ``last`` its values and ``loads`` its (set
+    number, kg), did every planned set at one weight and every one reached the top of the
+    range; None otherwise, or past the bound. A pyramid (one heavy set, the rest lighter) is
+    not a session at the heavy weight, so it suggests nothing."""
+    kg = top_weight(loads)
+    by_set = dict(loads)
+    at_weight = all(by_set.get(n) == kg for n in range(1, item.sets + 1))
+    if kg is None or last is None or not at_weight or not session_met_top(item, last):
+        return None
+    if not valid_kg(kg + increment):
         return None
     return NextWeight(round(kg + increment, 2), (item.rep_min,) * item.sets)
 

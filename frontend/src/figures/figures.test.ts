@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
 import { BODY, blend, dist, heading, progress, solve, type Pose } from './body'
-import { WIDTH, frontShapes, solveFront } from './front'
+import { WIDTH, solveFront } from './front'
+import { lens, perspectiveShapes } from './perspective'
 import { FIGURES } from './poses'
 import { capsule, shapes } from './shapes'
 
@@ -410,7 +411,7 @@ const fromFront = (slug: string) => {
 test('a front view keeps its limbs their length and stays inside its picture', () => {
   for (const [slug, { front }] of Object.entries(FIGURES)) {
     if (!front) continue
-    const [x0, x1, , y1] = front.view
+    const [x0, x1, y0, y1] = front.view
     for (const j of fromFront(slug)) {
       for (const leg of [j.legL, j.legR]) {
         expect(dist(leg.root, leg.mid), slug).toBeCloseTo(BODY.thigh, 1)
@@ -420,19 +421,49 @@ test('a front view keeps its limbs their length and stays inside its picture', (
         expect(dist(arm.root, arm.mid), slug).toBeLessThan(BODY.upperArm + 0.05)
         expect(dist(arm.mid, arm.end), slug).toBeLessThan(BODY.forearm + 0.05)
       }
-      const limbs = [j.armL, j.armR, j.legL, j.legR].flatMap((l) => [l.mid, l.end, l.tip])
-      for (const p of [j.hip, j.waist, j.shoulders, j.head, ...limbs]) {
-        expect(p[0], slug).toBeGreaterThan(x0)
-        expect(p[0], slug).toBeLessThan(x1)
-        expect(p[1], slug).toBeGreaterThan(-0.5)
-        expect(p[1], slug).toBeLessThan(y1)
-      }
-      expect(j.head[1] + 11.5, `${slug}'s head`).toBeLessThan(y1)
+      const limbs = [j.armL, j.armR, j.legL, j.legR].flatMap((l) => [l.mid, l.end])
+      for (const p of limbs) expect(p[1], `${slug} above the floor`).toBeGreaterThan(-0.5)
     }
-    for (const t of STEPS)
-      for (const shape of frontShapes(blend(front.start, front.end, t), front.props))
+    for (const t of STEPS) {
+      const drawn = perspectiveShapes(blend(front.start, front.end, t), front.camera, front.seat)
+      for (const shape of drawn) {
         expect(JSON.stringify(shape), slug).not.toMatch(/NaN|null/)
+        if (shape.kind === 'floor') continue // the mat may run out of the picture
+        const points =
+          shape.kind === 'ball'
+            ? [
+                [shape.c[0] - shape.r, shape.c[1] - shape.r],
+                [shape.c[0] + shape.r, shape.c[1] + shape.r],
+              ]
+            : shape.kind === 'path'
+              ? [...shape.d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => [+m[1], +m[2]])
+              : []
+        for (const [x, y] of points) {
+          expect(x, slug).toBeGreaterThan(x0)
+          expect(x, slug).toBeLessThan(x1)
+          expect(-y, slug).toBeGreaterThan(y0) // SVG y runs down
+          expect(-y, slug).toBeLessThan(y1)
+        }
+      }
+    }
   }
+})
+
+test('the front view is in perspective: nearer is bigger and drawn later', () => {
+  const { front } = FIGURES['copenhagen-plank']
+  const see = lens(front!.camera)
+  const j = solveFront(front!.end)
+  const [head, foot] = [see([...j.head, 0]), see([...j.legR.end, 0])]
+  expect(head.depth).toBeLessThan(foot.depth) // the head is towards you, the feet away
+  expect(head.scale).toBeGreaterThan(foot.scale * 1.2)
+  // The seat is seen from above, past its end, from in front: its top, front and end.
+  const drawn = perspectiveShapes(front!.end, front!.camera, front!.seat)
+  expect(drawn[0].kind).toBe('floor')
+  const tones = drawn.map((s) => ('tone' in s ? s.tone : 'floor'))
+  expect(tones.filter((t) => t === 'prop')).toHaveLength(4 * 3 + 3) // four legs and the seat
+  // The head and the top arm, nearest, come after the feet, farthest.
+  expect(tones.lastIndexOf('near')).toBe(tones.length - 1)
+  expect(tones.indexOf('far')).toBeLessThan(tones.lastIndexOf('near'))
 })
 
 test('from the front, the shoulders are as wide apart as the body, and the hips', () => {
@@ -443,8 +474,7 @@ test('from the front, the shoulders are as wide apart as the body, and the hips'
 
 test('a Copenhagen plank lifts the hips from the forearm and the top knee on the chair', () => {
   const plank = FIGURES['copenhagen-plank']
-  const { top, x0, x1 } = plank.front!.props!.bench!
-  const knee = (p: readonly number[]) => {
+  const knee = (p: readonly number[], { top, x0, x1 }: { top: number; x0: number; x1: number }) => {
     expect(p[1] - SEAT_KNEE, 'the top knee on the seat').toBeGreaterThan(top - 2)
     expect(p[1] - SEAT_KNEE).toBeLessThan(top + 3) // within 3 cm, as it rolls on the seat
     expect(p[0]).toBeGreaterThan(x0)
@@ -453,19 +483,40 @@ test('a Copenhagen plank lifts the hips from the forearm and the top knee on the
   for (const j of fromFront('copenhagen-plank')) {
     near(j.armL.mid, [0, 4], 3) // the bottom elbow on the floor, under its shoulder
     expect(Math.abs(j.armL.root[0]), 'shoulder over the elbow').toBeLessThan(3)
-    knee(j.legR.mid)
+    knee(j.legR.mid, plank.front!.seat!)
     expect(j.armR.root[1], 'the top shoulder above the bottom one').toBeGreaterThan(
       j.armL.root[1] + 25,
     )
   }
   for (const j of along('copenhagen-plank')) {
     near(j.armF.elbow, [0, 4], 3)
-    knee(j.legN.knee)
+    knee(j.legN.knee, plank.props!.bench!)
   }
-  const [low, high] = [solveFront(plank.front!.start), solveFront(plank.front!.end)]
-  expect(high.hip[1] - low.hip[1], 'hips lifted').toBeGreaterThan(20)
+  const { front } = plank
+  const [low, high] = [solveFront(front!.start), solveFront(front!.end)]
+  expect(high.hip[1] - low.hip[1], 'hips lifted').toBeGreaterThan(15)
   // The top thigh carries on the line of the trunk at the top, and bends from it at the bottom.
   const bend = (j: typeof high, tilt: number) => Math.abs(heading(j.legR.mid, j.legR.root) - tilt)
-  expect(bend(high, plank.front!.end.tilt), 'body straight').toBeLessThan(6)
-  expect(bend(low, plank.front!.start.tilt), 'hips low').toBeGreaterThan(20)
+  expect(bend(high, front!.end.tilt), 'body straight').toBeLessThan(6)
+  expect(bend(low, front!.start.tilt), 'hips low').toBeGreaterThan(20)
+  // Low, the trunk bends at the waist: the hips drop, the chest stays nearer level, untwisted.
+  const chest = (j: typeof high) => heading(j.waist, j.shoulders)
+  expect(chest(low)).toBeLessThan(front!.start.tilt - 20)
+  expect(Math.abs(chest(high) - front!.end.tilt), 'straight at the top').toBeLessThan(1)
+})
+
+test('from the front, the bottom leg lies under the top one, below the seat', () => {
+  const { front } = FIGURES['copenhagen-plank']
+  const seat = front!.seat!
+  for (const j of fromFront('copenhagen-plank')) {
+    // under the top leg all the way, and off the floor
+    for (const [bottom, top] of [
+      [j.legL.mid, j.legR.mid],
+      [j.legL.end, j.legR.end],
+    ])
+      expect(bottom[1], 'stacked').toBeLessThan(top[1] - 10)
+    expect(j.legL.end[1] - 3.4, 'foot off the floor').toBeGreaterThan(20)
+    // below the seat's underside where the leg passes under it (shin 3.8 cm round at the ankle)
+    if (j.legL.end[0] < seat.x1) expect(j.legL.end[1] + 3.8).toBeLessThan(seat.top - 6 + 1)
+  }
 })

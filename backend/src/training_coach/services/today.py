@@ -142,10 +142,9 @@ def _item_plan(session: Session, item: TemplateItem, strength: bool, pace: Pace)
     load = None
     if kit is not None:
         load = carried(kit, plan.prescription.sets, last)
-        if weight is not None:
-            latest = history[0] if history else None
-            suggested = next_weight(plan.prescription, latest, weight, load.increment)
-            load = replace(load, suggested=suggested)
+        latest = history[0] if history else None
+        suggested = next_weight(plan.prescription, latest, last, load.increment)
+        load = replace(load, suggested=suggested)
     found = worked(item.exercise.slug)
     return ItemPlan(
         exercise=item.exercise.name,
