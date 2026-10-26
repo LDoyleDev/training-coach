@@ -340,12 +340,13 @@ def _loads(values: Values, loads: list[float | None]) -> tuple[tuple[int, float]
 
 def _side_weights(exercise: Known, values: Values, loads: list[float | None]) -> str | None:
     """A set's weight covers both its sides, so a right side weighed differently from its left
-    one would be lost: a problem to fix rather than a weight silently dropped (ADR-0072)."""
+    one would be lost: a problem to fix rather than a weight silently dropped (ADR-0072). Sets
+    logged "each side" have no right-hand values, so the zip is not strict."""
     left: list[float | None] = []
     right: list[float | None] = []
     for (side, _), kg in zip(values, loads, strict=True):
         (right if side is Side.RIGHT else left).append(kg)
-    for number, (kg_left, kg_right) in enumerate(zip(left, right), start=1):
+    for number, (kg_left, kg_right) in enumerate(zip(left, right, strict=False), start=1):
         if kg_right is not None and kg_right != kg_left:
             return (
                 f"{exercise.names[0]}: set {number} has a different weight on the right; "
