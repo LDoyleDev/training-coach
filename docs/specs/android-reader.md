@@ -46,7 +46,11 @@ publishes no numbers for either.
   reader read the same day again and again. An empty token now ends the read. At the limit, a
   history read sends what it read and keeps its token (failing would leave no token, so every
   later sync would spend the same reads again), and a long run of changes stops where it got to
-  and goes on at the next sync. The result line shows each sync's read count.
+  and goes on at the next sync. The result line shows each sync's read count. A normal sync
+  makes four: the steps aggregate, then one changes read each for sleep, exercise and heart
+  rate (heart rate last, as the heaviest, so its catch-up can't leave sleep unread). A type's
+  first sync takes two (a token and a page of history), so the first sync after updating from
+  0.0.4 takes six, and a first sync on a new phone seven or more.
 - **Changes are collapsed per record id, last one wins,** so a record written and deleted in
   the same batch isn't sent as both (the ingest applies deletions first).
 - **Steps:** one aggregate call for today and yesterday, grouped by local day, and a day is sent
@@ -54,8 +58,11 @@ publishes no numbers for either.
   keep the coach's "nothing new from the band" alert from ever firing (ADR-0055).
 - **Heart rate:** the changed heart-rate records' raw samples as `{bpm, time}`. The ingest
   already averages samples per minute.
-- **Sleep and exercise:** the changed records with their Health Connect ids; deletions go in
-  `deleted` as `{type, id}`.
+- **Sleep and exercise:** the changed sessions with their Health Connect ids, each type with
+  its own changes token (a deletion names only the record's id, so its token says its type);
+  deletions go in `deleted` as `{type, id}`, `sleep` or `exercise`. Sleep goes with its stages,
+  exercise with its type, as HC Webhook sends them. Heart-rate deletions are dropped: the coach
+  keeps heart rate per minute and can't apply them.
 - **Resting heart rate** isn't read: the coach derives it from heart rate.
 - **Weight isn't read:** Mi Fitness doesn't write it (`band-import.md` step 2).
 
@@ -118,9 +125,9 @@ publishes no numbers for either.
   unit tests and Android lint whenever `android/` changes. It isn't a required check, so PRs
   that don't touch `android/` never wait for it. `adb` is installed on the desktop for reading
   the phone's logs during the trial.
-- **One contract, tested on both sides:** the app's tests build a sync from fixed records and
-  compare it with a sample committed in the repo; a backend test posts that same sample to the
-  ingest and checks what is taken.
+- **One contract, tested on both sides:** the app's tests (`PayloadTest.kt`) build a sync from
+  fixed records and check its JSON; a backend test (`_reader_sync` in `test_ingest.py`) posts
+  the same records, as that JSON, to the ingest and checks what is taken and deleted.
 - **Signing from the first build:** one release key, kept as secrets of the GitHub environment
   `android-release`, which needs Liam's approval for every run that uses it; where it is kept
   and backed up: ADR-0070, Decision. A debug key changes per CI runner,
@@ -141,7 +148,8 @@ Each PR under about 400 changed lines, not counting generated files.
    Sync now reading steps and heart rate only, the last error; the CI workflow, signing and
    the pre-release workflow. Trial: HC Webhook switched off, three days of opening Mi Fitness
    and then the reader (ADR-0070, Consequences).
-2. Sleep, exercise and deletions, with the contract test on both sides.
+2. Sleep, exercise and deletions, with the contract test on both sides. Done in reader 0.0.5
+   (26 Oct); the screen asks once to allow reading sleep and exercise.
 3. The background sync and the "In Health Connect, last 7 days" view.
 4. `band-import.md` rewritten for the reader; Account and the bot name the sending app from its
    version string instead of "HC Webhook"; HC Webhook retired.
