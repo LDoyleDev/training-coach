@@ -62,7 +62,7 @@ own reader rather than retry. The plan and its review are in `docs/specs/android
   (Status). A quota error with a minimal read pattern would still rule out readers built on
   Health Connect reads, and Gadgetbridge or the export would come next.
 - Mi Fitness writes to Health Connect only when it syncs with the band, which on this phone
-  means when it is opened (`docs/runbooks/band-import.md` step 6.3). No bridge fixes that.
+  means when it is opened (`docs/runbooks/band-import.md` step 5.3). No bridge fixes that.
 - The repo's root release-please package ignores `android/`, so an app change doesn't bump the
   coach's version; the Pi's auto-deploy only takes `v*` tags, so `android-v*` tags never deploy.
 - The threat model gets a row for the reader: the ingest secret on the phone, encrypted with an
