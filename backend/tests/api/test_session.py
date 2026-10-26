@@ -13,8 +13,9 @@ from training_coach.config import Settings
 from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, SetLog, Workout
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import Side, WorkoutStatus
+from training_coach.domain.load import LoadKit
 from training_coach.domain.queue import local_date
-from training_coach.services import auth, users
+from training_coach.services import auth, today, users
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -575,3 +576,24 @@ def test_the_saved_screen_says_when_there_is_no_step_to_move_to(
     (earned,) = signed_in.post("/api/session/save", json={}).json()["earned"]
     assert (earned["exercise"], earned["next_step"]) == ("Jump squat", None)
     assert (earned["at_top"], earned["unlock"]) == (True, unlock)
+
+
+def test_a_loaded_step_offers_its_weights_and_keeps_each_sets(
+    signed_in: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The set screen gets the kit, the increment and each set's starting weight; a kept set's
+    weight comes back on resume (ADR-0072)."""
+    monkeypatch.setattr(
+        today, "load_kit", lambda slug, step: LoadKit.BARBELL if slug == "jump-squat" else None
+    )
+    session = signed_in.get("/api/session/today").json()["session"]
+    jump = session["items"][0]
+    assert jump["load"] == {"kit": "barbell", "increment": 2.5, "kg": [20.0] * 3, "carried": False}
+    assert session["items"][1]["load"] is None
+    sets = [{"item": 0, "set_no": 1, "left": 8, "load_kg": 22.5}]
+    body = {"template_id": session["template_id"], "position": 1, "sets": sets}
+    assert signed_in.put("/api/session/progress", json=body).status_code == 200
+    kept = signed_in.get("/api/session/today").json()["progress"]["sets"]
+    assert kept[0]["load_kg"] == 22.5
+    body["revision"], sets[0]["load_kg"] = 1, -5
+    assert signed_in.put("/api/session/progress", json=body).status_code == 422

@@ -73,3 +73,22 @@ vest (25 Oct 2026). The builder settled the shape (`program-builder.md`, option 
 - The catalogue marks which exercises are `load`; the 29 gym exercises arrive with it.
 - The body map is unchanged: it counts hard sets, not tonnage.
 - Exports and the AI tools (ADR-0058) carry `load_kg`; `propose_log` accepts it.
+
+## Built (26 Oct 2026)
+
+Decided while building, within this ADR:
+
+- **A step takes load, not an exercise.** `plan.toml` names the steps that take load and what
+  carries the weight (`[exercises.loads]`: `barbell`, `dumbbells` or `machine`, a cable
+  counting as a machine), so a gym exercise is a one-step ladder that takes load. The kit gives
+  the increment (2.5, 2 and 5 kg). The vest and backpack steps stay ladder steps with their
+  weight in the name (`kit-ladder-proposal.md`, accepted after this ADR); a loaded "Added
+  weight" step past them is a plan change for later.
+- **Where a set starts:** the same set's weight in the last session at that step and block
+  kind with a weight; a set not done then starts at the nearest set before it. With no
+  history, the kit's first weight (the 20 kg bar, 8 kg dumbbells, a 20 kg stack), a starting
+  point for − and +, never a suggestion. Each person's own increments, and the next weight
+  owned at home, wait for places (builder step 9): until then nothing tells home from gym.
+- `set_logs.load_kg` is more than 0 and at most 500 kg; a guided set sends it only for a
+  loaded step, and it is kept with the set's progress, saved on its rows, and comes back with
+  /undo of a replaced day.

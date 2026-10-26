@@ -1071,6 +1071,19 @@
             "title": "Left",
             "type": "integer"
           },
+          "load_kg": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 500.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load Kg"
+          },
           "right": {
             "anyOf": [
               {
@@ -2175,6 +2188,16 @@
               }
             ]
           },
+          "load": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoadView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "muscles": {
             "items": {
               "$ref": "#/components/schemas/ItemMuscleView"
@@ -2600,6 +2623,43 @@
           "bests"
         ],
         "title": "LadderView",
+        "type": "object"
+      },
+      "LoadView": {
+        "description": "A loaded step (ADR-0072): - and + move the weight by ``increment``; each set starts at\nits ``kg``, the same set's weight last time when ``carried``, else the kit's first weight.",
+        "properties": {
+          "carried": {
+            "title": "Carried",
+            "type": "boolean"
+          },
+          "increment": {
+            "title": "Increment",
+            "type": "number"
+          },
+          "kg": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Kg",
+            "type": "array"
+          },
+          "kit": {
+            "enum": [
+              "barbell",
+              "dumbbells",
+              "machine"
+            ],
+            "title": "Kit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kit",
+          "increment",
+          "kg",
+          "carried"
+        ],
+        "title": "LoadView",
         "type": "object"
       },
       "LogBody": {

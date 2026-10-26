@@ -20,12 +20,13 @@ from training_coach.db.models import (
 )
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.load import Load, LoadKit, carried
 from training_coach.domain.muscles import Muscle, Part, ranked
 from training_coach.domain.queue import ADVANCING, Position, advance
 from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
 from training_coach.services import blocks, retests, user_settings, users
-from training_coach.services.progress import sessions_at_step
+from training_coach.services.progress import last_loads, sessions_at_step
 from training_coach.services.seed import bundled_plan
 
 
@@ -47,6 +48,8 @@ class ItemPlan:
     # exercise that trains only qualities (cardio, mobility, a chin tuck).
     muscles: tuple[tuple[Muscle, float], ...] = ()
     parts: tuple[Part, ...] = ()
+    # A loaded step (ADR-0072): its kit, increment and each set's starting weight.
+    load: Load | None = None
 
 
 @dataclass(frozen=True)
@@ -119,6 +122,17 @@ def _worked() -> dict[str, Worked]:
     }
 
 
+def load_kit(slug: str, step: str) -> LoadKit | None:
+    """What carries the weight when this step of this exercise takes load (ADR-0072), from the
+    bundled plan like the summary; None for a step without load."""
+    return _load_kits().get((slug, step))
+
+
+@lru_cache(maxsize=1)
+def _load_kits() -> dict[tuple[str, str], LoadKit]:
+    return {(e.slug, step): kit for e in bundled_plan().exercises for step, kit in e.loads.items()}
+
+
 def _item_plan(session: Session, item: TemplateItem, strength: bool, pace: Pace) -> ItemPlan:
     """One exercise: its step, cue and targets, under the strength prescription if it applies
     (ADR-0028), with targets from the matching block's history (ADR-0027) at the person's
@@ -131,6 +145,16 @@ def _item_plan(session: Session, item: TemplateItem, strength: bool, pace: Pace)
         )
     ]
     found = worked(item.exercise.slug)
+    kit = load_kit(item.exercise.slug, plan.step.name)
+    load = (
+        carried(
+            kit,
+            plan.prescription.sets,
+            last_loads(session, item.exercise_id, plan.step.id, plan.history),
+        )
+        if kit is not None
+        else None
+    )
     return ItemPlan(
         exercise=item.exercise.name,
         kind=ExerciseKind(item.exercise.kind),
@@ -144,6 +168,7 @@ def _item_plan(session: Session, item: TemplateItem, strength: bool, pace: Pace)
         baseline=not history,
         muscles=found.muscles,
         parts=found.parts,
+        load=load,
     )
 
 
