@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { blend, progress } from './body'
-import { frontShapes } from './front'
+import { perspectiveShapes } from './perspective'
 import { type Figure as Data } from './poses'
 import { ORDER, shapes, type Shape, type Tone } from './shapes'
 import { figureFor } from './steps'
@@ -17,6 +17,7 @@ function Drawn({ shape, id }: { shape: Shape; id: string }) {
     stroke: `var(--fig-${'tone' in shape ? shape.tone : 'prop'}-line)`,
     strokeWidth: 1,
   }
+  if (shape.kind === 'floor') return <path d={shape.d} fill="var(--fig-mat)" />
   if (shape.kind === 'mat')
     return (
       <rect
@@ -65,10 +66,12 @@ function Drawn({ shape, id }: { shape: Shape; id: string }) {
 function scene(figure: Data, view: View, t: number) {
   const at = <P,>(start: P, end: P) => (t <= 0 ? start : t >= 1 ? end : blend(start, end, t))
   const { front } = figure
-  if (view === 'front' && front)
-    return { box: front.view, drawn: frontShapes(at(front.start, front.end), front.props) }
+  if (view === 'front' && front) {
+    const drawn = perspectiveShapes(at(front.start, front.end), front.camera, front.seat)
+    return { box: front.view, drawn, floor: false }
+  }
   const pose = at(figure.start, figure.end)
-  return { box: figure.view, drawn: shapes(pose, figure.props, figure.order ?? ORDER) }
+  return { box: figure.view, drawn: shapes(pose, figure.props, figure.order ?? ORDER), floor: true }
 }
 
 /** One drawing of ``figure``, ``t`` of the way from its start (0) to its end (1). */
@@ -84,20 +87,22 @@ function Drawing({
   view?: View
 }) {
   const id = 'fig' + useId().replace(/[^a-zA-Z0-9]/g, '')
-  const { box, drawn } = scene(figure, view, t)
+  const { box, drawn, floor } = scene(figure, view, t)
   const [x0, x1, y0, y1] = box
   const inset = view === 'side' ? figure.inset : undefined
   const world = (
     <>
-      <line
-        x1={x0}
-        x2={x1}
-        y1={0}
-        y2={0}
-        stroke="var(--fig-floor)"
-        strokeWidth={1.5}
-        vectorEffect="non-scaling-stroke"
-      />
+      {floor && (
+        <line
+          x1={x0}
+          x2={x1}
+          y1={0}
+          y2={0}
+          stroke="var(--fig-floor)"
+          strokeWidth={1.5}
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
       {drawn.map((shape, i) => (
         <Drawn key={i} shape={shape} id={id} />
       ))}

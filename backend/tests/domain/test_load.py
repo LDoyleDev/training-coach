@@ -43,16 +43,28 @@ def test_weights_read_as_a_person_writes_them() -> None:
 ROWS = Prescription(sets=3, rep_min=8, rep_max=12)
 
 
+def at(kg: float, sets: int) -> list[tuple[int, float]]:
+    return [(n, kg) for n in range(1, sets + 1)]
+
+
 def test_every_set_at_the_top_suggests_the_next_weight_from_the_bottom() -> None:
-    assert next_weight(ROWS, [12, 12, 12], 20.0, 2.0) == NextWeight(22.0, (8, 8, 8))
-    assert next_weight(ROWS, [12, 12, 13, 5], 60.0, 2.5) == NextWeight(62.5, (8, 8, 8))
+    assert next_weight(ROWS, [12, 12, 12], at(20.0, 3), 2.0) == NextWeight(22.0, (8, 8, 8))
+    assert next_weight(ROWS, [12, 12, 13, 5], at(60.0, 4), 2.5) == NextWeight(62.5, (8, 8, 8))
 
 
 def test_a_missed_set_or_no_history_holds_the_weight() -> None:
-    assert next_weight(ROWS, [12, 12, 11], 20.0, 2.0) is None
-    assert next_weight(ROWS, [12, 12], 20.0, 2.0) is None
-    assert next_weight(ROWS, None, 20.0, 2.0) is None
-    assert next_weight(ROWS, [12, 12, 12], 498.0, 5.0) is None  # past the bound
+    assert next_weight(ROWS, [12, 12, 11], at(20.0, 3), 2.0) is None
+    assert next_weight(ROWS, [12, 12], at(20.0, 2), 2.0) is None
+    assert next_weight(ROWS, None, at(20.0, 3), 2.0) is None
+    assert next_weight(ROWS, [12, 12, 12], [], 2.0) is None  # no weight logged
+    assert next_weight(ROWS, [12, 12, 12], at(498.0, 3), 5.0) is None  # past the bound
+
+
+def test_a_session_not_all_at_one_weight_suggests_nothing() -> None:
+    """A pyramid, or a set without a weight, is not a session at its heaviest weight."""
+    pyramid = [(1, 14.0), (2, 12.0), (3, 12.0)]
+    assert next_weight(ROWS, [12, 12, 12], pyramid, 2.0) is None
+    assert next_weight(ROWS, [12, 12, 12], [(1, 14.0), (2, 14.0)], 2.0) is None
 
 
 def test_a_sessions_weight_is_its_heaviest_set() -> None:

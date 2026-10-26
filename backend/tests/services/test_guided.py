@@ -423,8 +423,10 @@ def test_progress_kept_before_loads_still_loads(session: Session) -> None:
     assert kept.sets[0].load_kg is None
 
 
-def _logged(session: Session, day: date, reps: int, kg: float) -> int:
-    """Three sets of the jump squat at its current step, as a done workout on ``day``."""
+def _logged(session: Session, day: date, reps: int, kg: float | tuple[float, ...]) -> int:
+    """Three sets of the jump squat at its current step, as a done workout on ``day``: at one
+    weight, or one per set."""
+    weights = kg if isinstance(kg, tuple) else (kg,) * 3
     jump = session.scalars(select(Exercise).where(Exercise.slug == "jump-squat")).one()
     state = users.exercise_state(session, jump.id)
     assert state is not None
@@ -435,7 +437,7 @@ def _logged(session: Session, day: date, reps: int, kg: float) -> int:
             ladder_step_id=state.ladder_step_id,
             set_no=n,
             value=reps,
-            load_kg=kg,
+            load_kg=weights[n - 1],
         )
         for n in (1, 2, 3)
     )
@@ -494,3 +496,23 @@ def test_bests_count_at_the_same_weight_only(session: Session) -> None:
     same = _logged(seeded, DAY - timedelta(days=3), 11, 20.0)
     (found,) = progress.feedback(seeded, same)
     assert found.bests.best_set == 11
+
+
+@pytest.mark.usefixtures("loaded")
+@pytest.mark.parametrize(
+    ("weights", "suggested"),
+    [((14.0, 12.0, 12.0), None), ((14.0, 14.0, 14.0), 16.0)],
+    ids=["pyramid", "all-at-the-weight"],
+)
+def test_the_next_weight_waits_until_every_set_was_at_the_weight(
+    session: Session, weights: tuple[float, ...], suggested: float | None
+) -> None:
+    """One set at 14 kg and the rest at 12 kg is not a session at 14 kg (review of #382): the
+    next weight is suggested only when every set was done at it, all at the top."""
+    seeded = _seeded(session)
+    _logged(seeded, DAY - timedelta(days=7), 30, weights)
+    plan = today.session_plan(seeded, _plan(seeded).template_id)
+    assert plan is not None
+    load = plan.items[0].load
+    assert load is not None
+    assert (load.suggested.kg if load.suggested else None) == suggested

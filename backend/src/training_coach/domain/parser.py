@@ -83,9 +83,11 @@ EACH_WORDS = frozenset({"each", "per", "side", "sides", "leg", "legs", "arm", "a
 ACTIVITY_WORDS = frozenset().union(*WORDS.values())  # "walk", "ran", "cycling"...
 NO_WEIGHT = chr(0x2013)  # an en dash on the confirm step, for a set given no weight
 # One weight for a line's sets (ADR-0072): "at 16", "@ 22.5", or a number with its unit, "60 kg".
+# A full stop or comma may end it ("at 16 kg." in a voice transcript) unless a digit follows, and
+# a weight is never the tail of a longer number ("1250 kg" isn't "250 kg").
 LOAD = re.compile(
-    r"(?:\bat\b|@)\s*(?P<at>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:kgs?\b|kilos?\b)?(?![\d:.,])"
-    r"|(?P<kg>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:kgs?|kilos?)\b"
+    r"(?:\bat\b|@)\s*(?P<at>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:kgs?\b|kilos?\b)?(?![\d:]|[.,]\d)"
+    r"|(?<![\d.,])(?P<kg>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:kgs?|kilos?)\b"
 )
 
 
@@ -336,6 +338,23 @@ def _loads(values: Values, loads: list[float | None]) -> tuple[tuple[int, float]
     return tuple(numbered)
 
 
+def _side_weights(exercise: Known, values: Values, loads: list[float | None]) -> str | None:
+    """A set's weight covers both its sides, so a right side weighed differently from its left
+    one would be lost: a problem to fix rather than a weight silently dropped (ADR-0072). Sets
+    logged "each side" have no right-hand values, so the zip is not strict."""
+    left: list[float | None] = []
+    right: list[float | None] = []
+    for (side, _), kg in zip(values, loads, strict=True):
+        (right if side is Side.RIGHT else left).append(kg)
+    for number, (kg_left, kg_right) in enumerate(zip(left, right, strict=False), start=1):
+        if kg_right is not None and kg_right != kg_left:
+            return (
+                f"{exercise.names[0]}: set {number} has a different weight on the right; "
+                "give one weight for both sides of a set"
+            )
+    return None
+
+
 def _unbalanced(exercise: Known, values: list[tuple[Side | None, int]]) -> str | None:
     """Explicit left/right sets must pair up: a missing side would count as 0 for progress."""
     left = sum(1 for side, _ in values if side is not Side.RIGHT)
@@ -422,6 +441,8 @@ def parse_log(text: str, known: Sequence[Known]) -> ParseResult:
             problems.append(f"that's more than {MAX_SETS} sets of {name}")
         elif unbalanced := _unbalanced(exercise, values):
             problems.append(unbalanced)
+        elif uneven := _side_weights(exercise, values, loads[slug]):
+            problems.append(uneven)
         else:
             entries.append(Entry(slug, _sets(exercise, values), _loads(values, loads[slug])))
     return ParseResult(tuple(entries), tuple(problems))
