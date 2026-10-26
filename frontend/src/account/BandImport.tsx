@@ -119,13 +119,15 @@ export default function BandImport() {
           ? 'Your band’s workouts, sleep, steps, heart rate and weight reach the coach from the Health Connect Webhook app on your phone. It needs the address and a secret from here.'
           : 'Your band’s workouts, sleep, steps and heart rate reach the coach from the Coach reader app on your phone. It needs a secret from here.'}
       </p>
-      {status.url ? (
-        <p className="break-all">
-          Address: <code>{status.url}</code>
-        </p>
-      ) : (
-        <p>Band import needs the server’s public address set first.</p>
-      )}
+      {/* The reader has the address built in, so only HC Webhook is shown it (review of #376). */}
+      {webhook &&
+        (status.url ? (
+          <p className="break-all">
+            Address: <code>{status.url}</code>
+          </p>
+        ) : (
+          <p>Band import needs the server’s public address set first.</p>
+        ))}
       {status.exists && (
         <p>
           {status.last_taken_at

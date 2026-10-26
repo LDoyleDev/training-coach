@@ -106,8 +106,10 @@ def _names(feeds: tuple[Feed, ...], joiner: str) -> str:
 
 def webhook(app_version: str | None) -> bool:
     """Whether the phone's last stored sync came from HC Webhook rather than the coach's own
-    reader, from the version string it sent. Before any, the reader is assumed: it replaced
-    HC Webhook (ADR-0070)."""
+    reader, from the version string it sent. With none (no sync yet, a sync that named no
+    version, or a secret just remade, which clears it) the reader is assumed: it replaced HC
+    Webhook (ADR-0070), and a new secret means the phone was set up again, as the runbook says
+    with the reader. The next versioned sync corrects it."""
     return app_version is not None and not app_version.startswith(READER)
 
 

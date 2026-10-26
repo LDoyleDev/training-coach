@@ -260,6 +260,23 @@ async def test_the_alert_names_the_app_that_sends(seeded: Sessions, app: str, na
     assert _sent(send)[0].startswith(f"{named} is syncing")
 
 
+async def test_a_remade_secret_forgets_hc_webhook_until_a_versioned_sync(
+    seeded: Sessions,
+) -> None:
+    # Review of #376: a new secret clears app_version, so the reader's wording comes back, as
+    # meant: the runbook sets a phone up again with the reader. A versioned sync corrects it.
+    _secret(seeded)
+    _sync(seeded, MADE - 2 * HOUR, app="1.9.31")
+    _secret(seeded, MADE - HOUR)
+    _sync(seeded, MADE)
+    _sync(seeded, MADE + 20 * HOUR, took=False)
+    send = AsyncMock(return_value=True)
+    await _watch(band_ui.BandHandlers(SETTINGS, seeded, send), MADE + 25 * HOUR)
+    assert _sent(send)[0].startswith("The Coach reader is syncing")
+    with seeded() as session:
+        assert ingest_keys.status(session).app_version is None
+
+
 def test_hc_webhook_is_told_apart_by_its_version() -> None:
     assert band_ui.webhook("1.9.22")
     assert not band_ui.webhook("tc-reader/0.0.6")
