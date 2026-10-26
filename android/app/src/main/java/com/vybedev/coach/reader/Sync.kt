@@ -39,10 +39,13 @@ object Sync {
         val today = LocalDate.now(zone)
         val (steps, heart) = try {
             reader.steps(zone, today, now) to reader.heartRate(store.heartToken, now)
+        } catch (e: TooManyReads) {
+            return "Stopped after ${e.max} Health Connect reads (at ${reader.reads.last}), so as not " +
+                "to use up its quota. Nothing was sent."
         } catch (e: Exception) {
             // Health Connect's quota answers with an exception; show it as it came (ADR-0070 trial).
             return readFailure(e.message ?: e.javaClass.simpleName) +
-                " (at ${reader.lastRead}, read ${reader.reads} of this sync)"
+                " (at ${reader.reads.last}, read ${reader.reads.made} of this sync)"
         }
         val newSteps = changedDays(steps, store.sentSteps)
         val bodies = posts(now, BuildConfig.VERSION_NAME, newSteps, heart.samples)
@@ -51,7 +54,10 @@ object Sync {
                 keep(store, steps, heart.nextToken)
                 "Sent at ${now.atZone(zone).toLocalTime().withNano(0)}: " +
                     "${newSteps.size} day(s) of steps, ${heart.samples.size} heart-rate samples, " +
-                    "in ${delivery.posts} post(s)."
+                    "in ${delivery.posts} post(s), ${reader.reads.made} read(s)." +
+                    (if (heart.more) " More heart rate comes with the next sync." else "") +
+                    (if (heart.cut) " Heart-rate history stopped at $MAX_READS_PER_SYNC reads, so part of " +
+                        "that day won't come across; later data comes as usual." else "")
             }
             is Delivery.Failed -> {
                 store.refusals = delivery.refusals
