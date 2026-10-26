@@ -32,13 +32,20 @@ object Sync {
         val secret = store.secret() ?: return "Enter the secret first."
         if (!HealthReader.available(context)) return "Health Connect isn't available on this phone."
         val reader = HealthReader(context)
-        if (!reader.granted()) return "Allow Health Connect access first."
+        val missing = reader.missing()
+        if (missing.isNotEmpty()) return "Allow Health Connect access first (${missing.values.joinToString()})."
 
         val now = Instant.now()
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
-        val (steps, heart) = try {
-            reader.steps(zone, today, now) to reader.heartRate(store.heartToken, now)
+        // Heart rate last: it is the heaviest, so a catch-up of it can't leave sleep unread.
+        val read = try {
+            Read(
+                steps = reader.steps(zone, today, now),
+                sleep = reader.sleep(store.sleepToken, now),
+                exercise = reader.exercise(store.exerciseToken, now),
+                heart = reader.heartRate(store.heartToken, now),
+            )
         } catch (e: TooManyReads) {
             return "Stopped after ${e.max} Health Connect reads (at ${reader.reads.last}), so as not " +
                 "to use up its quota. Nothing was sent."
@@ -47,37 +54,68 @@ object Sync {
             return readFailure(e.message ?: e.javaClass.simpleName) +
                 " (at ${reader.reads.last}, read ${reader.reads.made} of this sync)"
         }
-        val newSteps = changedDays(steps, store.sentSteps)
-        val bodies = posts(now, BuildConfig.VERSION_NAME, newSteps, heart.samples)
+        val newSteps = changedDays(read.steps, store.sentSteps)
+        val sessions = Sessions(
+            sleep = read.sleep.written,
+            exercise = read.exercise.written,
+            deleted = read.sleep.deleted.map { Removed(SLEEP, it) } + read.exercise.deleted.map { Removed(EXERCISE, it) },
+        )
+        val bodies = posts(now, BuildConfig.VERSION_NAME, newSteps, read.heart.written, sessions = sessions)
         return when (val delivery = deliver(bodies, store.refusals) { send(secret, it) }) {
             is Delivery.Sent -> {
-                keep(store, steps, heart.nextToken)
-                "Sent at ${now.atZone(zone).toLocalTime().withNano(0)}: " +
-                    "${newSteps.size} day(s) of steps, ${heart.samples.size} heart-rate samples, " +
-                    "in ${delivery.posts} post(s), ${reader.reads.made} read(s)." +
-                    (if (heart.more) " More heart rate comes with the next sync." else "") +
-                    (if (heart.cut) " Heart-rate history stopped at $MAX_READS_PER_SYNC reads, so part of " +
-                        "that day won't come across; later data comes as usual." else "")
+                keep(store, read)
+                "Sent at ${now.atZone(zone).toLocalTime().withNano(0)}, in ${delivery.posts} post(s), " +
+                    "${reader.reads.made} read(s).\n" + sent(newSteps.size, read) + later(read)
             }
             is Delivery.Failed -> {
                 store.refusals = delivery.refusals
                 describe(delivery.answer)
             }
             is Delivery.Skipped -> {
-                keep(store, steps, heart.nextToken)
+                keep(store, read)
                 "The coach refused this batch $REFUSALS_BEFORE_SKIPPING syncs in a row " +
                     "(${delivery.answer.status}), so it was skipped: the last ${delivery.dropped} of " +
                     "${delivery.of} post(s) won't be sent" +
-                    (if (delivery.dropped == delivery.of) ", steps included" else "") +
+                    (if (delivery.dropped == delivery.of) ", steps, sleep and exercise included" else "") +
                     ". Later data is sent as usual."
             }
         }
     }
 
-    /** Only after the coach took everything: the token moves on and the totals count as sent. */
-    private fun keep(store: Store, steps: List<DaySteps>, token: String) {
-        store.heartToken = token
-        store.sentSteps = steps.associate { it.day to it.count }
+    /** What one sync read, per type. */
+    private class Read(
+        val steps: List<DaySteps>,
+        val sleep: TypeRead<Night>,
+        val exercise: TypeRead<Workout>,
+        val heart: TypeRead<HeartSample>,
+    ) {
+        val types get() = listOf("sleep" to sleep, "exercise" to exercise, "heart rate" to heart)
+    }
+
+    /** Per type, what was sent: the result line on the screen. */
+    private fun sent(days: Int, read: Read): String = listOf(
+        "Steps: $days day(s)",
+        "Sleep: ${read.sleep.written.size} night(s)" + removed(read.sleep),
+        "Exercise: ${read.exercise.written.size} workout(s)" + removed(read.exercise),
+        "Heart rate: ${read.heart.written.size} sample(s)",
+    ).joinToString("\n")
+
+    private fun removed(read: TypeRead<*>) = if (read.deleted.isEmpty()) "" else ", ${read.deleted.size} removed"
+
+    private fun later(read: Read): String {
+        val more = read.types.filter { it.second.more }.map { it.first }
+        val cut = read.types.filter { it.second.cut }.map { it.first }
+        return (if (more.isEmpty()) "" else "\nMore ${more.joinToString(" and ")} comes with the next sync.") +
+            (if (cut.isEmpty()) "" else "\nHistory of ${cut.joinToString(" and ")} stopped at " +
+                "$MAX_READS_PER_SYNC reads, so part of that day won't come across; later data comes as usual.")
+    }
+
+    /** Only after the coach took everything: the tokens move on and the totals count as sent. */
+    private fun keep(store: Store, read: Read) {
+        store.sleepToken = read.sleep.nextToken
+        store.exerciseToken = read.exercise.nextToken
+        store.heartToken = read.heart.nextToken
+        store.sentSteps = read.steps.associate { it.day to it.count }
         store.refusals = 0
     }
 

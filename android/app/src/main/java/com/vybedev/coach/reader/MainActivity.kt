@@ -51,17 +51,18 @@ private fun ReaderScreen() {
     val scope = rememberCoroutineScope()
     var secret by remember { mutableStateOf("") }
     var hasSecret by remember { mutableStateOf(store.hasSecret) }
-    var granted by remember { mutableStateOf(false) }
+    // The read permissions still to ask for: all of them until the check says otherwise.
+    var missing by remember { mutableStateOf(HealthReader.READS) }
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf(store.lastResult) }
     val available = remember { HealthReader.available(context) }
 
     val askAccess = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract(),
-    ) { allowed -> granted = allowed.containsAll(HealthReader.PERMISSIONS) }
+    ) { allowed -> missing = missing.filterKeys { it !in allowed } }
 
     LaunchedEffect(available) {
-        if (available) granted = HealthReader(context).granted()
+        if (available) missing = HealthReader(context).missing()
     }
 
     val window = (context as? ComponentActivity)?.window
@@ -87,7 +88,8 @@ private fun ReaderScreen() {
     ) {
         Text("Coach reader", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Reads steps and heart rate from Health Connect and sends them to your coach. " +
+            "Reads steps, heart rate, sleep and exercise from Health Connect and sends them to " +
+                "your coach. " +
                 "Open Mi Fitness first, so the band's latest data is in Health Connect.",
         )
         Text("Sends to ${java.net.URI(BuildConfig.COACH_URL).host} only.", style = MaterialTheme.typography.bodySmall)
@@ -113,16 +115,17 @@ private fun ReaderScreen() {
 
         when {
             !available -> Text("Health Connect isn't installed or needs an update (Play Store).")
-            !granted -> Button(onClick = { askAccess.launch(HealthReader.PERMISSIONS) }) {
-                Text("Allow Health Connect access")
+            // Only the missing ones, so an update that reads a new type asks for just that.
+            missing.isNotEmpty() -> Button(onClick = { askAccess.launch(missing.keys) }) {
+                Text("Allow Health Connect to read ${missing.values.joinToString()}")
             }
-            else -> Text("Health Connect: steps and heart rate allowed.")
+            else -> Text("Health Connect: steps, heart rate, sleep and exercise allowed.")
         }
 
         OutlinedButton(enabled = !busy && hasSecret, onClick = { work { Sync.test(context) } }) {
             Text("Test the secret")
         }
-        Button(enabled = !busy && hasSecret && granted, onClick = { work { Sync.run(context) } }) {
+        Button(enabled = !busy && hasSecret && missing.isEmpty(), onClick = { work { Sync.run(context) } }) {
             Text(if (busy) "Working..." else "Sync now")
         }
         if (busy) {
