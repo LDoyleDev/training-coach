@@ -204,3 +204,5 @@ Recorded in [ADR-0058](../adr/0058-ai-proposes-logs-you-confirm.md), which holds
 7. After the security review of #234: `log:propose` comes only with `training:read`, and a body
    proposal that replaces a saved value says so to the person only. The race fixes (cap, Save
    and Discard claimed once) are in the ADR too.
+8. ADR-0076: a body proposal far from the last earlier value of its kind carries a "re-measure?"
+   line naming that day; the AI's answer has it only when the connection also has `body:read`.

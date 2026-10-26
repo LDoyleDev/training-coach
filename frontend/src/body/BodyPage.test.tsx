@@ -4,8 +4,24 @@ import type { MeasureKind, Measurement } from '../api'
 import BodyPage from './BodyPage'
 
 const KINDS: MeasureKind[] = [
-  { kind: 'bodyweight', label: 'Bodyweight', unit: 'kg', decimals: 1, low: 30, high: 250 },
-  { kind: 'waist', label: 'Waist', unit: 'cm', decimals: 1, low: 40, high: 200 },
+  {
+    kind: 'bodyweight',
+    label: 'Bodyweight',
+    unit: 'kg',
+    decimals: 1,
+    low: 30,
+    high: 250,
+    how: 'Same scale.',
+  },
+  {
+    kind: 'waist',
+    label: 'Waist',
+    unit: 'cm',
+    decimals: 1,
+    low: 40,
+    high: 200,
+    how: 'At the navel.',
+  },
 ]
 
 type Server = {
@@ -34,7 +50,7 @@ function serve(server: Server = {}) {
         if (server.save === 'refuse')
           return Response.json({ detail: 'Waist must be from 40 to 200 cm' }, { status: 422 })
         if (server.save === 'fail') return new Response(null, { status: 500 })
-        return new Response(null, { status: 204 })
+        return Response.json({ warnings: [] })
       }
       if (path === '/api/body/kinds') return Response.json(KINDS)
       return Response.json(entries)

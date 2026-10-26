@@ -11,6 +11,7 @@ const PROPOSAL = {
   summary: 'Torso + neck on Mon 12 Oct: Pull-up 8 / 8 / 7',
   replaces: null,
   expires_at: '2026-10-13T08:00:00Z',
+  warnings: [],
 }
 
 type Reply = { status: number; body?: unknown }
@@ -132,6 +133,7 @@ test('a measurement it would replace is named', async () => {
             kind: 'body',
             summary: 'Measured on Mon 12 Oct: Bodyweight 82.4 kg',
             replaces: 'Replaces the 78.4 kg saved that day',
+            warnings: ['Waist is 3.5 cm off your last (3 Oct): different landmark? Re-measure.'],
           },
         ],
       },
@@ -139,6 +141,9 @@ test('a measurement it would replace is named', async () => {
   })
   render(<Proposals onSaved={vi.fn()} />)
   expect(await screen.findByText('Replaces the 78.4 kg saved that day.')).toBeInTheDocument()
+  expect(
+    screen.getByText('Waist is 3.5 cm off your last (3 Oct): different landmark? Re-measure.'),
+  ).toBeInTheDocument()
 })
 
 const CLASH = {

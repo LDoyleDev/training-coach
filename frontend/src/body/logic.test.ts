@@ -9,6 +9,7 @@ const WEIGHT: MeasureKind = {
   decimals: 1,
   low: 30,
   high: 250,
+  how: 'Same scale.',
 }
 const HEART: MeasureKind = {
   kind: 'resting_hr',
@@ -17,6 +18,7 @@ const HEART: MeasureKind = {
   decimals: 0,
   low: 25,
   high: 150,
+  how: 'One source only.',
 }
 
 const m = (on: string, kind: Measurement['kind'], value: number): Measurement => ({

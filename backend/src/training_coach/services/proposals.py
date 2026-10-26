@@ -41,7 +41,7 @@ from training_coach.domain.dates import MAX_DAYS_BACK
 from training_coach.domain.enums import CardioActivity, ExerciseKind, Side
 from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.habits import Habit, can_change
-from training_coach.domain.measurements import SPECS, to_tenths
+from training_coach.domain.measurements import SPECS, first_sentence, how, to_tenths
 from training_coach.domain.measurements import Kind as Measure
 from training_coach.domain.parser import Entry, sets_text
 from training_coach.domain.queue import local_date
@@ -117,15 +117,28 @@ class HabitsProposal(_Proposal):
     habits: list[Habit] = Field(min_length=1, max_length=len(Habit))
 
 
-# Body weight and girths: resting heart rate comes from the band or the Body page.
-BodyKind = Literal["bodyweight", "waist", "chest", "upper_arm", "thigh"]
+# Body weight, scale body fat and girths: resting heart rate comes from the band or the Body
+# page, and the tape body-fat estimate is worked out, never logged (ADR-0076).
+BodyKind = Literal["bodyweight", "body_fat_scale", "waist", "neck", "chest", "upper_arm", "thigh"]
 
 
 class BodyProposal(_Proposal):
     kind: Literal["body"]
     measurements: dict[BodyKind, Annotated[float, Field(allow_inf_nan=False, strict=True)]] = Field(
-        min_length=1, max_length=5
+        min_length=1, max_length=len(get_args(BodyKind))
     )
+
+
+def _measure(name: str) -> dict[str, Any]:
+    """A measurement's schema for the AI: its unit, range and how it is taken."""
+    kind = Measure(name)
+    spec = SPECS[kind]
+    return {
+        "type": "number",
+        "minimum": spec.low,
+        "maximum": spec.high,
+        "description": f"{spec.label}, {spec.unit}: {first_sentence(how(kind))}",
+    }
 
 
 Proposal = Annotated[
@@ -176,8 +189,8 @@ INPUT_SCHEMA: dict[str, Any] = {
         "habits": {"type": "array", "items": {"type": "string", "enum": [h.value for h in Habit]}},
         "measurements": {
             "type": "object",
-            "description": "body: kg for bodyweight, cm for the girths",
-            "properties": {k: {"type": "number"} for k in get_args(BodyKind)},
+            "description": "body: kg for bodyweight, % for a scale's body fat, cm for the girths",
+            "properties": {k: _measure(k) for k in get_args(BodyKind)},
             "additionalProperties": False,
         },
     },
@@ -199,6 +212,9 @@ class Refused:
 class Proposed:
     id: int
     summary: str
+    # "Waist is 3.5 cm off your last (12 Oct): ..." (ADR-0076): the AI hears it only with the
+    # body scope, since it says something about earlier measurements.
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -483,7 +499,7 @@ def propose(
     )
     session.add(row)
     session.flush()
-    return Proposed(row.id, row.summary)
+    return Proposed(row.id, row.summary, _remeasure(session, row))
 
 
 # -------------------------------------------------------------- what the person sees
@@ -504,14 +520,17 @@ class Pending:
     # "Average 131 bpm is in your zone 2 (120-132 bpm), so zone 2 is suggested". The person picks.
     suggested: CardioKind | None = None
     suggestion: str | None = None
+    # Body: "Waist is 3.5 cm off your last (12 Oct): different landmark? Re-measure." (ADR-0076)
+    warnings: tuple[str, ...] = ()
 
     @property
     def text(self) -> str:
         replaces = f"\n{self.replaces}." if self.replaces else ""
+        warnings = "".join(f"\n{w}" for w in self.warnings)
         pick = ""
         if self.kind == CARDIO:
             pick = f"\n{self.suggestion or 'Zone 2 or moderate'}. You pick."
-        return f"From “{self.source}”: {self.summary}{replaces}{pick}"
+        return f"From “{self.source}”: {self.summary}{replaces}{warnings}{pick}"
 
 
 def _source(name: str, length: int = NAME_LENGTH) -> str:
@@ -534,6 +553,14 @@ def _replaces(session: Session, row: LogProposal) -> str | None:
         return None
     both = ", ".join(shown[:-1]) + " and " + shown[-1] if len(shown) > 1 else shown[0]
     return f"Replaces the {both} saved that day"
+
+
+def _remeasure(session: Session, row: LogProposal) -> tuple[str, ...]:
+    """A body proposal's "re-measure?" warnings, against what is saved before its day."""
+    if row.kind != BODY:
+        return ()
+    values = {Measure(k): float(v) for k, v in row.payload["measurements"].items()}
+    return tuple(measurements.remeasure(session, row.local_date, values))
 
 
 def _suggested(row: LogProposal, source: str) -> tuple[CardioKind | None, str | None]:
@@ -562,6 +589,7 @@ def _pending(session: Session, row: LogProposal, name: str) -> Pending:
         row.expires_at,
         _replaces(session, row),
         *_suggested(row, source),
+        warnings=_remeasure(session, row),
     )
 
 

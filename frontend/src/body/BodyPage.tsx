@@ -56,7 +56,7 @@ export default function BodyPage({ embedded = false }: { embedded?: boolean }) {
     setSignedOut(false) // a retry after signing in again
     try {
       const answer = await saveBody({ on: day, values: parsed.values })
-      if (answer === true) {
+      if (typeof answer !== 'string') {
         setTyped({})
         setNote('Saved.')
         await load()

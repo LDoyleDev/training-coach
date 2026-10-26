@@ -27,12 +27,12 @@ from training_coach.db.models import (
 from training_coach.domain.enums import ExerciseKind, Side
 from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.habits import Habit
-from training_coach.domain.measurements import SPECS
+from training_coach.domain.measurements import CADENCE, CHECKLIST, ESTIMATE_LABEL, SPECS, Kind, how
 from training_coach.domain.progression import Progress
 from training_coach.domain.readiness import QUESTIONS
 from training_coach.services import fitness_tests, measurements, progress
 
-GUIDE_VERSION = 1  # bump with docs/ai-guide.md when the format or its meaning changes
+GUIDE_VERSION = 2  # bump with docs/ai-guide.md when the format or its meaning changes
 GUIDE_URL = "https://github.com/LDoyleDev/training-coach/blob/main/docs/ai-guide.md"
 
 UNITS = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: " s", ExerciseKind.DURATION_MIN: " min"}
@@ -182,10 +182,22 @@ def _body(session: Session, since: date | None) -> str:
     entries = [e for e in measurements.history(session) if since is None or e.on >= since]
     if not entries:
         return "## Body measurements (health data, shared by choice)\nNone in this period."
-    lines = ["## Body measurements, newest first (health data, shared by choice)"]
+    offset = measurements.body_settings(session).thigh_offset_cm
+    lines = [
+        "## Body measurements, newest first (health data, shared by choice)",
+        f"How these were measured: {' '.join(CHECKLIST)} {CADENCE}",
+    ]
+    lines += [
+        f"- {SPECS[k].label}: {how(k, offset)}" for k in Kind if any(e.kind is k for e in entries)
+    ]
+    lines.append("Measurements:")
     for e in entries:
         spec = SPECS[e.kind]
         lines.append(f"- {e.on.isoformat()} {spec.label}: {e.value:.{spec.decimals}f} {spec.unit}")
+    estimates = measurements.estimates(session, since)
+    if estimates:  # only when the person turned it on (ADR-0076); never stored or proposable
+        lines.append(f"Body fat, {ESTIMATE_LABEL} (worked out by the app, not measured):")
+        lines += [f"- {p.on.isoformat()}: {p.value:.1f} %" for p in estimates]
     return "\n".join(lines)
 
 
