@@ -148,15 +148,17 @@ export default function BodyPage({ embedded = false }: { embedded?: boolean }) {
         <h2 id="add" className="text-lg font-bold">
           Add measurements
         </h2>
-        <details className="rounded-xl border border-[var(--line)] px-3">
-          <summary className="cursor-pointer py-2.5 font-bold">Before you measure</summary>
-          <ul className="m-0 flex flex-col gap-1 pl-5">
-            {guide.checklist.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-          <p className="mt-2 mb-3 text-[var(--slate)]">{guide.cadence}</p>
-        </details>
+        {guide && (
+          <details className="rounded-xl border border-[var(--line)] px-3">
+            <summary className="cursor-pointer py-2.5 font-bold">Before you measure</summary>
+            <ul className="m-0 flex flex-col gap-1 pl-5">
+              {guide.checklist.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <p className="mt-2 mb-3 text-[var(--slate)]">{guide.cadence}</p>
+          </details>
+        )}
         <label className="flex items-center justify-between gap-3 font-bold">
           Day
           <input

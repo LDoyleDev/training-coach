@@ -617,7 +617,7 @@ export type BodyAverage = Schemas['AverageView']
 export type BodyData = {
   kinds: MeasureKind[]
   entries: Measurement[]
-  guide: BodyGuide
+  guide: BodyGuide | null // null when it couldn't load: the page works without it
   estimates: BodyEstimate[] // the tape body-fat estimate, newest first; empty when it's off
   averages: BodyAverage[] // bodyweight's 7-day average, newest first
 }
@@ -631,16 +631,24 @@ const BODY = {
 } as const
 
 /** The kinds, every measurement, how to measure, the estimate and the 7-day average; null
- * when not signed in. */
+ * when not signed in. Only the kinds and the measurements are needed: the guide, the estimate
+ * and the average are extras, so one that fails leaves the page working without it. */
 export async function fetchBody(signal?: AbortSignal): Promise<BodyData | null> {
   const names = Object.keys(BODY) as (keyof typeof BODY)[]
   const answers = await Promise.all(
     names.map((name) => fetch(BODY[name], { signal, credentials: 'same-origin' })),
   )
   if (answers.some((r) => r.status === 401)) return null
-  if (!answers.every((r) => r.ok)) throw new Error('The server answered with an error.')
-  const bodies = await Promise.all(answers.map((r) => r.json() as Promise<unknown>))
-  return Object.fromEntries(names.map((name, i) => [name, bodies[i]])) as BodyData
+  const got = Object.fromEntries(names.map((name, i) => [name, answers[i]]))
+  if (!got.kinds.ok || !got.entries.ok) throw new Error('The server answered with an error.')
+  const extra = async (r: Response, none: unknown) => (r.ok ? r.json().catch(() => none) : none)
+  return {
+    kinds: (await got.kinds.json()) as MeasureKind[],
+    entries: (await got.entries.json()) as Measurement[],
+    guide: (await extra(got.guide, null)) as BodyGuide | null,
+    estimates: (await extra(got.estimates, [])) as BodyEstimate[],
+    averages: (await extra(got.averages, [])) as BodyAverage[],
+  }
 }
 
 /** The scale's body-fat readings and the tape estimate, both newest first; null when not

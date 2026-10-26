@@ -48,6 +48,7 @@ type Server = {
   signedIn?: boolean
   save?: 'refuse' | 'fail'
   remove?: 'fail'
+  extras?: 'fail' // the guide, the estimate and the 7-day average all answer 500
 }
 
 /** A fake API; returns the requests sent that change something. */
@@ -72,6 +73,8 @@ function serve(server: Server = {}) {
         return Response.json({ warnings: server.warnings ?? [] })
       }
       if (path === '/api/body/kinds') return Response.json(server.kinds ?? KINDS)
+      if (server.extras === 'fail' && path !== '/api/body')
+        return new Response(null, { status: 500 })
       if (path === '/api/body/guide') return Response.json(GUIDE)
       if (path === '/api/body/estimates') return Response.json(server.estimates ?? [])
       if (path === '/api/body/averages') return Response.json(server.averages ?? [])
@@ -82,6 +85,14 @@ function serve(server: Server = {}) {
 }
 
 afterEach(() => vi.unstubAllGlobals())
+
+test('a failed guide, estimate or average still shows and adds measurements', async () => {
+  serve({ entries: [{ on: '2026-10-10', kind: 'bodyweight', value: 83.1 }], extras: 'fail' })
+  render(<BodyPage />)
+  expect(await screen.findByRole('heading', { name: 'Add measurements' })).toBeInTheDocument()
+  expect(screen.getAllByText(/83\.1/).length).toBeGreaterThan(0)
+  expect(screen.queryByText('Before you measure')).not.toBeInTheDocument() // no guide to show
+})
 
 test('the latest values compare with the first and the last', async () => {
   serve({
