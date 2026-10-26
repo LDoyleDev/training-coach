@@ -6,6 +6,7 @@
 import {
   along,
   heading,
+  inFrame,
   solve,
   type ArmJoints,
   type Joints,
@@ -19,7 +20,7 @@ export type Tone = 'near' | 'far' | 'prop' | 'bell'
 export type Shape =
   | { kind: 'path'; d: string; tone: Tone }
   | { kind: 'ball'; c: Vec; r: number; tone: Tone }
-  | { kind: 'ring'; c: Vec; r: number; width: number; tone: Tone }
+  | { kind: 'ring'; c: Vec; r: number; ry?: number; width: number; tone: Tone }
   | { kind: 'mat'; x: number; y: number; width: number; height: number }
 
 export type Part = 'armN' | 'armF' | 'legN' | 'legF' | 'torso' | 'head' | 'bell'
@@ -32,8 +33,13 @@ export interface Props {
   bench?: { x0: number; x1: number; top: number; behind?: boolean }
   bar?: Vec // a pull-up bar seen end on: its centre, on a bracket from the wall in front
   /** A kettlebell in both hands, hanging along the forearms; 'near' hangs it straight down
-   * from the near hand, as in a one-arm row. */
-  bell?: boolean | 'near'
+   * from the near hand, as in a one-arm row; 'hammer' holds it there by the handle stood
+   * upright; 'sides' hangs one from each hand, the near one heavier (a suitcase hold). */
+  bell?: boolean | 'near' | 'hammer' | 'sides'
+  /** A weighted vest or backpack, packed high on the upper back. */
+  load?: boolean
+  /** Dip bars seen along their length, their top ``top`` cm off the floor, centred on ``x``. */
+  bars?: { x: number; top: number }
   /** A step or a box, its top ``top`` cm off the floor. */
   step?: { x0: number; x1: number; top: number }
   /** A wall from x to x, from the floor to ``top``: behind your back or under a hand. */
@@ -159,17 +165,42 @@ function torso(j: Joints, tone: Tone): Shape[] {
 }
 
 /** A kettlebell held in both hands, hanging along the forearms, or in the near hand, hanging
- * straight down. */
-function bell(j: Joints, hold: true | 'near'): Shape[] {
+ * straight down: from the bottom of the handle, or held by its upright handle ('hammer'). */
+function bell(j: Joints, hold: true | 'near' | 'hammer'): Shape[] {
   const w: Vec =
-    hold === 'near'
-      ? j.armN.wrist
-      : [(j.armN.wrist[0] + j.armF.wrist[0]) / 2, (j.armN.wrist[1] + j.armF.wrist[1]) / 2]
-  const dir = hold === 'near' ? -90 : heading(j.armN.elbow, j.armN.wrist)
+    hold === true
+      ? [(j.armN.wrist[0] + j.armF.wrist[0]) / 2, (j.armN.wrist[1] + j.armF.wrist[1]) / 2]
+      : j.armN.wrist
+  const dir = hold === true ? heading(j.armN.elbow, j.armN.wrist) : -90
+  // The handle stands upright round the fist, the bell under it.
+  if (hold === 'hammer')
+    return [
+      { kind: 'ring', c: svg(w), r: 3.4, ry: 7.5, width: 2.2, tone: 'bell' },
+      ball(along(w, dir, 16), 8.6, 'bell'),
+    ]
   return [
     { kind: 'ring', c: svg(along(w, dir, 3.5)), r: 4.6, width: 2.2, tone: 'bell' },
     ball(along(w, dir, 13), 8.6, 'bell'),
   ]
+}
+
+/** A bell hanging straight down from ``wrist``; ``r`` is its size (16 kg is 8.6). */
+function hanging(wrist: Vec, r: number): Shape[] {
+  return [
+    { kind: 'ring', c: svg(along(wrist, -90, 3.5)), r: r * 0.53, width: 2.2, tone: 'bell' },
+    ball(along(wrist, -90, 4.4 + r), r, 'bell'),
+  ]
+}
+
+/** A vest or a backpack high on the upper back, behind the trunk, and a strap over the front. */
+function pack(j: Joints): Shape[] {
+  const up = heading(j.waist, j.neckBase)
+  const at = (back: number, rise: number) => inFrame(j.waist, up, [-back, rise])
+  return [{ kind: 'path', d: polygon([at(6, 9), at(21, 11), at(22, 29), at(9, 33)]), tone: 'bell' }]
+}
+function strap(j: Joints): Shape[] {
+  const up = heading(j.waist, j.neckBase)
+  return [limb(inFrame(j.waist, up, [-9, 30]), inFrame(j.waist, up, [12, 22]), [1.3, 1.3], 'bell')]
 }
 
 const rect = (a: number, b: number, c: number, d: number, tone: Tone = 'prop'): Shape => ({
@@ -190,6 +221,15 @@ function chair({ x0, x1, seat }: NonNullable<Props['chair']>): Shape[] {
     rect(x0, seat - 4, x1, seat),
     rect(x0, seat, x0 + 3.5, seat + 44),
     rect(x0 - 0.5, seat + 36, x0 + 4, seat + 46),
+  ]
+}
+
+/** Dip bars along their length: the bar, and a post at each end, behind the figure. */
+function bars({ x, top }: NonNullable<Props['bars']>): Shape[] {
+  return [
+    rect(x - 34, 0, x - 29, top - 2),
+    rect(x + 29, 0, x + 34, top - 2),
+    rect(x - 38, top - 4, x + 38, top, 'bell'),
   ]
 }
 
@@ -245,6 +285,7 @@ export function scenery(props: Props): Shape[] {
   if (props.chair) out.push(...chair(props.chair))
   if (props.bench) out.push(...bench(props.bench))
   if (props.bar) out.push(...bracket(props.bar))
+  if (props.bars) out.push(...bars(props.bars))
   for (const block of [props.wall, props.step])
     if (block) out.push(rect(block.x0, 0, block.x1, block.top))
   return out
@@ -260,9 +301,13 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
     else if (part === 'armN') out.push(...arm(j.armN, 'near'))
     else if (part === 'legF') out.push(...leg(j.legF, 'far'))
     else if (part === 'legN') out.push(...leg(j.legN, 'near'))
+    else if (part === 'torso' && props.load) out.push(...pack(j), ...torso(j, 'near'), ...strap(j))
     else if (part === 'torso') out.push(...torso(j, 'near'))
     else if (part === 'head') out.push(...head(j, 'near'))
+    else if (props.bell === 'sides') out.push(...hanging(j.armN.wrist, 8.6))
     else if (props.bell) out.push(...bell(j, props.bell))
+    // The far hand's bell, the lighter one, hangs behind the body.
+    if (part === 'armF' && props.bell === 'sides') out.push(...hanging(j.armF.wrist, 6.8))
   }
   if (props.bar) out.push(ball(props.bar, BAR, 'bell'))
   return out

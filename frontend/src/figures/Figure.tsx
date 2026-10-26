@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { blend, progress } from './body'
 import { frontShapes } from './front'
-import { FIGURES, type Figure as Data } from './poses'
+import { type Figure as Data } from './poses'
 import { ORDER, shapes, type Shape, type Tone } from './shapes'
+import { figureFor } from './steps'
 
 /** Which way a figure is seen: from the side (every figure) or from the front (a few). */
 export type View = 'side' | 'front'
@@ -28,10 +29,11 @@ function Drawn({ shape, id }: { shape: Shape; id: string }) {
     )
   if (shape.kind === 'ring')
     return (
-      <circle
+      <ellipse
         cx={shape.c[0]}
         cy={shape.c[1]}
-        r={shape.r}
+        rx={shape.r}
+        ry={shape.ry ?? shape.r}
         fill="none"
         stroke={`var(--fig-${shape.tone}-base)`}
         strokeWidth={shape.width}
@@ -171,23 +173,33 @@ export function FigureAt({
   slug,
   t,
   label,
+  step,
   view,
 }: {
   slug: string
   t: number
   label: string
+  step?: string
   view?: View
 }) {
-  const figure: Data | undefined = FIGURES[slug]
+  const figure = figureFor(slug, step)
   return figure ? <Drawing figure={figure} t={t} label={label} view={view} /> : null
 }
 
 /** An exercise's mannequin (ADR-0063), moving from its start to its end and back, or the two
- * positions side by side. Starts still for people who ask for less motion; nothing for a slug
- * without a figure. A figure drawn from the front as well starts there, with a switch to the
- * side. */
-export default function Figure({ slug, name }: { slug: string; name: string }) {
-  const figure: Data | undefined = FIGURES[slug]
+ * positions side by side, as set up at ladder ``step``. Starts still for people who ask for less
+ * motion; nothing for a slug without a figure. A figure drawn from the front as well starts
+ * there, with a switch to the side. */
+export default function Figure({
+  slug,
+  name,
+  step,
+}: {
+  slug: string
+  name: string
+  step?: string
+}) {
+  const figure = figureFor(slug, step)
   const [still, setStill] = useState(reducedMotion)
   const [t, setT] = useState(0)
   const [view, setView] = useState<View>(figure?.front ? 'front' : 'side')

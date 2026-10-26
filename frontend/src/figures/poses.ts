@@ -192,6 +192,31 @@ export const FIGURES: Readonly<Record<string, Figure>> = {
       armF: { at: [58, 52.9], angle: 0 },
     },
   },
+  'kb-curl': {
+    frames: [
+      'Standing tall, elbows at your sides, bell hanging',
+      'Curled up, elbows still at your sides',
+    ],
+    view: [-40, 60, -3, 182],
+    props: { bell: 'near' },
+    order: ['armF', 'legF', 'torso', 'head', 'legN', 'armN', 'bell'],
+    tempo: [1000, 500, 2000, 400],
+    // The elbows stay pinned, so they are given: the upper arm hangs straight down.
+    start: {
+      hip: [0, 93.5],
+      lean: 0,
+      ...STAND,
+      armN: { at: [1.5, 81.54], mid: [0, -30] },
+      armF: { at: [2.5, 81.54], mid: [1, -30] },
+    },
+    end: {
+      hip: [0, 93.5],
+      lean: 0,
+      ...STAND,
+      armN: { at: [13, 130], mid: [0, -30] },
+      armF: { at: [14, 130], mid: [1, -30] },
+    },
+  },
   'pike-push-up': {
     frames: ['Hips high, an upside-down V', 'Top of the head towards the floor'],
     view: [-50, 92, -3, 125],

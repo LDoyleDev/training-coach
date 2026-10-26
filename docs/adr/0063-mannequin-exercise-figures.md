@@ -62,3 +62,24 @@ figures follow light and dark.
 - One view (from the side) suits most of the plan. A movement that mainly turns or goes sideways
   shows its turn as an arm or elbow moving towards you and leans on its cue.
 - Adding a prop (bench, bar, bands) is a small drawing function in `shapes.ts`.
+
+## Addendum (26 Oct 2026): a figure can change with the ladder step
+
+Figures stay keyed by slug. A few ladder steps change the set-up rather than the load
+(`docs/specs/kit-ladder-proposal.md`, "Figures"), so `frontend/src/figures/steps.ts` maps a
+slug and a step's name, as `plan.toml` writes it, to what changes over the figure: its props,
+or its poses and captions too. `<Figure slug name step />` draws that; any other step, or none,
+draws the figure as it is. The set screen passes the step it shows.
+
+- The vest or backpack steps of the pull-up, chin-up and dip: a pack high on the upper back
+  (`load`).
+- The split squat's suitcase hold: a bell hanging from each hand, the heavier one on the
+  front leg's side (`bell: 'sides'`).
+- The dip's last step: dip bars (`bars`) in place of the two chairs, with its own poses.
+- The curl's hammer grip: the handle stood upright round the fist (`bell: 'hammer'`). The curl
+  had no figure, so this adds one.
+
+Keyed by name, a renamed step would quietly lose its change, so a test checks every name in
+`steps.ts` against the ladders in `plan.toml` (Vite may read the seed folder for it). A step that
+only changes the motion, such as the overhead extension's 1.5 reps, gets no figure: its cue
+says what to do, and the set screen now shows the step's cue under the step's name.
