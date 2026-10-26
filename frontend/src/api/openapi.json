@@ -1113,6 +1113,10 @@
       },
       "EarnedView": {
         "properties": {
+          "at_top": {
+            "title": "At Top",
+            "type": "boolean"
+          },
           "best_set": {
             "anyOf": [
               {
@@ -1162,6 +1166,17 @@
             ],
             "title": "Unit",
             "type": "string"
+          },
+          "unlock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unlock"
           }
         },
         "required": [
@@ -1170,7 +1185,9 @@
           "best_set",
           "total",
           "next_step",
-          "slug"
+          "slug",
+          "at_top",
+          "unlock"
         ],
         "title": "EarnedView",
         "type": "object"
