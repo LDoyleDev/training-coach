@@ -34,10 +34,12 @@ figures follow light and dark.
   with no figure draws nothing, so screens can ask for one before every exercise has it.
 - **A front view, or a close-up, where the side view can't show it** (added 26 Oct 2026,
   Liam): a movement that happens side-on to the body, such as the Copenhagen plank (lying on
-  your side), looks face down from the side. Its figure can carry a `front` motion too, drawn by
-  a front-facing mannequin (`front.ts`: shoulders and hips as wide as the body, faceless head,
-  the down side in the far tone) at the same pace and with the same captions. It is shown first,
-  with a Front / Side switch under it. A small movement can carry an `inset`: a circle of the
+  your side), looks face down from the side. Its figure can carry a `front` motion too: the
+  mannequin posed in the plane of its chest (`front.ts`), drawn in perspective from in front of
+  the chest, past the head, so the body runs away from you towards the feet and looks nothing
+  like the side view (`perspective.ts`: a camera, nearer parts bigger and drawn later, the seat
+  and a mat in the round, the down side in the far tone). It moves at the same pace, with the
+  same captions, and is shown first, with a Front / Side switch under it. A small movement can carry an `inset`: a circle of the
   side view drawn about twice as big where the picture is empty, with a ring round the part it
   shows (the calf raise's heel on the step's edge).
 - **Figures are keyed by slug**: plan exercises use their seed slug (`kb-swing`), the flow's
@@ -47,13 +49,13 @@ figures follow light and dark.
 
 ## Options considered
 
-| Option | Pros | Cons |
-| --- | --- | --- |
-| Our own mannequins from poses (chosen) | Ours to use anywhere; one consistent style; tiny; offline; light and dark; an exercise is two poses, not new artwork | We have to get each pose right; side view only, so twists and sideways moves need a cue in the text |
-| Photos from an open library (e.g. free-exercise-db) | Realistic; many exercises at once | Licence and model consent to check before a public app; no neck, tibialis or flow moves, so mixed styles; hundreds of KB each to cache |
-| AI-generated images | Any exercise, any style | Costs money or a key; inconsistent from one picture to the next; licence unclear |
-| Stick figures | Simplest | Liam asked for bodies you can see |
-| Video links per exercise (the spec's fallback) | No drawing at all | Leaves the app; useless offline; no glance at start and end |
+| Option                                              | Pros                                                                                                                 | Cons                                                                                                                                   |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Our own mannequins from poses (chosen)              | Ours to use anywhere; one consistent style; tiny; offline; light and dark; an exercise is two poses, not new artwork | We have to get each pose right; side view only, so twists and sideways moves need a cue in the text                                    |
+| Photos from an open library (e.g. free-exercise-db) | Realistic; many exercises at once                                                                                    | Licence and model consent to check before a public app; no neck, tibialis or flow moves, so mixed styles; hundreds of KB each to cache |
+| AI-generated images                                 | Any exercise, any style                                                                                              | Costs money or a key; inconsistent from one picture to the next; licence unclear                                                       |
+| Stick figures                                       | Simplest                                                                                                             | Liam asked for bodies you can see                                                                                                      |
+| Video links per exercise (the spec's fallback)      | No drawing at all                                                                                                    | Leaves the app; useless offline; no glance at start and end                                                                            |
 
 ## Consequences
 
@@ -76,6 +78,9 @@ draws the figure as it is. The set screen passes the step it shows.
 - The split squat's suitcase hold: a bell hanging from each hand, the heavier one on the
   front leg's side (`bell: 'sides'`).
 - The dip's last step: dip bars (`bars`) in place of the two chairs, with its own poses.
+- The dip's feet-off-floor steps: between two chairs, one each side (drawn as one, in front of the
+  body: `chair.beside`), knees bent about square behind, feet up, with their own poses. The
+  seats are drawn 50 cm high, so at the bottom the knees stay well off the floor.
 - The curl's hammer grip: the handle stood upright round the fist (`bell: 'hammer'`). The curl
   had no figure, so this adds one.
 

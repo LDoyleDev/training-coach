@@ -117,7 +117,7 @@ test('a figure with one view has no view switch', () => {
 
 test('a still from the front draws the front view', () => {
   render(<FigureAt slug="copenhagen-plank" t={1} label="Top" view="front" />)
-  expect(screen.getByRole('img', { name: 'Top' })).toHaveAttribute('viewBox', '-150 -95 185 98')
+  expect(screen.getByRole('img', { name: 'Top' })).toHaveAttribute('viewBox', '-76 -70 158 130')
 })
 
 test('a calf raise shows the foot on the step close up, and where it is', () => {
