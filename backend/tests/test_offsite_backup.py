@@ -36,7 +36,7 @@ echo "$*" >> "$STUB_DIR/rclone.log"
 bucket="$STUB_DIR/bucket"; mkdir -p "$bucket"
 case "$1" in
   lsf) ls "$bucket" ;;
-  copyto) cp "$3" "$bucket/$(basename "$4")" ;;
+  copyto) for dest; do :; done; cp "${@: -2:1}" "$bucket/$(basename "$dest")" ;;
   delete) find "$bucket" -name 'training_coach-*.db.age' -mtime +"${3%d}" -delete ;;
 esac
 """
@@ -97,6 +97,15 @@ def test_the_newest_backup_goes_off_site_encrypted_once(pi: Path) -> None:
     assert again.returncode == 0
     assert "already off-site" in again.stdout
     assert len(list((pi / "bucket").iterdir())) == 1
+
+
+def test_the_upload_skips_rclones_head_by_version_id(pi: Path) -> None:
+    # R2 answers 501 to it, so every run needed a retry (26 Oct); the lsf afterwards checks instead.
+    _backup(pi, "2026-10-10")
+    assert _run(pi).returncode == 0
+    calls = (pi / "rclone.log").read_text().splitlines()
+    (copy,) = [line for line in calls if line.startswith("copyto")]
+    assert "--s3-no-head" in copy.split()
 
 
 def test_copies_older_than_the_retention_are_deleted(pi: Path) -> None:

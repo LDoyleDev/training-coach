@@ -41,6 +41,12 @@ publishes no numbers for either.
   48 until the trial's first sync hit the quota on 24 Oct), in pages of 5,000, the most Health
   Connect allows; a gap longer than that doesn't come across. A quota error names the read that
   hit it and how many reads the sync had made.
+- **At most 20 reads a sync** (`Reads.kt`). On 26 Oct reader 0.0.3 hit the quota after 202 reads:
+  Health Connect on Android 12 ends a history read with an empty page token, not null, and the
+  reader read the same day again and again. An empty token now ends the read. At the limit, a
+  history read sends what it read and keeps its token (failing would leave no token, so every
+  later sync would spend the same reads again), and a long run of changes stops where it got to
+  and goes on at the next sync. The result line shows each sync's read count.
 - **Changes are collapsed per record id, last one wins,** so a record written and deleted in
   the same batch isn't sent as both (the ingest applies deletions first).
 - **Steps:** one aggregate call for today and yesterday, grouped by local day, and a day is sent

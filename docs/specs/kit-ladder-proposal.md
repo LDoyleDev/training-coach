@@ -65,7 +65,7 @@ Needs use the catalogue's form. "+" marks appended steps; "rename" the step rena
 | rename "Heavier kettlebell" -> **16 kg** | kettlebell:16 | Bell in the hand opposite the standing leg; hips square to the floor. |
 | + **16 kg, pause at bottom** | kettlebell:16 | One second at the stretch, back flat. |
 
-### One-arm kettlebell row (`kb-row`, Torso 3 x 10-20 per side)
+### One-arm kettlebell row (`kb-row`, Torso 3 x 10-18 per side; 10-20 until ADR-0078)
 
 | Step | Needs | Cue |
 | --- | --- | --- |
@@ -93,7 +93,7 @@ step, which was safe because nobody stood on it (Liam is on step 1 of 3).
 Not chosen, Option A: the top step becomes 16 kg straight away. Later, with dumbbells:
 **Dumbbell 10-12 kg, both hands** (dumbbells:12) would be a natural middle step.
 
-### Kettlebell curl (`kb-curl`, Torso 2 x 12-20, Arms 4 x 12-20)
+### Kettlebell curl (`kb-curl`, Torso 2 x 12-18, Arms 4 x 12-18; 12-20 until ADR-0078)
 
 Same jump as the extension: 16 kg curls for 12-20 are far off for most people. **Chosen:
 Option B**, safe for the same reason (Liam is on step 1 of 3).

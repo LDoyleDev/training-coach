@@ -139,6 +139,9 @@ The desktop dual-boots Windows and Linux, so the key mustn't live on only one si
    line). Without it the off-site copies can't be read.
 
 Check: `journalctl -u training-coach-offsite -n 20` shows `ok: kept the last 35 days off-site`.
+The upload skips rclone's own check afterwards (`--s3-no-head`): R2 answers 501 to the HEAD by
+version id that the Pi's rclone 1.60 makes, which cost every run a retry until 26 Oct. The
+script lists the bucket after the upload instead.
 
 ### Restore from off-site
 

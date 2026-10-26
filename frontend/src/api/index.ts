@@ -610,21 +610,63 @@ export async function saveTestDay(body: TestDayBody): Promise<number | string> {
 export type MeasureKind = Schemas['KindView']
 export type Measurement = Schemas['MeasurementView']
 export type MeasureBody = Schemas['MeasureBody']
+export type BodyGuide = Schemas['GuideView']
+export type BodyEstimate = Schemas['EstimateView']
+export type BodyAverage = Schemas['AverageView']
 
-/** The kinds and every measurement; null when not signed in. */
-export async function fetchBody(
+export type BodyData = {
+  kinds: MeasureKind[]
+  entries: Measurement[]
+  guide: BodyGuide | null // null when it couldn't load: the page works without it
+  estimates: BodyEstimate[] // the tape body-fat estimate, newest first; empty when it's off
+  averages: BodyAverage[] // bodyweight's 7-day average, newest first
+}
+
+const BODY = {
+  kinds: '/api/body/kinds',
+  entries: '/api/body',
+  guide: '/api/body/guide',
+  estimates: '/api/body/estimates',
+  averages: '/api/body/averages',
+} as const
+
+/** The kinds, every measurement, how to measure, the estimate and the 7-day average; null
+ * when not signed in. Only the kinds and the measurements are needed: the guide, the estimate
+ * and the average are extras, so one that fails leaves the page working without it. */
+export async function fetchBody(signal?: AbortSignal): Promise<BodyData | null> {
+  const names = Object.keys(BODY) as (keyof typeof BODY)[]
+  const answers = await Promise.all(
+    names.map((name) => fetch(BODY[name], { signal, credentials: 'same-origin' })),
+  )
+  if (answers.some((r) => r.status === 401)) return null
+  const got = Object.fromEntries(names.map((name, i) => [name, answers[i]]))
+  if (!got.kinds.ok || !got.entries.ok) throw new Error('The server answered with an error.')
+  const extra = async (r: Response, none: unknown) => (r.ok ? r.json().catch(() => none) : none)
+  return {
+    kinds: (await got.kinds.json()) as MeasureKind[],
+    entries: (await got.entries.json()) as Measurement[],
+    guide: (await extra(got.guide, null)) as BodyGuide | null,
+    estimates: (await extra(got.estimates, [])) as BodyEstimate[],
+    averages: (await extra(got.averages, [])) as BodyAverage[],
+  }
+}
+
+/** The scale's body-fat readings and the tape estimate, both newest first; null when not
+ * signed in. For Progress. */
+export async function fetchBodyFat(
   signal?: AbortSignal,
-): Promise<{ kinds: MeasureKind[]; entries: Measurement[] } | null> {
-  const [kinds, entries] = await Promise.all(
-    ['/api/body/kinds', '/api/body'].map((path) =>
+): Promise<{ scale: Measurement[]; estimates: BodyEstimate[] } | null> {
+  const [entries, estimates] = await Promise.all(
+    [BODY.entries, BODY.estimates].map((path) =>
       fetch(path, { signal, credentials: 'same-origin' }),
     ),
   )
-  if (kinds.status === 401 || entries.status === 401) return null
-  if (!kinds.ok || !entries.ok) throw new Error('The server answered with an error.')
+  if (entries.status === 401 || estimates.status === 401) return null
+  if (!entries.ok || !estimates.ok) throw new Error('The server answered with an error.')
+  const all = (await entries.json()) as Measurement[]
   return {
-    kinds: (await kinds.json()) as MeasureKind[],
-    entries: (await entries.json()) as Measurement[],
+    scale: all.filter((e) => e.kind === 'body_fat_scale'),
+    estimates: (await estimates.json()) as BodyEstimate[],
   }
 }
 
@@ -1044,6 +1086,37 @@ export async function saveHeartRate(body: HeartRateBody): Promise<HeartRate | st
   }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as HeartRate
+}
+
+// ------------------------------------------------------------- body settings (ADR-0076)
+
+export type BodySettings = Schemas['BodySettingsView']
+export type BodySettingsBody = Schemas['BodySettingsBody']
+
+/** Height, the thigh's landmark and the body-fat estimate; null when not signed in. */
+export async function fetchBodySettings(signal?: AbortSignal): Promise<BodySettings | null> {
+  const res = await fetch('/api/account/body', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as BodySettings
+}
+
+/** Save the body settings; a string says what's wrong. */
+export async function saveBodySettings(body: BodySettingsBody): Promise<BodySettings | string> {
+  const res = signedIn(
+    await fetch('/api/account/body', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 422) {
+    const detail = ((await res.json()) as { detail?: unknown }).detail
+    return typeof detail === 'string' ? detail : 'Check the numbers and try again.'
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as BodySettings
 }
 
 // ------------------------------------------------------ band import secret (ADR-0055)

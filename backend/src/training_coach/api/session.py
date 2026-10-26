@@ -230,6 +230,10 @@ class EarnedView(BaseModel):
     total: int | None
     next_step: str | None  # ready to move up to this
     slug: str  # the exercise's, for the link to its ladder on /plan (ADR-0075)
+    # The rule met with no step to move to, said once per step (ADR-0078); ``unlock`` then says
+    # what opens the next one when the kit is what's missing (ADR-0071).
+    at_top: bool
+    unlock: str | None
 
 
 class TimingView(BaseModel):
@@ -427,9 +431,11 @@ def save(body: SaveBody, request: Request, user: Owner) -> SavedView:
                     total=e.bests.total,
                     next_step=e.next_step,
                     slug=e.slug,
+                    at_top=e.note_top,
+                    unlock=e.unlock if e.note_top else None,
                 )
                 for e in earned
-                if e.bests or e.next_step
+                if e.bests or e.next_step or e.note_top
             ],
             stretching=day == today and stretching.offered(session, result.workout_id),
             timing=timing_view(session_times.of_workout(session, result.workout_id)),

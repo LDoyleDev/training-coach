@@ -102,6 +102,18 @@ def test_two_sessions_at_the_top_are_ready(plan: Session) -> None:
     assert item.next_step == "Pause at top"
 
 
+def test_18_reps_on_every_set_twice_is_ready(plan: Session) -> None:
+    """ADR-0078: push-ups top out at 18 now, so 18 on all four sets twice offers Move up;
+    sessions logged under the old 10-20 range count against today's top too."""
+    _log(plan, "push-up", [18, 18, 18, 18], 0)
+    (short,) = feedback(plan, _log(plan, "push-up", [18, 18, 18, 17], 2))
+    assert short.status is Progress.HOLD
+    _log(plan, "push-up", [20, 19, 18, 18], 4)
+    (item,) = feedback(plan, _log(plan, "push-up", [18, 18, 18, 18], 6))
+    assert item.status is Progress.READY
+    assert item.next_step == "Feet elevated"
+
+
 def test_an_extra_session_is_judged_by_the_plan(plan: Session) -> None:
     _log(plan, "pull-up", TOP, 0, template=None)
     (item,) = feedback(plan, _log(plan, "pull-up", TOP, 2, template=None))
@@ -111,11 +123,11 @@ def test_an_extra_session_is_judged_by_the_plan(plan: Session) -> None:
 def test_one_side_short_holds_unilateral_work(plan: Session) -> None:
     """kb-row is per side: the weaker side counts (ADR-0016)."""
     both = (Side.LEFT, Side.RIGHT)
-    _log(plan, "kb-row", [20, 20, 20], 0, sides=both)
-    workout = _log(plan, "kb-row", [20, 20, 20], 2, sides=both)
+    _log(plan, "kb-row", [18, 18, 18], 0, sides=both)  # 10-18 (ADR-0078)
+    workout = _log(plan, "kb-row", [18, 18, 18], 2, sides=both)
     row = plan.scalar(select(SetLog).where(SetLog.workout_id == workout, SetLog.side == Side.LEFT))
     assert row is not None
-    row.value = 19
+    row.value = 17
     plan.flush()
     (item,) = feedback(plan, workout)
     assert item.status is Progress.HOLD
