@@ -1,6 +1,7 @@
 # ADR-0070: Our own Android reader for band data
 
-- Status: Proposed (accepted once the first build passes the trial in Consequences)
+- Status: Accepted 2026-10-26 by Liam after reader 0.0.4's first clean sync (3 reads; 2 days of
+  steps and 4,967 heart-rate samples in one post); he chose not to wait for the full 3-day trial
 - Date: 2026-10-24
 - Deciders: Liam
 
@@ -53,11 +54,13 @@ own reader rather than retry. The plan and its review are in `docs/specs/android
 
 ## Consequences
 
-- **Trial before Accepted:** the first build reads steps and heart rate only, in the
-  foreground, with HC Webhook switched off (not running beside it). If it syncs for three days
-  after opening Mi Fitness without a quota error and the data shows on Account > Band import,
-  this ADR is accepted. A quota error with this minimal pattern rules out readers built on
-  Health Connect reads, and Gadgetbridge or the export come next.
+- **Trial:** the first build read steps and heart rate only, in the foreground, with HC
+  Webhook switched off, and was to sync for three days before this ADR was accepted. Reader
+  0.0.3 hit the quota after 202 reads, all its own fault (an empty page token read as one more
+  page, 26 Oct); 0.0.4 ends a read on an empty token and makes at most 20 reads a sync, and its
+  first sync took 3. Liam accepted the ADR after that sync rather than wait the three days
+  (Status). A quota error with a minimal read pattern would still rule out readers built on
+  Health Connect reads, and Gadgetbridge or the export would come next.
 - Mi Fitness writes to Health Connect only when it syncs with the band, which on this phone
   means when it is opened (`docs/runbooks/band-import.md` step 6.3). No bridge fixes that.
 - The repo's root release-please package ignores `android/`, so an app change doesn't bump the

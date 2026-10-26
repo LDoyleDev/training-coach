@@ -18,10 +18,18 @@ class Store(context: Context) {
         return SecretBox.open(sealed) ?: null.also { prefs.edit().remove("secret").apply() }
     }
 
-    /** Health Connect's changes token for heart rate: null until the first good sync. */
+    /** Health Connect's changes token per type: null until the type's first good sync. */
     var heartToken: String?
         get() = prefs.getString("heart_token", null)
         set(value) = prefs.edit().putString("heart_token", value).apply()
+
+    var sleepToken: String?
+        get() = prefs.getString("sleep_token", null)
+        set(value) = prefs.edit().putString("sleep_token", value).apply()
+
+    var exerciseToken: String?
+        get() = prefs.getString("exercise_token", null)
+        set(value) = prefs.edit().putString("exercise_token", value).apply()
 
     /** Each recent day's step total as last sent, so an unchanged day isn't sent again. */
     var sentSteps: Map<LocalDate, Long>

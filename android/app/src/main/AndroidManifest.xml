@@ -5,6 +5,8 @@
     <!-- Only what the coach uses (ADR-0070): reading, never writing. -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
 
     <!-- On Android 13 and lower Health Connect is an app, and its permission screen needs this. -->
     <queries>
