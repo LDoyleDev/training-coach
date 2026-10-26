@@ -300,8 +300,23 @@ LOADED = (
         ("rows 8 8 at 16\nrows 6 at 18", both(8, 8, 6), ((1, 16.0), (2, 16.0), (3, 18.0))),
         ("rows 8 8", both(8, 8), ()),
         ("dumbbell lunge left 8 7 right 8 7 at 12", each_side(8, 7), ((1, 12.0), (2, 12.0))),
+        # Voice transcripts end in a full stop or a comma (review of #380).
+        ("rows 10 10 9 at 16 kg.", both(10, 10, 9), ((1, 16.0), (2, 16.0), (3, 16.0))),
+        ("rows 10 10 9 at 16.", both(10, 10, 9), ((1, 16.0), (2, 16.0), (3, 16.0))),
+        ("rows 8 8 at 22.5,", both(8, 8), ((1, 22.5), (2, 22.5))),
     ],
-    ids=["at", "at-sign", "kg-first", "comma", "two-lines", "no-weight", "sides"],
+    ids=[
+        "at",
+        "at-sign",
+        "kg-first",
+        "comma",
+        "two-lines",
+        "no-weight",
+        "sides",
+        "full-stop-kg",
+        "full-stop",
+        "comma-after",
+    ],
 )
 def test_a_weight_goes_with_the_sets_of_its_line(
     text: str, sets: tuple[tuple[int, Side, int], ...], loads: tuple[tuple[int, float], ...]
@@ -323,6 +338,13 @@ def test_a_weight_where_none_belongs_is_a_problem(text: str, problem: str) -> No
     result = parse_log(text, LOADED)
     assert result.entries == ()
     assert problem in result.problems[0]
+
+
+def test_a_weight_is_never_the_tail_of_a_longer_number() -> None:
+    # "1250 kg" isn't "1" and "250 kg" (review of #380).
+    result = parse_log("rows 10 1250 kg", LOADED)
+    assert all(kg != 250.0 for entry in result.entries for _, kg in entry.loads)
+    assert result.problems
 
 
 def test_the_confirm_step_shows_the_weight() -> None:

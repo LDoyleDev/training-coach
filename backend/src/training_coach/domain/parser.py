@@ -83,9 +83,11 @@ EACH_WORDS = frozenset({"each", "per", "side", "sides", "leg", "legs", "arm", "a
 ACTIVITY_WORDS = frozenset().union(*WORDS.values())  # "walk", "ran", "cycling"...
 NO_WEIGHT = chr(0x2013)  # an en dash on the confirm step, for a set given no weight
 # One weight for a line's sets (ADR-0072): "at 16", "@ 22.5", or a number with its unit, "60 kg".
+# A full stop or comma may end it ("at 16 kg." in a voice transcript) unless a digit follows, and
+# a weight is never the tail of a longer number ("1250 kg" isn't "250 kg").
 LOAD = re.compile(
-    r"(?:\bat\b|@)\s*(?P<at>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:kgs?\b|kilos?\b)?(?![\d:.,])"
-    r"|(?P<kg>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:kgs?|kilos?)\b"
+    r"(?:\bat\b|@)\s*(?P<at>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:kgs?\b|kilos?\b)?(?![\d:]|[.,]\d)"
+    r"|(?<![\d.,])(?P<kg>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:kgs?|kilos?)\b"
 )
 
 
