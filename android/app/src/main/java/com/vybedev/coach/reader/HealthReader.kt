@@ -2,6 +2,7 @@ package com.vybedev.coach.reader
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.aggregate.AggregateMetric
 import androidx.health.connect.client.changes.DeletionChange
 import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.permission.HealthPermission
@@ -11,6 +12,7 @@ import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -38,10 +40,31 @@ class HealthReader(context: Context) {
         return call()
     }
 
+    /** Every Health Connect permission the reader has (no read of health data). */
+    suspend fun granted(): Set<String> = client.permissionController.getGrantedPermissions()
+
     /** The read permissions not granted yet, by what the screen calls them. */
     suspend fun missing(): Map<String, String> {
-        val granted = client.permissionController.getGrantedPermissions()
+        val granted = granted()
         return READS.filterKeys { it !in granted }
+    }
+
+    /**
+     * The last 7 days per type, from one aggregate each: four reads, only when the person asks.
+     * An aggregate's data origins are the apps that wrote the type.
+     */
+    suspend fun lastWeek(now: Instant): List<WeekType> {
+        val range = TimeRangeFilter.between(now.minus(7, ChronoUnit.DAYS), now)
+        suspend fun <T : Any> week(type: String, metric: AggregateMetric<T>, amount: (T) -> String): WeekType {
+            val result = read("$type, last 7 days") { client.aggregate(AggregateRequest(setOf(metric), range)) }
+            return WeekType(type, result[metric]?.let(amount), result.dataOrigins.map { it.packageName }.toSet())
+        }
+        return listOf(
+            week("Steps", StepsRecord.COUNT_TOTAL) { "%,d steps".format(it) },
+            week("Heart rate", HeartRateRecord.MEASUREMENTS_COUNT) { "%,d samples".format(it) },
+            week("Sleep", SleepSessionRecord.SLEEP_DURATION_TOTAL) { hoursAndMinutes(it) },
+            week("Exercise", ExerciseSessionRecord.EXERCISE_DURATION_TOTAL) { hoursAndMinutes(it) },
+        )
     }
 
     /**
