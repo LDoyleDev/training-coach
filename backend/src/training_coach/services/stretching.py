@@ -81,10 +81,12 @@ def for_workout(session: Session, workout_id: int, minutes: int) -> Routine | No
 def log(session: Session, workout_id: int, minutes: int) -> bool | None:
     """Add ``minutes`` of stretching to the workout: True when logged, False when it already
     has stretching (one per workout, so a second tap can't double it), None when there's no
-    such workout, the time isn't a choice or the plan has no stretching exercise."""
+    such workout, the time is outside 1 to the longest choice, or the plan has no stretching
+    exercise. Any whole minute counts: the guided player logs the minutes actually done, which
+    can be fewer than chosen when it's stopped early (ADR-0032 addendum)."""
     found = _strength_workout(session, workout_id)
     mobility = session.scalar(select(Exercise).where(Exercise.slug == MOBILITY))
-    if found is None or mobility is None or not mobility.ladder or minutes not in CHOICES:
+    if found is None or mobility is None or not mobility.ladder or not 1 <= minutes <= max(CHOICES):
         return None
     workout, _ = found
     if any(s.exercise_id == mobility.id for s in workout.sets):

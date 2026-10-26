@@ -10,7 +10,10 @@ vi.mock('../App', () => ({ default: () => <p>the plan</p> }))
 const make = (over: Partial<Standing>): Standing => ({
   exercise: 'Pull-up',
   unit: 'reps',
+  slug: 'pull-up',
   step: 'Strict',
+  step_id: 2,
+  ladder: [],
   step_number: 2,
   steps: 4,
   last: [],
@@ -59,8 +62,14 @@ test('each exercise shows its step, last session, best and status', async () => 
   ])
   render(<ProgressPage />)
   expect(await screen.findByText('Last 9 · 8 · 7 · best 10')).toBeInTheDocument()
-  expect(screen.getByText('Ready to move up')).toBeInTheDocument()
-  expect(screen.getByText(/1 ready to move up/)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Ready to move up' })).toHaveAttribute(
+    'href',
+    '/plan?move=pull-up',
+  )
+  expect(screen.getByRole('link', { name: '1 ready to move up' })).toHaveAttribute(
+    'href',
+    '/plan?move=pull-up',
+  )
   expect(screen.getByText('Last 45 s · best 45 s')).toBeInTheDocument()
   expect(screen.getByText('Not logged at this step yet')).toBeInTheDocument()
   expect(screen.getByText('Top of the ladder')).toBeInTheDocument()

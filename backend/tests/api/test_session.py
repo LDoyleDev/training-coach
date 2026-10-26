@@ -351,8 +351,9 @@ def test_stretching_after_a_saved_session_is_shown_then_logged_once(
     assert routine.status_code == 200
     body = routine.json()
     assert (body["session"], body["minutes"], body["hold_seconds"]) == ("Legs", 10, 30)
+    assert (body["position_seconds"], body["release_seconds"]) == (15, 5)
     assert body["steps"]
-    assert all(s["rounds"] >= 2 and s["cue"] for s in body["steps"])
+    assert all(s["rounds"] >= 2 and s["cue"] and s["slug"] for s in body["steps"])
     done = signed_in.post(f"/api/session/stretching/{workout}", json={"minutes": 10})
     assert done.json() == {"logged": True}
     again = signed_in.post(f"/api/session/stretching/{workout}", json={"minutes": 20})
@@ -368,7 +369,17 @@ def test_only_the_offered_times_make_a_routine(signed_in: TestClient, minutes: i
     workout = _saved_legs(signed_in)
     path = f"/api/session/stretching/{workout}"
     assert signed_in.get(path, params={"minutes": minutes}).status_code == 404
-    assert signed_in.post(path, json={"minutes": minutes}).status_code == 404
+
+
+@pytest.mark.parametrize(("minutes", "code"), [(0, 404), (31, 404), (7, 200)])
+def test_the_minutes_actually_done_are_logged(
+    signed_in: TestClient, minutes: int, code: int
+) -> None:
+    """Stopped early, the player logs what was done; nothing, or more than any choice, is not
+    stretching anyone was given."""
+    workout = _saved_legs(signed_in)
+    done = signed_in.post(f"/api/session/stretching/{workout}", json={"minutes": minutes})
+    assert done.status_code == code
 
 
 def test_no_stretching_for_a_workout_that_isnt_there(signed_in: TestClient) -> None:

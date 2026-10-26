@@ -1,8 +1,9 @@
-"""Feedback after a save, and moving up the ladder (step 1-G; ADR-0016, ADR-0025).
+"""Feedback after a save, and moving up the ladder (step 1-G; ADR-0016, ADR-0025, ADR-0075).
 
 ``feedback`` reports new personal bests and the progression status of each exercise in a saved
 workout. ``move_up`` and ``not_yet`` answer the "ready to progress" prompt; ``move_up`` checks
-everything again when pressed, so a stale or forged press changes nothing. The caller owns the
+everything again when pressed, so a stale or forged press changes nothing. ``set_level`` puts an
+exercise on any step of its own ladder by hand, ready or not (ADR-0075). The caller owns the
 transaction.
 """
 
@@ -32,6 +33,7 @@ from training_coach.domain.targets import Prescription
 from training_coach.services import blocks, users
 
 TOP_NOTED = "progress.top_of_ladder"
+LEVEL_SET = "progress.level_set"
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,7 @@ class Feedback:
     status: Progress
     next_step: str | None  # the harder variation, when ready
     note_top: bool  # the rule is met on the last step and hasn't been mentioned before
+    slug: str = ""  # the exercise's, for a link to its ladder (ADR-0075)
 
 
 class MoveOutcome(StrEnum):
@@ -54,6 +57,9 @@ class MoveOutcome(StrEnum):
     NOT_READY = "not_ready"
     NO_NEXT_STEP = "no_next_step"
     STRENGTH_BLOCK = "strength_block"  # moving up waits for the hypertrophy block (ADR-0028)
+    STAYED = "stayed"  # Not yet, recorded
+    LEVEL_SET = "level_set"  # put on a step by hand (ADR-0075)
+    SAME_LEVEL = "same_level"  # already on that step: nothing to do
 
 
 @dataclass(frozen=True)
@@ -243,6 +249,7 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
                 status=status,
                 next_step=upcoming.name if upcoming is not None else None,
                 note_top=note_top,
+                slug=exercise.slug,
             )
         )
     return result
@@ -299,6 +306,74 @@ def not_yet(session: Session, exercise_id: int, step_id: int) -> str | None:
     return f"{exercise.name} ({step.name})"
 
 
+def exercise_id_for(session: Session, slug: str) -> int | None:
+    """The exercise with this slug, or None."""
+    return session.scalar(select(Exercise.id).where(Exercise.slug == slug))
+
+
+def in_strength_block(session: Session, on: date, tz: ZoneInfo) -> bool:
+    """Whether ``on`` falls in a strength block, when moving up waits (ADR-0028)."""
+    block = blocks.current(session, on, tz)
+    return block is not None and block.kind is BlockKind.STRENGTH
+
+
+def stay(session: Session, exercise_id: int, step_id: int) -> Move | None:
+    """Not yet, from the web: recorded only while the exercise is still on ``step_id``, so a
+    stale page changes nothing. None for an exercise or step that doesn't exist."""
+    exercise = session.get(Exercise, exercise_id)
+    state = users.exercise_state(session, exercise_id)
+    step = session.get(LadderStep, step_id)
+    if exercise is None or state is None or step is None or step.exercise_id != exercise_id:
+        return None
+    if state.ladder_step_id != step_id:
+        return Move(MoveOutcome.ALREADY_MOVED, exercise.name)
+    not_yet(session, exercise_id, step_id)
+    return Move(MoveOutcome.STAYED, exercise.name, step.name)
+
+
+def set_level(session: Session, exercise_id: int, step_id: int) -> Move | None:
+    """Put the exercise on ``step_id``, up or down, by hand (ADR-0075). Never needs "ready" and
+    is allowed in a strength block: it is the person's choice, not the rule's. Targets then come
+    from that step's own history. None for an exercise that doesn't exist or a step that isn't on
+    its ladder."""
+    exercise = session.get(Exercise, exercise_id)
+    state = users.exercise_state(session, exercise_id)
+    step = session.get(LadderStep, step_id)
+    if exercise is None or state is None or step is None or step.exercise_id != exercise_id:
+        return None
+    if state.ladder_step_id == step_id:
+        return Move(MoveOutcome.SAME_LEVEL, exercise.name, step.name)
+    session.add(
+        Event(
+            kind=LEVEL_SET,
+            payload={
+                "exercise_id": exercise_id,
+                "from_step_id": state.ladder_step_id,
+                "to_step_id": step.id,
+            },
+        )
+    )
+    state.ladder_step_id = step.id
+    return Move(MoveOutcome.LEVEL_SET, exercise.name, step.name)
+
+
+@dataclass(frozen=True)
+class Ready:
+    """An exercise ready to move up, with its slug for a link to its ladder (ADR-0075)."""
+
+    exercise: str
+    slug: str
+
+
+@dataclass(frozen=True)
+class Rung:
+    """One step of an exercise's ladder."""
+
+    id: int
+    name: str
+    cue: str | None
+
+
 @dataclass(frozen=True)
 class Point:
     """One session on a Progress graph."""
@@ -324,6 +399,8 @@ class Standing:
     status: Progress
     retired: bool = False  # out of the plan (#107): shown for its history, never ready
     trend: tuple[Point, ...] = ()  # the last TREND_WEEKS, oldest first; only with ``on``
+    slug: str = ""
+    ladder: tuple[Rung, ...] = ()  # every step, easiest first
 
 
 TREND_WEEKS = 6  # the Progress graphs' window: long enough to see a change, short enough to feel it
@@ -418,6 +495,13 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
                 trend=_trend(session, exercise_id, per_side, block, since)
                 if since is not None
                 else (),
+                slug=exercise.slug,
+                ladder=tuple(Rung(r.id, r.name, r.cue) for r in exercise.ladder),
             )
         )
     return result
+
+
+def ready(standings: list[Standing]) -> list[Ready]:
+    """The exercises ready to move up, in plan order."""
+    return [Ready(s.exercise, s.slug) for s in standings if s.status is Progress.READY]

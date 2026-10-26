@@ -39,6 +39,11 @@ export interface Limb {
   bend?: number
   /** The hand's or foot's own angle. Hands carry on from the forearm, feet lie flat (0). */
   angle?: number
+  /** A share of the hand's length, for a hand turned towards you (fingers pointing in). Give it
+   * in both poses, as a number one pose leaves out blends from 0. */
+  hand?: number
+  /** How high the surface under the foot is (a step), for toes that bend along it. */
+  floor?: number
 }
 
 export interface Pose {
@@ -144,8 +149,8 @@ function fromPlank(pose: Pose): Pose & { hip: Vec } {
 }
 
 /** The foot from its ankle and angle: u along the foot, n towards the sole. Toes that would go
- * through the floor bend along it. */
-function foot(ankle: Vec, angle: number) {
+ * through the floor, or the step under them, bend along it. */
+function foot(ankle: Vec, angle: number, floor = 0) {
   const u = unit(angle)
   const n = unit(angle - 90)
   const at = (fu: number, fn: number): Vec => [
@@ -154,9 +159,9 @@ function foot(ankle: Vec, angle: number) {
   ]
   const ball = at(BODY.ball, BODY.ankle)
   let tip = at(BODY.ball + BODY.toe, BODY.ankle - 0.5)
-  if (tip[1] < 0) {
-    const dx = Math.sqrt(Math.max(0, BODY.toe ** 2 - ball[1] ** 2))
-    tip = [ball[0] + dx * (Math.sign(u[0]) || 1), 0]
+  if (tip[1] < floor) {
+    const dx = Math.sqrt(Math.max(0, BODY.toe ** 2 - (ball[1] - floor) ** 2))
+    tip = [ball[0] + dx * (Math.sign(u[0]) || 1), floor]
   }
   return {
     heel: at(-BODY.heel, BODY.ankle - 1.5),
@@ -199,12 +204,12 @@ export function solve(input: Pose): Joints {
       shoulder,
       elbow: mid,
       wrist: end,
-      tip: along(end, limb.angle ?? heading(mid, end), BODY.hand),
+      tip: along(end, limb.angle ?? heading(mid, end), BODY.hand * (limb.hand ?? 1)),
     }
   }
   const leg = (limb: Limb): LegJoints => {
     const { mid, end } = place(limb, hip, BODY.thigh, BODY.shin, 1)
-    return { hip, knee: mid, ankle: end, ...foot(end, limb.angle ?? 0) }
+    return { hip, knee: mid, ankle: end, ...foot(end, limb.angle ?? 0, limb.floor) }
   }
 
   return {

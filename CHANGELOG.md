@@ -4,6 +4,50 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.1.0](https://github.com/LDoyleDev/training-coach/compare/v1.0.0...v1.1.0) (2026-10-25)
+
+
+### Features
+
+* **domain:** Torso curls get a second set, biceps at 11 a week ([#353](https://github.com/LDoyleDev/training-coach/issues/353)) ([08965c6](https://github.com/LDoyleDev/training-coach/commit/08965c626bd08f318d587fb4fa32bed05188875f))
+* **web:** a boxing-ring bell, everyone's default timer sound ([#347](https://github.com/LDoyleDev/training-coach/issues/347)) ([dee9b02](https://github.com/LDoyleDev/training-coach/commit/dee9b020c9bccc83564a6bd83f7e30d46f00d6fd))
+* **web:** counter first on the set screen, rest sound, times at check ([#345](https://github.com/LDoyleDev/training-coach/issues/345)) ([eed9f9d](https://github.com/LDoyleDev/training-coach/commit/eed9f9d3355a96d02e435403b786461387356495))
+* **web:** draw pull-up, chin-up, dip, row, pike and diamond figures ([#346](https://github.com/LDoyleDev/training-coach/issues/346)) ([f522c67](https://github.com/LDoyleDev/training-coach/commit/f522c6761304ac77e767f5330893a588bbaabccf))
+* **web:** guided stretching with an overview and a bell at each change ([#348](https://github.com/LDoyleDev/training-coach/issues/348)) ([f9ab32a](https://github.com/LDoyleDev/training-coach/commit/f9ab32a76fbde6962fafaf405d3e4c365392730e))
+* **web:** move up, not yet and any level by hand on the Plan page ([#350](https://github.com/LDoyleDev/training-coach/issues/350)) ([8b0ee73](https://github.com/LDoyleDev/training-coach/commit/8b0ee73429a8b9bb8af16746730e7dfb4fac6219))
+
+
+### Bug Fixes
+
+* **web:** stretching falls back to the bell when Settings can't load ([#354](https://github.com/LDoyleDev/training-coach/issues/354)) ([8909bcf](https://github.com/LDoyleDev/training-coach/commit/8909bcf2d756d4662a6a2df3166183a7dac32942))
+
+
+### Documentation
+
+* wrap 1.1.0: set screen, bell, stretching and levels ([#355](https://github.com/LDoyleDev/training-coach/issues/355)) ([713b8a3](https://github.com/LDoyleDev/training-coach/commit/713b8a30598dad05a7afecb094d3bfae36479855))
+
+## [1.0.0](https://github.com/LDoyleDev/training-coach/compare/v0.38.1...v1.0.0) (2026-10-25)
+
+
+### Features
+
+* **domain:** band face pulls for rear delts, suitcase carries for traps ([#340](https://github.com/LDoyleDev/training-coach/issues/340)) ([346feec](https://github.com/LDoyleDev/training-coach/commit/346feec3ebfed19eb9e3b32fb7dcdd6a377521a9))
+* **web:** show each ladder step as its own period on the trend chart ([#341](https://github.com/LDoyleDev/training-coach/issues/341)) ([d06cac2](https://github.com/LDoyleDev/training-coach/commit/d06cac2ae968c7159951076cc6aa2a17e544b68b))
+* **web:** show the muscles an exercise works on the set screen ([#343](https://github.com/LDoyleDev/training-coach/issues/343)) ([5bf9f43](https://github.com/LDoyleDev/training-coach/commit/5bf9f432961b259ee4943c5ddcbe5ac6e22dd661))
+
+
+### Bug Fixes
+
+* **domain:** a pair starts so no exercise or main muscle comes twice running ([#344](https://github.com/LDoyleDev/training-coach/issues/344)) ([9d03a99](https://github.com/LDoyleDev/training-coach/commit/9d03a99742e8baebb93a4da4aa48a4e8d06402b7))
+* **infra:** the off-site job pings its own monitor, so a stopped job is noticed ([#338](https://github.com/LDoyleDev/training-coach/issues/338)) ([a76776b](https://github.com/LDoyleDev/training-coach/commit/a76776bf6f4965511bc037622df43970534bd735))
+
+
+### Documentation
+
+* ADRs for kit and places, load, and plans per person (accepted) ([#339](https://github.com/LDoyleDev/training-coach/issues/339)) ([109c6f1](https://github.com/LDoyleDev/training-coach/commit/109c6f178af1051ac438fea5f9a34d7a017dc978))
+* wrap 1.0.0: the restore drill, phase 2 done, builder next steps ([#342](https://github.com/LDoyleDev/training-coach/issues/342)) ([8d3436c](https://github.com/LDoyleDev/training-coach/commit/8d3436cce9374a9b133818b33e7cb22f4133c6fb))
+* wrap v0.38.1: reader diagnostics and dependency updates ([#335](https://github.com/LDoyleDev/training-coach/issues/335)) ([7aa3a4d](https://github.com/LDoyleDev/training-coach/commit/7aa3a4d6298ffd1bfcc51dd99831877a6ad12a1b))
+
 ## [0.38.1](https://github.com/LDoyleDev/training-coach/compare/v0.38.0...v0.38.1) (2026-10-24)
 
 

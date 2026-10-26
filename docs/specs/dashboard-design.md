@@ -30,23 +30,29 @@ Starting a session from Today walks through it one set at a time. Agreed on a cl
 
 1. **Overview to confirm:** the session, about how long it takes, the warm-up reminder, and the
    pairs (ADR-0031) with each exercise's step and sets × target. Start session, or Resume.
-2. **One set per screen, in work order:** exercise, step and a short how-to (#116); "Set 2 of 4"
-   and the target.
+2. **One set per screen, in work order**, always open, top to bottom (Liam, 2026-10-25): the
+   exercise and its step, "Do <other> first" before a pair has started (it swaps the pair for
+   this session), then the counter: "Set 2 of 4" and the target, and Confirm set.
    - Reps: one big number starting at the target, with − and +.
    - One-sided exercises: one number for "each side"; "Left and right differ" splits it.
    - Timed exercises: a stopwatch, adjustable by ±5 s after stopping.
-   - Before a pair has started: "Do <other> first" swaps the pair for this session.
-   - Under the how-to, the muscles it works in words ("Works: Lats · helped by upper back,
-     biceps · a little: rear delts, forearms"), beside small front and back figures coloured by
-     the catalogue weights on the session map's colours (ADR-0064, ADR-0069).
-   - Below that, for an exercise with a drawn figure, its moving mannequin (ADR-0063) under
-     "Show the movement": open on an exercise's first set, folded on the sets after.
-3. **Confirm set** starts a **rest countdown** (60 s default, +15 s, Skip; the phone buzzes at
-   the end) showing the next set. Back fixes the previous set.
+   - Under the counter, the short how-to (#116); then, for an exercise with a drawn figure, its
+     moving mannequin (ADR-0063), always shown; then the muscles it works in words ("Works:
+     Lats · helped by upper back, biceps · a little: rear delts, forearms"), beside small front
+     and back figures coloured by the catalogue weights on the session map's colours (ADR-0064,
+     ADR-0069).
+   - The screen stays on through the sets and rests (wake lock, where the browser has one).
+3. **Confirm set** starts a **rest countdown** (by transition, ADR-0065; +15 s, Skip) showing
+   the next set. Its last 3 seconds count softly and its end plays the timer sound chosen in
+   Settings (ADR-0062), and the phone buzzes. Skip plays nothing. Back fixes the previous set.
 4. **Leave keeps the place:** progress is kept on the server, so the session resumes on any
    device. One not saved by the end of the day is offered for saving the next morning.
 5. **Check and save:** every exercise's sets against targets; nothing is saved until Save
-   session. The save goes through the same service as a typed log (`workout_log`, step 1-E):
+   session. At the top, the time so far split into sets, rests and breaks (ADR-0061); under
+   each exercise's reps, each set's seconds ("34s / 31s / 38s"). A set at least half again as
+   long as the median of the exercise's other sets (and 10 s more) is bold, and a rest that ran
+   30 s or more over its plan says so on the set after it ("+40s rest"). Sets without times
+   show none. The save goes through the same service as a typed log (`workout_log`, step 1-E):
    the server re-checks the target session, block, queue and every set's value and bounds, so
    nothing from the browser is trusted. The session API is owner-only behind 2-F login (#115).
 6. **Saved:** new bests, the next session, and stretching 10/20/30 (ADR-0032).

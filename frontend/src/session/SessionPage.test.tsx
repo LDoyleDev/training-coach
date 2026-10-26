@@ -1,7 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Clash, Done, Guided, Kept, Pending, Saved, TodayView } from '../api'
+import { playChange, unlockAudio } from '../hiit/sounds'
 import SessionPage from './SessionPage'
+
+vi.mock('../hiit/sounds', () => ({
+  DEFAULT_SOUND: 'ring',
+  unlockAudio: vi.fn(),
+  playChange: vi.fn(),
+}))
 
 const SESSION: Guided = {
   day: '2026-10-12',
@@ -55,7 +62,16 @@ const SAVED: Saved = {
   workout_id: 9,
   already_saved: false,
   next_session: 'Recovery + posture',
-  earned: [{ exercise: 'Jump squat', unit: 'reps', best_set: 7, total: 13, next_step: null }],
+  earned: [
+    {
+      exercise: 'Jump squat',
+      slug: 'jump-squat',
+      unit: 'reps',
+      best_set: 7,
+      total: 13,
+      next_step: null,
+    },
+  ],
   stretching: true,
 }
 
@@ -67,6 +83,7 @@ type Server = {
   saveEarlier?: 'fail'
   clash?: Clash // answered to a save until it carries a resolution (ADR-0060)
   problem?: string // a 422: why the save was refused
+  sound?: string // the timer sound chosen in Settings; unset answers 404
 }
 
 /** A fake API; returns the bodies sent, by method and path. */
@@ -89,6 +106,10 @@ function serve(server: Server = {}) {
         : Response.json({ revision: keep })
     }
     if (path === '/api/session/pending') return Response.json(server.pending ?? [])
+    if (path === '/api/settings')
+      return server.sound
+        ? Response.json({ sound: server.sound })
+        : new Response(null, { status: 404 })
     if (path === '/api/session/save') {
       if (server.problem) return Response.json({ detail: server.problem }, { status: 422 })
       if (server.clash && !String(init?.body).includes('resolution'))
@@ -107,6 +128,8 @@ function serve(server: Server = {}) {
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.useRealTimers()
+  vi.clearAllMocks()
+  Reflect.deleteProperty(navigator, 'wakeLock')
 })
 
 const click = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }))
@@ -911,26 +934,174 @@ test('an exercise that works no muscle has no muscles line or figures', async ()
   expect(container.querySelector('path[data-muscle]')).toBeNull()
 })
 
-test('a drawn exercise shows its movement, open on its first set and folded after', async () => {
+test('a drawn exercise always shows its movement, with no toggle', async () => {
   const pushUp = { ...SESSION.items[0], slug: 'push-up', name: 'Push-up' }
-  serve({ today: { session: { ...SESSION, items: [pushUp, SESSION.items[1]] }, progress: null } })
+  const undrawn = { ...SESSION.items[1], slug: 'not-drawn-yet' }
+  serve({ today: { session: { ...SESSION, items: [pushUp, undrawn] }, progress: null } })
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
-  expect(screen.getByRole('button', { name: 'Hide the movement' })).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  )
   expect(screen.getByRole('img', { name: /^Push-up, moving from:/ })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /the movement/ })).not.toBeInTheDocument()
 
   click('Confirm set')
   fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
   expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /the movement/ })).not.toBeInTheDocument()
+  expect(screen.queryByRole('img', { name: /moving from/ })).not.toBeInTheDocument() // undrawn
   click('Confirm set')
   fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
 
   expect(await screen.findByText('Set 2 of 2')).toBeInTheDocument()
-  expect(screen.queryByRole('img', { name: /^Push-up/ })).not.toBeInTheDocument()
-  click('Show the movement')
   expect(screen.getByRole('img', { name: /^Push-up, moving from:/ })).toBeInTheDocument()
+})
+
+const follows = (before: Element, after: Element) =>
+  Boolean(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+test('the set screen puts the counter first, then the how-to, the movement, the muscles', async () => {
+  const pushUp = {
+    ...SESSION.items[0],
+    slug: 'push-up',
+    name: 'Push-up',
+    summary: 'Lower your chest to the floor.',
+    muscles: [{ muscle: 'chest', weight: 1 }],
+  }
+  serve({ today: { session: { ...SESSION, items: [pushUp, SESSION.items[1]] }, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const inOrder = [
+    screen.getByRole('heading', { name: 'Push-up' }),
+    screen.getByRole('button', { name: 'Do Calf raise first' }),
+    screen.getByText('Set 1 of 2'),
+    screen.getByRole('group', { name: 'Reps' }),
+    screen.getByRole('button', { name: 'Confirm set' }),
+    screen.getByText('Lower your chest to the floor.'),
+    screen.getByRole('img', { name: /^Push-up, moving from:/ }),
+    screen.getByText(/^Works: Chest/),
+  ]
+  inOrder.slice(1).forEach((el, n) => expect(follows(inOrder[n], el)).toBe(true))
+})
+
+test('a timed set shows its clock under the set heading, above the confirm', async () => {
+  serve({ today: { session: HANG, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const clock = screen.getByRole('button', { name: 'Start clock' })
+  expect(follows(screen.getByText('Set 1 of 1', { selector: '.text-lg' }), clock)).toBe(true)
+  expect(follows(clock, screen.getByRole('button', { name: 'Confirm set' }))).toBe(true)
+})
+
+test("a rest counts its last 3 seconds and ends in the person's timer sound", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const vibrate = vi.fn()
+  vi.stubGlobal('navigator', { ...navigator, vibrate })
+  serve({ sound: 'wood' })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  await act(async () => {}) // the settings arrive
+  expect(unlockAudio).toHaveBeenCalled() // inside the Start tap
+  expect(playChange).not.toHaveBeenCalled() // nothing plays on Start
+  click('Confirm set')
+  await screen.findByText('0:15')
+  act(() => vi.advanceTimersByTime(11_000))
+  expect(playChange).not.toHaveBeenCalled()
+  act(() => vi.advanceTimersByTime(4_500))
+  expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
+  expect(vi.mocked(playChange).mock.calls).toEqual([
+    ['wood', 'count'],
+    ['wood', 'count'],
+    ['wood', 'count'],
+    ['wood', 'next'],
+  ])
+  expect(vibrate).toHaveBeenCalledWith(300)
+})
+
+test('a skipped rest plays nothing', async () => {
+  serve()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
+  expect(playChange).not.toHaveBeenCalled()
+})
+
+test('the screen stays on through sets and rests, and is let go on leaving', async () => {
+  const release = vi.fn(async () => {})
+  const request = vi.fn(async () => ({ release }))
+  Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true })
+  serve()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(request).toHaveBeenCalledWith('screen')
+  await act(async () => {})
+  click('Confirm set')
+  await screen.findByText('0:15')
+  expect(release).not.toHaveBeenCalled() // still on through the rest
+  click('Skip rest')
+  await screen.findByRole('heading', { name: 'Calf raise' })
+  click('Leave')
+  await act(async () => {})
+  expect(release).toHaveBeenCalled()
+})
+
+test('without a wake lock the session still runs', async () => {
+  Object.defineProperty(navigator, 'wakeLock', {
+    value: {
+      request: () => {
+        throw new Error('not allowed')
+      },
+    },
+    configurable: true,
+  })
+  serve()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.getByRole('button', { name: 'Confirm set' })).toBeInTheDocument()
+})
+
+test('Check and save shows the time so far and each set time, marking time lost', async () => {
+  const at = (from: string, to: string) => ({
+    started_at: `2026-10-20T16:${from}.000Z`,
+    done_at: `2026-10-20T16:${to}.000Z`,
+  })
+  const progress: Kept = {
+    template_id: 3,
+    position: 3,
+    first: [],
+    sets: [
+      { item: 0, set_no: 1, left: 6, right: null, ...at('00:00', '00:34') },
+      { item: 1, set_no: 1, left: 15, right: null, ...at('00:49', '01:20') }, // a 15 s switch
+      // 100 s since the calf raise against a planned 60, and much slower than the first set.
+      { item: 0, set_no: 2, left: 6, right: null, ...at('03:00', '04:00') },
+    ],
+    saved: false,
+    revision: 1,
+  }
+  serve({ today: { session: SESSION, progress } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(await screen.findByRole('heading', { name: 'Check and save' })).toBeInTheDocument()
+  expect(screen.getByText('So far 4 min: 2 on sets, 2 resting.')).toBeInTheDocument()
+  expect(screen.getByText('34s')).not.toHaveClass('font-bold')
+  const slow = screen.getByText('60s', { exact: false, selector: 'span.font-bold' })
+  expect(slow).toHaveTextContent('60s (slow)') // said, not only shown
+  expect(screen.getByText(/\+40s rest/)).toBeInTheDocument()
+  expect(screen.getByText('31s')).toBeInTheDocument()
+})
+
+test('Check and save shows no times for sets without them', async () => {
+  const progress: Kept = {
+    template_id: 3,
+    position: 3,
+    first: [],
+    sets: [{ item: 0, set_no: 1, left: 6, right: null }],
+    saved: false,
+    revision: 1,
+  }
+  serve({ today: { session: SESSION, progress } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(await screen.findByRole('heading', { name: 'Check and save' })).toBeInTheDocument()
+  expect(screen.queryByText(/^So far/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/^\d+s$/)).not.toBeInTheDocument()
 })

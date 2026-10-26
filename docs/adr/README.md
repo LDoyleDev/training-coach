@@ -78,4 +78,6 @@ Code). Template: [template.md](template.md).
 | [0071](0071-equipment-and-places.md) | Each person lists their home kit; a gym has everything; steps lock by kit | Accepted |
 | [0072](0072-load-and-double-progression.md) | Sets record their load; loaded exercises progress by reps, then weight | Accepted |
 | [0073](0073-each-person-owns-their-sessions.md) | Each person owns their sessions; exercises are a shared catalogue | Accepted |
+| [0074](0074-boxing-bell-timer-sound.md) | A boxing-ring bell is everyone's timer sound, for every guided timer | Accepted |
+| [0075](0075-levels-by-hand-on-the-web.md) | Move up, Not yet and any level by hand, on the web | Accepted |
 | [0076](0076-body-measurement-protocol-and-tape-estimate.md) | One way to take each measurement, and a tape body-fat estimate | Accepted |

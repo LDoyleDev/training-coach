@@ -7,6 +7,7 @@ import SessionTimes from './SessionTimes'
 import TrendChart from './TrendChart'
 import { local } from './chart'
 import { amount } from './logic'
+import { moveButton, moveHref } from '../plan/ladder'
 import { card, secondary } from '../ui'
 import { RetryCard, SignInCard } from '../components/StateCards'
 
@@ -34,7 +35,7 @@ export default function ProgressPage() {
 }
 
 /** Every exercise's step, last session, best set and six weeks of trend (as /progress in the
- * bot, which has no graph). Moving up stays with the prompt after a saved session. */
+ * bot, which has no graph). "Ready to move up" links to that ladder on /plan (ADR-0075). */
 function Standings() {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
 
@@ -60,12 +61,23 @@ function Standings() {
   if (loaded.status === 'error')
     return <RetryCard text="Couldn't load your progress. Check your connection." />
 
-  const ready = loaded.standings.filter((s) => s.status === 'ready').length
+  const ready = loaded.standings.filter((s) => s.status === 'ready')
   return (
     <>
       <p className="m-0 text-[var(--slate)]">
         Each exercise's current step, its last session and best set there.
-        {ready > 0 && ` ${ready} ready to move up: you'll be asked after your next session.`}
+        {ready.length > 0 && (
+          <>
+            {' '}
+            <a
+              href={moveHref(ready[0].slug)}
+              className="font-bold text-[var(--bell-ink)] underline"
+            >
+              {ready.length} ready to move up
+            </a>
+            : choose on the Plan page, or when you're asked after your next session.
+          </>
+        )}
       </p>
       <a href="/review" className={secondary + ' inline-flex items-center self-start no-underline'}>
         This week's review
@@ -92,7 +104,13 @@ function Standings() {
                     : 'Not logged at this step yet'}
                   {s.best_set !== null && ` · best ${amount(s, s.best_set)}`}
                 </span>
-                {status && <span className="font-bold text-[var(--bell-ink)]">{status}</span>}
+                {s.status === 'ready' ? (
+                  <a href={moveHref(s.slug)} className={moveButton}>
+                    {status}
+                  </a>
+                ) : (
+                  status && <span className="font-bold text-[var(--bell-ink)]">{status}</span>
+                )}
               </div>
               <TrendChart standing={s} today={loaded.today} />
             </li>

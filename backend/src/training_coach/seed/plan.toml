@@ -684,7 +684,7 @@ items = [
   { exercise = "neck-flexion", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
   { exercise = "neck-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
   { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 20, pair = 5 },
-  { exercise = "kb-curl", sets = 1, rep_min = 12, rep_max = 20, pair = 5 },
+  { exercise = "kb-curl", sets = 2, rep_min = 12, rep_max = 20, pair = 5 },
 ]
 
 [[sessions]]

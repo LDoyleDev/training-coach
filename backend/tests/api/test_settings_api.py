@@ -63,7 +63,7 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "protein_g": None,
         "blocks_since": None,
         "pace": "standard",
-        "sound": "chime",
+        "sound": "ring",
         "paused": False,
         "timezone": "Europe/Berlin",
     }
@@ -150,9 +150,10 @@ def test_the_pace_is_one_of_three(signed_in: TestClient, engine: Engine) -> None
     assert signed_in.get("/api/settings").json()["pace"] == "fast"
 
 
-def test_the_timer_sound_is_one_of_five(signed_in: TestClient, engine: Engine) -> None:
+def test_the_timer_sound_is_one_of_six(signed_in: TestClient, engine: Engine) -> None:
     assert signed_in.patch("/api/settings", json={"sound": "wood"}).json()["sound"] == "wood"
     assert _stored(engine).sound == "wood"
+    assert signed_in.patch("/api/settings", json={"sound": "ring"}).json()["sound"] == "ring"
     assert signed_in.patch("/api/settings", json={"sound": "gong"}).status_code == 422
     assert signed_in.patch("/api/settings", json={"sound": "none"}).json()["sound"] == "none"
 

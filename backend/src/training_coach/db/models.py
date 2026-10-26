@@ -284,8 +284,8 @@ class UserSettings(Owned, Base):
     max_hr: Mapped[int | None] = mapped_column(Integer)
     # How big a step the targets take (ADR-0057).
     pace: Mapped[str] = mapped_column(String(16), server_default=Pace.STANDARD.value)
-    # What the guided timers play at each change (ADR-0062).
-    sound: Mapped[str] = mapped_column(String(16), server_default=Sound.CHIME.value)
+    # What every guided timer plays at each change (ADR-0062, ADR-0074).
+    sound: Mapped[str] = mapped_column(String(16), server_default=Sound.RING.value)
     # Body measurements (ADR-0076): height for the tape estimate, where the thigh is taken, and
     # whether the body-fat estimate is worked out at all (off unless the person turns it on).
     height_cm: Mapped[int | None] = mapped_column(Integer)

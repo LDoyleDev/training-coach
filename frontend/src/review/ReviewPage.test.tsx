@@ -32,7 +32,7 @@ const WEEK: WeekReview = {
     },
     { exercise: 'Plank', step: 'Long', kind: 'seconds', best_set: 90, total: null, strength: true },
   ],
-  ready: ['Push-up'],
+  ready: [{ exercise: 'Push-up', slug: 'push-up' }],
   strength_block: false,
   habits: [{ label: 'Wind-down', done: 2, days: 3 }],
   ai_comments: true,
@@ -67,7 +67,13 @@ test('this week so far, as the bot sends it', async () => {
   expect(screen.getByText('Zone 2: 95 of 180-200 min (85 short)')).toBeInTheDocument()
   expect(screen.getByText('Pull-up (Full): 8 reps in one set and 30 reps in total')).toBeVisible()
   expect(screen.getByText('Plank (Long, strength block): 90 s in one set')).toBeVisible()
-  expect(screen.getByText(/Push-up: you'll be asked after your next session/)).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Push-up' })).toHaveAttribute(
+    'href',
+    '/plan?move=push-up',
+  )
+  expect(
+    screen.getByText(/Choose on the Plan page, or when asked after your next session/),
+  ).toBeVisible()
   expect(screen.getByText('2 of 3 so far')).toBeInTheDocument()
   expect(screen.getByText(/AI comment from your Groq key comes on Telegram/)).toBeVisible()
   expect(screen.queryByRole('region', { name: 'AI comment' })).toBeNull()
@@ -131,7 +137,11 @@ test("the week's AI comment shows as plain text under the review", async () => {
 test('ready to move up waits for the hypertrophy block', async () => {
   serve({ ...WEEK, strength_block: true })
   render(<ReviewPage />)
-  expect(await screen.findByText('Push-up: when the hypertrophy block starts.')).toBeVisible()
+  expect(await screen.findByText('When the hypertrophy block starts.')).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Push-up' })).toHaveAttribute(
+    'href',
+    '/plan?move=push-up',
+  )
 })
 
 test('signed out points to sign in', async () => {
