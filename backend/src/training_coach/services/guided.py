@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, SetLog, Workout
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
+from training_coach.domain.load import MAX_KG, valid_kg
 from training_coach.domain.parser import LIMITS, Entry
 from training_coach.domain.rest import AFTER_PAIR_SECONDS, Kind, Rest, rests
 from training_coach.domain.session_times import plausible
@@ -221,7 +222,7 @@ def held_today(session: Session, on: date) -> bool:
 class Done:
     """A confirmed set: ``right`` only for one-sided exercises (None means the same as left).
     ``started_at`` and ``done_at``: when its screen appeared and when it was confirmed
-    (ADR-0061), both or neither."""
+    (ADR-0061), both or neither. ``load_kg``: the weight, on a loaded step only (ADR-0072)."""
 
     item: int
     set_no: int
@@ -229,6 +230,7 @@ class Done:
     right: int | None = None
     started_at: datetime | None = None
     done_at: datetime | None = None
+    load_kg: float | None = None
 
 
 def _stored(done: Done) -> dict[str, Any]:
@@ -242,6 +244,8 @@ def _stored(done: Done) -> dict[str, Any]:
     if done.started_at is not None and done.done_at is not None:
         row["started_at"] = done.started_at.isoformat()
         row["done_at"] = done.done_at.isoformat()
+    if done.load_kg is not None:
+        row["load_kg"] = done.load_kg
     return row
 
 
@@ -255,6 +259,7 @@ def _done(row: dict[str, Any]) -> Done:
         right=row.get("right"),
         started_at=datetime.fromisoformat(started) if started else None,
         done_at=datetime.fromisoformat(ended) if ended else None,
+        load_kg=row.get("load_kg"),
     )
 
 
@@ -332,6 +337,10 @@ def sets_problem(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> str | Non
             return f"{item.exercise}: values must be 0 to {limit}"
         if done.right is not None and not item.per_side:
             return f"{item.exercise} isn't done one side at a time"
+        if done.load_kg is not None and item.load is None:
+            return f"{item.exercise} isn't done with a weight"
+        if done.load_kg is not None and not valid_kg(done.load_kg):
+            return f"{item.exercise}: a weight is more than 0 and at most {MAX_KG:g} kg"
     return None
 
 
@@ -428,13 +437,14 @@ def entries(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> tuple[Entry, .
     for index, numbered in _numbered(sets):
         item = items[index]
         rows: list[tuple[int, Side, int]] = []
+        loads = tuple((n, d.load_kg) for n, d in numbered if d.load_kg is not None)
         for number, done in numbered:
             if item.per_side:
                 right = done.left if done.right is None else done.right
                 rows += [(number, Side.LEFT, done.left), (number, Side.RIGHT, right)]
             else:
                 rows.append((number, Side.BOTH, done.left))
-        entries.append(Entry(item.slug, tuple(rows)))
+        entries.append(Entry(item.slug, tuple(rows), loads))
     return tuple(entries)
 
 
