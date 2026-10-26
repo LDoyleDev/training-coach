@@ -2651,6 +2651,16 @@
             ],
             "title": "Kit",
             "type": "string"
+          },
+          "suggested": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NextWeightView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -3636,6 +3646,28 @@
           "secret"
         ],
         "title": "NewSecret",
+        "type": "object"
+      },
+      "NextWeightView": {
+        "description": "Every set reached the top of the range last time: this weight next, with these targets\n(the bottom of the range). A suggestion the person taps to take (ADR-0072).",
+        "properties": {
+          "kg": {
+            "title": "Kg",
+            "type": "number"
+          },
+          "targets": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kg",
+          "targets"
+        ],
+        "title": "NextWeightView",
         "type": "object"
       },
       "NightView": {

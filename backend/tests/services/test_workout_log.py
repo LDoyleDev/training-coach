@@ -21,7 +21,7 @@ from training_coach.db.models import (
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.load import LoadKit
 from training_coach.domain.queue import local_date
-from training_coach.services import queue_actions, user_settings, users, workout_log
+from training_coach.services import blocks, queue_actions, user_settings, users, workout_log
 from training_coach.services.seed import apply_seed, load_plan
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -527,10 +527,7 @@ def test_a_typed_weight_is_saved_on_a_step_that_takes_load(
     assert workout_log.draft(seeded, "pull-ups 8 7 at 10", TODAY, BERLIN).problems == (
         "Pull-up isn't done with a weight",
     )
-    monkeypatch.setattr(workout_log, "loadable", lambda slug: slug == "pull-up")
-    monkeypatch.setattr(
-        workout_log, "load_kit", lambda slug, step: LoadKit.MACHINE if step == "Strict" else None
-    )
+    monkeypatch.setattr(blocks, "_load_kits", lambda: {("pull-up", "Strict"): LoadKit.MACHINE})
     draft = workout_log.draft(seeded, "pull-ups 8 7 at 10", TODAY, BERLIN)
     assert draft.problems == ()
     saved = workout_log.save(seeded, draft, BERLIN)

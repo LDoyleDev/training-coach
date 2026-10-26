@@ -4,7 +4,7 @@ Returns plain data; the bot formats it. ``None`` means there is no plan in the d
 example a failed seed on a fresh install, ADR-0015), which callers must tell the user about.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from functools import lru_cache
 from zoneinfo import ZoneInfo
@@ -20,12 +20,13 @@ from training_coach.db.models import (
 )
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind
-from training_coach.domain.load import Load, LoadKit, carried
+from training_coach.domain.load import Load, carried, next_weight, top_weight
 from training_coach.domain.muscles import Muscle, Part, ranked
 from training_coach.domain.queue import ADVANCING, Position, advance
 from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
 from training_coach.services import blocks, retests, user_settings, users
+from training_coach.services.blocks import load_kit
 from training_coach.services.progress import last_loads, sessions_at_step
 from training_coach.services.seed import bundled_plan
 
@@ -122,44 +123,30 @@ def _worked() -> dict[str, Worked]:
     }
 
 
-def load_kit(slug: str, step: str) -> LoadKit | None:
-    """What carries the weight when this step of this exercise takes load (ADR-0072), from the
-    bundled plan like the summary; None for a step without load."""
-    return _load_kits().get((slug, step))
-
-
-def loadable(slug: str) -> bool:
-    """Whether any step of this exercise takes load."""
-    return any(found == slug for found, _ in _load_kits())
-
-
-@lru_cache(maxsize=1)
-def _load_kits() -> dict[tuple[str, str], LoadKit]:
-    return {(e.slug, step): kit for e in bundled_plan().exercises for step, kit in e.loads.items()}
-
-
 def _item_plan(session: Session, item: TemplateItem, strength: bool, pace: Pace) -> ItemPlan:
     """One exercise: its step, cue and targets, under the strength prescription if it applies
     (ADR-0028), with targets from the matching block's history (ADR-0027) at the person's
     ``pace`` (ADR-0057)."""
     plan = blocks.assign(session, item, strength)
+    kit = load_kit(item.exercise.slug, plan.step.name)
+    last = last_loads(session, item.exercise_id, plan.step.id, plan.history) if kit else []
+    # A loaded step's targets come from the sessions at the weight it last used: a heavier
+    # weight starts from its own baseline, as a new ladder step does (ADR-0072).
+    weight = top_weight(last)
     history = [
         v
         for _, v in sessions_at_step(
-            session, item.exercise_id, plan.step.id, item.per_side, plan.history
+            session, item.exercise_id, plan.step.id, item.per_side, plan.history, weight
         )
     ]
+    load = None
+    if kit is not None:
+        load = carried(kit, plan.prescription.sets, last)
+        if weight is not None:
+            latest = history[0] if history else None
+            suggested = next_weight(plan.prescription, latest, weight, load.increment)
+            load = replace(load, suggested=suggested)
     found = worked(item.exercise.slug)
-    kit = load_kit(item.exercise.slug, plan.step.name)
-    load = (
-        carried(
-            kit,
-            plan.prescription.sets,
-            last_loads(session, item.exercise_id, plan.step.id, plan.history),
-        )
-        if kit is not None
-        else None
-    )
     return ItemPlan(
         exercise=item.exercise.name,
         kind=ExerciseKind(item.exercise.kind),

@@ -7,11 +7,19 @@ and the weight goes up. Each set records its weight in kilograms; empty for body
 The set screen starts at the weight of the same set last time (the carry-over), with - and +
 in the kit's increment, so nothing is typed. With no history it starts at the kit's first
 weight, which the person changes to theirs.
+
+Double progression: reps go up within the range (ADR-0027) at one weight. When every planned
+set of the last session at that weight reached the top of the range, the next weight up is
+suggested, with reps starting again at the bottom; a missed target holds. The person decides:
+a suggestion is a tap on the set screen, never a change made for them.
 """
 
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+
+from training_coach.domain.progression import session_met_top
+from training_coach.domain.targets import Prescription
 
 MAX_KG = 500.0  # a bound for a typed or kept value, far above anyone's lift
 
@@ -42,6 +50,14 @@ FIRST_KG: dict[LoadKit, float] = {
 
 
 @dataclass(frozen=True)
+class NextWeight:
+    """The weight suggested next, and the targets it starts from: the bottom of the range."""
+
+    kg: float
+    targets: tuple[int, ...]
+
+
+@dataclass(frozen=True)
 class Load:
     """A loaded item in a session: its kit, the increment - and + move by, and the weight each
     set starts at. ``carried`` is False when nothing was logged at this step yet."""
@@ -50,6 +66,7 @@ class Load:
     increment: float
     kg: tuple[float, ...]  # one per planned set
     carried: bool
+    suggested: NextWeight | None = None  # every set reached the top last time (double progression)
 
 
 def carried(kit: LoadKit, sets: int, last: Sequence[tuple[int, float]]) -> Load:
@@ -65,6 +82,21 @@ def carried(kit: LoadKit, sets: int, last: Sequence[tuple[int, float]]) -> Load:
         before = [n for n in by_set if n <= number]
         kg.append(by_set[max(before)] if before else first)
     return Load(kit, INCREMENT[kit], tuple(kg), carried=True)
+
+
+def top_weight(last: Sequence[tuple[int, float]]) -> float | None:
+    """A session's weight, for its targets and bests: the heaviest set's. None with none."""
+    return max((kg for _, kg in last), default=None)
+
+
+def next_weight(
+    item: Prescription, last: Sequence[int] | None, kg: float, increment: float
+) -> NextWeight | None:
+    """The next weight up when every planned set of ``last``, the last session's values at
+    weight ``kg``, reached the top of the range; None otherwise, or past the bound."""
+    if last is None or not session_met_top(item, last) or not valid_kg(kg + increment):
+        return None
+    return NextWeight(round(kg + increment, 2), (item.rep_min,) * item.sets)
 
 
 def valid_kg(kg: float) -> bool:

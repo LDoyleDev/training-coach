@@ -7,11 +7,21 @@ import pytest
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import SessionProgress, SessionTemplate, Workout
+from tests import factories
+from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, SetLog, Workout
 from training_coach.db.session import make_session_factory
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.load import Load, LoadKit
-from training_coach.services import guided, queue_actions, today, users, workout_log
+from training_coach.domain.progression import Progress
+from training_coach.services import (
+    blocks,
+    guided,
+    progress,
+    queue_actions,
+    today,
+    users,
+    workout_log,
+)
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -358,9 +368,7 @@ def test_sets_without_times_save_without_them(session: Session) -> None:
 def loaded(monkeypatch: pytest.MonkeyPatch) -> None:
     """The jump squat, Legs' first exercise, as if its step took dumbbells."""
     monkeypatch.setattr(
-        today,
-        "load_kit",
-        lambda slug, step: LoadKit.DUMBBELLS if slug == "jump-squat" else None,
+        blocks, "_load_kits", lambda: factories.loads("jump-squat", LoadKit.DUMBBELLS)
     )
 
 
@@ -413,3 +421,76 @@ def test_progress_kept_before_loads_still_loads(session: Session) -> None:
     kept = guided.kept(seeded, DAY)
     assert kept is not None
     assert kept.sets[0].load_kg is None
+
+
+def _logged(session: Session, day: date, reps: int, kg: float) -> int:
+    """Three sets of the jump squat at its current step, as a done workout on ``day``."""
+    jump = session.scalars(select(Exercise).where(Exercise.slug == "jump-squat")).one()
+    state = users.exercise_state(session, jump.id)
+    assert state is not None
+    workout = Workout(local_date=day, status=WorkoutStatus.DONE)
+    workout.sets.extend(
+        SetLog(
+            exercise_id=jump.id,
+            ladder_step_id=state.ladder_step_id,
+            set_no=n,
+            value=reps,
+            load_kg=kg,
+        )
+        for n in (1, 2, 3)
+    )
+    session.add(workout)
+    session.flush()
+    return workout.id
+
+
+@pytest.mark.usefixtures("loaded")
+def test_every_set_at_the_top_suggests_the_next_weight_which_starts_afresh(
+    session: Session,
+) -> None:
+    """Double progression (ADR-0072): the suggestion is offered, never applied; a heavier
+    weight's targets grow from its own sessions."""
+    seeded = _seeded(session)
+    template = _plan(seeded).template_id
+    _logged(seeded, DAY - timedelta(days=7), 30, 12.0)
+    first = today.session_plan(seeded, template)
+    assert first is not None
+    load = first.items[0].load
+    assert load is not None
+    assert load.kg == (12.0, 12.0, 12.0)  # still last time's weight until the person taps
+    assert load.suggested is not None
+    assert load.suggested.kg == 14.0
+    bottom = load.suggested.targets[0]
+    assert load.suggested.targets == (bottom,) * 3
+    assert first.items[0].targets[0] > bottom  # at the top of the range at 12 kg
+
+    _logged(seeded, DAY - timedelta(days=3), bottom, 14.0)
+    second = today.session_plan(seeded, template)
+    assert second is not None
+    heavier = second.items[0]
+    assert heavier.load is not None
+    assert (heavier.load.kg, heavier.load.suggested) == ((14.0,) * 3, None)
+    assert heavier.targets[0] < first.items[0].targets[0]  # from 14 kg's own session
+
+
+@pytest.mark.usefixtures("loaded")
+def test_a_strength_block_keeps_a_loaded_step_without_the_tempo_cue(session: Session) -> None:
+    seeded = _seeded(session)
+    jump = seeded.scalars(select(Exercise).where(Exercise.slug == "jump-squat")).one()
+    step, at_top = blocks.step_for(seeded, jump, strength=True)
+    state = users.exercise_state(seeded, jump.id)
+    assert state is not None
+    assert (step.id, at_top) == (state.ladder_step_id, False)
+
+
+@pytest.mark.usefixtures("loaded")
+def test_bests_count_at_the_same_weight_only(session: Session) -> None:
+    """More reps at a lighter weight is no record; more at the same weight is."""
+    seeded = _seeded(session)
+    _logged(seeded, DAY - timedelta(days=7), 10, 20.0)
+    lighter = _logged(seeded, DAY - timedelta(days=5), 12, 16.0)
+    (found,) = progress.feedback(seeded, lighter)
+    assert (found.bests.best_set, found.status) == (None, Progress.HOLD)
+    same = _logged(seeded, DAY - timedelta(days=3), 11, 20.0)
+    (found,) = progress.feedback(seeded, same)
+    assert found.bests.best_set == 11
