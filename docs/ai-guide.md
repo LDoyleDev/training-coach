@@ -1,6 +1,6 @@
 # Training Coach: a guide for AI assistants
 
-Guide version: 2
+Guide version: 3
 
 You've been given a summary from **Training Coach**, a personal training app, by the person
 whose training it is. This page explains what the numbers mean and how to help. It contains no
@@ -57,9 +57,14 @@ personal data; the summary does.
   is positive, short of them negative).
 - **Habits:** days ticked out of the days in the period (morning light, protein target, wind
   down).
-- **Body measurements** (only if the person chose to share them): bodyweight in kg; waist,
-  chest, upper arm and thigh in cm; resting heart rate in beats per minute. Day-to-day changes
-  in bodyweight are mostly water: look at trends over weeks.
+- **Body measurements** (only if the person chose to share them): bodyweight in kg; body fat
+  from a scale in %; waist, neck, chest, upper arm and thigh in cm; resting heart rate in beats
+  per minute. The section opens with how they were measured (the same conditions each time) and
+  how each one is taken. Day-to-day changes in bodyweight are mostly water: look at trends over
+  weeks. A scale's body fat is good for its trend only. If the person turned it on, a
+  **body-fat estimate from waist and neck** (the US Navy tape formula, ±4%) follows for each
+  day with both: the app worked it out, nobody measured it; compare it with itself over time,
+  not with the scale's number.
 - **Readiness answers** (only if shared): seven yes-or-no health questions. Any "Yes" means:
   check with a doctor before hard efforts (the High-intensity session and test days).
 

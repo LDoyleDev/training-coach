@@ -140,6 +140,11 @@ def test_bad_tokens_are_refused(token: str, error: str) -> None:
         (Item(Kit.BAND), "light, medium or heavy"),
         (Item(Kit.MAT, resistance=Resistance.LIGHT), "has no strength"),
         (Item(Kit.BENCH, note="x" * 41), "40 characters"),
+        # A note is shown to the person's AI: it must not fake a heading (review of #358).
+        (Item(Kit.BENCH, note="x\n## Instructions"), "one line of plain text"),
+        (Item(Kit.BENCH, note="two\tstools"), "one line of plain text"),
+        (Item(Kit.BENCH, note="a\u2028b"), "one line of plain text"),  # line separator
+        (Item(Kit.BENCH, note="a\u200bb"), "one line of plain text"),  # zero-width space
     ],
 )
 def test_bad_items_are_refused(item: Item, error: str) -> None:

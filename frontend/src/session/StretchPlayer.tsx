@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type Routine, fetchSettings } from '../api'
 import Figure from '../figures/Figure'
-import { type Sound, playChange } from '../hiit/sounds'
+import { DEFAULT_SOUND, type Sound, playChange } from '../hiit/sounds'
 import { card, primary, secondary } from '../ui'
 import {
   type Cue,
@@ -50,7 +50,7 @@ export default function StretchPlayer({
     [routine],
   )
   const total = totalSeconds(parts)
-  const [sound, setSound] = useState<Sound>('chime') // the person's choice, from Settings
+  const [sound, setSound] = useState<Sound>(DEFAULT_SOUND) // the person's choice, from Settings
 
   useEffect(() => {
     const ask = new AbortController()

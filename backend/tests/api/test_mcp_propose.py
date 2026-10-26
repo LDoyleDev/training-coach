@@ -911,6 +911,48 @@ def test_a_measurement_it_replaces_is_named_on_the_card_only(
     assert client.get("/api/proposals").json()[1]["replaces"] is None
 
 
+def test_a_far_measurement_warns_on_the_card_and_with_the_body_scope(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    """ADR-0076: the same "re-measure?" line as the Body page, on the card, in Telegram and
+    in the answer; the answer only for an AI that may read body data anyway."""
+    before = _today() - timedelta(days=13)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        mine.add(Measurement(local_date=before, kind="waist", tenths=850))
+    day = f"{before.day} {before:%b}" + ("" if before.year == _today().year else f" {before.year}")
+    warning = f"Waist is 3.5 cm off your last ({day}): different landmark? Re-measure."
+    answer = propose(client, token, kind="body", measurements={"waist": 88.5, "neck": 39})
+    assert "Re-measure" not in answer["content"][0]["text"]  # no body:read
+    (card,) = client.get("/api/proposals").json()
+    assert card["warnings"] == [warning]
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        (waiting,) = proposals.pending(mine, datetime.now(UTC))
+    assert waiting.text.endswith(f"\n{warning}")  # as Telegram sends it
+    reader = flow.mint(engine, [*PROPOSE, "body:read"])
+    answer = propose(client, reader, kind="body", measurements={"waist": 88.5})
+    assert answer["content"][0]["text"].endswith(f"The card also says:\n{warning}")
+    proposed(client, token, kind="habits", habits=["protein"])
+    assert client.get("/api/proposals").json()[2]["warnings"] == []
+
+
+def test_the_new_kinds_can_be_proposed_and_the_schema_says_how(
+    client: TestClient, token: str
+) -> None:
+    propose(client, token, kind="body", measurements={"neck": 39.5, "body_fat_scale": 21.3})
+    (card,) = client.get("/api/proposals").json()
+    assert "Body fat (scale) 21.3 %" in card["summary"]
+    assert "Neck 39.5 cm" in card["summary"]
+    shown = proposals.INPUT_SCHEMA["properties"]["measurements"]["properties"]
+    assert shown["neck"] == {
+        "type": "number",
+        "minimum": 20,
+        "maximum": 70,
+        "description": "Neck, cm: Just below the larynx (Adam's apple), the tape sloping "
+        "slightly down at the front.",
+    }
+    assert "a set distance above the top of the kneecap" in shown["thigh"]["description"]
+
+
 def test_an_ended_connection_proposes_nothing_and_its_cards_go(
     client: TestClient, engine: Engine, token: str
 ) -> None:

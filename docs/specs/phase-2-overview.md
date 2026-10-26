@@ -51,6 +51,9 @@ summaries #116 (done). Plan changes keep history: #107 (done).
 - Measurements (bodyweight, waist, chest, upper arm, thigh, resting heart rate) entered in the
   web app at `/body` (#142, web-first per ADR-0035), with the change since the first and the
   last; never logged.
+- The measuring protocol, the neck and a scale's body fat, the tape body-fat estimate, the
+  bodyweight 7-day average and the re-measure warnings: ADR-0076 (backend built; the web app's
+  part is the next PR).
 - Photos stored on the Pi (D3); never in logs, never in share views (ADR-0012), excluded from
   any public endpoint (ADR-0019); the nightly backup and the desktop pull include them. Built
   (#143): rows in the database, cleaned of metadata on the server, taken or chosen on `/body`
