@@ -166,6 +166,10 @@ Each PR under about 400 changed lines, not counting generated files.
 
 ## Risks
 
+- **An expired changes token loses deletions.** Health Connect keeps a token for about 30 days;
+  after that the reader reads the last 24 hours again, which brings back what was written but
+  not what was deleted meanwhile. A night or workout deleted in Health Connect during that gap
+  stays in the coach until it is deleted there by hand (review of #374).
 - **The quota still exists.** We use far less of it, but Google doesn't publish the limits.
   The screen shows the quota error when it happens, with the read that hit it and the sync's
   read count, so a reader bug that loops (0.0.3's 202 reads) is told apart from the limit. A

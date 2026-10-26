@@ -126,6 +126,8 @@ class HealthReader(context: Context) {
         while (true) {
             if (reads.left <= 0) return collapse(found, next, more = true)
             val response = read("$name changes") { client.getChanges(next) }
+            // An expired token: the changes read so far are dropped, since the history read
+            // replaces them. Deletions made while the token was dead are never sent (spec, Risks).
             if (response.changesTokenExpired) return fromHistory(type, name, now)
             response.changes.forEach { change ->
                 if (change is UpsertionChange && type.java.isInstance(change.record)) {
