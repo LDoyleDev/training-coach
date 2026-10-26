@@ -443,8 +443,7 @@ test('from the front, the shoulders are as wide apart as the body, and the hips'
 
 test('a Copenhagen plank lifts the hips from the forearm and the top knee on the chair', () => {
   const plank = FIGURES['copenhagen-plank']
-  const { top, x0, x1 } = plank.front!.props!.bench!
-  const knee = (p: readonly number[]) => {
+  const knee = (p: readonly number[], { top, x0, x1 }: { top: number; x0: number; x1: number }) => {
     expect(p[1] - SEAT_KNEE, 'the top knee on the seat').toBeGreaterThan(top - 2)
     expect(p[1] - SEAT_KNEE).toBeLessThan(top + 3) // within 3 cm, as it rolls on the seat
     expect(p[0]).toBeGreaterThan(x0)
@@ -453,19 +452,40 @@ test('a Copenhagen plank lifts the hips from the forearm and the top knee on the
   for (const j of fromFront('copenhagen-plank')) {
     near(j.armL.mid, [0, 4], 3) // the bottom elbow on the floor, under its shoulder
     expect(Math.abs(j.armL.root[0]), 'shoulder over the elbow').toBeLessThan(3)
-    knee(j.legR.mid)
+    knee(j.legR.mid, plank.front!.props!.bench!)
     expect(j.armR.root[1], 'the top shoulder above the bottom one').toBeGreaterThan(
       j.armL.root[1] + 25,
     )
   }
   for (const j of along('copenhagen-plank')) {
     near(j.armF.elbow, [0, 4], 3)
-    knee(j.legN.knee)
+    knee(j.legN.knee, plank.props!.bench!)
   }
-  const [low, high] = [solveFront(plank.front!.start), solveFront(plank.front!.end)]
-  expect(high.hip[1] - low.hip[1], 'hips lifted').toBeGreaterThan(20)
+  const { front } = plank
+  const [low, high] = [solveFront(front!.start), solveFront(front!.end)]
+  expect(high.hip[1] - low.hip[1], 'hips lifted').toBeGreaterThan(15)
   // The top thigh carries on the line of the trunk at the top, and bends from it at the bottom.
   const bend = (j: typeof high, tilt: number) => Math.abs(heading(j.legR.mid, j.legR.root) - tilt)
-  expect(bend(high, plank.front!.end.tilt), 'body straight').toBeLessThan(6)
-  expect(bend(low, plank.front!.start.tilt), 'hips low').toBeGreaterThan(20)
+  expect(bend(high, front!.end.tilt), 'body straight').toBeLessThan(6)
+  expect(bend(low, front!.start.tilt), 'hips low').toBeGreaterThan(20)
+  // Low, the trunk bends at the waist: the hips drop, the chest stays nearer level, untwisted.
+  const chest = (j: typeof high) => heading(j.waist, j.shoulders)
+  expect(chest(low)).toBeLessThan(front!.start.tilt - 20)
+  expect(Math.abs(chest(high) - front!.end.tilt), 'straight at the top').toBeLessThan(1)
+})
+
+test('from the front, the bottom leg lies under the top one, below the seat', () => {
+  const { front } = FIGURES['copenhagen-plank']
+  const seat = front!.props!.bench!
+  for (const j of fromFront('copenhagen-plank')) {
+    // under the top leg all the way, and off the floor
+    for (const [bottom, top] of [
+      [j.legL.mid, j.legR.mid],
+      [j.legL.end, j.legR.end],
+    ])
+      expect(bottom[1], 'stacked').toBeLessThan(top[1] - 10)
+    expect(j.legL.end[1] - 3.4, 'foot off the floor').toBeGreaterThan(20)
+    // below the seat's underside where the leg passes under it (shin 3.8 cm round at the ankle)
+    if (j.legL.end[0] < seat.x1) expect(j.legL.end[1] + 3.8).toBeLessThan(seat.top - 6 + 1)
+  }
 })

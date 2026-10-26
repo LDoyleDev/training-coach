@@ -27,7 +27,9 @@ export type Part = 'armN' | 'armF' | 'legN' | 'legF' | 'torso' | 'head' | 'bell'
 
 export interface Props {
   mat?: readonly [number, number] // from x to x, on the floor
-  chair?: { x0: number; x1: number; seat: number }
+  /** A chair, its back at ``x0``; ``beside`` is one each side of you, seen as one chair in
+   * front of the figure, as the near one hides the far one. */
+  chair?: { x0: number; x1: number; seat: number; beside?: boolean }
   /** A bench or a bed; ``behind`` puts it on the far side of the figure, in the far tone, so
    * the near leg and arm read as in front of it. */
   bench?: { x0: number; x1: number; top: number; behind?: boolean }
@@ -282,7 +284,7 @@ export function scenery(props: Props): Shape[] {
       width: props.mat[1] - props.mat[0],
       height: 1.2,
     })
-  if (props.chair) out.push(...chair(props.chair))
+  if (props.chair && !props.chair.beside) out.push(...chair(props.chair))
   if (props.bench) out.push(...bench(props.bench))
   if (props.bar) out.push(...bracket(props.bar))
   if (props.bars) out.push(...bars(props.bars))
@@ -310,5 +312,6 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
     if (part === 'armF' && props.bell === 'sides') out.push(...hanging(j.armF.wrist, 6.8))
   }
   if (props.bar) out.push(ball(props.bar, BAR, 'bell'))
+  if (props.chair?.beside) out.push(...chair(props.chair))
   return out
 }

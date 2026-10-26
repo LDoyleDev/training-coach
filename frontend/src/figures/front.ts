@@ -21,7 +21,9 @@ export interface FrontLimb {
 
 export interface FrontPose {
   hip: Vec // midway between the hip joints
-  tilt: number // from the hips towards the neck, degrees (90 upright)
+  tilt: number // from the hips towards the waist, degrees (90 upright)
+  /** The trunk bending sideways at the waist: the chest's tilt less the hips'. */
+  bend?: number
   armL: FrontLimb
   armR: FrontLimb
   legL: FrontLimb
@@ -57,11 +59,13 @@ export interface FrontJoints {
 /** Every joint of ``pose`` seen from the front. */
 export function solveFront(pose: FrontPose): FrontJoints {
   const { hip, tilt } = pose
+  const chest = tilt + (pose.bend ?? 0)
   const waist = along(hip, tilt, BODY.pelvis)
-  const neckBase = along(waist, tilt, BODY.chest)
-  const shoulders = along(waist, tilt, BODY.chest - BODY.shoulderDrop)
-  const neckTop = along(neckBase, tilt, BODY.neck)
-  const side = (p: Vec, half: number, left: boolean) => along(p, tilt + (left ? -90 : 90), half)
+  const neckBase = along(waist, chest, BODY.chest)
+  const shoulders = along(waist, chest, BODY.chest - BODY.shoulderDrop)
+  const neckTop = along(neckBase, chest, BODY.neck)
+  const side = (p: Vec, half: number, left: boolean, dir: number) =>
+    along(p, dir + (left ? -90 : 90), half)
 
   const place = (limb: FrontLimb, root: Vec, a: number, b: number, tipLen: number) => {
     const target = limb.from === 'waist' ? inFrame(waist, tilt, limb.at) : limb.at
@@ -71,9 +75,15 @@ export function solveFront(pose: FrontPose): FrontJoints {
     return { root, mid, end, tip: along(end, limb.angle ?? heading(mid, end), tipLen) }
   }
   const arm = (limb: FrontLimb, left: boolean) =>
-    place(limb, side(shoulders, WIDTH.shoulder, left), BODY.upperArm, BODY.forearm, BODY.hand)
+    place(
+      limb,
+      side(shoulders, WIDTH.shoulder, left, chest),
+      BODY.upperArm,
+      BODY.forearm,
+      BODY.hand,
+    )
   const leg = (limb: FrontLimb, left: boolean) =>
-    place(limb, side(hip, WIDTH.hip, left), BODY.thigh, BODY.shin, FOOT)
+    place(limb, side(hip, WIDTH.hip, left, tilt), BODY.thigh, BODY.shin, FOOT)
 
   return {
     hip,
@@ -81,7 +91,7 @@ export function solveFront(pose: FrontPose): FrontJoints {
     shoulders,
     neckBase,
     neckTop,
-    head: along(neckTop, tilt, 9.5),
+    head: along(neckTop, chest, 9.5),
     armL: arm(pose.armL, true),
     armR: arm(pose.armR, false),
     legL: leg(pose.legL, true),
@@ -147,7 +157,7 @@ export function frontShapes(
     else if (part === 'legL') out.push(...frontLeg(j.legL, 'far'))
     else if (part === 'legR') out.push(...frontLeg(j.legR, 'near'))
     else if (part === 'torso') out.push(...frontTrunk(j, pose.tilt, 'near'))
-    else out.push(...frontHead(j, pose.tilt, 'near'))
+    else out.push(...frontHead(j, pose.tilt + (pose.bend ?? 0), 'near'))
   }
   return out
 }

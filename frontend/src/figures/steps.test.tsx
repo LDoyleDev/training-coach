@@ -99,6 +99,35 @@ test('on dip bars the hands stay on the bar and the feet stay off the floor', ()
   expect(Math.abs(down.armN.elbow[1] - down.shoulder[1]), 'upper arm about level').toBeLessThan(8)
 })
 
+test('feet off the floor, the dip hangs between two chairs, knees bent, feet behind', () => {
+  const steps = ['Feet off floor', 'Feet off floor, 5 kg vest or backpack', 'Feet off floor, 10 kg']
+  for (const step of steps) {
+    const dip = figureFor('dip', step)!
+    const { seat, beside } = dip.props!.chair!
+    expect(beside, step).toBe(true)
+    expect(dip.props!.load ?? false, step).toBe(step !== 'Feet off floor')
+    for (const t of ALONG) {
+      const j = solve(blend(dip.start, dip.end, t))
+      for (const arm of [j.armN, j.armF]) expect(arm.wrist[1] - seat).toBeCloseTo(3.4, 0)
+      for (const leg of [j.legN, j.legF]) {
+        expect(leg.knee[1] - 5.4, `${step}: knee off the floor`).toBeGreaterThan(5)
+        expect(Math.min(leg.heel[1], leg.ball[1], leg.tip[1]), 'feet off').toBeGreaterThan(20)
+        expect(leg.ankle[0], 'feet behind the knees').toBeLessThan(leg.knee[0] - 25)
+      }
+    }
+    const [up, down] = [solve(dip.start), solve(dip.end)]
+    expect(dist(up.shoulder, up.armN.wrist), 'arms straight').toBeGreaterThan(54)
+    expect(down.armN.elbow[0], 'elbows back').toBeLessThan(down.shoulder[0] - 15)
+    expect(up.shoulder[1] - down.shoulder[1], 'down').toBeGreaterThan(20)
+    // The near chair hides the far one, so it is drawn last, in front of the body.
+    const drawn = shapes(dip.start, dip.props, dip.order)
+    const tone = (shape?: Shape) => (shape && 'tone' in shape ? shape.tone : undefined)
+    expect(tone(drawn.at(-1))).toBe('prop')
+    expect(tone(drawn[0])).not.toBe('prop')
+  }
+  expect(figureFor('dip', 'Feet on floor')!.props!.chair!.beside).toBeUndefined()
+})
+
 test("a suitcase hold hangs a bell from each hand, the heavier on the front leg's side", () => {
   const split = figureFor('bulgarian-split-squat', 'Suitcase hold, 16 kg + 8 kg')!
   for (const pose of [split.start, split.end]) {
