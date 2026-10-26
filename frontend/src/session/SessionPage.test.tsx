@@ -936,7 +936,8 @@ test('an exercise that works no muscle has no muscles line or figures', async ()
 
 test('a drawn exercise always shows its movement, with no toggle', async () => {
   const pushUp = { ...SESSION.items[0], slug: 'push-up', name: 'Push-up' }
-  serve({ today: { session: { ...SESSION, items: [pushUp, SESSION.items[1]] }, progress: null } })
+  const undrawn = { ...SESSION.items[1], slug: 'not-drawn-yet' }
+  serve({ today: { session: { ...SESSION, items: [pushUp, undrawn] }, progress: null } })
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
   expect(screen.getByRole('img', { name: /^Push-up, moving from:/ })).toBeInTheDocument()
@@ -1001,9 +1002,14 @@ test("a rest counts its last 3 seconds and ends in the person's timer sound", as
   expect(playChange).not.toHaveBeenCalled() // nothing plays on Start
   click('Confirm set')
   await screen.findByText('0:15')
-  act(() => vi.advanceTimersByTime(11_000))
+  // A tick at a time, each in its own act, so the rest's ticker is running as it would be in a
+  // browser; one big jump could land after the rest's end before the ticker started.
+  const tick = (ms: number) => {
+    for (let t = 0; t < ms; t += 250) act(() => vi.advanceTimersByTime(250))
+  }
+  tick(11_000)
   expect(playChange).not.toHaveBeenCalled()
-  act(() => vi.advanceTimersByTime(4_500))
+  tick(4_500)
   expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
   expect(vi.mocked(playChange).mock.calls).toEqual([
     ['wood', 'count'],

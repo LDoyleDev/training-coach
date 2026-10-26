@@ -120,7 +120,10 @@ TOOLS = (
     Tool(
         "get_body",
         "Body measurements",
-        "Body measurements for a period (health data).",
+        "Body measurements for a period (health data): bodyweight, a scale's body fat, "
+        "waist, neck, chest, upper arm, thigh and resting heart rate, after how they were "
+        "measured and how each is taken; and, if the person turned it on, a body-fat estimate "
+        "from waist and neck (±4%), worked out by the app.",
         Scope.BODY,
         _PERIOD,
     ),
@@ -135,8 +138,9 @@ TOOLS = (
         PROPOSE,
         "Propose a log",
         "Propose something for the person to log: strength sets (exercise names as in the "
-        "plan, one number per set), cardio minutes, habits done, or body weight and girths, "
-        "for today or an earlier day. For cardio, `cardio` (zone2 or moderate-cardio) is an "
+        "plan, one number per set), cardio minutes, habits done, or body measurements "
+        "(weight, a scale's body fat, girths; never resting heart rate or the estimate), for "
+        "today or an earlier day. For cardio, `cardio` (zone2 or moderate-cardio) is an "
         "optional hint: the person picks which it was on the card. For a run or ride the "
         "person shares a screenshot of, also send what it shows: distance_km, avg_hr, max_hr "
         "and the start time; leave out anything you can't read. When it shows both moving (or "

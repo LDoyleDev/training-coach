@@ -194,6 +194,59 @@ def test_move_up_goes_to_the_next_step_the_kit_allows(plan: Session) -> None:
     )
 
 
+def _needs(monkeypatch: pytest.MonkeyPatch, slug: str, needs: dict[str, list[str]]) -> None:
+    """Give one exercise's steps these needs, through the service the progress code reads."""
+    real = equipment.step_needs
+    monkeypatch.setattr(equipment, "step_needs", lambda s: needs if s == slug else real(s))
+
+
+def test_move_up_skips_a_locked_step_to_the_next_open_one(
+    plan: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review of #358: with a saved kit, Move up lands on the next open step, past a locked
+    one, and answers no_next_step once the kit blocks the rest."""
+    bar = ["pull-up bar"]
+    _needs(
+        monkeypatch,
+        "pull-up",
+        {"Slow negatives": bar, "Strict pull-up": bar, "Pause at top": ["rings"]}
+        | {"Vest or backpack, 5 kg": bar},
+    )
+    equipment.save(plan, [Item(Kit.PULL_UP_BAR)], NOW)
+    strict = _put(plan, "pull-up", 1)
+    _ready(plan, strict, "torso", [12, 12, 12, 12])
+    move = progress.move_up(plan, strict.exercise_id, strict.id)
+    assert move is not None
+    assert (move.outcome, move.step) == (MoveOutcome.MOVED, "Vest or backpack, 5 kg")
+
+    vest = ("Vest or backpack, 5 kg", "Vest or backpack, 10 kg", "Vest or backpack, 15 kg")
+    _needs(monkeypatch, "pull-up", {name: ["rings"] for name in ("Pause at top", *vest)})
+    _put(plan, "pull-up", 1)
+    blocked = progress.move_up(plan, strict.exercise_id, strict.id)
+    assert blocked is not None
+    assert blocked.outcome is MoveOutcome.NO_NEXT_STEP
+    assert _on(plan, strict.exercise_id) == strict.id
+
+
+def test_with_no_kit_listed_nothing_locks_through_the_service(plan: Session) -> None:
+    """Review of #358: no kit saved, so Move up, a level by hand and feedback behave as
+    before: no skipping, no warning, no unlock."""
+    step = _put(plan, "kb-swing", 1)
+    last = _ready(plan, step)
+    (item,) = progress.feedback(plan, last)
+    assert item.unlock is None
+    move = progress.move_up(plan, step.exercise_id, step.id)
+    assert move is not None
+    assert (move.outcome, move.step, move.warning) == (
+        MoveOutcome.MOVED,
+        "Two-hand, 16 kg",
+        None,
+    )
+    back = progress.set_level(plan, step.exercise_id, _exercise(plan, "kb-swing").ladder[0].id)
+    assert back is not None
+    assert (back.outcome, back.warning) == (MoveOutcome.LEVEL_SET, None)
+
+
 def test_a_locked_level_can_be_chosen_with_a_warning(plan: Session) -> None:
     equipment.save(plan, [KB8], NOW)
     exercise = _exercise(plan, "kb-swing")

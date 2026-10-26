@@ -29,6 +29,8 @@ class ProposalView(BaseModel):
     # person picks zone 2 or moderate on the card (ADR-0067, 2026-10-24).
     suggested: proposals.CardioKind | None = None
     suggestion: str | None = None
+    # Body: "Waist is 3.5 cm off your last (12 Oct): different landmark? Re-measure." (ADR-0076)
+    warnings: list[str] = []
 
 
 class ProposalToken(BaseModel):
@@ -66,6 +68,7 @@ def waiting(request: Request, user: Owner) -> list[ProposalView]:
             expires_at=p.expires_at,
             suggested=p.suggested,
             suggestion=p.suggestion,
+            warnings=list(p.warnings),
         )
         for p in found
     ]
