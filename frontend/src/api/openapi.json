@@ -1184,6 +1184,65 @@
         "title": "Energy",
         "type": "string"
       },
+      "EquipmentBody": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KitItemBody"
+            },
+            "maxItems": 60,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "EquipmentBody",
+        "type": "object"
+      },
+      "EquipmentView": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KitItemView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kinds": {
+            "items": {
+              "$ref": "#/components/schemas/KitKindView"
+            },
+            "title": "Kinds",
+            "type": "array"
+          },
+          "listed": {
+            "title": "Listed",
+            "type": "boolean"
+          },
+          "saved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved At"
+          }
+        },
+        "required": [
+          "listed",
+          "saved_at",
+          "items",
+          "kinds"
+        ],
+        "title": "EquipmentView",
+        "type": "object"
+      },
       "EraseRequest": {
         "properties": {
           "confirm": {
@@ -2302,6 +2361,195 @@
         "title": "KindView",
         "type": "object"
       },
+      "Kit": {
+        "description": "Equipment a ladder step needs. Household things (a chair, a bed, a wall, a towel, water\nbottles, a stair) need nothing. A kettlebell names its weight: ``kettlebell:16``; dumbbells\nand a weighted vest or backpack may name the load a step needs: ``dumbbells:12``,\n``backpack:10`` (ADR-0071).",
+        "enum": [
+          "kettlebell",
+          "dumbbells",
+          "pull-up bar",
+          "dip bars",
+          "bench",
+          "band",
+          "backpack",
+          "rings",
+          "mat",
+          "ab wheel",
+          "box"
+        ],
+        "title": "Kit",
+        "type": "string"
+      },
+      "KitItemBody": {
+        "properties": {
+          "kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kg"
+          },
+          "kit": {
+            "$ref": "#/components/schemas/Kit"
+          },
+          "min_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Kg"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 40,
+            "title": "Note",
+            "type": "string"
+          },
+          "resistance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resistance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kit"
+        ],
+        "title": "KitItemBody",
+        "type": "object"
+      },
+      "KitItemView": {
+        "properties": {
+          "kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kg"
+          },
+          "kit": {
+            "$ref": "#/components/schemas/Kit"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "min_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Kg"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 40,
+            "title": "Note",
+            "type": "string"
+          },
+          "resistance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resistance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kit",
+          "label"
+        ],
+        "title": "KitItemView",
+        "type": "object"
+      },
+      "KitKindView": {
+        "properties": {
+          "kit": {
+            "$ref": "#/components/schemas/Kit"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kit",
+          "name"
+        ],
+        "title": "KitKindView",
+        "type": "object"
+      },
+      "KitUnlockedView": {
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exercise",
+          "slug",
+          "step"
+        ],
+        "title": "KitUnlockedView",
+        "type": "object"
+      },
+      "KitUnlocksView": {
+        "properties": {
+          "item": {
+            "title": "Item",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/KitUnlockedView"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item",
+          "summary",
+          "steps"
+        ],
+        "title": "KitUnlocksView",
+        "type": "object"
+      },
       "LadderView": {
         "properties": {
           "bests": {
@@ -3076,12 +3324,24 @@
               }
             ],
             "title": "Step"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
           }
         },
         "required": [
           "outcome",
           "exercise",
-          "step"
+          "step",
+          "warning"
         ],
         "title": "MovedView",
         "type": "object"
@@ -4056,6 +4316,16 @@
         "title": "Refusal",
         "type": "string"
       },
+      "Resistance": {
+        "description": "A resistance band's strength.",
+        "enum": [
+          "light",
+          "medium",
+          "heavy"
+        ],
+        "title": "Resistance",
+        "type": "string"
+      },
       "ResourceMetadata": {
         "properties": {
           "authorization_servers": {
@@ -4405,6 +4675,13 @@
             "title": "Id",
             "type": "integer"
           },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -4413,7 +4690,8 @@
         "required": [
           "id",
           "name",
-          "cue"
+          "cue",
+          "missing"
         ],
         "title": "RungView",
         "type": "object"
@@ -5146,6 +5424,17 @@
             ],
             "title": "Unit",
             "type": "string"
+          },
+          "unlock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unlock"
           }
         },
         "required": [
@@ -5161,13 +5450,18 @@
           "best_set",
           "status",
           "retired",
-          "trend"
+          "trend",
+          "unlock"
         ],
         "title": "StandingView",
         "type": "object"
       },
       "StandingsView": {
         "properties": {
+          "kit_listed": {
+            "title": "Kit Listed",
+            "type": "boolean"
+          },
           "standings": {
             "items": {
               "$ref": "#/components/schemas/StandingView"
@@ -5188,6 +5482,7 @@
         "required": [
           "today",
           "strength_block",
+          "kit_listed",
           "standings"
         ],
         "title": "StandingsView",
@@ -7438,6 +7733,115 @@
         "summary": "Get Day",
         "tags": [
           "day"
+        ]
+      }
+    },
+    "/api/equipment": {
+      "get": {
+        "description": "The kit as listed; ``listed`` is false until it has been saved once.",
+        "operationId": "get_equipment_api_equipment_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Equipment",
+        "tags": [
+          "equipment"
+        ]
+      },
+      "put": {
+        "description": "Replace the whole kit. An empty list is a kit too: bodyweight only, so every step that\nneeds kit locks. Refused whole, with the reason, if any item doesn't fit.",
+        "operationId": "put_equipment_api_equipment_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EquipmentBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Equipment",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/api/equipment/unlocks": {
+      "get": {
+        "description": "What adding one item would open, against the kit as listed: ``kettlebell:16``,\n``dumbbells:12``, ``dumbbells:2-24``, ``backpack:10``, ``band:light``, ``pull-up bar``.",
+        "operationId": "get_unlocks_api_equipment_unlocks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "add",
+            "required": true,
+            "schema": {
+              "examples": [
+                "kettlebell:16"
+              ],
+              "maxLength": 40,
+              "title": "Add",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitUnlocksView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Unlocks",
+        "tags": [
+          "equipment"
         ]
       }
     },

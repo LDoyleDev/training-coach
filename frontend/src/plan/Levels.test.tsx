@@ -5,10 +5,10 @@ import Levels from './Levels'
 import { moveHref, nextRung, said, wanted } from './ladder'
 
 const LADDER = [
-  { id: 1, name: 'Slow negatives', cue: null },
-  { id: 2, name: 'Strict pull-up', cue: null },
-  { id: 3, name: 'Pause at top', cue: 'Hold two seconds with your chin over the bar' },
-  { id: 4, name: 'Weighted backpack', cue: null },
+  { id: 1, name: 'Slow negatives', cue: null, missing: [] },
+  { id: 2, name: 'Strict pull-up', cue: null, missing: [] },
+  { id: 3, name: 'Pause at top', cue: 'Hold two seconds with your chin over the bar', missing: [] },
+  { id: 4, name: 'Weighted backpack', cue: null, missing: [] },
 ]
 
 const make = (over: Partial<Standing> = {}): Standing => ({
@@ -25,6 +25,7 @@ const make = (over: Partial<Standing> = {}): Standing => ({
   status: 'ready',
   retired: false,
   trend: [],
+  unlock: null,
   ...over,
 })
 
@@ -33,7 +34,12 @@ type Calls = { path: string; body: unknown }[]
 /** Serves /api/progress (each answer in turn, the last repeated) and records each move. */
 function serve(
   answers: ({ standings: Standing[]; strength_block?: boolean } | number)[],
-  moved: Moved | number = { outcome: 'moved', exercise: 'Pull-up', step: 'Pause at top' },
+  moved: Moved | number = {
+    outcome: 'moved',
+    exercise: 'Pull-up',
+    step: 'Pause at top',
+    warning: null,
+  },
 ): Calls {
   const calls: Calls = []
   let n = 0
@@ -95,6 +101,7 @@ test('a ready exercise offers Move up and Not yet, with its ladder, last, best a
 test('Not yet stays on the step the page showed', async () => {
   const calls = serve([{ standings: [make()] }], {
     outcome: 'stayed',
+    warning: null,
     exercise: 'Pull-up',
     step: 'Strict pull-up',
   })
@@ -108,6 +115,7 @@ test('Not yet stays on the step the page showed', async () => {
 test('not ready: no Move up, but any level can be chosen, with a confirm', async () => {
   const calls = serve([{ standings: [make({ status: 'hold', last: [], best_set: null })] }], {
     outcome: 'level_set',
+    warning: null,
     exercise: 'Pull-up',
     step: 'Slow negatives',
   })
@@ -215,7 +223,7 @@ test('signed out shows nothing (the plan says to sign in); an error says so', as
 
 test('every outcome is said in plain words', () => {
   const say = (outcome: Moved['outcome'], step: string | null = 'Pause at top') =>
-    said({ outcome, exercise: 'Pull-up', step })
+    said({ outcome, exercise: 'Pull-up', step, warning: null })
   expect(say('already_moved')).toMatch(/already moved on/)
   expect(say('not_ready')).toBe("Pull-up doesn't meet the rule any more. Keep going.")
   expect(say('no_next_step')).toBe('Pull-up is on the last step in your plan.')

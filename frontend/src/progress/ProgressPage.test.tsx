@@ -21,6 +21,7 @@ const make = (over: Partial<Standing>): Standing => ({
   status: 'hold',
   retired: false,
   trend: [],
+  unlock: null,
   ...over,
 })
 

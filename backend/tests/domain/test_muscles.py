@@ -15,6 +15,9 @@ def test_kit_with_and_without_a_weight() -> None:
     assert parse_need("kettlebell:16") == (Kit.KETTLEBELL, 16)
     assert parse_need("pull-up bar") == (Kit.PULL_UP_BAR, None)
     assert parse_need("ab wheel") == (Kit.AB_WHEEL, None)
+    assert parse_need("backpack") == (Kit.BACKPACK, None)  # any load
+    assert parse_need("backpack:10") == (Kit.BACKPACK, 10)
+    assert parse_need("dumbbells:12") == (Kit.DUMBBELLS, 12)
 
 
 @pytest.mark.parametrize(
@@ -25,6 +28,7 @@ def test_kit_with_and_without_a_weight() -> None:
         ("kettlebell:0", "say the weight in kg"),
         ("kettlebell:120", "say the weight in kg"),
         ("pull-up bar:5", "has no weight"),
+        ("dumbbells:", "say the weight in kg"),
         ("sofa", "is not a valid Kit"),
     ],
 )
