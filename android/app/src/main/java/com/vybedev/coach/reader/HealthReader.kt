@@ -16,8 +16,11 @@ import java.time.Period
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-/** The heart-rate samples one sync read, and the token to keep once the coach has them. */
-class HeartRead(val samples: List<HeartSample>, val nextToken: String)
+/**
+ * The heart-rate samples one sync read, and the token to keep once the coach has them. [more]:
+ * changes are left for the next sync, which carries on from [nextToken].
+ */
+class HeartRead(val samples: List<HeartSample>, val nextToken: String, val more: Boolean = false)
 
 /**
  * Every Health Connect call the app makes, kept few (ADR-0070): one aggregate for steps, and
@@ -26,16 +29,12 @@ class HeartRead(val samples: List<HeartSample>, val nextToken: String)
 class HealthReader(context: Context) {
     private val client = HealthConnectClient.getOrCreate(context)
 
-    /** Health Connect reads made by this reader, and the last one, for the trial (ADR-0070):
-     * a quota error says which read hit it and after how many. */
-    var reads = 0
-        private set
-    var lastRead = "none"
-        private set
+    /** Health Connect reads made by this reader, at most MAX_READS_PER_SYNC, for the trial
+     * (ADR-0070): a quota error says which read hit it and after how many. */
+    val reads = ReadCount()
 
     private suspend fun <T> read(name: String, call: suspend () -> T): T {
-        reads += 1
-        lastRead = name
+        reads.next(name)
         return call()
     }
 
@@ -68,13 +67,15 @@ class HealthReader(context: Context) {
 
     /**
      * Heart rate written since [token]. Without one, or when it expired, the last FIRST_SYNC_HOURS once,
-     * with a token taken first so nothing written meanwhile is missed.
+     * with a token taken first so nothing written meanwhile is missed. Changes that would take
+     * more reads than are left wait for the next sync.
      */
     suspend fun heartRate(token: String?, now: Instant): HeartRead {
         if (token != null) {
             val changed = mutableListOf<HeartSample>()
             var next: String = token
             while (true) {
+                if (reads.left <= 0) return HeartRead(changed, next, more = true)
                 val response = read("heart-rate changes") { client.getChanges(next) }
                 if (response.changesTokenExpired) return fromHistory(now)
                 response.changes.filterIsInstance<UpsertionChange>()
@@ -104,7 +105,7 @@ class HealthReader(context: Context) {
                 )
             }
             response.records.forEach { found += samples(it) }
-            page = response.pageToken
+            page = nextPage(response.pageToken)
         } while (page != null)
         return HeartRead(found, token)
     }
