@@ -42,11 +42,15 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** Logged once, with these minutes. Only the POSTs count: the player's settings fetch (for the
+ * sound) can start after the log on a slow machine, so the last call is not always the POST. */
 const posted = (fetchMock: ReturnType<typeof serve>, minutes: number) =>
-  expect(fetchMock).toHaveBeenLastCalledWith(
-    '/api/session/stretching/7',
-    expect.objectContaining({ method: 'POST', body: JSON.stringify({ minutes }) }),
-  )
+  expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toEqual([
+    [
+      '/api/session/stretching/7',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ minutes }) }),
+    ],
+  ])
 
 test('choosing a time shows the overview, and Done logs it without the player', async () => {
   const fetchMock = serve()
