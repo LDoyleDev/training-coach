@@ -9,14 +9,47 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /** One sync at a time, whatever starts it, so an older token never overwrites a newer one. */
 object Sync {
     private val lock = Mutex()
 
-    suspend fun run(context: Context): String = lock.withLock {
-        withContext(Dispatchers.IO) { runLocked(context) }.also { Store(context).lastResult = it }
+    /** A sync from Sync now or, with [background], from WorkManager (Background.kt). */
+    suspend fun run(context: Context, background: Boolean = false): String = lock.withLock {
+        val store = Store(context)
+        val before = store.sentAt
+        val said = withContext(Dispatchers.IO) { runLocked(context) }
+        keep(store, afterRun(said, background, before, store.sentAt, stamp()))
+    }
+
+    /** A background run that failed outright: its error waits for the screen like any other. */
+    fun backgroundFailed(context: Context, error: Exception) {
+        val said = "Failed: ${error.message ?: error.javaClass.simpleName}"
+        keep(Store(context), afterRun(said, background = true, sentBefore = 0, sentAfter = 0, stamp = stamp()))
+    }
+
+    private fun keep(store: Store, kept: Kept): String {
+        store.lastResult = kept.result
+        kept.problem?.let { store.backgroundProblem = it }
+        return kept.result
+    }
+
+    private fun stamp(): String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEE HH:mm", Locale.ENGLISH))
+
+    /** "In Health Connect, last 7 days": four aggregate reads, only when the person taps it. */
+    suspend fun week(context: Context): String = withContext(Dispatchers.IO) {
+        if (!HealthReader.available(context)) return@withContext "Health Connect isn't available on this phone."
+        val reader = HealthReader(context)
+        if (reader.missing().isNotEmpty()) return@withContext "Allow Health Connect access first."
+        try {
+            "In Health Connect, last 7 days:\n" + reader.lastWeek(Instant.now()).joinToString("\n", transform = ::weekLine)
+        } catch (e: Exception) {
+            readFailure(e.message ?: e.javaClass.simpleName) + " (at ${reader.reads.last})"
+        }
     }
 
     /** Posts `{"test": true}`: the coach checks the secret and stores nothing (ADR-0055). */
@@ -63,7 +96,7 @@ object Sync {
         val bodies = posts(now, BuildConfig.VERSION_NAME, newSteps, read.heart.written, sessions = sessions)
         return when (val delivery = deliver(bodies, store.refusals) { send(secret, it) }) {
             is Delivery.Sent -> {
-                keep(store, read)
+                keep(store, read, delivery)
                 "Sent at ${now.atZone(zone).toLocalTime().withNano(0)}, in ${delivery.posts} post(s), " +
                     "${reader.reads.made} read(s).\n" + sent(newSteps.size, read) + later(read)
             }
@@ -72,7 +105,7 @@ object Sync {
                 describe(delivery.answer)
             }
             is Delivery.Skipped -> {
-                keep(store, read)
+                keep(store, read, delivery)
                 "The coach refused this batch $REFUSALS_BEFORE_SKIPPING syncs in a row " +
                     "(${delivery.answer.status}), so it was skipped: the last ${delivery.dropped} of " +
                     "${delivery.of} post(s) won't be sent" +
@@ -110,12 +143,14 @@ object Sync {
                 "$MAX_READS_PER_SYNC reads, so part of that day won't come across; later data comes as usual.")
     }
 
-    /** Only after the coach took everything: the tokens move on and the totals count as sent. */
-    private fun keep(store: Store, read: Read) {
+    /** Only after the coach took everything, or a refused batch was skipped: the tokens move on
+     * and the totals count as sent. Only the first counts as delivered (Runs.kt). */
+    private fun keep(store: Store, read: Read, delivery: Delivery) {
         store.sleepToken = read.sleep.nextToken
         store.exerciseToken = read.exercise.nextToken
         store.heartToken = read.heart.nextToken
         store.sentSteps = read.steps.associate { it.day to it.count }
+        if (delivered(delivery)) store.sentAt = System.currentTimeMillis()
         store.refusals = 0
     }
 
