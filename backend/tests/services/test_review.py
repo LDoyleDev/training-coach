@@ -11,6 +11,7 @@ from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.habits import Habit, HabitWeek
 from training_coach.domain.records import NewBests
 from training_coach.services import habits, users
+from training_coach.services.progress import Ready
 from training_coach.services.review import week_start, weekly
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -115,7 +116,7 @@ def test_bests_this_week_keep_the_highest(plan: Session) -> None:
 def test_ready_to_move_up(plan: Session) -> None:
     _log(plan, "pull-up", [12, 12, 12, 12], MONDAY - timedelta(days=4))
     _log(plan, "pull-up", [12, 12, 12, 12], MONDAY)
-    assert weekly(plan, SUNDAY).ready == ["Pull-up"]
+    assert weekly(plan, SUNDAY).ready == [Ready("Pull-up", "pull-up")]
 
 
 def test_a_repeated_session_is_an_extra(plan: Session) -> None:

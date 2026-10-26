@@ -1046,6 +1046,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/progress/{slug}/level": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Level
+         * @description Choose any step of the exercise's own ladder, up or down; never needs "ready".
+         */
+        post: operations["set_level_api_progress__slug__level_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/progress/{slug}/move-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move Up
+         * @description Move up, as the bot's button: checked again now, so a stale or forged press changes
+         *     nothing, and held in a strength block (ADR-0025, ADR-0028).
+         */
+        post: operations["move_up_api_progress__slug__move_up_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/progress/{slug}/not-yet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Not Yet
+         * @description Not yet: stay on the step the page showed; asked again after the next session that still
+         *     meets the rule.
+         */
+        post: operations["not_yet_api_progress__slug__not_yet_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/proposals": {
         parameters: {
             query?: never;
@@ -1935,6 +1997,8 @@ export interface components {
             exercise: string;
             /** Next Step */
             next_step: string | null;
+            /** Slug */
+            slug: string;
             /** Total */
             total: number | null;
             /**
@@ -2302,7 +2366,7 @@ export interface components {
             /** Bests */
             bests: string[];
             /** Ready */
-            ready: string[];
+            ready: components["schemas"]["ReadyView"][];
             /** Steps Climbed */
             steps_climbed: number;
         };
@@ -2487,6 +2551,11 @@ export interface components {
             /** Value */
             value: number;
         };
+        /** MoveUpBody */
+        MoveUpBody: {
+            /** From Step Id */
+            from_step_id: number;
+        };
         /**
          * MoveView
          * @description One movement of the guided mobility flow (ADR-0062).
@@ -2514,6 +2583,21 @@ export interface components {
             start: string;
             /** Target */
             target: string;
+        };
+        /**
+         * MovedView
+         * @description What a press did. Anything but ``moved``, ``stayed`` or ``level_set`` changed nothing.
+         */
+        MovedView: {
+            /** Exercise */
+            exercise: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "moved" | "already_moved" | "not_ready" | "no_next_step" | "strength_block" | "stayed" | "level_set" | "same_level";
+            /** Step */
+            step: string | null;
         };
         /** MuscleView */
         MuscleView: {
@@ -2820,6 +2904,16 @@ export interface components {
              */
             status: "due" | "clear" | "see_doctor";
         };
+        /**
+         * ReadyView
+         * @description An exercise ready to move up; ``slug`` links to its ladder on /plan (ADR-0075).
+         */
+        ReadyView: {
+            /** Exercise */
+            exercise: string;
+            /** Slug */
+            slug: string;
+        };
         /** RecentView */
         RecentView: {
             /**
@@ -2920,7 +3014,7 @@ export interface components {
             /** Previous */
             previous: string;
             /** Ready */
-            ready: string[];
+            ready: components["schemas"]["ReadyView"][];
             /** Rested */
             rested: number;
             /** Sets */
@@ -2960,6 +3054,15 @@ export interface components {
             session: string;
             /** Steps */
             steps: components["schemas"]["StretchView"][];
+        };
+        /** RungView */
+        RungView: {
+            /** Cue */
+            cue: string | null;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /** SaveBody */
         SaveBody: {
@@ -3184,10 +3287,14 @@ export interface components {
             best_set: number | null;
             /** Exercise */
             exercise: string;
+            /** Ladder */
+            ladder: components["schemas"]["RungView"][];
             /** Last */
             last: number[];
             /** Retired */
             retired: boolean;
+            /** Slug */
+            slug: string;
             /**
              * Status
              * @enum {string}
@@ -3195,6 +3302,8 @@ export interface components {
             status: "hold" | "ready" | "top_of_ladder";
             /** Step */
             step: string;
+            /** Step Id */
+            step_id: number;
             /** Step Number */
             step_number: number;
             /** Steps */
@@ -3211,11 +3320,18 @@ export interface components {
         StandingsView: {
             /** Standings */
             standings: components["schemas"]["StandingView"][];
+            /** Strength Block */
+            strength_block: boolean;
             /**
              * Today
              * Format: date
              */
             today: string;
+        };
+        /** StepBody */
+        StepBody: {
+            /** Step Id */
+            step_id: number;
         };
         /** StretchBody */
         StretchBody: {
@@ -5060,6 +5176,111 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionTimeView"][];
+                };
+            };
+        };
+    };
+    set_level_api_progress__slug__level_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_up_api_progress__slug__move_up_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveUpBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    not_yet_api_progress__slug__not_yet_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

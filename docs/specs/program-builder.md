@@ -155,8 +155,9 @@ max) and a maintenance mode (about a third of the building volume, at the same i
 - **Per person already:** the place in the queue (`plan_state`, ADR-0006), the ladder step per
   exercise (`exercise_state`), settings, blocks (ADR-0028), test days (ADR-0037), every log.
 - **Nobody can change the plan in the app.** `GET /api/plan` is read-only. Today's session can
-  be moved, swapped or rested (ADR-0052), never edited. Ladder steps only go up, through Move up
-  after a ready session (ADR-0016, ADR-0025); there is no way to choose a level.
+  be moved, swapped or rested (ADR-0052), never edited. Levels are the one exception: Move up
+  after a ready session, Not yet, or any step by hand on the Plan page (ADR-0016, ADR-0025,
+  ADR-0075).
 - Multi-user decided **D1 now, D3 later** (multi-user-plan.md, Decided 7; ADR-0059 "Plans"):
   everyone on the owner's plan with their own progress; each person's own copy is the goal, and
   new code should take the person's plan where that's as cheap as assuming one.
@@ -303,6 +304,8 @@ home stays a ladder step, because 8 to 16 kg is a different exercise, not a smal
 
 G1 for everything, G2 as a suggestion where a test exists, G3 always available. A level can be
 set by hand on the Plan tab too (down as well as up; it records an event, like Move up does).
+**Set by hand: done** (ADR-0075): the Plan page's ladder panels, with Move up and Not yet, and
+every "Ready to move up" links there. G1 and G2 are still to come.
 
 ### H. Setting up, for a new person (and the owner, again)
 
@@ -413,7 +416,7 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
    Progress respect the kit. The 16 kg example works from here.
 5. **Plans per person** (A2): the migration copies the plan to every user; the seed keeps the
    catalogue and starters; the canary test (multi-user L2) covers the plan routes.
-6. **Edit the plan:** set level, swap, sets and range; Save makes a version. Import from
+6. **Edit the plan:** set level (done, ADR-0075), swap, sets and range; Save makes a version. Import from
    `plan.toml` the same way.
 7. **The picker and an interactive map:** add and remove exercises; add a session.
 8. **Load:** the 29 gym exercises in the catalogue, `load_kg`, carry-over with − and +, double

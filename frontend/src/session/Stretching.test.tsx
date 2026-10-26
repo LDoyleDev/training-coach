@@ -3,7 +3,11 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { Routine } from '../api'
 import Stretching from './Stretching'
 
-vi.mock('../hiit/sounds', () => ({ unlockAudio: vi.fn(), playChange: vi.fn() }))
+vi.mock('../hiit/sounds', () => ({
+  DEFAULT_SOUND: 'ring',
+  unlockAudio: vi.fn(),
+  playChange: vi.fn(),
+}))
 
 // Couch 0-160 (both sides, two rounds), fold 160-275: 4 min 35 s, the gaps included.
 const ROUTINE: Routine = {

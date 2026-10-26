@@ -62,7 +62,16 @@ const SAVED: Saved = {
   workout_id: 9,
   already_saved: false,
   next_session: 'Recovery + posture',
-  earned: [{ exercise: 'Jump squat', unit: 'reps', best_set: 7, total: 13, next_step: null }],
+  earned: [
+    {
+      exercise: 'Jump squat',
+      slug: 'jump-squat',
+      unit: 'reps',
+      best_set: 7,
+      total: 13,
+      next_step: null,
+    },
+  ],
   stretching: true,
 }
 
