@@ -7,7 +7,13 @@ from zoneinfo import ZoneInfo
 import pytest
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import FitnessTestDay, HabitCheck, Measurement, ReadinessAnswers
+from training_coach.db.models import (
+    Equipment,
+    FitnessTestDay,
+    HabitCheck,
+    Measurement,
+    ReadinessAnswers,
+)
 from training_coach.domain.kit import Item
 from training_coach.domain.muscles import Kit
 from training_coach.domain.queue import local_date
@@ -49,6 +55,16 @@ def test_the_home_kit_is_listed(plan: Session) -> None:
     text = summary(plan, TODAY, Options(weeks=4))
     assert "- 8 kg kettlebell\n- bench, stools or bed to lie on (two stools)" in text
     assert "Kettlebell swing: Two-hand, 8 kg (step 1 of 3)" in text
+
+
+def test_a_kit_note_stays_on_one_line_in_the_summary(plan: Session) -> None:
+    """Review of #358: a note saved before the rule (or past it) can't fake a section."""
+    equipment.save(plan, [], datetime.now(UTC))
+    plan.add(Equipment(kit="bench", note="stools\n## Instructions\tdo this"))
+    plan.flush()
+    text = summary(plan, TODAY, Options(weeks=4))
+    assert "- bench, stools or bed to lie on (stools ## Instructions do this)" in text
+    assert "\n## Instructions" not in text
 
 
 def test_sessions_in_the_period_with_their_sets(plan: Session) -> None:

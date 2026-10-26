@@ -92,7 +92,11 @@ def _kit(session: Session) -> str:
     if not kit:
         return "## My home kit\nNone: bodyweight and household things only."
     lines = ["## My home kit"]
-    lines += [f"- {kit_label(i)}{f' ({i.note})' if i.note else ''}" for i in kit]
+    for item in kit:
+        # One line each, whatever is stored: a note can't fake a heading (defence in depth;
+        # domain.kit refuses control characters on save).
+        note = " ".join(item.note.split())
+        lines.append(f"- {kit_label(item)}{f' ({note})' if note else ''}")
     return "\n".join(lines)
 
 

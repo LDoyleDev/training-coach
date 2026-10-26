@@ -10,6 +10,7 @@ the other kit. A need without a weight takes any item of its kind.
 works as before until they add their kit.
 """
 
+import unicodedata
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -19,6 +20,9 @@ from training_coach.domain.muscles import Kit, parse_need
 KG_MAX = 100
 MAX_ITEMS = 60  # more than anyone's home holds; a bound for a PUT of the whole list
 NOTE_MAX = 40
+# Control and format characters, line and paragraph separators: a note is one line of text,
+# so it can't fake a heading or a new section where it is shown (the AI summary).
+NOT_TEXT = ("Cc", "Cf", "Zl", "Zp")
 
 
 class Resistance(StrEnum):
@@ -111,6 +115,8 @@ def problem(item: Item) -> str | None:
         return f"{NAMES[item.kit]} has no strength"
     if len(item.note) > NOTE_MAX:
         return f"{label(item)}: keep the note to {NOTE_MAX} characters"
+    if any(unicodedata.category(c) in NOT_TEXT for c in item.note):
+        return f"{label(item)}: keep the note to one line of plain text"
     return None
 
 
