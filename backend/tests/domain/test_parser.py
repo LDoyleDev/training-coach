@@ -340,6 +340,30 @@ def test_a_weight_where_none_belongs_is_a_problem(text: str, problem: str) -> No
     assert problem in result.problems[0]
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "dumbbell lunge left 8 8 at 12\ndumbbell lunge right 8 8 at 14",
+        "dumbbell lunge left 8 8\ndumbbell lunge right 8 8 at 14",
+    ],
+    ids=["different", "right-only"],
+)
+def test_a_right_side_weight_is_never_dropped(text: str) -> None:
+    # The 14 kg was lost and both sides saved at 12 kg, or at none (review of #380).
+    result = parse_log(text, LOADED)
+    assert result.entries == ()
+    assert result.problems == (
+        "Dumbbell lunge: set 1 has a different weight on the right; "
+        "give one weight for both sides of a set",
+    )
+
+
+def test_the_same_weight_on_both_sides_is_one_weight() -> None:
+    text = "dumbbell lunge left 8 7 at 12\ndumbbell lunge right 8 7 at 12"
+    (entry,) = parse_log(text, LOADED).entries
+    assert entry.loads == ((1, 12.0), (2, 12.0))
+
+
 def test_a_weight_is_never_the_tail_of_a_longer_number() -> None:
     # "1250 kg" isn't "1" and "250 kg" (review of #380).
     result = parse_log("rows 10 1250 kg", LOADED)
