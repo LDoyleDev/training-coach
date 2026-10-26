@@ -82,7 +82,9 @@ if rclone lsf "$remote/" --include "$name" | grep -qx "$name"; then
 else
   work=$(mktemp -d)
   age "${recipients[@]}" -o "$work/$name" "$newest"
-  rclone copyto --s3-no-check-bucket "$work/$name" "$remote/$name"
+  # --s3-no-head: R2 answers 501 to the HEAD by version id that rclone 1.60 makes after each
+  # upload, so every run needed a retry (26 Oct); the lsf below checks the upload instead.
+  rclone copyto --s3-no-check-bucket --s3-no-head "$work/$name" "$remote/$name"
   rclone lsf "$remote/" --include "$name" | grep -qx "$name" || fail "upload of $name not found afterwards"
   log "uploaded $name"
 fi
