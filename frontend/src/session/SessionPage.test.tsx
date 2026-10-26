@@ -1002,9 +1002,14 @@ test("a rest counts its last 3 seconds and ends in the person's timer sound", as
   expect(playChange).not.toHaveBeenCalled() // nothing plays on Start
   click('Confirm set')
   await screen.findByText('0:15')
-  act(() => vi.advanceTimersByTime(11_000))
+  // A tick at a time, each in its own act, so the rest's ticker is running as it would be in a
+  // browser; one big jump could land after the rest's end before the ticker started.
+  const tick = (ms: number) => {
+    for (let t = 0; t < ms; t += 250) act(() => vi.advanceTimersByTime(250))
+  }
+  tick(11_000)
   expect(playChange).not.toHaveBeenCalled()
-  act(() => vi.advanceTimersByTime(4_500))
+  tick(4_500)
   expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
   expect(vi.mocked(playChange).mock.calls).toEqual([
     ['wood', 'count'],
