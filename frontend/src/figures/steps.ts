@@ -4,7 +4,7 @@
  * plan.toml writes it; each entry says what changes over the exercise's figure. Every other step
  * shows the figure as it is.
  */
-import type { Pose, Vec } from './body'
+import { BODY, solve, type Pose, type Vec } from './body'
 import { FIGURES, type Figure } from './poses'
 
 type Change = Partial<Figure>
@@ -222,6 +222,63 @@ const leanBack = (
   },
 })
 
+/** A push-up's plank with the balls of the feet at ``ball`` and the body line at ``start`` and
+ * ``end`` degrees, the hands where the figure has them unless ``hands`` moves them. */
+const plank = (
+  figure: Figure,
+  ball: Vec,
+  [start, end]: readonly [number, number],
+  hands?: Vec,
+): Pick<Figure, 'start' | 'end'> => {
+  const arms = (pose: Pose): Pose =>
+    hands
+      ? {
+          ...pose,
+          armN: { ...pose.armN, at: hands },
+          armF: { ...pose.armF, at: [hands[0] + 2.7, hands[1]] },
+        }
+      : pose
+  return {
+    start: arms({ ...figure.start, plank: { ball, angle: start } }),
+    end: arms({ ...figure.end, plank: { ball, angle: end } }),
+  }
+}
+
+/** Feet on a chair behind you: the body slopes down to the hands. */
+const ON_CHAIR = { chair: { x0: -62, x1: -6, seat: 45 } }
+const push = FIGURES['push-up']
+const diamond = FIGURES['diamond-push-up']
+
+/** An archer push-up seen from the side: the far arm bends as in a push-up; the near one stays
+ * straight, out to the side towards you, so it is drawn short, in front of the body, its elbow
+ * on the line from the shoulder to the hand. */
+const straightOut = (pose: Pose): Pose => {
+  const j = solve(pose)
+  const [dx, dy] = [j.armN.wrist[0] - j.shoulder[0], j.armN.wrist[1] - j.shoulder[1]]
+  const share = BODY.upperArm / (BODY.upperArm + BODY.forearm)
+  return { ...pose, armN: { ...pose.armN, mid: [dx * share, dy * share] } }
+}
+
+/** A pike push-up with the feet on a chair: hips over the shoulders, nearly upside down. */
+const pike = FIGURES['pike-push-up']
+const PIKE_FEET = {
+  legN: { at: [-24, 59.1], angle: -45, floor: 45 },
+  legF: { at: [-21, 59.1], angle: -45, floor: 45 },
+} as const
+
+/** Upside down against a wall, back to it: hands on the floor, heels on the wall. */
+const handstand = (shoulder: number, lean: number): Pose => {
+  const hip: Vec = [6, shoulder + 44]
+  return {
+    hip,
+    lean,
+    legN: { at: [9, hip[1] + 86.5], angle: 95 },
+    legF: { at: [11, hip[1] + 86.5], angle: 95 },
+    armN: { at: [-2, 3], angle: 180 },
+    armF: { at: [0, 3], angle: 180 },
+  }
+}
+
 export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
   'pull-up': LOADED(VEST, FIGURES['pull-up']),
   'chin-up': LOADED(VEST, FIGURES['chin-up']),
@@ -399,6 +456,75 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
       [12, 22],
       [-118, 60, -3, 165],
     ),
+  },
+  'push-up': {
+    'Feet elevated': {
+      frames: ['Feet on a chair, arms straight, body in one line', 'Chest a fist above the floor'],
+      view: [-64, 174, -3, 100],
+      props: { ...push.props, ...ON_CHAIR },
+      ...plank(push, [-14.6, 45], [0.3, -14.1]),
+    },
+    Deficit: {
+      frames: ['Hands raised on two blocks or books, arms straight', 'Chest down past your hands'],
+      view: [-14, 174, -3, 100],
+      props: { ...push.props, step: { x0: 102, x1: 124, top: 15 } },
+      ...plank(push, [-2.2, 0], [26.8, 5.5], [111, 18]),
+    },
+    Archer: {
+      frames: [
+        'Hands set wide, arms straight',
+        'Down over one arm as it bends; the other stays straight out to the side',
+      ],
+      order: ['armF', 'legF', 'legN', 'torso', 'head', 'armN'],
+      start: straightOut(push.start),
+      end: straightOut(push.end),
+    },
+  },
+  'diamond-push-up': {
+    'Feet elevated': {
+      frames: [
+        'Feet on a chair, hands together under your chest',
+        'Chest to your hands, elbows in',
+      ],
+      view: [-64, 174, -3, 100],
+      props: { ...diamond.props, ...ON_CHAIR },
+      ...plank(diamond, [-14.1, 45], [-0.4, -13.3]),
+    },
+  },
+  'pike-push-up': {
+    'Feet on chair': {
+      frames: [
+        'Feet on a chair, hips high over your shoulders',
+        'Top of the head towards the floor',
+      ],
+      view: [-72, 92, -3, 125],
+      props: { ...pike.props, chair: { x0: -66, x1: -14, seat: 45 } },
+      start: {
+        hip: [43.6, 100.5],
+        lean: 165,
+        ...PIKE_FEET,
+        armN: { at: [60, 3], angle: 0 },
+        armF: { at: [60, 3], angle: 0 },
+      },
+      end: {
+        hip: [50, 88],
+        lean: 170,
+        ...PIKE_FEET,
+        armN: { at: [60, 3], angle: 0 },
+        armF: { at: [60, 3], angle: 0 },
+      },
+    },
+    'Wall handstand push-up negatives': {
+      frames: [
+        'Upside down, hands on the floor, heels on the wall',
+        'Lowered slowly until your head nearly touches the floor',
+      ],
+      view: [-50, 50, -3, 222],
+      props: { mat: [-48, 16], wall: { x0: 17, x1: 25, top: 222 } },
+      tempo: [3200, 300, 900, 600],
+      start: handstand(57, 180),
+      end: handstand(35, 178),
+    },
   },
   'kb-curl': {
     '16 kg, hammer grip': {

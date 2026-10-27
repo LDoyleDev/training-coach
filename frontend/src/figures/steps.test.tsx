@@ -76,14 +76,6 @@ const SAME: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   'back-extension-45': { Bodyweight: 'the figure' },
 }
 
-/** Steps that need their own figure and are drawn in a follow-up change (ADR-0063, addendum of
- * 27 Oct). Drawing one means taking it off this list. */
-const PENDING: Readonly<Record<string, readonly string[]>> = {
-  'push-up': ['Feet elevated', 'Deficit', 'Archer'],
-  'pike-push-up': ['Feet on chair', 'Wall handstand push-up negatives'],
-  'diamond-push-up': ['Feet elevated'],
-}
-
 test('every step of an exercise with a figure is drawn, or listed as showing it as it is', () => {
   const unmet: string[] = []
   for (const slug of Object.keys(FIGURES)) {
@@ -92,16 +84,12 @@ test('every step of an exercise with a figure is drawn, or listed as showing it 
     for (const step of steps) {
       const drawn = step in (STEPS[slug] ?? {})
       const same = step in (SAME[slug] ?? {})
-      const pending = (PENDING[slug] ?? []).includes(step)
-      if (Number(drawn) + Number(same) + Number(pending) !== 1) unmet.push(`${slug} / ${step}`)
+      if (drawn === same) unmet.push(`${slug} / ${step}`)
     }
   }
   expect(unmet, 'draw these in steps.ts, or say in SAME why the figure fits').toEqual([])
-  for (const [slug, steps] of [
-    ...Object.entries(SAME).map(([slug, why]) => [slug, Object.keys(why)] as const),
-    ...Object.entries(PENDING),
-  ])
-    for (const step of steps) expect(ladder(slug), slug).toContain(step)
+  for (const [slug, why] of Object.entries(SAME))
+    for (const step of Object.keys(why)) expect(ladder(slug), slug).toContain(step)
 })
 
 /** Every exercise's figure at every step that changes it. */
@@ -462,4 +450,73 @@ test('a reverse Nordic leans further back the further up the ladder, knees put, 
   expect(none.back).toBe(hands.back)
   expect(hands.hands, 'hands to the floor').toBeLessThan(3)
   expect(none.hands, 'arms crossed').toBeGreaterThan(40)
+})
+
+test('push-ups with the feet on a chair: toes on the seat, the body sloping down to the hands', () => {
+  for (const slug of ['push-up', 'diamond-push-up']) {
+    const up = figureFor(slug, 'Feet elevated')!
+    const { seat, x0, x1 } = up.props!.chair!
+    for (const t of ALONG) {
+      const j = solve(blend(up.start, up.end, t))
+      for (const leg of [j.legN, j.legF]) {
+        expect(leg.ball[1], `${slug}: on the seat`).toBeCloseTo(seat, 5)
+        expect(leg.tip[1], 'toes not through it').toBeGreaterThan(seat - 0.5)
+        expect(leg.ball[0]).toBeGreaterThan(Math.min(x0, x1))
+        expect(leg.ball[0]).toBeLessThan(Math.max(x0, x1))
+      }
+      expect(j.armN.wrist[1], 'hands on the floor').toBeCloseTo(3, 5)
+    }
+    const low = solve(up.end)
+    expect(low.shoulder[1], 'shoulders below the feet').toBeLessThan(low.legN.ankle[1] - 20)
+  }
+})
+
+test('a deficit push-up has the hands on blocks and the chest going down past them', () => {
+  const deficit = figureFor('push-up', 'Deficit')!
+  const { top, x0, x1 } = deficit.props!.step!
+  for (const pose of [deficit.start, deficit.end]) {
+    const j = solve(pose)
+    expect(j.armN.wrist[1] - top, 'hands on the block').toBeCloseTo(3, 5)
+    expect(j.armN.wrist[0]).toBeGreaterThan(x0)
+    expect(j.armN.wrist[0]).toBeLessThan(x1)
+  }
+  expect(solve(deficit.end).shoulder[1] - 12, 'chest below the hands').toBeLessThan(top)
+})
+
+test('an archer push-up keeps one arm straight while the other bends', () => {
+  const archer = figureFor('push-up', 'Archer')!
+  for (const t of ALONG) {
+    const j = solve(blend(archer.start, archer.end, t))
+    const { shoulder, elbow, wrist } = j.armN
+    const off = Math.abs(heading(shoulder, elbow) - heading(elbow, wrist))
+    expect(off, 'the near arm straight').toBeLessThan(4)
+  }
+  const low = solve(archer.end).armF
+  const bend = Math.abs(heading(low.elbow, low.shoulder) - heading(low.elbow, low.wrist))
+  expect(Math.min(bend, 360 - bend), 'the far arm bent').toBeLessThan(120)
+  expect(archer.order!.at(-1), 'the straight arm in front').toBe('armN')
+})
+
+test('pike push-ups go further upside down: feet on a chair, then a handstand at a wall', () => {
+  const chair = figureFor('pike-push-up', 'Feet on chair')!
+  const { seat } = chair.props!.chair!
+  for (const t of ALONG) {
+    const j = solve(blend(chair.start, chair.end, t))
+    for (const leg of [j.legN, j.legF])
+      expect(Math.min(leg.ball[1], leg.tip[1]), 'toes on the seat').toBeCloseTo(seat, 0)
+    expect(j.hip[1], 'hips over the shoulders').toBeGreaterThan(j.shoulder[1] + 25)
+    expect(j.armN.wrist[1]).toBeCloseTo(3, 5)
+  }
+  const wall = figureFor('pike-push-up', 'Wall handstand push-up negatives')!
+  const { x0 } = wall.props!.wall!
+  for (const t of ALONG) {
+    const j = solve(blend(wall.start, wall.end, t))
+    expect(j.head.c[1], 'upside down').toBeLessThan(j.hip[1] - 50)
+    expect(j.legN.ankle[1], 'feet up').toBeGreaterThan(j.hip[1] + 80)
+    expect(x0 - j.legN.heel[0], 'heels on the wall').toBeLessThan(3)
+    expect(x0 - j.legN.heel[0]).toBeGreaterThan(0)
+    expect(j.armN.wrist[1]).toBeCloseTo(3, 5)
+    expect(j.head.c[1] - 11.5, 'head off the floor').toBeGreaterThan(0)
+  }
+  expect(solve(wall.start).head.c[1] - solve(wall.end).head.c[1], 'lowered').toBeGreaterThan(15)
 })
