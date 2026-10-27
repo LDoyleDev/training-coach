@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from training_coach.api.auth import Owner
 from training_coach.api.cardio import ZonesView, zones_view
-from training_coach.api.progress import ReadyView
+from training_coach.api.progress import ReadyView, TopView
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.cardio import left
@@ -47,6 +47,7 @@ class LadderView(BaseModel):
     steps_climbed: int
     ready: list[ReadyView]  # each links to its ladder on /plan (ADR-0075)
     bests: list[str]  # personal bests in the last 7 days
+    top: list[TopView]  # reached the top in the last 7 days and still there (ADR-0078)
 
 
 class RecentView(BaseModel):
@@ -98,6 +99,7 @@ def home(request: Request, user: Owner) -> HomeView:
             steps_climbed=found.progress.steps_climbed,
             ready=[ReadyView(exercise=r.exercise, slug=r.slug) for r in found.progress.ready],
             bests=found.progress.bests,
+            top=[TopView(**vars(t)) for t in found.progress.top],
         ),
         recent=[RecentView(day=r.day, session=r.session) for r in found.recent],
         today=found.today,
