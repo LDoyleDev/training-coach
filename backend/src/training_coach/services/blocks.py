@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from functools import lru_cache
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -19,9 +20,11 @@ from training_coach.domain.blocks import (
     strength_sets,
 )
 from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.load import LoadKit
 from training_coach.domain.retests import block_start
 from training_coach.domain.targets import Prescription
 from training_coach.services import users
+from training_coach.services.seed import bundled_plan
 
 
 def current(session: Session, on: date, tz: ZoneInfo) -> Block | None:
@@ -59,6 +62,22 @@ def strength_applies(block: Block | None, session_kind: str | None) -> bool:
     return block is not None and block.kind is BlockKind.STRENGTH and session_kind == "strength"
 
 
+def load_kit(slug: str, step: str) -> LoadKit | None:
+    """What carries the weight when this step of this exercise takes load (ADR-0072), from the
+    bundled plan like the summary; None for a step without load."""
+    return _load_kits().get((slug, step))
+
+
+def loadable(slug: str) -> bool:
+    """Whether any step of this exercise takes load."""
+    return any(found == slug for found, _ in _load_kits())
+
+
+@lru_cache(maxsize=1)
+def _load_kits() -> dict[tuple[str, str], LoadKit]:
+    return {(e.slug, step): kit for e in bundled_plan().exercises for step, kit in e.loads.items()}
+
+
 def _current_step(session: Session, exercise: Exercise) -> LadderStep:
     state = users.exercise_state(session, exercise.id)
     step = session.get(LadderStep, state.ladder_step_id) if state is not None else None
@@ -68,9 +87,12 @@ def _current_step(session: Session, exercise: Exercise) -> LadderStep:
 
 def step_for(session: Session, exercise: Exercise, strength: bool) -> tuple[LadderStep, bool]:
     """The step trained and whether it's the top of the ladder with the tempo cue added: one
-    step harder for rep-counted work under the strength prescription, else the current step."""
+    step harder for rep-counted work under the strength prescription, else the current step.
+    A loaded step stays: its strength block is 4-8 reps at a heavier weight (ADR-0072)."""
     current = _current_step(session, exercise)
     if not strength or ExerciseKind(exercise.kind) is not ExerciseKind.REPS:
+        return current, False
+    if load_kit(exercise.slug, current.name) is not None:
         return current, False
     harder = session.scalar(
         select(LadderStep)
