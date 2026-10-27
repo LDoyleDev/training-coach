@@ -604,3 +604,44 @@ def test_a_loaded_step_offers_its_weights_and_keeps_each_sets(
     assert kept[0]["load_kg"] == 22.5
     body["revision"], sets[0]["load_kg"] = 1, -5
     assert signed_in.put("/api/session/progress", json=body).status_code == 422
+
+
+# ------------------------------------------------------------ home or gym (ADR-0071)
+
+
+def test_home_or_gym_is_the_persons_switch(signed_in: TestClient) -> None:
+    """No switch until they train at both; then Gym shows the gym version, and a browser still
+    showing home is told the session changed."""
+    today = signed_in.get("/api/session/today").json()["session"]
+    assert (today["place"], today["place_choice"]) == ("home", False)
+    refused = signed_in.put("/api/session/place", json={"place": "gym"})
+    assert (refused.status_code, refused.json()["detail"]) == (409, "today's session has one place")
+    assert signed_in.patch("/api/settings", json={"places": "both"}).status_code == 200
+    assert signed_in.get("/api/session/today").json()["session"]["place_choice"] is True
+    switched = signed_in.put("/api/session/place", json={"place": "gym"})
+    assert switched.status_code == 200
+    gym = switched.json()["session"]
+    assert gym["place"] == "gym"
+    squat = next(i for i in gym["items"] if i["slug"] == "back-squat")
+    assert squat["load"]["kit"] == "barbell"
+    stale = {"template_id": gym["template_id"], "place": "home", "position": 0}
+    assert signed_in.put("/api/session/progress", json=stale).status_code == 409
+    assert signed_in.put("/api/session/progress", json={**stale, "place": "gym"}).status_code == 200
+
+
+def test_switching_with_sets_kept_asks_before_dropping_them(signed_in: TestClient) -> None:
+    signed_in.patch("/api/settings", json={"places": "both"})
+    today = signed_in.get("/api/session/today").json()["session"]
+    kept = {
+        "template_id": today["template_id"],
+        "place": "home",
+        "position": 1,
+        "sets": [{"item": 0, "set_no": 1, "left": 6}],
+    }
+    assert signed_in.put("/api/session/progress", json=kept).status_code == 200
+    asked = signed_in.put("/api/session/place", json={"place": "gym"})
+    assert (asked.status_code, asked.json()["detail"]) == (409, {"kept_sets": 1})
+    assert signed_in.get("/api/session/today").json()["progress"]["sets"] != []
+    confirmed = signed_in.put("/api/session/place", json={"place": "gym", "confirm": True})
+    assert confirmed.status_code == 200
+    assert (confirmed.json()["session"]["place"], confirmed.json()["progress"]) == ("gym", None)

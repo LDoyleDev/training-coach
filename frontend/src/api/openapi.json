@@ -1518,6 +1518,15 @@
             "title": "Order",
             "type": "array"
           },
+          "place": {
+            "$ref": "#/components/schemas/Place",
+            "default": "home"
+          },
+          "place_choice": {
+            "default": false,
+            "title": "Place Choice",
+            "type": "boolean"
+          },
           "rest_seconds": {
             "title": "Rest Seconds",
             "type": "integer"
@@ -2348,6 +2357,16 @@
             "maxItems": 10,
             "title": "First",
             "type": "array"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Place"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "position": {
             "maximum": 500.0,
@@ -3964,6 +3983,46 @@
           "picked_id"
         ],
         "title": "PickBody",
+        "type": "object"
+      },
+      "Place": {
+        "description": "Where a workout is done (ADR-0071): at home, with the person's own kit, or at a gym,\nwhich has everything. A session can hold a version for each.",
+        "enum": [
+          "home",
+          "gym"
+        ],
+        "title": "Place",
+        "type": "string"
+      },
+      "PlaceAsk": {
+        "description": "The answer to a switch with sets kept: ask first, then send it again with confirm.",
+        "properties": {
+          "kept_sets": {
+            "title": "Kept Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kept_sets"
+        ],
+        "title": "PlaceAsk",
+        "type": "object"
+      },
+      "PlaceBody": {
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          }
+        },
+        "required": [
+          "place"
+        ],
+        "title": "PlaceBody",
         "type": "object"
       },
       "Places": {
@@ -9125,6 +9184,58 @@
           }
         },
         "summary": "Pending",
+        "tags": [
+          "session"
+        ]
+      }
+    },
+    "/api/session/place": {
+      "put": {
+        "description": "Do today's session at home or at the gym (ADR-0071): the person's switch, never the\napp's. 409 with ``kept_sets`` when sets are kept for the version shown (ask, then confirm),\nor with a message when today has no choice to make.",
+        "operationId": "choose_place_api_session_place_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceAsk"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Choose Place",
         "tags": [
           "session"
         ]

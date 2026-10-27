@@ -285,7 +285,8 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
     for row in sorted(workout.sets, key=lambda s: s.id):
         logged.setdefault((row.exercise_id, row.ladder_step_id), None)
 
-    kit = equipment.kit(session)
+    # Kit locks apply at home only: a gym has everything (ADR-0071).
+    kit = equipment.kit(session) if workout.place == Place.HOME else None
     result = []
     for exercise_id, step_id in logged:
         exercise = session.get(Exercise, exercise_id)

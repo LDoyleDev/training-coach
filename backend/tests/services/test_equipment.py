@@ -167,6 +167,17 @@ def test_at_the_top_for_the_kit_progress_names_what_unlocks_the_next_step(plan: 
     assert _on(plan, step.exercise_id) == step.id
 
 
+def test_at_the_gym_the_home_kit_locks_nothing(plan: Session) -> None:
+    """Kit locks apply at home only (ADR-0071): a gym has the 16 kg bell."""
+    equipment.save(plan, [KB8], NOW)
+    step = _put(plan, "kb-swing", 1)
+    last = _ready(plan, step)
+    plan.get_one(Workout, last).place = "gym"
+    plan.flush()
+    (item,) = progress.feedback(plan, last)
+    assert (item.status, item.next_step, item.unlock) == (Progress.READY, "Two-hand, 16 kg", None)
+
+
 def test_adding_the_kettlebell_opens_the_next_step(plan: Session) -> None:
     equipment.save(plan, [KB8, KB16], NOW)
     step = _put(plan, "kb-swing", 1)

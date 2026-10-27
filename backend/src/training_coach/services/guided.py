@@ -23,13 +23,13 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, SetLog, Workout
 from training_coach.domain.blocks import Block
-from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
+from training_coach.domain.enums import ExerciseKind, Place, Side, WorkoutStatus
 from training_coach.domain.load import MAX_KG, valid_kg
 from training_coach.domain.parser import LIMITS, Entry
 from training_coach.domain.rest import AFTER_PAIR_SECONDS, Kind, Rest, rests
 from training_coach.domain.session_times import plausible
 from training_coach.domain.work_order import SetRef, work_order
-from training_coach.services import blocks, workout_log
+from training_coach.services import blocks, user_settings, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
 from training_coach.services.seed import bundled_plan
 from training_coach.services.today import ItemPlan, SessionPlan, position, session_plan
@@ -61,6 +61,8 @@ class Guided:
     order: tuple[GuidedSet, ...]
     slug: str = ""  # the session template's
     after_run: bool = False  # what's left of a conditioning session once its cardio is logged
+    place: Place = Place.HOME  # where it is done: its home or gym version (ADR-0071)
+    switch: bool = False  # Today offers Home | Gym
 
 
 def _kinds(items: tuple[ItemPlan, ...]) -> list[Kind | None]:
@@ -151,6 +153,8 @@ def _guided(
         items=items,
         order=order,
         after_run=after_run,
+        place=plan.place,
+        switch=plan.switch,
     )
 
 
@@ -493,6 +497,7 @@ def save(
         problems=(),
         strength=workout_log.strength_on(session, day, tz, template),
         backdated=day < today,
+        place=plan.place,
     )
     result = workout_log.save(session, draft, tz, answer)
     if isinstance(result, workout_log.Saved):
@@ -537,6 +542,23 @@ def _save_after_run(
         session.expire_all()
         return workout_log.Saved(workout.id, already_saved=True)
     return result
+
+
+def switch(session: Session, plan: Guided, place: Place, confirm: bool) -> int | None:
+    """Do ``plan``'s session at ``place`` (ADR-0071): its other version from now on, and the
+    place Today starts at next time (Decided 4). Sets kept for the version shown are dropped
+    with it, so with any kept the answer is their number and nothing changes until the person
+    confirms (ADR-0060's ask first); None once switched. The caller checks ``plan.switch``."""
+    if place is plan.place:
+        return None
+    row = _row(session, plan.day)
+    if row is not None and row.saved_workout_id is None:
+        if row.sets and not confirm:
+            return len(row.sets)
+        session.delete(row)  # its sets and swapped pairs belong to the other version
+        session.flush()
+    user_settings.update(session, place=place)
+    return None
 
 
 def pending(session: Session, today: date) -> list[Pending]:

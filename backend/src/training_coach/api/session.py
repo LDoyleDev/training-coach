@@ -12,7 +12,7 @@ from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.daily_check import summary as daily_summary
-from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.load import MAX_KG, Load
 from training_coach.domain.mobility_flow import Flow
 from training_coach.domain.queue import local_date
@@ -188,6 +188,9 @@ class GuidedView(BaseModel):
     # What's left of a conditioning session once its cardio is logged (ADR-0066): offered
     # "after your run", saved into that day's workout.
     after_run: bool = False
+    # Where it is done, and so which version (ADR-0071); ``place_choice``: show Home | Gym.
+    place: Place = Place.HOME
+    place_choice: bool = False
 
 
 class DoneView(BaseModel):
@@ -248,6 +251,7 @@ class TodayView(BaseModel):
 
 class KeepBody(BaseModel):
     template_id: int  # the session the browser shows: a different one now is a conflict
+    place: Place | None = None  # the version it shows (ADR-0071): another one now is too
     revision: int = Field(default=0, ge=0)  # the kept revision this browser saw; 0: none
     position: int = Field(ge=0, le=500)
     first: list[int] = Field(default_factory=list, max_length=10)
@@ -406,6 +410,8 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                 for s in plan.order
             ],
             after_run=plan.after_run,
+            place=plan.place,
+            place_choice=plan.switch,
         ),
     )
 
@@ -421,7 +427,11 @@ def keep(body: KeepBody, request: Request, user: Owner) -> KeptView:
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         plan = guided.today(session, on, settings.tz, set(body.first))
-        if plan is None or plan.template_id != body.template_id:
+        if (
+            plan is None
+            or plan.template_id != body.template_id
+            or (body.place is not None and body.place is not plan.place)
+        ):
             raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
         sets = [guided.Done(**d.model_dump()) for d in body.sets]
         result = guided.keep(
@@ -432,6 +442,37 @@ def keep(body: KeepBody, request: Request, user: Owner) -> KeptView:
     if isinstance(result, str):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result)
     return KeptView(revision=result)
+
+
+class PlaceBody(BaseModel):
+    place: Place
+    confirm: bool = False  # drop the sets kept for the version shown
+
+
+class PlaceAsk(BaseModel):
+    """The answer to a switch with sets kept: ask first, then send it again with confirm."""
+
+    kept_sets: int
+
+
+@router.put(
+    "/place",
+    response_model=TodayView,
+    responses={status.HTTP_409_CONFLICT: {"model": PlaceAsk}},
+)
+def choose_place(body: PlaceBody, request: Request, user: Owner) -> TodayView:
+    """Do today's session at home or at the gym (ADR-0071): the person's switch, never the
+    app's. 409 with ``kept_sets`` when sets are kept for the version shown (ask, then confirm),
+    or with a message when today has no choice to make."""
+    settings, on = _settings_and_day(request)
+    with session_scope(_bound(request, user)) as session:
+        plan = guided.today(session, on, settings.tz)
+        if plan is None or not plan.switch:
+            raise HTTPException(status.HTTP_409_CONFLICT, "today's session has one place")
+        kept = guided.switch(session, plan, body.place, body.confirm)
+        if kept is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, PlaceAsk(kept_sets=kept).model_dump())
+        return today_view(session, on, settings)
 
 
 @router.post("/save", response_model=SavedView, responses=CLASH)

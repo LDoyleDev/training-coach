@@ -28,8 +28,9 @@ from training_coach.db.models import (
 from training_coach.domain.blocks import BlockKind
 from training_coach.domain.cardio import NO_DETAILS, TIMED, Details, activity_in
 from training_coach.domain.dates import DateLine, date_line
-from training_coach.domain.enums import ExerciseKind, WorkoutStatus
+from training_coach.domain.enums import ExerciseKind, Place, WorkoutStatus
 from training_coach.domain.parser import Entry, Known, ParseResult, normalise_name, parse_log
+from training_coach.domain.places import day_place
 from training_coach.domain.queue import (
     ADVANCING,
     Position,
@@ -38,7 +39,7 @@ from training_coach.domain.queue import (
     local_date,
     resettled,
 )
-from training_coach.services import blocks, day_clash, undo, users
+from training_coach.services import blocks, day_clash, undo, user_settings, users
 from training_coach.services.blocks import load_kit, loadable
 from training_coach.services.day_clash import Clash, Refused, Resolution, Resolved
 from training_coach.services.groq import Rewrite
@@ -70,6 +71,8 @@ class Draft:
     # today's session is a different one): never completes it, never moves the queue.
     extra: bool = False
     activity: str | None = None  # CardioActivity, for a cardio log
+    # Where it was done (ADR-0071); empty: the day's place, as the session plan has it.
+    place: Place | None = None
     cardio: Details = NO_DETAILS  # effort, distance, heart rate, start (ADR-0067)
     # Today's log of a session named on purpose ("today Arms", or picked on the web), whatever
     # the queue offers (ADR-0060): done out of turn, it leaves the queue where it is (ADR-0016).
@@ -294,10 +297,15 @@ def _inferred(session: Session, entries: tuple[Entry, ...]) -> SessionTemplate |
     templates = session.scalars(
         select(SessionTemplate)
         .order_by(SessionTemplate.position)
-        .options(selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise))
+        .options(
+            selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise),
+            selectinload(SessionTemplate.gym_items).selectinload(TemplateItem.exercise),
+        )
     )
     for template in templates:
-        shared = len(logged & {item.exercise.slug for item in template.items})
+        # Either version: a log of gym exercises is that session at the gym (ADR-0071).
+        items = (*template.items, *template.gym_items)
+        shared = len(logged & {item.exercise.slug for item in items})
         if shared and (best is None or shared > best[0]):
             best = (shared, template)
     return best[1] if best is not None else None
@@ -458,6 +466,14 @@ def _commit(
     return Saved(workout.id, already_saved=False)
 
 
+def _place(session: Session, confirmed: Draft) -> Place:
+    """Where a log was done: the draft's place, else the day's (ADR-0071)."""
+    if confirmed.place is not None:
+        return confirmed.place
+    prefs = user_settings.load(session)
+    return day_place(prefs.places, prefs.place)
+
+
 def _order(session: Session) -> list[int]:
     return list(session.scalars(select(SessionTemplate.id).order_by(SessionTemplate.position)))
 
@@ -505,6 +521,7 @@ def save(
         status=WorkoutStatus.DONE,  # only done workouts carry sets (rest/skip have none)
         log_token=confirmed.token,
         activity=confirmed.activity,
+        place=_place(session, confirmed),
         **_details(confirmed.cardio),
     )
     _file(session, workout, confirmed, exercises, strength, tz)
@@ -580,6 +597,7 @@ def _save_past(
         status=WorkoutStatus.REST if confirmed.rest else WorkoutStatus.DONE,
         log_token=confirmed.token,
         activity=confirmed.activity,
+        place=_place(session, confirmed),
         **_details(confirmed.cardio),
     )
     _file(session, workout, confirmed, exercises, strength, tz)

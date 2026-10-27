@@ -21,6 +21,8 @@ const SESSION: Guided = {
   minutes: 45,
   rest_seconds: 60,
   after_run: false,
+  place: 'home',
+  place_choice: false,
   items: [
     {
       slug: 'jump-squat',
