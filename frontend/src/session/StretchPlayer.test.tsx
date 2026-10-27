@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Routine } from '../api'
-import { playChange, unlockAudio } from '../hiit/sounds'
+import { playChange, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import { duration } from './flow'
 import StretchPlayer from './StretchPlayer'
 
@@ -9,6 +9,7 @@ vi.mock('../hiit/sounds', () => ({
   DEFAULT_SOUND: 'ring',
   unlockAudio: vi.fn(),
   playChange: vi.fn(),
+  playSessionEnd: vi.fn(),
 }))
 
 // Hip flexor, one-sided, 2 rounds: 0-15 into position, 15-45 hold, 45-50 let go, 50-80 hold;
@@ -80,10 +81,12 @@ test('the overview lists what is coming and the true total before anything start
   expect(screen.queryByRole('timer')).not.toBeInTheDocument()
 })
 
-test('Done stretching skips the player and logs the chosen minutes', () => {
+test('Done stretching skips the player and logs the chosen minutes, ringing the end', () => {
   const { onLog } = show()
   click('Done stretching')
   expect(onLog).toHaveBeenCalledWith(5)
+  expect(unlockAudio).toHaveBeenCalled() // inside the tap
+  expect(playSessionEnd).toHaveBeenCalledExactlyOnceWith('ring') // before Settings answers
 })
 
 test('Start gives 15 s to get into position, with the cue and figure, and no bell', async () => {
@@ -161,10 +164,11 @@ test('Skip and Previous move a stretch at a time without ringing for what they s
   expect(screen.getByRole('heading', { name: 'Hip flexor stretch' })).toBeInTheDocument()
 })
 
-test('at the end the finish bell rings and the minutes done are logged by themselves', async () => {
+test('at the end the session-end bell rings once and the minutes log by themselves', async () => {
   const { onLog } = await start()
   advance(205_400)
-  expect(playChange).toHaveBeenLastCalledWith('bell', 'finish')
+  expect(playSessionEnd).toHaveBeenCalledExactlyOnceWith('bell')
+  expect(played('finish')).toBe(0) // the end of stretching is the end of the session
   expect(vibrate).toHaveBeenLastCalledWith([300, 100, 300])
   expect(screen.getByText('Stretching done: 3 min.')).toBeInTheDocument()
   expect(onLog).toHaveBeenCalledTimes(1)
@@ -172,6 +176,7 @@ test('at the end the finish bell rings and the minutes done are logged by themse
   expect(screen.queryByRole('button', { name: "Don't log it" })).not.toBeInTheDocument()
   click('Log 3 min') // still there if the log failed
   expect(onLog).toHaveBeenCalledTimes(2)
+  expect(playSessionEnd).toHaveBeenCalledOnce() // not again
 })
 
 test('Skip past the last stretch is a stop, not a finish: nothing logs by itself', async () => {
@@ -190,8 +195,10 @@ test('stopped early it offers to log the whole minutes done, or nothing', async 
   click('Stop early')
   expect(screen.getByText(/Stopped early: log the 2 min you did, or nothing/)).toBeInTheDocument()
   expect(onLog).not.toHaveBeenCalled()
+  expect(playSessionEnd).not.toHaveBeenCalled()
   click('Log 2 min')
   expect(onLog).toHaveBeenCalledWith(2)
+  expect(playSessionEnd).toHaveBeenCalledExactlyOnceWith('bell') // logged: the end
   click("Don't log it")
   expect(onDiscard).toHaveBeenCalled()
 })
