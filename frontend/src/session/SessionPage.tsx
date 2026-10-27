@@ -19,17 +19,25 @@ import {
   type TodayView,
   type Undone,
   type UndoOffer,
+  type GuidedItem,
 } from '../api'
 import {
   CARDIO,
   fromKept,
+  saveChoice,
+  savedChoice,
   key,
+  kgText,
+  loadFor,
   partnerOf,
   restTitle,
   stepOf,
   summary,
+  chosenIn,
+  shown,
   timed,
   toDone,
+  unweighed,
   unitText,
   valueFor,
   versus,
@@ -81,6 +89,8 @@ export default function SessionPage() {
   const [saved, setSaved] = useState<Saved | null>(null)
   const [busy, setBusy] = useState(false)
   const [first, setFirst] = useState<number[]>([]) // pairs started with their second exercise
+  // As the set screen shows it, once a suggested weight is taken (ADR-0072); null: as sent.
+  const [view, setView] = useState<Guided | null>(null)
   // Clocks keep wall-clock times, not tick counts: a phone throttles timers while the screen
   // is locked, which is exactly when someone rests. Each tick just reads the time again.
   const [now, setNow] = useState(() => Date.now())
@@ -187,7 +197,9 @@ export default function SessionPage() {
     // An empty order can't be guided; treat it like nothing planned.
     if (!today.session || today.session.order.length === 0) return setLoaded({ status: 'none' })
     setLoaded({ status: 'ready', session: today.session })
-    setValues(fromKept(today.progress))
+    const kept = fromKept(today.progress)
+    setValues(kept)
+    setView(shown(today.session, savedChoice(today.session)))
     setPosition(today.progress?.position ?? 0)
     setFurthest(today.progress?.position ?? 0)
     setRevision(today.progress?.revision ?? 0)
@@ -276,6 +288,7 @@ export default function SessionPage() {
       </AppShell>
     )
   const session = loaded.session
+  const screen = view ?? session
   const total = session.order.length
 
   /** Keep the place and the sets; another device having moved on reloads its version. */
@@ -311,9 +324,12 @@ export default function SessionPage() {
   }
 
   const timesSoFar = stage === 'check' ? times(session, values) : null
-  const step = session.order[Math.min(position, total - 1)]
-  const item = session.items[step.item]
-  const value = valueFor(values, step.item, step.set_no, step.target)
+  const step = screen.order[Math.min(position, total - 1)]
+  const item = screen.items[step.item]
+  const kg = loadFor(screen, values, step.item, step.set_no)
+  const base = valueFor(values, step.item, step.set_no, step.target)
+  const value = kg === undefined ? base : { ...base, load_kg: kg }
+  const sentLoad = session.items[step.item].load // before a suggested weight is taken
   const change = (v: Value) => setValues({ ...values, [key(step.item, step.set_no)]: v })
 
   /** Confirm this set: the counter's value, or the clock's reading when it runs; the mobility
@@ -321,7 +337,7 @@ export default function SessionPage() {
   const confirm = async (given?: Value, from: number = shownAt) => {
     unlockAudio() // inside the tap: browsers only allow sound after a gesture
     const reading = given ?? (watch === null ? value : { ...value, left: watch, right: watch })
-    const done = timed(reading, from, Date.now())
+    const done = { ...timed(reading, from, Date.now()), confirmed: true }
     const nextValues = { ...values, [key(step.item, step.set_no)]: done }
     const next = Math.max(position + 1, furthest) // a corrected set returns to where you were
     if (await keep(next, nextValues)) {
@@ -615,6 +631,21 @@ export default function SessionPage() {
                   onChange={(v) => change({ ...value, left: v, right: v })}
                 />
               )}
+              {item.load && sentLoad && kg !== undefined && (
+                <Weight
+                  load={item.load}
+                  sent={sentLoad}
+                  kg={kg}
+                  setNo={step.set_no}
+                  onChange={(load_kg) => change({ ...value, load_kg })}
+                  onChoose={(take) => {
+                    const chosen = { ...chosenIn(session, screen), [step.item]: take }
+                    saveChoice(session, chosen)
+                    setValues(unweighed(values, step.item)) // a touched set starts afresh too
+                    setView(shown(session, chosen))
+                  }}
+                />
+              )}
               {item.per_side && (
                 <button
                   type="button"
@@ -660,6 +691,7 @@ export default function SessionPage() {
             Next: <span className="font-bold">{item.name}</span>, set {step.set_no} of{' '}
             {item.targets.length}, target {unitText(item, step.target)}
             {item.per_side ? ' each side' : ''}
+            {kg !== undefined ? ` at ${kgText(kg)}` : ''}
           </p>
           <div className="flex w-full gap-3">
             <button type="button" className={secondary} onClick={() => startRest(restLeft + 15)}>
@@ -680,7 +712,7 @@ export default function SessionPage() {
           <p className="text-[var(--slate)]">Nothing is saved until you save.</p>
           {timesSoFar && <p className="font-bold">{soFar(timesSoFar)}</p>}
           <ul className={card}>
-            {summary(session, values).map((row, index) => (
+            {summary(screen, values).map((row, index) => (
               <li
                 key={row.name}
                 className="flex justify-between gap-3 border-b border-[var(--line)] py-2"
@@ -970,6 +1002,113 @@ function Counter({
         </button>
       </div>
       <span className="text-sm text-[var(--slate)]">{versus(value, target)}</span>
+    </div>
+  )
+}
+
+/** The weight on a loaded step (ADR-0072): − and + in the kit's increment, no typing. It says
+ * where the weight came from; what to lift is the person's call. */
+function LoadCounter({
+  load,
+  kg,
+  last,
+  onChange,
+}: {
+  load: NonNullable<GuidedItem['load']>
+  kg: number
+  last: number
+  onChange: (kg: number) => void
+}) {
+  const label = load.kit === 'dumbbells' ? 'Each dumbbell, kg' : 'Weight, kg'
+  const by = (sign: number) => onChange(Math.round((kg + sign * load.increment) * 100) / 100)
+  const note = !load.carried
+    ? 'First time at this step: set your weight'
+    : kg === last
+      ? 'Same as last time'
+      : `Last time ${kgText(last)}`
+  return (
+    <div className={card + ' flex flex-col items-center gap-2'} role="group" aria-label={label}>
+      <span className="text-sm font-bold text-[var(--slate)]">{label}</span>
+      <div className="flex items-center gap-5">
+        <button
+          type="button"
+          aria-label={`${load.increment} kg lighter`}
+          disabled={kg - load.increment <= 0}
+          className="size-14 rounded-full border-2 border-[var(--ink)] text-2xl disabled:opacity-40"
+          onClick={() => by(-1)}
+        >
+          −
+        </button>
+        <span aria-live="polite" className="min-w-24 text-center text-5xl font-extrabold">
+          {kg}
+        </span>
+        <button
+          type="button"
+          aria-label={`${load.increment} kg heavier`}
+          disabled={kg + load.increment > 500}
+          className="size-14 rounded-full border-2 border-[var(--ink)] text-2xl disabled:opacity-40"
+          onClick={() => by(1)}
+        >
+          +
+        </button>
+      </div>
+      <span className="text-sm text-[var(--slate)]">{note}</span>
+    </div>
+  )
+}
+
+/** The weight on a loaded step and, when there is one, the suggested next weight. */
+function Weight({
+  load,
+  sent,
+  kg,
+  setNo,
+  onChange,
+  onChoose,
+}: {
+  load: NonNullable<GuidedItem['load']>
+  sent: NonNullable<GuidedItem['load']>
+  kg: number
+  setNo: number
+  onChange: (kg: number) => void
+  onChoose: (take: boolean) => void
+}) {
+  return (
+    <>
+      <LoadCounter load={load} kg={kg} last={sent.kg[setNo - 1]} onChange={onChange} />
+      {sent.suggested && <Suggested load={sent} taken={load !== sent} onChoose={onChoose} />}
+    </>
+  )
+}
+
+/** Double progression's suggestion (ADR-0072): every set reached the top last time, so the
+ * next weight up is offered, reps from the bottom. A tap takes it or goes back. */
+function Suggested({
+  load,
+  taken,
+  onChoose,
+}: {
+  load: NonNullable<GuidedItem['load']>
+  taken: boolean
+  onChoose: (take: boolean) => void
+}) {
+  const up = load.suggested!
+  const last = Math.max(...load.kg)
+  return (
+    <div className={card + ' flex flex-col gap-2'} role="group" aria-label="Next weight">
+      <p className="m-0">
+        {taken
+          ? `Taking ${kgText(up.kg)}: reps start again from ${up.targets[0]}.`
+          : `Every set reached the top of the range last time. Ready for ${kgText(up.kg)}? Reps start again from ${up.targets[0]}.`}
+      </p>
+      <button
+        type="button"
+        aria-pressed={taken}
+        className="min-h-11 rounded-xl border-2 border-[var(--ink)] font-bold"
+        onClick={() => onChoose(!taken)}
+      >
+        {taken ? `Stay at ${kgText(last)}` : `Use ${kgText(up.kg)}`}
+      </button>
     </div>
   )
 }

@@ -33,6 +33,7 @@ from training_coach.domain import kit as kit_rules
 from training_coach.domain.blocks import BlockKind, history_kind
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.kit import Item
+from training_coach.domain.load import top_weight
 from training_coach.domain.progression import Progress, assess, combine_sides
 from training_coach.domain.queue import local_date
 from training_coach.domain.records import NewBests, new_bests
@@ -114,13 +115,15 @@ def sessions_at_step(
     step_id: int,
     per_side: bool,
     block: BlockKind | None = None,
+    weight: float | None = None,
 ) -> list[tuple[int, list[int]]]:
     """Every done workout's per-set values for this exercise at this step, newest first.
 
     ``block`` keeps strength and hypertrophy history apart (ADR-0028): ``STRENGTH`` only
-    strength-block workouts, ``HYPERTROPHY`` everything else, None both."""
+    strength-block workouts, ``HYPERTROPHY`` everything else, None both. ``weight`` keeps only
+    the workouts whose heaviest set used it, on a loaded step (ADR-0072)."""
     query = (
-        select(SetLog.workout_id, SetLog.set_no, SetLog.side, SetLog.value)
+        select(SetLog.workout_id, SetLog.set_no, SetLog.side, SetLog.value, SetLog.load_kg)
         .join(Workout)
         .where(
             Workout.status == WorkoutStatus.DONE,
@@ -131,9 +134,16 @@ def sessions_at_step(
     )
     rows = session.execute(_in_block(query, block))
     grouped: dict[int, list[tuple[int, Side, int]]] = {}
-    for workout_id, set_no, side, value in rows:
+    heaviest: dict[int, float | None] = {}
+    for workout_id, set_no, side, value, kg in rows:
         grouped.setdefault(workout_id, []).append((set_no, Side(side), value))
-    return [(w, combine_sides(sets, unilateral=per_side)) for w, sets in grouped.items()]
+        if kg is not None:
+            heaviest[workout_id] = max(kg, heaviest.get(workout_id) or kg)
+    return [
+        (w, combine_sides(sets, unilateral=per_side))
+        for w, sets in grouped.items()
+        if weight is None or heaviest.get(w) == weight
+    ]
 
 
 def _in_block[*Ts](query: Select[*Ts], block: BlockKind | None) -> Select[*Ts]:
@@ -195,7 +205,8 @@ def _unlock(step: LadderStep, kit: Kit) -> str | None:
 def _status(
     session: Session, item: TemplateItem | None, step: LadderStep, kit: Kit = None
 ) -> Progress:
-    if item is None:
+    if item is None or blocks.load_kit(step.exercise.slug, step.name) is not None:
+        # A loaded step gets harder by weight, suggested on the set screen (ADR-0072).
         return Progress.HOLD
     # Readiness is judged on the hypertrophy prescription and its history (ADR-0028).
     block = history_kind(ExerciseKind(item.exercise.kind), BlockKind.HYPERTROPHY)
@@ -221,10 +232,12 @@ def bests_in(
     step_id: int,
     per_side: bool,
     block: BlockKind | None = None,
+    weight: float | None = None,
 ) -> NewBests:
     """The records one workout set for an exercise at a step, against the sessions before it
-    (of the same block kind, when ``block`` is given)."""
-    history = sessions_at_step(session, exercise_id, step_id, per_side, block)
+    (of the same block kind, when ``block`` is given; at the same ``weight``, on a loaded
+    step: more reps at a lighter weight is no record, ADR-0072)."""
+    history = sessions_at_step(session, exercise_id, step_id, per_side, block, weight)
     # History is newest first, so what follows this workout came before it: a backdated log
     # is compared with the sessions before its day, not with later ones.
     at = next((i for i, (w, _) in enumerate(history) if w == workout_id), len(history))
@@ -279,9 +292,15 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
         item = _item(session, exercise_id, workout.template_id)
         # A retired exercise has no item, so it is never ready (#107); bests still count.
         per_side = item.per_side if item is not None else exercise.per_side
-        bests = bests_in(
-            session, workout_id, exercise_id, step_id, per_side, workout_history(workout, exercise)
+        weight = top_weight(
+            [
+                (s.set_no, s.load_kg)
+                for s in workout.sets
+                if s.exercise_id == exercise_id and s.load_kg is not None
+            ]
         )
+        history = workout_history(workout, exercise)
+        bests = bests_in(session, workout_id, exercise_id, step_id, per_side, history, weight)
         state = users.exercise_state(session, exercise_id)
         # Progression is about the step being trained now, outside strength blocks; a log at
         # an older step, or a strength-block session, only counts for bests (ADR-0028).

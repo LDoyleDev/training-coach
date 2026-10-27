@@ -98,3 +98,18 @@ Decided while building, within this ADR:
   dropped silently; two weights on one line ask for a line each. The confirm step shows "10 /
   10 / 9 at 16 kg"; a set given no weight shows a dash in its place ("8 / 8 / 6 at 16 / 16 / –
   kg") and is saved without one: the person decides. The AI's `propose_log` and the summaries follow in their own PR.
+- **A session's weight is its heaviest set's.** Targets come from the sessions at the weight
+  last used, so a heavier weight starts from its own first session; bests after a save count
+  only sessions at the same weight. The suggestion is the next weight by the kit's increment
+  once the last session did every planned set at that one weight and every set reached the top
+  of the range (one session, as option D says; a ladder's Move up needs two). A pyramid, one
+  heavy set and the rest lighter, suggests nothing: it is no session at the heavy weight. It comes with targets at the bottom
+  of the range and changes nothing until the person takes it on the set screen. A loaded step
+  is never "ready to move up" or "top of the ladder": it gets harder by weight.
+- **Taking it is the tap alone.** Use or Stay on the set screen is kept in that browser for
+  the day's session, so a reload keeps it; reaching the suggested weight with + is not taking
+  it. Use or Stay restarts only the sets never confirmed.
+- **Strength blocks:** a loaded step stays on its step with the 4-8 prescription and no tempo
+  cue; its weights and targets come from strength-block sessions, so the first strength block
+  starts at the kit's first weight and the person sets theirs. The weekly review's bests still
+  count every weight.

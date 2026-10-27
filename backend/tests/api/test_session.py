@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 
+from tests import factories
 from training_coach.api.app import create_app
 from training_coach.config import Settings
 from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, SetLog, Workout
@@ -15,7 +16,7 @@ from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.load import LoadKit
 from training_coach.domain.queue import local_date
-from training_coach.services import auth, today, users
+from training_coach.services import auth, blocks, users
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -584,11 +585,17 @@ def test_a_loaded_step_offers_its_weights_and_keeps_each_sets(
     """The set screen gets the kit, the increment and each set's starting weight; a kept set's
     weight comes back on resume (ADR-0072)."""
     monkeypatch.setattr(
-        today, "load_kit", lambda slug, step: LoadKit.BARBELL if slug == "jump-squat" else None
+        blocks, "_load_kits", lambda: factories.loads("jump-squat", LoadKit.BARBELL)
     )
     session = signed_in.get("/api/session/today").json()["session"]
     jump = session["items"][0]
-    assert jump["load"] == {"kit": "barbell", "increment": 2.5, "kg": [20.0] * 3, "carried": False}
+    assert jump["load"] == {
+        "kit": "barbell",
+        "increment": 2.5,
+        "kg": [20.0] * 3,
+        "carried": False,
+        "suggested": None,
+    }
     assert session["items"][1]["load"] is None
     sets = [{"item": 0, "set_no": 1, "left": 8, "load_kg": 22.5}]
     body = {"template_id": session["template_id"], "position": 1, "sets": sets}

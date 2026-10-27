@@ -132,6 +132,7 @@ afterEach(() => {
   vi.useRealTimers()
   vi.clearAllMocks()
   Reflect.deleteProperty(navigator, 'wakeLock')
+  localStorage.clear() // a taken weight is kept per browser (ADR-0072)
 })
 
 const click = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }))
@@ -1155,4 +1156,180 @@ test('Check and save shows no times for sets without them', async () => {
   expect(await screen.findByRole('heading', { name: 'Check and save' })).toBeInTheDocument()
   expect(screen.queryByText(/^So far/)).not.toBeInTheDocument()
   expect(screen.queryByText(/^\d+s$/)).not.toBeInTheDocument()
+})
+
+const LOADED: Guided = {
+  ...SESSION,
+  items: [
+    {
+      ...SESSION.items[0],
+      name: 'Bench press',
+      load: { kit: 'barbell', increment: 2.5, kg: [40, 42.5], carried: true },
+    },
+    SESSION.items[1],
+  ],
+}
+
+test('a loaded step starts at last time and takes − and + in its increment (ADR-0072)', async () => {
+  const sent = serve({ today: { session: LOADED, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const weight = screen.getByRole('group', { name: 'Weight, kg' })
+  expect(weight).toHaveTextContent('40')
+  expect(weight).toHaveTextContent('Same as last time')
+  click('2.5 kg heavier')
+  expect(weight).toHaveTextContent('42.5')
+  expect(weight).toHaveTextContent('Last time 40 kg')
+  expect(screen.queryByRole('group', { name: 'Each dumbbell, kg' })).not.toBeInTheDocument()
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  await screen.findByRole('heading', { name: 'Calf raise' })
+  expect(screen.queryByRole('group', { name: 'Weight, kg' })).not.toBeInTheDocument()
+  click('Confirm set')
+  expect(await screen.findByText(/set 2 of 2, target 6 at 42.5 kg/)).toBeInTheDocument()
+  click('Skip rest')
+  await screen.findByRole('heading', { name: 'Bench press' })
+  click('Confirm set')
+  expect(await screen.findByText('6 · 6 at 42.5 kg')).toBeInTheDocument()
+  const kept = sent['PUT /api/session/progress']
+  expect(kept[0]).toMatchObject({ sets: [{ item: 0, set_no: 1, left: 6, load_kg: 42.5 }] })
+  expect((kept[1] as { sets: Done[] }).sets[1]).not.toHaveProperty('load_kg')
+})
+
+test('a first time at a loaded step says to set the weight, and the next set follows it', async () => {
+  const first: Guided = {
+    ...LOADED,
+    items: [
+      {
+        ...LOADED.items[0],
+        load: { kit: 'dumbbells', increment: 2, kg: [8, 8], carried: false },
+      },
+      LOADED.items[1],
+    ],
+  }
+  serve({ today: { session: first, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const weight = screen.getByRole('group', { name: 'Each dumbbell, kg' })
+  expect(weight).toHaveTextContent('First time at this step: set your weight')
+  click('2 kg lighter')
+  click('2 kg lighter')
+  click('2 kg lighter')
+  expect(screen.getByRole('button', { name: '2 kg lighter' })).toBeDisabled()
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  await screen.findByRole('heading', { name: 'Calf raise' })
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  const next = await screen.findByRole('group', { name: 'Each dumbbell, kg' })
+  expect(next).toHaveTextContent('−2+')
+})
+
+test('every set at the top last time offers the next weight; a tap takes it or goes back', async () => {
+  const ready: Guided = {
+    ...LOADED,
+    items: [
+      {
+        ...LOADED.items[0],
+        load: {
+          kit: 'barbell',
+          increment: 2.5,
+          kg: [40, 40],
+          carried: true,
+          suggested: { kg: 42.5, targets: [4, 4] },
+        },
+      },
+      LOADED.items[1],
+    ],
+  }
+  const sent = serve({ today: { session: ready, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const next = screen.getByRole('group', { name: 'Next weight' })
+  expect(next).toHaveTextContent('Every set reached the top of the range last time.')
+  expect(screen.getByRole('group', { name: 'Weight, kg' })).toHaveTextContent('40')
+  expect(screen.getByText('Target 6')).toBeInTheDocument() // nothing changes until a tap
+  click('1 more') // a set touched before the tap still takes the new weight
+  click(/^Use 42\.5\skg$/)
+  expect(screen.getByRole('group', { name: 'Weight, kg' })).toHaveTextContent('42.5')
+  expect(screen.getByRole('group', { name: 'Weight, kg' })).toHaveTextContent('Last time 40 kg')
+  expect(screen.getByText('Target 4')).toBeInTheDocument()
+  expect(next).toHaveTextContent('Taking 42.5 kg: reps start again from 4.')
+  click(/^Stay at 40\skg$/)
+  expect(screen.getByText('Target 6')).toBeInTheDocument()
+  click(/^Use 42\.5\skg$/)
+  click('Confirm set')
+  await waitFor(() => expect(sent['PUT /api/session/progress']).toHaveLength(1))
+  expect(sent['PUT /api/session/progress'][0]).toMatchObject({
+    sets: [{ item: 0, set_no: 1, left: 4, load_kg: 42.5 }],
+  })
+})
+
+const READY: Guided = {
+  ...LOADED,
+  items: [
+    {
+      ...LOADED.items[0],
+      load: {
+        kit: 'barbell',
+        increment: 2.5,
+        kg: [40, 40],
+        carried: true,
+        suggested: { kg: 42.5, targets: [4, 4] },
+      },
+    },
+    LOADED.items[1],
+  ],
+}
+
+/** Resumed at the bench press's second set, its first kept at ``kg`` with no set times (kept
+ * before ADR-0061, or by another client). */
+const resumedAt = (kg: number): TodayView => ({
+  session: READY,
+  progress: {
+    template_id: 3,
+    position: 2,
+    first: [],
+    saved: false,
+    revision: 2,
+    sets: [
+      { item: 0, set_no: 1, left: 6, right: null, load_kg: kg },
+      { item: 1, set_no: 1, left: 15, right: null },
+    ],
+  },
+})
+
+test('taking the suggestion on a resumed session keeps sets confirmed without times', async () => {
+  const sent = serve({ today: resumedAt(40) })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Resume: set 3 of 3' }))
+  click(/^Use 42\.5\skg$/)
+  click('Confirm set')
+  await waitFor(() => expect(sent['PUT /api/session/progress']).toHaveLength(1))
+  const kept = (sent['PUT /api/session/progress'][0] as { sets: Done[] }).sets
+  expect(kept.map((d) => [d.item, d.set_no, d.load_kg ?? null])).toEqual([
+    [0, 1, 40],
+    [1, 1, null],
+    [0, 2, 42.5],
+  ])
+})
+
+test('reaching the suggested weight with + is not taking it, after a reload too', async () => {
+  serve({ today: resumedAt(42.5) })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Resume: set 3 of 3' }))
+  expect(screen.getByRole('group', { name: 'Next weight' })).toHaveTextContent('Ready for')
+  expect(screen.getByText('Target 6')).toBeInTheDocument()
+})
+
+test('a tap on Use is kept through a reload of the page', async () => {
+  serve({ today: resumedAt(42.5) })
+  const first = render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Resume: set 3 of 3' }))
+  click(/^Use 42\.5\skg$/)
+  first.unmount()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Resume: set 3 of 3' }))
+  expect(screen.getByRole('group', { name: 'Next weight' })).toHaveTextContent('Taking 42.5')
+  expect(screen.getByText('Target 4')).toBeInTheDocument()
 })

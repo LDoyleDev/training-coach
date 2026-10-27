@@ -2679,6 +2679,7 @@ export interface components {
              * @enum {string}
              */
             kit: "barbell" | "dumbbells" | "machine";
+            suggested?: components["schemas"]["NextWeightView"] | null;
         };
         /** LogBody */
         LogBody: {
@@ -2966,6 +2967,17 @@ export interface components {
             secret: string;
             /** Url */
             url: string | null;
+        };
+        /**
+         * NextWeightView
+         * @description Every set reached the top of the range last time: this weight next, with these targets
+         *     (the bottom of the range). A suggestion the person taps to take (ADR-0072).
+         */
+        NextWeightView: {
+            /** Kg */
+            kg: number;
+            /** Targets */
+            targets: number[];
         };
         /** NightView */
         NightView: {

@@ -1,13 +1,17 @@
 import type { Done, Guided, GuidedItem, Kept } from '../api'
 
-/** One confirmed set as the screen holds it: `split` means left and right differ. A confirmed
- * set also has when its screen appeared and when it was confirmed (ADR-0061). */
+/** One set as the screen holds it: `split` means left and right differ. `confirmed`: kept on
+ * the server or confirmed on this screen, as opposed to a set only touched with − and +. A
+ * confirmed set may also have when its screen appeared and when it was confirmed (ADR-0061),
+ * and on a loaded step its weight (ADR-0072). */
 export type Value = {
   left: number
   right: number
   split: boolean
+  confirmed?: boolean
   started_at?: string
   done_at?: string
+  load_kg?: number
 }
 export type Values = Record<string, Value>
 
@@ -26,9 +30,10 @@ export function fromKept(kept: Kept | null | undefined): Values {
   const values: Values = {}
   for (const d of kept?.sets ?? []) {
     const right = d.right ?? d.left
-    const value: Value = { left: d.left, right, split: right !== d.left }
+    const value: Value = { left: d.left, right, split: right !== d.left, confirmed: true }
     if (d.started_at && d.done_at)
       Object.assign(value, { started_at: d.started_at, done_at: d.done_at })
+    if (d.load_kg != null) value.load_kg = d.load_kg
     values[key(d.item, d.set_no)] = value
   }
   return values
@@ -49,6 +54,7 @@ export function toDone(session: Guided, values: Values): Done[] {
     }
     if (v.started_at && v.done_at)
       Object.assign(done, { started_at: v.started_at, done_at: v.done_at })
+    if (session.items[s.item].load && v.load_kg !== undefined) done.load_kg = v.load_kg
     return [done]
   })
 }
@@ -69,6 +75,95 @@ export function timed(value: Value, shownAt: number, now: number): Value {
 export function valueFor(values: Values, item: number, setNo: number, target: number): Value {
   return values[key(item, setNo)] ?? { left: target, right: target, split: false }
 }
+
+/** The weight a loaded set starts at (ADR-0072): what was confirmed; else the same set's
+ * weight last time; with no history, the nearest set confirmed before it today, else the kit's
+ * first weight. Undefined for a step without load. */
+export function loadFor(session: Guided, values: Values, item: number, setNo: number) {
+  const load = session.items[item].load
+  if (!load) return undefined
+  const confirmed = values[key(item, setNo)]?.load_kg
+  if (confirmed !== undefined) return confirmed
+  if (!load.carried)
+    for (let n = setNo - 1; n >= 1; n--) {
+      const before = values[key(item, n)]?.load_kg
+      if (before !== undefined) return before
+    }
+  return load.kg[setNo - 1]
+}
+
+/** The items whose suggested weight the person took with Use (ADR-0072). Only the tap
+ * counts: reaching that weight with + is not taking the suggestion. */
+export function taken(session: Guided, chosen: Record<number, boolean>) {
+  const found = new Set<number>()
+  session.items.forEach((item, index) => {
+    if (item.load?.suggested && chosen[index]) found.add(index)
+  })
+  return found
+}
+
+/** The session as the screen shows it: an item whose suggested weight was taken starts every
+ * set at that weight, with targets from the bottom of the range. Nothing changes until the
+ * person taps; the server gets only what each set records. */
+export function taking(session: Guided, items: Set<number>): Guided {
+  if (items.size === 0) return session
+  const shown = session.items.map((item, index) => {
+    const up = item.load?.suggested
+    if (!item.load || !up || !items.has(index)) return item
+    return {
+      ...item,
+      targets: up.targets,
+      load: { ...item.load, kg: item.load.kg.map(() => up.kg) },
+    }
+  })
+  const order = session.order.map((s) =>
+    items.has(s.item) && shown[s.item] !== session.items[s.item]
+      ? { ...s, target: shown[s.item].targets[s.set_no - 1] }
+      : s,
+  )
+  return { ...session, items: shown, order }
+}
+
+/** The session as the screen shows it, with the suggested weights the person took. */
+export const shown = (session: Guided, chosen: Record<number, boolean>) =>
+  taking(session, taken(session, chosen))
+
+/** Where this browser keeps Use and Stay for a day's session, so a reload keeps them. Storage
+ * can be missing or full: then the choice lasts as long as the page. */
+const choiceKey = (session: Guided) => `tc.weights-taken.${session.day}.${session.template_id}`
+
+export function savedChoice(session: Guided): Record<number, boolean> {
+  try {
+    const found: unknown = JSON.parse(localStorage.getItem(choiceKey(session)) ?? '{}')
+    return found && typeof found === 'object' ? (found as Record<number, boolean>) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function saveChoice(session: Guided, chosen: Record<number, boolean>) {
+  try {
+    localStorage.setItem(choiceKey(session), JSON.stringify(chosen))
+  } catch {
+    // the choice still holds for this page
+  }
+}
+
+/** Which items of ``session`` show a suggested weight taken in ``screen``. */
+export const chosenIn = (session: Guided, screen: Guided): Record<number, boolean> =>
+  Object.fromEntries(session.items.map((item, i) => [i, screen.items[i] !== item]))
+
+/** ``values`` without ``item``'s sets only touched, never confirmed, so they start afresh at the weight
+ * just taken or given back, and its targets. */
+export function unweighed(values: Values, item: number): Values {
+  return Object.fromEntries(
+    Object.entries(values).filter(([at, value]) => !at.startsWith(`${item}:`) || value.confirmed),
+  )
+}
+
+/** "22.5 kg", as a person writes it. */
+export const kgText = (kg: number) => `${kg}${NBSP}kg`
+const NBSP = String.fromCharCode(0xa0) // the number and its unit stay on one line
 
 /** How much one tap of + or − changes a value. */
 export function stepOf(item: GuidedItem): number {
@@ -93,13 +188,27 @@ export function summary(session: Guided, values: Values) {
     const done = sets
       .filter((v): v is Value => v !== null)
       .map((v) => (item.per_side && v.split ? `${v.left}/${v.right}` : unitText(item, v.left)))
+    // One weight for every set reads once at the end; different weights go with each set.
+    const kg = sets.flatMap((v) => (v?.load_kg === undefined ? [] : [v.load_kg]))
+    const weights = new Set(kg)
+    const shown =
+      weights.size === 0
+        ? done.join(' · ')
+        : weights.size === 1
+          ? `${done.join(' · ')} at ${kgText(kg[0])}`
+          : sets
+              .filter((v): v is Value => v !== null)
+              .map((v, n) =>
+                v.load_kg === undefined ? done[n] : `${done[n]} × ${kgText(v.load_kg)}`,
+              )
+              .join(' · ')
     const hit = sets.every(
       (v, n) => v !== null && v.left >= item.targets[n] && v.right >= item.targets[n],
     )
     return {
       name: item.name,
       target: item.targets.map((t) => unitText(item, t)).join(' · '),
-      done: done.length ? done.join(' · ') : 'not done',
+      done: done.length ? shown : 'not done',
       hit,
     }
   })

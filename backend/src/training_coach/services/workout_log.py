@@ -39,9 +39,10 @@ from training_coach.domain.queue import (
     resettled,
 )
 from training_coach.services import blocks, day_clash, undo, users
+from training_coach.services.blocks import load_kit, loadable
 from training_coach.services.day_clash import Clash, Refused, Resolution, Resolved
 from training_coach.services.groq import Rewrite
-from training_coach.services.today import load_kit, loadable, position
+from training_coach.services.today import position
 
 EXTRA = "Extra session"
 REST_WORD = re.compile(r"\brest\b", re.IGNORECASE)
