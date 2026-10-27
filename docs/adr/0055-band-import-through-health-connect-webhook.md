@@ -1,6 +1,6 @@
 # ADR-0055: Band data through Health Connect Webhook
 
-- Status: Accepted
+- Status: Accepted; a counted workout counts its full minutes, split by zone: ADR-0079
 - Date: 2026-10-11
 - Deciders: Liam
 

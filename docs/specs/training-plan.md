@@ -87,11 +87,14 @@ are measured against their own, lower bands (low evidence; Core and hips).
 Conditioning covers Galpin's endurance adaptations: long zone 2 (long-duration endurance),
 moderate cardio (muscular endurance / threshold), high intensity (anaerobic and VO2 max).
 
-**Zone 2 target: 180-200 minutes a week**, built up over time (Huberman's Foundational Fitness
-Protocol). The long zone 2 session gives 45-75 of them; walks, rides and easy runs on other days
-make up the rest (they log as zone 2 through its aliases). The weekly review shows the week's
-zone 2 and moderate cardio minutes against it (#124); the target is `[targets] zone2_minutes`
-in `plan.toml`.
+**Cardio targets come from the cycle** (ADR-0079): zone 2 is the sum of its zone 2 sessions
+(Long zone 2, 45-75 minutes), and all cardio the sum of its cardio in minutes (75-115 with
+Cardio + core's 30-40; HIIT counts rounds). A person's "extra cardio a week" on the Plan page
+(walks, rides and easy runs outside the sessions, which log as zone 2 through its aliases) adds
+to both. 180-200 minutes of zone 2 a week comes from Huberman's Foundational Fitness Protocol
+(Huberman Lab newsletter, Nov 2022): it is the long-term idea a person reaches with extra time,
+not the default. The Cardio page, Home and the weekly review show the minutes by zone against
+these targets (#124, ADR-0077).
 
 ## Known limits
 

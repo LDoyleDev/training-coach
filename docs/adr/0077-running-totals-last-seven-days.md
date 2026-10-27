@@ -1,6 +1,6 @@
 # ADR-0077: Running totals are the last 7 days; the weekly review stays a calendar week
 
-- Status: Accepted
+- Status: Accepted; all cardio, its zones and the targets: ADR-0079
 - Date: 2026-10-26
 - Deciders: Liam
 
