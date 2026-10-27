@@ -68,7 +68,7 @@ def test_a_band_walk_is_offered(signed_in: TestClient, engine: Engine) -> None:
         "minutes": 46,
         "zone2": 38,
         "kind": "zone2",
-        "value": 38,
+        "value": 46,  # all of it, split by zone in the totals (ADR-0079)
         "text": "Walk, 46 min, 38 in zone 2 - count it?",
     }
 
@@ -79,7 +79,8 @@ def test_counting_on_a_zone2_day_completes_it_once(signed_in: TestClient, engine
     body = signed_in.post(f"{PATH}/{walk}/count").json()
     assert (body["planned"], body["already_saved"]) == (True, False)
     assert body["week"]["zone2"] == 38  # the zone 2 minutes feed the week
-    assert _workouts(engine) == [(template, "walk", 38)]
+    assert body["week"]["total"] == 46  # and all of it the total (ADR-0079)
+    assert _workouts(engine) == [(template, "walk", 46)]
     again = signed_in.post(f"{PATH}/{walk}/count").json()
     assert (again["already_saved"], again["workout_id"]) == (True, body["workout_id"])
     assert len(_workouts(engine)) == 1
@@ -116,7 +117,7 @@ def test_an_odd_band_heart_rate_is_left_out(signed_in: TestClient, engine: Engin
 def test_counting_on_a_strength_day_is_an_extra(signed_in: TestClient, engine: Engine) -> None:
     body = signed_in.post(f"{PATH}/{_band(engine)}/count").json()
     assert body["planned"] is False
-    assert _workouts(engine) == [(None, "walk", 38)]
+    assert _workouts(engine) == [(None, "walk", 46)]
 
 
 def test_an_earlier_day_is_an_extra_on_that_day(signed_in: TestClient, engine: Engine) -> None:

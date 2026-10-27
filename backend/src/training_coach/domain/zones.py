@@ -98,13 +98,58 @@ def resting(nights: Sequence[int]) -> int:
     return round(median(recent)) if recent else DEFAULT_REST
 
 
-def minutes(readings: Sequence[tuple[datetime, int]], end: datetime, zones: Zones) -> list[int]:
-    """Minutes in zones 1-5 from ``(time, bpm)`` readings in time order: each reading lasts
-    until the next one or ``end``, at most 5 minutes, so a gap in the data counts for little."""
-    seconds = [0.0] * len(BANDS)
+def measured(readings: Sequence[tuple[datetime, int]], end: datetime, zones: Zones) -> list[int]:
+    """Minutes below zone 1 and in zones 1-5 from ``(time, bpm)`` readings in time order: each
+    reading lasts until the next one or ``end``, at most 5 minutes, so a gap in the data counts
+    for little."""
+    seconds = [0.0] * (len(BANDS) + 1)
     for n, (at, bpm) in enumerate(readings):
         until = readings[n + 1][0] if n + 1 < len(readings) else end
-        length = min(max(until - at, timedelta(0)), LONGEST_GAP).total_seconds()
-        if (zone := zones.zone(bpm)) > 0:
-            seconds[zone - 1] += length
+        seconds[zones.zone(bpm)] += min(max(until - at, timedelta(0)), LONGEST_GAP).total_seconds()
     return [round(s / 60) for s in seconds]
+
+
+def minutes(readings: Sequence[tuple[datetime, int]], end: datetime, zones: Zones) -> list[int]:
+    """Minutes in zones 1-5 (``measured`` without the minutes below zone 1)."""
+    return measured(readings, end, zones)[1:]
+
+
+@dataclass(frozen=True)
+class Split:
+    """Cardio minutes by zone (ADR-0079). ``measured`` is below zone 1 ("easy") and zones 1-5,
+    from heart rate; minutes without heart rate count in the zone the person logged them as:
+    zone 2, or zone 3 and above for moderate cardio."""
+
+    measured: tuple[int, ...] = (0,) * (len(BANDS) + 1)
+    zone2_unmeasured: int = 0
+    harder_unmeasured: int = 0  # "zone 3+ (no heart rate)"
+
+    @property
+    def total(self) -> int:
+        return sum(self.measured) + self.zone2_unmeasured + self.harder_unmeasured
+
+    @property
+    def zone2(self) -> int:
+        """Zone 2 minutes: from heart rate, and logged as zone 2 without it."""
+        return self.measured[2] + self.zone2_unmeasured
+
+    def __add__(self, other: "Split") -> "Split":
+        return Split(
+            tuple(a + b for a, b in zip(self.measured, other.measured, strict=True)),
+            self.zone2_unmeasured + other.zone2_unmeasured,
+            self.harder_unmeasured + other.harder_unmeasured,
+        )
+
+
+def split(total: int, harder: bool, found: Sequence[int] | None = None) -> Split:
+    """A workout's ``total`` minutes by zone: ``found`` (``measured``) where it has heart rate,
+    trimmed from the largest zones when rounding made it more than ``total``; the rest, or all
+    of it without heart rate, in the zone it was logged as (zone 3+ when ``harder``)."""
+    zone_minutes = list(found) if found is not None else [0] * (len(BANDS) + 1)
+    over = max(0, sum(zone_minutes) - total)
+    for n in sorted(range(len(zone_minutes)), key=lambda n: -zone_minutes[n]):
+        take = min(zone_minutes[n], over)
+        zone_minutes[n] -= take
+        over -= take
+    rest = total - sum(zone_minutes)
+    return Split(tuple(zone_minutes), 0 if harder else rest, rest if harder else 0)

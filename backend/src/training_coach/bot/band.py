@@ -135,9 +135,15 @@ def feeds_text(notices: FeedNotices, from_webhook: bool = False) -> str:
 
 
 def counted_text(week: cardio.Week, planned: bool) -> str:
+    """The reply to Count it, with the last 7 days as the Cardio page shows them (ADR-0079):
+    "Counted. Last 7 days: cardio 109 of 75-115 min, zone 2 35 of 45-75. /undo takes it back."""
     done = "Counted, and today's session is done." if planned else "Counted."
-    target = f" of {week.zone2_target[0]}-{week.zone2_target[1]}" if week.zone2_target else ""
-    return f"{done} Zone 2 in the last 7 days: {week.zone2}{target} min. /undo takes it back."
+    total = f" of {week.total_target[0]}-{week.total_target[1]}" if week.total_target else ""
+    zone2 = f" of {week.zone2_target[0]}-{week.zone2_target[1]}" if week.zone2_target else ""
+    return (
+        f"{done} Last 7 days: cardio {week.total}{total} min, zone 2 {week.zone2}{zone2}. "
+        "/undo takes it back."
+    )
 
 
 class BandHandlers:

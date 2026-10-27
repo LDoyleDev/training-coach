@@ -3,13 +3,16 @@ import pytest
 from training_coach.domain.cardio import (
     NO_DETAILS,
     Details,
+    Targets,
     activity_in,
     by_speed,
     details_problem,
+    left,
     load,
     pace,
     speed,
     suggested,
+    targets,
 )
 from training_coach.domain.enums import CardioActivity
 from training_coach.domain.zones import karvonen
@@ -101,3 +104,28 @@ def test_an_average_heart_rate_suggests_a_kind(avg_hr: int, kind: str) -> None:
 def test_load_is_minutes_times_effort() -> None:
     assert load(43, 6) == 258
     assert load(43, None) is None
+
+
+@pytest.mark.parametrize(
+    ("done", "target", "expected"),
+    [
+        (0, 180, 180),  # nothing yet: all of it
+        (179, 180, 1),
+        (180, 180, 0),  # the low end of zone 2's 180-200: on target
+        (200, 180, 0),
+        (239, 240, 1),
+        (240, 240, 0),  # the total's 240
+        (300, 240, 0),  # over: never negative
+        (35, None, None),  # no target in the plan
+    ],
+)
+def test_what_is_left_of_a_cardio_target(done: int, target: int | None, expected: int) -> None:
+    assert left(done, target) == expected
+
+
+def test_targets_are_the_cycles_cardio_plus_extra() -> None:
+    assert targets((45, 75), (30, 40), 0) == Targets((45, 75), (75, 115))
+    assert targets((45, 75), (30, 40), 30) == Targets((75, 105), (105, 145))
+    assert targets(None, (30, 40), 0) == Targets(None, (30, 40))  # no zone 2 session
+    assert targets(None, None, 60) == Targets((60, 60), (60, 60))  # extra cardio only
+    assert targets(None, None, 0) == Targets(None, None)  # nothing to aim for

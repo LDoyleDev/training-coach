@@ -6,7 +6,7 @@ on each of those days, and today's session for the button. It only reads; the ca
 session.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from zoneinfo import ZoneInfo
 
@@ -15,9 +15,16 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, Exercise, SessionTemplate, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
-from training_coach.services import guided, progress, retests, review, session_times
+from training_coach.domain.zones import Split
+from training_coach.services import (
+    cardio_totals,
+    guided,
+    progress,
+    retests,
+    review,
+    session_times,
+)
 from training_coach.services.progress import Ready
-from training_coach.services.seed import bundled_plan
 
 MOVED_UP = "progress.moved_up"  # written by progress.move_up
 
@@ -43,6 +50,8 @@ class Week:
     zone2_minutes: int
     moderate_minutes: int
     zone2_target: tuple[int, int] | None
+    cardio: Split = field(default_factory=Split)  # all cardio minutes by zone (ADR-0079)
+    cardio_target: tuple[int, int] | None = None
 
 
 @dataclass(frozen=True)
@@ -110,16 +119,19 @@ def _recent(session: Session, on: date) -> list[Recent]:
         )
         .order_by(Workout.local_date.desc(), Workout.created_at.desc(), Workout.id.desc())
     )
-    return [Recent(w.local_date, _label(w, names)) for w in workouts]
+    minutes = {c.workout_id: c.total for c in cardio_totals.logged(session, since, on)}
+    return [Recent(w.local_date, _label(w, names, minutes)) for w in workouts]
 
 
-def _label(workout: Workout, names: dict[int, str]) -> str:
+def _label(workout: Workout, names: dict[int, str], minutes: dict[int, int]) -> str:
     """The session's name; a cardio log adds what it was: "Long zone 2: hike, 62 min", or
-    "Walk, 30 min" for an extra. Anything else unplanned is "Extra"."""
+    "Walk, 30 min" for an extra, a counted band workout for all its minutes (ADR-0079).
+    Anything else unplanned is "Extra"."""
     name = names.get(workout.template_id) if workout.template_id is not None else None
     if workout.activity is None:
         return name or "Extra"
-    detail = f"{workout.activity}, {sum(s.value for s in workout.sets)} min"
+    total = minutes.get(workout.id, sum(s.value for s in workout.sets))
+    detail = f"{workout.activity}, {total} min"
     return f"{name}: {detail}" if name else detail.capitalize()
 
 
@@ -141,7 +153,7 @@ def home(session: Session, on: date, tz: ZoneInfo) -> Home:
     today, minutes, usual = _today(session, on, tz)
     start = review.last_days(on)
     span = review.span(session, start, on)
-    targets = bundled_plan().targets
+    targets = cardio_totals.targets(session)
     climbed = session.scalar(select(func.count()).select_from(Event).where(Event.kind == MOVED_UP))
     return Home(
         totals=_totals(session, on),
@@ -152,7 +164,9 @@ def home(session: Session, on: date, tz: ZoneInfo) -> Home:
             extras=span.extras,
             zone2_minutes=span.zone2_minutes,
             moderate_minutes=span.moderate_minutes,
-            zone2_target=targets.zone2_minutes if targets is not None else None,
+            zone2_target=targets.zone2,
+            cardio=span.cardio,
+            cardio_target=targets.total,
         ),
         progress=Ladder(
             steps_climbed=climbed or 0,

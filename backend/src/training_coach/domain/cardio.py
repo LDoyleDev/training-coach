@@ -116,3 +116,32 @@ def suggested(avg_hr: int, zones: Zones) -> Timed:
 def load(minutes: int, effort: int | None) -> int | None:
     """Session load: minutes times RPE (Foster 2001), comparable whatever was worn."""
     return minutes * effort if effort is not None else None
+
+
+def left(done: int, target: int | None) -> int | None:
+    """Minutes still to go to a cardio target (ADR-0079): 0 once reached, None without one."""
+    return None if target is None else max(0, target - done)
+
+
+EXTRA_CARDIO = (0, 600)  # minutes a week a person can add to the targets (ADR-0079)
+Range = tuple[int, int]
+
+
+@dataclass(frozen=True)
+class Targets:
+    """Cardio targets for 7 days (ADR-0079), each a range of minutes; None with nothing to aim
+    for."""
+
+    zone2: Range | None
+    total: Range | None  # all cardio, any zone
+
+
+def targets(zone2: Range | None, moderate: Range | None, extra: int) -> Targets:
+    """The cycle's zone 2 prescriptions, and all its cardio in minutes (HIIT counts rounds, so
+    it isn't here), each plus the person's extra cardio a week: walks or rides outside the
+    sessions, easy by nature, so they add to zone 2 as well."""
+    z2, mod = zone2 or (0, 0), moderate or (0, 0)
+    return Targets(
+        (z2[0] + extra, z2[1] + extra) if zone2 or extra else None,
+        (z2[0] + mod[0] + extra, z2[1] + mod[1] + extra) if zone2 or moderate or extra else None,
+    )

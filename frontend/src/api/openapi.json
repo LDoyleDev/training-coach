@@ -1923,6 +1923,42 @@
       "HomeWeekView": {
         "description": "The last 7 days, today included, the same days as ``recent`` (ADR-0077).",
         "properties": {
+          "cardio_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cardio Left"
+          },
+          "cardio_minutes": {
+            "title": "Cardio Minutes",
+            "type": "integer"
+          },
+          "cardio_target": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cardio Target"
+          },
           "done": {
             "title": "Done",
             "type": "integer"
@@ -1943,6 +1979,17 @@
             "format": "date",
             "title": "Start",
             "type": "string"
+          },
+          "zone2_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone2 Left"
           },
           "zone2_minutes": {
             "title": "Zone2 Minutes",
@@ -1968,6 +2015,9 @@
               }
             ],
             "title": "Zone2 Target"
+          },
+          "zones": {
+            "$ref": "#/components/schemas/ZonesView"
           }
         },
         "required": [
@@ -1977,7 +2027,12 @@
           "extras",
           "zone2_minutes",
           "moderate_minutes",
-          "zone2_target"
+          "zone2_target",
+          "zone2_left",
+          "cardio_minutes",
+          "cardio_target",
+          "cardio_left",
+          "zones"
         ],
         "title": "HomeWeekView",
         "type": "object"
@@ -5169,6 +5224,19 @@
             ],
             "title": "Blocks"
           },
+          "extra_cardio_min": {
+            "anyOf": [
+              {
+                "maximum": 600.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Cardio Min"
+          },
           "habits_enabled": {
             "anyOf": [
               {
@@ -5283,6 +5351,10 @@
             ],
             "title": "Blocks Since"
           },
+          "extra_cardio_min": {
+            "title": "Extra Cardio Min",
+            "type": "integer"
+          },
           "habits_enabled": {
             "title": "Habits Enabled",
             "type": "boolean"
@@ -5339,6 +5411,7 @@
           "blocks_since",
           "pace",
           "sound",
+          "extra_cardio_min",
           "paused",
           "timezone"
         ],
@@ -6185,15 +6258,55 @@
         "type": "object"
       },
       "WeekView": {
-        "description": "Minutes over the last 7 days, today included (ADR-0077).",
+        "description": "Minutes over the last 7 days, today included (ADR-0077): all cardio and by zone, and\nwhat is left of each target (0 once reached, ADR-0079).",
         "properties": {
           "moderate": {
             "title": "Moderate",
             "type": "integer"
           },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Left"
+          },
+          "total_target": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Target"
+          },
           "zone2": {
             "title": "Zone2",
             "type": "integer"
+          },
+          "zone2_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone2 Left"
           },
           "zone2_target": {
             "anyOf": [
@@ -6208,12 +6321,20 @@
               }
             ],
             "title": "Zone2 Target"
+          },
+          "zones": {
+            "$ref": "#/components/schemas/ZonesView"
           }
         },
         "required": [
           "zone2",
           "moderate",
-          "zone2_target"
+          "zone2_target",
+          "zone2_left",
+          "total",
+          "total_target",
+          "total_left",
+          "zones"
         ],
         "title": "WeekView",
         "type": "object"
@@ -6239,6 +6360,55 @@
           "high"
         ],
         "title": "ZoneView",
+        "type": "object"
+      },
+      "ZonesView": {
+        "description": "Cardio minutes by heart-rate zone (ADR-0079): from the band's heart rate in a workout's\nwindow; minutes without it in the zone they were logged as.",
+        "properties": {
+          "below_zone1": {
+            "title": "Below Zone1",
+            "type": "integer"
+          },
+          "zone1": {
+            "title": "Zone1",
+            "type": "integer"
+          },
+          "zone2": {
+            "title": "Zone2",
+            "type": "integer"
+          },
+          "zone2_no_hr": {
+            "title": "Zone2 No Hr",
+            "type": "integer"
+          },
+          "zone3": {
+            "title": "Zone3",
+            "type": "integer"
+          },
+          "zone3_up_no_hr": {
+            "title": "Zone3 Up No Hr",
+            "type": "integer"
+          },
+          "zone4": {
+            "title": "Zone4",
+            "type": "integer"
+          },
+          "zone5": {
+            "title": "Zone5",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "below_zone1",
+          "zone1",
+          "zone2",
+          "zone3",
+          "zone4",
+          "zone5",
+          "zone2_no_hr",
+          "zone3_up_no_hr"
+        ],
+        "title": "ZonesView",
         "type": "object"
       }
     }

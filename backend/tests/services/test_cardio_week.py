@@ -39,7 +39,8 @@ def test_on_a_monday_the_weekend_still_counts(plan: Session) -> None:
     _extra(plan, cardio.ZONE2, 40, MONDAY - timedelta(days=7))  # a week ago: outside
     _extra(plan, cardio.ZONE2, 30, MONDAY - timedelta(days=8))
     week = cardio.week(plan, MONDAY)
-    assert (week.zone2, week.moderate, week.zone2_target) == (50, 25, (180, 200))
+    assert (week.zone2, week.moderate, week.zone2_target) == (50, 25, (45, 75))
+    assert (week.total, week.total_target) == (75, (75, 115))
 
 
 def test_the_weekly_review_still_starts_on_monday(plan: Session) -> None:

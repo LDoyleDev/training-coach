@@ -176,7 +176,7 @@ def test_zone_2_and_moderate_minutes_this_week(plan: Session) -> None:
     _log(plan, "moderate-cardio", [60], SUNDAY, template=_template(plan, "moderate-cardio"))
     review = weekly(plan, SUNDAY)
     assert (review.zone2_minutes, review.moderate_minutes) == (105, 60)
-    assert review.zone2_target == (180, 200)
+    assert review.zone2_target == (45, 75)  # the cycle's zone 2 (ADR-0079)
 
 
 def test_only_done_workouts_this_week_count_as_cardio(plan: Session) -> None:

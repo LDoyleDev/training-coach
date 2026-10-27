@@ -57,7 +57,17 @@ def test_a_planned_zone2_day_offers_done_as_planned(signed_in: TestClient, engin
     body = signed_in.get("/api/cardio").json()
     assert body["planned"] == {"kind": "zone2", "session": "Long zone 2", "target": 45}
     assert "walk" in body["activities"]
-    assert body["week"] == {"zone2": 0, "moderate": 0, "zone2_target": [180, 200]}
+    nothing = dict.fromkeys(("below_zone1", "zone1", "zone2", "zone3", "zone4", "zone5"), 0)
+    assert body["week"] == {
+        "zone2": 0,
+        "moderate": 0,
+        "zone2_target": [45, 75],  # the cycle's Long zone 2 (ADR-0079)
+        "zone2_left": 45,
+        "total": 0,
+        "total_target": [75, 115],  # and Cardio + core's 30-40
+        "total_left": 75,
+        "zones": nothing | {"zone2_no_hr": 0, "zone3_up_no_hr": 0},
+    }
 
 
 def test_a_strength_day_has_nothing_planned_for_cardio(signed_in: TestClient) -> None:
