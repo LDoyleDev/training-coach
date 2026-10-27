@@ -122,7 +122,10 @@ class ExerciseSeed(_Strict):
         return self
 
     def step_stress(self, step: str) -> set[Stress]:
-        """The shared stress of one of its ladder steps (a squat loads the spine only loaded)."""
+        """The shared stress of one of its ladder steps (a squat loads the spine only loaded:
+        with a weight it needs, or on a step that takes load, ADR-0072)."""
+        if step in self.loads:
+            return set(self.stress)
         return step_stress(self.stress, self.pattern, self.needs.get(step, []))
 
     @model_validator(mode="after")

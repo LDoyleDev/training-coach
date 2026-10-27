@@ -21,7 +21,14 @@ from training_coach.db.models import (
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.load import LoadKit
 from training_coach.domain.queue import local_date
-from training_coach.services import blocks, queue_actions, user_settings, users, workout_log
+from training_coach.services import (
+    blocks,
+    progress,
+    queue_actions,
+    user_settings,
+    users,
+    workout_log,
+)
 from training_coach.services.seed import apply_seed, load_plan
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -534,3 +541,25 @@ def test_a_typed_weight_is_saved_on_a_step_that_takes_load(
     assert isinstance(saved, workout_log.Saved)
     sets = seeded.get_one(Workout, saved.workout_id).sets
     assert sorted((s.set_no, s.value, s.load_kg) for s in sets) == [(1, 8, 10.0), (2, 7, 10.0)]
+
+
+def test_a_gym_exercise_is_logged_with_its_weight_before_any_session_uses_it(
+    session: Session,
+) -> None:
+    """The gym catalogue (ADR-0072) is in no session until builder step 9; a typed log takes it,
+    weight and all, and only then does it show on Progress."""
+    apply_seed(session, load_plan())  # the bundled plan, with the gym catalogue
+    session.flush()
+    seeded = session
+    assert "Leg press" not in {s.exercise for s in progress.overview(seeded)}
+    draft = workout_log.draft(seeded, "leg press 10 10 9 at 80", TODAY, BERLIN)
+    assert draft.problems == ()
+    saved = workout_log.save(seeded, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    sets = seeded.get_one(Workout, saved.workout_id).sets
+    assert sorted((s.set_no, s.value, s.load_kg) for s in sets) == [
+        (1, 10, 80.0),
+        (2, 10, 80.0),
+        (3, 9, 80.0),
+    ]
+    assert "Leg press" in {s.exercise for s in progress.overview(seeded)}

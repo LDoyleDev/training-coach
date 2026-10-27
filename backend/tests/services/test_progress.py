@@ -12,6 +12,7 @@ from training_coach.db.models import (
     LadderStep,
     SessionTemplate,
     SetLog,
+    TemplateItem,
     Workout,
 )
 from training_coach.domain.enums import Side, WorkoutStatus
@@ -246,8 +247,10 @@ def test_a_backdated_log_is_compared_with_earlier_sessions_only(plan: Session) -
 
 def test_overview_lists_every_exercise_in_plan_order(plan: Session) -> None:
     standings = overview(plan)
-    active = plan.scalars(select(Exercise.id).where(Exercise.retired.is_(False))).all()
-    assert len(standings) == len(active)  # retired ones only once they have history (#107)
+    in_sessions = set(plan.scalars(select(TemplateItem.exercise_id)))
+    # Retired ones, and ones in no session (the gym catalogue, ADR-0072), only once they have
+    # history (#107).
+    assert len(standings) == len(in_sessions)
     names = [s.exercise for s in standings]
     assert names.index("Pull-up") < names.index("Dip (chairs)")  # Torso lists pull-ups first
     pull = standings[names.index("Pull-up")]

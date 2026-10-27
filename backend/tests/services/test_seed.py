@@ -918,3 +918,17 @@ def test_split_squats_load_the_spine_only_with_a_kettlebell() -> None:
     jump = exercises["jump-squat"]
     assert not any(jump.step_stress(s) for s in jump.ladder)
     assert all(exercises["kb-swing"].step_stress(s) for s in exercises["kb-swing"].ladder)
+
+
+def test_the_gym_catalogue_takes_load_on_its_last_step_and_waits_for_the_gym_sessions() -> None:
+    """ADR-0072: a loaded exercise is one step, or a ladder whose top step takes load; the gym
+    exercises join sessions with the gym versions (builder step 9), not before."""
+    plan = load_plan()
+    loaded = [e for e in plan.exercises if e.loads]
+    assert len(loaded) == 23
+    assert all(list(e.loads) == [e.ladder[-1]] for e in loaded)
+    in_sessions = {i.exercise for s in plan.sessions for i in s.items}
+    assert not in_sessions & {e.slug for e in loaded}
+    assert {e.slug for e in loaded if "triceps long head" in e.parts} == {
+        "overhead-cable-extension"
+    }
