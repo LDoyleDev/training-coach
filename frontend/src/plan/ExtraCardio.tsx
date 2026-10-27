@@ -18,7 +18,8 @@ const MOST = 600 // minutes a week, as the server allows
 const span = (t: readonly number[] | null) => (t ? `${t[0]}–${t[1]} min` : 'none')
 
 type Week = CardioOptions['week']
-type Loaded = { status: 'loading' | 'hidden' } | { status: 'ready'; extra: number; week: Week }
+type Loaded =
+  { status: 'loading' | 'hidden' } | { status: 'ready'; extra: number; week: Week | null } // null: targets not refreshed
 
 const choice = (on: boolean) =>
   'min-h-11 rounded-xl border-2 px-3 font-bold disabled:opacity-60 ' +
@@ -56,16 +57,13 @@ export default function ExtraCardio() {
     try {
       const saved = await saveSettings({ extra_cardio_min: minutes })
       if (saved === 'invalid') return setNote(`A number from 0 to ${MOST}.`)
-      const cardio = await fetchCardio()
-      setLoaded({
-        status: 'ready',
-        extra: saved.extra_cardio_min,
-        week: cardio ? cardio.week : loaded.week,
-      })
+      // Saved: show it now, whatever the targets' refresh does next (review of #391).
+      const extra = saved.extra_cardio_min
+      setLoaded({ status: 'ready', extra, week: null })
       setTyped('')
-      setNote(
-        saved.extra_cardio_min ? `Saved: ${saved.extra_cardio_min} min a week.` : 'Saved: none.',
-      )
+      setNote(extra ? `Saved: ${extra} min a week.` : 'Saved: none.')
+      const cardio = await fetchCardio().catch(() => null)
+      setLoaded({ status: 'ready', extra, week: cardio ? cardio.week : null })
     } catch (error) {
       setNote(
         error instanceof SignedOutError
@@ -129,9 +127,18 @@ export default function ExtraCardio() {
           {note}
         </p>
       )}
-      <p className="m-0">
-        Targets for 7 days: zone 2 {span(week.zone2_target)}, all cardio {span(week.total_target)}.
-      </p>
+      {week ? (
+        <p className="m-0">
+          Targets for 7 days: zone 2 {span(week.zone2_target)}, all cardio {span(week.total_target)}
+          .
+        </p>
+      ) : (
+        !busy && (
+          <p className="m-0 text-[var(--slate)]">
+            Couldn't refresh the targets. Reload the page to see them.
+          </p>
+        )
+      )}
     </section>
   )
 }

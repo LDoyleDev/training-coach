@@ -80,6 +80,22 @@ test.each([
   expect(screen.getByRole('button', { name: 'None' })).toHaveAttribute('aria-pressed', 'true')
 })
 
+test('saved, but the targets could not be refreshed: the new setting still shows', async () => {
+  serve()
+  render(<ExtraCardio />)
+  fireEvent.click(await screen.findByRole('button', { name: '30 min' }))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(null, { status: 500 })),
+  )
+  expect(
+    await screen.findByText("Couldn't refresh the targets. Reload the page to see them."),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('status')).toHaveTextContent('Saved: 30 min a week.')
+  expect(screen.getByRole('button', { name: '30 min' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.queryByText(/didn't work/)).not.toBeInTheDocument()
+})
+
 test('signed out, it stays hidden', async () => {
   serve('ok', true)
   const { container } = render(<ExtraCardio />)
