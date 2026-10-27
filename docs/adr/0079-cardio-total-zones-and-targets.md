@@ -79,6 +79,8 @@ With his real week and no extra: cardio 109 of 75-115 minutes (on target), zone 
   adds the column (default 0).
 - The weekly review's zone 2 figure is the split's, so a past week whose typed zone 2 logs had a
   start and heart rate can read lower than before.
-- The day view still shows an old counted walk's logged minutes (35); only totals and Home's
-  list read the import.
+- Every reader of a cardio set's minutes takes a counted import's full minutes
+  (`cardio_totals.counted`): the totals, Home's list, the day view, personal bests and the
+  Progress trend (so Telegram's /progress), what a connected AI reads (the summary and an
+  exercise's history over MCP), the day-clash question and the share picture.
 - The web shows the total, the zone rows and the Plan page's extra cardio setting (the web PR).
