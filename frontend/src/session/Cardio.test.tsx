@@ -22,7 +22,26 @@ vi.mock('../hiit/HiitTimer', () => ({
   ),
 }))
 
-const WEEK = { zone2: 40, moderate: 0, zone2_target: [180, 200] }
+const NO_ZONES = {
+  below_zone1: 0,
+  zone1: 0,
+  zone2: 0,
+  zone3: 0,
+  zone4: 0,
+  zone5: 0,
+  zone2_no_hr: 0,
+  zone3_up_no_hr: 0,
+}
+const WEEK = {
+  zone2: 40,
+  moderate: 0,
+  zone2_target: [180, 200],
+  zone2_left: 140,
+  total: 40,
+  total_target: null,
+  total_left: null,
+  zones: { ...NO_ZONES, zone2_no_hr: 40 },
+}
 
 const ZONE2_DAY: CardioOptions = {
   planned: { kind: 'zone2', session: 'Long zone 2', target: 45 },

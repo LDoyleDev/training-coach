@@ -70,7 +70,7 @@ and start time from a watch or app; pace is shown, not stored.
 
 **Recommendation:** A1 + A2 for zone 2 and moderate cardio, an A3 interval timer for HIIT
 only, and A4 later as the default with A1 as the fallback. After saving a cardio day, show
-"Last 7 days: 95 of 180-200 zone 2 min" (a running total since ADR-0077).
+"Last 7 days: 95 of 180-200 zone 2 min" (a running total since ADR-0077; all cardio by zone, against targets from the plan, since ADR-0079).
 
 ### B. What should the first screen be?
 

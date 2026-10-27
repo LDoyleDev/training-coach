@@ -83,3 +83,4 @@ Code). Template: [template.md](template.md).
 | [0076](0076-body-measurement-protocol-and-tape-estimate.md) | One way to take each measurement, and a tape body-fat estimate | Accepted |
 | [0077](0077-running-totals-last-seven-days.md) | Running totals are the last 7 days; the weekly review stays a calendar week | Accepted |
 | [0078](0078-rep-ranges-top-at-18.md) | A rep range tops out at 18; high-rep work keeps its range | Accepted |
+| [0079](0079-cardio-total-zones-and-targets.md) | All cardio counts, split by heart-rate zone, against targets from the plan | Accepted |

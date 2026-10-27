@@ -136,17 +136,17 @@ def counted_as(
 ) -> tuple[str, int] | None:
     """The cardio exercise a band workout counts as, and for how many minutes (ADR-0055).
 
-    With heart rate: zone 2 when it spent at least as long in zone 2 as in zones 3-5, for its
-    zone 2 minutes only; moderate otherwise, for all of it. Without: a run or stairs is
-    moderate, anything else zone 2, for all of it. None when that is under 5 minutes."""
+    With heart rate: zone 2 when it spent at least as long in zone 2 as in zones 3-5, moderate
+    otherwise. Without: a run or stairs is moderate, anything else zone 2. Always for all its
+    minutes, which the totals split by zone (ADR-0079; until then a zone 2 one was logged as its
+    zone 2 minutes only). None when its zone 2 minutes, or all of it without heart rate, are
+    under 5."""
     if zone_minutes is not None:
         zone2, harder = zone_minutes[1], sum(zone_minutes[2:])
-        found = (ZONE2, zone2) if zone2 >= harder else (MODERATE, minutes)
-    elif activity in HARD_WITHOUT_HEART_RATE:
-        found = (MODERATE, minutes)
+        kind, counts = (ZONE2, zone2) if zone2 >= harder else (MODERATE, minutes)
     else:
-        found = (ZONE2, minutes)
-    return found if found[1] >= MIN_COUNTED else None
+        kind, counts = (MODERATE if activity in HARD_WITHOUT_HEART_RATE else ZONE2), minutes
+    return (kind, minutes) if counts >= MIN_COUNTED else None
 
 
 def offer_text(activity: CardioActivity, minutes: int, zone_minutes: Sequence[int] | None) -> str:

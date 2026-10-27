@@ -8,12 +8,13 @@ from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, Request
-from pydantic import AfterValidator, BaseModel
+from pydantic import AfterValidator, BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.auth import Owner
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.cardio import EXTRA_CARDIO
 from training_coach.domain.clock import parse_hhmm
 from training_coach.domain.enums import Sound
 from training_coach.domain.habits import PROTEIN_GRAMS
@@ -63,6 +64,7 @@ class SettingsView(BaseModel):
     blocks_since: str | None  # training blocks on since this day (ADR-0028)
     pace: Pace  # how big a step the targets take (ADR-0057)
     sound: Sound  # what every guided timer plays at each change (ADR-0062, ADR-0074)
+    extra_cardio_min: int  # a week, outside the sessions, added to cardio targets (ADR-0079)
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -79,6 +81,7 @@ class SettingsChange(BaseModel):
     blocks: bool | None = None
     pace: Pace | None = None
     sound: Sound | None = None
+    extra_cardio_min: int | None = Field(default=None, ge=EXTRA_CARDIO[0], le=EXTRA_CARDIO[1])
     paused: bool | None = None
 
 
@@ -98,6 +101,7 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
         blocks_since=started.isoformat() if started is not None else None,
         pace=prefs.pace,
         sound=prefs.sound,
+        extra_cardio_min=prefs.extra_cardio_min,
         paused=prefs.paused,
         timezone=settings.timezone,
     )
@@ -127,6 +131,7 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             clear_protein=body.protein_g == 0,
             pace=body.pace,
             sound=body.sound,
+            extra_cardio_min=body.extra_cardio_min,
             today=local_date(datetime.now(UTC), settings.tz),
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)

@@ -64,6 +64,7 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "blocks_since": None,
         "pace": "standard",
         "sound": "ring",
+        "extra_cardio_min": 0,
         "paused": False,
         "timezone": "Europe/Berlin",
     }
@@ -156,6 +157,24 @@ def test_the_timer_sound_is_one_of_six(signed_in: TestClient, engine: Engine) ->
     assert signed_in.patch("/api/settings", json={"sound": "ring"}).json()["sound"] == "ring"
     assert signed_in.patch("/api/settings", json={"sound": "gong"}).status_code == 422
     assert signed_in.patch("/api/settings", json={"sound": "none"}).json()["sound"] == "none"
+
+
+def test_extra_cardio_a_week_adds_to_the_cardio_targets(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """Walks or rides outside the sessions (ADR-0079): 0 to 600 minutes a week."""
+    assert signed_in.patch("/api/settings", json={"extra_cardio_min": 60}).status_code == 200
+    assert _stored(engine).extra_cardio_min == 60
+    week = signed_in.get("/api/cardio").json()["week"]
+    assert (week["zone2_target"], week["total_target"]) == ([60, 60], [60, 60])  # no plan here
+    for refused in (-1, 601):
+        assert (
+            signed_in.patch("/api/settings", json={"extra_cardio_min": refused}).status_code == 422
+        )
+    assert (
+        signed_in.patch("/api/settings", json={"extra_cardio_min": 0}).json()["extra_cardio_min"]
+        == 0
+    )
 
 
 def test_signed_out_gets_nothing(client: TestClient) -> None:

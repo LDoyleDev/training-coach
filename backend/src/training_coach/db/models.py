@@ -264,6 +264,7 @@ class UserSettings(Owned, Base):
         ),
         CheckConstraint("thigh_offset_cm BETWEEN 5 AND 30", name="thigh_offset_cm_range"),
         CheckConstraint(_in("body_fat_estimate", BodyFatEstimate), name="body_fat_estimate_valid"),
+        CheckConstraint("extra_cardio_min BETWEEN 0 AND 600", name="extra_cardio_min_range"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -298,6 +299,8 @@ class UserSettings(Owned, Base):
     body_fat_estimate: Mapped[str] = mapped_column(
         String(16), server_default=BodyFatEstimate.OFF.value
     )
+    # Cardio a week outside the plan's sessions, added to its cardio targets (ADR-0079).
+    extra_cardio_min: Mapped[int] = mapped_column(Integer, server_default="0")
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

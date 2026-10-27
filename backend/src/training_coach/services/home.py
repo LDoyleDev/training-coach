@@ -6,7 +6,7 @@ on each of those days, and today's session for the button. It only reads; the ca
 session.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from zoneinfo import ZoneInfo
 
@@ -15,9 +15,16 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, Exercise, SessionTemplate, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
-from training_coach.services import guided, progress, retests, review, session_times
+from training_coach.domain.zones import Split
+from training_coach.services import (
+    cardio_totals,
+    guided,
+    progress,
+    retests,
+    review,
+    session_times,
+)
 from training_coach.services.progress import Ready
-from training_coach.services.seed import bundled_plan
 
 MOVED_UP = "progress.moved_up"  # written by progress.move_up
 
@@ -43,6 +50,8 @@ class Week:
     zone2_minutes: int
     moderate_minutes: int
     zone2_target: tuple[int, int] | None
+    cardio: Split = field(default_factory=Split)  # all cardio minutes by zone (ADR-0079)
+    cardio_target: tuple[int, int] | None = None
 
 
 @dataclass(frozen=True)
@@ -141,7 +150,7 @@ def home(session: Session, on: date, tz: ZoneInfo) -> Home:
     today, minutes, usual = _today(session, on, tz)
     start = review.last_days(on)
     span = review.span(session, start, on)
-    targets = bundled_plan().targets
+    targets = cardio_totals.targets(session)
     climbed = session.scalar(select(func.count()).select_from(Event).where(Event.kind == MOVED_UP))
     return Home(
         totals=_totals(session, on),
@@ -152,7 +161,9 @@ def home(session: Session, on: date, tz: ZoneInfo) -> Home:
             extras=span.extras,
             zone2_minutes=span.zone2_minutes,
             moderate_minutes=span.moderate_minutes,
-            zone2_target=targets.zone2_minutes if targets is not None else None,
+            zone2_target=targets.zone2,
+            cardio=span.cardio,
+            cardio_target=targets.total,
         ),
         progress=Ladder(
             steps_climbed=climbed or 0,

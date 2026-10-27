@@ -79,9 +79,9 @@ def test_believable_times() -> None:
 @pytest.mark.parametrize(
     ("activity", "minutes", "zones", "expected"),
     [
-        (CardioActivity.WALK, 46, [8, 38, 0, 0, 0], ("zone2", 38)),  # its zone 2 minutes
+        (CardioActivity.WALK, 46, [8, 38, 0, 0, 0], ("zone2", 46)),  # all of it (ADR-0079)
         (CardioActivity.RUN, 32, [0, 6, 20, 6, 0], ("moderate-cardio", 32)),  # zones 3-5 win
-        (CardioActivity.BIKE, 40, [0, 10, 10, 0, 0], ("zone2", 10)),  # a tie is zone 2
+        (CardioActivity.BIKE, 40, [0, 10, 10, 0, 0], ("zone2", 40)),  # a tie is zone 2
         (CardioActivity.WALK, 30, None, ("zone2", 30)),  # no heart rate
         (CardioActivity.RUN, 25, None, ("moderate-cardio", 25)),
         (CardioActivity.STAIRS, 12, None, ("moderate-cardio", 12)),

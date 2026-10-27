@@ -14,17 +14,19 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Exercise, LadderStep, SessionTemplate, SetLog, Workout
+from training_coach.domain import health
 from training_coach.domain.blocks import BlockKind
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.habits import HabitWeek
 from training_coach.domain.muscles import Muscle
 from training_coach.domain.records import NewBests
 from training_coach.domain.volume import weekly_sets
-from training_coach.services import blocks, habits, progress
+from training_coach.domain.zones import Split
+from training_coach.services import blocks, cardio_totals, habits, progress
 from training_coach.services.seed import bundled_plan
 
-ZONE2 = "zone2"  # walks, rides and easy runs log as this exercise through its aliases
-MODERATE = "moderate-cardio"
+ZONE2 = health.ZONE2  # walks, rides and easy runs log as this exercise through its aliases
+MODERATE = health.MODERATE
 LAST_DAYS = 7  # running totals: today and the six days before (ADR-0077)
 
 
@@ -49,10 +51,11 @@ class Review:
     ready: list[progress.Ready]  # exercises ready to move up
     strength_block: bool = False  # moving up waits for the hypertrophy block (ADR-0028)
     habits: list[HabitWeek] = field(default_factory=list)  # empty in a week with no check-off
-    # Cardio minutes from done workouts, whatever logged them (#124).
+    # Cardio minutes from done workouts, whatever logged them (#124): zone 2 by heart rate, or
+    # logged as zone 2 without it; moderate as logged (ADR-0079).
     zone2_minutes: int = 0
     moderate_minutes: int = 0
-    zone2_target: tuple[int, int] | None = None  # from plan.toml
+    zone2_target: tuple[int, int] | None = None  # from the cycle and extra cardio (ADR-0079)
 
 
 @dataclass(frozen=True)
@@ -61,9 +64,10 @@ class Span:
 
     done: int  # planned sessions completed, each once
     extras: int  # unplanned sessions, and a planned one done again
-    zone2_minutes: int
-    moderate_minutes: int
+    zone2_minutes: int  # in zone 2 (``Split.zone2``)
+    moderate_minutes: int  # logged as moderate
     bests: list[Best]
+    cardio: Split = field(default_factory=Split)  # all cardio minutes by zone (ADR-0079)
 
 
 def week_start(day: date) -> date:
@@ -99,28 +103,10 @@ def _volume(session: Session, start: date, end: date) -> list[tuple[Muscle, floa
     return weekly_sets((muscles.get(exercise_id, {}), int(sets)) for exercise_id, sets in rows)
 
 
-def _minutes(session: Session, start: date, end: date) -> dict[str, int]:
-    """Minutes logged per cardio exercise in done workouts of the week. Zone 2 is the zone2
-    exercise's duration for now; it can become minutes in the zone 2 heart-rate band once that
-    data arrives, without changing the review (#124)."""
-    rows = session.execute(
-        select(Exercise.slug, func.sum(SetLog.value))
-        .join(SetLog, SetLog.exercise_id == Exercise.id)
-        .join(Workout, Workout.id == SetLog.workout_id)
-        .where(
-            Workout.local_date >= start,
-            Workout.local_date <= end,
-            Workout.status == WorkoutStatus.DONE,
-            Exercise.slug.in_((ZONE2, MODERATE)),
-        )
-        .group_by(Exercise.slug)
-    )
-    return {slug: int(total) for slug, total in rows}
-
-
 def cardio_minutes(session: Session, start: date, end: date) -> dict[str, int]:
-    """Minutes of zone 2 and moderate cardio done from ``start`` to ``end`` (by slug)."""
-    return _minutes(session, start, end)
+    """Minutes of zone 2 and moderate cardio done from ``start`` to ``end`` (by slug), a
+    counted band workout for all its minutes (ADR-0079)."""
+    return cardio_totals.by_kind(cardio_totals.logged(session, start, end))
 
 
 def _higher(a: int | None, b: int | None) -> int | None:
@@ -173,13 +159,15 @@ def _span(session: Session, workouts: list[Workout], start: date, end: date) -> 
     done = [w for w in workouts if w.status == WorkoutStatus.DONE]
     # Each planned session counts once; doing one again in the span is an extra.
     planned_done = len({w.template_id for w in done if w.template_id is not None})
-    minutes = _minutes(session, start, end)
+    cardio = cardio_totals.logged(session, start, end)
+    zones = cardio_totals.split(session, cardio, end)
     return Span(
         done=planned_done,
         extras=len(done) - planned_done,
-        zone2_minutes=minutes.get(ZONE2, 0),
-        moderate_minutes=minutes.get(MODERATE, 0),
+        zone2_minutes=zones.zone2,
+        moderate_minutes=cardio_totals.by_kind(cardio).get(MODERATE, 0),
         bests=_bests(session, done),
+        cardio=zones,
     )
 
 
@@ -200,7 +188,7 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
     workouts = _workouts(session, start, end)
     found = _span(session, workouts, start, end)
     ticked = habits.week(session, start, on)
-    targets = bundled_plan().targets
+    targets = cardio_totals.targets(session)
     return Review(
         start=start,
         planned=planned_sessions(session),
@@ -218,5 +206,5 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
         habits=ticked if any(h.done for h in ticked) else [],
         zone2_minutes=found.zone2_minutes,
         moderate_minutes=found.moderate_minutes,
-        zone2_target=targets.zone2_minutes if targets is not None else None,
+        zone2_target=targets.zone2,
     )

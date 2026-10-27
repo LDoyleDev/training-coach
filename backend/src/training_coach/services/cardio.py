@@ -6,7 +6,7 @@ It saves through ``workout_log.save``, so a log is idempotent by its token, can 
 extra. The caller owns the transaction.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -15,9 +15,9 @@ from sqlalchemy.orm import Session
 from training_coach.domain.cardio import NO_DETAILS, Details, details_problem
 from training_coach.domain.enums import CardioActivity, Side
 from training_coach.domain.parser import Entry
-from training_coach.services import guided, review, workout_log
+from training_coach.domain.zones import Split
+from training_coach.services import cardio_totals, guided, review, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
-from training_coach.services.seed import bundled_plan
 
 ZONE2 = review.ZONE2
 MODERATE = review.MODERATE
@@ -39,9 +39,16 @@ class Planned:
 
 @dataclass(frozen=True)
 class Week:
-    zone2: int  # minutes in the last 7 days, today included (ADR-0077)
-    moderate: int
-    zone2_target: tuple[int, int] | None  # from plan.toml
+    """Cardio minutes in the last 7 days, today included (ADR-0077): all of it and by
+    heart-rate zone, against the targets from the plan and the person's extra cardio
+    (ADR-0079)."""
+
+    zone2: int  # in zone 2: by heart rate, or logged as zone 2 without it
+    moderate: int  # logged as moderate
+    zone2_target: tuple[int, int] | None
+    total: int = 0
+    total_target: tuple[int, int] | None = None
+    zones: Split = field(default_factory=Split)
 
 
 @dataclass(frozen=True)
@@ -64,13 +71,17 @@ def planned(session: Session, on: date, tz: ZoneInfo) -> Planned | None:
 
 
 def week(session: Session, on: date) -> Week:
-    """Zone 2 and moderate minutes over the last 7 days, so a Monday still shows the weekend."""
-    minutes = review.cardio_minutes(session, review.last_days(on), on)
-    targets = bundled_plan().targets
+    """Cardio minutes over the last 7 days, so a Monday still shows the weekend."""
+    found = cardio_totals.logged(session, review.last_days(on), on)
+    zones = cardio_totals.split(session, found, on)
+    targets = cardio_totals.targets(session)
     return Week(
-        minutes.get(ZONE2, 0),
-        minutes.get(MODERATE, 0),
-        targets.zone2_minutes if targets is not None else None,
+        zones.zone2,
+        cardio_totals.by_kind(found).get(MODERATE, 0),
+        targets.zone2,
+        zones.total,
+        targets.total,
+        zones,
     )
 
 

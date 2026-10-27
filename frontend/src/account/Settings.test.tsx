@@ -16,6 +16,7 @@ const PREFS: MessageSettings = {
   blocks_since: null,
   pace: 'standard',
   sound: 'ring',
+  extra_cardio_min: 0,
   paused: false,
   timezone: 'Europe/Berlin',
 }

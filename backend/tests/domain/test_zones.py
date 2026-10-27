@@ -86,3 +86,31 @@ def test_a_gap_counts_at_most_five_minutes_and_the_last_reading_runs_to_the_end(
     assert zones.minutes(readings, T + timedelta(minutes=31), hr) == [5, 0, 0, 1, 0]
     assert zones.minutes([(T, 125)], T - timedelta(minutes=1), hr) == [0, 0, 0, 0, 0]
     assert zones.minutes([], T, hr) == [0, 0, 0, 0, 0]
+
+
+def test_measured_counts_the_minutes_below_zone_1_too() -> None:
+    hr = zones.karvonen(60, 180)  # zone 1 from 120
+    readings = [(T + timedelta(minutes=n), 100 if n < 10 else 140) for n in range(40)]
+    assert zones.measured(readings, T + timedelta(minutes=40), hr) == [10, 0, 30, 0, 0, 0]
+
+
+def test_a_split_fills_the_rest_by_the_kind_logged() -> None:
+    found = zones.split(66, harder=False, found=[20, 5, 35, 4, 0, 0])
+    assert (found.total, found.zone2, found.zone2_unmeasured) == (66, 37, 2)  # 2 min unread
+    run = zones.split(43, harder=True)  # a typed run: no heart rate
+    assert (run.total, run.zone2, run.harder_unmeasured, run.measured) == (43, 0, 43, (0,) * 6)
+    walk = zones.split(30, harder=False)
+    assert (walk.zone2, walk.zone2_unmeasured, walk.harder_unmeasured) == (30, 30, 0)
+
+
+def test_a_split_trims_rounding_from_the_largest_zones() -> None:
+    assert zones.split(10, False, [6, 0, 6, 0, 0, 0]).measured == (4, 0, 6, 0, 0, 0)
+    assert zones.split(5, False, [4, 0, 4, 0, 0, 0]).measured == (1, 0, 4, 0, 0, 0)
+    assert zones.split(0, True, [1, 1, 0, 0, 0, 0]).total == 0
+
+
+def test_splits_add_up() -> None:
+    week = zones.split(66, False, [20, 7, 35, 4, 0, 0]) + zones.split(43, True)
+    assert (week.total, week.zone2, week.harder_unmeasured) == (109, 35, 43)
+    assert week.measured == (20, 7, 35, 4, 0, 0)
+    assert zones.Split().total == 0

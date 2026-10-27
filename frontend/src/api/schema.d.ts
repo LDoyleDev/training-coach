@@ -2427,6 +2427,15 @@ export interface components {
          * @description The last 7 days, today included, the same days as ``recent`` (ADR-0077).
          */
         HomeWeekView: {
+            /** Cardio Left */
+            cardio_left: number | null;
+            /** Cardio Minutes */
+            cardio_minutes: number;
+            /** Cardio Target */
+            cardio_target: [
+                number,
+                number
+            ] | null;
             /** Done */
             done: number;
             /** Extras */
@@ -2440,6 +2449,8 @@ export interface components {
              * Format: date
              */
             start: string;
+            /** Zone2 Left */
+            zone2_left: number | null;
             /** Zone2 Minutes */
             zone2_minutes: number;
             /** Zone2 Target */
@@ -2447,6 +2458,7 @@ export interface components {
                 number,
                 number
             ] | null;
+            zones: components["schemas"]["ZonesView"];
         };
         /**
          * IngestReceived
@@ -3538,6 +3550,8 @@ export interface components {
         SettingsChange: {
             /** Blocks */
             blocks?: boolean | null;
+            /** Extra Cardio Min */
+            extra_cardio_min?: number | null;
             /** Habits Enabled */
             habits_enabled?: boolean | null;
             /** Morning Time */
@@ -3559,6 +3573,8 @@ export interface components {
         SettingsView: {
             /** Blocks Since */
             blocks_since: string | null;
+            /** Extra Cardio Min */
+            extra_cardio_min: number;
             /** Habits Enabled */
             habits_enabled: boolean;
             /** Morning Time */
@@ -3881,15 +3897,25 @@ export interface components {
         };
         /**
          * WeekView
-         * @description Minutes over the last 7 days, today included (ADR-0077).
+         * @description Minutes over the last 7 days, today included (ADR-0077): all cardio and by zone, and
+         *     what is left of each target (0 once reached, ADR-0079).
          */
         WeekView: {
             /** Moderate */
             moderate: number;
+            /** Total */
+            total: number;
+            /** Total Left */
+            total_left: number | null;
+            /** Total Target */
+            total_target: number[] | null;
             /** Zone2 */
             zone2: number;
+            /** Zone2 Left */
+            zone2_left: number | null;
             /** Zone2 Target */
             zone2_target: number[] | null;
+            zones: components["schemas"]["ZonesView"];
         };
         /** ZoneView */
         ZoneView: {
@@ -3899,6 +3925,29 @@ export interface components {
             low: number;
             /** Zone */
             zone: number;
+        };
+        /**
+         * ZonesView
+         * @description Cardio minutes by heart-rate zone (ADR-0079): from the band's heart rate in a workout's
+         *     window; minutes without it in the zone they were logged as.
+         */
+        ZonesView: {
+            /** Below Zone1 */
+            below_zone1: number;
+            /** Zone1 */
+            zone1: number;
+            /** Zone2 */
+            zone2: number;
+            /** Zone2 No Hr */
+            zone2_no_hr: number;
+            /** Zone3 */
+            zone3: number;
+            /** Zone3 Up No Hr */
+            zone3_up_no_hr: number;
+            /** Zone4 */
+            zone4: number;
+            /** Zone5 */
+            zone5: number;
         };
     };
     responses: never;

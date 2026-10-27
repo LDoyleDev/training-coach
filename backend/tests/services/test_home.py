@@ -65,7 +65,7 @@ def test_nothing_done_yet(plan: Session) -> None:
     assert (totals.sessions, totals.sets, totals.reps, totals.cardio_minutes) == (0, 0, 0, 0)
     assert (totals.first_day, totals.days) == (None, 0)
     assert (found.week.start, found.week.done, found.week.planned) == (MONDAY, 0, 7)
-    assert found.week.zone2_target == (180, 200)
+    assert found.week.zone2_target == (45, 75)  # the cycle's zone 2 (ADR-0079)
     assert (found.progress.steps_climbed, found.progress.bests) == (0, [])
     assert found.recent == []
     assert found.today is not None  # the session at the queue's pointer
