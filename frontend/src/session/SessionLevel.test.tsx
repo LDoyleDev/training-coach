@@ -7,6 +7,7 @@ vi.mock('../hiit/sounds', () => ({
   DEFAULT_SOUND: 'ring',
   unlockAudio: vi.fn(),
   playChange: vi.fn(),
+  playSessionEnd: vi.fn(),
 }))
 
 const LADDER = [
