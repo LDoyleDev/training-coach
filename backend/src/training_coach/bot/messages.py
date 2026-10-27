@@ -266,15 +266,17 @@ def feedback_text(items: list[Feedback]) -> str:
                 f"{item.exercise}: top of the range two sessions running. "
                 f"Ready to move up to {item.next_step}?"
             )
+        # The top of a ladder in the web's words (ADR-0078). A loaded step never gets here: its
+        # next weight is suggested on the set screen (ADR-0072).
         elif item.note_top and item.unlock:
             lines.append(
-                f"{item.exercise}: top of the range on the last step your kit allows. "
+                f"{item.exercise}: top of the range on the last level your kit allows. "
                 f"{item.unlock[0].upper()}{item.unlock[1:]}."
             )
         elif item.note_top:
             lines.append(
-                f"{item.exercise}: top of the range on the last step in your plan. Add a harder "
-                "variation to plan.toml when you're ready."
+                f"{item.exercise}: top of the range on the last level of its ladder. That's the "
+                "top for now: keep training at this level, or pick another one on the Plan tab."
             )
     return "\n".join(lines)
 
