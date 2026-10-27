@@ -123,6 +123,27 @@ test('at the end it finishes and logs the minutes moved, from when it started', 
   expect(onDone).toHaveBeenCalledWith(3, started)
 })
 
+test("when the flow ends the session, its end rings the session's end instead of the finish", () => {
+  const onEnd = vi.fn()
+  render(<FlowPlayer flow={FLOW} busy={false} onDone={vi.fn()} onEnd={onEnd} />)
+  click('Start the flow')
+  advance(150_400)
+  expect(onEnd).toHaveBeenCalledOnce()
+  expect(played('finish')).toBe(0)
+  expect(vibrate).toHaveBeenLastCalledWith([300, 100, 300]) // the buzz is the same
+  expect(screen.getByText('Flow done: 3 min of moving.')).toBeInTheDocument()
+})
+
+test('finishing the flow early rings no end: the save does', () => {
+  const onEnd = vi.fn()
+  render(<FlowPlayer flow={FLOW} busy={false} onDone={vi.fn()} onEnd={onEnd} />)
+  click('Start the flow')
+  advance(30_000)
+  click('Finish early')
+  advance(150_000)
+  expect(onEnd).not.toHaveBeenCalled()
+})
+
 test('pause stops the clock; paused time is not counted', () => {
   start()
   advance(10_000)
