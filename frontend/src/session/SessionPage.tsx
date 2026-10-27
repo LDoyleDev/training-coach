@@ -62,7 +62,7 @@ import { worksLine } from '../bodymap/words'
 import Movement from './Movement'
 import { duration, soFar, times, type SetTime } from './times'
 import useWakeLock from './useWakeLock'
-import { DEFAULT_SOUND, type Sound, playChange, unlockAudio } from '../hiit/sounds'
+import { DEFAULT_SOUND, type Sound, playChange, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import { card, primary, primaryInline, secondary } from '../ui'
 import { KIT_HREF } from '../account/kit'
 
@@ -123,6 +123,13 @@ export default function SessionPage() {
   const [sound, setSound] = useState<Sound>(DEFAULT_SOUND) // the person's choice, from Settings
   const counting = useRef(0) // the last of a rest's final 3 seconds that sounded
   const rang = useRef(0) // the rest whose end has sounded, by its end time
+  // The end of the session has rung: the mobility flow closing it rang it, so Save doesn't.
+  const ended = useRef(false)
+  const ringEnd = () => {
+    if (ended.current) return
+    ended.current = true
+    playSessionEnd(sound)
+  }
 
   useEffect(() => {
     const ask = new AbortController()
@@ -224,6 +231,7 @@ export default function SessionPage() {
   }
 
   const changed = (today: TodayView, text: string, offer?: UndoOffer | null) => {
+    ended.current = false // a change or an undo: the session can end again
     show(today)
     setNote(text)
     setSaved(null)
@@ -286,7 +294,9 @@ export default function SessionPage() {
         {loaded.status === 'none' && <DayCard refresh={undoKey} />}
         {loaded.status === 'none' && bandOffers}
         {loaded.status === 'none' && undoBar}
-        {loaded.status === 'none' && <Cardio featured={false} onChange={cardioChange} />}
+        {loaded.status === 'none' && (
+          <Cardio featured={false} onChange={cardioChange} sound={sound} />
+        )}
         {loaded.status === 'none' && <LogDay onSaved={counted} />}
       </AppShell>
     )
@@ -466,6 +476,7 @@ export default function SessionPage() {
   }
 
   const save = async (answer?: Answer) => {
+    unlockAudio() // inside the tap: the end of the session rings once it's saved
     setNote(null)
     setSignedOut(false) // a retry after signing in again
     setBusy(true)
@@ -481,6 +492,7 @@ export default function SessionPage() {
         setNote("Today's session changed (a rest, swap or another log), so this wasn't saved.")
         return
       }
+      ringEnd()
       setSaved(result)
       setStage('saved')
     } catch (error) {
@@ -526,7 +538,7 @@ export default function SessionPage() {
           ))}
           {isCardio(session) ? (
             <>
-              <Cardio featured onChange={cardioChange} />
+              <Cardio featured onChange={cardioChange} sound={sound} />
               {afterRun(session).length > 0 && (
                 <p className={card}>
                   After your run: {afterRun(session).join(', ')}. Log the run, then this opens.
@@ -554,7 +566,7 @@ export default function SessionPage() {
             />
           )}
           {undoBar}
-          {!isCardio(session) && <Cardio featured={false} onChange={cardioChange} />}
+          {!isCardio(session) && <Cardio featured={false} onChange={cardioChange} sound={sound} />}
           <LogDay onSaved={counted} />
           <DayCard refresh={undoKey} />
         </>
@@ -625,6 +637,7 @@ export default function SessionPage() {
               onDone={(minutes, startedAt) =>
                 confirm({ left: minutes, right: minutes, split: false }, startedAt)
               }
+              onEnd={position === total - 1 ? ringEnd : undefined}
             />
           ) : (
             <>
