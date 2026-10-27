@@ -4039,6 +4039,17 @@
             "title": "Day",
             "type": "string"
           },
+          "kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kg"
+          },
           "step_number": {
             "title": "Step Number",
             "type": "integer"
