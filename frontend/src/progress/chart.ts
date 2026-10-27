@@ -57,20 +57,29 @@ export interface Strip {
 }
 
 export function strip(dots: Dot[]): Strip | null {
-  const weighed = dots.filter((d) => d.point.kg != null)
-  if (weighed.length === 0) return null
-  const kg = weighed.map((d) => d.point.kg!)
+  const kg = dots.flatMap((d) => (d.point.kg != null ? [d.point.kg] : []))
+  if (kg.length === 0) return null
   const low = Math.min(...kg)
   const high = Math.max(...kg)
   const room = STRIP.height - STRIP.top - STRIP.bottom
   const y = (v: number) =>
     high === low ? STRIP.top + room / 2 : STRIP.top + room - ((v - low) / (high - low)) * room
-  const steps = weighed.map((d, i) => {
-    const at = `${d.x.toFixed(1)},${y(kg[i]).toFixed(1)}`
-    return i === 0 ? `M${at}` : `H${d.x.toFixed(1)}V${y(kg[i]).toFixed(1)}`
-  })
-  const end = Math.max(weighed.at(-1)!.x, BOX.width - BOX.right)
-  return { path: `${steps.join('')}H${end.toFixed(1)}`, low, high }
+  // A staircase through each run of weighed sessions; a session without a weight breaks it,
+  // as the chart starts a "No weight" period there.
+  let path = ''
+  let drawing = false
+  for (const d of dots) {
+    const x = d.x.toFixed(1)
+    if (d.point.kg == null) {
+      drawing = false
+      continue
+    }
+    const at = y(d.point.kg).toFixed(1)
+    path += drawing ? `H${x}V${at}` : `M${x},${at}`
+    drawing = true
+  }
+  if (drawing) path += `H${Math.max(dots.at(-1)!.x, BOX.width - BOX.right).toFixed(1)}`
+  return { path, low, high }
 }
 
 export interface Period {

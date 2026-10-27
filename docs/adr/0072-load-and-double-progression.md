@@ -117,4 +117,5 @@ Decided while building, within this ADR:
   the session's heaviest set ("22 kg ↑"; a session without one is "No weight"), and a strip
   under the chart draws the weight as a staircase on the same dates, labelled with its lowest
   and highest kg and described in words. An exercise without weights keeps its step periods
-  and has no strip.
+  and has no strip. The strip breaks at a session without a weight, as the chart starts a
+  "No weight" period there.
