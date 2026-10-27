@@ -358,6 +358,11 @@ def review_text(review: Review) -> str:
         lines += ["", f"Ready to move up when the hypertrophy block starts: {names}."]
     elif review.ready:
         lines += ["", f"Ready to move up: {names}. See /progress."]
+    if review.top:  # reached the top this week (ADR-0078), as the web's review says it
+        lines += ["", "At the top:"]
+        for top in review.top:
+            where = f"top for your kit: {top.unlock}" if top.unlock else "top of the ladder"
+            lines.append(f"- {top.exercise}, {where}")
     if review.habits:
         lines += ["", "Habits:"]
         for week in review.habits:
