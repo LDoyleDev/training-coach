@@ -9,7 +9,12 @@ afterEach(() => vi.unstubAllGlobals())
 test('the Plan page frames your levels and the plan with its own heading and the nav', async () => {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => Response.json({ today: '2026-10-25', strength_block: false, standings: [] })),
+    vi.fn(
+      async (path: string) =>
+        path === '/api/progress'
+          ? Response.json({ today: '2026-10-25', strength_block: false, standings: [] })
+          : new Response(null, { status: 401 }), // extra cardio stays hidden
+    ),
   )
   window.history.replaceState(null, '', '/plan')
   render(<PlanPage />)

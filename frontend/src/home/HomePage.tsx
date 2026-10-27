@@ -5,6 +5,7 @@ import BandSummary from '../components/BandSummary'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { moveButton, moveHref } from '../plan/ladder'
 import { InstallHint } from '../pwa/InstallApp'
+import { range, standing } from '../session/cardioTotals'
 import { card, primary, secondary } from '../ui'
 import { ago, day } from './logic'
 
@@ -65,8 +66,13 @@ export default function HomePage() {
   const about = loaded.home.today_minutes
   // how long it takes, to make starting easier: earlier timed sessions first (ADR-0061)
   const length = usual ? ` · usually ${usual} min` : about ? ` · about ${about} min` : ''
-  const target = week.zone2_target?.[0] ?? null
-  const zone2 = target ? Math.min(100, Math.round((week.zone2_minutes / target) * 100)) : 0
+  // All cardio against its target, then what's left of each (ADR-0079).
+  const target = week.cardio_target?.[0] ?? null
+  const cardio = target ? Math.min(100, Math.round((week.cardio_minutes / target) * 100)) : 0
+  const left = [standing(week.cardio_left), standing(week.zone2_left)]
+  const where = [left[0] && `Cardio ${left[0]}`, left[1] && `zone 2 ${left[1]}`]
+    .filter(Boolean)
+    .join(' · ')
   return (
     <AppShell>
       <section aria-labelledby="done" className="flex flex-col gap-3">
@@ -123,20 +129,21 @@ export default function HomePage() {
         </p>
         <div className="flex flex-col gap-1">
           <span>
-            Zone 2: {week.zone2_minutes}
-            {week.zone2_target && ` of ${week.zone2_target[0]}–${week.zone2_target[1]}`} min
-            {week.moderate_minutes > 0 && `, ${week.moderate_minutes}\u00a0moderate`}
+            Cardio {week.cardio_minutes}
+            {range(week.cardio_target)} min · zone 2 {week.zone2_minutes}
+            {range(week.zone2_target)}
           </span>
+          {where && <span className="text-sm text-[var(--slate)]">{where}</span>}
           {target !== null && (
             <div
               role="meter"
-              aria-label="Zone 2 minutes in the last 7 days"
+              aria-label="Cardio minutes in the last 7 days"
               aria-valuemin={0}
               aria-valuemax={target}
-              aria-valuenow={Math.min(week.zone2_minutes, target)}
+              aria-valuenow={Math.min(week.cardio_minutes, target)}
               className="h-3 overflow-hidden rounded-full bg-[var(--line)]"
             >
-              <div className="h-full bg-[var(--bell)]" style={{ width: `${zone2}%` }} />
+              <div className="h-full bg-[var(--bell)]" style={{ width: `${cardio}%` }} />
             </div>
           )}
         </div>

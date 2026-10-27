@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { CardioLogged, CardioOptions } from '../api'
 import type { HiitTimerProps } from '../hiit/HiitTimer'
+import { emptyWeek } from '../test/cardioWeek'
 import Cardio from './Cardio'
 
 // The timer has its own tests; here it finishes or cancels on a click.
@@ -22,26 +23,18 @@ vi.mock('../hiit/HiitTimer', () => ({
   ),
 }))
 
-const NO_ZONES = {
-  below_zone1: 0,
-  zone1: 0,
-  zone2: 0,
-  zone3: 0,
-  zone4: 0,
-  zone5: 0,
-  zone2_no_hr: 0,
-  zone3_up_no_hr: 0,
-}
-const WEEK = {
-  zone2: 40,
-  moderate: 0,
-  zone2_target: [180, 200],
-  zone2_left: 140,
-  total: 40,
-  total_target: null,
-  total_left: null,
-  zones: { ...NO_ZONES, zone2_no_hr: 40 },
-}
+// Liam's week of 20-26 Oct (ADR-0079): Monday's 66-minute walk by heart rate, Thursday's typed
+// 43-minute run with none.
+const WEEK = emptyWeek({
+  zone2: 35,
+  moderate: 43,
+  zone2_target: [45, 75],
+  zone2_left: 10,
+  total: 109,
+  total_target: [75, 115],
+  total_left: 0,
+  zones: { below_zone1: 20, zone1: 7, zone2: 35, zone3: 4, zone3_up_no_hr: 43 },
+})
 
 const ZONE2_DAY: CardioOptions = {
   planned: { kind: 'zone2', session: 'Long zone 2', target: 45 },
@@ -54,7 +47,7 @@ const LOGGED: CardioLogged = {
   already_saved: false,
   planned: true,
   next_session: 'Legs',
-  week: { ...WEEK, zone2: 85 },
+  week: { ...WEEK, zone2: 80, zone2_left: 0, total: 154, zones: { ...WEEK.zones, zone2: 80 } },
 }
 
 type Server = {
@@ -90,19 +83,28 @@ test('a planned zone 2 day is done in one tap', async () => {
   const sent = serve()
   render(<Cardio featured />)
   expect(await screen.findByRole('heading', { name: 'Long zone 2' })).toBeInTheDocument()
-  expect(screen.getByText(/Last 7 days:/)).toHaveTextContent(
-    'Last 7 days: 40 of 180–200 zone 2 min',
-  )
+  expect(screen.getByText(/^Cardio:/)).toHaveTextContent('Cardio: 109 of 75–115 min · on target')
+  expect(screen.getByText(/^Zone 2:/)).toHaveTextContent('Zone 2: 35 of 45–75 min · 10 min left')
   expect(screen.getByRole('meter', { name: 'Zone 2 in the last 7 days' })).toBeInTheDocument()
+  const zones = screen.getByRole('list', { name: 'Cardio minutes by heart-rate zone' })
+  expect(
+    within(zones)
+      .getAllByRole('listitem')
+      .map((row) => row.textContent),
+  ).toEqual([
+    'Easy (below zone 1)20 min',
+    'Zone 17 min',
+    'Zone 235 min',
+    'Zone 34 min',
+    'Zone 3+ (no heart rate) · logged as moderate43 min',
+  ])
   click('Done as planned: 45 min')
   expect(await screen.findByRole('heading', { name: 'Long zone 2 done' })).toBeInTheDocument()
   expect(sent).toEqual([
     { token: expect.stringMatching(/^[0-9a-f]{32}$/), kind: 'zone2', value: 45, activity: null },
   ])
   expect(screen.getByText('Next up: Legs.')).toBeInTheDocument()
-  expect(screen.getByText(/Last 7 days:/)).toHaveTextContent(
-    'Last 7 days: 85 of 180–200 zone 2 min',
-  )
+  expect(screen.getByText(/^Zone 2:/)).toHaveTextContent('Zone 2: 80 of 45–75 min · on target')
   expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/')
 })
 

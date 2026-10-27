@@ -12,6 +12,7 @@ import {
 } from '../api'
 import HiitTimer from '../hiit/HiitTimer'
 import SignedOutNotice from '../components/SignedOutNotice'
+import CardioWeek from './CardioWeek'
 import Undo from './Undo'
 import { actions, card, primary, primaryInline, secondary } from '../ui'
 
@@ -359,7 +360,7 @@ export default function Cardio({
         {detailsText(saved, logged.pace, ride) && (
           <p className="m-0 text-[var(--slate)]">{detailsText(saved, logged.pace, ride)}</p>
         )}
-        <WeekBar week={logged.week} />
+        <CardioWeek week={logged.week} />
         {logged.planned && logged.next_session && (
           <p className="m-0">Next up: {logged.next_session}.</p>
         )}
@@ -411,7 +412,7 @@ export default function Cardio({
         <p className="m-0 text-[var(--slate)]">
           Target {planned.target} {planned.kind === 'hiit' ? 'rounds' : 'min'}
         </p>
-        {options && <WeekBar week={options.week} />}
+        {options && <CardioWeek week={options.week} />}
         {planned.kind === 'hiit' ? (
           <>
             <button type="button" className={primary} onClick={() => setMode('hiit')}>
@@ -549,34 +550,5 @@ function Detail({
         className="min-h-11 text-lg"
       />
     </label>
-  )
-}
-
-/** Zone 2 minutes over the last 7 days against the plan's weekly target (ADR-0077). */
-function WeekBar({ week }: { week: CardioOptions['week'] }) {
-  const target = week.zone2_target
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="m-0 text-sm">
-        Last 7 days: <span className="font-bold">{week.zone2}</span>
-        {target ? ` of ${target[0]}–${target[1]}` : ''} zone 2 min
-        {week.moderate > 0 ? `, ${week.moderate}\u00a0moderate` : ''}
-      </p>
-      {target && (
-        <div
-          role="meter"
-          aria-label="Zone 2 in the last 7 days"
-          aria-valuemin={0}
-          aria-valuemax={target[0]}
-          aria-valuenow={Math.min(week.zone2, target[0])}
-          className="h-3 overflow-hidden rounded-full bg-[var(--line)]"
-        >
-          <div
-            className="h-full bg-[var(--bell)]"
-            style={{ width: `${Math.min(100, Math.round((week.zone2 / target[0]) * 100))}%` }}
-          />
-        </div>
-      )}
-    </div>
   )
 }
