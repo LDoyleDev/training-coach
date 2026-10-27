@@ -11,6 +11,7 @@ import {
   type CardioOptions,
 } from '../api'
 import HiitTimer from '../hiit/HiitTimer'
+import { DEFAULT_SOUND, type Sound, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import SignedOutNotice from '../components/SignedOutNotice'
 import CardioWeek from './CardioWeek'
 import Undo from './Undo'
@@ -91,14 +92,17 @@ export type CardioChange = 'saved' | 'closed' | 'undone'
  * Cardio in one step (ux-flow-plan A1-A3): log the minutes and what it was, one tap for
  * "done as planned", or time HIIT intervals and save the rounds. ``featured`` when today's
  * planned session is this cardio: it then stands in for the session's Start button. The saved
- * screen offers Undo (C3).
+ * screen offers Undo (C3). A save rings the end of the session in the person's timer sound,
+ * unless the HIIT timer rang it at its end.
  */
 export default function Cardio({
   featured,
   onChange,
+  sound = DEFAULT_SOUND,
 }: {
   featured: boolean
   onChange?: (change: CardioChange) => void
+  sound?: Sound
 }) {
   const [options, setOptions] = useState<CardioOptions | null>(null)
   const [fetched, setFetched] = useState(false)
@@ -118,6 +122,8 @@ export default function Cardio({
   const [note, setNote] = useState<string | null>(null)
   const [signedOut, setSignedOut] = useState(false)
   const [logged, setLogged] = useState<CardioLogged | null>(null)
+  // The HIIT timer ran to its end and rang the end of the session: saving its rounds doesn't.
+  const rang = useRef(false)
 
   const [loads, setLoads] = useState(0) // again after an undo: today's plan is back
   useEffect(() => {
@@ -134,6 +140,7 @@ export default function Cardio({
 
   /** Open a form with its starting values and nothing picked. */
   const open = (next: Mode, nextKind: CardioKind, nextValue: number) => {
+    rang.current = false
     setNote(null)
     setKind(nextKind)
     setValue(nextValue)
@@ -159,6 +166,7 @@ export default function Cardio({
     details: Details = {},
   ) => {
     if (busy) return
+    unlockAudio() // inside the tap: browsers only allow sound after a gesture
     const log = JSON.stringify([saveKind, saveValue, saveActivity, details])
     if (sent.current?.log !== log) sent.current = { token: newToken(), log }
     const token = sent.current.token
@@ -178,6 +186,8 @@ export default function Cardio({
         return
       }
       sent.current = null
+      if (!result.already_saved && !(saveKind === 'hiit' && rang.current)) playSessionEnd(sound)
+      rang.current = false
       setKind(saveKind)
       setValue(saveValue)
       setActivity(saveActivity)
@@ -210,7 +220,11 @@ export default function Cardio({
       <section aria-label="HIIT timer" className="flex flex-col gap-4">
         <HiitTimer
           defaults={planned?.kind === 'hiit' ? { rounds: planned.target } : undefined}
-          onFinish={(result) => open('rounds', 'hiit', result.rounds)}
+          sound={sound}
+          onFinish={(result) => {
+            open('rounds', 'hiit', result.rounds)
+            rang.current = !result.early
+          }}
           onCancel={() => setMode('menu')}
         />
       </section>
