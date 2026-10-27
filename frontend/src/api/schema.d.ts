@@ -3085,6 +3085,12 @@ export interface components {
             /** Template Id */
             template_id: number;
         };
+        /**
+         * Places
+         * @description Where a person trains, a setting (ADR-0071). Everyone starts at home.
+         * @enum {string}
+         */
+        Places: "home" | "gym" | "both";
         /** PlanView */
         PlanView: {
             /** Sessions */
@@ -3563,6 +3569,7 @@ export interface components {
             pace?: components["schemas"]["Pace"] | null;
             /** Paused */
             paused?: boolean | null;
+            places?: components["schemas"]["Places"] | null;
             /** Protein G */
             protein_g?: number | null;
             /** Review Time */
@@ -3586,6 +3593,7 @@ export interface components {
             pace: components["schemas"]["Pace"];
             /** Paused */
             paused: boolean;
+            places: components["schemas"]["Places"];
             /** Protein G */
             protein_g: number | null;
             /** Review Time */

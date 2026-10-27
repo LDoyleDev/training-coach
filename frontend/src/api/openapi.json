@@ -3966,6 +3966,16 @@
         "title": "PickBody",
         "type": "object"
       },
+      "Places": {
+        "description": "Where a person trains, a setting (ADR-0071). Everyone starts at home.",
+        "enum": [
+          "home",
+          "gym",
+          "both"
+        ],
+        "title": "Places",
+        "type": "string"
+      },
       "PlanView": {
         "properties": {
           "sessions": {
@@ -5345,6 +5355,16 @@
             ],
             "title": "Paused"
           },
+          "places": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Places"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "protein_g": {
             "anyOf": [
               {
@@ -5421,6 +5441,9 @@
             "title": "Paused",
             "type": "boolean"
           },
+          "places": {
+            "$ref": "#/components/schemas/Places"
+          },
           "protein_g": {
             "anyOf": [
               {
@@ -5455,6 +5478,7 @@
           "pace",
           "sound",
           "extra_cardio_min",
+          "places",
           "paused",
           "timezone"
         ],
