@@ -35,6 +35,53 @@ export const BY_STEP: PeriodKind = {
   words: (k) => `step ${k}`,
 }
 
+/** Periods by the session's weight, on a loaded step (ADR-0072); a session without one is 0. */
+export const BY_LOAD: PeriodKind = {
+  key: (p) => p.kg ?? 0,
+  name: (k) => (k === 0 ? 'No weight' : `${k} kg`),
+  words: (k) => (k === 0 ? 'no weight' : `${k} kg`),
+}
+
+/** By weight when any session in the window has one, else by ladder step. */
+export const kindFor = (points: Point[]): PeriodKind =>
+  points.some((p) => p.kg != null) ? BY_LOAD : BY_STEP
+
+/** The thin strip under a loaded exercise's chart (ADR-0072): its weight per session as a
+ * staircase on the same dates, never a second scale on the chart itself. */
+export const STRIP = { height: 30, top: 6, bottom: 6 }
+
+export interface Strip {
+  path: string // a staircase through each weighed session
+  low: number
+  high: number
+}
+
+export function strip(dots: Dot[]): Strip | null {
+  const kg = dots.flatMap((d) => (d.point.kg != null ? [d.point.kg] : []))
+  if (kg.length === 0) return null
+  const low = Math.min(...kg)
+  const high = Math.max(...kg)
+  const room = STRIP.height - STRIP.top - STRIP.bottom
+  const y = (v: number) =>
+    high === low ? STRIP.top + room / 2 : STRIP.top + room - ((v - low) / (high - low)) * room
+  // A staircase through each run of weighed sessions; a session without a weight breaks it,
+  // as the chart starts a "No weight" period there.
+  let path = ''
+  let drawing = false
+  for (const d of dots) {
+    const x = d.x.toFixed(1)
+    if (d.point.kg == null) {
+      drawing = false
+      continue
+    }
+    const at = y(d.point.kg).toFixed(1)
+    path += drawing ? `H${x}V${at}` : `M${x},${at}`
+    drawing = true
+  }
+  if (drawing) path += `H${Math.max(dots.at(-1)!.x, BOX.width - BOX.right).toFixed(1)}`
+  return { path, low, high }
+}
+
 export interface Period {
   key: number
   dots: Dot[]
