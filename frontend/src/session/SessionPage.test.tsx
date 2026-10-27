@@ -132,6 +132,7 @@ afterEach(() => {
   vi.useRealTimers()
   vi.clearAllMocks()
   Reflect.deleteProperty(navigator, 'wakeLock')
+  localStorage.clear() // a taken weight is kept per browser (ADR-0072)
 })
 
 const click = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }))
@@ -1262,4 +1263,73 @@ test('every set at the top last time offers the next weight; a tap takes it or g
   expect(sent['PUT /api/session/progress'][0]).toMatchObject({
     sets: [{ item: 0, set_no: 1, left: 4, load_kg: 42.5 }],
   })
+})
+
+const READY: Guided = {
+  ...LOADED,
+  items: [
+    {
+      ...LOADED.items[0],
+      load: {
+        kit: 'barbell',
+        increment: 2.5,
+        kg: [40, 40],
+        carried: true,
+        suggested: { kg: 42.5, targets: [4, 4] },
+      },
+    },
+    LOADED.items[1],
+  ],
+}
+
+/** Resumed at the bench press's second set, its first kept at ``kg`` with no set times (kept
+ * before ADR-0061, or by another client). */
+const resumedAt = (kg: number): TodayView => ({
+  session: READY,
+  progress: {
+    template_id: 3,
+    position: 2,
+    first: [],
+    saved: false,
+    revision: 2,
+    sets: [
+      { item: 0, set_no: 1, left: 6, right: null, load_kg: kg },
+      { item: 1, set_no: 1, left: 15, right: null },
+    ],
+  },
+})
+
+test('taking the suggestion on a resumed session keeps sets confirmed without times', async () => {
+  const sent = serve({ today: resumedAt(40) })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Resume: set 3 of 3' }))
+  click(/^Use 42\.5\skg$/)
+  click('Confirm set')
+  await waitFor(() => expect(sent['PUT /api/session/progress']).toHaveLength(1))
+  const kept = (sent['PUT /api/session/progress'][0] as { sets: Done[] }).sets
+  expect(kept.map((d) => [d.item, d.set_no, d.load_kg ?? null])).toEqual([
+    [0, 1, 40],
+    [1, 1, null],
+    [0, 2, 42.5],
+  ])
+})
+
+test('reaching the suggested weight with + is not taking it, after a reload too', async () => {
+  serve({ today: resumedAt(42.5) })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Resume: set 3 of 3' }))
+  expect(screen.getByRole('group', { name: 'Next weight' })).toHaveTextContent('Ready for')
+  expect(screen.getByText('Target 6')).toBeInTheDocument()
+})
+
+test('a tap on Use is kept through a reload of the page', async () => {
+  serve({ today: resumedAt(42.5) })
+  const first = render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Resume: set 3 of 3' }))
+  click(/^Use 42\.5\skg$/)
+  first.unmount()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Resume: set 3 of 3' }))
+  expect(screen.getByRole('group', { name: 'Next weight' })).toHaveTextContent('Taking 42.5')
+  expect(screen.getByText('Target 4')).toBeInTheDocument()
 })
