@@ -229,6 +229,34 @@ export async function fetchToday(signal?: AbortSignal): Promise<TodayView | null
   return (await res.json()) as TodayView
 }
 
+export type Place = Guided['place']
+
+/**
+ * Do today's session at home or at the gym (ADR-0071): the person's switch. ``ask``: sets are
+ * kept for the version shown, so ask first and send ``confirm`` to drop them. 'stale': today
+ * has no choice any more (reload).
+ */
+export async function choosePlace(
+  place: Place,
+  confirm = false,
+): Promise<TodayView | { ask: number } | 'stale'> {
+  const res = signedIn(
+    await fetch('/api/session/place', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ place, confirm }),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) {
+    const { detail } = (await res.json()) as { detail: unknown }
+    const kept = (detail as { kept_sets?: unknown } | null)?.kept_sets
+    return typeof kept === 'number' ? { ask: kept } : 'stale'
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as TodayView
+}
+
 /** Keep where the person is. 'stale': another device moved on (reload). */
 export async function keepProgress(body: KeepBody): Promise<number | 'stale'> {
   const res = signedIn(

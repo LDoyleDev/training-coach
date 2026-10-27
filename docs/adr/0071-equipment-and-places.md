@@ -121,5 +121,8 @@ Decided while building, within this ADR:
   is told the session changed.
 - **Kit locks at home only:** after a gym workout the saved screen offers Move up without
   checking the home kit; Progress and Move up stay with the kit, as they aren't tied to a place.
+- **On Today** the switch is a card above the session, "Where are you training today?",
+  Home | Gym, the chosen one ticked as well as filled; with sets kept it asks "Switch to the gym
+  version? They are dropped; nothing saved changes." before anything happens.
 - **Still to come:** each person's own increments and the next weight owned at home (ADR-0072),
   and the body map's home or gym view (Consequences).

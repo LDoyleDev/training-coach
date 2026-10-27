@@ -88,6 +88,7 @@ type Server = {
   clash?: Clash // answered to a save until it carries a resolution (ADR-0060)
   problem?: string // a 422: why the save was refused
   sound?: string // the timer sound chosen in Settings; unset answers 404
+  place?: TodayView // what a Home | Gym switch answers (ADR-0071)
 }
 
 /** A fake API; returns the bodies sent, by method and path. */
@@ -110,6 +111,7 @@ function serve(server: Server = {}) {
         : Response.json({ revision: keep })
     }
     if (path === '/api/session/pending') return Response.json(server.pending ?? [])
+    if (path === '/api/session/place' && server.place) return Response.json(server.place)
     if (path === '/api/settings')
       return server.sound
         ? Response.json({ sound: server.sound })
@@ -1334,4 +1336,32 @@ test('a tap on Use is kept through a reload of the page', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Resume: set 3 of 3' }))
   expect(screen.getByRole('group', { name: 'Next weight' })).toHaveTextContent('Taking 42.5')
   expect(screen.getByText('Target 4')).toBeInTheDocument()
+})
+
+test('at both places, Home | Gym changes the day and the sets kept name the version', async () => {
+  const atBoth: Guided = { ...SESSION, place_choice: true }
+  const gym: Guided = { ...atBoth, place: 'gym', name: 'Legs' }
+  const sent = serve({
+    today: { session: atBoth, progress: null },
+    place: { session: gym, progress: null },
+  })
+  render(<SessionPage />)
+  const home = await screen.findByRole('button', { name: 'Home' })
+  expect(home).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByText('The home version, with your own kit.')).toBeInTheDocument()
+  click('Gym')
+  expect(await screen.findByText('Legs at the gym: its gym version.')).toBeInTheDocument()
+  expect(sent['PUT /api/session/place']).toEqual([{ place: 'gym', confirm: false }])
+  expect(screen.getByRole('button', { name: 'Gym' })).toHaveAttribute('aria-pressed', 'true')
+  click('Start session')
+  click('Confirm set')
+  await waitFor(() => expect(sent['PUT /api/session/progress']).toHaveLength(1))
+  expect(sent['PUT /api/session/progress'][0]).toMatchObject({ place: 'gym' })
+})
+
+test('the switch shows only when today has both versions', async () => {
+  serve()
+  render(<SessionPage />)
+  await screen.findByRole('button', { name: 'Start session' })
+  expect(screen.queryByText('Where are you training today?')).not.toBeInTheDocument()
 })
