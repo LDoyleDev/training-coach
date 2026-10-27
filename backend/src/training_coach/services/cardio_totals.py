@@ -5,8 +5,10 @@ stored value is the truth, so a person's edit always counts (a walk counted befo
 held only its zone 2 minutes; a data migration gave it its full minutes). Minutes split by the
 zone of each minute's heart rate kept for the workout's window (8 days, ADR-0055): a workout
 counted from the band (``imported_workouts.workout_id``) has the band's window, and once that
-heart rate is gone, the band's own zone minutes; a typed log with a start (ADR-0067) splits the
-same way when the band was worn then. Heart rate over more minutes than were logged is trimmed
+heart rate is gone, the band's own zone minutes; any other log only when its cardio sets were
+timed in a guided session (``set_logs.started_at`` to ``done_at``, ADR-0061). A typed start is
+not used: it is the whole workout's, and Cardio + core may log its strength before the cardio
+(review of #390). Heart rate over more minutes than were logged is trimmed
 from the largest zones. Minutes without heart rate count in the zone the person logged them as.
 HIIT logs rounds and has no window, so it stays out. It only reads; the caller passes a session
 bound to the person.
@@ -15,7 +17,7 @@ bound to the person.
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -74,8 +76,8 @@ class Logged:
 def logged(session: Session, start: date, end: date) -> list[Logged]:
     """The cardio of each done workout from local day ``start`` to ``end``, both included."""
     rows = session.execute(
-        select(Workout.id, Workout.started_at, Exercise.slug, func.sum(SetLog.value))
-        .join(SetLog, SetLog.workout_id == Workout.id)
+        select(SetLog.workout_id, Exercise.slug, SetLog.value, SetLog.started_at, SetLog.done_at)
+        .join(Workout, Workout.id == SetLog.workout_id)
         .join(Exercise, Exercise.id == SetLog.exercise_id)
         .where(
             Workout.local_date >= start,
@@ -83,31 +85,38 @@ def logged(session: Session, start: date, end: date) -> list[Logged]:
             Workout.status == WorkoutStatus.DONE,
             Exercise.slug.in_(KINDS),
         )
-        .group_by(Workout.id, Workout.started_at, Exercise.slug)
     )
-    found: dict[int, tuple[datetime | None, dict[str, int]]] = {}
-    for workout_id, started, slug, total in rows:
-        found.setdefault(workout_id, (started, {}))[1][slug] = int(total)
+    found: dict[int, tuple[list[tuple[datetime, datetime] | None], dict[str, int]]] = {}
+    for workout_id, slug, value, shown, done in rows:
+        times, minutes = found.setdefault(workout_id, ([], {}))
+        minutes[slug] = minutes.get(slug, 0) + value
+        times.append((shown, done) if shown is not None and done is not None else None)
     band = {
         row.workout_id: row
         for row in session.scalars(
             select(ImportedWorkout).where(ImportedWorkout.workout_id.in_(found))
         )
     }
-    return [_logged(n, started, minutes, band.get(n)) for n, (started, minutes) in found.items()]
+    return [_logged(n, times, minutes, band.get(n)) for n, (times, minutes) in found.items()]
 
 
 def _logged(
-    workout_id: int, started: datetime | None, minutes: dict[str, int], row: ImportedWorkout | None
+    workout_id: int,
+    times: list[tuple[datetime, datetime] | None],
+    minutes: dict[str, int],
+    row: ImportedWorkout | None,
 ) -> Logged:
     if row is not None:
         stored = (row.zone1_min, row.zone2_min, row.zone3_min, row.zone4_min, row.zone5_min)
         band = tuple(m for m in stored if m is not None)
-        window = (row.start_at, row.end_at)
-        return Logged(workout_id, minutes, window, band if len(band) == 5 else None)
-    total = sum(minutes.values())
-    typed = (started, started + timedelta(minutes=total)) if started is not None else None
-    return Logged(workout_id, minutes, typed, None)
+        return Logged(
+            workout_id, minutes, (row.start_at, row.end_at), band if len(band) == 5 else None
+        )
+    timed = [t for t in times if t is not None]
+    window = (
+        (min(s for s, _ in timed), max(d for _, d in timed)) if len(timed) == len(times) else None
+    )
+    return Logged(workout_id, minutes, window, None)
 
 
 def by_kind(found: Iterable[Logged]) -> dict[str, int]:

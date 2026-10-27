@@ -119,13 +119,30 @@ def test_once_its_heart_rate_is_gone_the_bands_zones_count(week: Session) -> Non
     assert (found.total, found.zone2, found.zones.measured) == (66, 35, (20, 7, 35, 4, 0, 0))
 
 
-def test_a_typed_log_with_a_start_splits_by_the_band_worn_then(week: Session) -> None:
+def test_a_cardio_set_timed_in_a_guided_session_splits_by_the_band_worn_then(
+    week: Session,
+) -> None:
+    """Its own shown and confirmed times are its window (ADR-0061), not the workout's start."""
     start = WALK_AT + timedelta(hours=3)
+    _samples(week, start - timedelta(minutes=30), [150] * 30)  # strength first: not cardio
     _samples(week, start, [130] * 20 + [150] * 10)  # 20 in zone 2, 10 in zone 4
-    _log(week, cardio.ZONE2, 40, MONDAY, started_at=start)
+    workout = _log(week, cardio.ZONE2, 40, MONDAY, started_at=start - timedelta(minutes=30))
+    (row,) = week.scalars(select(SetLog).where(SetLog.workout_id == workout))
+    row.started_at, row.done_at = start, start + timedelta(minutes=40)
+    week.flush()
     found = cardio.week(week, MONDAY)
     assert found.zones.measured == (0, 0, 20, 0, 14, 0)  # the last reading runs 5 minutes
     assert (found.total, found.zone2, found.zones.zone2_unmeasured) == (40, 26, 6)
+
+
+def test_a_typed_log_is_not_split_by_heart_rate(week: Session) -> None:
+    """A typed start is the whole workout's (Cardio + core may log its strength first), so the
+    minutes count as the person picked them (review of #390)."""
+    start = WALK_AT + timedelta(hours=3)
+    _samples(week, start, [150] * 40)  # zone 4 all along: maybe the strength block
+    _log(week, cardio.ZONE2, 40, MONDAY, started_at=start)
+    found = cardio.week(week, MONDAY)
+    assert (found.zones.measured, found.zones.zone2_unmeasured) == ((0,) * 6, 40)
 
 
 def test_hiit_logs_rounds_and_stays_out(week: Session) -> None:

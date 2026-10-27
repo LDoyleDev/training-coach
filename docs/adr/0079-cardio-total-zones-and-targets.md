@@ -30,10 +30,12 @@ the time a person has, not from one fixed number.
   zones as they are now. Minutes without heart rate count in the zone the person picked when
   logging (ADR-0067): zone 2 as zone 2, moderate as zone 3+. Nothing is re-classified: a log
   keeps its kind, the split only says what the heart rate showed.
-- **A workout's window**: a counted import's start and end; a typed log with a start (ADR-0067)
-  runs from its start for its minutes, so a walk logged by hand splits too when the band was
-  worn. Once the samples are gone (8 days), a counted import splits by its stored zone minutes,
-  the rest below zone 1.
+- **A workout's window**: a counted import's start and end; a cardio set timed in a guided
+  session, from when it was shown to when it was confirmed (ADR-0061). A typed log's start
+  (ADR-0067) is not used: it is the whole workout's, and Cardio + core may log its strength
+  before the cardio (review of #390), so a typed log counts in the zone the person picked. Once
+  the samples are gone (8 days), a counted import splits by its stored zone minutes, the rest
+  below zone 1.
 - **A counted band workout counts its full minutes** (amends ADR-0055's "logged as its zone 2
   minutes"). **Count it now logs the whole walk** (66, not 35), as a typed walk logs its
   minutes, so the log, the day list, personal bests (a zone 2 "best" is a session's minutes),

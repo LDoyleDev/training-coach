@@ -4,6 +4,34 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.4.0](https://github.com/LDoyleDev/training-coach/compare/v1.3.0...v1.4.0) (2026-10-27)
+
+
+### Features
+
+* **db:** sets record their weight on a loaded step (ADR-0072) ([#379](https://github.com/LDoyleDev/training-coach/issues/379)) ([5e424af](https://github.com/LDoyleDev/training-coach/commit/5e424affd90c973d5af14b6ed52c37a81834aa7c))
+* **domain:** 23 gym exercises join the catalogue, each taking load ([#385](https://github.com/LDoyleDev/training-coach/issues/385)) ([cde4d6d](https://github.com/LDoyleDev/training-coach/commit/cde4d6d6942ab8e27b86141ed7d5a4c729aba4dc))
+* **domain:** double progression suggests the next weight up ([#381](https://github.com/LDoyleDev/training-coach/issues/381)) ([61d5813](https://github.com/LDoyleDev/training-coach/commit/61d5813f8ebf527edb5ae3e7d730d35bb38e947d))
+* **infra:** reader sends sleep, exercise and their deletions ([#374](https://github.com/LDoyleDev/training-coach/issues/374)) ([553e502](https://github.com/LDoyleDev/training-coach/commit/553e502266cf14656149f94bd035b502340ecf88))
+* **infra:** reader syncs in the background and shows the last 7 days ([#375](https://github.com/LDoyleDev/training-coach/issues/375)) ([6ace269](https://github.com/LDoyleDev/training-coach/commit/6ace2695ecfd732f4d8d826a7962955aef1732cc))
+* **parser:** typed and spoken logs take a weight, "rows 10 10 9 at 16" ([#380](https://github.com/LDoyleDev/training-coach/issues/380)) ([451a2bb](https://github.com/LDoyleDev/training-coach/commit/451a2bb57269d9f315929de84e79a64aa807d44a))
+* **web:** Account and the bot name the reader; runbook for it ([#376](https://github.com/LDoyleDev/training-coach/issues/376)) ([b89f4b3](https://github.com/LDoyleDev/training-coach/commit/b89f4b367eaf140cfbc397f2c59cc4e2b270db61))
+* **web:** Copenhagen plank from the front and side; calf raise close-up ([#377](https://github.com/LDoyleDev/training-coach/issues/377)) ([f21d67f](https://github.com/LDoyleDev/training-coach/commit/f21d67f9d749ec0083771c4329fc639e99ac760e))
+* **web:** each weight is a period on the chart, with a kg strip under it ([#383](https://github.com/LDoyleDev/training-coach/issues/383)) ([ad77e37](https://github.com/LDoyleDev/training-coach/commit/ad77e37f9f4ebbc36a7fb2a97c8df5ca0bd9a59b))
+* **web:** figures by ladder step: vest, dip bars, suitcase, hammer curl ([#378](https://github.com/LDoyleDev/training-coach/issues/378)) ([726437c](https://github.com/LDoyleDev/training-coach/commit/726437c6d13fef42dfc25c63e6639e8138a52c74))
+* **web:** plank front view in perspective, dips with feet off the floor ([#389](https://github.com/LDoyleDev/training-coach/issues/389)) ([7d8dee9](https://github.com/LDoyleDev/training-coach/commit/7d8dee9d39d9c3d883e17413c6bd56eedd970e10))
+* **web:** the set screen records the weight, with − and + from last time ([#382](https://github.com/LDoyleDev/training-coach/issues/382)) ([67f97ac](https://github.com/LDoyleDev/training-coach/commit/67f97ac735cc4255b7957d2e5b8a046d6b2cc4a4))
+
+
+### Bug Fixes
+
+* **infra:** pin the backend to Python 3.12, the Pi's version ([#384](https://github.com/LDoyleDev/training-coach/issues/384)) ([01310ef](https://github.com/LDoyleDev/training-coach/commit/01310efbeda30bd81eb4fcf034732b3ffdb27d78))
+
+
+### Documentation
+
+* session log for the 1.4.0 wrap ([#392](https://github.com/LDoyleDev/training-coach/issues/392)) ([872fbaa](https://github.com/LDoyleDev/training-coach/commit/872fbaa29a598484a1e16632a98f269546fabec8))
+
 ## [1.3.0](https://github.com/LDoyleDev/training-coach/compare/v1.2.0...v1.3.0) (2026-10-26)
 
 
