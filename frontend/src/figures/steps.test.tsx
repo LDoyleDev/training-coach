@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import plan from '../../../backend/src/training_coach/seed/plan.toml?raw'
-import { BODY, blend, dist, heading, solve } from './body'
+import { BODY, blend, dist, heading, solve, type Vec } from './body'
 import Figure from './Figure'
 import { FIGURES } from './poses'
 import { shapes, type Shape } from './shapes'
@@ -78,11 +78,6 @@ const SAME: Readonly<Record<string, Readonly<Record<string, string>>>> = {
 /** Steps that need their own figure and are drawn in a follow-up change (ADR-0063, addendum of
  * 27 Oct). Drawing one means taking it off this list. */
 const PENDING: Readonly<Record<string, readonly string[]>> = {
-  'tibialis-raise': ['Heels further from wall', 'Single leg', 'Holding 8 kg on toes'],
-  'jump-squat': ['Holding 8 kg'],
-  'kb-swing': ['One-arm, 8 kg', 'One-arm, 16 kg'],
-  'pistol-squat': ['Sit to chair on one leg', 'Lower box', 'Holding 8 kg'],
-  'calf-raise': ['Holding 8 kg', '8 kg, 2 s pause at top'],
   'push-up': ['Feet elevated', 'Deficit', 'Archer'],
   'pike-push-up': ['Feet on chair', 'Wall handstand push-up negatives'],
   'diamond-push-up': ['Feet elevated'],
@@ -270,30 +265,33 @@ test('the figure shows the set-up of the step it is given', () => {
 })
 
 const GOBLET = [
-  'Goblet hold, 8 kg',
-  'Goblet hold, 3 s lowering',
-  'Goblet hold, 16 kg',
-  'Goblet hold 16 kg, 3 s lowering',
+  ...[
+    'Goblet hold, 8 kg',
+    'Goblet hold, 3 s lowering',
+    'Goblet hold, 16 kg',
+    'Goblet hold 16 kg, 3 s lowering',
+  ].map((step) => ['bulgarian-split-squat', step] as const),
+  ['jump-squat', 'Holding 8 kg'] as const,
+  ['pistol-squat', 'Holding 8 kg'] as const,
 ]
 
-test('a goblet hold holds the bell at the chest, in front of the body, all the way down', () => {
-  for (const step of GOBLET) {
-    const split = figureFor('bulgarian-split-squat', step)!
-    expect(split.props!.bell, step).toBe('goblet')
-    expect(split.props!.chair, 'the chair stays').toEqual(
-      FIGURES['bulgarian-split-squat'].props!.chair,
-    )
+test('a goblet hold holds the bell at the chest, in front of the body, all the way', () => {
+  for (const [slug, step] of GOBLET) {
+    const held = figureFor(slug, step)!
+    expect(held.props!.bell, step).toBe('goblet')
+    expect(held.props!.chair, 'the chair stays').toEqual(FIGURES[slug].props?.chair)
     for (const t of ALONG) {
-      const pose = blend(split.start, split.end, t)
+      const pose = blend(held.start, held.end, t)
       const j = solve(pose)
-      const drawn = shapes(pose, split.props, split.order)
+      const drawn = shapes(pose, held.props, held.order)
       const [bell] = bells(drawn)
       if (bell?.kind !== 'ball') throw new Error('a bell')
-      const [x, y] = [bell.c[0], -bell.c[1]]
-      expect(x, 'in front of the chest').toBeGreaterThan(j.midChest[0])
-      expect(y, 'at chest height').toBeGreaterThan(j.waist[1])
-      expect(y).toBeLessThan(j.shoulder[1])
+      const c: Vec = [bell.c[0], -bell.c[1]]
+      expect(c[0], `${slug}: in front of the chest`).toBeGreaterThan(j.midChest[0])
       expect(dist(j.armN.wrist, j.armF.wrist), 'both hands on it').toBeLessThan(3)
+      expect(dist(c, j.armN.wrist), 'under the hands').toBeLessThan(11)
+      expect(c[1], 'under the hands').toBeLessThan(j.armN.wrist[1])
+      expect(dist(j.armN.wrist, j.midChest), 'in front of the chest').toBeLessThan(40)
       const torso = drawn.findIndex((s) => s.kind === 'ball' && s.tone === 'near' && s.r === 7.6)
       expect(drawn.indexOf(bell), 'in front of the body').toBeGreaterThan(torso)
     }
@@ -329,5 +327,86 @@ test('a Nordic curl falls forward in one line from knees that stay put', () => {
     expect(low.armN.wrist[1] < 4, `${step}: hands on the floor`).toBe(
       step === 'Nordic curl negatives',
     )
+  }
+})
+
+test('a pistol to a seat sits down onto it, on one leg, the other leg out straight', () => {
+  const seats = { 'Sit to chair on one leg': 45, 'Lower box': 32 }
+  for (const [step, top] of Object.entries(seats)) {
+    const sit = figureFor('pistol-squat', step)!
+    const { chair, step: box } = sit.props!
+    const [x0, x1] = chair ? [chair.x0, chair.x1] : [box!.x0, box!.x1]
+    expect(chair?.seat ?? box?.top, step).toBe(top)
+    expect(sit.start, 'starts as the pistol does').toBe(FIGURES['pistol-squat'].start)
+    for (const t of ALONG) {
+      const j = solve(blend(sit.start, sit.end, t))
+      expect(dist(j.legN.ankle, [0, 7]), 'the standing foot stays').toBeLessThan(0.01)
+      expect(dist(j.legF.hip, j.legF.ankle), 'the free leg straight').toBeGreaterThan(80)
+      expect(Math.min(j.legF.heel[1], j.legF.tip[1]), 'and off the floor').toBeGreaterThan(5)
+    }
+    const down = solve(sit.end)
+    expect(down.hip[1] - top, `${step}: sat on it`).toBeGreaterThan(6)
+    expect(down.hip[1] - top).toBeLessThan(12)
+    expect(down.hip[0] - 8, 'the seat under you').toBeGreaterThan(Math.min(x0, x1))
+    expect(down.hip[0] - 8).toBeLessThan(Math.max(x0, x1))
+  }
+})
+
+test('the calf raise holds its bell on the working side, clear of the step', () => {
+  for (const step of ['Holding 8 kg', '8 kg, 2 s pause at top']) {
+    const calf = figureFor('calf-raise', step)!
+    const { step: block, wall } = calf.props!
+    for (const t of ALONG) {
+      const pose = blend(calf.start, calf.end, t)
+      const j = solve(pose)
+      const [bell] = bells(shapes(pose, calf.props, calf.order))
+      if (bell?.kind !== 'ball') throw new Error('a bell')
+      expect(bell.c[0], step).toBeCloseTo(j.armN.wrist[0], 5)
+      expect(-bell.c[1] - bell.r, 'clear of the step').toBeGreaterThan(block!.top + 20)
+      expect(j.armF.wrist[0], 'the other hand on the wall').toBeCloseTo(wall!.x0 - 10, 0)
+    }
+  }
+})
+
+test('tibialis raises: heels further out, on one foot, or lifting a bell on the toes', () => {
+  const base = solve(FIGURES['tibialis-raise'].start)
+  const out = solve(figureFor('tibialis-raise', 'Heels further from wall')!.start)
+  expect(out.legN.heel[0] - base.legN.heel[0], 'further out').toBeGreaterThan(10)
+  expect(out.shoulder[0] - 13.5, 'back still on the wall').toBeLessThan(-43)
+  const one = figureFor('tibialis-raise', 'Single leg')!
+  for (const t of ALONG) {
+    const j = solve(blend(one.start, one.end, t))
+    expect(j.legN.heel[1], 'on one heel').toBeLessThan(2)
+    expect(Math.min(j.legF.heel[1], j.legF.tip[1]), 'the other foot up').toBeGreaterThan(15)
+  }
+  const toes = figureFor('tibialis-raise', 'Holding 8 kg on toes')!
+  const [low, high] = [toes.start, toes.end].map((pose) => {
+    const [bell] = bells(shapes(pose, toes.props, toes.order))
+    if (bell?.kind !== 'ball') throw new Error('a bell')
+    expect(-bell.c[1] - bell.r, 'resting on the foot, off the floor').toBeGreaterThan(1)
+    const foot = solve(pose).legN
+    expect(bell.c[0], 'over the forefoot').toBeGreaterThan(foot.ankle[0])
+    expect(bell.c[0]).toBeLessThan(foot.tip[0])
+    return -bell.c[1]
+  })
+  expect(high - low, 'lifted with the toes').toBeGreaterThan(5)
+})
+
+test('a one-arm swing holds the bell in one hand, the other hand at your side', () => {
+  for (const step of ['One-arm, 8 kg', 'One-arm, 16 kg']) {
+    const swing = figureFor('kb-swing', step)!
+    for (const t of ALONG) {
+      const pose = blend(swing.start, swing.end, t)
+      const j = solve(pose)
+      const drawn = shapes(pose, swing.props, swing.order)
+      const ring = drawn.find((s) => s.kind === 'ring')
+      if (ring?.kind !== 'ring') throw new Error('a handle')
+      expect(dist([ring.c[0], -ring.c[1]], j.armN.wrist), step).toBeLessThan(4)
+    }
+    for (const pose of [swing.start, swing.end]) {
+      const j = solve(pose)
+      expect(dist(j.armF.wrist, j.armN.wrist), 'the free hand off it').toBeGreaterThan(15)
+    }
+    expect(solve(swing.end).armF.wrist[1], 'at your side').toBeLessThan(solve(swing.end).hip[1])
   }
 })

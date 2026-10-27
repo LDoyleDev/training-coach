@@ -26,11 +26,11 @@ const fist = (pose: Pose): Pose => ({
 const VEST = ['Vest or backpack, 5 kg', 'Vest or backpack, 10 kg', 'Vest or backpack, 15 kg']
 
 /** A kettlebell held by the horns at the chest, elbows down in front of the ribs: the same
- * movement, the hands placed on the trunk so they ride with it. */
-const goblet = (figure: Figure, frames: Figure['frames']): Change => {
+ * movement, the hands placed on the trunk so they ride with it, ``at`` from the waist. */
+const goblet = (figure: Figure, frames: Figure['frames'], at: Vec = [19, 21]): Change => {
   const arms = {
-    armN: { at: [19, 21], from: 'waist', hand: 0.5 },
-    armF: { at: [20, 21.5], from: 'waist', hand: 0.5 },
+    armN: { at, from: 'waist', hand: 0.5 },
+    armF: { at: [at[0] + 1, at[1] + 0.5], from: 'waist', hand: 0.5 },
   } as const
   return {
     frames,
@@ -107,6 +107,54 @@ const nordic = (frames: Figure['frames'], hands: Vec, tempo: Figure['tempo']): C
     armN: { at: hands, from: 'waist', angle: 0 },
     armF: { at: [hands[0], hands[1] + 1.5], from: 'waist', angle: 0 },
   },
+})
+
+/** A pistol sitting down to a seat behind: on one leg, the other held out in front, down until
+ * the seat takes your weight, hips at ``hip``, the free leg pointing ``dir`` degrees. */
+const sitTo = (frames: Figure['frames'], hip: Vec, lean: number, dir: number): Change => {
+  const pistol = FIGURES['pistol-squat']
+  const free = (d: number): Vec => [
+    hip[0] + 90 * Math.cos((d * Math.PI) / 180),
+    hip[1] + 90 * Math.sin((d * Math.PI) / 180),
+  ]
+  return {
+    frames,
+    view: [-82, 100, -3, 175],
+    start: pistol.start,
+    end: {
+      hip,
+      lean,
+      neck: -6,
+      legN: { at: [0, 7] },
+      legF: { at: free(dir), angle: dir + 80 },
+      armN: { dir: -4, reach: 0.995 },
+      armF: { dir: -2, reach: 0.995 },
+    },
+  }
+}
+
+/** A one-arm swing: the bell in the near hand, the free hand hanging at your side. */
+const ONE_ARM: Change = {
+  frames: ['Hinge, the bell in one hand behind the knees', 'Stand tall, bell at chest height'],
+  props: { bell: 'one' },
+  start: {
+    ...FIGURES['kb-swing'].start,
+    armF: { dir: -100, reach: 0.995 },
+  },
+  end: {
+    ...FIGURES['kb-swing'].end,
+    armF: { dir: -95, reach: 0.995 },
+  },
+}
+
+/** Tibialis raises a step further from the wall: the heels 12 cm further out, the hips lower. */
+const tibialis = FIGURES['tibialis-raise']
+const further = (pose: Pose): Pose => ({
+  ...pose,
+  hip: [-27, 85],
+  lean: -7,
+  legN: { ...pose.legN, at: [12, 7.3] },
+  legF: { ...pose.legF, at: [15, 7.3] },
 })
 
 export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
@@ -189,6 +237,79 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
       [22, 22],
       [2600, 300, 2600, 500],
     ),
+  },
+  'tibialis-raise': {
+    'Heels further from wall': {
+      frames: ['Back against a wall, heels further out', 'Toes up as high as you can'],
+      start: further(tibialis.start),
+      end: further(tibialis.end),
+    },
+    'Single leg': {
+      frames: ['On one heel, the other foot lifted', 'Toes up as high as you can'],
+      start: { ...tibialis.start, legF: { at: [10, 30], angle: 10 } },
+      end: { ...tibialis.end, legF: { at: [10, 30], angle: 10 } },
+    },
+    'Holding 8 kg on toes': {
+      frames: ['A bell resting on your toes', 'Toes up as high as you can, lifting it'],
+      props: { ...tibialis.props, bell: 'toes' },
+      order: ['armF', 'legF', 'torso', 'head', 'legN', 'armN', 'bell'],
+    },
+  },
+  'jump-squat': {
+    'Holding 8 kg': goblet(FIGURES['jump-squat'], [
+      'Squat to about parallel, a bell held at your chest',
+      'Jump, legs straight, the bell still at your chest',
+    ]),
+  },
+  'kb-swing': { 'One-arm, 8 kg': ONE_ARM, 'One-arm, 16 kg': ONE_ARM },
+  'pistol-squat': {
+    'Sit to chair on one leg': {
+      ...sitTo(
+        ['On one leg, a chair behind you', 'Sat down on the chair, the other leg still out'],
+        [-30, 56],
+        32,
+        -12,
+      ),
+      props: { chair: { x0: -80, x1: -32, seat: 45 } },
+    },
+    'Lower box': {
+      ...sitTo(
+        ['On one leg, a low box behind you', 'Sat down on the box, the other leg still out'],
+        [-24, 41],
+        40,
+        -4,
+      ),
+      props: { step: { x0: -66, x1: -26, top: 32 } },
+    },
+    // Held further out, as a counterweight, above the free leg.
+    'Holding 8 kg': goblet(
+      FIGURES['pistol-squat'],
+      [
+        'On one leg, a bell held out in front of your chest',
+        'All the way down, the bell still out in front',
+      ],
+      [30, 34],
+    ),
+  },
+  'calf-raise': {
+    ...each(['Holding 8 kg', '8 kg, 2 s pause at top'], {
+      frames: [
+        "A bell in the hand on the working side, heel below the step's edge",
+        'Heel up as high as you can, pause',
+      ],
+      props: { ...FIGURES['calf-raise'].props, bell: 'near' },
+      order: ['armF', 'legF', 'torso', 'head', 'legN', 'armN', 'bell'],
+      start: {
+        ...FIGURES['calf-raise'].start,
+        armN: { dir: -92, reach: 0.995 },
+        armF: { at: [30, 140], angle: 10 },
+      },
+      end: {
+        ...FIGURES['calf-raise'].end,
+        armN: { dir: -92, reach: 0.995 },
+        armF: { at: [30, 140], angle: 10 },
+      },
+    }),
   },
   'kb-curl': {
     '16 kg, hammer grip': {
