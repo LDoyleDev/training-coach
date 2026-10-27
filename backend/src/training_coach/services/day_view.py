@@ -2,7 +2,7 @@
 exercises, steps and sets, and the band's numbers for a run it counted. Read-only. Callers
 pass a session bound to the user (ADR-0029)."""
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import date
 from zoneinfo import ZoneInfo
 
@@ -25,7 +25,6 @@ from training_coach.domain.day_view import LoggedExercise as Grouped
 from training_coach.domain.day_view import LoggedSet, group
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.queue import local_date
-from training_coach.services import cardio_totals
 
 UNITS = {ExerciseKind.REPS: "reps", ExerciseKind.SECONDS: "seconds"}
 
@@ -106,10 +105,7 @@ def logged(session: Session, day: date) -> tuple[LoggedWorkout, ...]:
             select(ImportedWorkout).where(ImportedWorkout.workout_id.in_(ids))
         )
     }
-    counted = {c.workout_id: c.minutes for c in cardio_totals.logged(session, day, day)}
-    grouped = {
-        w.id: _as_counted(group(rows[w.id]), exercises, counted.get(w.id, {})) for w in workouts
-    }
+    grouped = {w.id: group(rows[w.id]) for w in workouts}
     return tuple(
         LoggedWorkout(
             workout_id=w.id,
@@ -130,20 +126,6 @@ def logged(session: Session, day: date) -> tuple[LoggedWorkout, ...]:
             cardio=_details(w, _minutes(grouped[w.id], exercises)),
         )
         for w in workouts
-    )
-
-
-def _as_counted(
-    logged: tuple[Grouped, ...], exercises: dict[int, Exercise], minutes: dict[str, int]
-) -> tuple[Grouped, ...]:
-    """A cardio log of one set shows the minutes it counts for, as every total does: a
-    counted band workout's full minutes, though one counted before ADR-0079 logged only its
-    zone 2 minutes."""
-    return tuple(
-        replace(e, sets=(replace(e.sets[0], left=minutes[slug]),))
-        if len(e.sets) == 1 and (slug := exercises[e.exercise_id].slug) in minutes
-        else e
-        for e in logged
     )
 
 

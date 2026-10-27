@@ -806,6 +806,330 @@ items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
 [exercises.needs]
 "Easy jog with weight vest or backpack" = ["backpack"]
 
+# ---------------------------------------------------------------- the gym catalogue (ADR-0072)
+# The gym exercises of program-builder.md (Decided 5) that the home plan doesn't already have:
+# the split squat, Copenhagen plank, tibialis raise, carries, neck work and hanging raises are
+# the home exercises' own ladders. Each is one step that takes load (`[exercises.loads]`), so
+# reps climb within the range and then the next weight is suggested; the 45° back extension
+# starts at bodyweight and then holds a plate. Muscle weights are the research file's (Weights
+# by exercise, gym catalogue). No session uses them until the gym versions of the sessions
+# (builder step 9); until then they are logged by text or voice ("leg press 10 10 9 at 80").
+# A gym has everything (ADR-0071), so they name no kit: places decide where they're done.
+
+[[exercises]]
+slug = "back-squat"
+name = "Barbell back squat"
+summary = "Bar across your upper back in a rack, feet shoulder-width. Sit down between your heels as deep as you can keep your back flat, then stand up. Set the safety bars just below your lowest point."
+kind = "reps"
+muscles = { quads = 1, glutes = 1, adductors = 1 }
+pattern = "squat"
+stress = ["spine"]
+aliases = ["back squat", "back squats", "barbell squat"]
+start = 0
+ladder = ["Barbell"]
+[exercises.loads]
+"Barbell" = "barbell"
+[exercises.cues]
+"Barbell" = "Brace before each rep; the bar stays over the middle of your feet."
+
+[[exercises]]
+slug = "leg-press"
+name = "Leg press"
+summary = "Feet shoulder-width on the plate. Lower until your knees are well bent without your lower back lifting off the pad, then press back up without locking your knees hard."
+kind = "reps"
+muscles = { quads = 1, glutes = 1, adductors = 0.5 }
+pattern = "squat"
+aliases = ["leg presses", "legpress"]
+start = 0
+ladder = ["Machine"]
+[exercises.loads]
+"Machine" = "machine"
+
+[[exercises]]
+slug = "leg-extension"
+name = "Leg extension"
+summary = "Sit with the pad on your shins and your knees at the seat's edge. Straighten your legs, squeeze for a moment, then lower slowly."
+kind = "reps"
+muscles = { quads = 1 }
+parts = ["rectus femoris"]
+pattern = "isolation"
+aliases = ["leg extensions", "quad extension", "quad extensions"]
+start = 0
+ladder = ["Machine"]
+[exercises.loads]
+"Machine" = "machine"
+
+[[exercises]]
+slug = "barbell-rdl"
+name = "Barbell Romanian deadlift"
+summary = "Stand holding the bar, knees soft. Push your hips back and slide the bar down your thighs until you feel a strong stretch in the hamstrings, back flat, then stand up tall."
+kind = "reps"
+muscles = { hamstrings = 1, glutes = 0.5, "lower back" = 0.5, forearms = 0.5 }
+pattern = "hinge"
+stress = ["spine", "grip"]
+aliases = ["barbell rdl", "bb rdl", "barbell rdls"]
+start = 0
+ladder = ["Barbell"]
+[exercises.loads]
+"Barbell" = "barbell"
+[exercises.cues]
+"Barbell" = "Stop where your back would start to round; straps are fine for the grip."
+
+[[exercises]]
+slug = "seated-leg-curl"
+name = "Seated leg curl"
+summary = "Sit with the pad above your heels and the thigh pad snug. Curl your heels under the seat, then let them back up slowly to a full stretch."
+kind = "reps"
+muscles = { hamstrings = 1 }
+pattern = "isolation"
+aliases = ["seated leg curls", "seated hamstring curl", "machine leg curl"]
+start = 0
+ladder = ["Machine"]
+[exercises.loads]
+"Machine" = "machine"
+
+[[exercises]]
+slug = "hip-thrust"
+name = "Hip thrust"
+summary = "Upper back on a bench, the bar padded across your hips, feet flat. Drive your hips up until your body is straight from knees to shoulders, squeeze, then lower."
+kind = "reps"
+muscles = { glutes = 1 }
+pattern = "hinge"
+aliases = ["hip thrusts", "barbell hip thrust", "glute thrust"]
+start = 0
+ladder = ["Barbell"]
+[exercises.loads]
+"Barbell" = "barbell"
+[exercises.cues]
+"Barbell" = "Chin tucked, ribs down: the hips move, not the lower back."
+
+[[exercises]]
+slug = "back-extension-45"
+name = "45° back extension"
+summary = "Hips on the pad of a 45° bench, ankles locked in. Lower your chest towards the floor with a flat back, then raise it until your body is in a straight line, no further."
+kind = "reps"
+muscles = { hamstrings = 1, glutes = 0.5, "lower back" = 0.5 }
+pattern = "hinge"
+stress = ["spine"]
+aliases = ["45 degree back extension", "hyperextension", "hyperextensions", "roman chair"]
+start = 0
+ladder = ["Bodyweight", "Holding a plate"]
+[exercises.loads]
+"Holding a plate" = "barbell"
+[exercises.cues]
+"Holding a plate" = "Hug the plate to your chest; same range as without it."
+
+[[exercises]]
+slug = "standing-calf-raise"
+name = "Standing calf raise (machine)"
+summary = "Balls of your feet on the edge, shoulders under the pads. Lower your heels as far as they go and pause two seconds in the stretch, then rise as high as you can."
+kind = "reps"
+muscles = { calves = 1 }
+pattern = "isolation"
+aliases = ["standing calf raises", "machine calf raise", "calf machine"]
+start = 0
+ladder = ["Machine"]
+[exercises.loads]
+"Machine" = "machine"
+
+[[exercises]]
+slug = "seated-calf-raise"
+name = "Seated calf raise"
+summary = "Sit with the pad on your thighs above the knees, balls of your feet on the edge. Lower your heels to a full stretch, pause, then rise as high as you can."
+kind = "reps"
+muscles = { calves = 1 }
+pattern = "isolation"
+aliases = ["seated calf raises", "seated calves"]
+start = 0
+ladder = ["Machine"]
+[exercises.loads]
+"Machine" = "machine"
+
+[[exercises]]
+slug = "db-bench-press"
+name = "Dumbbell bench press"
+summary = "Lie on a flat bench, a dumbbell in each hand over your chest. Lower them to the sides of your chest, elbows a little in from your shoulders, then press up."
+kind = "reps"
+muscles = { chest = 1, "front delts" = 0.5, triceps = 0.5 }
+pattern = "horizontal push"
+aliases = ["bench press", "bench", "db bench", "dumbbell bench"]
+start = 0
+ladder = ["Flat bench"]
+[exercises.loads]
+"Flat bench" = "dumbbells"
+
+[[exercises]]
+slug = "incline-db-press"
+name = "Incline dumbbell press"
+summary = "Bench at about 30°. Lower a dumbbell in each hand to the top of your chest, then press up and slightly in."
+kind = "reps"
+muscles = { chest = 1, "front delts" = 0.5, triceps = 0.5 }
+pattern = "horizontal push"
+aliases = ["incline press", "incline bench", "incline db press", "incline dumbbell bench"]
+start = 0
+ladder = ["Incline bench"]
+[exercises.loads]
+"Incline bench" = "dumbbells"
+
+[[exercises]]
+slug = "chest-fly"
+name = "Cable fly or pec deck"
+summary = "Arms wide with a soft bend in the elbows. Bring your hands together in front of your chest in a hugging arc, then open slowly until you feel the stretch."
+kind = "reps"
+muscles = { chest = 1, "front delts" = 0.5 }
+pattern = "isolation"
+aliases = ["cable fly", "cable flyes", "pec deck", "chest fly", "flyes"]
+start = 0
+ladder = ["Cable or machine"]
+[exercises.loads]
+"Cable or machine" = "machine"
+
+[[exercises]]
+slug = "db-overhead-press"
+name = "Seated dumbbell overhead press"
+summary = "Sit tall with back support, a dumbbell in each hand at shoulder height. Press them overhead until your arms are straight, then lower to your shoulders."
+kind = "reps"
+muscles = { "front delts" = 1, "side delts" = 0.5, triceps = 0.5 }
+pattern = "vertical push"
+aliases = ["overhead press", "shoulder press", "db shoulder press", "military press"]
+start = 0
+ladder = ["Seated"]
+[exercises.loads]
+"Seated" = "dumbbells"
+
+[[exercises]]
+slug = "cable-lateral-raise"
+name = "Cable lateral raise"
+summary = "Stand side-on to a low pulley, the handle in your far hand. Raise your arm out to the side to shoulder height, then lower slowly."
+kind = "reps"
+muscles = { "side delts" = 1 }
+pattern = "isolation"
+aliases = ["cable lateral raises", "cable laterals", "cable side raise"]
+start = 0
+ladder = ["Cable"]
+[exercises.loads]
+"Cable" = "machine"
+
+[[exercises]]
+slug = "lat-pulldown"
+name = "Lat pulldown"
+summary = "Thighs under the pads, hands a little wider than your shoulders. Pull the bar to your upper chest, elbows down and back, then let it rise until your arms are straight."
+kind = "reps"
+muscles = { lats = 1, biceps = 0.5, "upper back" = 0.5, "rear delts" = 0.25 }
+pattern = "vertical pull"
+aliases = ["pulldown", "pulldowns", "lat pulldowns", "lat pull down"]
+start = 0
+ladder = ["Machine"]
+[exercises.loads]
+"Machine" = "machine"
+
+[[exercises]]
+slug = "chest-supported-row"
+name = "Chest-supported row"
+summary = "Chest on an incline bench or a machine's pad. Pull the handles or dumbbells towards your lower ribs, squeeze your shoulder blades, then lower to a full stretch."
+kind = "reps"
+muscles = { "upper back" = 1, lats = 1, biceps = 0.5, "rear delts" = 0.5 }
+pattern = "horizontal pull"
+aliases = ["chest supported row", "chest supported rows", "seal row", "machine row"]
+start = 0
+ladder = ["Machine or dumbbells"]
+[exercises.loads]
+"Machine or dumbbells" = "machine"
+
+[[exercises]]
+slug = "reverse-pec-deck"
+name = "Reverse pec deck or cable face pull"
+summary = "Arms out in front at shoulder height. Open them wide and back, leading with the elbows, squeeze between the shoulder blades, then return slowly."
+kind = "reps"
+muscles = { "rear delts" = 1, "upper back" = 0.5 }
+pattern = "isolation"
+aliases = ["reverse pec deck", "rear delt machine", "cable face pull", "cable face pulls"]
+start = 0
+ladder = ["Machine or cable"]
+[exercises.loads]
+"Machine or cable" = "machine"
+
+[[exercises]]
+slug = "incline-db-curl"
+name = "Incline dumbbell curl"
+summary = "Lie back on a bench at about 45°, arms hanging straight down. Curl the dumbbells up without moving your elbows forward, then lower all the way."
+kind = "reps"
+muscles = { biceps = 1, forearms = 0.25 }
+pattern = "isolation"
+aliases = ["incline curl", "incline curls", "incline db curl", "incline dumbbell curls"]
+start = 0
+ladder = ["Incline bench"]
+[exercises.loads]
+"Incline bench" = "dumbbells"
+
+[[exercises]]
+slug = "hammer-curl"
+name = "Hammer curl"
+summary = "Stand with a dumbbell in each hand, palms facing each other. Curl them up keeping that grip and your elbows at your sides, then lower slowly."
+kind = "reps"
+muscles = { forearms = 1, biceps = 0.5 }
+pattern = "isolation"
+aliases = ["hammer curls", "hammers"]
+start = 0
+ladder = ["Dumbbells"]
+[exercises.loads]
+"Dumbbells" = "dumbbells"
+
+[[exercises]]
+slug = "overhead-cable-extension"
+name = "Overhead cable triceps extension"
+summary = "Face away from a high pulley with a rope over your head. Elbows by your ears, straighten your arms forward and up, then bend them back to a deep stretch."
+kind = "reps"
+muscles = { triceps = 1 }
+parts = ["triceps long head"]
+pattern = "isolation"
+aliases = ["cable overhead extension", "overhead cable extension", "rope overhead extension"]
+start = 0
+ladder = ["Cable"]
+[exercises.loads]
+"Cable" = "machine"
+
+[[exercises]]
+slug = "wrist-curl"
+name = "Wrist curl and reverse wrist curl"
+summary = "Forearms on your thighs or a bench, a dumbbell in each hand. Curl the wrists up, lower slowly; then turn your palms down and do the same."
+kind = "reps"
+muscles = { forearms = 1 }
+pattern = "isolation"
+aliases = ["wrist curls", "reverse wrist curl", "reverse wrist curls"]
+start = 0
+ladder = ["Dumbbells"]
+[exercises.loads]
+"Dumbbells" = "dumbbells"
+
+[[exercises]]
+slug = "cable-crunch"
+name = "Cable crunch"
+summary = "Kneel facing a high pulley, the rope beside your head. Curl your ribs towards your hips, rounding your back, then uncurl slowly. The hips stay still."
+kind = "reps"
+muscles = { abs = 1 }
+pattern = "core"
+aliases = ["cable crunches", "kneeling cable crunch"]
+start = 0
+ladder = ["Cable"]
+[exercises.loads]
+"Cable" = "machine"
+
+[[exercises]]
+slug = "pallof-press"
+name = "Pallof press"
+summary = "Stand side-on to a cable at chest height, the handle at your chest. Press it straight out and hold for a moment without letting it turn you, then bring it back."
+kind = "reps"
+muscles = { obliques = 1, abs = 0.5 }
+pattern = "core"
+aliases = ["pallof", "pallof presses", "anti rotation press"]
+per_side = true
+start = 0
+ladder = ["Cable"]
+[exercises.loads]
+"Cable" = "machine"
+
+
 # ---------------------------------------------------------- retired (#107, ADR-0034)
 # No longer in any session. Kept so their history stays and old days can still be logged;
 # never deleted. "squat"/"squats" were aliases of the goblet squat in the first plan; they are

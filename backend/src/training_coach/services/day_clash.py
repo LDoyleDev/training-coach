@@ -35,7 +35,6 @@ from training_coach.db.models import (
 from training_coach.domain.dates import day_problem
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.queue import ADVANCING, DoneOn
-from training_coach.services import cardio_totals
 
 REPLACE, MOVE, ADD = "replace", "move", "add"
 ANSWER = re.compile(r"^(?:(replace|add)|move:(\d{4}-\d{2}-\d{2}))$")
@@ -128,9 +127,7 @@ def _counted() -> Any:
     )
 
 
-def _summary(
-    workout: Workout, kinds: dict[int, tuple[str, ExerciseKind]], band: dict[int, int]
-) -> str:
+def _summary(workout: Workout, kinds: dict[int, tuple[str, ExerciseKind]]) -> str:
     if workout.status == WorkoutStatus.REST:
         return "rested"
     if not workout.sets:
@@ -138,7 +135,7 @@ def _summary(
     names = list(dict.fromkeys(kinds[s.exercise_id][0] for s in workout.sets))
     timed = {s.exercise_id for s in workout.sets}
     if len(timed) == 1 and kinds[next(iter(timed))][1] is ExerciseKind.DURATION_MIN:
-        return f"{band.get(workout.id, sum(s.value for s in workout.sets))} min"
+        return f"{sum(s.value for s in workout.sets)} min"
     count = len({(s.exercise_id, s.set_no) for s in workout.sets})
     more = f" +{len(names) - SHOWN}" if len(names) > SHOWN else ""
     return f"{count} sets: {', '.join(names[:SHOWN])}{more}"
@@ -158,12 +155,11 @@ def recorded(session: Session, day: date, *, moving: bool = False) -> Clash | No
         return None
     names = dict(session.execute(select(SessionTemplate.id, SessionTemplate.name)).all())
     kinds = {e.id: (e.name, ExerciseKind(e.kind)) for e in session.scalars(select(Exercise))}
-    band = cardio_totals.counted(session)  # a counted walk's full minutes (ADR-0079)
     found = tuple(
         Recorded(
             w.id,
             names.get(w.template_id, "A session") if w.template_id is not None else "Rest day",
-            _summary(w, kinds, band),
+            _summary(w, kinds),
         )
         for w in workouts
     )

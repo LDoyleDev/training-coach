@@ -1,12 +1,13 @@
 """Cardio minutes from done workouts, and how they split by heart-rate zone (ADR-0079).
 
-A cardio log is sets of the zone2 or moderate-cardio exercise, valued in minutes. A workout
-counted from the band (``imported_workouts.workout_id``) counts the band's full minutes over
-the band's window, whatever its sets say: until ADR-0079, Count it logged a zone 2 walk as its
-zone 2 minutes only, and stored data is not rewritten. Minutes split by the zone of each
-minute's heart rate kept for the workout's window (8 days, ADR-0055), or by the band's own zone
-minutes once that is gone; a typed log with a start (ADR-0067) splits the same way when the
-band was worn then. Minutes without heart rate count in the zone the person logged them as.
+A cardio log is sets of the zone2 or moderate-cardio exercise, valued in minutes: the
+stored value is the truth, so a person's edit always counts (a walk counted before ADR-0079
+held only its zone 2 minutes; a data migration gave it its full minutes). Minutes split by the
+zone of each minute's heart rate kept for the workout's window (8 days, ADR-0055): a workout
+counted from the band (``imported_workouts.workout_id``) has the band's window, and once that
+heart rate is gone, the band's own zone minutes; a typed log with a start (ADR-0067) splits the
+same way when the band was worn then. Heart rate over more minutes than were logged is trimmed
+from the largest zones. Minutes without heart rate count in the zone the person logged them as.
 HIIT logs rounds and has no window, so it stays out. It only reads; the caller passes a session
 bound to the person.
 """
@@ -99,32 +100,14 @@ def logged(session: Session, start: date, end: date) -> list[Logged]:
 def _logged(
     workout_id: int, started: datetime | None, minutes: dict[str, int], row: ImportedWorkout | None
 ) -> Logged:
-    if row is not None and len(minutes) == 1:
-        (slug,) = minutes
+    if row is not None:
         stored = (row.zone1_min, row.zone2_min, row.zone3_min, row.zone4_min, row.zone5_min)
         band = tuple(m for m in stored if m is not None)
         window = (row.start_at, row.end_at)
-        return Logged(workout_id, {slug: row.minutes}, window, band if len(band) == 5 else None)
+        return Logged(workout_id, minutes, window, band if len(band) == 5 else None)
     total = sum(minutes.values())
     typed = (started, started + timedelta(minutes=total)) if started is not None else None
     return Logged(workout_id, minutes, typed, None)
-
-
-def counted(session: Session) -> dict[int, int]:
-    """Workouts counted from the band, and the minutes their cardio set counts for: the
-    import's. One counted before ADR-0079 holds only its zone 2 minutes; readers of a cardio
-    set's value (``minutes``) take these instead, so nothing shows the short figure."""
-    rows = session.execute(
-        select(ImportedWorkout.workout_id, ImportedWorkout.minutes).where(
-            ImportedWorkout.workout_id.is_not(None)
-        )
-    )
-    return {workout_id: minutes for workout_id, minutes in rows if workout_id is not None}
-
-
-def minutes(found: dict[int, int], workout_id: int, slug: str, value: int) -> int:
-    """A set's value as it counts: a counted import's minutes for its cardio set."""
-    return found.get(workout_id, value) if slug in KINDS else value
 
 
 def by_kind(found: Iterable[Logged]) -> dict[str, int]:
