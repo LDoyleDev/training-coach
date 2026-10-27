@@ -1337,6 +1337,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/session/level": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change Level
+         * @description Change an exercise's level during today's session, for today or from now on. 409 when
+         *     the session changed or another device moved on (reload); 422 for a step not on its ladder.
+         */
+        put: operations["change_level_api_session_level_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session/pending": {
         parameters: {
             query?: never;
@@ -2502,6 +2523,19 @@ export interface components {
             /** Url */
             url: string | null;
         };
+        /**
+         * ItemLevelView
+         * @description Changing the level on the set screen (ADR-0080): the step trained today, whether it was
+         *     chosen for today only, and the exercise's ladder, easiest first.
+         */
+        ItemLevelView: {
+            /** For Today */
+            for_today: boolean;
+            /** Ladder */
+            ladder: components["schemas"]["LevelView"][];
+            /** Step Id */
+            step_id: number;
+        };
         /** ItemMuscleView */
         ItemMuscleView: {
             /** Muscle */
@@ -2516,6 +2550,7 @@ export interface components {
             /** Cue */
             cue: string | null;
             flow?: components["schemas"]["FlowView"] | null;
+            level?: components["schemas"]["ItemLevelView"] | null;
             load?: components["schemas"]["LoadView"] | null;
             /** Muscles */
             muscles: components["schemas"]["ItemMuscleView"][];
@@ -2663,6 +2698,57 @@ export interface components {
             steps_climbed: number;
             /** Top */
             top: components["schemas"]["TopView"][];
+        };
+        /**
+         * LevelBody
+         * @description A level chosen on the set screen (ADR-0080): for today only, or from now on.
+         */
+        LevelBody: {
+            /** First */
+            first?: number[];
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
+            scope: components["schemas"]["Scope"];
+            /** Slug */
+            slug: string;
+            /** Step Id */
+            step_id: number;
+            /** Template Id */
+            template_id: number;
+        };
+        /** LevelChangedView */
+        LevelChangedView: {
+            today: components["schemas"]["TodayView"];
+            /** Warning */
+            warning: string | null;
+        };
+        /**
+         * LevelDoneView
+         * @description An exercise whose level changed during the session, and the steps its sets were done
+         *     at, in order (ADR-0080).
+         */
+        LevelDoneView: {
+            /** Exercise */
+            exercise: string;
+            /** Steps */
+            steps: string[];
+        };
+        /**
+         * LevelView
+         * @description One step of an exercise's ladder, to change the level on the set screen (ADR-0080).
+         */
+        LevelView: {
+            /** Cue */
+            cue: string | null;
+            /** Id */
+            id: number;
+            /** Missing */
+            missing: string[];
+            /** Name */
+            name: string;
         };
         /**
          * LoadView
@@ -3432,6 +3518,8 @@ export interface components {
             already_saved: boolean;
             /** Earned */
             earned: components["schemas"]["EarnedView"][];
+            /** Levels */
+            levels?: components["schemas"]["LevelDoneView"][];
             /** Next Session */
             next_session: string | null;
             /** Stretching */
@@ -3440,6 +3528,11 @@ export interface components {
             /** Workout Id */
             workout_id: number;
         };
+        /**
+         * Scope
+         * @enum {string}
+         */
+        Scope: "today" | "from_now_on";
         /** ServerMetadata */
         ServerMetadata: {
             /** Authorization Endpoint */
@@ -6054,6 +6147,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReviewWeekView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_level_api_session_level_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LevelBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelChangedView"];
                 };
             };
             /** @description Validation Error */

@@ -408,6 +408,13 @@ def stay(session: Session, exercise_id: int, step_id: int) -> Move | None:
     return Move(MoveOutcome.STAYED, exercise.name, step.name)
 
 
+def kit_warning(session: Session, slug: str, step: str) -> str | None:
+    """What a level chosen by hand needs that the kit doesn't have, in words; None when the
+    kit allows it. Chosen anyway: the person decides (ADR-0071)."""
+    lacking = kit_rules.missing(equipment.kit(session), equipment.step_needs(slug).get(step, []))
+    return f"{step} needs {' and '.join(lacking)}, not in your kit." if lacking else None
+
+
 def set_level(session: Session, exercise_id: int, step_id: int) -> Move | None:
     """Put the exercise on ``step_id``, up or down, by hand (ADR-0075). Never needs "ready" and
     is allowed in a strength block: it is the person's choice, not the rule's. Targets then come
@@ -421,10 +428,7 @@ def set_level(session: Session, exercise_id: int, step_id: int) -> Move | None:
     if state.ladder_step_id == step_id:
         return Move(MoveOutcome.SAME_LEVEL, exercise.name, step.name)
     # A step the kit doesn't allow is still the person's to choose: say so, don't refuse.
-    lacking = kit_rules.missing(
-        equipment.kit(session), equipment.step_needs(exercise.slug).get(step.name, [])
-    )
-    warning = f"{step.name} needs {' and '.join(lacking)}, not in your kit." if lacking else None
+    warning = kit_warning(session, exercise.slug, step.name)
     session.add(
         Event(
             kind=LEVEL_SET,
