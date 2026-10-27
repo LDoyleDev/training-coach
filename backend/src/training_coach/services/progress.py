@@ -568,8 +568,10 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
         per_side = items[0].per_side if items else exercise.per_side
         block = history_kind(ExerciseKind(exercise.kind), BlockKind.HYPERTROPHY)
         history = [v for _, v in sessions_at_step(session, exercise_id, step.id, per_side, block)]
-        if exercise.retired and not history:
-            continue  # nothing to show for an exercise no longer trained (#107)
+        if (exercise.retired or not items) and not history:
+            # Nothing to show for an exercise no longer trained (#107), or one in no session
+            # yet and never logged: a gym exercise before the gym sessions (ADR-0072).
+            continue
         statuses = {_status(session, item, step, kit) for item in items}
         needs = equipment.ladder_needs(exercise)
         status = next(

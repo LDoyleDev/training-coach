@@ -426,7 +426,12 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
    `plan.toml` the same way.
 7. **The picker and an interactive map:** add and remove exercises; add a session.
 8. **Load:** the 29 gym exercises in the catalogue, `load_kg`, carry-over with − and +, double
-   progression.
+   progression. **Built** (ADR-0072, Built): `set_logs.load_kg`, the weight on the set screen
+   with − and + from last time, typed and spoken weights ("rows 10 10 9 at 16"), the suggested
+   next weight (a tap), targets and bests per weight, the chart's period per weight with a kg
+   strip, and 23 gym exercises (the other six are home ladders already). Still to come: the
+   AI's `propose_log` and the summaries showing weights, each person's own increments and the
+   next weight owned at home (with places, step 9), and figures for the gym exercises.
 9. **Home and gym versions**, `workouts.place`, the switch on Today.
 10. **Setup flow** (H), the 3- and 4-day starters, and the level questions (G1).
 
