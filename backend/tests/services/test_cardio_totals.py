@@ -13,21 +13,16 @@ from training_coach.db.models import (
     HealthDay,
     HeartRateSample,
     ImportedWorkout,
-    SessionTemplate,
     SetLog,
-    Workout,
 )
 from training_coach.domain.cardio import Details, Targets
 from training_coach.domain.enums import CardioActivity
 from training_coach.services import (
-    ai_summary,
     band_cardio,
     cardio,
     cardio_totals,
-    day_clash,
     day_view,
     home,
-    progress,
     review,
     user_settings,
     zones,
@@ -91,9 +86,10 @@ def _band_walk(session: Session, workout_id: int | None = None) -> ImportedWorko
 
 
 def _liams_week(session: Session) -> None:
-    """Thursday's typed run, and Monday's walk as Count it logged it then: its zone 2 minutes."""
+    """Thursday's typed run, and Monday's walk with its full minutes (the data migration gave
+    the 35 the old Count it logged its 66)."""
     _log(session, cardio.MODERATE, 43, THURSDAY)
-    _band_walk(session, _log(session, cardio.ZONE2, 35, MONDAY))
+    _band_walk(session, _log(session, cardio.ZONE2, 66, MONDAY))
     _samples(session, WALK_AT, WALK)
 
 
@@ -118,7 +114,7 @@ def test_home_and_the_review_agree(week: Session) -> None:
 
 
 def test_once_its_heart_rate_is_gone_the_bands_zones_count(week: Session) -> None:
-    _band_walk(week, _log(week, cardio.ZONE2, 35, MONDAY))  # no samples kept
+    _band_walk(week, _log(week, cardio.ZONE2, 66, MONDAY))  # no samples kept
     found = cardio.week(week, MONDAY)
     assert (found.total, found.zone2, found.zones.measured) == (66, 35, (20, 7, 35, 4, 0, 0))
 
@@ -155,33 +151,14 @@ def test_the_targets_are_the_cycles_cardio_plus_extra(week: Session) -> None:
     assert cardio_totals.targets(week) == Targets((105, 135), (135, 175))
 
 
-def test_the_day_view_shows_mondays_walk_as_66_minutes(week: Session) -> None:
-    """Counted before ADR-0079, it holds 35; the day view says what the totals count."""
-    _liams_week(week)
-    (walk,) = day_view.logged(week, MONDAY)
-    (zone2,) = walk.exercises
-    assert (zone2.unit, [s.left for s in zone2.sets]) == ("minutes", [66])
-    (run,) = day_view.logged(week, THURSDAY)  # a typed log: as logged
-    assert [s.left for s in run.exercises[0].sets] == [43]
-
-
-def test_every_reader_of_the_walks_minutes_says_66(week: Session) -> None:
-    """Bests and Telegram's /progress (``progress``), what a connected AI reads (the summary
-    and an exercise's history over MCP) and the day-clash question: none shows the stored 35."""
-    _liams_week(week)
-    (zone2,) = [s for s in progress.overview(week) if s.slug == "zone2"]
-    assert zone2.best_set == 66
-    read = ai_summary.summary(week, MONDAY, ai_summary.Options(weeks=None))
-    history = ai_summary.exercise(week, "zone2", None)
-    assert history is not None
-    assert "66" in read
-    assert "66" in history
-    assert "35" not in history
-    walk = week.scalars(select(Workout).where(Workout.local_date == MONDAY)).one()
-    walk.template_id = week.scalars(
-        select(SessionTemplate.id).where(SessionTemplate.slug == "zone2")
-    ).one()  # it completed Long zone 2, as Count it does on its day
-    week.flush()
-    clash = day_clash.recorded(week, MONDAY)
-    assert clash is not None
-    assert clash.recorded[0].summary == "66 min"
+def test_an_edited_walk_counts_as_edited(week: Session) -> None:
+    """The stored set is the truth (Liam, 27 Oct): an edit wins over the band's 66 minutes,
+    and the band's heart rate still gives the zones, trimmed from the largest to the minutes
+    logged."""
+    walk = _log(week, cardio.ZONE2, 50, MONDAY)
+    _band_walk(week, walk)
+    _samples(week, WALK_AT, WALK)
+    found = cardio.week(week, MONDAY)
+    assert (found.total, found.zones.measured) == (50, (20, 7, 19, 4, 0, 0))
+    (logged,) = day_view.logged(week, MONDAY)
+    assert [s.left for s in logged.exercises[0].sets] == [50]

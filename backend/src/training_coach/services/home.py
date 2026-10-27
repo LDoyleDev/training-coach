@@ -119,19 +119,16 @@ def _recent(session: Session, on: date) -> list[Recent]:
         )
         .order_by(Workout.local_date.desc(), Workout.created_at.desc(), Workout.id.desc())
     )
-    minutes = {c.workout_id: c.total for c in cardio_totals.logged(session, since, on)}
-    return [Recent(w.local_date, _label(w, names, minutes)) for w in workouts]
+    return [Recent(w.local_date, _label(w, names)) for w in workouts]
 
 
-def _label(workout: Workout, names: dict[int, str], minutes: dict[int, int]) -> str:
+def _label(workout: Workout, names: dict[int, str]) -> str:
     """The session's name; a cardio log adds what it was: "Long zone 2: hike, 62 min", or
-    "Walk, 30 min" for an extra, a counted band workout for all its minutes (ADR-0079).
-    Anything else unplanned is "Extra"."""
+    "Walk, 30 min" for an extra. Anything else unplanned is "Extra"."""
     name = names.get(workout.template_id) if workout.template_id is not None else None
     if workout.activity is None:
         return name or "Extra"
-    total = minutes.get(workout.id, sum(s.value for s in workout.sets))
-    detail = f"{workout.activity}, {total} min"
+    detail = f"{workout.activity}, {sum(s.value for s in workout.sets)} min"
     return f"{name}: {detail}" if name else detail.capitalize()
 
 
