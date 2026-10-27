@@ -57,10 +57,16 @@ test('a number of its own', async () => {
   const sent = serve()
   render(<ExtraCardio />)
   const box = await screen.findByRole('textbox', { name: 'Or minutes a week' })
-  fireEvent.change(box, { target: { value: '601' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-  expect(screen.getByRole('status')).toHaveTextContent('A number from 0 to 600.')
-  fireEvent.change(box, { target: { value: '45' } })
+  const save = screen.getByRole('button', { name: 'Save' })
+  // A space once saved 0 (review of #391): blank, not whole minutes or out of range never saves.
+  for (const value of ['', ' ', '  \t', '4.5', '1e2', '-5', '601', 'abc', '30 min']) {
+    fireEvent.change(box, { target: { value } })
+    expect(save).toBeDisabled()
+    fireEvent.submit(box.closest('form')!)
+  }
+  expect(sent).toEqual([])
+  expect(screen.getByRole('status')).toHaveTextContent('Whole minutes from 0 to 600.')
+  fireEvent.change(box, { target: { value: ' 45 ' } })
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   expect(await screen.findByText('Saved: 45 min a week.')).toBeInTheDocument()
   expect(sent).toEqual([{ extra_cardio_min: 45 }])
@@ -69,7 +75,7 @@ test('a number of its own', async () => {
 })
 
 test.each([
-  ['invalid', 'A number from 0 to 600.'],
+  ['invalid', 'Whole minutes from 0 to 600.'],
   ['fail', "That didn't work. Check your connection and try again."],
   ['signed-out', 'Your sign-in ended. Sign in again, then retry.'],
 ] as const)('a refused save says why (%s)', async (patch, text) => {

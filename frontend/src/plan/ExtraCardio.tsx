@@ -15,6 +15,16 @@ const PRESETS = [
   { minutes: 120, label: '120 min' },
 ]
 const MOST = 600 // minutes a week, as the server allows
+const WRONG = `Whole minutes from 0 to ${MOST}.`
+
+/** Typed minutes as a number, or null unless they are whole minutes in range: spaces around
+ * are fine, a blank or a space is not 0 (review of #391). */
+function typedMinutes(text: string): number | null {
+  const found = text.trim()
+  if (!/^\d{1,3}$/.test(found)) return null
+  const minutes = Number(found)
+  return minutes <= MOST ? minutes : null
+}
 const span = (t: readonly number[] | null) => (t ? `${t[0]}–${t[1]} min` : 'none')
 
 type Week = CardioOptions['week']
@@ -56,7 +66,7 @@ export default function ExtraCardio() {
     setNote(null)
     try {
       const saved = await saveSettings({ extra_cardio_min: minutes })
-      if (saved === 'invalid') return setNote(`A number from 0 to ${MOST}.`)
+      if (saved === 'invalid') return setNote(WRONG)
       // Saved: show it now, whatever the targets' refresh does next (review of #391).
       const extra = saved.extra_cardio_min
       setLoaded({ status: 'ready', extra, week: null })
@@ -77,9 +87,8 @@ export default function ExtraCardio() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    const minutes = Number(typed)
-    if (!Number.isInteger(minutes) || minutes < 0 || minutes > MOST)
-      return setNote(`A number from 0 to ${MOST}.`)
+    const minutes = typedMinutes(typed)
+    if (minutes === null) return setNote(WRONG)
     void save(minutes)
   }
 
@@ -118,7 +127,11 @@ export default function ExtraCardio() {
             className="min-h-11 w-28 text-lg"
           />
         </label>
-        <button type="submit" className={primaryInline} disabled={busy || typed === ''}>
+        <button
+          type="submit"
+          className={primaryInline}
+          disabled={busy || typedMinutes(typed) === null}
+        >
           Save
         </button>
       </form>
