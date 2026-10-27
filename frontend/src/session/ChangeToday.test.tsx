@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Changed, Choices, Guided, TodayView, UndoState, Undone } from '../api'
 import SessionPage from './SessionPage'
+import { emptyWeek } from '../test/cardioWeek'
 
 const LEGS: Guided = {
   day: '2026-10-12',
@@ -333,7 +334,7 @@ test('a cardio day keeps Change today, and its saved screen holds the only Undo'
     kind: 'conditioning',
     items: [{ ...LEGS.items[0], slug: 'zone2', name: 'Zone 2', unit: 'minutes', targets: [45] }],
   }
-  const week = { zone2: 0, moderate: 0, zone2_target: null }
+  const week = emptyWeek()
   let saved = false
   serve({
     'GET /api/session/today': Response.json({ session: zone2, progress: null }),

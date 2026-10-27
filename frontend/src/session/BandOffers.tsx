@@ -66,8 +66,10 @@ export default function BandOffers({ onCounted }: { onCounted: (text: string) =>
       if (result === 'gone') setNote('That workout isn’t on offer any more.')
       else if (result === 'stale') setNote('Today’s session changed meanwhile. Try again.')
       else {
-        const target = result.week.zone2_target
-        const week = `Zone 2 in the last 7 days: ${result.week.zone2}${target ? ` of ${target[0]}-${target[1]}` : ''} min.`
+        // As Telegram's "Counted." reply says it (ADR-0079).
+        const { total, total_target: all, zone2, zone2_target: easy } = result.week
+        const of = (t: number[] | null) => (t ? ` of ${t[0]}-${t[1]}` : '')
+        const week = `Last 7 days: cardio ${total}${of(all)} min, zone 2 ${zone2}${of(easy)}.`
         onCounted(`Counted${result.planned ? ', and today’s session is done' : ''}. ${week}`)
       }
       setLoads((n) => n + 1)

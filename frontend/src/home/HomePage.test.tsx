@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Home } from '../api'
+import { emptyWeek } from '../test/cardioWeek'
 import HomePage from './HomePage'
 import { day } from './logic'
 
@@ -18,23 +19,16 @@ const make = (over: Partial<Home> = {}): Home => ({
     done: 3,
     planned: 7,
     extras: 1,
-    zone2_minutes: 90,
-    moderate_minutes: 35,
-    zone2_target: [180, 200],
-    zone2_left: 90,
-    cardio_minutes: 125,
-    cardio_target: null,
-    cardio_left: null,
-    zones: {
-      below_zone1: 0,
-      zone1: 0,
-      zone2: 0,
-      zone3: 0,
-      zone4: 0,
-      zone5: 0,
-      zone2_no_hr: 90,
-      zone3_up_no_hr: 35,
-    },
+    zone2_minutes: 35,
+    moderate_minutes: 43,
+    zone2_target: [45, 75],
+    zone2_left: 10,
+    cardio_minutes: 109,
+    cardio_target: [75, 115],
+    cardio_left: 0,
+    zones: emptyWeek({
+      zones: { below_zone1: 20, zone1: 7, zone2: 35, zone3: 4, zone3_up_no_hr: 43 },
+    }).zones,
   },
   progress: {
     steps_climbed: 5,
@@ -80,15 +74,12 @@ test('totals first, then progress and the week, then the button to today', async
   expect(screen.getByText('Personal bests in the last 7 days: Dip (chairs)')).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Last 7 days' })).toBeInTheDocument()
   expect(screen.getByText('3 of 7 sessions done · 1 extra')).toBeInTheDocument()
-  // zone 2 and moderate, so the minutes in the list add up to the card (ADR-0077)
-  expect(screen.getByText('Zone 2: 90 of 180–200 min, 35 moderate')).toBeInTheDocument()
-  // the number stays with its word on a narrow phone
-  expect(screen.getByText('Zone 2: 90 of 180–200 min, 35 moderate').textContent).toContain(
-    '35\u00a0moderate',
-  )
-  expect(screen.getByRole('meter', { name: 'Zone 2 minutes in the last 7 days' })).toHaveAttribute(
+  // all cardio, so the minutes in the list add up to the card, and zone 2 of it (ADR-0079)
+  expect(screen.getByText('Cardio 109 of 75–115 min · zone 2 35 of 45–75')).toBeInTheDocument()
+  expect(screen.getByText('Cardio on target · zone 2 10 min left')).toBeInTheDocument()
+  expect(screen.getByRole('meter', { name: 'Cardio minutes in the last 7 days' })).toHaveAttribute(
     'aria-valuenow',
-    '90',
+    '75',
   )
   expect(screen.getByText('Torso + neck')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Today: Legs · about 45 min' })).toHaveAttribute(
@@ -131,7 +122,7 @@ test('before the first session, and with nothing left today', async () => {
   expect(screen.queryByText(/Since/)).not.toBeInTheDocument()
   expect(screen.getByText('ladder step climbed', { exact: false })).toBeInTheDocument()
   expect(screen.queryByText(/Ready to move up/)).not.toBeInTheDocument()
-  expect(screen.getByText('Zone 2: 0 min')).toBeInTheDocument() // no moderate to add
+  expect(screen.getByText('Cardio 0 min · zone 2 0')).toBeInTheDocument() // no targets
   expect(screen.queryByRole('meter')).not.toBeInTheDocument()
   expect(screen.getByText('Nothing logged in the last 7 days.')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Go to today' })).toHaveAttribute('href', '/session')

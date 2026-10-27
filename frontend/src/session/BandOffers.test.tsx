@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
+import { emptyWeek } from '../test/cardioWeek'
 import BandOffers from './BandOffers'
 
 const today = new Date().toLocaleDateString('en-CA')
@@ -17,7 +18,7 @@ const COUNTED = {
   workout_id: 9,
   already_saved: false,
   planned: true,
-  week: { zone2: 38, moderate: 0, zone2_target: [180, 200] },
+  week: emptyWeek({ zone2: 38, zone2_target: [45, 75], total: 46, total_target: [75, 115] }),
 }
 
 type Reply = { status: number; body?: unknown }
@@ -56,7 +57,7 @@ test('count it saves and says how the week stands', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Count it' }))
   await vi.waitFor(() =>
     expect(counted).toHaveBeenCalledWith(
-      'Counted, and today’s session is done. Zone 2 in the last 7 days: 38 of 180-200 min.',
+      'Counted, and today’s session is done. Last 7 days: cardio 46 of 75-115 min, zone 2 38 of 45-75.',
     ),
   )
   expect(asked).toContain('POST /api/band/offers/5/count')
@@ -70,7 +71,11 @@ test('an extra without a target, from an earlier day', async () => {
     'POST /api/band/offers/5/count': [
       {
         status: 200,
-        body: { ...COUNTED, planned: false, week: { ...COUNTED.week, zone2_target: null } },
+        body: {
+          ...COUNTED,
+          planned: false,
+          week: { ...COUNTED.week, zone2_target: null, total_target: null },
+        },
       },
     ],
   })
@@ -78,7 +83,7 @@ test('an extra without a target, from an earlier day', async () => {
   expect(await screen.findByText(/Fri: Walk, 46 min/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Count it' }))
   await vi.waitFor(() =>
-    expect(counted).toHaveBeenCalledWith('Counted. Zone 2 in the last 7 days: 38 min.'),
+    expect(counted).toHaveBeenCalledWith('Counted. Last 7 days: cardio 46 min, zone 2 38.'),
   )
 })
 
