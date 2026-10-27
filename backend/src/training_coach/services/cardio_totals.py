@@ -110,6 +110,23 @@ def _logged(
     return Logged(workout_id, minutes, typed, None)
 
 
+def counted(session: Session) -> dict[int, int]:
+    """Workouts counted from the band, and the minutes their cardio set counts for: the
+    import's. One counted before ADR-0079 holds only its zone 2 minutes; readers of a cardio
+    set's value (``minutes``) take these instead, so nothing shows the short figure."""
+    rows = session.execute(
+        select(ImportedWorkout.workout_id, ImportedWorkout.minutes).where(
+            ImportedWorkout.workout_id.is_not(None)
+        )
+    )
+    return {workout_id: minutes for workout_id, minutes in rows if workout_id is not None}
+
+
+def minutes(found: dict[int, int], workout_id: int, slug: str, value: int) -> int:
+    """A set's value as it counts: a counted import's minutes for its cardio set."""
+    return found.get(workout_id, value) if slug in KINDS else value
+
+
 def by_kind(found: Iterable[Logged]) -> dict[str, int]:
     """Minutes per cardio exercise (slug)."""
     totals: dict[str, int] = defaultdict(int)

@@ -31,7 +31,13 @@ from training_coach.domain.kit import label as kit_label
 from training_coach.domain.measurements import CADENCE, CHECKLIST, ESTIMATE_LABEL, SPECS, Kind, how
 from training_coach.domain.progression import Progress
 from training_coach.domain.readiness import QUESTIONS
-from training_coach.services import equipment, fitness_tests, measurements, progress
+from training_coach.services import (
+    cardio_totals,
+    equipment,
+    fitness_tests,
+    measurements,
+    progress,
+)
 
 GUIDE_VERSION = 3  # bump with docs/ai-guide.md when the format or its meaning changes
 GUIDE_URL = "https://github.com/LDoyleDev/training-coach/blob/main/docs/ai-guide.md"
@@ -132,13 +138,15 @@ def _sessions(session: Session, since: date | None) -> str:
     exercises = {e.id: e for e in session.scalars(select(Exercise))}
     steps = {s.id: s.name for s in session.scalars(select(LadderStep))}
     lines = ["## Sessions, newest first"]
+    band = cardio_totals.counted(session)  # a counted walk's full minutes (ADR-0079)
     for w in workouts:
         name = names.get(w.template_id, "Extra") if w.template_id is not None else "Extra"
         block = f", {w.block} block" if w.block else ""
         lines.append(f"- {w.local_date.isoformat()} {name}: {w.status}{block}")
         by_exercise: dict[int, list[tuple[str, int, int]]] = defaultdict(list)
         for s in sorted(w.sets, key=lambda s: (s.exercise_id, s.set_no, s.side)):
-            by_exercise[s.exercise_id].append((s.side, s.set_no, s.value))
+            value = cardio_totals.minutes(band, w.id, exercises[s.exercise_id].slug, s.value)
+            by_exercise[s.exercise_id].append((s.side, s.set_no, value))
         for exercise_id, sets in by_exercise.items():
             exercise = exercises[exercise_id]
             unit = UNITS[ExerciseKind(exercise.kind)]
@@ -278,13 +286,16 @@ def exercise(session: Session, slug: str, since: date | None) -> str | None:
     steps = {s.id: s.name for s in session.scalars(select(LadderStep))}
     lines.append("Sessions, newest first:")
     workouts = list(session.scalars(query))
+    band = cardio_totals.counted(session)
     for w in workouts:
         sets = sorted(
             (s for s in w.sets if s.exercise_id == found.id),
             key=lambda s: (s.set_no, s.side),
         )
         step = steps.get(sets[0].ladder_step_id, "?")
-        values = [(s.side, s.set_no, s.value) for s in sets]
+        values = [
+            (s.side, s.set_no, cardio_totals.minutes(band, w.id, found.slug, s.value)) for s in sets
+        ]
         lines.append(f"- {w.local_date.isoformat()} ({step}): {_sets(values, unit)}")
     if not workouts:
         lines.append("None in this period.")
