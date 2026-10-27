@@ -61,12 +61,13 @@ export interface Props {
   /** A dumbbell in each hand: the handle across the body, seen end on, or along the picture,
    * square to the forearm (palms facing each other). */
   dumbbells?: 'across' | 'along'
+  /** A cable column (``Cable``). */
+  cable?: Cable
   /** A gym machine seen side on, fixed in place: steel tubes (``frame``) and pads (``pads``)
    * behind the figure, and pads in front of it (``over``), each from [x, y] to [x, y]. A pad from
    * a point to itself is a roller. ``moves`` is the pad that moves with you, on a lever from
    * ``pivot``: the plate under the soles (a leg press's sled), a roller in front of the shins or
    * behind the calves, a pad on the thighs above the knees, or pads on the shoulders. */
-  cable?: Cable
   machine?: {
     frame?: readonly Seg[]
     pads?: readonly Seg[]
