@@ -8,7 +8,6 @@ import shutil
 import sqlite3
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 import pytest
@@ -175,16 +174,20 @@ def test_the_real_schema_refuses_more_than_a_read(
 
 def test_a_sort_too_big_for_its_memory_fails_and_not_the_app(tmp_path: Path) -> None:
     """A sort used to spill to /tmp, a tmpfs counted against the app container's 512 MB, and the
-    kernel killed the app before the 20 s limit. Now it runs out of its own budget first."""
-    started = time.monotonic()
+    kernel killed the app before the 20 s limit. Now it runs out of its own budget first.
+
+    Which limit stopped it is read from the script's own message, not from a stopwatch: a 15 s
+    wall-clock check also timed Python starting under a loaded `pytest -n auto` and failed once
+    while the memory cap had done its job. The sort runs out of memory in well under a second,
+    so the 20 s limit is far behind it."""
     done = _run(
         tmp_path,
         "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) "
         "SELECT x, printf('%99999d', x) FROM c ORDER BY 2 DESC",
     )
     assert done.returncode != 0
-    assert "memory" in done.stderr, done.stderr
-    assert time.monotonic() - started < 15  # the memory cap stopped it, not the time limit
+    assert "the query needs more than its 64 MB of memory" in done.stderr, done.stderr
+    assert "20 s limit" not in done.stderr  # the memory cap stopped it, not the time limit
 
 
 @pytest.mark.parametrize(
