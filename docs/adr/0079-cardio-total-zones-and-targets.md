@@ -35,13 +35,24 @@ the time a person has, not from one fixed number.
   worn. Once the samples are gone (8 days), a counted import splits by its stored zone minutes,
   the rest below zone 1.
 - **A counted band workout counts its full minutes** (amends ADR-0055's "logged as its zone 2
-  minutes"). Stored data is not rewritten: a workout linked to an import
-  (`imported_workouts.workout_id`) takes its minutes and window from the import, so Monday's
-  walk shows 66 minutes, 35 of them in zone 2. **Count it now logs the whole walk** (66, not
-  35), as a typed walk logs its minutes, so the log, the day list, personal bests (a zone 2
-  "best" is a session's minutes), the weekly review and what a connected AI reads all say the
-  same; the zone 2 figure everywhere comes from the split. When a walk is offered is unchanged:
-  with heart rate, only when it holds at least 5 minutes of zone 2.
+  minutes"). **Count it now logs the whole walk** (66, not 35), as a typed walk logs its
+  minutes, so the log, the day list, personal bests (a zone 2 "best" is a session's minutes),
+  the weekly review and what a connected AI reads all say the same; the zone 2 figure
+  everywhere comes from the split. When a walk is offered is unchanged: with heart rate, only
+  when it holds at least 5 minutes of zone 2.
+- **The stored set is the truth, so the old rows are fixed** (Liam, 27 Oct 2026, on the review
+  of #390). Reading the import's minutes wherever a counted walk is shown would ignore a
+  person's later edit of the log, so this release **changes stored data**: a data migration
+  (`c3e8a1f5d9b2`) gives each set the old Count it logged its import's full minutes (Monday's
+  walk, 35 to 66). It changes a set only where it still matches the old rule exactly: a
+  counted import with zone minutes, zone 2 at least as long as zones 3-5, one zone2 set whose
+  value is the import's zone 2 minutes. Anything edited since is left alone. It is one
+  statement, with no per-row writes; its downgrade puts the zone 2 minutes back where the same
+  rule matches. The Pi's auto-deploy backs up before it migrates (`scripts/auto-deploy.sh`), and
+  a release that changes migrations is not rolled back by itself: going back is restoring that
+  backup (`docs/runbooks/deploy.md`). A counted import still gives its workout the band's window
+  and, once the heart rate is gone, its zone minutes; heart rate over more minutes than were
+  logged is trimmed from the largest zones.
 - **Zone 2 minutes are the split's zone 2** everywhere they are shown: the Cardio page, Home's
   card, Telegram's "Counted." reply and the weekly review (which stays Monday to Sunday).
   Moderate stays "logged as moderate".
@@ -67,7 +78,8 @@ With his real week and no extra: cardio 109 of 75-115 minutes (on target), zone 
 | Option | Pros | Cons |
 | --- | --- | --- |
 | Split from heart rate, the rest by the kind picked; targets from the plan plus extra (chosen) | Every minute counts once; the person's pick stands where there is no heart rate; targets fit the plan | Zone figures move a little as resting heart rate moves the zones |
-| Rewrite old counted workouts to their full minutes | One source of minutes | Changes stored data; Liam chose not to |
+| Fix the old counted rows to their full minutes (chosen, 27 Oct) | One source of minutes; a person's edit always wins | Changes stored data, so a migration and the pre-deploy backup |
+| Read the import's minutes wherever a counted walk is shown | No data change | Ignores a person's edit of the log; every reader of a set needs the rule (review of #390) |
 | Keep logging zone 2 minutes only, add the rest from the import | Old and new logs alike | The log says 35 for a 66-minute walk; bests and the AI see the short figure |
 | Re-classify a log by its heart rate | Kinds match the heart rate | The app would decide; Liam: it observes and suggests, the person decides |
 | A fixed target in `plan.toml` (240 total, 180-200 zone 2) | Simple | Out of reach on two cardio sessions; doesn't follow the plan or the person's time |
@@ -76,11 +88,11 @@ With his real week and no extra: cardio 109 of 75-115 minutes (on target), zone 
 
 - API: the Cardio week (`WeekView`) and Home's week gain the total, both targets, what's left
   of each and the zone minutes (`ZonesView`); Settings gains `extra_cardio_min`. A migration
-  adds the column (default 0).
+  adds the column (default 0), and a data migration fixes the old counted walks (above).
 - The weekly review's zone 2 figure is the split's, so a past week whose typed zone 2 logs had a
   start and heart rate can read lower than before.
-- Every reader of a cardio set's minutes takes a counted import's full minutes
-  (`cardio_totals.counted`): the totals, Home's list, the day view, personal bests and the
-  Progress trend (so Telegram's /progress), what a connected AI reads (the summary and an
-  exercise's history over MCP), the day-clash question and the share picture.
+- Every reader of a cardio set's minutes reads the stored value: the totals, Home's list, the
+  day view, personal bests and the Progress trend (so Telegram's /progress), what a connected AI
+  reads (the summary and an exercise's history over MCP), the day-clash question and the share
+  picture. After the migration they all say 66 for Monday's walk.
 - The web shows the total, the zone rows and the Plan page's extra cardio setting (the web PR).
