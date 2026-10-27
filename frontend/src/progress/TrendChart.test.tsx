@@ -131,7 +131,11 @@ test('on a loaded step each weight is a period, and a strip shows the weight (AD
   expect(chart).toHaveTextContent('22.5 kg ↑')
   expect(lines(chart).map((l) => l.length)).toEqual([2, 2]) // the last period has one session
   expect(weights).toHaveAccessibleName('Weight per session, from 20 kg to 22.5 kg')
-  expect(weights).toHaveTextContent('22.5 kg')
+  // Both ends of the strip's scale say their unit (review of #383).
+  expect([...weights.querySelectorAll('text')].map((t) => t.textContent)).toEqual([
+    '22.5 kg',
+    '20 kg',
+  ])
   expect(container.querySelector('path')?.getAttribute('d')).toMatch(/^M[\d.]+,[\d.]+H/)
 })
 

@@ -117,7 +117,8 @@ Decided while building, within this ADR:
   the session's heaviest set ("22 kg ↑"; a session without one is "No weight"), and a strip
   under the chart draws the weight as a staircase on the same dates, labelled with its lowest
   and highest kg and described in words. An exercise without weights keeps its step periods
-  and has no strip.
+  and has no strip. The strip breaks at a session without a weight, as the chart starts a
+  "No weight" period there.
 - **The gym catalogue:** 23 exercises from Decided 5 that the home plan lacks, each one step
   that takes load (the 45° back extension: bodyweight, then holding a plate), with the
   research file's weights, a summary and typed-log aliases. The split squat, Copenhagen plank,

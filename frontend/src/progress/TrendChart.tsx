@@ -140,7 +140,7 @@ export default function TrendChart({ standing, today }: { standing: Standing; to
             </text>
             {weights.low !== weights.high && (
               <text x={BOX.left - 4} y={STRIP.height - STRIP.bottom} textAnchor="end">
-                {weights.low}
+                {weights.low} kg
               </text>
             )}
           </g>
