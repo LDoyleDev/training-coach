@@ -66,12 +66,22 @@ export interface Props {
    * a point to itself is a roller. ``moves`` is the pad that moves with you, on a lever from
    * ``pivot``: the plate under the soles (a leg press's sled), a roller in front of the shins or
    * behind the calves, a pad on the thighs above the knees, or pads on the shoulders. */
+  cable?: Cable
   machine?: {
     frame?: readonly Seg[]
     pads?: readonly Seg[]
     over?: readonly Seg[]
     moves?: Moves
   }
+}
+
+/** A cable column: its upright at ``x`` with the weight stack at its foot, the pulley at
+ * ``pulley`` (on an arm from the top when it isn't on the upright), and the cable to the near
+ * fist, held by a handle, a rope or a long bar (seen end on). */
+export interface Cable {
+  x: number
+  pulley: Vec
+  grip: 'handle' | 'rope' | 'bar'
 }
 
 type Moves = { on: 'sole' | 'shin' | 'calf' | 'knee' | 'shoulder'; pivot?: Vec }
@@ -346,6 +356,31 @@ function mover(j: Joints, moves: Moves) {
   }
 }
 
+/** The column, its stack and pulley, behind the figure. */
+function column({ x, pulley }: Cable): Shape[] {
+  const top = Math.max(pulley[1] + 6, 120)
+  const out = [rect(x - 4, 0, x + 4, top, 'bell')]
+  for (let y = 4; y < 44; y += 6) out.push(rect(x - 9, y, x + 9, y + 5, 'bell'))
+  if (Math.abs(pulley[0] - x) > 6) out.push(...tubes([[x, top - 3, pulley[0], top - 3]], 3))
+  return [...out, ball(pulley, 4.5, 'far')]
+}
+
+/** The cable from the pulley to the near fist, and what the hand holds. */
+function cableTo(j: Joints, { pulley, grip }: Cable): Shape[] {
+  const c = fist(j)
+  const line = limb(pulley, c, [1.1, 1.1], 'far')
+  if (grip === 'bar') return [line, ball(c, 2.4, 'bell')]
+  if (grip === 'handle')
+    return [line, { kind: 'ring', c: svg(c), r: 3.8, width: 1.6, tone: 'bell' }]
+  // A rope: its two ends hang past the fist, away from the pulley.
+  const away = heading(pulley, c)
+  return [
+    line,
+    limb(c, along(c, away + 15, 9), [1.6, 1.4], 'bell'),
+    limb(c, along(c, away - 15, 9), [1.6, 1.4], 'bell'),
+  ]
+}
+
 /** A squat rack's uprights and safety bars, behind the figure. */
 function rack({ x0, x1, pins }: NonNullable<Props['rack']>): Shape[] {
   return [
@@ -416,6 +451,7 @@ export function scenery(props: Props): Shape[] {
   if (props.bench) out.push(...bench(props.bench))
   if (props.bar) out.push(...bracket(props.bar))
   if (props.rack) out.push(...rack(props.rack))
+  if (props.cable) out.push(...column(props.cable))
   if (props.incline) out.push(...incline(props.incline))
   if (props.machine)
     out.push(...tubes(props.machine.frame), ...tubes(props.machine.pads, PAD, 'prop'))
@@ -441,6 +477,7 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
     else if (part === 'torso') out.push(...torso(j, 'near'))
     else if (part === 'head') out.push(...head(j, 'near'))
     else if (props.barbell) out.push(...plate(j, props.barbell === 'plate'))
+    else if (props.cable) out.push(...cableTo(j, props.cable))
     else if (props.bell === 'sides') out.push(...hanging(j.armN.wrist, 8.6))
     else if (props.bell) out.push(...bell(j, props.bell))
     if (part === 'armF' && props.dumbbells) out.push(...dumbbell(j.armF, props.dumbbells))
