@@ -54,6 +54,13 @@ export interface Props {
   barbell?: true | 'plate'
   /** A squat rack's two uprights behind the figure, at x0 and x1, its safety bars ``pins`` up. */
   rack?: { x0: number; x1: number; pins: number }
+  /** A gym bench whose back tilts, hinged at ``x``, the seat's top ``top`` cm up. The back pad
+   * runs from the hinge at ``angle`` (180 flat behind you, 150 a 30° incline, 95 upright, 45
+   * rising in front, to lie on chest down) and the seat the other way. */
+  incline?: { x: number; top: number; angle: number }
+  /** A dumbbell in each hand: the handle across the body, seen end on, or along the picture,
+   * square to the forearm (palms facing each other). */
+  dumbbells?: 'across' | 'along'
   /** A gym machine seen side on, fixed in place: steel tubes (``frame``) and pads (``pads``)
    * behind the figure, and pads in front of it (``over``), each from [x, y] to [x, y]. A pad from
    * a point to itself is a roller. */
@@ -262,6 +269,38 @@ const tubes = (segs: readonly Seg[] = [], r = 2, tone: Tone = 'bell') =>
   segs.map(([a, b, c, d]) => limb([a, b], [c, d], [r, r], tone))
 const PAD = 4.5
 
+/** A gym bench: a padded seat and back on a steel frame, behind the figure. */
+function incline({ x, top, angle }: NonNullable<Props['incline']>): Shape[] {
+  const s = Math.cos((angle * Math.PI) / 180) <= 0 ? 1 : -1 // the seat's way along x
+  const end = along([x, top], angle, 82)
+  const strut = along([x, top - 7], angle, 45)
+  const foot = Math.min(x + 34 * s, strut[0] - 16 * s)
+  const pad = (a: Vec, b: Vec, into: number): Shape =>
+    limb(along(a, into, 3.6), along(b, into, 3.6), [3.6, 3.6], 'prop')
+  return [
+    ...tubes([
+      [x, 2, x, top - 6],
+      [x + 30 * s, 2, x + 30 * s, top - 6],
+      [strut[0] - 12 * s, 2, strut[0], strut[1]],
+      [foot, 2, Math.max(x + 34 * s, strut[0] - 16 * s), 2],
+    ]),
+    pad([x + 42 * s, top], [x, top], -90),
+    pad([x, top], end, angle + 90 * s),
+  ]
+}
+
+/** A dumbbell in the fist of ``arm``. */
+function dumbbell(arm: ArmJoints, grip: 'across' | 'along'): Shape[] {
+  const c: Vec = [(arm.wrist[0] + arm.tip[0]) / 2, (arm.wrist[1] + arm.tip[1]) / 2]
+  if (grip === 'across') return [ball(c, 8, 'bell'), ball(c, 2, 'far')]
+  const d = heading(arm.elbow, arm.wrist) + 90
+  return [
+    limb(along(c, d, 9), along(c, d, -9), [1.6, 1.6], 'bell'),
+    limb(along(c, d, 8), along(c, d, 13), [6.5, 6.5], 'bell'),
+    limb(along(c, d, -8), along(c, d, -13), [6.5, 6.5], 'bell'),
+  ]
+}
+
 /** A squat rack's uprights and safety bars, behind the figure. */
 function rack({ x0, x1, pins }: NonNullable<Props['rack']>): Shape[] {
   return [
@@ -332,6 +371,7 @@ export function scenery(props: Props): Shape[] {
   if (props.bench) out.push(...bench(props.bench))
   if (props.bar) out.push(...bracket(props.bar))
   if (props.rack) out.push(...rack(props.rack))
+  if (props.incline) out.push(...incline(props.incline))
   if (props.machine)
     out.push(...tubes(props.machine.frame), ...tubes(props.machine.pads, PAD, 'prop'))
   if (props.bars) out.push(...bars(props.bars))
@@ -356,6 +396,8 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
     else if (props.barbell) out.push(...plate(j, props.barbell === 'plate'))
     else if (props.bell === 'sides') out.push(...hanging(j.armN.wrist, 8.6))
     else if (props.bell) out.push(...bell(j, props.bell))
+    if (part === 'armF' && props.dumbbells) out.push(...dumbbell(j.armF, props.dumbbells))
+    if (part === 'armN' && props.dumbbells) out.push(...dumbbell(j.armN, props.dumbbells))
     // The far hand's bell, the lighter one, hangs behind the body.
     if (part === 'armF' && props.bell === 'sides') out.push(...hanging(j.armF.wrist, 6.8))
   }
