@@ -33,6 +33,13 @@ const WEEK: WeekReview = {
     { exercise: 'Plank', step: 'Long', kind: 'seconds', best_set: 90, total: null, strength: true },
   ],
   ready: [{ exercise: 'Push-up', slug: 'push-up' }],
+  top: [
+    {
+      exercise: 'Kettlebell swing',
+      slug: 'kb-swing',
+      unlock: 'a 16 kg kettlebell unlocks Two-hand, 16 kg',
+    },
+  ],
   strength_block: false,
   habits: [{ label: 'Wind-down', done: 2, days: 3 }],
   ai_comments: true,
@@ -74,6 +81,16 @@ test('this week so far, as the bot sends it', async () => {
   expect(
     screen.getByText(/Choose on the Plan page, or when asked after your next session/),
   ).toBeVisible()
+  // Reached the top this week with the next level locked by kit (ADR-0078)
+  const top = screen.getByRole('heading', { name: 'At the top' }).closest('section')
+  expect(top).toHaveTextContent(
+    'Kettlebell swing: top of the range on the last level your kit allows. ' +
+      'A 16 kg kettlebell unlocks Two-hand, 16 kg. My equipment',
+  )
+  expect(screen.getByRole('link', { name: 'My equipment' })).toHaveAttribute(
+    'href',
+    '/account#my-equipment',
+  )
   expect(screen.getByText('2 of 3 so far')).toBeInTheDocument()
   expect(screen.getByText(/AI comment from your Groq key comes on Telegram/)).toBeVisible()
   expect(screen.queryByRole('region', { name: 'AI comment' })).toBeNull()
@@ -100,6 +117,7 @@ test('an earlier week, a quiet one', async () => {
       zone2_minutes: 0,
       bests: [],
       ready: [],
+      top: [],
       habits: [],
       ai_comments: false,
     },
@@ -107,6 +125,7 @@ test('an earlier week, a quiet one', async () => {
   )
   render(<ReviewPage />)
   expect(await screen.findByRole('heading', { name: 'Week of Mon 28 Sept' })).toBeVisible()
+  expect(screen.queryByRole('heading', { name: 'At the top' })).toBeNull()
   expect(fetchMock).toHaveBeenCalledWith('/api/review?week=2026-09-28', expect.anything())
   expect(screen.getByText('0 of 7 done.')).toBeInTheDocument()
   expect(screen.getByText('No sets logged this week.')).toBeInTheDocument()
