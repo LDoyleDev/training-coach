@@ -15,10 +15,10 @@ from training_coach.db.models import (
     TemplateItem,
     Workout,
 )
-from training_coach.domain.enums import Side, WorkoutStatus
+from training_coach.domain.enums import Places, Side, WorkoutStatus
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
-from training_coach.services import progress, users
+from training_coach.services import progress, user_settings, users
 from training_coach.services.progress import MoveOutcome, feedback, move_up, not_yet, overview
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -247,10 +247,14 @@ def test_a_backdated_log_is_compared_with_earlier_sessions_only(plan: Session) -
 
 def test_overview_lists_every_exercise_in_plan_order(plan: Session) -> None:
     standings = overview(plan)
-    in_sessions = set(plan.scalars(select(TemplateItem.exercise_id)))
-    # Retired ones, and ones in no session (the gym catalogue, ADR-0072), only once they have
-    # history (#107).
-    assert len(standings) == len(in_sessions)
+    at_home = set(
+        plan.scalars(select(TemplateItem.exercise_id).where(TemplateItem.place == "home"))
+    )
+    # Retired ones, ones in no session (ADR-0072) and, for someone who trains at home, ones only
+    # in the gym versions (ADR-0071), only once they have history (#107).
+    assert len(standings) == len(at_home)
+    user_settings.update(plan, places=Places.BOTH)
+    assert len(overview(plan)) == len(set(plan.scalars(select(TemplateItem.exercise_id))))
     names = [s.exercise for s in standings]
     assert names.index("Pull-up") < names.index("Dip (chairs)")  # Torso lists pull-ups first
     pull = standings[names.index("Pull-up")]

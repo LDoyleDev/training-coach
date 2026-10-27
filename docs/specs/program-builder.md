@@ -375,6 +375,31 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
    suitcase carries on Recovery and Cardio + core (upper traps 0 → 4, an estimate), with band
    face pulls for the rear delts (7.25 → 9.25), plan version "Rear delts + carries".
 
+### L. Gym versions of the sessions (proposed 27 Oct 2026, Liam to review)
+
+Builder step 9 puts a gym version on four of the seven sessions (`gym = [...]` in `plan.toml`).
+The rules each one follows: the session's focus and order (power, then compounds, then small
+muscles); about the same sets, and no muscle more than 1.5 fractional sets below the home
+version (a test holds this, ADR-0064); the pairing rules (J3: at most one spine-loading or
+grip-heavy exercise a pair, no shared prime mover except the neck pair the home version has);
+loaded compounds at 6-10 or 8-12 and isolation work at 10-15 or 12-18, so double progression
+has room (ADR-0072), every top at 18 or lower (ADR-0078); lengthened-position picks first
+(Decided 5). Home exercises a gym does no better stay: the tibialis raise, neck work, the
+Copenhagen plank, carries, chin-ups and diamond push-ups.
+
+| Session | Home version (sets) | Gym version (sets) | Why |
+| --- | --- | --- | --- |
+| Legs | jump squat 3 + tibialis raise 3; KB swing 3 + calf raise 4; Bulgarian split squat 3 + hamstring curl 3; pistol squat 3 + single-leg RDL 3 (25) | jump squat 3 + tibialis raise 3; **back squat** 3 × 6-10 + **standing calf raise** 4 × 10-15; **barbell RDL** 3 × 6-10 + **leg extension** 3 × 10-15; **seated leg curl** 4 × 8-12 + **hip thrust** 3 × 8-12 (26) | Power first as at home; the squat and RDL carry the load, the leg extension reaches the rectus femoris, the seated curl and paused calf raise train in the stretch. Quads 7.5, adductors 3, calves 4 as at home; glutes 9 (10.5), hamstrings 7 (7.5). Spine-loading sets 6, under the 8 cap |
+| Recovery + posture | posture, core, grip, neck side work, mobility | same as home | Light on purpose: nothing at a gym makes a recovery day better |
+| Torso + neck | pull-up 4 + dip 4; KB row 3 + push-up 4; pike push-up 3 + reverse fly 3; neck flexion 2 + extension 2; lateral raise 3 + KB curl 2 (30) | **lat pulldown** 4 × 8-12 + **DB bench press** 4 × 6-10; **chest-supported row** 3 × 8-12 + **incline DB press** 4 × 8-12; **seated DB overhead press** 3 × 8-12 + **reverse pec deck** 3 × 12-18; neck flexion 2 + extension 2; **cable lateral raise** 3 × 12-18 + **incline DB curl** 2 × 10-15 (30) | One for one by pattern: every muscle has the home version's sets (chest 8, lats 7, upper back 6.5, front delts 7, rear delts 5.5, biceps and triceps 5.5, side delts 4.5); only the forearms lose a set. Pull-ups stay at home, where the bar is |
+| Cardio + core | 30-40 min cardio; ab rollout 3 + Copenhagen plank 2; back extension 2 + side plank hip dip 2; band face pull 2 + suitcase carry 2 | the same cardio on a machine; **cable crunch** 3 × 10-15 + Copenhagen plank 2; **45° back extension** 2 × 10-15 + **Pallof press** 2 × 10-15 a side; **reverse pec deck** 2 × 12-18 + suitcase carry 2 | Cable work that loads the trunk and can add weight. Abs 4 (3.5), obliques 4 (4.75); the 45° bench moves 1 set from the lower back to the hamstrings. The cardio is counted once in the week's targets |
+| High intensity | intervals | same as home | Bike or rower sprints at a gym are the same session |
+| Arms + legs | chin-up 3 + diamond push-up 3; Bulgarian split squat 3 + overhead triceps extension 3; hamstring curl 3 + KB curl 4; lateral raise 4 + calf raise 4 (27) | chin-up 3 + diamond push-up 3; **leg press** 3 × 10-15 + **overhead cable triceps extension** 3 × 10-15; **seated leg curl** 3 × 10-15 + **incline DB curl** 4 × 10-15; **cable lateral raise** 4 × 12-18 + **seated calf raise** 4 × 10-15 (27) | Every muscle exactly as at home. The overhead cable extension keeps the long head, the incline curl trains the biceps in the stretch, the seated calf raise is the bent-knee calf work Decided 3 asks for |
+| Long zone 2 | 45-75 min | same as home | A treadmill or bike is the same session |
+
+Three gym catalogue exercises are in no session yet: the hammer curl, wrist curls and the cable
+fly. They can be logged by text or voice and are there for the editor (steps 6 and 7).
+
 ## API, in outline
 
 - `GET /api/catalogue`: exercises with muscles, pattern, steps, needs, pose ids.
@@ -434,8 +459,10 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
    next weight owned at home (with places, step 9), and figures for the gym exercises.
 9. **Home and gym versions**, `workouts.place`, the switch on Today. **Places built** (ADR-0071,
    Built): where you train on Account (home, gym or both), `workouts.place`, and
-   `template_items.place` for a session's two versions. Still to come: the gym versions in
-   `plan.toml` and the switch on Today.
+   `template_items.place` for a session's two versions. **Gym versions in `plan.toml`**
+   (proposed, Liam to review: L above) for Legs, Torso + neck, Cardio + core and Arms + legs;
+   Progress shows their exercises to someone who trains at a gym. Still to come: the switch on
+   Today.
 10. **Setup flow** (H), the 3- and 4-day starters, and the level questions (G1).
 
 Pictures arrive alongside, as poses are drawn: the set screen first, then the picker. Steps 2-4, 8 and 9
