@@ -38,7 +38,7 @@ from training_coach.domain.progression import Progress, assess, combine_sides
 from training_coach.domain.queue import local_date
 from training_coach.domain.records import NewBests, new_bests
 from training_coach.domain.targets import Prescription
-from training_coach.services import blocks, equipment, users
+from training_coach.services import blocks, cardio_totals, equipment, users
 
 TOP_NOTED = "progress.top_of_ladder"
 LEVEL_SET = "progress.level_set"
@@ -135,8 +135,10 @@ def sessions_at_step(
     rows = session.execute(_in_block(query, block))
     grouped: dict[int, list[tuple[int, Side, int]]] = {}
     heaviest: dict[int, float | None] = {}
+    band, slug = _band(session, exercise_id)
     for workout_id, set_no, side, value, kg in rows:
-        grouped.setdefault(workout_id, []).append((set_no, Side(side), value))
+        counts = cardio_totals.minutes(band, workout_id, slug, value)
+        grouped.setdefault(workout_id, []).append((set_no, Side(side), counts))
         if kg is not None:
             heaviest[workout_id] = max(kg, heaviest.get(workout_id) or kg)
     return [
@@ -144,6 +146,13 @@ def sessions_at_step(
         for w, sets in grouped.items()
         if weight is None or heaviest.get(w) == weight
     ]
+
+
+def _band(session: Session, exercise_id: int) -> tuple[dict[int, int], str]:
+    """For a cardio exercise, the band workouts counted as it and their full minutes
+    (ADR-0079); nothing to look up for any other."""
+    slug = session.scalar(select(Exercise.slug).where(Exercise.id == exercise_id)) or ""
+    return (cardio_totals.counted(session) if slug in cardio_totals.KINDS else {}), slug
 
 
 def _in_block[*Ts](query: Select[*Ts], block: BlockKind | None) -> Select[*Ts]:
@@ -464,6 +473,7 @@ class Point:
     day: date
     best: int  # the session's best set, as "best" counts it
     step_number: int  # 1-based, so the graph can mark a move up
+    kg: float | None = None  # its heaviest set's weight, on a loaded step (ADR-0072)
 
 
 @dataclass(frozen=True)
@@ -502,6 +512,7 @@ def _trend(
             SetLog.set_no,
             SetLog.side,
             SetLog.value,
+            SetLog.load_kg,
         )
         .join(Workout)
         .join(LadderStep, LadderStep.id == SetLog.ladder_step_id)
@@ -519,12 +530,22 @@ def _trend(
     days: dict[int, date] = {}
     steps: dict[int, int] = {}
     sets: dict[int, list[tuple[int, Side, int]]] = {}
-    for workout_id, on, position, set_no, side, value in session.execute(query):
+    loads: dict[int, list[tuple[int, float]]] = {}
+    band, slug = _band(session, exercise_id)
+    for workout_id, on, position, set_no, side, value, kg in session.execute(query):
         days[workout_id] = on
         steps[workout_id] = max(steps.get(workout_id, 0), position)
-        sets.setdefault(workout_id, []).append((set_no, Side(side), value))
+        counts = cardio_totals.minutes(band, workout_id, slug, value)
+        sets.setdefault(workout_id, []).append((set_no, Side(side), counts))
+        if kg is not None:
+            loads.setdefault(workout_id, []).append((set_no, kg))
     return tuple(
-        Point(days[w], max(combine_sides(sets[w], unilateral=per_side), default=0), steps[w] + 1)
+        Point(
+            days[w],
+            max(combine_sides(sets[w], unilateral=per_side), default=0),
+            steps[w] + 1,
+            top_weight(loads.get(w, [])),
+        )
         for w in days
     )
 

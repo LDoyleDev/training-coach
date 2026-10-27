@@ -27,6 +27,7 @@ class PointView(BaseModel):
     day: date
     best: int  # the session's best set
     step_number: int  # a change from the point before is a move up
+    kg: float | None = None  # its heaviest set's weight on a loaded step: a period per weight
 
 
 class RungView(BaseModel):
@@ -102,7 +103,8 @@ def standings(request: Request, user: Owner) -> StandingsView:
                 status=s.status.value,
                 retired=s.retired,
                 trend=[
-                    PointView(day=p.day, best=p.best, step_number=p.step_number) for p in s.trend
+                    PointView(day=p.day, best=p.best, step_number=p.step_number, kg=p.kg)
+                    for p in s.trend
                 ],
                 unlock=s.unlock,
             )
