@@ -1,12 +1,14 @@
 import type { Done, Guided, GuidedItem, Kept } from '../api'
 
-/** One confirmed set as the screen holds it: `split` means left and right differ. A confirmed
- * set also has when its screen appeared and when it was confirmed (ADR-0061), and on a loaded
- * step its weight (ADR-0072). */
+/** One set as the screen holds it: `split` means left and right differ. `confirmed`: kept on
+ * the server or confirmed on this screen, as opposed to a set only touched with − and +. A
+ * confirmed set may also have when its screen appeared and when it was confirmed (ADR-0061),
+ * and on a loaded step its weight (ADR-0072). */
 export type Value = {
   left: number
   right: number
   split: boolean
+  confirmed?: boolean
   started_at?: string
   done_at?: string
   load_kg?: number
@@ -28,7 +30,7 @@ export function fromKept(kept: Kept | null | undefined): Values {
   const values: Values = {}
   for (const d of kept?.sets ?? []) {
     const right = d.right ?? d.left
-    const value: Value = { left: d.left, right, split: right !== d.left }
+    const value: Value = { left: d.left, right, split: right !== d.left, confirmed: true }
     if (d.started_at && d.done_at)
       Object.assign(value, { started_at: d.started_at, done_at: d.done_at })
     if (d.load_kg != null) value.load_kg = d.load_kg
@@ -90,15 +92,12 @@ export function loadFor(session: Guided, values: Values, item: number, setNo: nu
   return load.kg[setNo - 1]
 }
 
-/** The items whose suggested weight the person took (ADR-0072): as they chose in this
- * screen, else any item with a set already confirmed at the suggested weight (a resume). */
-export function taken(session: Guided, values: Values, chosen: Record<number, boolean>) {
+/** The items whose suggested weight the person took with Use (ADR-0072). Only the tap
+ * counts: reaching that weight with + is not taking the suggestion. */
+export function taken(session: Guided, chosen: Record<number, boolean>) {
   const found = new Set<number>()
   session.items.forEach((item, index) => {
-    const up = item.load?.suggested
-    if (!up) return
-    const confirmed = item.targets.some((_, n) => values[key(index, n + 1)]?.load_kg === up.kg)
-    if (chosen[index] ?? confirmed) found.add(index)
+    if (item.load?.suggested && chosen[index]) found.add(index)
   })
   return found
 }
@@ -126,18 +125,39 @@ export function taking(session: Guided, items: Set<number>): Guided {
 }
 
 /** The session as the screen shows it, with the suggested weights the person took. */
-export const shown = (session: Guided, values: Values, chosen: Record<number, boolean>) =>
-  taking(session, taken(session, values, chosen))
+export const shown = (session: Guided, chosen: Record<number, boolean>) =>
+  taking(session, taken(session, chosen))
+
+/** Where this browser keeps Use and Stay for a day's session, so a reload keeps them. Storage
+ * can be missing or full: then the choice lasts as long as the page. */
+const choiceKey = (session: Guided) => `tc.weights-taken.${session.day}.${session.template_id}`
+
+export function savedChoice(session: Guided): Record<number, boolean> {
+  try {
+    const found: unknown = JSON.parse(localStorage.getItem(choiceKey(session)) ?? '{}')
+    return found && typeof found === 'object' ? (found as Record<number, boolean>) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function saveChoice(session: Guided, chosen: Record<number, boolean>) {
+  try {
+    localStorage.setItem(choiceKey(session), JSON.stringify(chosen))
+  } catch {
+    // the choice still holds for this page
+  }
+}
 
 /** Which items of ``session`` show a suggested weight taken in ``screen``. */
 export const chosenIn = (session: Guided, screen: Guided): Record<number, boolean> =>
   Object.fromEntries(session.items.map((item, i) => [i, screen.items[i] !== item]))
 
-/** ``values`` without ``item``'s sets not yet confirmed, so they start afresh at the weight
+/** ``values`` without ``item``'s sets only touched, never confirmed, so they start afresh at the weight
  * just taken or given back, and its targets. */
 export function unweighed(values: Values, item: number): Values {
   return Object.fromEntries(
-    Object.entries(values).filter(([at, value]) => !at.startsWith(`${item}:`) || value.done_at),
+    Object.entries(values).filter(([at, value]) => !at.startsWith(`${item}:`) || value.confirmed),
   )
 }
 

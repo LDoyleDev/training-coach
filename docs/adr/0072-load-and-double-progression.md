@@ -106,6 +106,9 @@ Decided while building, within this ADR:
   heavy set and the rest lighter, suggests nothing: it is no session at the heavy weight. It comes with targets at the bottom
   of the range and changes nothing until the person takes it on the set screen. A loaded step
   is never "ready to move up" or "top of the ladder": it gets harder by weight.
+- **Taking it is the tap alone.** Use or Stay on the set screen is kept in that browser for
+  the day's session, so a reload keeps it; reaching the suggested weight with + is not taking
+  it. Use or Stay restarts only the sets never confirmed.
 - **Strength blocks:** a loaded step stays on its step with the 4-8 prescription and no tempo
   cue; its weights and targets come from strength-block sessions, so the first strength block
   starts at the kit's first weight and the person sets theirs. The weekly review's bests still

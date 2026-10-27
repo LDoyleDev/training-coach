@@ -24,6 +24,8 @@ import {
 import {
   CARDIO,
   fromKept,
+  saveChoice,
+  savedChoice,
   key,
   kgText,
   loadFor,
@@ -197,7 +199,7 @@ export default function SessionPage() {
     setLoaded({ status: 'ready', session: today.session })
     const kept = fromKept(today.progress)
     setValues(kept)
-    setView(shown(today.session, kept, {}))
+    setView(shown(today.session, savedChoice(today.session)))
     setPosition(today.progress?.position ?? 0)
     setFurthest(today.progress?.position ?? 0)
     setRevision(today.progress?.revision ?? 0)
@@ -335,7 +337,7 @@ export default function SessionPage() {
   const confirm = async (given?: Value, from: number = shownAt) => {
     unlockAudio() // inside the tap: browsers only allow sound after a gesture
     const reading = given ?? (watch === null ? value : { ...value, left: watch, right: watch })
-    const done = timed(reading, from, Date.now())
+    const done = { ...timed(reading, from, Date.now()), confirmed: true }
     const nextValues = { ...values, [key(step.item, step.set_no)]: done }
     const next = Math.max(position + 1, furthest) // a corrected set returns to where you were
     if (await keep(next, nextValues)) {
@@ -637,11 +639,10 @@ export default function SessionPage() {
                   setNo={step.set_no}
                   onChange={(load_kg) => change({ ...value, load_kg })}
                   onChoose={(take) => {
-                    const fresh = unweighed(values, step.item) // a touched set starts afresh too
-                    setValues(fresh)
-                    setView(
-                      shown(session, fresh, { ...chosenIn(session, screen), [step.item]: take }),
-                    )
+                    const chosen = { ...chosenIn(session, screen), [step.item]: take }
+                    saveChoice(session, chosen)
+                    setValues(unweighed(values, step.item)) // a touched set starts afresh too
+                    setView(shown(session, chosen))
                   }}
                 />
               )}
