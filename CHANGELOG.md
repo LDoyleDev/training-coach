@@ -4,6 +4,19 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.5.0](https://github.com/LDoyleDev/training-coach/compare/v1.4.0...v1.5.0) (2026-10-27)
+
+
+### Features
+
+* **api:** count all cardio, split by zone, targets from the plan ([#390](https://github.com/LDoyleDev/training-coach/issues/390)) ([1fa9b28](https://github.com/LDoyleDev/training-coach/commit/1fa9b2884e7b54958cd1ac04fbf51feeeb1bc01e))
+* **web:** cardio by zone, what's left, and extra cardio on Plan ([#391](https://github.com/LDoyleDev/training-coach/issues/391)) ([c0cd7a0](https://github.com/LDoyleDev/training-coach/commit/c0cd7a033c48d5282dcd2d33b159e8dc3c04f0ff))
+
+
+### Documentation
+
+* session log for the 1.5.0 wrap ([#394](https://github.com/LDoyleDev/training-coach/issues/394)) ([c3e0e7f](https://github.com/LDoyleDev/training-coach/commit/c3e0e7f49f8f88ca41fdb29ac30781e7be00afaf))
+
 ## [1.4.0](https://github.com/LDoyleDev/training-coach/compare/v1.3.0...v1.4.0) (2026-10-27)
 
 
