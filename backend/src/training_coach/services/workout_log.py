@@ -74,6 +74,10 @@ class Draft:
     # Today's log of a session named on purpose ("today Arms", or picked on the web), whatever
     # the queue offers (ADR-0060): done out of turn, it leaves the queue where it is (ADR-0016).
     chosen: bool = False
+    # (slug, set number, ladder step id): a set done at a level changed in the guided session
+    # (ADR-0080), filed at that step instead of the current one. A step not on the exercise's
+    # ladder is ignored.
+    steps: tuple[tuple[str, int, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -368,11 +372,15 @@ def _file(
     for entry in confirmed.entries:
         exercise = exercises[entry.slug]
         step_id = blocks.step_for(session, exercise, strength)[0].id
+        done_at = {n: step for slug, n, step in confirmed.steps if slug == entry.slug}
+        if done_at:  # only steps of the exercise's own ladder
+            own = {s.id for s in exercise.ladder}
+            done_at = {n: step for n, step in done_at.items() if step in own}
         kg = dict(entry.loads)
         workout.sets.extend(
             SetLog(
                 exercise_id=exercise.id,
-                ladder_step_id=step_id,
+                ladder_step_id=done_at.get(n, step_id),
                 set_no=n,
                 side=side,
                 value=v,
@@ -525,6 +533,7 @@ def add_to(
     entries: tuple[Entry, ...],
     strength: bool,
     tz: ZoneInfo,
+    steps: tuple[tuple[str, int, int], ...] = (),
 ) -> Saved | Stale:
     """Add sets to a saved workout of the same session: the block after a conditioning
     session's cardio (ADR-0066). It is that session's log, so it neither clashes nor moves the
@@ -537,6 +546,7 @@ def add_to(
         entries=entries,
         problems=(),
         strength=strength,
+        steps=steps,
     )
     exercises = _exercises(session, confirmed)
     if exercises is None:
