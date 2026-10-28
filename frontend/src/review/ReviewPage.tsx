@@ -3,6 +3,7 @@ import { fetchReview, type WeekReview } from '../api'
 import AppShell from '../components/AppShell'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { moveButton, moveHref } from '../plan/ladder'
+import { TopList } from '../plan/TopNotes'
 import { card, secondary } from '../ui'
 
 type Loaded =
@@ -155,6 +156,12 @@ export default function ReviewPage() {
               ? 'When the hypertrophy block starts.'
               : 'Choose on the Plan page, or when asked after your next session.'}
           </p>
+        </Section>
+      )}
+
+      {r.top.length > 0 && (
+        <Section title="At the top">
+          <TopList top={r.top} />
         </Section>
       )}
 

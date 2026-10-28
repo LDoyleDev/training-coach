@@ -2691,6 +2691,8 @@ export interface components {
             ready: components["schemas"]["ReadyView"][];
             /** Steps Climbed */
             steps_climbed: number;
+            /** Top */
+            top: components["schemas"]["TopView"][];
         };
         /**
          * LoadView
@@ -3430,6 +3432,8 @@ export interface components {
             start: string;
             /** Strength Block */
             strength_block: boolean;
+            /** Top */
+            top: components["schemas"]["TopView"][];
             /** Zone2 Minutes */
             zone2_minutes: number;
             /** Zone2 Target */
@@ -3892,6 +3896,20 @@ export interface components {
             readiness_note?: string | null;
             session: components["schemas"]["GuidedView"] | null;
             test_day?: components["schemas"]["TestDayDueView"] | null;
+        };
+        /**
+         * TopView
+         * @description The ready rule met with no level to move to, said once per level (ADR-0078). ``unlock``
+         *     says what opens the next level when the kit is what's missing (ADR-0071); else None, the
+         *     top of the ladder.
+         */
+        TopView: {
+            /** Exercise */
+            exercise: string;
+            /** Slug */
+            slug: string;
+            /** Unlock */
+            unlock: string | null;
         };
         /** TotalsView */
         TotalsView: {

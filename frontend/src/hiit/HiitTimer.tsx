@@ -20,7 +20,16 @@ import {
   type Phase,
 } from './logic'
 import { loadVoice, saveVoice } from './presets'
-import { playBeep, playBell, playFinished, speak, unlockAudio, voiceSupported } from './sounds'
+import {
+  DEFAULT_SOUND,
+  type Sound,
+  playBeep,
+  playBell,
+  playSessionEnd,
+  speak,
+  unlockAudio,
+  voiceSupported,
+} from './sounds'
 
 /** What `onFinish` gets. `rounds` is the work intervals completed across all sets. */
 export type HiitResult = {
@@ -30,6 +39,8 @@ export type HiitResult = {
   sets: number
   /** Seconds of workout done, without the prepare count. */
   seconds: number
+  /** Stopped before the end: the end-of-session bell has not rung. */
+  early: boolean
 }
 
 export type HiitTimerProps = {
@@ -39,6 +50,8 @@ export type HiitTimerProps = {
   onFinish?: (result: HiitResult) => void
   /** Called when the user leaves with nothing: Cancel in setup, or Stop before a round is done. */
   onCancel?: () => void
+  /** The person's timer sound, for the end of the session (ADR-0074); 'none' is silent. */
+  sound?: Sound
 }
 
 const TICK_MS = 100
@@ -60,7 +73,12 @@ const filled =
 type Stage = 'setup' | 'running' | 'finished'
 
 /** A Tabata-style interval timer: prepare, sets of work/rest cycles, cool down, with bells. */
-export default function HiitTimer({ defaults, onFinish, onCancel }: HiitTimerProps) {
+export default function HiitTimer({
+  defaults,
+  onFinish,
+  onCancel,
+  sound = DEFAULT_SOUND,
+}: HiitTimerProps) {
   const [fallback] = useState(() => {
     const { rounds, ...rest } = defaults ?? {}
     return sanitize({ ...DEFAULTS, ...rest, ...(rounds === undefined ? {} : { cycles: rounds }) })
@@ -107,6 +125,7 @@ export default function HiitTimer({ defaults, onFinish, onCancel }: HiitTimerPro
       rest: running.rest,
       sets: running.sets,
       seconds: activeSeconds(schedule, t),
+      early,
     }
     setResult({ done, early })
     setStage('finished')
@@ -151,7 +170,7 @@ export default function HiitTimer({ defaults, onFinish, onCancel }: HiitTimerPro
     const at = positionAt(schedule, t)
     setElapsed(t)
     if (at.done) {
-      playFinished()
+      playSessionEnd(sound) // the end of the session, in the person's timer sound
       say('Done')
       end(total, false)
       return

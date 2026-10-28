@@ -614,3 +614,30 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
 def ready(standings: list[Standing]) -> list[Ready]:
     """The exercises ready to move up, in plan order."""
     return [Ready(s.exercise, s.slug) for s in standings if s.status is Progress.READY]
+
+
+@dataclass(frozen=True)
+class Top:
+    """The ready rule met with no level to move to (ADR-0078): the top of the ladder, or of the
+    levels the kit allows, when ``unlock`` says what opens the next one (ADR-0071)."""
+
+    exercise: str
+    slug: str
+    unlock: str | None
+
+
+def tops(session: Session, standings: list[Standing], since: date, tz: ZoneInfo) -> list[Top]:
+    """The exercises still at the top that reached it on local day ``since`` or later, in plan
+    order. Said once per level, as the saved screen says it: the first save there notes it."""
+    noted = {
+        (payload.get("exercise_id"), payload.get("step_id"))
+        for at, payload in session.execute(
+            select(Event.at, Event.payload).where(Event.kind == TOP_NOTED)
+        )
+        if isinstance(payload, dict) and local_date(at, tz) >= since
+    }
+    return [
+        Top(s.exercise, s.slug, s.unlock)
+        for s in standings
+        if s.status is Progress.TOP_OF_LADDER and (s.exercise_id, s.step_id) in noted
+    ]
