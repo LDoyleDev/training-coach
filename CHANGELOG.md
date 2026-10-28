@@ -4,6 +4,25 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.6.0](https://github.com/LDoyleDev/training-coach/compare/v1.5.0...v1.6.0) (2026-10-27)
+
+
+### Features
+
+* **web:** ring a loud, celebratory bell at the end of every session ([#411](https://github.com/LDoyleDev/training-coach/issues/411)) ([2c3f081](https://github.com/LDoyleDev/training-coach/commit/2c3f081bb62f9b9624a4e209b921032098e3f3f4))
+* **web:** show the top for your kit on Home and the weekly review ([#399](https://github.com/LDoyleDev/training-coach/issues/399)) ([442fb04](https://github.com/LDoyleDev/training-coach/commit/442fb0449027170a2dc1f7b0b585eced24b7475b))
+
+
+### Bug Fixes
+
+* **bot:** say the top of a ladder in plain words, not plan.toml ([#396](https://github.com/LDoyleDev/training-coach/issues/396)) ([f802cfb](https://github.com/LDoyleDev/training-coach/commit/f802cfb6fbb276961219155e2bb4a8ff58b7eb5f))
+* **infra:** reader names Health Connect's own data, not "_platform" ([#401](https://github.com/LDoyleDev/training-coach/issues/401)) ([50b2c62](https://github.com/LDoyleDev/training-coach/commit/50b2c623116e2b1124b35ff8cdda1934f5043c5c))
+
+
+### Documentation
+
+* session log for the 1.6.0 wrap ([#412](https://github.com/LDoyleDev/training-coach/issues/412)) ([57c5d2c](https://github.com/LDoyleDev/training-coach/commit/57c5d2c19a179235d453738d8f70d76adf09022a))
+
 ## [1.5.0](https://github.com/LDoyleDev/training-coach/compare/v1.4.0...v1.5.0) (2026-10-27)
 
 

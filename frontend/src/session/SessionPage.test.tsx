@@ -1,13 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Clash, Done, Guided, Kept, Pending, Saved, TodayView } from '../api'
-import { playChange, unlockAudio } from '../hiit/sounds'
+import { playChange, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import SessionPage from './SessionPage'
 
 vi.mock('../hiit/sounds', () => ({
   DEFAULT_SOUND: 'ring',
   unlockAudio: vi.fn(),
   playChange: vi.fn(),
+  playSessionEnd: vi.fn(),
 }))
 
 const SESSION: Guided = {
@@ -161,8 +162,10 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
 
   expect(await screen.findByRole('heading', { name: 'Check and save' })).toBeInTheDocument()
   expect(screen.getByText('7 · 6')).toBeInTheDocument()
+  expect(playSessionEnd).not.toHaveBeenCalled()
   click('Save session')
   expect(await screen.findByRole('heading', { name: 'Legs done' })).toBeInTheDocument()
+  expect(playSessionEnd).toHaveBeenCalledExactlyOnceWith('ring') // saved: the end of the session
   expect(screen.getByText('Next up: Recovery + posture.')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '20 min' })).toBeInTheDocument() // stretching
   expect(screen.getByText(/new best 7 in one set/)).toBeInTheDocument()
@@ -285,6 +288,7 @@ test('a save refused because today changed says so', async () => {
   expect(screen.getByText('15/12')).toBeInTheDocument()
   click('Save session')
   expect(await screen.findByText(/Today's session changed/)).toBeInTheDocument()
+  expect(playSessionEnd).not.toHaveBeenCalled() // not saved: no bell
   click('Back')
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument()
   expect(screen.queryByText(/Today's session changed/)).not.toBeInTheDocument()
@@ -928,7 +932,7 @@ test('the mobility item plays its flow and logs the minutes moved as its set', a
     ],
     order: [{ item: 0, set_no: 1, target: 10, rest_seconds: 0, switch: false }],
   }
-  const sent = serve({ today: { session: recovery, progress: null } })
+  const sent = serve({ today: { session: recovery, progress: null }, sound: 'chime' })
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
   expect(screen.queryByRole('button', { name: 'Confirm set' })).not.toBeInTheDocument()
@@ -936,12 +940,20 @@ test('the mobility item plays its flow and logs the minutes moved as its set', a
   click('Start the flow')
   expect(screen.getByRole('heading', { name: 'Cat-cow' })).toBeInTheDocument()
   act(() => vi.advanceTimersByTime(121_000))
+  // The flow is the session's last set: its end is the end of the session, rung once.
+  expect(playSessionEnd).toHaveBeenCalledExactlyOnceWith('chime')
+  expect(playChange).not.toHaveBeenCalledWith('chime', 'finish')
   click('Log 2 min')
   await screen.findByRole('heading', { name: 'Check and save' })
   const [kept] = (sent['PUT /api/session/progress'] ?? []) as { sets: Done[] }[]
   expect(kept.sets).toHaveLength(1)
   expect(kept.sets[0]).toMatchObject({ item: 0, set_no: 1, left: 2, right: null })
   expect(Date.parse(kept.sets[0].started_at ?? '')).toBe(started)
+  click('Save session')
+  expect(
+    await screen.findByRole('heading', { name: 'Recovery + posture done' }),
+  ).toBeInTheDocument()
+  expect(playSessionEnd).toHaveBeenCalledOnce() // the save doesn't ring it twice
 })
 
 test('the set screen says the muscles an exercise works, beside a picture of them', async () => {

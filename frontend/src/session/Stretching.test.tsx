@@ -7,6 +7,7 @@ vi.mock('../hiit/sounds', () => ({
   DEFAULT_SOUND: 'ring',
   unlockAudio: vi.fn(),
   playChange: vi.fn(),
+  playSessionEnd: vi.fn(),
 }))
 
 // Couch 0-160 (both sides, two rounds), fold 160-275: 4 min 35 s, the gaps included.

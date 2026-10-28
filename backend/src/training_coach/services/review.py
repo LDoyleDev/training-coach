@@ -49,6 +49,8 @@ class Review:
     volume: list[tuple[Muscle, float]]  # fractional hard sets logged per muscle, largest first
     bests: list[Best]
     ready: list[progress.Ready]  # exercises ready to move up
+    # Reached the top this week and still there, said once per level (ADR-0078); needs ``tz``.
+    top: list[progress.Top] = field(default_factory=list)
     strength_block: bool = False  # moving up waits for the hypertrophy block (ADR-0028)
     habits: list[HabitWeek] = field(default_factory=list)  # empty in a week with no check-off
     # Cardio minutes from done workouts, whatever logged them (#124): zone 2 by heart rate, or
@@ -189,6 +191,7 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
     found = _span(session, workouts, start, end)
     ticked = habits.week(session, start, on)
     targets = cardio_totals.targets(session)
+    standings = progress.overview(session)
     return Review(
         start=start,
         planned=planned_sessions(session),
@@ -197,7 +200,8 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
         extras=found.extras,
         volume=_volume(session, start, end),
         bests=found.bests,
-        ready=progress.ready(progress.overview(session)),
+        ready=progress.ready(standings),
+        top=progress.tops(session, standings, start, tz) if tz is not None else [],
         strength_block=(
             tz is not None
             and (block := blocks.current(session, on, tz)) is not None
