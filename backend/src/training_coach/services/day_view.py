@@ -22,7 +22,7 @@ from training_coach.db.models import (
 from training_coach.db.session import bound_user
 from training_coach.domain.cardio import pace, speed
 from training_coach.domain.day_view import LoggedExercise as Grouped
-from training_coach.domain.day_view import LoggedSet, group
+from training_coach.domain.day_view import LoggedSet, Row, group
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.queue import local_date
 
@@ -92,12 +92,12 @@ def logged(session: Session, day: date) -> tuple[LoggedWorkout, ...]:
     exercises = {e.id: e for e in session.scalars(select(Exercise))}
     steps = {step.id: step.name for step in session.scalars(select(LadderStep))}
     names = {t.id: t.name for t in session.scalars(select(SessionTemplate))}
-    rows: dict[int, list[tuple[int, int, int, str, int]]] = {i: [] for i in ids}
+    rows: dict[int, list[Row]] = {i: [] for i in ids}
     for log in session.scalars(
         select(SetLog).where(SetLog.workout_id.in_(ids)).order_by(SetLog.id)
     ):
         rows[log.workout_id].append(
-            (log.exercise_id, log.ladder_step_id, log.set_no, log.side, log.value)
+            (log.exercise_id, log.ladder_step_id, log.set_no, log.side, log.value, log.load_kg)
         )
     band = {
         imported.workout_id: BandRun(imported.minutes, imported.avg_hr, imported.max_hr)

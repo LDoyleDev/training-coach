@@ -6,6 +6,7 @@ from training_coach.domain.blocks import WEEKS
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.habits import WEEK_DAYS
+from training_coach.domain.load import kg_text
 from training_coach.domain.parser import sets_text
 from training_coach.domain.progression import Progress
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
@@ -259,7 +260,8 @@ def feedback_text(items: list[Feedback]) -> str:
         if item.bests.total is not None:
             parts.append(f"{_amount(item.bests.total, item.kind)} in total")
         if parts:
-            lines.append(f"New best on {item.exercise}: {' and '.join(parts)}.")
+            at = f" at {kg_text(item.load_kg)} kg" if item.load_kg is not None else ""
+            lines.append(f"New best on {item.exercise}{at}: {' and '.join(parts)}.")
     for item in items:
         if item.status is Progress.READY:
             lines.append(
@@ -354,6 +356,8 @@ def review_text(review: Review) -> str:
             if best.bests.total is not None:
                 parts.append(f"{_amount(best.bests.total, best.kind)} in total")
             where = f"{best.step}, strength block" if best.strength else best.step
+            if best.load_kg is not None:
+                where += f", at {kg_text(best.load_kg)} kg"
             lines.append(f"- {best.exercise} ({where}): {' and '.join(parts)}")
     names = ", ".join(r.exercise for r in review.ready)
     if review.ready and review.strength_block:

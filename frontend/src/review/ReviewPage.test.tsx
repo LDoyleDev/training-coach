@@ -29,8 +29,26 @@ const WEEK: WeekReview = {
       best_set: 8,
       total: 30,
       strength: false,
+      load_kg: null,
     },
-    { exercise: 'Plank', step: 'Long', kind: 'seconds', best_set: 90, total: null, strength: true },
+    {
+      exercise: 'Plank',
+      step: 'Long',
+      kind: 'seconds',
+      best_set: 90,
+      total: null,
+      strength: true,
+      load_kg: null,
+    },
+    {
+      exercise: 'Hammer curl',
+      step: 'Dumbbells',
+      kind: 'reps',
+      best_set: 12,
+      total: null,
+      strength: false,
+      load_kg: 12.5,
+    },
   ],
   ready: [{ exercise: 'Push-up', slug: 'push-up' }],
   top: [
@@ -74,6 +92,10 @@ test('this week so far, as the bot sends it', async () => {
   expect(screen.getByText('Zone 2: 95 of 180-200 min (85 short)')).toBeInTheDocument()
   expect(screen.getByText('Pull-up (Full): 8 reps in one set and 30 reps in total')).toBeVisible()
   expect(screen.getByText('Plank (Long, strength block): 90 s in one set')).toBeVisible()
+  // Bests count every weight here, so a loaded step's names its session's (ADR-0072).
+  expect(
+    screen.getByText(/^Hammer curl \(Dumbbells, at 12\.5 kg\): 12 reps in one set$/),
+  ).toBeVisible()
   expect(screen.getByRole('link', { name: 'Push-up' })).toHaveAttribute(
     'href',
     '/plan?move=push-up',

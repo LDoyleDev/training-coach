@@ -26,6 +26,20 @@ def test_healthz_reports_ok(client: TestClient) -> None:
     response = client.get("/healthz")
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "version": __version__, "bot_enabled": False}
+    # What scripts/auto-deploy.sh waits for and scripts/heartbeat.sh checks, byte for byte.
+    assert f'"version":"{__version__}"' in response.text
+    assert '"status":"ok"' in response.text
+
+
+def test_healthz_through_the_tunnel_says_only_ok(client: TestClient) -> None:
+    """Cloudflare adds CF-Connecting-IP to every request it passes on, so a visitor gets the
+    status alone; the version and bot state are for callers on the Pi (deploy, heartbeat)
+    (security review, 2026-10-24)."""
+    response = client.get("/healthz", headers={"CF-Connecting-IP": "203.0.113.7"})
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+    # Any value counts: the header's presence means the tunnel, whatever it says.
+    assert client.get("/healthz", headers={"cf-connecting-ip": ""}).json() == {"status": "ok"}
 
 
 def test_security_headers_on_every_response(client: TestClient) -> None:

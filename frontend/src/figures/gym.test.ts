@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import { blend, dist, solve, type Joints, type Vec } from './body'
 import { solveFront } from './front'
 import { GYM } from './gym'
-import { perspectiveShapes } from './perspective'
+import { lens, perspectiveShapes } from './perspective'
 import { FIGURES } from './poses'
 import { moving, shapes } from './shapes'
 import { figureFor } from './steps'
@@ -385,4 +385,48 @@ test('a reverse pec deck is a machine: seated, chest on the pad, a lever to each
   const bare = perspectiveShapes(front!.start, front!.camera, undefined, { standing: true })
   const drawn = perspectiveShapes(front!.start, front!.camera, undefined, front)
   expect(drawn.length - bare.length, 'frame, pads, levers and handles').toBeGreaterThan(12)
+})
+
+/** The corners of a drawn tube or box, on the picture (y up): the ends of its moves and arcs. */
+const corners = (d: string): Vec[] =>
+  (d.match(/[MLA][^MLAZ]*/g) ?? []).map((cmd) => {
+    const n = cmd.slice(1).trim().split(/\s+/).map(Number)
+    return [n[n.length - 2], -n[n.length - 1]]
+  })
+/** How far ``p`` is from the segment ``a``-``b``. */
+const fromSegment = (p: Vec, a: Vec, b: Vec) => {
+  const [dx, dy] = [b[0] - a[0], b[1] - a[1]]
+  const t = Math.max(
+    0,
+    Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)),
+  )
+  return dist(p, [a[0] + t * dx, a[1] + t * dy])
+}
+
+test("from the front, a reverse pec deck's levers stay clear of the head", () => {
+  const front = GYM['reverse-pec-deck'].front!
+  const see = lens(front.camera)
+  const bare = { ...front, machine: { ...front.machine!, levers: [] } }
+  for (const t of STEPS) {
+    const pose = blend(front.start, front.end, t)
+    const j = solveFront(pose)
+    const head = see([j.head[0], j.head[1], 0])
+    const r = 10.5 * head.scale
+    const without = new Set(
+      perspectiveShapes(pose, front.camera, undefined, bare).map((s) => JSON.stringify(s)),
+    )
+    const levers = perspectiveShapes(pose, front.camera, undefined, front).filter(
+      (s) => !without.has(JSON.stringify(s)),
+    )
+    expect(levers.length, 'pivots, levers and handles').toBeGreaterThan(4)
+    for (const s of levers) {
+      if (s.kind === 'ball') {
+        expect(dist([s.c[0], -s.c[1]], head.p) - s.r, `t=${t}`).toBeGreaterThan(r)
+      } else if (s.kind === 'path') {
+        const c = corners(s.d)
+        for (let i = 0; i < c.length; i++)
+          expect(fromSegment(head.p, c[i], c[(i + 1) % c.length]), `t=${t}`).toBeGreaterThan(r)
+      }
+    }
+  }
 })

@@ -18,6 +18,7 @@ from training_coach.domain import health
 from training_coach.domain.blocks import BlockKind
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
 from training_coach.domain.habits import HabitWeek
+from training_coach.domain.load import top_weight
 from training_coach.domain.muscles import Muscle
 from training_coach.domain.records import NewBests
 from training_coach.domain.volume import weekly_sets
@@ -37,6 +38,9 @@ class Best:
     kind: ExerciseKind
     bests: NewBests
     strength: bool = False  # set in a strength block (ADR-0028), kept apart from the rest
+    # The weight of the session that set the best set, or the total without one (ADR-0072):
+    # the review counts every weight, so it says which one.
+    load_kg: float | None = None
 
 
 @dataclass(frozen=True)
@@ -134,7 +138,18 @@ def _bests(session: Session, workouts: list[Workout]) -> list[Best]:
                 continue
             key = (exercise_id, step_id, history)
             earlier = found.get(key)
+            kg = top_weight(
+                [
+                    (s.set_no, s.load_kg)
+                    for s in workout.sets
+                    if (s.exercise_id, s.ladder_step_id) == (exercise_id, step_id)
+                    and s.load_kg is not None
+                ]
+            )
             if earlier is not None:  # a second record that week: keep the higher of each
+                kept = earlier.bests.best_set
+                if kept is not None and (bests.best_set is None or bests.best_set < kept):
+                    kg = earlier.load_kg  # the best set is still the earlier session's
                 bests = NewBests(
                     _higher(bests.best_set, earlier.bests.best_set),
                     _higher(bests.total, earlier.bests.total),
@@ -145,6 +160,7 @@ def _bests(session: Session, workouts: list[Workout]) -> list[Best]:
                 ExerciseKind(exercise.kind),
                 bests,
                 strength=history is BlockKind.STRENGTH,
+                load_kg=kg,
             )
     return list(found.values())
 

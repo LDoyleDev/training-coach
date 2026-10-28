@@ -113,20 +113,34 @@ Decided while building, within this ADR:
   cue; its weights and targets come from strength-block sessions, so the first strength block
   starts at the kit's first weight and the person sets theirs. The weekly review's bests still
   count every weight.
+- **Bests name their weight** (28 Oct 2026). After a save they name the session's weight,
+  which they were counted at: "New best on Hammer curl at 12 kg: ..." in Telegram, "new best 12
+  in one set at 12 kg" on the saved screen. The weekly review, which counts every weight, names
+  that of the session that set the best set: "Hammer curl (Dumbbells, at 12 kg)".
 - **The chart by weight:** once any session in the six weeks has a weight, the periods follow
   the session's heaviest set ("22 kg ↑"; a session without one is "No weight"), and a strip
   under the chart draws the weight as a staircase on the same dates, labelled with its lowest
   and highest kg and described in words. An exercise without weights keeps its step periods
   and has no strip. The strip breaks at a session without a weight, as the chart starts a
   "No weight" period there.
+- **The summaries** (28 Oct 2026). Today's day log and the AI's read tools (`get_summary`,
+  `get_exercise`, "Copy for my AI", guide version 4) write a line's weights as the confirm step
+  does: "10 / 10 / 9 at 16 kg", "at 16 / 16 / 18 kg" when the sets differ, a dash for a set
+  without one. The export already lists `load_kg` with every set.
 - **The gym catalogue:** 23 exercises from Decided 5 that the home plan lacks, each one step
   that takes load (the 45° back extension: bodyweight, then holding a plate), with the
   research file's weights, a summary and typed-log aliases. The split squat, Copenhagen plank,
   tibialis raise, carries, neck work and hanging raises stay the home exercises' own ladders.
   They name no kit (a gym has everything) and are in no session until the gym versions
   (builder step 9); until then they are logged by text or voice, and an exercise in no
-  session shows on Progress once it has been logged. Their figures (ADR-0063) are still to
-  be drawn; they are needed before step 9 offers them on the set screen.
+  session shows on Progress once it has been logged. Their figures (ADR-0063) came in 1.7.0,
+  with step 9's gym versions.
+- **The AI's proposals** (28 Oct 2026). A strength line in `propose_log` (ADR-0058) may carry
+  `kg`: one weight for all its sets or one per set. It is written into the log text as a typed
+  weight is ("rows 10 10 at 16", a line per run of sets at one weight), so the rule parser
+  checks it the same way: only on a step that takes load, more than 0 and at most 500 kg, to
+  0.01 kg. The card and the Telegram message show it ("10 / 10 / 9 at 16 kg"), and Save writes
+  it to `load_kg`.
 
 ## Built (own increments, 28 Oct 2026)
 

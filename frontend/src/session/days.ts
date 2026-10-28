@@ -1,4 +1,5 @@
 import type { LoggedWorkout } from '../api'
+import { kgText } from './logic'
 
 /** The ISO day ``n`` days from ``iso``, counted on the calendar (no time zone can shift it). */
 export function shift(iso: string, n: number): string {
@@ -27,3 +28,18 @@ export function details(
   if (cardio.max_hr) parts.push(`max ${cardio.max_hr}`)
   return parts.join(' · ')
 }
+
+type LoggedSet = LoggedWorkout['exercises'][number]['sets'][number]
+
+/** What follows an exercise's sets, as the confirm step writes it (ADR-0072): " at 16 kg" for
+ * one weight, " at 16 / 16 / 18 kg" when they differ (a dash for a set without one), and
+ * nothing when no set has one. */
+export function weights(sets: LoggedSet[]): string {
+  const kg = sets.map((set) => set.load_kg ?? null)
+  const first = kg[0] ?? null
+  if (kg.every((k) => k === null)) return ''
+  if (first !== null && kg.every((k) => k === first)) return ` at ${kgText(first)}`
+  return ` at ${kgText(kg.map((k) => (k === null ? NO_WEIGHT : String(k))).join(' / '))}`
+}
+
+const NO_WEIGHT = String.fromCharCode(0x2013) // an en dash, as on the confirm step

@@ -162,6 +162,67 @@ def test_extreme_or_odd_strength_values_are_refused(
     assert _rows(engine, LogProposal) == []
 
 
+CURLS = {"exercise": "Hammer curl", "sets": [10, 10, 9], "unit": ""}
+
+
+@pytest.mark.parametrize(
+    ("kg", "shown", "saved"),
+    [
+        (12, "Hammer curl 10 / 10 / 9 at 12 kg", [12.0, 12.0, 12.0]),
+        ([12, 12, 14.5], "Hammer curl 10 / 10 / 9 at 12 / 12 / 14.5 kg", [12.0, 12.0, 14.5]),
+    ],
+)
+def test_a_weight_is_shown_before_save_and_saved_on_each_set(
+    client: TestClient, engine: Engine, token: str, kg: object, shown: str, saved: list[float]
+) -> None:
+    """ADR-0072: one weight for all the sets or one per set, on a step that takes load; the
+    person sees it on the card, and Save writes it to each set."""
+    waiting = proposed(client, token, kind="strength", exercises=[{**CURLS, "kg": kg}])
+    (card,) = client.get("/api/proposals").json()
+    assert shown in card["summary"]
+    assert save(client, waiting).status_code == 200
+    sets = sorted(_rows(engine, SetLog), key=lambda s: s.set_no)
+    assert [(s.set_no, s.value, s.load_kg) for s in sets] == list(
+        zip([1, 2, 3], [10, 10, 9], saved, strict=True)
+    )
+
+
+@pytest.mark.parametrize(
+    ("line", "why"),
+    [
+        ({**PULL_UPS, "kg": 10}, "Pull-up isn't done with a weight"),
+        ({**CURLS, "kg": [12, 12]}, "one for each set"),
+        ({**CURLS, "kg": 0}, "more than 0 and at most 500 kg"),
+        ({**CURLS, "kg": 500.5}, "more than 0 and at most 500 kg"),
+        ({**CURLS, "kg": 12.345}, "to 0.01 kg"),
+        ({**CURLS, "kg": True}, "valid number"),
+        ({**CURLS, "kg": "12"}, "valid number"),
+        ({**CURLS, "exercise": "Hammer curl at 12"}, "not in the exercise's name"),
+    ],
+)
+def test_an_odd_or_misplaced_weight_is_refused(
+    client: TestClient, engine: Engine, token: str, line: dict[str, Any], why: str
+) -> None:
+    assert why in refused(client, token, kind="strength", exercises=[line])
+    assert _rows(engine, LogProposal) == []
+
+
+def test_a_proposal_from_before_weights_still_saves(
+    client: TestClient, engine: Engine, token: str
+) -> None:
+    """A waiting proposal's entries had no weights before ADR-0072: it saves without them."""
+    waiting = proposed(client, token, kind="strength", exercises=[PULL_UPS])
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        row = mine.scalars(select(LogProposal)).one()
+        row.payload = {**row.payload, "entries": [e[:2] for e in row.payload["entries"]]}
+    assert save(client, waiting).status_code == 200
+    assert sorted((s.value, s.load_kg) for s in _rows(engine, SetLog)) == [
+        (7, None),
+        (8, None),
+        (8, None),
+    ]
+
+
 def test_a_future_day_is_refused_for_every_kind(client: TestClient, token: str) -> None:
     tomorrow = (_today() + timedelta(days=1)).isoformat()
     for arguments in (

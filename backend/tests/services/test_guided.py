@@ -514,7 +514,7 @@ def test_bests_count_at_the_same_weight_only(session: Session) -> None:
     assert (found.bests.best_set, found.status) == (None, Progress.HOLD)
     same = _logged(seeded, DAY - timedelta(days=3), 11, 20.0)
     (found,) = progress.feedback(seeded, same)
-    assert found.bests.best_set == 11
+    assert (found.bests.best_set, found.load_kg) == (11, 20.0)  # the weight it was counted at
 
 
 @pytest.mark.usefixtures("loaded")
