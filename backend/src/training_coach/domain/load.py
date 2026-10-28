@@ -226,3 +226,20 @@ def valid_kg(kg: float) -> bool:
 def kg_text(kg: float) -> str:
     """``20.0`` -> ``"20"``, ``22.5`` -> ``"22.5"``: as a person writes it."""
     return f"{kg:g}"
+
+
+NO_WEIGHT = chr(0x2013)  # an en dash, for a set without a weight among sets with one
+
+
+def weights_text(weights: Sequence[float | None]) -> str:
+    """What follows a line's sets, one weight per set in set order: " at 16 kg" for one
+    weight, " at 16 / 18 kg" when they differ (``NO_WEIGHT`` for a set without one), and
+    nothing when none has a weight. As the confirm step, the day's log and the AI's summary
+    write it."""
+    first = weights[0] if weights else None
+    if all(kg is None for kg in weights):
+        return ""
+    if first is not None and all(kg == first for kg in weights):
+        return f" at {kg_text(first)} kg"
+    shown = " / ".join(kg_text(kg) if kg is not None else NO_WEIGHT for kg in weights)
+    return f" at {shown} kg"

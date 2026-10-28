@@ -1,7 +1,7 @@
 """The body map on the Plan tab (``GET /api/plan/coverage``, program-builder.md F). Owner-only.
 
 Apart from ``GET /api/plan``, which serves only the bundled plan: this one counts the spine
-warning at the person's own ladder steps.
+warning at the person's own ladder steps, and the home or gym versions (``place``, ADR-0071).
 """
 
 from fastapi import APIRouter, Request
@@ -11,6 +11,7 @@ from training_coach.api.auth import Owner
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain import coverage as domain
 from training_coach.domain.coverage import Band, Evidence, Heat
+from training_coach.domain.enums import Place, Places
 from training_coach.services import coverage as service
 
 router = APIRouter(prefix="/api/plan", tags=["plan"])
@@ -50,6 +51,7 @@ class SessionMuscleView(BaseModel):
 class SessionLoadView(BaseModel):
     session: str
     slug: str  # the session template's, as in GET /api/plan
+    place: Place  # the version counted: home in the gym view when it has no gym version
     spine_sets: int
     grip_sets: int
     spine_heavy: bool
@@ -58,6 +60,8 @@ class SessionLoadView(BaseModel):
 
 
 class CoverageView(BaseModel):
+    place: Place  # the versions counted
+    places: Places  # where the person trains: Home | Gym is offered at both
     muscles: list[MuscleView]  # main muscles first
     sessions: list[SessionLoadView]  # queue order
     main_on_target: int  # main muscles in the green band
@@ -72,12 +76,17 @@ class CoverageView(BaseModel):
 
 
 @router.get("/coverage", response_model=CoverageView)
-def get_coverage(request: Request, user: Owner) -> CoverageView:
+def get_coverage(request: Request, user: Owner, place: Place | None = None) -> CoverageView:
     """Weekly fractional sets per muscle with its band and warnings, from the plan as it
-    stands; nothing here changes it."""
+    stands, counting each session's version at ``place`` (default: the day's place); nothing
+    here changes it, not even the place Today starts at."""
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
-        found = service.plan_coverage(session)
+        places, day = service.map_place(session)
+        at = day if place is None else place
+        found = service.plan_coverage(session, at)
     return CoverageView(
+        place=at,
+        places=places,
         muscles=[
             MuscleView(
                 muscle=m.muscle,
@@ -102,6 +111,7 @@ def get_coverage(request: Request, user: Owner) -> CoverageView:
             SessionLoadView(
                 session=d.name,
                 slug=d.slug,
+                place=d.place,
                 spine_sets=d.spine_sets,
                 grip_sets=d.grip_sets,
                 spine_heavy=d.spine_heavy,

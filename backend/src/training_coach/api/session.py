@@ -299,6 +299,7 @@ class EarnedView(BaseModel):
     # what opens the next one when the kit is what's missing (ADR-0071).
     at_top: bool
     unlock: str | None
+    load_kg: float | None  # the session's weight, which its bests were counted at (ADR-0072)
 
 
 class TimingView(BaseModel):
@@ -557,6 +558,7 @@ def save(body: SaveBody, request: Request, user: Owner) -> SavedView:
                     slug=e.slug,
                     at_top=e.note_top,
                     unlock=e.unlock if e.note_top else None,
+                    load_kg=e.load_kg,
                 )
                 for e in earned
                 if e.bests or e.next_step or e.note_top

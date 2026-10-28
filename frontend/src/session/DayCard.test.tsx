@@ -38,22 +38,41 @@ function logged(day: string): DayLog {
             name: 'Moderate cardio',
             unit: 'minutes',
             step: '',
-            sets: [{ set_no: 1, left: 43, right: null }],
+            sets: [{ set_no: 1, left: 43, right: null, load_kg: null }],
           },
           {
             name: 'Copenhagen plank',
             unit: 'reps',
             step: 'Knee on a chair',
             sets: [
-              { set_no: 1, left: 12, right: 11 },
-              { set_no: 2, left: 12, right: 12 },
+              { set_no: 1, left: 12, right: 11, load_kg: null },
+              { set_no: 2, left: 12, right: 12, load_kg: null },
+            ],
+          },
+          {
+            name: 'Hammer curl',
+            unit: 'reps',
+            step: 'Dumbbells',
+            sets: [
+              { set_no: 1, left: 10, right: null, load_kg: 12 },
+              { set_no: 2, left: 10, right: null, load_kg: 12 },
+              { set_no: 3, left: 9, right: null, load_kg: 14.5 },
+            ],
+          },
+          {
+            name: 'Lat pulldown',
+            unit: 'reps',
+            step: 'Cable',
+            sets: [
+              { set_no: 1, left: 10, right: null, load_kg: 40 },
+              { set_no: 2, left: 8, right: null, load_kg: 40 },
             ],
           },
           {
             name: 'Dead hang',
             unit: 'seconds',
             step: 'Two hands',
-            sets: [{ set_no: 1, left: 45, right: null }],
+            sets: [{ set_no: 1, left: 45, right: null, load_kg: null }],
           },
         ],
       },
@@ -99,6 +118,9 @@ test("shows today's log with steps, sides, units and the band's numbers", async 
   expect(view.getByText(/: 12\/11 · 12\/12$/)).toBeInTheDocument()
   expect(view.getByText('(Knee on a chair)')).toBeInTheDocument()
   expect(view.getByText(/: 45 s$/)).toBeInTheDocument()
+  // Weights as the confirm step writes them (ADR-0072); a set without one has none.
+  expect(view.getByText(/: 10 · 10 · 9 at 12 \/ 12 \/ 14\.5 kg$/)).toBeInTheDocument()
+  expect(view.getByText(/: 10 · 8 at 40 kg$/)).toBeInTheDocument()
   expect(view.getByRole('heading', { name: 'Extra: walk' })).toBeInTheDocument()
   expect(view.getByRole('button', { name: 'Next day' })).toBeDisabled()
   expect(await screen.findByRole('heading', { name: 'Habits today' })).toBeInTheDocument()

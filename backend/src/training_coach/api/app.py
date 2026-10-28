@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -65,8 +65,10 @@ log = structlog.get_logger(__name__)
 
 class Health(BaseModel):
     status: str
-    version: str
-    bot_enabled: bool
+    # Only for callers on the Pi (the deploy waits for its version, the heartbeat): a request
+    # through the tunnel gets the status alone (security review, 2026-10-24).
+    version: str | None = None
+    bot_enabled: bool | None = None
 
 
 def _sender(telegram: Bot | None) -> Send | None:
@@ -233,8 +235,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.address_limits = RateLimit(PER_ADDRESS, 60)
     app.state.connection_limits = RateLimit(PER_CONNECTION, 60)  # /mcp, per connection
 
-    @app.get("/healthz", response_model=Health, tags=["ops"])
-    async def healthz() -> Health:
+    @app.get("/healthz", response_model=Health, response_model_exclude_none=True, tags=["ops"])
+    async def healthz(request: Request) -> Health:
+        # Cloudflare adds CF-Connecting-IP to every request it passes on and a visitor can't
+        # remove it; callers on the Pi reach the port without it.
+        if "cf-connecting-ip" in request.headers:
+            return Health(status="ok")
         return Health(status="ok", version=__version__, bot_enabled=settings.bot_enabled)
 
     app.include_router(plan_router)

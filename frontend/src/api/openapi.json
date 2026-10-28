@@ -878,6 +878,12 @@
             "title": "Muscles",
             "type": "array"
           },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          },
+          "places": {
+            "$ref": "#/components/schemas/Places"
+          },
           "session_cap": {
             "title": "Session Cap",
             "type": "integer"
@@ -895,6 +901,8 @@
           }
         },
         "required": [
+          "place",
+          "places",
           "muscles",
           "sessions",
           "main_on_target",
@@ -1145,6 +1153,17 @@
             "title": "Exercise",
             "type": "string"
           },
+          "load_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load Kg"
+          },
           "next_step": {
             "anyOf": [
               {
@@ -1200,7 +1219,8 @@
           "next_step",
           "slug",
           "at_top",
-          "unlock"
+          "unlock",
+          "load_kg"
         ],
         "title": "EarnedView",
         "type": "object"
@@ -1663,22 +1683,34 @@
       "Health": {
         "properties": {
           "bot_enabled": {
-            "title": "Bot Enabled",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bot Enabled"
           },
           "status": {
             "title": "Status",
             "type": "string"
           },
           "version": {
-            "title": "Version",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
           }
         },
         "required": [
-          "status",
-          "version",
-          "bot_enabled"
+          "status"
         ],
         "title": "Health",
         "type": "object"
@@ -3388,6 +3420,17 @@
             "title": "Left",
             "type": "integer"
           },
+          "load_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load Kg"
+          },
           "right": {
             "anyOf": [
               {
@@ -3407,7 +3450,8 @@
         "required": [
           "set_no",
           "left",
-          "right"
+          "right",
+          "load_kg"
         ],
         "title": "LoggedSetView",
         "type": "object"
@@ -4894,6 +4938,17 @@
           "kind": {
             "$ref": "#/components/schemas/ExerciseKind"
           },
+          "load_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load Kg"
+          },
           "step": {
             "title": "Step",
             "type": "string"
@@ -4920,7 +4975,8 @@
           "kind",
           "best_set",
           "total",
-          "strength"
+          "strength",
+          "load_kg"
         ],
         "title": "ReviewBestView",
         "type": "object"
@@ -5427,6 +5483,9 @@
             "title": "Muscles",
             "type": "array"
           },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          },
           "session": {
             "title": "Session",
             "type": "string"
@@ -5447,6 +5506,7 @@
         "required": [
           "session",
           "slug",
+          "place",
           "spine_sets",
           "grip_sets",
           "spine_heavy",
@@ -9041,8 +9101,26 @@
     },
     "/api/plan/coverage": {
       "get": {
-        "description": "Weekly fractional sets per muscle with its band and warnings, from the plan as it\nstands; nothing here changes it.",
+        "description": "Weekly fractional sets per muscle with its band and warnings, from the plan as it\nstands, counting each session's version at ``place`` (default: the day's place); nothing\nhere changes it, not even the place Today starts at.",
         "operationId": "get_coverage_api_plan_coverage_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "place",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Place"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Place"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -9053,6 +9131,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Get Coverage",

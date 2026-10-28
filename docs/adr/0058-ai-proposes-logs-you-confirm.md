@@ -19,11 +19,11 @@ long it waits and what is kept of it were open. Liam decided them on 2026-10-12.
 
 **What can be proposed** (owner, 2026-10-12), for today or an earlier day, never the future:
 
-- **Strength sets**: exercises by their plan name, one number per set, in reps or seconds. They
-  go through the typed-log model (`groq.Rewrite`) and the rule parser under a date line of the
-  app's own (ADR-0033), so they are judged exactly as a typed log: known exercises, the
-  parser's ranges, at most 20 sets. A day that already has its session is asked about at Save
-  time (ADR-0060).
+- **Strength sets**: exercises by their plan name, one number per set, in reps or seconds, and
+  a weight in kg on a step that takes load (ADR-0072). They go through the typed-log model
+  (`groq.Rewrite`) and the rule parser under a date line of the app's own (ADR-0033), so they
+  are judged exactly as a typed log: known exercises, the parser's ranges, at most 20 sets. A
+  day that already has its session is asked about at Save time (ADR-0060).
 - **Cardio**: zone 2 or moderate cardio, minutes and what it was, the shape of `/api/cardio`.
   The person picks zone 2 or moderate when saving; the AI's kind is a hint (ADR-0067, see
   History).
@@ -121,3 +121,6 @@ Also decided while building it:
 - 2026-10-25, ADR-0076: a neck and a scale's body fat can be proposed too. A body proposal far
   from the last earlier value of its kind carries a "re-measure?" line naming that day, on the
   card and in Telegram, and in the AI's answer only when the connection has `body:read`.
+- 2026-10-28, ADR-0072: a strength line may carry `kg`, one weight for all its sets or one per
+  set, checked like a typed weight and refused on a step that doesn't take load. The card and
+  the Telegram message show it before Save writes it.

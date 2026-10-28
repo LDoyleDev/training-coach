@@ -247,6 +247,11 @@ def test_feedback_text_units_and_cases() -> None:
     assert feedback_text([walk]) == "New best on Walk: 40 min in total."
     one = _feedback(exercise="Pistol", kind=ExerciseKind.REPS, bests=NewBests(best_set=1))
     assert feedback_text([one]) == "New best on Pistol: 1 rep in one set."
+    # A loaded step's bests count only its weight (ADR-0072), so the message names it.
+    curl = _feedback(
+        exercise="Hammer curl", kind=ExerciseKind.REPS, bests=NewBests(best_set=12), load_kg=12.5
+    )
+    assert feedback_text([curl]) == "New best on Hammer curl at 12.5 kg: 12 reps in one set."
     top = _feedback(exercise="Dip", status=Progress.TOP_OF_LADDER, note_top=True)
     assert feedback_text([top]) == (
         "Dip: top of the range on the last level of its ladder. That's the top for now: keep "

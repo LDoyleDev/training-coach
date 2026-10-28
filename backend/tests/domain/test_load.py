@@ -2,6 +2,7 @@
 
 from training_coach.domain.kit import Item
 from training_coach.domain.load import (
+    NO_WEIGHT,
     Increments,
     Load,
     LoadKit,
@@ -15,6 +16,7 @@ from training_coach.domain.load import (
     top_weight,
     valid_increment,
     valid_kg,
+    weights_text,
 )
 from training_coach.domain.muscles import Kit
 from training_coach.domain.targets import Prescription
@@ -89,6 +91,13 @@ def test_a_session_not_all_at_one_weight_suggests_nothing() -> None:
 def test_a_sessions_weight_is_its_heaviest_set() -> None:
     assert top_weight([(1, 20.0), (2, 22.0), (3, 21.0)]) == 22.0
     assert top_weight([]) is None
+
+
+def test_weights_follow_a_lines_sets_as_the_confirm_step_writes_them() -> None:
+    assert weights_text([16.0, 16.0, 16.0]) == " at 16 kg"
+    assert weights_text([16.0, 18.0, None]) == f" at 16 / 18 / {NO_WEIGHT} kg"
+    assert weights_text([None, 16.0]) == f" at {NO_WEIGHT} / 16 kg"
+    assert weights_text([None, None]) == weights_text([]) == ""
 
 
 # ------------------------------------------------------------ the weights owned at home

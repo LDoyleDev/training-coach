@@ -16,6 +16,7 @@ from training_coach.domain.coverage import (
     needs_two_days,
     target,
 )
+from training_coach.domain.enums import Place
 from training_coach.domain.muscles import Muscle, Part, Stress
 
 Q, G, T = Muscle.QUADS, Muscle.GLUTES, Muscle.TRICEPS
@@ -184,3 +185,8 @@ def test_each_session_lists_the_muscles_it_works_main_first() -> None:
     assert legs.slug == "legs"
     assert legs.muscles == ((Q, 2.0), (G, 4.0), (Muscle.CALVES, 3.0))
     assert rest.muscles == ()
+
+
+def test_each_session_says_which_version_it_counts() -> None:
+    gym, home = coverage([Day("Legs", [], place=Place.GYM), Day("Recovery", [])]).days
+    assert (gym.place, home.place) == (Place.GYM, Place.HOME)

@@ -161,8 +161,8 @@ export function unweighed(values: Values, item: number): Values {
   )
 }
 
-/** "22.5 kg", as a person writes it. */
-export const kgText = (kg: number) => `${kg}${NBSP}kg`
+/** "22.5 kg", as a person writes it; or "16 / 18 kg" for weights already written. */
+export const kgText = (kg: number | string) => `${kg}${NBSP}kg`
 const NBSP = String.fromCharCode(0xa0) // the number and its unit stay on one line
 
 /** How much one tap of + or − changes a value. */
