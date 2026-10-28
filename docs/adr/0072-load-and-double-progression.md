@@ -150,8 +150,9 @@ Decided while building, within this ADR:
   (`workouts.place`, ADR-0071), so a session without a gym version counts as home wherever it
   is done.
 - **The weights owned** are each fixed pair, plus an adjustable set's weights from its lightest
-  in the person's own dumbbell step, and its heaviest. With no kit listed yet nothing is known,
-  so the increment rule stands, as nothing locks then (ADR-0071).
+  in the person's own dumbbell step, and its heaviest. With no kit listed yet, or a kit with no
+  dumbbells in it, nothing is known, so the increment rule stands, as nothing locks then
+  (ADR-0071).
 - **At home, − and + step through the weights owned** ("At home, the next weight you own" is
   the increment there), and a first set with no history starts at the lightest one owned. At
   the gym, − and + and the next weight follow the increment.

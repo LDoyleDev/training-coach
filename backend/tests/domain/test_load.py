@@ -109,13 +109,21 @@ def test_the_dumbbells_owned_are_each_pair_and_an_adjustable_sets_steps() -> Non
 def test_nothing_is_known_owned_without_a_kit_or_for_the_gyms_kit() -> None:
     assert owned_weights(LoadKit.DUMBBELLS, None) is None  # no kit listed yet
     assert owned_weights(LoadKit.BARBELL, [Item(Kit.DUMBBELLS, 10.0)]) is None
-    assert owned_weights(LoadKit.DUMBBELLS, [Item(Kit.MAT)]) == ()  # listed, none owned
+
+
+def test_a_kit_without_dumbbells_says_nothing_of_the_dumbbells_owned() -> None:
+    """A kit listed with no dumbbells keeps the increment rule for - and + and the next weight,
+    as at the gym, rather than an unlock note (review of #445)."""
+    owned = owned_weights(LoadKit.DUMBBELLS, [Item(Kit.MAT)])
+    assert owned is None
+    home = carried(LoadKit.DUMBBELLS, 3, at(12.0, 3), owned=owned)
+    up = progressed(home, ROWS, [12, 12, 12], at(12.0, 3))
+    assert (up.suggested, up.unlock) == (NextWeight(14.0, (8, 8, 8)), None)
 
 
 def test_at_home_a_first_set_starts_at_the_lightest_weight_owned() -> None:
     load = carried(LoadKit.DUMBBELLS, 2, [], owned=(10.0, 12.0))
     assert (load.kg, load.owned, load.carried) == ((10.0, 10.0), (10.0, 12.0), False)
-    assert carried(LoadKit.DUMBBELLS, 2, [], owned=()).kg == (8.0, 8.0)  # none: the kit's first
     assert carried(LoadKit.DUMBBELLS, 1, [(1, 14.0)], owned=(10.0,)).kg == (14.0,)  # carried
 
 

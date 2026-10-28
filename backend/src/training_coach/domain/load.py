@@ -118,7 +118,8 @@ def owned_weights(
 ) -> tuple[float, ...] | None:
     """The weights owned at home for ``kit``, lightest first: each fixed pair, and an adjustable
     set's from its lightest in the person's own step, with its heaviest. None when nothing is
-    known: no kit listed yet (``None``), or a kit nobody lists."""
+    known: no kit listed yet (``None``), a kit nobody lists, or none of it listed; then the
+    increment rule stands, as at the gym."""
     listed = LISTED.get(kit)
     if items is None or listed is None:
         return None
@@ -132,7 +133,7 @@ def owned_weights(
         while item.min_kg is not None and (kg := round(item.min_kg + count * step, 2)) < item.kg:
             found.add(kg)
             count += 1
-    return tuple(sorted(found))
+    return tuple(sorted(found)) or None
 
 
 def carried(
