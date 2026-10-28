@@ -139,3 +139,24 @@ Decided while building, within this ADR:
   `machine_increment_kg`); empty keeps the default, and a step set back to the default is kept
   as empty, so a later change to a default reaches them. A step is 0.25 to 20 kg, in quarters
   of a kilo. `PATCH /api/settings` takes `increments`, only the kits sent change.
+
+## Built (the next weight owned at home, 28 Oct 2026)
+
+Decided while building, within this ADR:
+
+- **Which kit:** only dumbbells are both a loaded kit and something a person lists in My
+  equipment; a barbell or a machine is the gym's, and the kettlebell, vest and backpack steps
+  are ladder steps (Built, above). A home day is one whose version is the home one
+  (`workouts.place`, ADR-0071), so a session without a gym version counts as home wherever it
+  is done.
+- **The weights owned** are each fixed pair, plus an adjustable set's weights from its lightest
+  in the person's own dumbbell step, and its heaviest. With no kit listed yet nothing is known,
+  so the increment rule stands, as nothing locks then (ADR-0071).
+- **At home, − and + step through the weights owned** ("At home, the next weight you own" is
+  the increment there), and a first set with no history starts at the lightest one owned. At
+  the gym, − and + and the next weight follow the increment.
+- **Owning none heavier:** nothing is suggested, and the set screen says "Top for your kit: 18
+  kg dumbbells would open the next weight", the last weight plus the person's step, as "top
+  for your kit" names what opens the next ladder step.
+- The home versions in `plan.toml` have no loaded step yet, so on the set screen this waits
+  for a home version with one (editing the plan, builder step 6).

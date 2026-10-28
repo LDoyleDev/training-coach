@@ -632,6 +632,8 @@ def test_a_loaded_step_offers_its_weights_and_keeps_each_sets(
         "kg": [20.0] * 3,
         "carried": False,
         "suggested": None,
+        "owned": None,  # no kit listed: - and + move by the increment
+        "unlock": None,
     }
     assert session["items"][1]["load"] is None
     sets = [{"item": 0, "set_no": 1, "left": 8, "load_kg": 22.5}]

@@ -494,6 +494,51 @@ def test_a_persons_own_increment_moves_the_weight_and_the_suggestion(session: Se
     assert load.suggested.kg == 13.0
 
 
+def _own(session: Session, *items: Item) -> None:
+    assert equipment.save(session, list(items), NOW) is None
+
+
+@pytest.mark.usefixtures("loaded")
+def test_at_home_the_next_weight_is_the_next_one_owned(session: Session) -> None:
+    """ADR-0072: at home, 16 kg after 12 kg when those are the dumbbells owned; - and + step
+    through them. At the gym the increment rule stands."""
+    seeded = _seeded(session)
+    _own(seeded, Item(Kit.DUMBBELLS, 10.0), Item(Kit.DUMBBELLS, 12.0), Item(Kit.DUMBBELLS, 16.0))
+    template = _plan(seeded).template_id
+    fresh = today.session_plan(seeded, template)
+    assert fresh is not None
+    load = fresh.items[0].load
+    assert load is not None
+    assert (load.owned, load.kg) == ((10.0, 12.0, 16.0), (10.0,) * 3)  # the lightest owned
+    _logged(seeded, DAY - timedelta(days=7), 30, 12.0)
+    home = today.session_plan(seeded, template)
+    assert home is not None
+    load = home.items[0].load
+    assert load is not None
+    assert load.suggested is not None
+    assert (load.suggested.kg, load.unlock) == (16.0, None)
+    gym = today.session_plan(seeded, template, place=Place.GYM)
+    assert gym is not None
+    load = gym.items[0].load
+    assert load is not None
+    assert load.owned is None
+    assert load.suggested is not None
+    assert load.suggested.kg == 14.0
+
+
+@pytest.mark.usefixtures("loaded")
+def test_at_home_owning_none_heavier_names_what_would_open_it(session: Session) -> None:
+    """Like "top for your kit" (ADR-0071): no suggestion, and the weight that would open one."""
+    seeded = _seeded(session)
+    _own(seeded, Item(Kit.DUMBBELLS, 12.0), Item(Kit.KETTLEBELL, 16.0))
+    _logged(seeded, DAY - timedelta(days=7), 30, 12.0)
+    plan = today.session_plan(seeded, _plan(seeded).template_id)
+    assert plan is not None
+    load = plan.items[0].load
+    assert load is not None
+    assert (load.owned, load.suggested, load.unlock) == ((12.0,), None, "14 kg dumbbells")
+
+
 @pytest.mark.usefixtures("loaded")
 def test_a_strength_block_keeps_a_loaded_step_without_the_tempo_cue(session: Session) -> None:
     seeded = _seeded(session)

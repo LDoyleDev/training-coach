@@ -12,12 +12,19 @@ Double progression: reps go up within the range (ADR-0027) at one weight. When e
 set of the last session at that weight reached the top of the range, the next weight up is
 suggested, with reps starting again at the bottom; a missed target holds. The person decides:
 a suggestion is a tap on the set screen, never a change made for them.
+
+At home, a kit the person lists in My equipment (dumbbells: fixed pairs, or an adjustable set)
+goes up by the weights they own: - and + step through them, and the next weight is the next
+heavier one owned. Owning none heavier, nothing is suggested and the set screen names the
+weight that would open it, as "top for your kit" does for a ladder (ADR-0071).
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
+from training_coach.domain.kit import Item, label
+from training_coach.domain.muscles import Kit
 from training_coach.domain.progression import session_met_top
 from training_coach.domain.targets import Prescription
 
@@ -95,6 +102,37 @@ class Load:
     kg: tuple[float, ...]  # one per planned set
     carried: bool
     suggested: NextWeight | None = None  # every set reached the top last time (double progression)
+    # At home, the weights owned for this kit, lightest first: - and + step through them. None:
+    # - and + move by the increment (at the gym, a kit nobody lists, or no kit listed yet).
+    owned: tuple[float, ...] | None = None
+    # Every set reached the top at home, and no heavier weight is owned: what would open it.
+    unlock: str | None = None
+
+
+# The loaded kits a person lists at home (ADR-0071); a barbell or a machine is the gym's.
+LISTED: dict[LoadKit, Kit] = {LoadKit.DUMBBELLS: Kit.DUMBBELLS}
+
+
+def owned_weights(
+    kit: LoadKit, items: Sequence[Item] | None, increments: Increments = DEFAULTS
+) -> tuple[float, ...] | None:
+    """The weights owned at home for ``kit``, lightest first: each fixed pair, and an adjustable
+    set's from its lightest in the person's own step, with its heaviest. None when nothing is
+    known: no kit listed yet (``None``), or a kit nobody lists."""
+    listed = LISTED.get(kit)
+    if items is None or listed is None:
+        return None
+    step = increments.of(kit)
+    found: set[float] = set()
+    for item in items:
+        if item.kit is not listed or item.kg is None:
+            continue
+        found.add(item.kg)
+        count = 0
+        while item.min_kg is not None and (kg := round(item.min_kg + count * step, 2)) < item.kg:
+            found.add(kg)
+            count += 1
+    return tuple(sorted(found))
 
 
 def carried(
@@ -102,26 +140,44 @@ def carried(
     sets: int,
     last: Sequence[tuple[int, float]],
     increments: Increments = DEFAULTS,
+    owned: tuple[float, ...] | None = None,
 ) -> Load:
     """Each planned set's starting weight from ``last``, the (set number, kg) pairs of the
     last session at this step: the same set's weight, else that of the nearest set before it,
-    else the first set's. With no history, every set starts at the kit's first weight. - and +
-    move by the person's own increment for the kit."""
+    else the first set's. With no history, every set starts at the kit's first weight, or at
+    home the lightest one owned. - and + move by the person's own increment for the kit, or at
+    home through the weights ``owned``."""
     step = increments.of(kit)
     by_set = dict(last)
     if not by_set:
-        return Load(kit, step, (FIRST_KG[kit],) * sets, carried=False)
+        start = owned[0] if owned else FIRST_KG[kit]
+        return Load(kit, step, (start,) * sets, carried=False, owned=owned)
     first = by_set[min(by_set)]
     kg: list[float] = []
     for number in range(1, sets + 1):
         before = [n for n in by_set if n <= number]
         kg.append(by_set[max(before)] if before else first)
-    return Load(kit, step, tuple(kg), carried=True)
+    return Load(kit, step, tuple(kg), carried=True, owned=owned)
 
 
 def top_weight(last: Sequence[tuple[int, float]]) -> float | None:
     """A session's weight, for its targets and bests: the heaviest set's. None with none."""
     return max((kg for _, kg in last), default=None)
+
+
+def ready(
+    item: Prescription, last: Sequence[int] | None, loads: Sequence[tuple[int, float]]
+) -> float | None:
+    """The weight to go up from, when the last session, ``last`` its values and ``loads`` its
+    (set number, kg), did every planned set at one weight and every one reached the top of the
+    range; None otherwise. A pyramid (one heavy set, the rest lighter) is not a session at the
+    heavy weight, so it is not ready."""
+    kg = top_weight(loads)
+    by_set = dict(loads)
+    at_weight = all(by_set.get(n) == kg for n in range(1, item.sets + 1))
+    if kg is None or last is None or not at_weight or not session_met_top(item, last):
+        return None
+    return kg
 
 
 def next_weight(
@@ -130,18 +186,35 @@ def next_weight(
     loads: Sequence[tuple[int, float]],
     increment: float,
 ) -> NextWeight | None:
-    """The next weight up when the last session, ``last`` its values and ``loads`` its (set
-    number, kg), did every planned set at one weight and every one reached the top of the
-    range; None otherwise, or past the bound. A pyramid (one heavy set, the rest lighter) is
-    not a session at the heavy weight, so it suggests nothing."""
-    kg = top_weight(loads)
-    by_set = dict(loads)
-    at_weight = all(by_set.get(n) == kg for n in range(1, item.sets + 1))
-    if kg is None or last is None or not at_weight or not session_met_top(item, last):
-        return None
-    if not valid_kg(kg + increment):
+    """The next weight up by ``increment`` once the last session is ``ready``; None otherwise,
+    or past the bound."""
+    kg = ready(item, last, loads)
+    if kg is None or not valid_kg(kg + increment):
         return None
     return NextWeight(round(kg + increment, 2), (item.rep_min,) * item.sets)
+
+
+def progressed(
+    load: Load,
+    item: Prescription,
+    last: Sequence[int] | None,
+    loads: Sequence[tuple[int, float]],
+) -> Load:
+    """``load`` with double progression's suggestion: the next weight by the increment, or at
+    home the next heavier one owned. Owning none heavier, ``unlock`` names the weight that
+    would open it (the increment's) instead."""
+    if load.owned is None:
+        return replace(load, suggested=next_weight(item, last, loads, load.increment))
+    kg = ready(item, last, loads)
+    if kg is None:
+        return load
+    heavier = [w for w in load.owned if w > kg]
+    if heavier:
+        return replace(load, suggested=NextWeight(heavier[0], (item.rep_min,) * item.sets))
+    up = round(kg + load.increment, 2)
+    if not valid_kg(up):
+        return load
+    return replace(load, unlock=label(Item(LISTED[load.kit], up)))
 
 
 def valid_kg(kg: float) -> bool:

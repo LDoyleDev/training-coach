@@ -1,5 +1,6 @@
 """Where each set's weight starts on the set screen (ADR-0072)."""
 
+from training_coach.domain.kit import Item
 from training_coach.domain.load import (
     Increments,
     Load,
@@ -8,10 +9,14 @@ from training_coach.domain.load import (
     carried,
     kg_text,
     next_weight,
+    owned_weights,
+    progressed,
+    ready,
     top_weight,
     valid_increment,
     valid_kg,
 )
+from training_coach.domain.muscles import Kit
 from training_coach.domain.targets import Prescription
 
 
@@ -84,3 +89,56 @@ def test_a_session_not_all_at_one_weight_suggests_nothing() -> None:
 def test_a_sessions_weight_is_its_heaviest_set() -> None:
     assert top_weight([(1, 20.0), (2, 22.0), (3, 21.0)]) == 22.0
     assert top_weight([]) is None
+
+
+# ------------------------------------------------------------ the weights owned at home
+
+
+def test_the_dumbbells_owned_are_each_pair_and_an_adjustable_sets_steps() -> None:
+    kit = [
+        Item(Kit.DUMBBELLS, 16.0),
+        Item(Kit.DUMBBELLS, 10.0, min_kg=5.0),  # adjustable, 5-10 kg
+        Item(Kit.KETTLEBELL, 24.0),  # not a dumbbell
+        Item(Kit.PULL_UP_BAR),
+    ]
+    assert owned_weights(LoadKit.DUMBBELLS, kit) == (5.0, 7.0, 9.0, 10.0, 16.0)
+    own = Increments(dumbbells=2.5)
+    assert owned_weights(LoadKit.DUMBBELLS, kit, own) == (5.0, 7.5, 10.0, 16.0)
+
+
+def test_nothing_is_known_owned_without_a_kit_or_for_the_gyms_kit() -> None:
+    assert owned_weights(LoadKit.DUMBBELLS, None) is None  # no kit listed yet
+    assert owned_weights(LoadKit.BARBELL, [Item(Kit.DUMBBELLS, 10.0)]) is None
+    assert owned_weights(LoadKit.DUMBBELLS, [Item(Kit.MAT)]) == ()  # listed, none owned
+
+
+def test_at_home_a_first_set_starts_at_the_lightest_weight_owned() -> None:
+    load = carried(LoadKit.DUMBBELLS, 2, [], owned=(10.0, 12.0))
+    assert (load.kg, load.owned, load.carried) == ((10.0, 10.0), (10.0, 12.0), False)
+    assert carried(LoadKit.DUMBBELLS, 2, [], owned=()).kg == (8.0, 8.0)  # none: the kit's first
+    assert carried(LoadKit.DUMBBELLS, 1, [(1, 14.0)], owned=(10.0,)).kg == (14.0,)  # carried
+
+
+def test_ready_is_the_weight_every_set_topped_out_at() -> None:
+    assert ready(ROWS, [12, 12, 12], at(20.0, 3)) == 20.0
+    assert ready(ROWS, [12, 12, 11], at(20.0, 3)) is None
+
+
+def test_at_home_the_suggestion_is_the_next_heavier_weight_owned() -> None:
+    home = carried(LoadKit.DUMBBELLS, 3, at(12.0, 3), owned=(10.0, 12.0, 16.0, 20.0))
+    up = progressed(home, ROWS, [12, 12, 12], at(12.0, 3))
+    assert (up.suggested, up.unlock) == (NextWeight(16.0, (8, 8, 8)), None)
+    assert progressed(home, ROWS, [12, 12, 11], at(12.0, 3)) == home  # a missed set holds
+
+
+def test_at_home_owning_none_heavier_names_the_weight_that_would_open_it() -> None:
+    home = carried(LoadKit.DUMBBELLS, 3, at(16.0, 3), Increments(dumbbells=2.5), owned=(16.0,))
+    up = progressed(home, ROWS, [12, 12, 12], at(16.0, 3))
+    assert (up.suggested, up.unlock) == (None, "18.5 kg dumbbells")
+    heaviest = carried(LoadKit.DUMBBELLS, 3, at(499.0, 3), owned=(16.0,))
+    assert progressed(heaviest, ROWS, [12, 12, 12], at(499.0, 3)) == heaviest  # past the bound
+
+
+def test_without_owned_weights_the_increment_rule_stands() -> None:
+    gym = carried(LoadKit.DUMBBELLS, 3, at(12.0, 3))
+    assert progressed(gym, ROWS, [12, 12, 12], at(12.0, 3)).suggested == NextWeight(14.0, (8,) * 3)

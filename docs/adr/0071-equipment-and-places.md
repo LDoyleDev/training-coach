@@ -125,5 +125,5 @@ Decided while building, within this ADR:
 - **On Today** the switch is a card above the session, "Where are you training today?",
   Home | Gym, the chosen one ticked as well as filled; with sets kept it asks "Switch to the gym
   version? They are dropped; nothing saved changes." before anything happens.
-- **Still to come:** each person's own increments and the next weight owned at home (ADR-0072),
-  and the body map's home or gym view (Consequences).
+- **Still to come:** the body map's home or gym view (Consequences). Each person's own
+  increments and the next weight owned at home are built (ADR-0072).

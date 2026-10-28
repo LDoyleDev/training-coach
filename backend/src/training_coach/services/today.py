@@ -4,8 +4,8 @@ Returns plain data; the bot formats it. ``None`` means there is no plan in the d
 example a failed seed on a fresh install, ADR-0015), which callers must tell the user about.
 """
 
-from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date, timedelta
 from functools import lru_cache
 from zoneinfo import ZoneInfo
@@ -22,13 +22,22 @@ from training_coach.db.models import (
 )
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind, Place
-from training_coach.domain.load import DEFAULTS, Increments, Load, carried, next_weight, top_weight
+from training_coach.domain.kit import Item
+from training_coach.domain.load import (
+    DEFAULTS,
+    Increments,
+    Load,
+    carried,
+    owned_weights,
+    progressed,
+    top_weight,
+)
 from training_coach.domain.muscles import Muscle, Part, ranked
 from training_coach.domain.places import can_switch, day_place
 from training_coach.domain.queue import ADVANCING, Position, advance
 from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
-from training_coach.services import blocks, retests, user_settings, users
+from training_coach.services import blocks, equipment, retests, user_settings, users
 from training_coach.services.blocks import load_kit
 from training_coach.services.progress import last_loads, sessions_at_step
 from training_coach.services.seed import bundled_plan
@@ -137,11 +146,13 @@ def _item_plan(
     pace: Pace,
     chosen: int | None = None,
     increments: Increments = DEFAULTS,
+    home_kit: Sequence[Item] | None = None,
 ) -> ItemPlan:
     """One exercise: its step, cue and targets, under the strength prescription if it applies
     (ADR-0028), with targets from the matching block's history (ADR-0027) at the person's
     ``pace`` (ADR-0057). ``chosen``: a step of its ladder picked for today (ADR-0080). A loaded
-    step moves by the person's own ``increments`` (ADR-0072)."""
+    step moves by the person's own ``increments``, or on a home day through the weights in
+    ``home_kit`` (ADR-0072)."""
     step = session.get(LadderStep, chosen) if chosen is not None else None
     plan = blocks.assign(
         session,
@@ -162,10 +173,9 @@ def _item_plan(
     ]
     load = None
     if kit is not None:
-        load = carried(kit, plan.prescription.sets, last, increments)
-        latest = history[0] if history else None
-        suggested = next_weight(plan.prescription, latest, last, load.increment)
-        load = replace(load, suggested=suggested)
+        owned = owned_weights(kit, home_kit, increments)
+        load = carried(kit, plan.prescription.sets, last, increments, owned)
+        load = progressed(load, plan.prescription, history[0] if history else None, last)
     found = worked(item.exercise.slug)
     return ItemPlan(
         exercise=item.exercise.name,
@@ -209,6 +219,9 @@ def session_plan(
     prefs = user_settings.load(session)
     pace = prefs.pace
     at = place if place is not None else day_place(prefs.places, prefs.place)
+    done_at = template.done_at(at)  # the version's place, not only the one asked for
+    # At home, a loaded kit the person lists goes up by the weights they own (ADR-0072).
+    home_kit = equipment.kit(session) if done_at is Place.HOME else None
     return SessionPlan(
         template_id=template.id,
         name=template.name,
@@ -222,12 +235,13 @@ def session_plan(
                 pace,
                 (steps or {}).get(item.exercise.slug),
                 prefs.increments,
+                home_kit,
             )
             for item in template.version(at)
         ),
         kind=template.kind,
         slug=template.slug,
-        place=template.done_at(at),  # the version's place, not only the one asked for
+        place=done_at,
         switch=can_switch(prefs.places, bool(template.gym_items)),
     )
 

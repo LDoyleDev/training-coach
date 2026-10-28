@@ -1242,6 +1242,41 @@ test('a first time at a loaded step says to set the weight, and the next set fol
   expect(next).toHaveTextContent('−2+')
 })
 
+test('at home − and + step through the weights owned; none heavier names what opens it', async () => {
+  const home: Guided = {
+    ...LOADED,
+    items: [
+      {
+        ...LOADED.items[0],
+        load: {
+          kit: 'dumbbells',
+          increment: 2,
+          kg: [12, 12],
+          carried: true,
+          owned: [10, 12, 16],
+          unlock: '18 kg dumbbells',
+        },
+      },
+      LOADED.items[1],
+    ],
+  }
+  serve({ today: { session: home, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const weight = screen.getByRole('group', { name: 'Each dumbbell, kg' })
+  click(/^Heavier: 16\skg$/)
+  expect(weight).toHaveTextContent('16')
+  expect(screen.getByRole('button', { name: 'Heavier' })).toBeDisabled() // none heavier owned
+  click(/^Lighter: 12\skg$/)
+  click(/^Lighter: 10\skg$/)
+  expect(weight).toHaveTextContent('10')
+  expect(screen.getByRole('button', { name: 'Lighter' })).toBeDisabled()
+  expect(
+    screen.getByText(/Top for your kit: 18 kg dumbbells would open the next weight\./),
+  ).toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: 'Next weight' })).not.toBeInTheDocument()
+})
+
 test('every set at the top last time offers the next weight; a tap takes it or goes back', async () => {
   const ready: Guided = {
     ...LOADED,
