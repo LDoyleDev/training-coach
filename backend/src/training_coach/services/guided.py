@@ -21,7 +21,14 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, SetLog, Workout
+from training_coach.db.models import (
+    Exercise,
+    LadderStep,
+    SessionProgress,
+    SessionTemplate,
+    SetLog,
+    Workout,
+)
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.load import MAX_KG, valid_kg
@@ -342,9 +349,13 @@ def kept(session: Session, day: date) -> Kept | None:
     return _kept(row) if row is not None else None
 
 
-def sets_problem(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> str | None:
+def sets_problem(
+    items: tuple[ItemPlan, ...], sets: Sequence[Done], loaded: Collection[int] = ()
+) -> str | None:
     """What's wrong with ``sets`` against the plan's items, or None: each set is one the plan
-    has, recorded once, with values in range and sides only where the exercise has them."""
+    has, recorded once, with values in range and sides only where the exercise has them. A
+    set done at an earlier level (ADR-0080) takes a weight only when its step is in ``loaded``
+    (see ``loaded_steps``), whatever the step the session has now."""
     seen: set[tuple[int, int]] = set()
     for done in sets:
         if not 0 <= done.item < len(items):
@@ -361,21 +372,38 @@ def sets_problem(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> str | Non
             return f"{item.exercise}: values must be 0 to {limit}"
         if done.right is not None and not item.per_side:
             return f"{item.exercise} isn't done one side at a time"
-        # A set done at an earlier level (ADR-0080) was checked at that level when kept.
-        if done.load_kg is not None and item.load is None and done.step_id is None:
+        weighted = item.load is not None if done.step_id is None else done.step_id in loaded
+        if done.load_kg is not None and not weighted:
             return f"{item.exercise} isn't done with a weight"
         if done.load_kg is not None and not valid_kg(done.load_kg):
             return f"{item.exercise}: a weight is more than 0 and at most {MAX_KG:g} kg"
     return None
 
 
-def _problem(plan: Guided, position: int, first: Sequence[int], sets: Sequence[Done]) -> str | None:
+def loaded_steps(
+    session: Session, items: tuple[ItemPlan, ...], sets: Sequence[Done]
+) -> frozenset[int]:
+    """The earlier levels ``sets`` were done at (ADR-0080) that take a weight: a set's weight
+    is checked against the step it was done at, not the one the session has now."""
+    found = set()
+    for done in sets:
+        if done.step_id is None or not 0 <= done.item < len(items):
+            continue
+        step = session.get(LadderStep, done.step_id)
+        if step is not None and blocks.load_kit(items[done.item].slug, step.name) is not None:
+            found.add(step.id)
+    return frozenset(found)
+
+
+def _problem(
+    session: Session, plan: Guided, position: int, first: Sequence[int], sets: Sequence[Done]
+) -> str | None:
     if not 0 <= position <= len(plan.order):
         return "position out of range"
     pairs = {item.pair for item in plan.items if item.pair is not None}
     if any(number not in pairs for number in first):
         return "no such pair"
-    return sets_problem(plan.items, sets)
+    return sets_problem(plan.items, sets, loaded_steps(session, plan.items, sets))
 
 
 STALE = "this session changed on another device; reload it"
@@ -399,7 +427,7 @@ def keep(
     level it was done at (ADR-0080): the browser never sends it."""
     row = _row(session, plan.day)
     sets = _with_levels(row, plan, sets)
-    problem = _problem(plan, position, first, sets)
+    problem = _problem(session, plan, position, first, sets)
     if problem is not None:
         return problem
     restart = row is not None and (
@@ -537,7 +565,8 @@ def save(
     plan = session_plan(session, template.id, blocks.current(session, day, tz), row.steps)
     assert plan is not None  # noqa: S101 - the template exists
     sets = tuple(_done(s) for s in row.sets)
-    if sets_problem(plan.items, sets) is not None:  # checked again: the plan may have changed
+    # Checked again: the plan may have changed.
+    if sets_problem(plan.items, sets, loaded_steps(session, plan.items, sets)) is not None:
         return "the plan changed since these sets were recorded"
     draft = workout_log.Draft(
         token=row.token,
@@ -577,7 +606,8 @@ def _save_after_run(
     if not items:  # the block is in the workout already: a repeated save
         return workout_log.Saved(workout.id, already_saved=True)
     sets = tuple(_done(s) for s in row.sets)
-    if sets_problem(items, sets) is not None:  # checked again: the plan may have changed
+    # Checked again: the plan may have changed.
+    if sets_problem(items, sets, loaded_steps(session, items, sets)) is not None:
         return "the plan changed since these sets were recorded"
     strength = workout_log.strength_on(session, day, tz, template)
     try:

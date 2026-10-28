@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, Exercise, LadderStep, SessionProgress, Workout
 from training_coach.domain.kit import parse_item
-from training_coach.services import equipment, guided, progress, users, workout_log
+from training_coach.domain.load import LoadKit
+from training_coach.services import blocks, equipment, guided, progress, users, workout_log
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.session_levels import (
     NOT_IN_SESSION,
@@ -227,3 +228,45 @@ def test_a_step_not_on_the_ladder_is_never_saved(seeded: Session) -> None:
     row.sets = [{**row.sets[0], "step_id": tibialis.id}]
     seeded.flush()
     assert _saved_steps(seeded) == [(1, bottom.id)]
+
+
+def _loaded_at(monkeypatch: pytest.MonkeyPatch, step: str) -> None:
+    """The jump squat as if only ``step`` of it took dumbbells (ADR-0072)."""
+    monkeypatch.setattr(blocks, "_load_kits", lambda: {(JUMP, step): LoadKit.DUMBBELLS})
+
+
+@pytest.mark.parametrize("loaded", [None, 2], ids=["no-step-loaded", "the-new-step-loaded"])
+def test_a_weight_on_a_set_done_at_an_unloaded_earlier_level_is_refused(
+    seeded: Session, monkeypatch: pytest.MonkeyPatch, loaded: int | None
+) -> None:
+    """A set kept at an earlier level is checked against that level, not the step shown now:
+    the browser re-sends every set, so it could add a weight to one done without."""
+    steps = _steps(seeded)
+    if loaded is not None:
+        _loaded_at(monkeypatch, steps[loaded].name)
+    plan = _plan(seeded)
+    assert guided.keep(seeded, plan, 0, 1, [], [guided.Done(0, 1, 9)]) == 1
+    assert isinstance(change(seeded, plan, 1, JUMP, steps[2].id, Scope.TODAY), Changed)
+    done = [guided.Done(0, 1, 9, load_kg=10.0), guided.Done(0, 2, 6)]
+    refused = guided.keep(seeded, _plan(seeded), 2, 2, [], done)
+    assert refused == "Jump squat isn't done with a weight"
+    kept = guided.kept(seeded, DAY)
+    assert kept is not None
+    assert (kept.revision, [d.load_kg for d in kept.sets]) == (2, [None])
+
+
+def test_a_weight_on_a_set_done_at_a_loaded_earlier_level_is_kept(
+    seeded: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bottom, pause, _ = _steps(seeded)
+    _loaded_at(monkeypatch, bottom.name)
+    plan = _plan(seeded)
+    assert plan.items[0].load is not None
+    assert guided.keep(seeded, plan, 0, 1, [], [guided.Done(0, 1, 9, load_kg=12.0)]) == 1
+    assert change(seeded, plan, 1, JUMP, pause.id, Scope.TODAY) == Changed(2, None)
+    assert _plan(seeded).items[0].load is None
+    done = [guided.Done(0, 1, 9, load_kg=12.0), guided.Done(0, 2, 6)]
+    assert guided.keep(seeded, _plan(seeded), 2, 2, [], done) == 3
+    assert _saved_steps(seeded) == [(1, bottom.id), (2, pause.id)]
+    workout = seeded.scalars(select(Workout)).one()
+    assert sorted(r.load_kg for r in workout.sets if r.set_no == 1 and r.load_kg) == [12.0]
