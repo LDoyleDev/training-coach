@@ -49,7 +49,18 @@ export interface Props {
   wall?: { x0: number; x1: number; top: number }
   /** A towel under the near heel, sliding with it. */
   towel?: boolean
+  /** A barbell seen end on, in the near fist: a plate behind the figure, the bar's end in front
+   * of it. 'plate' is one plate held in the fist, drawn where the order puts 'bell'. */
+  barbell?: true | 'plate'
+  /** A squat rack's two uprights behind the figure, at x0 and x1, its safety bars ``pins`` up. */
+  rack?: { x0: number; x1: number; pins: number }
+  /** A gym machine seen side on, fixed in place: steel tubes (``frame``) and pads (``pads``)
+   * behind the figure, and pads in front of it (``over``), each from [x, y] to [x, y]. A pad from
+   * a point to itself is a roller. */
+  machine?: { frame?: readonly Seg[]; pads?: readonly Seg[]; over?: readonly Seg[] }
 }
+
+type Seg = readonly [number, number, number, number]
 
 /** Radii in cm: [at the first joint, at the second]. */
 export const SIZE = {
@@ -247,6 +258,36 @@ function bench({ x0, x1, top, behind }: NonNullable<Props['bench']>): Shape[] {
   ]
 }
 
+const tubes = (segs: readonly Seg[] = [], r = 2, tone: Tone = 'bell') =>
+  segs.map(([a, b, c, d]) => limb([a, b], [c, d], [r, r], tone))
+const PAD = 4.5
+
+/** A squat rack's uprights and safety bars, behind the figure. */
+function rack({ x0, x1, pins }: NonNullable<Props['rack']>): Shape[] {
+  return [
+    rect(x0, 0, x0 + 5, 200, 'far'),
+    rect(x1 - 5, 0, x1, 200, 'far'),
+    rect(x0, pins - 3, x1, pins, 'bell'),
+  ]
+}
+
+/** The middle of the near fist, where a bar or a handle is held. */
+const fist = (j: Joints): Vec => [
+  (j.armN.wrist[0] + j.armN.tip[0]) / 2,
+  (j.armN.wrist[1] + j.armN.tip[1]) / 2,
+]
+
+/** A barbell's plate, seen flat on, and its hub; or one smaller plate held on its own. */
+function plate(j: Joints, alone: boolean): Shape[] {
+  const c = fist(j)
+  const r = alone ? 15 : 22.5
+  return [
+    ball(c, r, 'bell'),
+    { kind: 'ring', c: svg(c), r: r * 0.68, width: 1.4, tone: 'far' },
+    ball(c, r * 0.2, 'far'),
+  ]
+}
+
 /** A folded towel on the floor, under the near heel. */
 function towel(j: Joints): Shape[] {
   const x = j.legN.heel[0]
@@ -290,6 +331,9 @@ export function scenery(props: Props): Shape[] {
   if (props.chair && !props.chair.beside) out.push(...chair(props.chair))
   if (props.bench) out.push(...bench(props.bench))
   if (props.bar) out.push(...bracket(props.bar))
+  if (props.rack) out.push(...rack(props.rack))
+  if (props.machine)
+    out.push(...tubes(props.machine.frame), ...tubes(props.machine.pads, PAD, 'prop'))
   if (props.bars) out.push(...bars(props.bars))
   for (const block of [props.wall, props.step])
     if (block) out.push(rect(block.x0, 0, block.x1, block.top))
@@ -309,12 +353,15 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
     else if (part === 'torso' && props.load) out.push(...pack(j), ...torso(j, 'near'), ...strap(j))
     else if (part === 'torso') out.push(...torso(j, 'near'))
     else if (part === 'head') out.push(...head(j, 'near'))
+    else if (props.barbell) out.push(...plate(j, props.barbell === 'plate'))
     else if (props.bell === 'sides') out.push(...hanging(j.armN.wrist, 8.6))
     else if (props.bell) out.push(...bell(j, props.bell))
     // The far hand's bell, the lighter one, hangs behind the body.
     if (part === 'armF' && props.bell === 'sides') out.push(...hanging(j.armF.wrist, 6.8))
   }
   if (props.bar) out.push(ball(props.bar, BAR, 'bell'))
+  if (props.barbell === true) out.push(ball(fist(j), 2.6, 'bell')) // the bar's end, nearest
+  if (props.machine) out.push(...tubes(props.machine.over, PAD, 'prop'))
   if (props.chair?.beside) out.push(...chair(props.chair))
   return out
 }
