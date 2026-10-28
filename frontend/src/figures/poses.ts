@@ -467,7 +467,7 @@ export const FIGURES: Readonly<Record<string, Figure>> = {
   },
   'reverse-nordic': {
     frames: ['Kneeling upright, feet anchored', 'Leaning back, knees to head in one line'],
-    view: [-62, 60, -3, 165],
+    view: [-66, 20, -3, 131],
     props: { mat: [-60, 40] },
     tempo: [2200, 500, 1500, 500],
     start: {

@@ -34,6 +34,9 @@ export interface Props {
   /** A bench or a bed; ``behind`` puts it on the far side of the figure, in the far tone, so
    * the near leg and arm read as in front of it. */
   bench?: { x0: number; x1: number; top: number; behind?: boolean }
+  /** A sofa seen from its end, its back at ``x0`` and its front at ``x1``: on short legs, so feet
+   * can hook under its frame, with a seat cushion, a back and a rolled arm. */
+  sofa?: { x0: number; x1: number }
   bar?: Vec // a pull-up bar seen end on: its centre, on a bracket from the wall in front
   /** A kettlebell in both hands, hanging along the forearms; 'near' hangs it straight down
    * from the near hand, as in a one-arm row; 'hammer' holds it there by the handle stood
@@ -304,6 +307,26 @@ function bench({ x0, x1, top, behind }: NonNullable<Props['bench']>): Shape[] {
   ]
 }
 
+/** Sofa heights in cm: the frame's underside (feet go under it), the seat's top, the arm's top
+ * and the back's. */
+export const SOFA = { under: 20, seat: 46, arm: 62, back: 88 }
+
+function sofa({ x0, x1 }: NonNullable<Props['sofa']>): Shape[] {
+  const s = Math.sign(x1 - x0) // from the back to the front
+  const { under, seat, arm, back } = SOFA
+  const roll = (arm - seat) / 2 + 1 // the rolled arm's radius
+  return [
+    rect(x0 + 3 * s, 0, x0 + 7 * s, under),
+    rect(x1 - 7 * s, 0, x1 - 3 * s, under),
+    // The arm at the far end, behind the cushion, its roll showing above the seat.
+    rect(x0, under, x1 - 2 * s, arm - roll),
+    limb([x0 + roll * s, arm - roll], [x1 - roll * s, arm - roll], [roll, roll], 'prop'),
+    rect(x0, under, x1, seat - 12),
+    limb([x0 + 8 * s, seat - 12], [x0 + 12 * s, back - 8], [8, 8], 'prop'),
+    limb([x0 + 23 * s, seat - 6], [x1 - 6 * s, seat - 6], [6, 6], 'prop'),
+  ]
+}
+
 const tubes = (segs: readonly Seg[] = [], r = 2, tone: Tone = 'bell') =>
   segs.map(([a, b, c, d]) => limb([a, b], [c, d], [r, r], tone))
 const PAD = 4.5
@@ -469,6 +492,7 @@ export function scenery(props: Props): Shape[] {
     })
   if (props.chair && !props.chair.beside) out.push(...chair(props.chair))
   if (props.bench) out.push(...bench(props.bench))
+  if (props.sofa) out.push(...sofa(props.sofa))
   if (props.bar) out.push(...bracket(props.bar))
   if (props.rack) out.push(...rack(props.rack))
   if (props.cable) out.push(...column(props.cable))

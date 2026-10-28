@@ -104,6 +104,8 @@ without its figure.
   reverse Nordic's deeper steps use it too.
 - `bell: 'one'`: a one-arm swing's bell along the near forearm; `bell: 'toes'`: a bell resting
   on the near forefoot, rising with the toes.
+- `sofa` (added 28 Oct 2026): a sofa seen from its end, on short legs, with a seat cushion, a
+  back and a rolled arm, so the Nordic curl's heels hook under something that reads as a sofa.
 
 | Exercise | Step | What changes | Figure |
 | --- | --- | --- | --- |

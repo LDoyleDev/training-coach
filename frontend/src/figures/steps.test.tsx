@@ -5,7 +5,7 @@ import { BODY, blend, dist, heading, solve, type Vec } from './body'
 import { solveFront } from './front'
 import Figure from './Figure'
 import { FIGURES } from './poses'
-import { shapes, type Shape } from './shapes'
+import { SOFA, shapes, type Props, type Shape } from './shapes'
 import { STEPS, figureFor } from './steps'
 
 const ALONG = [0, 0.25, 0.5, 0.75, 1]
@@ -310,6 +310,29 @@ test('a Nordic curl falls forward in one line from knees that stay put', () => {
     expect(low.armN.wrist[1] < 4, `${step}: hands on the floor`).toBe(
       step === 'Nordic curl negatives',
     )
+    // A sofa, not a low bench: seat, arm and back, the heels hooked under its front.
+    const { sofa } = nordic.props!
+    expect(nordic.props!.bench, 'no bench').toBeUndefined()
+    expect(tall.legN.heel[0], 'heels under the sofa').toBeGreaterThan(sofa!.x0)
+    expect(tall.legN.heel[0], 'heels under the sofa').toBeLessThan(sofa!.x1)
+    expect(tall.legN.ankle[1] + 4, 'under its frame').toBeLessThan(SOFA.under)
+    expect(SOFA.back).toBeGreaterThan(SOFA.arm)
+    expect(SOFA.arm).toBeGreaterThan(SOFA.seat)
+    const paths = (props?: Props) =>
+      shapes(nordic.start, props).filter((d) => d.kind === 'path').length
+    expect(paths(nordic.props) - paths(), 'legs, frame, cushion, arm, back').toBe(7)
+  }
+})
+
+test('kneeling figures fill their picture: no empty band above the head', () => {
+  const steps = ['Lean deeper, 3 s lowering', 'To the floor, hands push you back', undefined]
+  const kneeling = [
+    ...steps.map((step) => figureFor('reverse-nordic', step)!),
+    figureFor('hamstring-curl', 'Nordic curl negatives')!,
+  ]
+  for (const figure of kneeling) {
+    const top = solve(figure.start).head.c[1] + 11.5
+    expect(figure.view[3] - top, figure.frames[1]).toBeLessThan(6)
   }
 })
 
