@@ -2,7 +2,8 @@
 mcp-threat-model.md M10 and requirement 15).
 
 ``propose_log`` never saves. What it sends is checked as hard as a typed log: strength sets go
-through the typed-log model (``groq.Rewrite``) and the rule parser, cardio, habits and body
+through the typed-log model (``groq.Rewrite``) and the rule parser, with a weight in kg only on a
+step that takes load, written into the text as a typed one is (ADR-0072); cardio, habits and body
 measurements through the checks of their own save paths; anything else is refused with a short
 reason. A run read from a screenshot (cardio-photo-prefill.md, option A) may carry its distance,
 heart rate and start (ADR-0067), checked with the bounds of a typed log; never how hard it felt,
@@ -26,6 +27,7 @@ import secrets
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from itertools import groupby
 from typing import Annotated, Any, Literal, cast, get_args
 from zoneinfo import ZoneInfo
 
@@ -41,9 +43,10 @@ from training_coach.domain.dates import MAX_DAYS_BACK
 from training_coach.domain.enums import CardioActivity, ExerciseKind, Side
 from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.habits import Habit, can_change
+from training_coach.domain.load import MAX_KG, kg_text, valid_kg
 from training_coach.domain.measurements import SPECS, first_sentence, how, to_tenths
 from training_coach.domain.measurements import Kind as Measure
-from training_coach.domain.parser import Entry, sets_text
+from training_coach.domain.parser import LOAD, Entry, sets_text
 from training_coach.domain.queue import local_date
 from training_coach.services import cardio, day_clash, habits, measurements, workout_log
 from training_coach.services import zones as heart
@@ -86,8 +89,13 @@ class _Proposal(BaseModel):
     day: Day | None = None  # today when left out
 
 
+Kg = Annotated[float, Field(allow_inf_nan=False, strict=True)]
+
+
 class _Line(RewriteLine):
     sets: list[Annotated[int, Field(ge=0, strict=True)]] = Field(max_length=20)
+    # On a step that takes load (ADR-0072): one weight for every set, or one per set.
+    kg: Kg | list[Kg] | None = Field(default=None)
 
 
 class StrengthProposal(_Proposal):
@@ -146,6 +154,8 @@ Proposal = Annotated[
 ]
 _PROPOSAL: TypeAdapter[Proposal] = TypeAdapter(Proposal)
 
+_KG = {"type": "number", "exclusiveMinimum": 0, "maximum": MAX_KG}  # to 0.01 kg
+
 # The tool's input, for the AI: one flat object, checked above by kind.
 INPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -159,13 +169,24 @@ INPUT_SCHEMA: dict[str, Any] = {
         "exercises": {
             "type": "array",
             "description": "strength: each exercise by its name in the plan, with one number "
-            "per set, in reps (unit '') or seconds (unit 's')",
+            "per set, in reps (unit '') or seconds (unit 's'), and its weight when the step is "
+            "done with one",
             "items": {
                 "type": "object",
                 "properties": {
                     "exercise": {"type": "string"},
                     "sets": {"type": "array", "items": {"type": "integer", "minimum": 0}},
                     "unit": {"type": "string", "enum": ["", "s", "min"]},
+                    "kg": {
+                        "description": "only on a step done with a weight (a gym exercise): "
+                        "the kg lifted (to 0.01 kg), one number for all the sets or one per set; "
+                        "for dumbbells the weight of one. Leave it out for bodyweight: it is "
+                        "refused there",
+                        "anyOf": [
+                            _KG,
+                            {"type": "array", "items": _KG, "minItems": 1, "maxItems": 20},
+                        ],
+                    },
                 },
                 "required": ["exercise", "sets", "unit"],
                 "additionalProperties": False,
@@ -251,6 +272,25 @@ def _day_problem(day: date, today: date, days_back: int) -> str | None:
     return None
 
 
+def _weighed(line: _Line) -> list[str] | Refused:
+    """A line as typed log lines, so the rule parser checks its weight as it checks a typed
+    one: only on a step that takes load ("Dip isn't done with a weight"). One line per run of
+    sets at one weight ("Rows 10 10 at 16", then "Rows 9 at 14"), as a person would type it."""
+    if line.kg is None:
+        return [workout_log.rewrite_text(Rewrite(lines=[line]))]
+    weights = line.kg if isinstance(line.kg, list) else [line.kg] * len(line.sets)
+    if len(weights) != len(line.sets):
+        return Refused("give one weight in kg for all the sets, or one for each set")
+    if any(not valid_kg(kg) or round(kg, 2) != kg for kg in weights):
+        return Refused(f"a weight is more than 0 and at most {kg_text(MAX_KG)} kg, to 0.01 kg")
+    lines = []
+    for kg, run in groupby(zip(weights, line.sets, strict=True), key=lambda pair: pair[0]):
+        values = [value for _, value in run]
+        same = RewriteLine(exercise=line.exercise, sets=values, unit=line.unit)
+        lines.append(f"{workout_log.rewrite_text(Rewrite(lines=[same]))} at {kg_text(kg)}")
+    return lines
+
+
 def _strength(
     session: Session, found: StrengthProposal, day: date, today: date, tz: ZoneInfo
 ) -> _Checked | Refused:
@@ -260,9 +300,17 @@ def _strength(
         return Refused("every exercise needs at least one set")
     if any(not line.exercise.isprintable() for line in found.exercises):
         return Refused("exercise names are plain text on one line")
+    if any(LOAD.search(line.exercise.lower()) for line in found.exercises):
+        return Refused("give a weight as kg, not in the exercise's name")
+    lines: list[str] = []
+    for line in found.exercises:
+        weighed = _weighed(line)
+        if isinstance(weighed, Refused):
+            return weighed
+        lines += weighed
     # Always under a date line of our own (ADR-0033: today's date on top is an ordinary log),
     # so nothing the AI wrote can be read as one.
-    text = f"{day.isoformat()}\n{workout_log.rewrite_text(Rewrite(lines=found.exercises))}"
+    text = "\n".join([day.isoformat(), *lines])
     draft = workout_log.draft(session, text, today, tz)
     if draft.problems or not draft.entries or draft.rest or draft.on != day:
         return Refused("; ".join(draft.problems[:REASONS]) or "nothing to log")
@@ -277,7 +325,10 @@ def _strength(
     payload = {
         "template_id": draft.template_id,
         "session_name": draft.session_name,
-        "entries": [[e.slug, [[n, side.value, v] for n, side, v in e.sets]] for e in draft.entries],
+        "entries": [
+            [e.slug, [[n, side.value, v] for n, side, v in e.sets], [list(kg) for kg in e.loads]]
+            for e in draft.entries
+        ],
         "strength": draft.strength,
         "backdated": draft.backdated,
     }
@@ -737,9 +788,14 @@ def _write(
             on=day,
             template_id=data["template_id"],
             session_name=data["session_name"],
+            # (set number, kg) third, on a loaded step (ADR-0072); none before weights.
             entries=tuple(
-                Entry(slug, tuple((n, Side(side), v) for n, side, v in sets))
-                for slug, sets in data["entries"]
+                Entry(
+                    slug,
+                    tuple((n, Side(side), v) for n, side, v in sets),
+                    tuple((n, kg) for loads in rest for n, kg in loads),
+                )
+                for slug, sets, *rest in data["entries"]
             ),
             problems=(),
             strength=data["strength"],

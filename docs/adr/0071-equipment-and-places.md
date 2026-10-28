@@ -127,3 +127,18 @@ Decided while building, within this ADR:
   version? They are dropped; nothing saved changes." before anything happens.
 - **Still to come:** each person's own increments and the next weight owned at home (ADR-0072),
   and the body map's home or gym view (Consequences).
+
+## Built (the body map's place, builder step 9, 28 Oct 2026)
+
+From here the body map no longer stays the home plan's (Built, above).
+
+- `GET /api/plan/coverage?place=home|gym` counts each session's version at that place; a session
+  with no gym version counts its one version in both. Each session's answer says which version
+  it counted (`place`), and the whole answer says the place counted and where the person trains.
+- Without `place` it counts the day's place: home for someone at home only, the gym at a gym
+  only, and for someone at both the last place chosen on Today's switch. This is option E's
+  "the version used most recently", for the whole week rather than per session.
+- On Plan someone who trains at both gets Home | Gym above the sessions and above the week's
+  map; both follow it, as does each open session's own map, which in the gym view says which
+  version it counts. It is only a view: the place Today starts at stays as it is. The exercise
+  lists under each session are still the home versions.

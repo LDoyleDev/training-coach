@@ -138,8 +138,10 @@ TOOLS = (
         PROPOSE,
         "Propose a log",
         "Propose something for the person to log: strength sets (exercise names as in the "
-        "plan, one number per set), cardio minutes, habits done, or body measurements "
-        "(weight, a scale's body fat, girths; never resting heart rate or the estimate), for "
+        "plan, one number per set, and `kg` on a step done with a weight: one for all the "
+        "sets or one per set, never on bodyweight), cardio minutes, habits done, or body "
+        "measurements (weight, a scale's body fat, girths; never resting heart rate or the "
+        "estimate), for "
         "today or an earlier day. For cardio, `cardio` (zone2 or moderate-cardio) is an "
         "optional hint: the person picks which it was on the card. For a run or ride the "
         "person shares a screenshot of, also send what it shows: distance_km, avg_hr, max_hr "

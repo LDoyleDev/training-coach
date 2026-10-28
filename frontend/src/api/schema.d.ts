@@ -1125,7 +1125,8 @@ export interface paths {
         /**
          * Get Coverage
          * @description Weekly fractional sets per muscle with its band and warnings, from the plan as it
-         *     stands; nothing here changes it.
+         *     stands, counting each session's version at ``place`` (default: the day's place); nothing
+         *     here changes it, not even the place Today starts at.
          */
         get: operations["get_coverage_api_plan_coverage_get"];
         put?: never;
@@ -2122,6 +2123,8 @@ export interface components {
             minimum: number;
             /** Muscles */
             muscles: components["schemas"]["MuscleView"][];
+            place: components["schemas"]["Place"];
+            places: components["schemas"]["Places"];
             /** Session Cap */
             session_cap: number;
             /** Sessions */
@@ -2407,11 +2410,11 @@ export interface components {
         /** Health */
         Health: {
             /** Bot Enabled */
-            bot_enabled: boolean;
+            bot_enabled?: boolean | null;
             /** Status */
             status: string;
             /** Version */
-            version: string;
+            version?: string | null;
         };
         /**
          * HealthView
@@ -3629,6 +3632,7 @@ export interface components {
             grip_sets: number;
             /** Muscles */
             muscles: components["schemas"]["SessionMuscleView"][];
+            place: components["schemas"]["Place"];
             /** Session */
             session: string;
             /** Slug */
@@ -5885,7 +5889,9 @@ export interface operations {
     };
     get_coverage_api_plan_coverage_get: {
         parameters: {
-            query?: never;
+            query?: {
+                place?: components["schemas"]["Place"] | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -5899,6 +5905,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CoverageView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
