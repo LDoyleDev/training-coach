@@ -6,7 +6,7 @@
 import type { Motion, Vec } from './body'
 import type { FrontPose } from './front'
 import { GYM } from './gym'
-import type { Bench3, Camera } from './perspective'
+import type { Bench3, Camera, Kit } from './perspective'
 import type { Part, Props } from './shapes'
 
 type Box = readonly [number, number, number, number] // x0, x1, y0, y1 in cm, the floor at y = 0
@@ -18,7 +18,7 @@ export interface Figure extends Motion {
   order?: readonly Part[]
   /** The same movement seen from the front (front.ts), at the same pace, for one that happens
    * side-on to the body. It is shown first. */
-  front?: { view: Box; camera: Camera; seat?: Bench3; start: FrontPose; end: FrontPose }
+  front?: Kit & { view: Box; camera: Camera; seat?: Bench3; start: FrontPose; end: FrontPose }
   /** A close-up in the side view: the circle of radius ``r`` around ``of``, drawn larger in a
    * circle of radius ``size`` at ``at``, for a small movement such as a heel lifting. */
   inset?: { of: Vec; r: number; at: Vec; size: number }
