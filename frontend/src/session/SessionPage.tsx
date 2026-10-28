@@ -1089,8 +1089,20 @@ function Counter({
   )
 }
 
-/** The weight on a loaded step (ADR-0072): − and + in the kit's increment, no typing. It says
- * where the weight came from; what to lift is the person's call. */
+/** The weight next to ``kg`` either way: through the weights owned at home, else by the
+ * increment; null at either end. */
+function stepTo(load: NonNullable<GuidedItem['load']>, kg: number, sign: number): number | null {
+  if (load.owned?.length) {
+    const found = sign > 0 ? load.owned.filter((w) => w > kg) : load.owned.filter((w) => w < kg)
+    return found.length ? (sign > 0 ? found[0] : found[found.length - 1]) : null
+  }
+  const next = Math.round((kg + sign * load.increment) * 100) / 100
+  return next > 0 && next <= 500 ? next : null
+}
+
+/** The weight on a loaded step (ADR-0072): − and + in the kit's increment, or at home through
+ * the weights owned, no typing. It says where the weight came from; what to lift is the
+ * person's call. */
 function LoadCounter({
   load,
   kg,
@@ -1103,7 +1115,8 @@ function LoadCounter({
   onChange: (kg: number) => void
 }) {
   const label = load.kit === 'dumbbells' ? 'Each dumbbell, kg' : 'Weight, kg'
-  const by = (sign: number) => onChange(Math.round((kg + sign * load.increment) * 100) / 100)
+  const [down, up] = [stepTo(load, kg, -1), stepTo(load, kg, 1)]
+  const owned = !!load.owned?.length
   const note = !load.carried
     ? 'First time at this step: set your weight'
     : kg === last
@@ -1115,10 +1128,14 @@ function LoadCounter({
       <div className="flex items-center gap-5">
         <button
           type="button"
-          aria-label={`${load.increment} kg lighter`}
-          disabled={kg - load.increment <= 0}
+          aria-label={
+            owned
+              ? `Lighter${down !== null ? `: ${kgText(down)}` : ''}`
+              : `${load.increment} kg lighter`
+          }
+          disabled={down === null}
           className="size-14 rounded-full border-2 border-[var(--ink)] text-2xl disabled:opacity-40"
-          onClick={() => by(-1)}
+          onClick={() => down !== null && onChange(down)}
         >
           −
         </button>
@@ -1127,10 +1144,14 @@ function LoadCounter({
         </span>
         <button
           type="button"
-          aria-label={`${load.increment} kg heavier`}
-          disabled={kg + load.increment > 500}
+          aria-label={
+            owned
+              ? `Heavier${up !== null ? `: ${kgText(up)}` : ''}`
+              : `${load.increment} kg heavier`
+          }
+          disabled={up === null}
           className="size-14 rounded-full border-2 border-[var(--ink)] text-2xl disabled:opacity-40"
-          onClick={() => by(1)}
+          onClick={() => up !== null && onChange(up)}
         >
           +
         </button>
@@ -1160,6 +1181,12 @@ function Weight({
     <>
       <LoadCounter load={load} kg={kg} last={sent.kg[setNo - 1]} onChange={onChange} />
       {sent.suggested && <Suggested load={sent} taken={load !== sent} onChoose={onChoose} />}
+      {sent.unlock && (
+        <p className={card + ' m-0'}>
+          Every set reached the top of the range last time. Top for your kit: {sent.unlock} would
+          open the next weight.
+        </p>
+      )}
     </>
   )
 }
