@@ -17,6 +17,8 @@ export interface FrontLimb {
   bend?: number
   /** The hand's or foot's angle; it carries on from the forearm or shin by default. */
   angle?: number
+  /** How far the elbow and the hand come towards you, in cm: a hand reaching out in front. */
+  toward?: Vec
 }
 
 export interface FrontPose {
@@ -39,6 +41,7 @@ export interface FrontLimbJoints {
   mid: Vec
   end: Vec
   tip: Vec
+  z: Vec // how far the elbow or knee and the hand or foot are towards you
 }
 
 export interface FrontJoints {
@@ -70,7 +73,8 @@ export function solveFront(pose: FrontPose): FrontJoints {
     const { mid, end } = limb.mid
       ? { mid: [root[0] + limb.mid[0], root[1] + limb.mid[1]] as Vec, end: target }
       : twoBone(root, target, a, b, limb.bend ?? 1)
-    return { root, mid, end, tip: along(end, limb.angle ?? heading(mid, end), tipLen) }
+    const tip = along(end, limb.angle ?? heading(mid, end), tipLen)
+    return { root, mid, end, tip, z: limb.toward ?? ([0, 0] as Vec) }
   }
   const arm = (limb: FrontLimb, left: boolean) =>
     place(

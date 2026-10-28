@@ -24,6 +24,19 @@ export interface Bench3 {
   depth: number
 }
 
+/** A cable from a pulley (on a column behind it) to the left or right hand. */
+export interface Cable3 {
+  pulley: Vec3
+  hand: 'L' | 'R'
+}
+
+/** What stands around a figure seen from the front: ``standing`` puts it on a floor of its own
+ * (no forearm on the floor, as in a side plank), and ``cables`` run to its hands. */
+export interface Kit {
+  standing?: boolean
+  cables?: readonly Cable3[]
+}
+
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 const norm = (a: Vec3): Vec3 => {
@@ -185,13 +198,14 @@ function bench(see: Project, camera: Camera, b: Bench3): Drawn[] {
 const at = (p: Vec, z = 0): Vec3 => [p[0], p[1], z]
 
 function arm(see: Project, j: FrontLimbJoints, tone: Tone, forearm?: Vec3[]): Drawn[] {
-  const [wrist, tip] = forearm ?? [at(j.end), at(j.tip)]
+  const [wrist, tip] = forearm ?? [at(j.end, j.z[1]), at(j.tip, j.z[1])]
+  const elbow = at(j.mid, j.z[0])
   return [
-    capsule(see, at(j.root), at(j.mid), SIZE.upperArm, tone),
-    capsule(see, at(j.mid), wrist, SIZE.forearm, tone),
+    capsule(see, at(j.root), elbow, SIZE.upperArm, tone),
+    capsule(see, elbow, wrist, SIZE.forearm, tone),
     capsule(see, wrist, tip, SIZE.hand, tone),
     sphere(see, wrist, SIZE.joint.wrist, tone, 0.5),
-    sphere(see, at(j.mid), SIZE.joint.elbow, tone, 0.5),
+    sphere(see, elbow, SIZE.joint.elbow, tone, 0.5),
     sphere(see, at(j.root), SIZE.joint.shoulder, tone, 0.5),
   ]
 }
@@ -208,8 +222,28 @@ function leg(see: Project, j: FrontLimbJoints, tone: Tone): Drawn[] {
   ]
 }
 
+/** A cable column behind each pulley, its stack at the foot, and the cable to the hand. */
+function cables(see: Project, camera: Camera, j: ReturnType<typeof solveFront>, kit: Kit) {
+  return (kit.cables ?? []).flatMap(({ pulley: [x, y, z], hand }): Drawn[] => {
+    const limb = hand === 'L' ? j.armL : j.armR
+    const grip = at(limb.tip, limb.z[1])
+    return [
+      ...box(see, camera, [x - 4, 0, z - 12], [x + 4, Math.max(y + 8, 150), z - 4], 'bell'),
+      ...box(see, camera, [x - 10, 0, z - 18], [x + 10, 45, z + 2], 'bell'),
+      sphere(see, [x, y, z], 4.5, 'far'),
+      capsule(see, [x, y, z], grip, [1.1, 1.1], 'far'),
+      sphere(see, grip, 3, 'bell', 2),
+    ]
+  })
+}
+
 /** Everything to draw for ``pose`` seen by ``camera``, far to near. */
-export function perspectiveShapes(pose: FrontPose, camera: Camera, seat?: Bench3): Shape[] {
+export function perspectiveShapes(
+  pose: FrontPose,
+  camera: Camera,
+  seat?: Bench3,
+  kit: Kit = {},
+): Shape[] {
   const see = lens(camera)
   const j = solveFront(pose)
   const [hipL, hipR] = [at(j.legL.root), at(j.legR.root)]
@@ -218,20 +252,24 @@ export function perspectiveShapes(pose: FrontPose, camera: Camera, seat?: Bench3
   const waistR = at([(j.legR.root[0] + j.armR.root[0]) / 2, (j.legR.root[1] + j.armR.root[1]) / 2])
   // The bottom forearm lies on the floor, pointing the way the chest faces.
   const elbow = j.armL.mid
-  const forearm: Vec3[] = [
-    [elbow[0] + 1, 3, 22],
-    [elbow[0] + 1.5, 2.4, 30],
-  ]
+  const forearm: Vec3[] | undefined = kit.standing
+    ? undefined
+    : [
+        [elbow[0] + 1, 3, 22],
+        [elbow[0] + 1.5, 2.4, 30],
+      ]
   const nose: Vec3 = [j.head[0], j.head[1], 9.5]
+  const [x0, x1] = kit.standing ? [-60, 60] : [-75, 48]
   const mat: Vec3[] = [
-    [-75, 0, -32],
-    [48, 0, -32],
-    [48, 0, 42],
-    [-75, 0, 42],
+    [x0, 0, -32],
+    [x1, 0, -32],
+    [x1, 0, 42],
+    [x0, 0, 42],
   ]
   const edges: Shape[] = [{ kind: 'floor', d: path(mat.map((c) => see(c).p)) }]
   const parts: Drawn[] = [
     ...(seat ? bench(see, camera, seat) : []),
+    ...cables(see, camera, j, kit),
     ...leg(see, j.legL, 'far'),
     ...leg(see, j.legR, 'near'),
     ...arm(see, j.armL, 'far', forearm),
