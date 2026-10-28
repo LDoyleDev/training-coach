@@ -454,9 +454,8 @@ fly. They can be logged by text or voice and are there for the editor (steps 6 a
    progression. **Built** (ADR-0072, Built): `set_logs.load_kg`, the weight on the set screen
    with − and + from last time, typed and spoken weights ("rows 10 10 9 at 16"), the suggested
    next weight (a tap), targets and bests per weight, the chart's period per weight with a kg
-   strip, and 23 gym exercises (the other six are home ladders already). Still to come: the
-   AI's `propose_log` and the summaries showing weights, each person's own increments and the
-   next weight owned at home (with places, step 9), and figures for the gym exercises.
+   strip, and 23 gym exercises (the other six are home ladders already). Still to come: each
+   person's own increments and the next weight owned at home (with places, step 9).
 9. **Home and gym versions**, `workouts.place`, the switch on Today. **Places built** (ADR-0071,
    Built): where you train on Account (home, gym or both), `workouts.place`, and
    `template_items.place` for a session's two versions. **Gym versions in `plan.toml`**

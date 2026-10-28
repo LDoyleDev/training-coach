@@ -3319,6 +3319,17 @@
             "title": "Left",
             "type": "integer"
           },
+          "load_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load Kg"
+          },
           "right": {
             "anyOf": [
               {
@@ -3338,7 +3349,8 @@
         "required": [
           "set_no",
           "left",
-          "right"
+          "right",
+          "load_kg"
         ],
         "title": "LoggedSetView",
         "type": "object"

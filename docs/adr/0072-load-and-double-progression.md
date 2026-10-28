@@ -119,6 +119,10 @@ Decided while building, within this ADR:
   and highest kg and described in words. An exercise without weights keeps its step periods
   and has no strip. The strip breaks at a session without a weight, as the chart starts a
   "No weight" period there.
+- **The summaries** (28 Oct 2026). Today's day log and the AI's read tools (`get_summary`,
+  `get_exercise`, "Copy for my AI", guide version 4) write a line's weights as the confirm step
+  does: "10 / 10 / 9 at 16 kg", "at 16 / 16 / 18 kg" when the sets differ, a dash for a set
+  without one. The export already lists `load_kg` with every set.
 - **The gym catalogue:** 23 exercises from Decided 5 that the home plan lacks, each one step
   that takes load (the 45° back extension: bodyweight, then holding a plate), with the
   research file's weights, a summary and typed-log aliases. The split squat, Copenhagen plank,

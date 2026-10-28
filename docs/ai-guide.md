@@ -1,6 +1,6 @@
 # Training Coach: a guide for AI assistants
 
-Guide version: 3
+Guide version: 4
 
 You've been given a summary from **Training Coach**, a personal training app, by the person
 whose training it is. This page explains what the numbers mean and how to help. It contains no
@@ -37,6 +37,10 @@ personal data; the summary does.
   lists their home kit, a step it doesn't allow is locked: moving up skips to the next step
   they can do, and "top for my kit" names what would unlock the next one. Before a kit is
   listed nothing is locked. A gym has everything.
+- **Weights.** A gym exercise is one step done with a weight in kg (for dumbbells, the weight of
+  one). Reps go up within the range at one weight; once every set of a session at that weight
+  reached the top, the app suggests the next weight up and the reps start again at the bottom
+  of the range. The person decides.
 - **Blocks (optional).** With blocks on, 4-week strength blocks (one step harder, 4-8 reps, 3-4
   sets) alternate with 4-week hypertrophy blocks (the plan's ranges). A session's block is shown
   after its status. Strength and hypertrophy numbers aren't compared with each other.
@@ -49,7 +53,9 @@ personal data; the summary does.
   the best set at this step, and whether it's ready to move up.
 - **Sessions, newest first:** date, session, and `done`, `rest` or `skipped`. Sets per exercise
   with the step in brackets. Units: plain numbers are reps, `s` seconds, `min` minutes.
-  One-sided exercises list `left` and `right` separately.
+  One-sided exercises list `left` and `right` separately. Sets done with a weight end with it:
+  `10 / 10 / 9 at 16 kg`, or `at 16 / 16 / 18 kg` when the sets differ, a dash for a set
+  logged without one; a one-sided set's weight is for both sides.
 - **Test days:** retests of the same tests every 4 weeks or at the start of a block, done in two
   days. Each lists its conditions (time of day, fed or fasted, slept well or badly). Compare a
   result with the first (baseline) and the previous test only when the conditions match; say so
