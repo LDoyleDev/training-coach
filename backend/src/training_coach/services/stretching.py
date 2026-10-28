@@ -8,33 +8,40 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import Exercise, SessionTemplate, SetLog, TemplateItem, Workout
-from training_coach.domain.enums import Side, WorkoutStatus
+from training_coach.domain.enums import Place, Side, WorkoutStatus
 from training_coach.domain.stretching import CHOICES, Step, routine
 from training_coach.services import users
 from training_coach.services.seed import bundled_plan
 
 
-def worked(session: Session, template_id: int) -> dict[str, float] | None:
-    """Planned fractional sets per muscle in a session (ADR-0064), or None if there's no such
-    session."""
+def worked(
+    session: Session, template_id: int, place: Place = Place.HOME
+) -> dict[str, float] | None:
+    """Planned fractional sets per muscle in a session's version for ``place`` (ADR-0064,
+    ADR-0071), or None if there's no such session."""
     template = session.scalar(
         select(SessionTemplate)
         .where(SessionTemplate.id == template_id)
-        .options(selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise))
+        .options(
+            selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise),
+            selectinload(SessionTemplate.gym_items).selectinload(TemplateItem.exercise),
+        )
     )
     if template is None:
         return None
     weights = {e.slug: e.muscles for e in bundled_plan().exercises}
     sets: dict[str, float] = {}
-    for item in template.items:
+    for item in template.version(place):
         for muscle, weight in weights.get(item.exercise.slug, {}).items():
             sets[muscle] = sets.get(muscle, 0) + weight * item.sets
     return sets
 
 
-def for_session(session: Session, template_id: int, minutes: int) -> list[Step] | None:
+def for_session(
+    session: Session, template_id: int, minutes: int, place: Place = Place.HOME
+) -> list[Step] | None:
     """The routine after ``template_id`` in ``minutes``, or None if there's no such session."""
-    muscles = worked(session, template_id)
+    muscles = worked(session, template_id, place)
     if muscles is None:
         return None
     return routine([s.stretch() for s in bundled_plan().stretches], muscles, minutes)
@@ -73,8 +80,8 @@ def for_workout(session: Session, workout_id: int, minutes: int) -> Routine | No
     found = _strength_workout(session, workout_id)
     if found is None or minutes not in CHOICES:
         return None
-    _, template = found
-    steps = for_session(session, template.id, minutes)
+    workout, template = found
+    steps = for_session(session, template.id, minutes, Place(workout.place))
     return Routine(template.name, minutes, steps) if steps else None
 
 

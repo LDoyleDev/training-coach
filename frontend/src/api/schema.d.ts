@@ -1378,6 +1378,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/session/place": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose Place
+         * @description Do today's session at home or at the gym (ADR-0071): the person's switch, never the
+         *     app's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when
+         *     sets are kept for the version shown (ask, then confirm), or with a ``detail`` message when
+         *     today has no choice to make.
+         */
+        put: operations["choose_place_api_session_place_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session/progress": {
         parameters: {
             query?: never;
@@ -2329,6 +2352,13 @@ export interface components {
             name: string;
             /** Order */
             order: components["schemas"]["SetView"][];
+            /** @default home */
+            place: components["schemas"]["Place"];
+            /**
+             * Place Choice
+             * @default false
+             */
+            place_choice: boolean;
             /** Rest Seconds */
             rest_seconds: number;
             /** Template Id */
@@ -2580,6 +2610,7 @@ export interface components {
         KeepBody: {
             /** First */
             first?: number[];
+            place: components["schemas"]["Place"];
             /** Position */
             position: number;
             /**
@@ -3172,6 +3203,30 @@ export interface components {
             picked_id: number;
             /** Template Id */
             template_id: number;
+        };
+        /**
+         * Place
+         * @description Where a workout is done (ADR-0071): at home, with the person's own kit, or at a gym,
+         *     which has everything. A session can hold a version for each.
+         * @enum {string}
+         */
+        Place: "home" | "gym";
+        /**
+         * PlaceAsk
+         * @description The answer to a switch with sets kept: ask first, then send it again with confirm.
+         */
+        PlaceAsk: {
+            /** Kept Sets */
+            kept_sets: number;
+        };
+        /** PlaceBody */
+        PlaceBody: {
+            /**
+             * Confirm
+             * @default false
+             */
+            confirm: boolean;
+            place: components["schemas"]["Place"];
         };
         /**
          * Places
@@ -6217,6 +6272,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PendingView"][];
+                };
+            };
+        };
+    };
+    choose_place_api_session_place_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaceBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TodayView"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceAsk"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

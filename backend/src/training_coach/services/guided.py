@@ -30,13 +30,13 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.domain.blocks import Block
-from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
+from training_coach.domain.enums import ExerciseKind, Place, Side, WorkoutStatus
 from training_coach.domain.load import MAX_KG, valid_kg
 from training_coach.domain.parser import LIMITS, Entry
 from training_coach.domain.rest import AFTER_PAIR_SECONDS, Kind, Rest, rests
 from training_coach.domain.session_times import plausible
 from training_coach.domain.work_order import SetRef, work_order
-from training_coach.services import blocks, workout_log
+from training_coach.services import blocks, user_settings, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
 from training_coach.services.seed import bundled_plan
 from training_coach.services.today import ItemPlan, SessionPlan, position, session_plan
@@ -68,6 +68,8 @@ class Guided:
     order: tuple[GuidedSet, ...]
     slug: str = ""  # the session template's
     after_run: bool = False  # what's left of a conditioning session once its cardio is logged
+    place: Place = Place.HOME  # where it is done: its home or gym version (ADR-0071)
+    switch: bool = False  # Today offers Home | Gym
 
 
 def _kinds(items: tuple[ItemPlan, ...]) -> list[Kind | None]:
@@ -167,6 +169,8 @@ def _guided(
         items=items,
         order=order,
         after_run=after_run,
+        place=plan.place,
+        switch=plan.switch,
     )
 
 
@@ -310,6 +314,7 @@ class Kept:
     saved: bool
     revision: int = 0
     after_run: bool = False  # kept for the block after a run (ADR-0066)
+    place: Place = Place.HOME  # the version its sets were done in (ADR-0071)
     steps: tuple[tuple[str, int], ...] = ()  # levels chosen for today (ADR-0080): slug, step
 
 
@@ -339,6 +344,7 @@ def _kept(row: SessionProgress) -> Kept:
         saved=row.saved_workout_id is not None,
         revision=row.revision,
         after_run=row.after_run,
+        place=Place(row.place),
         steps=tuple(sorted(row.steps.items())),
     )
 
@@ -444,10 +450,11 @@ def keep(
         row = None
     if row is not None and row.saved_workout_id is not None:
         return "this session is saved already"
-    if row is not None and row.template_id != plan.template_id:
+    if row is not None and (row.template_id != plan.template_id or row.place != plan.place):
         if revision != 0:  # this browser still shows the old session: nothing is deleted
             return STALE
-        session.delete(row)  # the day's session changed (a pick or swap): start afresh
+        # The day's session changed (a pick or swap) or its version did: start afresh.
+        session.delete(row)
         session.flush()
         row = None
     if row is not None and row.revision != revision:
@@ -463,6 +470,7 @@ def keep(
                     token=secrets.token_hex(16),
                     revision=0,
                     after_run=plan.after_run,
+                    place=plan.place,
                 )
                 session.add(row)
             row.revision += 1
@@ -562,7 +570,9 @@ def save(
     if row.after_run:
         return _save_after_run(session, row, day, today, tz)
     template = session.get_one(SessionTemplate, row.template_id)  # cascades with its progress
-    plan = session_plan(session, template.id, blocks.current(session, day, tz), row.steps)
+    # The version the sets were done in, not today's place: a switch since doesn't move them.
+    block = blocks.current(session, day, tz)
+    plan = session_plan(session, template.id, block, row.steps, Place(row.place))
     assert plan is not None  # noqa: S101 - the template exists
     sets = tuple(_done(s) for s in row.sets)
     # Checked again: the plan may have changed.
@@ -577,6 +587,7 @@ def save(
         problems=(),
         strength=workout_log.strength_on(session, day, tz, template),
         backdated=day < today,
+        place=plan.place,
         steps=set_levels(plan.items, sets, row.steps),
     )
     result = workout_log.save(session, draft, tz, answer)
@@ -598,7 +609,8 @@ def _save_after_run(
     if day != today or workout is None or workout.template_id != row.template_id:
         return workout_log.Stale()
     template = session.get_one(SessionTemplate, row.template_id)
-    plan = session_plan(session, template.id, blocks.current(session, day, tz), row.steps)
+    block = blocks.current(session, day, tz)
+    plan = session_plan(session, template.id, block, row.steps, Place(row.place))
     assert plan is not None  # noqa: S101 - the template exists
     items = _left(session, workout, plan.items)
     if items is None:
@@ -630,6 +642,23 @@ def _save_after_run(
         session.expire_all()
         return workout_log.Saved(workout.id, already_saved=True)
     return result
+
+
+def switch(session: Session, plan: Guided, place: Place, confirm: bool) -> int | None:
+    """Do ``plan``'s session at ``place`` (ADR-0071): its other version from now on, and the
+    place Today starts at next time (Decided 4). Sets kept for the version shown are dropped
+    with it, so with any kept the answer is their number and nothing changes until the person
+    confirms (ADR-0060's ask first); None once switched. The caller checks ``plan.switch``."""
+    if place is plan.place:
+        return None
+    row = _row(session, plan.day)
+    if row is not None and row.saved_workout_id is None:
+        if row.sets and not confirm:
+            return len(row.sets)
+        session.delete(row)  # its sets and swapped pairs belong to the other version
+        session.flush()
+    user_settings.update(session, place=place)
+    return None
 
 
 def pending(session: Session, today: date) -> list[Pending]:

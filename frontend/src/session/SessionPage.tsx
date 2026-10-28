@@ -315,6 +315,7 @@ export default function SessionPage() {
     try {
       const result = await keepProgress({
         template_id: session.template_id,
+        place: session.place,
         revision,
         position: nextPosition,
         first: nextFirst,

@@ -461,8 +461,9 @@ fly. They can be logged by text or voice and are there for the editor (steps 6 a
    Built): where you train on Account (home, gym or both), `workouts.place`, and
    `template_items.place` for a session's two versions. **Gym versions in `plan.toml`**
    (proposed, Liam to review: L above) for Legs, Torso + neck, Cardio + core and Arms + legs;
-   Progress shows their exercises to someone who trains at a gym. Still to come: the switch on
-   Today.
+   Progress shows their exercises to someone who trains at a gym. **The day's place** in the
+   API: the guided session, the bot's messages and typed logs follow it, with the switch as
+   `PUT /api/session/place`. Still to come: the switch on Today's page.
 10. **Setup flow** (H), the 3- and 4-day starters, and the level questions (G1).
 
 Pictures arrive alongside, as poses are drawn: the set screen first, then the picker. Steps 2-4, 8 and 9
