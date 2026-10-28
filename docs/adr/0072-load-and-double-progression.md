@@ -127,3 +127,9 @@ Decided while building, within this ADR:
   (builder step 9); until then they are logged by text or voice, and an exercise in no
   session shows on Progress once it has been logged. Their figures (ADR-0063) are still to
   be drawn; they are needed before step 9 offers them on the set screen.
+- **The AI's proposals** (28 Oct 2026). A strength line in `propose_log` (ADR-0058) may carry
+  `kg`: one weight for all its sets or one per set. It is written into the log text as a typed
+  weight is ("rows 10 10 at 16", a line per run of sets at one weight), so the rule parser
+  checks it the same way: only on a step that takes load, more than 0 and at most 500 kg, to
+  0.01 kg. The card and the Telegram message show it ("10 / 10 / 9 at 16 kg"), and Save writes
+  it to `load_kg`.
