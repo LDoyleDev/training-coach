@@ -375,7 +375,7 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
    suitcase carries on Recovery and Cardio + core (upper traps 0 → 4, an estimate), with band
    face pulls for the rear delts (7.25 → 9.25), plan version "Rear delts + carries".
 
-### L. Gym versions of the sessions (proposed 27 Oct 2026, Liam to review)
+### L. Gym versions of the sessions (proposed 27 Oct 2026, accepted by Liam as proposed 28 Oct 2026)
 
 Builder step 9 puts a gym version on four of the seven sessions (`gym = [...]` in `plan.toml`).
 The rules each one follows: the session's focus and order (power, then compounds, then small
@@ -460,7 +460,7 @@ fly. They can be logged by text or voice and are there for the editor (steps 6 a
 9. **Home and gym versions**, `workouts.place`, the switch on Today. **Places built** (ADR-0071,
    Built): where you train on Account (home, gym or both), `workouts.place`, and
    `template_items.place` for a session's two versions. **Gym versions in `plan.toml`**
-   (proposed, Liam to review: L above) for Legs, Torso + neck, Cardio + core and Arms + legs;
+   (accepted 28 Oct 2026: L above) for Legs, Torso + neck, Cardio + core and Arms + legs;
    Progress shows their exercises to someone who trains at a gym. **The day's place** in the
    API: the guided session, the bot's messages and typed logs follow it, with the switch as
    `PUT /api/session/place`. **Built:** the Home | Gym switch on Today, which asks before
