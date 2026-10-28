@@ -75,6 +75,7 @@ const SAVED: Saved = {
       next_step: null,
       at_top: false,
       unlock: null,
+      load_kg: 22.5,
     },
   ],
   stretching: true,
@@ -183,7 +184,7 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
   expect(playSessionEnd).toHaveBeenCalledExactlyOnceWith('ring') // saved: the end of the session
   expect(screen.getByText('Next up: Recovery + posture.')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '20 min' })).toBeInTheDocument() // stretching
-  expect(screen.getByText(/new best 7 in one set/)).toBeInTheDocument()
+  expect(screen.getByText(/new best 7 in one set at 22\.5 kg/)).toBeInTheDocument()
 
   const kept = sent['PUT /api/session/progress']
   expect(kept).toHaveLength(3)

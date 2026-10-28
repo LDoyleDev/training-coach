@@ -4,6 +4,7 @@ import AppShell from '../components/AppShell'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { moveButton, moveHref } from '../plan/ladder'
 import { TopList } from '../plan/TopNotes'
+import { kgText } from '../session/logic'
 import { card, secondary } from '../ui'
 
 type Loaded =
@@ -133,7 +134,8 @@ export default function ReviewPage() {
             {r.bests.map((b) => (
               <li key={`${b.exercise}-${b.step}-${b.strength}`}>
                 {b.exercise} ({b.step}
-                {b.strength && ', strength block'}): {best(b)}
+                {b.strength && ', strength block'}
+                {b.load_kg !== null && `, at ${kgText(b.load_kg)}`}): {best(b)}
               </li>
             ))}
           </ul>

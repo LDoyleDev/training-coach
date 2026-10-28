@@ -845,6 +845,7 @@ export default function SessionPage() {
                 <li key={e.exercise}>
                   {e.exercise}
                   {e.best_set !== null ? `: new best ${e.best_set} in one set` : ''}
+                  {e.best_set !== null && e.load_kg !== null ? ` at ${kgText(e.load_kg)}` : ''}
                   {e.next_step && (
                     <>
                       {' '}

@@ -113,6 +113,10 @@ Decided while building, within this ADR:
   cue; its weights and targets come from strength-block sessions, so the first strength block
   starts at the kit's first weight and the person sets theirs. The weekly review's bests still
   count every weight.
+- **Bests name their weight** (28 Oct 2026). After a save they name the session's weight,
+  which they were counted at: "New best on Hammer curl at 12 kg: ..." in Telegram, "new best 12
+  in one set at 12 kg" on the saved screen. The weekly review, which counts every weight, names
+  that of the session that set the best set: "Hammer curl (Dumbbells, at 12 kg)".
 - **The chart by weight:** once any session in the six weeks has a weight, the periods follow
   the session's heaviest set ("22 kg ↑"; a session without one is "No weight"), and a strip
   under the chart draws the weight as a staircase on the same dates, labelled with its lowest

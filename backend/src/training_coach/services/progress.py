@@ -58,6 +58,7 @@ class Feedback:
     note_top: bool  # the rule is met on the last step and hasn't been mentioned before
     slug: str = ""  # the exercise's, for a link to its ladder (ADR-0075)
     unlock: str | None = None  # at the top for the kit: what opens the next step (ADR-0071)
+    load_kg: float | None = None  # the session's weight: its bests count only that (ADR-0072)
 
 
 class MoveOutcome(StrEnum):
@@ -330,6 +331,7 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
                 note_top=note_top,
                 slug=exercise.slug,
                 unlock=_unlock(step, kit) if status is Progress.TOP_OF_LADDER else None,
+                load_kg=weight,
             )
         )
     return result

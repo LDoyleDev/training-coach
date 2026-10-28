@@ -41,6 +41,7 @@ class ReviewBestView(BaseModel):
     best_set: int | None
     total: int | None
     strength: bool  # set in a strength block (ADR-0028)
+    load_kg: float | None  # the weight of the session that set it, on a loaded step (ADR-0072)
 
 
 class ReviewHabitView(BaseModel):
@@ -114,6 +115,7 @@ def get_review(
                 best_set=b.bests.best_set,
                 total=b.bests.total,
                 strength=b.strength,
+                load_kg=b.load_kg,
             )
             for b in week_review.bests
         ],

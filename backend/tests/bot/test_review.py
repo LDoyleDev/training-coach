@@ -71,6 +71,12 @@ def test_one_rest_day_and_a_total_only_best() -> None:
     assert "- Plank (Front plank): 150s in total" in text
 
 
+def test_a_best_on_a_loaded_step_names_its_weight() -> None:
+    curl = Best("Hammer curl", "Dumbbells", ExerciseKind.REPS, NewBests(best_set=12), load_kg=12.5)
+    text = review_text(_review(bests=[curl]))
+    assert "- Hammer curl (Dumbbells, at 12.5 kg): 12 reps in one set" in text
+
+
 def test_a_long_review_fits_one_message() -> None:
     text = review_text(_review(volume=[("x" * 200, 12)] * 40))
     assert len(text) <= 4096

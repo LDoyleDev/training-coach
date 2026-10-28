@@ -2216,6 +2216,8 @@ export interface components {
             best_set: number | null;
             /** Exercise */
             exercise: string;
+            /** Load Kg */
+            load_kg: number | null;
             /** Next Step */
             next_step: string | null;
             /** Slug */
@@ -3462,6 +3464,8 @@ export interface components {
             /** Exercise */
             exercise: string;
             kind: components["schemas"]["ExerciseKind"];
+            /** Load Kg */
+            load_kg: number | null;
             /** Step */
             step: string;
             /** Strength */
