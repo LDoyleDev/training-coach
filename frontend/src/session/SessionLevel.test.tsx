@@ -43,6 +43,8 @@ const session = (item: GuidedItem): Guided => ({
   minutes: 20,
   rest_seconds: 60,
   after_run: false,
+  place: 'home',
+  place_choice: false,
   items: [item],
   order: item.targets.map((target, i) => ({
     item: 0,

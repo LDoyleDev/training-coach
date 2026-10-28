@@ -88,6 +88,7 @@ def test_the_saved_screen_says_the_step_the_sets_were_done_at(signed_in: TestCli
     )
     kept = {
         "template_id": today["session"]["template_id"],
+        "place": today["session"]["place"],
         "revision": today["progress"]["revision"],
         "position": 1,
         "sets": [{"item": jump, "set_no": 1, "left": 6}],

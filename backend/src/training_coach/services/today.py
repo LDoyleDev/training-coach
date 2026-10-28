@@ -21,9 +21,10 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.domain.blocks import Block
-from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.load import Load, carried, next_weight, top_weight
 from training_coach.domain.muscles import Muscle, Part, ranked
+from training_coach.domain.places import can_switch, day_place
 from training_coach.domain.queue import ADVANCING, Position, advance
 from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
@@ -71,6 +72,9 @@ class SessionPlan:
     items: tuple[ItemPlan, ...]
     kind: str = "strength"  # strength | conditioning | recovery (plan.toml)
     slug: str = ""  # the session template's, e.g. "hiit"
+    # Where it is done, and so which version (ADR-0071); ``switch``: Today offers Home | Gym.
+    place: Place = Place.HOME
+    switch: bool = False
 
 
 @dataclass(frozen=True)
@@ -180,17 +184,25 @@ def session_plan(
     template_id: int,
     block: Block | None = None,
     steps: Mapping[str, int] | None = None,
+    place: Place | None = None,
 ) -> SessionPlan | None:
-    """One session of the plan with today's ladder steps and targets, in ``block``; ``steps``
-    holds levels chosen for today in the guided session, by exercise slug (ADR-0080)."""
+    """One session of the plan with today's ladder steps and targets, in ``block``: its
+    version for ``place``, by default the day's (ADR-0071), so the bot's messages, a typed
+    log and the guided session all see the same exercises. ``steps`` holds levels chosen for
+    today in the guided session, by exercise slug (ADR-0080)."""
     template = session.scalar(
         select(SessionTemplate)
         .where(SessionTemplate.id == template_id)
-        .options(selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise))
+        .options(
+            selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise),
+            selectinload(SessionTemplate.gym_items).selectinload(TemplateItem.exercise),
+        )
     )
     if template is None:
         return None
-    pace = user_settings.load(session).pace
+    prefs = user_settings.load(session)
+    pace = prefs.pace
+    at = place if place is not None else day_place(prefs.places, prefs.place)
     return SessionPlan(
         template_id=template.id,
         name=template.name,
@@ -204,10 +216,12 @@ def session_plan(
                 pace,
                 (steps or {}).get(item.exercise.slug),
             )
-            for item in template.items
+            for item in template.version(at)
         ),
         kind=template.kind,
         slug=template.slug,
+        place=template.done_at(at),  # the version's place, not only the one asked for
+        switch=can_switch(prefs.places, bool(template.gym_items)),
     )
 
 
