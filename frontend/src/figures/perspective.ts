@@ -30,11 +30,21 @@ export interface Cable3 {
   hand: 'L' | 'R'
 }
 
+/** A gym machine seen in the round: steel tubes from point to point, pads as blocks from their
+ * low corner to their high one, and a lever from each pivot to a hand, holding a handle. */
+export interface Machine3 {
+  frame?: readonly (readonly [Vec3, Vec3])[]
+  pads?: readonly (readonly [Vec3, Vec3])[]
+  levers?: readonly { pivot: Vec3; hand: 'L' | 'R' }[]
+}
+
 /** What stands around a figure seen from the front: ``standing`` puts it on a floor of its own
- * (no forearm on the floor, as in a side plank), and ``cables`` run to its hands. */
+ * (no forearm on the floor, as in a side plank), ``cables`` run to its hands, and a ``machine``
+ * stands round it. */
 export interface Kit {
   standing?: boolean
   cables?: readonly Cable3[]
+  machine?: Machine3
 }
 
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
@@ -173,15 +183,15 @@ function box(see: Project, camera: Camera, lo: Vec3, hi: Vec3, tone: Tone, bias 
         bias,
       ),
     )
-  if (c[0] > x1)
+  for (const x of c[0] > x1 ? [x1] : c[0] < x0 ? [x0] : [])
     out.push(
       face(
         see,
         [
-          [x1, y0, z0],
-          [x1, y0, z1],
-          [x1, y1, z1],
-          [x1, y1, z0],
+          [x, y0, z0],
+          [x, y0, z1],
+          [x, y1, z1],
+          [x, y1, z0],
         ],
         tone,
         bias,
@@ -222,14 +232,15 @@ function arm(see: Project, j: FrontLimbJoints, tone: Tone, forearm?: Vec3[]): Dr
 }
 
 function leg(see: Project, j: FrontLimbJoints, tone: Tone): Drawn[] {
-  // Toes point the way the chest faces.
-  const toe: Vec3 = [j.end[0], j.end[1] - 1, 13]
+  // Toes point the way the chest faces; a seated thigh comes towards you.
+  const [knee, ankle] = [at(j.mid, j.z[0]), at(j.end, j.z[1])]
+  const toe: Vec3 = [j.end[0], j.end[1] - 1, j.z[1] + 13]
   return [
-    capsule(see, at(j.root), at(j.mid), SIZE.thigh, tone),
-    capsule(see, at(j.mid), at(j.end), SIZE.shin, tone),
-    capsule(see, at(j.end), toe, [3.8, 3.2], tone),
-    sphere(see, at(j.end), SIZE.joint.ankle, tone, 0.5),
-    sphere(see, at(j.mid), SIZE.joint.knee, tone, 0.5),
+    capsule(see, at(j.root), knee, SIZE.thigh, tone),
+    capsule(see, knee, ankle, SIZE.shin, tone),
+    capsule(see, ankle, toe, [3.8, 3.2], tone),
+    sphere(see, ankle, SIZE.joint.ankle, tone, 0.5),
+    sphere(see, knee, SIZE.joint.knee, tone, 0.5),
   ]
 }
 
@@ -246,6 +257,26 @@ function cables(see: Project, camera: Camera, j: ReturnType<typeof solveFront>, 
       sphere(see, grip, 3, 'bell', 2),
     ]
   })
+}
+
+/** A machine's tubes and pads, and its levers to the hands, each holding an upright handle. */
+function machine(see: Project, camera: Camera, j: ReturnType<typeof solveFront>, m: Machine3) {
+  const grip = (hand: 'L' | 'R'): Vec3 => {
+    const limb = hand === 'L' ? j.armL : j.armR
+    return [(limb.end[0] + limb.tip[0]) / 2, (limb.end[1] + limb.tip[1]) / 2, limb.z[1]]
+  }
+  return [
+    ...(m.frame ?? []).map(([a, b]) => capsule(see, a, b, [2, 2], 'bell')),
+    ...(m.pads ?? []).flatMap(([lo, hi]) => box(see, camera, lo, hi, 'prop')),
+    ...(m.levers ?? []).flatMap(({ pivot, hand }): Drawn[] => {
+      const [x, y, z] = grip(hand)
+      return [
+        sphere(see, pivot, 3.5, 'bell'),
+        capsule(see, pivot, [x, y + 6, z], [2, 2], 'bell'),
+        { ...capsule(see, [x, y - 6, z], [x, y + 6, z], [1.8, 1.8], 'bell'), depth: 0 },
+      ]
+    }),
+  ]
 }
 
 /** Everything to draw for ``pose`` seen by ``camera``, far to near. */
@@ -283,6 +314,7 @@ export function perspectiveShapes(
   const parts: Drawn[] = [
     ...(seat ? bench(see, camera, seat) : []),
     ...cables(see, camera, j, kit),
+    ...(kit.machine ? machine(see, camera, j, kit.machine) : []),
     ...leg(see, j.legL, 'far'),
     ...leg(see, j.legR, 'near'),
     ...arm(see, j.armL, 'far', forearm),

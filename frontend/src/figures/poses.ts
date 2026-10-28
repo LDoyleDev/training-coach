@@ -17,8 +17,16 @@ export interface Figure extends Motion {
   props?: Props
   order?: readonly Part[]
   /** The same movement seen from the front (front.ts), at the same pace, for one that happens
-   * side-on to the body. It is shown first. */
-  front?: Kit & { view: Box; camera: Camera; seat?: Bench3; start: FrontPose; end: FrontPose }
+   * side-on to the body. It is shown first; ``only`` shows it alone, with no switch to the side,
+   * for a movement the side view can't show (a fly's arms sweep towards you and away). */
+  front?: Kit & {
+    view: Box
+    camera: Camera
+    seat?: Bench3
+    start: FrontPose
+    end: FrontPose
+    only?: boolean
+  }
   /** A close-up in the side view: the circle of radius ``r`` around ``of``, drawn larger in a
    * circle of radius ``size`` at ``at``, for a small movement such as a heel lifting. */
   inset?: { of: Vec; r: number; at: Vec; size: number }
@@ -467,7 +475,7 @@ export const FIGURES: Readonly<Record<string, Figure>> = {
   },
   'reverse-nordic': {
     frames: ['Kneeling upright, feet anchored', 'Leaning back, knees to head in one line'],
-    view: [-62, 60, -3, 165],
+    view: [-66, 20, -3, 131],
     props: { mat: [-60, 40] },
     tempo: [2200, 500, 1500, 500],
     start: {

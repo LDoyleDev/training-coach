@@ -96,14 +96,16 @@
     --fig-far-base: #77838f;
     --fig-far-dark: #525d69;
     --fig-far-line: #262c32;
-    --fig-prop-lit: #85796a;
-    --fig-prop-base: #665c4f;
-    --fig-prop-dark: #4a4239;
-    --fig-prop-line: #2f2a24;
-    --fig-bell-lit: #a3a9ae;
-    --fig-bell-base: #676d72;
-    --fig-bell-dark: #3c4145;
-    --fig-bell-line: #1f2224;
+    /* Props stand out from the dark paper: wood and pads a step lighter, iron edged in light, so
+     * a bar, a plate or a frame shows against the paper and against the body. */
+    --fig-prop-lit: #c2b49c;
+    --fig-prop-base: #9c8c73;
+    --fig-prop-dark: #776853;
+    --fig-prop-line: #3a332b;
+    --fig-bell-lit: #a9afb4;
+    --fig-bell-base: #737a80;
+    --fig-bell-dark: #4d545a;
+    --fig-bell-line: #c3c9ce;
     --fig-mat: #284339;
     --fig-floor: #4b5550;
     --band-grey: #4a5257;

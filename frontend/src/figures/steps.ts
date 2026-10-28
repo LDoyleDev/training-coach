@@ -81,16 +81,17 @@ const OFF_FLOOR: Change = {
 }
 const OFF_FLOOR_LOADED: Change = { ...OFF_FLOOR, props: { ...OFF_FLOOR.props, load: true } }
 
-/** A Nordic curl: kneeling tall, heels hooked under a low sofa, the body falling forward in one
- * line from the knees, the hamstrings braking it. The knees and feet are the reverse Nordic's. */
+/** A Nordic curl: kneeling tall, heels hooked under the front of a sofa, the body falling forward
+ * in one line from the knees, the hamstrings braking it. The knees and feet are the reverse
+ * Nordic's. */
 const NORDIC_LEGS = {
   legN: { at: [-42.5, 11.6], angle: -100 },
   legF: { at: [-42.5, 11.6], angle: -100 },
 } as const
 const nordic = (frames: Figure['frames'], hands: Vec, tempo: Figure['tempo']): Change => ({
   frames,
-  view: [-72, 118, -3, 131],
-  props: { mat: [-70, 116], bench: { x0: -118, x1: -38, top: 24, behind: true } },
+  view: [-84, 119, -3, 131],
+  props: { mat: [-60, 116], sofa: { x0: -82, x1: -26 } },
   tempo,
   start: {
     kneel: { knee: [0.1, 5.4], angle: 90 },
@@ -194,17 +195,13 @@ const ANKLE_ON_CHAIR: Change = {
 
 /** A reverse Nordic leaning further back than the figure: the thighs ``angle`` degrees from the
  * floor in front (90 upright), knees to head in one line, pivoting on the knees; the hands at
- * ``hands`` from the waist at the bottom. */
+ * ``hands`` from the waist at the bottom. Its picture runs from ``x0`` to well in front of the
+ * knees, wide enough for its two positions to go one above the other at full width. */
 const reverse = FIGURES['reverse-nordic']
 const KNEEL_F = { at: [-42, 11.6], angle: -100 } as const // the far knee stays down with the near
-const leanBack = (
-  frames: Figure['frames'],
-  angle: number,
-  hands: Vec,
-  view: Figure['view'],
-): Change => ({
+const leanBack = (frames: Figure['frames'], angle: number, hands: Vec, x0: number): Change => ({
   frames,
-  view,
+  view: [x0, x0 + 175, -3, 131],
   start: {
     ...reverse.start,
     hip: undefined,
@@ -469,19 +466,19 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
       ['Kneeling upright, feet anchored', 'Leaning further back, slowly, knees to head in line'],
       140,
       [12, 22],
-      [-102, 60, -3, 165],
+      -98,
     ),
     'To the floor, hands push you back': leanBack(
       ['Kneeling upright, feet anchored', 'Back until your hands reach the floor behind you'],
       156,
       [-34.2, 23.7],
-      [-118, 60, -3, 165],
+      -118,
     ),
     'To the floor and back, no hands': leanBack(
       ['Kneeling upright, feet anchored', 'Back towards the floor and up again, no hands'],
       156,
       [12, 22],
-      [-118, 60, -3, 165],
+      -118,
     ),
   },
   'push-up': {
