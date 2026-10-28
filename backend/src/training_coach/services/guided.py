@@ -290,6 +290,7 @@ class Kept:
     saved: bool
     revision: int = 0
     after_run: bool = False  # kept for the block after a run (ADR-0066)
+    place: Place = Place.HOME  # the version its sets were done in (ADR-0071)
 
 
 @dataclass(frozen=True)
@@ -313,6 +314,7 @@ def _kept(row: SessionProgress) -> Kept:
         saved=row.saved_workout_id is not None,
         revision=row.revision,
         after_run=row.after_run,
+        place=Place(row.place),
     )
 
 
@@ -393,10 +395,11 @@ def keep(
         row = None
     if row is not None and row.saved_workout_id is not None:
         return "this session is saved already"
-    if row is not None and row.template_id != plan.template_id:
+    if row is not None and (row.template_id != plan.template_id or row.place != plan.place):
         if revision != 0:  # this browser still shows the old session: nothing is deleted
             return STALE
-        session.delete(row)  # the day's session changed (a pick or swap): start afresh
+        # The day's session changed (a pick or swap) or its version did: start afresh.
+        session.delete(row)
         session.flush()
         row = None
     if row is not None and row.revision != revision:
@@ -412,6 +415,7 @@ def keep(
                     token=secrets.token_hex(16),
                     revision=0,
                     after_run=plan.after_run,
+                    place=plan.place,
                 )
                 session.add(row)
             row.revision += 1
@@ -483,7 +487,9 @@ def save(
     if row.after_run:
         return _save_after_run(session, row, day, today, tz)
     template = session.get_one(SessionTemplate, row.template_id)  # cascades with its progress
-    plan = session_plan(session, template.id, blocks.current(session, day, tz))
+    # The version the sets were done in, not today's place: a switch since doesn't move them.
+    block = blocks.current(session, day, tz)
+    plan = session_plan(session, template.id, block, Place(row.place))
     assert plan is not None  # noqa: S101 - the template exists
     sets = tuple(_done(s) for s in row.sets)
     if sets_problem(plan.items, sets) is not None:  # checked again: the plan may have changed
@@ -518,7 +524,8 @@ def _save_after_run(
     if day != today or workout is None or workout.template_id != row.template_id:
         return workout_log.Stale()
     template = session.get_one(SessionTemplate, row.template_id)
-    plan = session_plan(session, template.id, blocks.current(session, day, tz))
+    block = blocks.current(session, day, tz)
+    plan = session_plan(session, template.id, block, Place(row.place))
     assert plan is not None  # noqa: S101 - the template exists
     items = _left(session, workout, plan.items)
     if items is None:

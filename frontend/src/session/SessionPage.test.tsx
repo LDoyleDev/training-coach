@@ -175,6 +175,7 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
   expect(kept).toHaveLength(3)
   expect(kept[0]).toMatchObject({
     template_id: 3,
+    place: 'home',
     revision: 0,
     position: 1,
     sets: [{ item: 0, set_no: 1, left: 7, right: null }],
