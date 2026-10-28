@@ -2,6 +2,7 @@
 
 from training_coach.domain.load import (
     NO_WEIGHT,
+    Increments,
     Load,
     LoadKit,
     NextWeight,
@@ -9,6 +10,7 @@ from training_coach.domain.load import (
     kg_text,
     next_weight,
     top_weight,
+    valid_increment,
     valid_kg,
     weights_text,
 )
@@ -19,6 +21,18 @@ def test_with_no_history_every_set_starts_at_the_kits_first_weight() -> None:
     assert carried(LoadKit.BARBELL, 3, []) == Load(LoadKit.BARBELL, 2.5, (20.0,) * 3, False)
     assert carried(LoadKit.DUMBBELLS, 2, []).kg == (8.0, 8.0)
     assert carried(LoadKit.MACHINE, 1, []).increment == 5.0
+
+
+def test_a_persons_own_increment_replaces_the_kits_default() -> None:
+    own = Increments(barbell=1.25, machine=2.5)
+    assert [own.of(kit) for kit in LoadKit] == [1.25, 2.0, 2.5]  # dumbbells: still the default
+    assert carried(LoadKit.BARBELL, 3, [], own).increment == 1.25
+    assert carried(LoadKit.MACHINE, 2, [(1, 40.0)], own).increment == 2.5
+
+
+def test_an_own_increment_is_in_quarters_of_a_kilo_within_the_bounds() -> None:
+    steps = (0.25, 1.25, 20, 0, 0.1, 1.3, 20.25)
+    assert [valid_increment(kg) for kg in steps] == [True, True, True, False, False, False, False]
 
 
 def test_each_set_starts_at_the_same_set_last_time() -> None:

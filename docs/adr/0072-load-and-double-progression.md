@@ -133,11 +133,23 @@ Decided while building, within this ADR:
   tibialis raise, carries, neck work and hanging raises stay the home exercises' own ladders.
   They name no kit (a gym has everything) and are in no session until the gym versions
   (builder step 9); until then they are logged by text or voice, and an exercise in no
-  session shows on Progress once it has been logged. Their figures (ADR-0063) are still to
-  be drawn; they are needed before step 9 offers them on the set screen.
+  session shows on Progress once it has been logged. Their figures (ADR-0063) came in 1.7.0,
+  with step 9's gym versions.
 - **The AI's proposals** (28 Oct 2026). A strength line in `propose_log` (ADR-0058) may carry
   `kg`: one weight for all its sets or one per set. It is written into the log text as a typed
   weight is ("rows 10 10 at 16", a line per run of sets at one weight), so the rule parser
   checks it the same way: only on a step that takes load, more than 0 and at most 500 kg, to
   0.01 kg. The card and the Telegram message show it ("10 / 10 / 9 at 16 kg"), and Save writes
   it to `load_kg`.
+
+## Built (own increments, 28 Oct 2026)
+
+Decided while building, within this ADR:
+
+- **Where:** "Weight steps" on Account, under My equipment: one step for each kit (barbell,
+  dumbbells per hand, machine or cable), shown with its default. − and + on the set screen move
+  by it, and the suggested next weight adds it, at home and at the gym.
+- **Stored per person** on `settings` (`barbell_increment_kg`, `dumbbells_increment_kg`,
+  `machine_increment_kg`); empty keeps the default, and a step set back to the default is kept
+  as empty, so a later change to a default reaches them. A step is 0.25 to 20 kg, in quarters
+  of a kilo. `PATCH /api/settings` takes `increments`, only the kits sent change.

@@ -480,6 +480,21 @@ def test_every_set_at_the_top_suggests_the_next_weight_which_starts_afresh(
 
 
 @pytest.mark.usefixtures("loaded")
+def test_a_persons_own_increment_moves_the_weight_and_the_suggestion(session: Session) -> None:
+    """ADR-0072: each person can change theirs; - and + and the next weight both use it."""
+    seeded = _seeded(session)
+    user_settings.update(seeded, increments={LoadKit.DUMBBELLS: 1.0})
+    _logged(seeded, DAY - timedelta(days=7), 30, 12.0)
+    plan = today.session_plan(seeded, _plan(seeded).template_id)
+    assert plan is not None
+    load = plan.items[0].load
+    assert load is not None
+    assert load.increment == 1.0
+    assert load.suggested is not None
+    assert load.suggested.kg == 13.0
+
+
+@pytest.mark.usefixtures("loaded")
 def test_a_strength_block_keeps_a_loaded_step_without_the_tempo_cue(session: Session) -> None:
     seeded = _seeded(session)
     jump = seeded.scalars(select(Exercise).where(Exercise.slug == "jump-squat")).one()

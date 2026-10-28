@@ -5,8 +5,8 @@ A step takes load when the catalogue says so (``plan.toml``, ``[exercises.loads]
 and the weight goes up. Each set records its weight in kilograms; empty for bodyweight.
 
 The set screen starts at the weight of the same set last time (the carry-over), with - and +
-in the kit's increment, so nothing is typed. With no history it starts at the kit's first
-weight, which the person changes to theirs.
+in the kit's increment (the person's own, or the default), so nothing is typed. With no
+history it starts at the kit's first weight, which the person changes to theirs.
 
 Double progression: reps go up within the range (ADR-0027) at one weight. When every planned
 set of the last session at that weight reached the top of the range, the next weight up is
@@ -32,13 +32,41 @@ class LoadKit(StrEnum):
     MACHINE = "machine"  # a machine's or a cable's stack
 
 
-# The smallest step up or down at the gym (program-builder.md, Decided 6); a person's own
-# increments, and the next weight owned at home, come later.
+# The smallest step up or down by default (program-builder.md, Decided 6); each person can
+# set their own (``Increments``).
 INCREMENT: dict[LoadKit, float] = {
     LoadKit.BARBELL: 2.5,
     LoadKit.DUMBBELLS: 2.0,
     LoadKit.MACHINE: 5.0,
 }
+INCREMENT_KG = (0.25, 20.0)  # a person's own: from a pair of small plates to a big jump
+
+
+@dataclass(frozen=True)
+class Increments:
+    """A person's own smallest step for each kit; None keeps the default."""
+
+    barbell: float | None = None
+    dumbbells: float | None = None
+    machine: float | None = None
+
+    def of(self, kit: LoadKit) -> float:
+        """The step - and + move by and the next weight adds, for ``kit``."""
+        own = {
+            LoadKit.BARBELL: self.barbell,
+            LoadKit.DUMBBELLS: self.dumbbells,
+            LoadKit.MACHINE: self.machine,
+        }[kit]
+        return INCREMENT[kit] if own is None else own
+
+
+DEFAULTS = Increments()
+
+
+def valid_increment(kg: float) -> bool:
+    """A step a person can set: within the bounds, in quarters of a kilogram."""
+    return INCREMENT_KG[0] <= kg <= INCREMENT_KG[1] and (kg * 4).is_integer()
+
 
 # Where a first set starts: the empty bar, a light pair, a light stack. A starting point for
 # - and +, never a suggestion of what to lift.
@@ -69,19 +97,26 @@ class Load:
     suggested: NextWeight | None = None  # every set reached the top last time (double progression)
 
 
-def carried(kit: LoadKit, sets: int, last: Sequence[tuple[int, float]]) -> Load:
+def carried(
+    kit: LoadKit,
+    sets: int,
+    last: Sequence[tuple[int, float]],
+    increments: Increments = DEFAULTS,
+) -> Load:
     """Each planned set's starting weight from ``last``, the (set number, kg) pairs of the
     last session at this step: the same set's weight, else that of the nearest set before it,
-    else the first set's. With no history, every set starts at the kit's first weight."""
+    else the first set's. With no history, every set starts at the kit's first weight. - and +
+    move by the person's own increment for the kit."""
+    step = increments.of(kit)
     by_set = dict(last)
     if not by_set:
-        return Load(kit, INCREMENT[kit], (FIRST_KG[kit],) * sets, carried=False)
+        return Load(kit, step, (FIRST_KG[kit],) * sets, carried=False)
     first = by_set[min(by_set)]
     kg: list[float] = []
     for number in range(1, sets + 1):
         before = [n for n in by_set if n <= number]
         kg.append(by_set[max(before)] if before else first)
-    return Load(kit, INCREMENT[kit], tuple(kg), carried=True)
+    return Load(kit, step, tuple(kg), carried=True)
 
 
 def top_weight(last: Sequence[tuple[int, float]]) -> float | None:

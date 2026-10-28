@@ -18,6 +18,7 @@ from training_coach.domain.cardio import EXTRA_CARDIO
 from training_coach.domain.clock import parse_hhmm
 from training_coach.domain.enums import Places, Sound
 from training_coach.domain.habits import PROTEIN_GRAMS
+from training_coach.domain.load import DEFAULTS, INCREMENT_KG, Increments, LoadKit, valid_increment
 from training_coach.domain.queue import local_date
 from training_coach.domain.targets import Pace
 from training_coach.services import user_settings
@@ -50,8 +51,32 @@ def _grams(grams: int) -> int:
     return grams
 
 
+def _step(kg: float) -> float:
+    if not valid_increment(kg):
+        low, high = INCREMENT_KG
+        raise ValueError(f"from {low:g} to {high:g} kg, in steps of 0.25")
+    return kg
+
+
 Clock = Annotated[str, AfterValidator(_hhmm)]
 Grams = Annotated[int, AfterValidator(_grams)]
+Step = Annotated[float, AfterValidator(_step)]
+
+
+class IncrementsView(BaseModel):
+    """The smallest weight step for each loaded kit (ADR-0072); dumbbells: per hand."""
+
+    barbell: float
+    dumbbells: float
+    machine: float  # a cable's stack too
+
+
+class IncrementsChange(BaseModel):
+    """Only the kits sent change; the default value goes back to the default."""
+
+    barbell: Step | None = None
+    dumbbells: Step | None = None
+    machine: Step | None = None
 
 
 class SettingsView(BaseModel):
@@ -66,6 +91,8 @@ class SettingsView(BaseModel):
     sound: Sound  # what every guided timer plays at each change (ADR-0062, ADR-0074)
     extra_cardio_min: int  # a week, outside the sessions, added to cardio targets (ADR-0079)
     places: Places  # where the person trains: home, gym or both (ADR-0071)
+    increments: IncrementsView  # their own weight steps, or the defaults (ADR-0072)
+    default_increments: IncrementsView
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -84,7 +111,22 @@ class SettingsChange(BaseModel):
     sound: Sound | None = None
     extra_cardio_min: int | None = Field(default=None, ge=EXTRA_CARDIO[0], le=EXTRA_CARDIO[1])
     places: Places | None = None
+    increments: IncrementsChange | None = None
     paused: bool | None = None
+
+
+def _steps(increments: Increments) -> IncrementsView:
+    return IncrementsView(
+        barbell=increments.of(LoadKit.BARBELL),
+        dumbbells=increments.of(LoadKit.DUMBBELLS),
+        machine=increments.of(LoadKit.MACHINE),
+    )
+
+
+def _changed(body: IncrementsChange | None) -> dict[LoadKit, float] | None:
+    if body is None:
+        return None
+    return {LoadKit(k): kg for k, kg in body.model_dump(exclude_none=True).items()}
 
 
 def _time(text: str | None) -> time | None:
@@ -105,6 +147,8 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
         sound=prefs.sound,
         extra_cardio_min=prefs.extra_cardio_min,
         places=prefs.places,
+        increments=_steps(prefs.increments),
+        default_increments=_steps(DEFAULTS),
         paused=prefs.paused,
         timezone=settings.timezone,
     )
@@ -136,6 +180,7 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             sound=body.sound,
             extra_cardio_min=body.extra_cardio_min,
             places=body.places,
+            increments=_changed(body.increments),
             today=local_date(datetime.now(UTC), settings.tz),
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)

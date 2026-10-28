@@ -47,6 +47,7 @@ from training_coach.domain.enums import (
 from training_coach.domain.fitness_tests import TimeOfDay
 from training_coach.domain.habits import Habit
 from training_coach.domain.kit import Resistance
+from training_coach.domain.load import LoadKit
 from training_coach.domain.measurements import BodyFatEstimate
 from training_coach.domain.measurements import Kind as MeasurementKind
 from training_coach.domain.muscles import Kit
@@ -311,6 +312,13 @@ class UserSettings(Owned, Base):
         CheckConstraint("extra_cardio_min BETWEEN 0 AND 600", name="extra_cardio_min_range"),
         CheckConstraint(_in("places", Places), name="places_valid"),
         CheckConstraint(_in("place", Place), name="place_valid"),
+        *(
+            CheckConstraint(
+                f"{kit}_increment_kg IS NULL OR {kit}_increment_kg BETWEEN 0.25 AND 20",
+                name=f"{kit}_increment_kg_range",
+            )
+            for kit in LoadKit
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -351,6 +359,10 @@ class UserSettings(Owned, Base):
     places: Mapped[str] = mapped_column(String(8), server_default=Places.HOME.value)
     # With both: the place Today starts at, the last one chosen on its switch (Decided 4).
     place: Mapped[str] = mapped_column(String(8), server_default=Place.HOME.value)
+    # The person's own smallest step for each loaded kit (ADR-0072); empty keeps the default.
+    barbell_increment_kg: Mapped[float | None] = mapped_column(Float)
+    dumbbells_increment_kg: Mapped[float | None] = mapped_column(Float)
+    machine_increment_kg: Mapped[float | None] = mapped_column(Float)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

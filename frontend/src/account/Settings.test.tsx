@@ -18,6 +18,8 @@ const PREFS: MessageSettings = {
   sound: 'ring',
   extra_cardio_min: 0,
   places: 'home',
+  increments: { barbell: 2.5, dumbbells: 2, machine: 5 },
+  default_increments: { barbell: 2.5, dumbbells: 2, machine: 5 },
   paused: false,
   timezone: 'Europe/Berlin',
 }

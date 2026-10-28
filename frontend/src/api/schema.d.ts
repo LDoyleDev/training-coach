@@ -2517,6 +2517,30 @@ export interface components {
             zones: components["schemas"]["ZonesView"];
         };
         /**
+         * IncrementsChange
+         * @description Only the kits sent change; the default value goes back to the default.
+         */
+        IncrementsChange: {
+            /** Barbell */
+            barbell?: number | null;
+            /** Dumbbells */
+            dumbbells?: number | null;
+            /** Machine */
+            machine?: number | null;
+        };
+        /**
+         * IncrementsView
+         * @description The smallest weight step for each loaded kit (ADR-0072); dumbbells: per hand.
+         */
+        IncrementsView: {
+            /** Barbell */
+            barbell: number;
+            /** Dumbbells */
+            dumbbells: number;
+            /** Machine */
+            machine: number;
+        };
+        /**
          * IngestReceived
          * @description How many records of each type were stored, and skipped as not fitting. A press of the
          *     app's Test button also gets ``test`` and a ``note`` saying nothing was stored, so its log
@@ -3722,6 +3746,7 @@ export interface components {
             extra_cardio_min?: number | null;
             /** Habits Enabled */
             habits_enabled?: boolean | null;
+            increments?: components["schemas"]["IncrementsChange"] | null;
             /** Morning Time */
             morning_time?: string | null;
             /** Nudge Time */
@@ -3742,10 +3767,12 @@ export interface components {
         SettingsView: {
             /** Blocks Since */
             blocks_since: string | null;
+            default_increments: components["schemas"]["IncrementsView"];
             /** Extra Cardio Min */
             extra_cardio_min: number;
             /** Habits Enabled */
             habits_enabled: boolean;
+            increments: components["schemas"]["IncrementsView"];
             /** Morning Time */
             morning_time: string;
             /** Nudge Time */

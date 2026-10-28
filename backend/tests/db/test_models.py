@@ -96,6 +96,23 @@ def test_session_progress_place_is_home_or_gym(session: Session) -> None:
         session.execute(text("UPDATE session_progress SET place = 'office'"))
 
 
+@pytest.mark.parametrize("kit", ["barbell", "dumbbells", "machine"])
+def test_an_own_weight_step_is_empty_or_in_range(session: Session, kit: str) -> None:
+    """ADR-0072: empty keeps the default; a step of their own is 0.25 to 20 kg."""
+    session.add(UserSettings())
+    session.commit()
+    row = session.get_one(UserSettings, 1)
+    column = f"{kit}_increment_kg"
+    assert getattr(row, column) is None
+    setattr(row, column, 1.25)
+    session.commit()
+    for bad in (0.0, 20.5):
+        setattr(row, column, bad)
+        with pytest.raises(IntegrityError):
+            session.commit()
+        session.rollback()
+
+
 def test_several_workouts_per_day_allowed(session: Session) -> None:
     exercise = factories.exercise(session)
     template = factories.template(session, exercise)

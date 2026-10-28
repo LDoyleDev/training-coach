@@ -1,5 +1,6 @@
 """Reading and changing a person's settings row (times are local wall-clock, Europe/Berlin)."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, time
 
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, FitnessTestDay, UserSettings, Workout
 from training_coach.domain.enums import Place, Places, Sound
+from training_coach.domain.load import DEFAULTS, INCREMENT, Increments, LoadKit
 from training_coach.domain.targets import Pace
 from training_coach.services import users
 
@@ -31,6 +33,22 @@ class Prefs:
     extra_cardio_min: int = 0  # a week, outside the sessions, added to cardio targets (ADR-0079)
     places: Places = Places.HOME  # where the person trains: home, gym or both (ADR-0071)
     place: Place = Place.HOME  # at both: the last place chosen on Today's switch (Decided 4)
+    increments: Increments = DEFAULTS  # their own weight steps (ADR-0072)
+
+
+def _increments(old: Increments, change: Mapping[LoadKit, float]) -> Increments:
+    """``old`` with ``change`` applied; a step set back to the default is kept as no step of
+    their own, so a later change to the default reaches them."""
+
+    def pick(kit: LoadKit, own: float | None) -> float | None:
+        new = change.get(kit, own)
+        return None if new == INCREMENT[kit] else new
+
+    return Increments(
+        barbell=pick(LoadKit.BARBELL, old.barbell),
+        dumbbells=pick(LoadKit.DUMBBELLS, old.dumbbells),
+        machine=pick(LoadKit.MACHINE, old.machine),
+    )
 
 
 def load(session: Session) -> Prefs:
@@ -51,6 +69,7 @@ def load(session: Session) -> Prefs:
         row.extra_cardio_min,
         Places(row.places),
         Place(row.place),
+        Increments(row.barbell_increment_kg, row.dumbbells_increment_kg, row.machine_increment_kg),
     )
 
 
@@ -71,9 +90,11 @@ def update(
     extra_cardio_min: int | None = None,
     places: Places | None = None,
     place: Place | None = None,
+    increments: Mapping[LoadKit, float] | None = None,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
+    ``increments``: the kits whose weight step changes, each to a valid step (the caller checks).
 
     ``blocks=True`` starts training blocks on ``today`` unless they are already on (so a
     repeated press never restarts them); ``blocks=False`` turns them off."""
@@ -99,8 +120,9 @@ def update(
         extra_cardio_min=old.extra_cardio_min if extra_cardio_min is None else extra_cardio_min,
         places=old.places if places is None else places,
         place=old.place if place is None else place,
+        increments=_increments(old.increments, increments or {}),
     )
-    changes: dict[str, str | bool | int] = {}
+    changes: dict[str, str | bool | int | float] = {}
     if morning_time is not None:
         changes["morning_time"] = morning_time.isoformat()
     if nudge_time is not None:
@@ -127,6 +149,8 @@ def update(
         changes["places"] = places.value
     if place is not None:
         changes["place"] = place.value
+    for kit, kg in (increments or {}).items():
+        changes[f"{kit.value}_increment_kg"] = kg
     row = users.settings_row(session)
     if row is None:
         row = UserSettings()
@@ -144,6 +168,9 @@ def update(
     row.extra_cardio_min = prefs.extra_cardio_min
     row.places = prefs.places.value
     row.place = prefs.place.value
+    row.barbell_increment_kg = prefs.increments.barbell
+    row.dumbbells_increment_kg = prefs.increments.dumbbells
+    row.machine_increment_kg = prefs.increments.machine
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs
