@@ -617,3 +617,24 @@ def test_a_typed_log_is_filed_at_the_days_place(session: Session) -> None:
     saved = workout_log.save(seeded, draft, BERLIN)
     assert isinstance(saved, workout_log.Saved)
     assert seeded.get_one(Workout, saved.workout_id).place == "gym"
+
+
+def test_a_day_left_unsaved_at_home_saves_at_home_after_a_switch_to_the_gym(
+    session: Session,
+) -> None:
+    seeded = _at_both(session)
+    home = guided.today(seeded, DAY, BERLIN)
+    assert home is not None
+    assert home.place is Place.HOME
+    sets = [guided.Done(0, 1, 6), guided.Done(1, 1, 18)]
+    assert guided.keep(seeded, home, 0, 2, [], sets) == 1  # left unsaved
+    later = DAY + timedelta(days=1)
+    tomorrow = guided.today(seeded, later, BERLIN)
+    assert tomorrow is not None
+    assert guided.switch(seeded, tomorrow, Place.GYM, confirm=False) is None  # the next day
+    saved = guided.save(seeded, DAY, later, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = seeded.get_one(Workout, saved.workout_id)
+    assert workout.place == "home"
+    slugs = dict(seeded.execute(select(Exercise.id, Exercise.slug)).all())
+    assert {slugs[s.exercise_id] for s in workout.sets} == {i.slug for i in home.items[:2]}

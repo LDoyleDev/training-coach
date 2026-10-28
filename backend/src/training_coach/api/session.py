@@ -251,7 +251,7 @@ class TodayView(BaseModel):
 
 class KeepBody(BaseModel):
     template_id: int  # the session the browser shows: a different one now is a conflict
-    place: Place | None = None  # the version it shows (ADR-0071): another one now is too
+    place: Place  # the version it shows (ADR-0071): another one now is too
     revision: int = Field(default=0, ge=0)  # the kept revision this browser saw; 0: none
     position: int = Field(ge=0, le=500)
     first: list[int] = Field(default_factory=list, max_length=10)
@@ -331,6 +331,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
         and kept is not None
         and (
             kept.template_id != plan.template_id
+            or kept.place is not plan.place  # kept in the other version (ADR-0071)
             or kept.after_run != plan.after_run
             or (plan.after_run and kept.saved)  # a block saved short: what's left starts afresh
         )
@@ -427,11 +428,7 @@ def keep(body: KeepBody, request: Request, user: Owner) -> KeptView:
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         plan = guided.today(session, on, settings.tz, set(body.first))
-        if (
-            plan is None
-            or plan.template_id != body.template_id
-            or (body.place is not None and body.place is not plan.place)
-        ):
+        if plan is None or plan.template_id != body.template_id or body.place is not plan.place:
             raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
         sets = [guided.Done(**d.model_dump()) for d in body.sets]
         result = guided.keep(

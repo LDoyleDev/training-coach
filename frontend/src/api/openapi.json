@@ -2359,14 +2359,7 @@
             "type": "array"
           },
           "place": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Place"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/Place"
           },
           "position": {
             "maximum": 500.0,
@@ -2395,6 +2388,7 @@
         },
         "required": [
           "template_id",
+          "place",
           "position"
         ],
         "title": "KeepBody",

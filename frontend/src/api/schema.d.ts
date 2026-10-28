@@ -2574,7 +2574,7 @@ export interface components {
         KeepBody: {
             /** First */
             first?: number[];
-            place?: components["schemas"]["Place"] | null;
+            place: components["schemas"]["Place"];
             /** Position */
             position: number;
             /**

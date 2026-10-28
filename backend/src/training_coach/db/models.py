@@ -584,7 +584,10 @@ class SessionProgress(Owned, Base):
     (it becomes the workout's ``log_token``)."""
 
     __tablename__ = "session_progress"
-    __table_args__ = (UniqueConstraint("user_id", "local_date"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "local_date"),
+        CheckConstraint(_in("place", Place), name="place_valid"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = _owner()
@@ -604,6 +607,9 @@ class SessionProgress(Owned, Base):
     # The block after a conditioning session's cardio, once the cardio is logged (ADR-0066):
     # its sets are added to that day's workout instead of saving a second one.
     after_run: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # Where these sets were done, so its version (ADR-0071): a day left unsaved is saved in the
+    # version it was done in, even after a switch to the other place since.
+    place: Mapped[str] = mapped_column(String(8), server_default=Place.HOME.value)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
