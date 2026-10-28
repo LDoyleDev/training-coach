@@ -142,6 +142,17 @@ afterEach(() => {
 
 const click = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }))
 
+/**
+ * Moves the fake clock 250 ms at a time, each tick in its own act that lets React finish its
+ * work, as a browser would between ticks. A rest's ticker starts in an effect once the save
+ * answers, and on a slow run that effect can still be waiting when the rest screen shows: time
+ * moved before it runs goes unseen (no counts, only the end). Use after
+ * `vi.setTimerTickMode('manual')`, so only these ticks move the clock.
+ */
+async function tick(ms: number) {
+  for (let t = 0; t < ms; t += 250) await act(async () => vi.advanceTimersByTime(250))
+}
+
 test('a whole session: overview, sets in pair order, check, save', async () => {
   const sent = serve()
   render(<SessionPage />)
@@ -569,11 +580,15 @@ test('the rest ends on time after a locked screen', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
   click('Confirm set')
   expect(await screen.findByText('0:15')).toBeInTheDocument()
+  vi.setTimerTickMode('manual') // from here only the ticks move the clock
+  await tick(1_000)
+  expect(screen.getByText('0:14')).toBeInTheDocument() // the rest's ticker is running
   act(() => {
     vi.setSystemTime(Date.now() + 16_000)
     document.dispatchEvent(new Event('visibilitychange'))
   })
-  expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
+  // At once: unlocking ends the rest, not the next tick.
+  expect(screen.getByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
 })
 
 test('confirming with the clock running takes its reading', async () => {
@@ -1066,15 +1081,11 @@ test("a rest counts its last 3 seconds and ends in the person's timer sound", as
   expect(playChange).not.toHaveBeenCalled() // nothing plays on Start
   click('Confirm set')
   await screen.findByText('0:15')
-  // A tick at a time, each in its own act, so the rest's ticker is running as it would be in a
-  // browser; one big jump could land after the rest's end before the ticker started.
-  const tick = (ms: number) => {
-    for (let t = 0; t < ms; t += 250) act(() => vi.advanceTimersByTime(250))
-  }
-  tick(11_000)
+  vi.setTimerTickMode('manual') // from here only the ticks move the clock
+  await tick(11_000)
   expect(playChange).not.toHaveBeenCalled()
-  tick(4_500)
-  expect(await screen.findByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
+  await tick(4_500)
+  expect(screen.getByRole('heading', { name: 'Calf raise' })).toBeInTheDocument()
   expect(vi.mocked(playChange).mock.calls).toEqual([
     ['wood', 'count'],
     ['wood', 'count'],
