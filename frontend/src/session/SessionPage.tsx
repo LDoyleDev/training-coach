@@ -2,6 +2,7 @@ import AppShell from '../components/AppShell'
 import SignedOutNotice from '../components/SignedOutNotice'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  changeLevel,
   fetchPending,
   fetchSettings,
   fetchToday,
@@ -53,6 +54,8 @@ import Undo from './Undo'
 import BandOffers from './BandOffers'
 import Proposals from './Proposals'
 import LogDay from './LogDay'
+import LevelChange from './LevelChange'
+import { levelNote, type LevelScope } from './levels'
 import ClashQuestion from './ClashQuestion'
 import { ExerciseFigures } from '../bodymap/BodyMap'
 import { worksLine } from '../bodymap/words'
@@ -366,6 +369,42 @@ export default function SessionPage() {
     }
   }
 
+  /** A level chosen on the set screen (ADR-0080): the rest of the sets switch to its targets,
+   * here on this set. True once changed. */
+  const pickLevel = async (stepId: number, stepName: string, scope: LevelScope) => {
+    setSignedOut(false) // a retry after signing in again
+    setBusy(true)
+    try {
+      const result = await changeLevel({
+        template_id: session.template_id,
+        revision,
+        first,
+        slug: item.slug,
+        step_id: stepId,
+        scope,
+      })
+      if (result === 'stale') {
+        stale()
+        return false
+      }
+      if (typeof result === 'string') {
+        setNote(result)
+        return false
+      }
+      show(result.today)
+      setPosition(position)
+      setFurthest(furthest)
+      setNote(levelNote(item.name, stepName, scope, result.warning))
+      return true
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't change the level. Check your connection and try again.")
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
   /** "Do <partner> first": before a pair has started, swap its order for this session. */
   const pairStarted =
     item.pair !== null &&
@@ -567,7 +606,23 @@ export default function SessionPage() {
             <h1 id="exercise" className="text-4xl font-extrabold">
               {item.name}
             </h1>
-            <p className="text-[var(--slate)]">{item.step}</p>
+            {item.level ? (
+              <LevelChange
+                key={`${item.slug}-${item.level.step_id}`}
+                name={item.name}
+                step={item.step}
+                level={item.level}
+                done={
+                  session.order.filter(
+                    (s) => s.item === step.item && values[key(s.item, s.set_no)]?.confirmed,
+                  ).length
+                }
+                busy={busy}
+                onPick={pickLevel}
+              />
+            ) : (
+              <p className="text-[var(--slate)]">{item.step}</p>
+            )}
             {item.cue && <p className="text-[var(--slate)]">{item.cue}</p>}
             {item.baseline && (
               <p className="font-bold text-[var(--bell-ink)]">
@@ -770,6 +825,11 @@ export default function SessionPage() {
             {session.name} done
           </h1>
           {saved.timing && <p>{took(saved.timing)}</p>}
+          {saved.levels?.map((l) => (
+            <p key={l.exercise}>
+              {l.exercise} done at {l.steps.join(', then ')}.
+            </p>
+          ))}
           {saved.next_session && <p>Next up: {saved.next_session}.</p>}
           {saved.earned.length > 0 && (
             <ul className={card}>
