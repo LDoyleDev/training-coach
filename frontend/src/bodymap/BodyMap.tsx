@@ -256,7 +256,8 @@ export function BodyMap({ state }: { state: State }) {
 
 /** One session's map, at the top of its row on the Plan page (ADR-0069): how hard this session
  * works each muscle, scaled to one session rather than the week's bands. Tapping a muscle says
- * how many of its sets come from here, and from which exercises. */
+ * how many of its sets come from here, and from which exercises. In the gym view it says which
+ * version it counts (ADR-0071). */
 export function SessionMap({ coverage, day }: { coverage: Coverage; day: SessionCoverage }) {
   const [open, setOpen] = useState<string | null>(null)
   if (day.muscles.length === 0) return null
@@ -271,6 +272,13 @@ export function SessionMap({ coverage, day }: { coverage: Coverage; day: Session
   const hard = day.muscles.filter((m) => m.heat === 'hard' || m.heat === 'over')
   return (
     <div className="mb-4 max-w-[46rem]">
+      {coverage.place === 'gym' && (
+        <p className="mt-0 text-sm text-[var(--slate)]">
+          {day.place === 'gym'
+            ? 'What its gym version works. The exercises below are the home version.'
+            : 'Done the same way at the gym.'}
+        </p>
+      )}
       <div
         className="flex gap-2"
         role="img"

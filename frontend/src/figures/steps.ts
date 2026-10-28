@@ -83,15 +83,16 @@ const OFF_FLOOR_LOADED: Change = { ...OFF_FLOOR, props: { ...OFF_FLOOR.props, lo
 
 /** A Nordic curl: kneeling tall, heels hooked under the front of a sofa, the body falling forward
  * in one line from the knees, the hamstrings braking it. The knees and feet are the reverse
- * Nordic's. */
+ * Nordic's. The knees are at the sofa's front, so the sofa takes little width and the figure is
+ * drawn as big as a reverse Nordic. */
 const NORDIC_LEGS = {
   legN: { at: [-42.5, 11.6], angle: -100 },
   legF: { at: [-42.5, 11.6], angle: -100 },
 } as const
 const nordic = (frames: Figure['frames'], hands: Vec, tempo: Figure['tempo']): Change => ({
   frames,
-  view: [-84, 119, -3, 131],
-  props: { mat: [-60, 116], sofa: { x0: -82, x1: -26 } },
+  view: [-60, 118, -3, 131],
+  props: { mat: [-50, 116], sofa: { x0: -58, x1: -8 } },
   tempo,
   start: {
     kneel: { knee: [0.1, 5.4], angle: 90 },
