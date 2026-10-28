@@ -319,7 +319,7 @@ const facing = (slug: string) => {
 }
 
 test('sideways cable moves are seen from the front, standing, with a cable to each working hand', () => {
-  for (const slug of ['cable-lateral-raise', 'chest-fly', 'reverse-pec-deck']) {
+  for (const slug of ['cable-lateral-raise', 'chest-fly']) {
     const front = GYM[slug].front!
     expect(front.standing, slug).toBe(true)
     const bare = perspectiveShapes(front.start, front.camera, undefined, { standing: true })
@@ -346,4 +346,29 @@ test('a fly brings the hands together in front; a reverse fly opens them wide', 
     expect(j.armL.z[1], 'out in front').toBeGreaterThan(40)
   }
   expect(Math.abs(hands.armL.end[1] - hands.armL.root[1]), 'at shoulder height').toBeLessThan(5)
+})
+
+test('a reverse pec deck is a machine: seated, chest on the pad, a lever to each hand', () => {
+  const f = GYM['reverse-pec-deck']
+  const { machine } = f.props!
+  const [seat, chestPad] = machine!.pads!
+  for (const j of along('reverse-pec-deck')) {
+    expect(j.hip[1] - seat[1], 'sat on the seat').toBeLessThan(16)
+    expect(chestPad[0] - j.midChest[0] - 13.5, 'chest on the pad').toBeLessThan(5)
+    expect(j.midChest[1], 'the pad at the chest').toBeGreaterThan(chestPad[1])
+  }
+  // Side on, the handle is in the near fist; from the front, each lever keeps its length.
+  for (const t of [0, 1] as const)
+    near(movingPad('reverse-pec-deck', t), fist(solve(t ? f.end : f.start)))
+  const { front } = f
+  for (const { pivot, hand } of front!.machine!.levers!) {
+    const reach = facing('reverse-pec-deck').map((j) => {
+      const arm = hand === 'L' ? j.armL : j.armR
+      return Math.hypot(arm.end[0] - pivot[0], arm.end[1] - pivot[1], arm.z[1] - pivot[2])
+    })
+    expect(Math.abs(reach[0] - reach[1]), 'a rigid lever').toBeLessThan(6)
+  }
+  const bare = perspectiveShapes(front!.start, front!.camera, undefined, { standing: true })
+  const drawn = perspectiveShapes(front!.start, front!.camera, undefined, front)
+  expect(drawn.length - bare.length, 'frame, pads, levers and handles').toBeGreaterThan(12)
 })

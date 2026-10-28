@@ -235,7 +235,10 @@ export default function Figure({
   if (!figure) return null
   const [first, last] = figure.frames
   const [x0, x1, y0, y1] = view === 'front' && figure.front ? figure.front.view : figure.view
-  const wide = (x1 - x0) / (y1 - y0) > 1.3
+  // Side by side when both fit at full height; a front view, about as wide as it is tall, one
+  // above the other, so it is drawn as big as a side view.
+  const ratio = (x1 - x0) / (y1 - y0)
+  const wide = ratio > (view === 'front' ? 0.7 : 1.3)
   const seen = figure.front ? ` from the ${view}` : ''
   const toggle =
     'min-h-11 rounded-xl border-2 border-[var(--line)] px-3 text-sm font-bold text-[var(--ink)] aria-pressed:border-[var(--ink)] aria-pressed:bg-[var(--line)]'
@@ -266,7 +269,7 @@ export default function Figure({
         />
       )}
       <div className="flex flex-wrap gap-2">
-        {figure.front && (
+        {figure.front && !figure.front.only && (
           <div role="group" aria-label="Seen from" className="flex gap-2">
             {(['front', 'side'] as const).map((v) => (
               <button
