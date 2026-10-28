@@ -144,7 +144,7 @@ without its figure.
 | Push-up | Standard | | the figure |
 | | Feet elevated | feet on a chair, the body sloping down | own poses, chair |
 | | Deficit | hands raised on blocks, the chest below them | own poses, a block |
-| | Archer | one arm bends, the other stays straight out wide | the straight arm drawn short, in front |
+| | Archer | one arm bends, the other stays straight out wide | own front view, from in front of the head (`lie`: the body laid face down), shown first |
 | Pike push-up | Feet on floor | | the figure |
 | | Feet on chair | feet on a chair, more upside down | own poses, chair |
 | | Wall handstand push-up negatives | upside down, heels on a wall | own poses, wall |

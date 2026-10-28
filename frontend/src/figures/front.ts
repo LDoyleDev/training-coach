@@ -30,6 +30,9 @@ export interface FrontPose {
   armR: FrontLimb
   legL: FrontLimb
   legR: FrontLimb
+  /** Face down, as in a push-up: the body's plane laid along the floor, the chest down, the head
+   * towards the camera, rising ``slope`` degrees from the feet, ``lift`` cm up at y = 0. */
+  lie?: { slope: number; lift: number }
 }
 
 /** Half the width between the shoulder joints and between the hip joints. */
