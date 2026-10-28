@@ -114,9 +114,10 @@ Decided while building, within this ADR:
 - **The day's place:** at one place, that place; at both, the last one chosen (Decided 4).
   Every reader of today's session takes it by default (the guided session, the bot's morning
   message and /today, a typed or spoken log, Change today), so they all show the same version;
-  a session without a gym version is done as at home, wherever. A log is saved with the day's
-  place. `PUT /api/session/place` is the switch: refused when today has no choice, and with
-  sets kept for the version shown it answers how many and changes nothing until the person
+  a session without a gym version is done as at home, wherever, and its plan and log say home,
+  so the home kit's locks apply. A log is saved with the place of the version done.
+  `PUT /api/session/place` is the switch: refused when today has no choice, and with sets kept
+  for the version shown it answers `{"kept_sets": n}` and changes nothing until the person
   confirms, which drops them (ADR-0060's ask first). A browser still showing the other version
   is told the session changed.
 - **Kit locks at home only:** after a gym workout the saved screen offers Move up without
