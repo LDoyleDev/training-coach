@@ -6,12 +6,14 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
+from sqlalchemy.orm import Session
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
+from training_coach.db.models import SessionProgress
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.services import auth
+from training_coach.services import auth, guided, session_levels
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -132,3 +134,25 @@ def test_strangers_are_refused(engine: Engine) -> None:
     with TestClient(create_app(settings), base_url=ORIGIN) as client:
         body = {"template_id": 1, "slug": "jump-squat", "step_id": 1, "scope": "today"}
         assert client.put("/api/session/level", json=body).status_code == 401
+
+
+def test_a_refused_change_writes_nothing(
+    signed_in: TestClient, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A change refused after something was written leaves nothing behind: the refusal is
+    raised inside the request's transaction, which rolls back."""
+    pause = _jump(signed_in.get("/api/session/today").json())["ladder"][1]
+    assert _change(signed_in, pause["id"], "today", revision=3).status_code == 409
+
+    def written_then_refused(session: Session, plan: guided.Guided, *_: object) -> str:
+        session.add(
+            SessionProgress(local_date=plan.day, template_id=plan.template_id, token="ab" * 16)
+        )
+        session.flush()
+        return guided.STALE
+
+    monkeypatch.setattr(session_levels, "change", written_then_refused)
+    assert _change(signed_in, pause["id"], "today").status_code == 409
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        assert bound.scalars(select(SessionProgress)).all() == []
+    assert signed_in.get("/api/session/today").json()["progress"] is None

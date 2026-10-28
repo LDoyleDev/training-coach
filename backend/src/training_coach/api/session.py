@@ -565,9 +565,11 @@ def change_level(body: LevelBody, request: Request, user: Owner) -> LevelChanged
         )
         if isinstance(result, session_levels.Changed):
             return LevelChangedView(today=today_view(session, on, settings), warning=result.warning)
-    if result == guided.STALE:
-        raise HTTPException(status.HTTP_409_CONFLICT, result)
-    raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result)
+        # Raised inside the scope, so it rolls back: a refused change writes nothing, not even
+        # the progress it may have started.
+        if result == guided.STALE:
+            raise HTTPException(status.HTTP_409_CONFLICT, result)
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result)
 
 
 # ------------------------------------------------------------------ stretching (#135)

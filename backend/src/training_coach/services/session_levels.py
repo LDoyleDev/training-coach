@@ -66,19 +66,24 @@ def change(
     if step is None or step.exercise_id != exercise.id:
         return NOT_ON_LADDER
     kept = guided.kept(session, plan.day)
-    if kept is None or kept.template_id != plan.template_id or kept.after_run != plan.after_run:
+    if kept is not None and (kept.template_id, kept.after_run) == (
+        plan.template_id,
+        plan.after_run,
+    ):
+        if kept.saved:
+            return "this session is saved already"
+        if kept.revision != revision:
+            return guided.STALE
+    else:
         # Nothing kept for this session yet: start its progress, as the first confirmed set
-        # would, so the choice has somewhere to live and a reload keeps it.
+        # would, so the choice has somewhere to live and a reload keeps it. Every refusal is
+        # above or in keep(), which writes nothing then: on SQLite a started row is committed
+        # as its savepoint is released, so nothing after this may refuse.
         started = guided.keep(session, plan, revision, 0, [], [])
         if isinstance(started, str):
             return started
-        revision = started
     row = guided.progress_row(session, plan.day)
     assert row is not None  # noqa: S101 - kept or started above
-    if row.saved_workout_id is not None:
-        return "this session is saved already"
-    if row.revision != revision:
-        return guided.STALE
     # Sets already confirmed were done at the step shown for them: they keep it.
     shown = {i: plan.items[i].step_id for i in indexes}
     row.sets = [
