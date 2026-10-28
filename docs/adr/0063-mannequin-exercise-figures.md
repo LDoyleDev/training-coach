@@ -100,27 +100,29 @@ without its figure. Steps still to draw sit in its `PENDING` list until they are
 
 - `bell: 'goblet'`: a kettlebell held by the horns at the chest, the bell under the hands.
 - `kneel` (body.ts): a pose pivoting on the knee, so a Nordic curl keeps its knees put.
+- `bell: 'one'`: a one-arm swing's bell along the near forearm; `bell: 'toes'`: a bell resting
+  on the near forefoot, rising with the toes.
 
 | Exercise | Step | What changes | Figure |
 | --- | --- | --- | --- |
 | Tibialis raise | Back against wall, heels forward | | the figure |
-| | Heels further from wall | feet further out, more weight on the wall | to draw |
-| | Single leg | one foot works, the other off the floor | to draw |
-| | Holding 8 kg on toes | a bell hung over the toes | to draw |
+| | Heels further from wall | feet further out, more weight on the wall | own poses |
+| | Single leg | one foot works, the other off the floor | own poses |
+| | Holding 8 kg on toes | a bell resting on the toes | bell on the toes |
 | Jump squat | Bodyweight, full rest | | the figure |
 | | Pause at bottom, then jump | a pause | none |
-| | Holding 8 kg | a bell at the chest | to draw |
+| | Holding 8 kg | a bell at the chest | goblet hold |
 | Kettlebell swing | Two-hand, 8 kg | | the figure |
-| | One-arm, 8 kg; One-arm, 16 kg | one hand on the bell, the other free | to draw |
+| | One-arm, 8 kg; One-arm, 16 kg | one hand on the bell, the other free | one-arm bell |
 | | Two-hand, 16 kg; Two-hand, 24 kg | a heavier bell | none |
 | Bulgarian split squat | Bodyweight, back foot on chair | | the figure |
 | | Goblet hold, 8 kg; Goblet hold, 16 kg | a bell at the chest | goblet hold |
 | | Goblet hold, 3 s lowering; Goblet hold 16 kg, 3 s lowering | a bell at the chest, the tempo | goblet hold |
 | | Suitcase hold, 16 kg + 8 kg | a bell in each hand | bells at the sides |
-| Pistol squat | Sit to chair on one leg | sits down to a chair behind, a shorter range | to draw |
-| | Lower box | sits down to a low box | to draw |
+| Pistol squat | Sit to chair on one leg | sits down to a chair behind, a shorter range | own poses, chair |
+| | Lower box | sits down to a low box | own poses, box |
 | | Full pistol | | the figure |
-| | Holding 8 kg | a bell held out in front | to draw |
+| | Holding 8 kg | a bell at the chest | goblet hold |
 | Single-leg RDL | 8 kg | | the figure (a bell in the hand) |
 | | 8 kg, pause at bottom; 16 kg; 16 kg, pause at bottom | a pause, a heavier bell | none |
 | Hamstring curl | Towel slide, both legs | | the figure |
@@ -128,7 +130,7 @@ without its figure. Steps still to draw sit in its `PENDING` list until they are
 | | Nordic curl negatives | kneeling, heels anchored, lowered from the knees, hands catch | own poses |
 | | Full Nordic curl | the same, pulled back up by the hamstrings | own poses |
 | Single-leg calf raise | Bodyweight on a step | | the figure |
-| | Holding 8 kg; 8 kg, 2 s pause at top | a bell in the free hand | to draw |
+| | Holding 8 kg; 8 kg, 2 s pause at top | a bell in the hand on the working side | own arms, bell |
 | Pull-up | Strict pull-up | | the figure |
 | | Slow negatives; Pause at top | the tempo, a pause | none |
 | | Vest or backpack, 5, 10 and 15 kg | a pack on the upper back | pack |
