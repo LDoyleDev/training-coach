@@ -49,6 +49,7 @@ import FlowPlayer from './FlowPlayer'
 import Stretching from './Stretching'
 import Cardio, { type CardioChange } from './Cardio'
 import ChangeToday from './ChangeToday'
+import PlaceSwitch from './PlaceSwitch'
 import DayCard from './DayCard'
 import Undo from './Undo'
 import BandOffers from './BandOffers'
@@ -537,6 +538,13 @@ export default function SessionPage() {
               </button>
             </p>
           ))}
+          {session.place_choice && (
+            <PlaceSwitch
+              session={session}
+              onChanged={(today, text) => changed(today, text)}
+              onStale={stale}
+            />
+          )}
           {isCardio(session) ? (
             <>
               <Cardio featured onChange={cardioChange} sound={sound} />
