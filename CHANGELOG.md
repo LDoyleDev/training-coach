@@ -4,6 +4,31 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.7.0](https://github.com/LDoyleDev/training-coach/compare/v1.6.0...v1.7.0) (2026-10-28)
+
+
+### Features
+
+* **api:** today's session at home or at the gym, the person's switch ([#406](https://github.com/LDoyleDev/training-coach/issues/406)) ([63e4181](https://github.com/LDoyleDev/training-coach/commit/63e418125aa39ffa6f917fc8acca35a752dd7532))
+* **db:** places: where you train and where each workout was done ([#398](https://github.com/LDoyleDev/training-coach/issues/398)) ([969e544](https://github.com/LDoyleDev/training-coach/commit/969e544bcae92f8413bec67e7c92541e6181f612))
+* **domain:** gym versions of four sessions, from the gym catalogue ([#402](https://github.com/LDoyleDev/training-coach/issues/402)) ([f62e0fe](https://github.com/LDoyleDev/training-coach/commit/f62e0fe0a73c3b2c897ccc652d8da571118b5688))
+* **web:** a Home | Gym switch on Today, asking before it drops sets ([#407](https://github.com/LDoyleDev/training-coach/issues/407)) ([9920b9d](https://github.com/LDoyleDev/training-coach/commit/9920b9d5c88963681f1d77b3ae6a07407b3f1834))
+* **web:** barbell figures: back squat, RDL, hip thrust, back extension ([#397](https://github.com/LDoyleDev/training-coach/issues/397)) ([93f3120](https://github.com/LDoyleDev/training-coach/commit/93f312064ae15eb541e510d715c87feb5ffdc1a3))
+* **web:** cable figures: lat pulldown, overhead extension, crunch, Pallof ([#405](https://github.com/LDoyleDev/training-coach/issues/405)) ([2bfcc38](https://github.com/LDoyleDev/training-coach/commit/2bfcc389c9cc58c61531fd9dac6d8f880b73e1b9))
+* **web:** change an exercise's level during a session ([#413](https://github.com/LDoyleDev/training-coach/issues/413)) ([7e1b454](https://github.com/LDoyleDev/training-coach/commit/7e1b454e56ca2e2ae2a68f64f823a1ac1accd5f7))
+* **web:** Copenhagen ankle-on-chair and deeper reverse Nordic figures ([#414](https://github.com/LDoyleDev/training-coach/issues/414)) ([7bb87da](https://github.com/LDoyleDev/training-coach/commit/7bb87daccab52c6092d9944d6d7aa97370e12e3e))
+* **web:** dumbbell figures: presses, curls, wrist curl, row ([#400](https://github.com/LDoyleDev/training-coach/issues/400)) ([d413736](https://github.com/LDoyleDev/training-coach/commit/d41373679e47b99740fbf571bee91eec29bf9dd8))
+* **web:** goblet split squat, single-leg and Nordic curl figures ([#409](https://github.com/LDoyleDev/training-coach/issues/409)) ([aa9c6ec](https://github.com/LDoyleDev/training-coach/commit/aa9c6ec5d7de47ef896954732440a831203e0a3a))
+* **web:** lateral raise, fly and reverse fly, seen from the front ([#408](https://github.com/LDoyleDev/training-coach/issues/408)) ([d98ac12](https://github.com/LDoyleDev/training-coach/commit/d98ac12fbcebbf0ba8d1b86c2ea5aa0c767afad7))
+* **web:** machine figures: leg press, leg extension, curl, calf raises ([#403](https://github.com/LDoyleDev/training-coach/issues/403)) ([c85a4fa](https://github.com/LDoyleDev/training-coach/commit/c85a4facbb0b88bb79398be7f3578739d7f98561))
+* **web:** pistol, jump squat, calf, tibialis and swing step figures ([#410](https://github.com/LDoyleDev/training-coach/issues/410)) ([7d20237](https://github.com/LDoyleDev/training-coach/commit/7d20237667a62742be4e98ee24737c41f1519066))
+* **web:** push-up, diamond and pike push-up step figures ([#415](https://github.com/LDoyleDev/training-coach/issues/415)) ([c5a550a](https://github.com/LDoyleDev/training-coach/commit/c5a550ab2e9545466bfd4b18b04f12e8af838216))
+
+
+### Documentation
+
+* session log for the 1.7.0 wrap; gym versions accepted ([#421](https://github.com/LDoyleDev/training-coach/issues/421)) ([8f18acf](https://github.com/LDoyleDev/training-coach/commit/8f18acff7ed1ebe1c5eff9307c00c3906292a961))
+
 ## [1.6.0](https://github.com/LDoyleDev/training-coach/compare/v1.5.0...v1.6.0) (2026-10-27)
 
 

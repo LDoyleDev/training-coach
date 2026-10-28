@@ -108,6 +108,15 @@ test('a figure drawn from the front as well starts there and switches to the sid
   expect(screen.getByRole('group', { name: 'Seen from' })).toBeInTheDocument()
 })
 
+test('a fly is seen from the front alone, its two positions one above the other', () => {
+  motion(true)
+  render(<Figure slug="chest-fly" name="Chest fly" />)
+  expect(screen.queryByRole('group', { name: 'Seen from' })).not.toBeInTheDocument()
+  const start = screen.getByRole('img', { name: /^Chest fly from the front, start: Arms wide/ })
+  expect(start.closest('.grid')).toHaveClass('grid-cols-1')
+  expect(screen.getByRole('img', { name: /^Chest fly from the front, end: Hands together/ }))
+})
+
 test('a figure with one view has no view switch', () => {
   motion(true)
   render(<Figure slug="glute-bridge" name="Glute bridge" />)
