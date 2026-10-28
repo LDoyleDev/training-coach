@@ -98,3 +98,79 @@ test('a 45° back extension hinges over the pad and stops in a straight line', (
   )
   expect(plate?.kind === 'ball' && dist([plate.c[0], -plate.c[1]], top.midChest)).toBeLessThan(20)
 })
+
+/** The point on the bench's back pad ``s`` cm from its hinge, and the pad's own direction. */
+const pad = (slug: string, s: number) => {
+  const { x, top, angle } = GYM[slug].props!.incline!
+  const a = (angle * Math.PI) / 180
+  return [x + s * Math.cos(a), top + s * Math.sin(a)] as const
+}
+
+test('a bench press lies on the bench, pressing from the chest to straight up', () => {
+  for (const slug of ['db-bench-press', 'incline-db-press']) {
+    const [up, down] = [solve(GYM[slug].start), solve(GYM[slug].end)]
+    for (const j of along(slug)) {
+      // the back on the pad: the shoulders about 12 cm (the trunk's half depth) off its surface
+      const surface = pad(slug, dist(j.shoulder, [GYM[slug].props!.incline!.x, 44]))
+      expect(dist(j.shoulder, surface), slug).toBeLessThan(16)
+      expect(j.legN.heel[1], `${slug}: feet flat on the floor`).toBeLessThan(2)
+    }
+    expect(fist(up)[1] - up.shoulder[1], `${slug}: arms straight up`).toBeGreaterThan(55)
+    expect(Math.abs(fist(up)[0] - up.shoulder[0]), `${slug}: over the chest`).toBeLessThan(8)
+    expect(fist(down)[1] - down.shoulder[1], `${slug}: lowered to the chest`).toBeLessThan(20)
+    expect(down.armN.elbow[1], `${slug}: elbows below the chest`).toBeLessThan(down.shoulder[1])
+  }
+})
+
+test('an overhead press sits upright and presses from the shoulders to straight arms', () => {
+  const [low, high] = [solve(GYM['db-overhead-press'].start), solve(GYM['db-overhead-press'].end)]
+  expect(Math.abs(fist(low)[1] - low.shoulder[1]), 'at shoulder height').toBeLessThan(15)
+  expect(fist(high)[1] - high.shoulder[1], 'overhead').toBeGreaterThan(55)
+  expect(high.head.c[1]).toBeLessThan(fist(high)[1])
+})
+
+test('curls keep the elbows still and bring the weight up', () => {
+  for (const slug of ['incline-db-curl', 'hammer-curl']) {
+    const [low, high] = [solve(GYM[slug].start), solve(GYM[slug].end)]
+    near(low.armN.elbow, high.armN.elbow) // the elbow doesn't move
+    expect(low.armN.wrist[1], `${slug}: arm long`).toBeLessThan(low.armN.elbow[1] - 25)
+    expect(high.armN.wrist[1], `${slug}: curled`).toBeGreaterThan(high.armN.elbow[1] + 20)
+  }
+  const incline = solve(GYM['incline-db-curl'].start)
+  expect(
+    Math.abs(incline.armN.wrist[0] - incline.shoulder[0]),
+    'hanging straight down',
+  ).toBeLessThan(1)
+})
+
+test('a dumbbell is a disc end on, or a handle with two heads along the picture', () => {
+  const kinds = (slug: string) => {
+    const { start, props, order } = GYM[slug]
+    return shapes(start, props, order).filter((s) => 'tone' in s && s.tone === 'bell')
+  }
+  expect(kinds('db-bench-press').filter((s) => s.kind === 'ball')).toHaveLength(2) // one a hand
+  expect(kinds('hammer-curl').filter((s) => s.kind === 'path')).toHaveLength(6)
+})
+
+test('a wrist curl moves only the hands, forearms on the thighs', () => {
+  const [low, high] = [solve(GYM['wrist-curl'].start), solve(GYM['wrist-curl'].end)]
+  near(low.armN.elbow, high.armN.elbow)
+  near(low.armN.wrist, high.armN.wrist)
+  expect(Math.abs(low.armN.wrist[1] - low.legN.knee[1]), 'forearm on the thigh').toBeLessThan(26)
+  expect(low.armN.tip[1], 'wrist bent down').toBeLessThan(low.armN.wrist[1] - 5)
+  expect(high.armN.tip[1], 'curled up').toBeGreaterThan(high.armN.wrist[1] + 3)
+})
+
+test('a chest-supported row keeps the chest on the pad and pulls to the ribs', () => {
+  for (const j of along('chest-supported-row')) {
+    near(j.hip, [13, 74])
+    near(j.legN.ankle, [-20, 7])
+  }
+  const [long, pulled] = [
+    solve(GYM['chest-supported-row'].start),
+    solve(GYM['chest-supported-row'].end),
+  ]
+  expect(dist(long.armN.wrist, long.shoulder), 'arms long').toBeGreaterThan(54)
+  expect(dist(pulled.armN.wrist, pulled.waist), 'to the lower ribs').toBeLessThan(25)
+  expect(pulled.armN.elbow[1], 'elbow above the back').toBeGreaterThan(pulled.shoulder[1] - 15)
+})
