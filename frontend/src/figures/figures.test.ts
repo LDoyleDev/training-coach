@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { BODY, blend, dist, heading, progress, solve, type Pose } from './body'
+import { BODY, blend, dist, heading, progress, solve, type Pose, type Vec } from './body'
 import { WIDTH, solveFront } from './front'
 import { lens, perspectiveShapes } from './perspective'
 import { FIGURES } from './poses'
@@ -413,9 +413,11 @@ test('a front view keeps its limbs their length and stays inside its picture', (
     if (!front) continue
     const [x0, x1, y0, y1] = front.view
     for (const j of fromFront(slug)) {
+      // A seated thigh comes towards you: its length counts how far.
+      const far = (a: Vec, za: number, b: Vec, zb: number) => Math.hypot(dist(a, b), zb - za)
       for (const leg of [j.legL, j.legR]) {
-        expect(dist(leg.root, leg.mid), slug).toBeCloseTo(BODY.thigh, 1)
-        expect(dist(leg.mid, leg.end), slug).toBeCloseTo(BODY.shin, 1)
+        expect(far(leg.root, 0, leg.mid, leg.z[0]), slug).toBeCloseTo(BODY.thigh, 1)
+        expect(far(leg.mid, leg.z[0], leg.end, leg.z[1]), slug).toBeCloseTo(BODY.shin, 1)
       }
       for (const arm of [j.armL, j.armR]) {
         expect(dist(arm.root, arm.mid), slug).toBeLessThan(BODY.upperArm + 0.05)
@@ -425,8 +427,9 @@ test('a front view keeps its limbs their length and stays inside its picture', (
       for (const p of limbs) expect(p[1], `${slug} above the floor`).toBeGreaterThan(-0.5)
     }
     for (const t of STEPS) {
-      const drawn = perspectiveShapes(blend(front.start, front.end, t), front.camera, front.seat)
-      for (const shape of drawn) {
+      const pose = blend(front.start, front.end, t)
+      // With its props: a column, a machine's frame and levers stay in the picture too.
+      for (const shape of perspectiveShapes(pose, front.camera, front.seat, front)) {
         expect(JSON.stringify(shape), slug).not.toMatch(/NaN|null/)
         if (shape.kind === 'floor') continue // the mat may run out of the picture
         const points =

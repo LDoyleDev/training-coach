@@ -310,6 +310,20 @@ test('a Pallof press pushes the handle straight out from the chest', () => {
     165,
   )
   expect(Math.abs(fist(out)[1] - fist(chest)[1]), 'straight out').toBeLessThan(12)
+  // The column stands clear of the body, so its cable shows all the way to the hands.
+  const { cable } = GYM['pallof-press'].props!
+  for (const j of [chest, out]) expect(cable!.pulley[0], 'beside you').toBeLessThan(j.hip[0] - 30)
+  expect(Math.abs(cable!.pulley[1] - fist(chest)[1]), 'at chest height').toBeLessThan(10)
+  // From the front, beside you, the cable at chest height to the hands pressed out in front.
+  const front = GYM['pallof-press'].front!
+  const [pulley] = front.cables!
+  const [low, high] = facing('pallof-press')
+  expect(pulley.pulley[0], 'beside you').toBeLessThan(low.hip[0] - 40)
+  for (const j of [low, high]) {
+    expect(Math.abs(j.armR.end[1] - pulley.pulley[1]), 'at chest height').toBeLessThan(6)
+    expect(j.armL.end[0] - j.armR.end[0], 'both hands on the handle').toBeLessThan(8)
+  }
+  expect(high.armR.z[1] - low.armR.z[1], 'pressed out in front').toBeGreaterThan(20)
 })
 
 /** The front view of ``slug`` at its start and end. */
@@ -319,7 +333,7 @@ const facing = (slug: string) => {
 }
 
 test('sideways cable moves are seen from the front, standing, with a cable to each working hand', () => {
-  for (const slug of ['cable-lateral-raise', 'chest-fly', 'reverse-pec-deck']) {
+  for (const slug of ['cable-lateral-raise', 'chest-fly']) {
     const front = GYM[slug].front!
     expect(front.standing, slug).toBe(true)
     const bare = perspectiveShapes(front.start, front.camera, undefined, { standing: true })
@@ -346,4 +360,29 @@ test('a fly brings the hands together in front; a reverse fly opens them wide', 
     expect(j.armL.z[1], 'out in front').toBeGreaterThan(40)
   }
   expect(Math.abs(hands.armL.end[1] - hands.armL.root[1]), 'at shoulder height').toBeLessThan(5)
+})
+
+test('a reverse pec deck is a machine: seated, chest on the pad, a lever to each hand', () => {
+  const f = GYM['reverse-pec-deck']
+  const { machine } = f.props!
+  const [seat, chestPad] = machine!.pads!
+  for (const j of along('reverse-pec-deck')) {
+    expect(j.hip[1] - seat[1], 'sat on the seat').toBeLessThan(16)
+    expect(chestPad[0] - j.midChest[0] - 13.5, 'chest on the pad').toBeLessThan(5)
+    expect(j.midChest[1], 'the pad at the chest').toBeGreaterThan(chestPad[1])
+  }
+  // Side on, the handle is in the near fist; from the front, each lever keeps its length.
+  for (const t of [0, 1] as const)
+    near(movingPad('reverse-pec-deck', t), fist(solve(t ? f.end : f.start)))
+  const { front } = f
+  for (const { pivot, hand } of front!.machine!.levers!) {
+    const reach = facing('reverse-pec-deck').map((j) => {
+      const arm = hand === 'L' ? j.armL : j.armR
+      return Math.hypot(arm.end[0] - pivot[0], arm.end[1] - pivot[1], arm.z[1] - pivot[2])
+    })
+    expect(Math.abs(reach[0] - reach[1]), 'a rigid lever').toBeLessThan(6)
+  }
+  const bare = perspectiveShapes(front!.start, front!.camera, undefined, { standing: true })
+  const drawn = perspectiveShapes(front!.start, front!.camera, undefined, front)
+  expect(drawn.length - bare.length, 'frame, pads, levers and handles').toBeGreaterThan(12)
 })

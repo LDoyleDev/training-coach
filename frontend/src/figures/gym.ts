@@ -9,6 +9,13 @@ const CABLE = ['armF', 'legF', 'torso', 'head', 'legN', 'bell', 'armN'] as const
 /** Standing, seen from in front at chest height (front.ts, perspective.ts). */
 const UPRIGHT = { hip: [0, 93.5], tilt: 90, legL: { at: [11, 7] }, legR: { at: [-11, 7] } } as const
 const FACING = { at: [0, 125, 330], look: [0, 100, 0] } as const
+/** Seated, seen from the front: the thighs coming towards you, the feet on the floor. */
+const SEATED = {
+  hip: [0, 59],
+  tilt: 90,
+  legL: { at: [13, 7], mid: [2, -9.1], toward: [43, 40.86] },
+  legR: { at: [-13, 7], mid: [-2, -9.1], toward: [43, 40.86] },
+} as const
 
 export const GYM: Readonly<Record<string, Figure>> = {
   // ---------------------------------------------------------------- barbell and bench
@@ -551,13 +558,14 @@ export const GYM: Readonly<Record<string, Figure>> = {
       armF: { at: [5, -6], from: 'head' },
     },
   },
+  // The column stands beside you, a little behind, so its cable shows all the way to the hands.
   'pallof-press': {
     frames: [
       'Side-on to the cable, the handle at your chest',
       "Pressed straight out; hold, don't let it turn you",
     ],
-    view: [-40, 75, -3, 182],
-    props: { cable: { x: -12, pulley: [-6, 128], grip: 'handle' } },
+    view: [-62, 75, -3, 182],
+    props: { cable: { x: -50, pulley: [-46, 118], grip: 'handle' } },
     order: ['armF', 'legF', 'torso', 'head', 'legN', 'bell', 'armN'],
     tempo: [1000, 1200, 1000, 500],
     start: {
@@ -575,6 +583,27 @@ export const GYM: Readonly<Record<string, Figure>> = {
       legF: { at: [-4, 7] },
       armN: { at: [55.8, 127] },
       armF: { at: [56.5, 127] },
+    },
+    front: {
+      view: [-74, 62, -107, 73],
+      // From in front, off to the column's side, so the arms are seen pressing out.
+      camera: { at: [-240, 130, 220], look: [-20, 100, 0] },
+      standing: true,
+      cables: [{ pulley: [-62, 118, -30], hand: 'R' }],
+      start: {
+        ...UPRIGHT,
+        legL: { at: [17, 7] },
+        legR: { at: [-17, 7] },
+        armL: { at: [3, 116], mid: [-2, -27], toward: [10, 24] },
+        armR: { at: [-3, 116], mid: [2, -27], toward: [10, 24] },
+      },
+      end: {
+        ...UPRIGHT,
+        legL: { at: [17, 7] },
+        legR: { at: [-17, 7] },
+        armL: { at: [3, 121], mid: [-7, -5], toward: [28, 49.5] },
+        armR: { at: [-3, 121], mid: [7, -5], toward: [28, 49.5] },
+      },
     },
   },
   // ---------------------------------------------------------------- sideways, seen from the front
@@ -602,7 +631,7 @@ export const GYM: Readonly<Record<string, Figure>> = {
       armF: { at: [4, -2], from: 'waist' },
     },
     front: {
-      view: [-75, 95, -110, 92],
+      view: [-63, 86, -105, 75],
       camera: FACING,
       standing: true,
       cables: [{ pulley: [-48, 14, 10], hand: 'L' }],
@@ -638,8 +667,11 @@ export const GYM: Readonly<Record<string, Figure>> = {
       armN: { at: [50, 120], mid: [27, -6] },
       armF: { at: [51, 120], mid: [28, -6] },
     },
+    // From the side the arms sweep towards you and away, which reads as a front raise, so the
+    // fly is shown from the front only.
     front: {
-      view: [-100, 100, -110, 92],
+      only: true,
+      view: [-99, 99, -100, 90],
       camera: FACING,
       standing: true,
       cables: [
@@ -658,47 +690,105 @@ export const GYM: Readonly<Record<string, Figure>> = {
       },
     },
   },
+  // Seated facing the machine, chest on its pad: a lever from above each shoulder to each hand.
   'reverse-pec-deck': {
     frames: [
-      'Arms out in front at shoulder height, hands together',
+      'Seated, chest on the pad, arms out in front at shoulder height, hands together',
       'Opened wide and back, elbows leading',
     ],
-    view: [-40, 70, -3, 182],
-    props: { cable: { x: -4, pulley: [6, 137], grip: 'handle' } },
-    order: CABLE,
+    view: [-45, 70, -3, 160],
+    props: {
+      machine: {
+        frame: [
+          [-40, 2, 30, 2],
+          [-2, 2, -2, 44],
+          [18, 2, 18, 75],
+          [-35, 2, -35, 150],
+          [-35, 150, -4, 150],
+        ],
+        pads: [
+          [-20, 44, 14, 44],
+          [18, 75, 18, 98],
+        ],
+        moves: { on: 'hand', pivot: [-4, 150] },
+      },
+    },
     tempo: [1100, 500, 1700, 400],
     start: {
-      hip: [0, 93.5],
+      hip: [0, 59],
       lean: 0,
-      ...STAND,
-      armN: { at: [54, 136], mid: [30, 0] },
-      armF: { at: [55, 136], mid: [30, 0] },
+      legN: { at: [40, 7] },
+      legF: { at: [43, 7] },
+      armN: { at: [54, 102], mid: [30, 0] },
+      armF: { at: [55, 102], mid: [30, 0] },
     },
     end: {
-      hip: [0, 93.5],
+      hip: [0, 59],
       lean: 0,
-      ...STAND,
-      armN: { at: [-4, 134], mid: [-1, -2] },
-      armF: { at: [-3, 134], mid: [-1, -2] },
+      legN: { at: [40, 7] },
+      legF: { at: [43, 7] },
+      armN: { at: [-4, 100], mid: [-1, -2] },
+      armF: { at: [-3, 100], mid: [-1, -2] },
     },
     front: {
-      view: [-100, 100, -110, 92],
-      camera: FACING,
+      view: [-83, 83, -101, 83],
+      camera: { at: [0, 120, 330], look: [0, 85, 0] },
       standing: true,
-      // Crossed: each hand holds the cable from the other side, which runs in front of you.
-      cables: [
-        { pulley: [85, 165, 30], hand: 'R' },
-        { pulley: [-85, 165, 30], hand: 'L' },
-      ],
+      machine: {
+        frame: [
+          [
+            [0, 2, -40],
+            [0, 2, 30],
+          ],
+          [
+            [-25, 2, -35],
+            [25, 2, -35],
+          ],
+          [
+            [0, 2, -2],
+            [0, 44, -2],
+          ],
+          [
+            [0, 2, 18],
+            [0, 75, 18],
+          ],
+          [
+            [0, 2, -35],
+            [0, 150, -35],
+          ],
+          [
+            [0, 150, -35],
+            [0, 150, -4],
+          ],
+          [
+            [-14, 150, -4],
+            [14, 150, -4],
+          ],
+        ],
+        pads: [
+          [
+            [-18, 44, -20],
+            [18, 50, 14],
+          ],
+          [
+            [-14, 75, 13.5],
+            [14, 98, 22.5],
+          ],
+        ],
+        levers: [
+          { pivot: [14, 150, -4], hand: 'L' },
+          { pivot: [-14, 150, -4], hand: 'R' },
+        ],
+      },
       start: {
-        ...UPRIGHT,
-        armL: { at: [5, 136], mid: [6, -1], toward: [28, 52] },
-        armR: { at: [-5, 136], mid: [-6, -1], toward: [28, 52] },
+        ...SEATED,
+        armL: { at: [5, 102], mid: [6, -1], toward: [28, 52] },
+        armR: { at: [-5, 102], mid: [-6, -1], toward: [28, 52] },
       },
       end: {
-        ...UPRIGHT,
-        armL: { at: [73, 136], mid: [30, 0], toward: [-4, -8] },
-        armR: { at: [-73, 136], mid: [-30, 0], toward: [-4, -8] },
+        ...SEATED,
+        armL: { at: [73, 102], mid: [30, 0], toward: [-4, -8] },
+        armR: { at: [-73, 102], mid: [-30, 0], toward: [-4, -8] },
       },
     },
   },

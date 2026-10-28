@@ -72,7 +72,8 @@ export interface Props {
    * behind the figure, and pads in front of it (``over``), each from [x, y] to [x, y]. A pad from
    * a point to itself is a roller. ``moves`` is the pad that moves with you, on a lever from
    * ``pivot``: the plate under the soles (a leg press's sled), a roller in front of the shins or
-   * behind the calves, a pad on the thighs above the knees, or pads on the shoulders. */
+   * behind the calves, a pad on the thighs above the knees, pads on the shoulders, or a handle in
+   * the near fist. */
   machine?: {
     frame?: readonly Seg[]
     pads?: readonly Seg[]
@@ -90,7 +91,7 @@ export interface Cable {
   grip: 'handle' | 'rope' | 'bar'
 }
 
-type Moves = { on: 'sole' | 'shin' | 'calf' | 'knee' | 'shoulder'; pivot?: Vec }
+type Moves = { on: 'sole' | 'shin' | 'calf' | 'knee' | 'shoulder' | 'hand'; pivot?: Vec }
 
 type Seg = readonly [number, number, number, number]
 
@@ -366,6 +367,10 @@ function dumbbell(arm: ArmJoints, grip: 'across' | 'along'): Shape[] {
 /** The pad of a machine that moves with the body, as a segment. */
 export function moving(j: Joints, on: Moves['on']): Seg {
   const seg = (a: Vec, b: Vec): Seg => [a[0], a[1], b[0], b[1]]
+  if (on === 'hand') {
+    const [x, y] = fist(j) // an upright handle, through the fist
+    return [x, y - 6, x, y + 6]
+  }
   const leg = j.legN
   if (on === 'sole') {
     const h = heading(leg.heel, leg.tip)
@@ -393,6 +398,13 @@ function mover(j: Joints, moves: Moves) {
   const mid: Vec = [(a + c) / 2, (b + d) / 2]
   // A sled runs on rails straight back from the soles; anything else swings on a lever.
   const pivot = moves.on === 'sole' ? along(mid, heading([a, b], [c, d]) - 90, 18) : moves.pivot
+  if (moves.on === 'hand')
+    return {
+      pad: tubes([[a, b, c, d]], 1.8),
+      lever: pivot
+        ? [...tubes([[pivot[0], pivot[1], mid[0], mid[1]]]), ball(pivot, 3.5, 'bell')]
+        : [],
+    }
   return {
     pad: tubes([[a, b, c, d]], PAD, moves.on === 'sole' ? 'bell' : 'prop'),
     lever: pivot ? tubes([[pivot[0], pivot[1], mid[0], mid[1]]], 3) : [],
