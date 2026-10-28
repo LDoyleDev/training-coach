@@ -4,6 +4,7 @@ import AppShell from '../components/AppShell'
 import BandSummary from '../components/BandSummary'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { moveButton, moveHref } from '../plan/ladder'
+import TopNotes from '../plan/TopNotes'
 import { InstallHint } from '../pwa/InstallApp'
 import { range, standing } from '../session/cardioTotals'
 import { card, primary, secondary } from '../ui'
@@ -114,6 +115,7 @@ export default function HomePage() {
             </ul>
           </div>
         )}
+        <TopNotes top={progress.top} />
         {progress.bests.length > 0 && (
           <p className="m-0">Personal bests in the last 7 days: {progress.bests.join(', ')}</p>
         )}

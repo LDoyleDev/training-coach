@@ -5,6 +5,7 @@
  */
 import type { Motion, Vec } from './body'
 import type { FrontPose } from './front'
+import { GYM } from './gym'
 import type { Bench3, Camera } from './perspective'
 import type { Part, Props } from './shapes'
 
@@ -698,4 +699,5 @@ export const FIGURES: Readonly<Record<string, Figure>> = {
       armF: { at: [12.5, 4], angle: 0, bend: 1 },
     },
   },
+  ...GYM,
 }

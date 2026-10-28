@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.auth import Owner
-from training_coach.api.progress import ReadyView
+from training_coach.api.progress import ReadyView, TopView
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import ExerciseKind
@@ -65,6 +65,7 @@ class ReviewWeekView(BaseModel):
     moderate_minutes: int
     bests: list[ReviewBestView]
     ready: list[ReadyView]  # ready to move up now, this week only; links to /plan
+    top: list[TopView]  # reached the top this week and still there, this week only (ADR-0078)
     strength_block: bool
     habits: list[ReviewHabitView]  # empty in a week with no check-off
     ai_comments: bool  # an AI comment goes with Sunday's review on Telegram
@@ -120,6 +121,7 @@ def get_review(
         ready=[ReadyView(exercise=r.exercise, slug=r.slug) for r in week_review.ready]
         if current
         else [],
+        top=[TopView(**vars(t)) for t in week_review.top] if current else [],
         strength_block=week_review.strength_block,
         habits=[
             ReviewHabitView(label=HABIT_LABELS[h.habit], done=h.done, days=h.days)
