@@ -31,14 +31,14 @@ from training_coach.db.models import (
 )
 from training_coach.domain import kit as kit_rules
 from training_coach.domain.blocks import BlockKind, history_kind
-from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
+from training_coach.domain.enums import ExerciseKind, Place, Places, Side, WorkoutStatus
 from training_coach.domain.kit import Item
 from training_coach.domain.load import top_weight
 from training_coach.domain.progression import Progress, assess, combine_sides
 from training_coach.domain.queue import local_date
 from training_coach.domain.records import NewBests, new_bests
 from training_coach.domain.targets import Prescription
-from training_coach.services import blocks, equipment, users
+from training_coach.services import blocks, equipment, user_settings, users
 
 TOP_NOTED = "progress.top_of_ladder"
 LEVEL_SET = "progress.level_set"
@@ -86,7 +86,10 @@ def _items(session: Session, exercise_id: int) -> list[TemplateItem]:
             select(TemplateItem)
             .join(SessionTemplate)
             .where(TemplateItem.exercise_id == exercise_id)
-            .order_by(SessionTemplate.position, TemplateItem.position)
+            # A session's home version first, then its gym version (ADR-0071).
+            .order_by(
+                SessionTemplate.position, TemplateItem.place != Place.HOME, TemplateItem.position
+            )
         )
     )
 
@@ -552,13 +555,14 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
     for item in session.scalars(
         select(TemplateItem)
         .join(SessionTemplate)
-        .order_by(SessionTemplate.position, TemplateItem.position)
+        .order_by(SessionTemplate.position, TemplateItem.place != Place.HOME, TemplateItem.position)
     ):
         order.setdefault(item.exercise_id, None)
     for exercise_id in session.scalars(select(Exercise.id).order_by(Exercise.id)):
         order.setdefault(exercise_id, None)
 
     kit = equipment.kit(session)
+    gym = user_settings.load(session).places is not Places.HOME
     result = []
     for exercise_id in order:
         exercise = session.get(Exercise, exercise_id)
@@ -572,9 +576,11 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
         per_side = items[0].per_side if items else exercise.per_side
         block = history_kind(ExerciseKind(exercise.kind), BlockKind.HYPERTROPHY)
         history = [v for _, v in sessions_at_step(session, exercise_id, step.id, per_side, block)]
-        if (exercise.retired or not items) and not history:
+        trained = [i for i in items if gym or i.place == Place.HOME]
+        if (exercise.retired or not trained) and not history:
             # Nothing to show for an exercise no longer trained (#107), or one in no session
-            # yet and never logged: a gym exercise before the gym sessions (ADR-0072).
+            # the person trains and never logged: only at the gym, for someone who trains at
+            # home (ADR-0071), or in no session at all yet (ADR-0072).
             continue
         statuses = {_status(session, item, step, kit) for item in items}
         needs = equipment.ladder_needs(exercise)
