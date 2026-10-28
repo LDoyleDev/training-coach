@@ -33,7 +33,7 @@ from training_coach.db.models import (
 from training_coach.domain import cardio
 from training_coach.domain import zones as domain_zones
 from training_coach.domain.cardio import Targets
-from training_coach.domain.enums import WorkoutStatus
+from training_coach.domain.enums import Place, WorkoutStatus
 from training_coach.domain.health import MODERATE, ZONE2
 from training_coach.domain.zones import Split, Zones
 from training_coach.services import user_settings, zones
@@ -51,7 +51,8 @@ def targets(session: Session) -> Targets:
             func.sum(TemplateItem.sets * TemplateItem.rep_max),
         )
         .join(TemplateItem, TemplateItem.exercise_id == Exercise.id)
-        .where(Exercise.slug.in_(KINDS))
+        # The home version: a gym version's cardio is the same cardio (ADR-0071).
+        .where(Exercise.slug.in_(KINDS), TemplateItem.place == Place.HOME)
         .group_by(Exercise.slug)
     )
     planned = {slug: (int(low), int(high)) for slug, low, high in rows}

@@ -106,3 +106,8 @@ Decided while building, within this ADR:
   same way at the gym.
 - **`settings.place`** keeps the place Today starts at for someone at both: the last one chosen
   on Today's switch (Decided 4).
+- **The gym versions** are in `plan.toml` (`gym = [...]` on a session) for Legs, Torso + neck,
+  Cardio + core and Arms + legs; Recovery, High intensity and Long zone 2 are done the same way
+  at both. The choices and reasons are in `program-builder.md` (L), proposed for Liam's review.
+  Plan version "Gym versions" from 28 Oct 2026. Progress shows an exercise that is only in the
+  gym versions to someone who trains at a gym, or once it has been logged.
