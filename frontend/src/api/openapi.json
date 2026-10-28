@@ -2683,12 +2683,20 @@
           "steps_climbed": {
             "title": "Steps Climbed",
             "type": "integer"
+          },
+          "top": {
+            "items": {
+              "$ref": "#/components/schemas/TopView"
+            },
+            "title": "Top",
+            "type": "array"
           }
         },
         "required": [
           "steps_climbed",
           "ready",
-          "bests"
+          "bests",
+          "top"
         ],
         "title": "LadderView",
         "type": "object"
@@ -4810,6 +4818,13 @@
             "title": "Strength Block",
             "type": "boolean"
           },
+          "top": {
+            "items": {
+              "$ref": "#/components/schemas/TopView"
+            },
+            "title": "Top",
+            "type": "array"
+          },
           "zone2_minutes": {
             "title": "Zone2 Minutes",
             "type": "integer"
@@ -4852,6 +4867,7 @@
           "moderate_minutes",
           "bests",
           "ready",
+          "top",
           "strength_block",
           "habits",
           "ai_comments",
@@ -6178,6 +6194,37 @@
           "session"
         ],
         "title": "TodayView",
+        "type": "object"
+      },
+      "TopView": {
+        "description": "The ready rule met with no level to move to, said once per level (ADR-0078). ``unlock``\nsays what opens the next level when the kit is what's missing (ADR-0071); else None, the\ntop of the ladder.",
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "unlock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unlock"
+          }
+        },
+        "required": [
+          "exercise",
+          "slug",
+          "unlock"
+        ],
+        "title": "TopView",
         "type": "object"
       },
       "TotalsView": {
@@ -9185,7 +9232,7 @@
     },
     "/api/session/place": {
       "put": {
-        "description": "Do today's session at home or at the gym (ADR-0071): the person's switch, never the\napp's. 409 with ``kept_sets`` when sets are kept for the version shown (ask, then confirm),\nor with a message when today has no choice to make.",
+        "description": "Do today's session at home or at the gym (ADR-0071): the person's switch, never the\napp's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when\nsets are kept for the version shown (ask, then confirm), or with a ``detail`` message when\ntoday has no choice to make.",
         "operationId": "choose_place_api_session_place_put",
         "requestBody": {
           "content": {

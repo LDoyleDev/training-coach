@@ -771,6 +771,7 @@ export async function deletePhoto(id: number): Promise<void> {
 
 export type Standing = Schemas['StandingView']
 export type StandingsList = Schemas['StandingsView']
+export type Top = Schemas['TopView'] // the ready rule met with no level to move to (ADR-0078)
 
 /** Each exercise's standing; null when not signed in. */
 export async function fetchProgress(signal?: AbortSignal): Promise<StandingsList | null> {

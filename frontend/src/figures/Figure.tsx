@@ -67,7 +67,7 @@ function scene(figure: Data, view: View, t: number) {
   const at = <P,>(start: P, end: P) => (t <= 0 ? start : t >= 1 ? end : blend(start, end, t))
   const { front } = figure
   if (view === 'front' && front) {
-    const drawn = perspectiveShapes(at(front.start, front.end), front.camera, front.seat)
+    const drawn = perspectiveShapes(at(front.start, front.end), front.camera, front.seat, front)
     return { box: front.view, drawn, floor: false }
   }
   const pose = at(figure.start, figure.end)

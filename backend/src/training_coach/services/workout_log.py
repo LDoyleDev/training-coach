@@ -467,11 +467,19 @@ def _commit(
 
 
 def _place(session: Session, confirmed: Draft) -> Place:
-    """Where a log was done: the draft's place, else the day's (ADR-0071)."""
+    """Where a log was done: the draft's place, else the day's (ADR-0071), and for a planned
+    session the place of the version done there: home when it has no gym version."""
     if confirmed.place is not None:
-        return confirmed.place
-    prefs = user_settings.load(session)
-    return day_place(prefs.places, prefs.place)
+        at = confirmed.place
+    else:
+        prefs = user_settings.load(session)
+        at = day_place(prefs.places, prefs.place)
+    template = (
+        session.get(SessionTemplate, confirmed.template_id)
+        if confirmed.template_id is not None
+        else None
+    )
+    return template.done_at(at) if template is not None else at
 
 
 def _order(session: Session) -> list[int]:

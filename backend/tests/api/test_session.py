@@ -677,7 +677,8 @@ def test_switching_with_sets_kept_asks_before_dropping_them(signed_in: TestClien
     }
     assert signed_in.put("/api/session/progress", json=kept).status_code == 200
     asked = signed_in.put("/api/session/place", json={"place": "gym"})
-    assert (asked.status_code, asked.json()["detail"]) == (409, {"kept_sets": 1})
+    # The body is a PlaceAsk at the top level, as the API types document (not under detail)
+    assert (asked.status_code, asked.json()) == (409, {"kept_sets": 1})
     assert signed_in.get("/api/session/today").json()["progress"]["sets"] != []
     confirmed = signed_in.put("/api/session/place", json={"place": "gym", "confirm": True})
     assert confirmed.status_code == 200

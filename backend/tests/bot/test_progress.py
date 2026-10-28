@@ -237,6 +237,8 @@ def _feedback(**changes: object) -> Feedback:
 
 
 def test_feedback_text_units_and_cases() -> None:
+    """The top-of-ladder note is for the person, in the web's words (ADR-0078): it used to tell
+    them to add a harder variation to plan.toml."""
     assert feedback_text([_feedback()]) == ""
     assert feedback_text([_feedback(bests=NewBests(best_set=45, total=120))]) == (
         "New best on Plank: 45s in one set and 120s in total."
@@ -246,7 +248,10 @@ def test_feedback_text_units_and_cases() -> None:
     one = _feedback(exercise="Pistol", kind=ExerciseKind.REPS, bests=NewBests(best_set=1))
     assert feedback_text([one]) == "New best on Pistol: 1 rep in one set."
     top = _feedback(exercise="Dip", status=Progress.TOP_OF_LADDER, note_top=True)
-    assert "last step in your plan" in feedback_text([top])
+    assert feedback_text([top]) == (
+        "Dip: top of the range on the last level of its ladder. That's the top for now: keep "
+        "training at this level, or pick another one on the Plan tab."
+    )
     quiet = _feedback(exercise="Dip", status=Progress.TOP_OF_LADDER, note_top=False)
     assert feedback_text([quiet]) == ""
     kit = _feedback(
@@ -256,7 +261,7 @@ def test_feedback_text_units_and_cases() -> None:
         unlock="a 16 kg kettlebell unlocks Two-hand, 16 kg",
     )
     assert feedback_text([kit]) == (
-        "Swing: top of the range on the last step your kit allows. "
+        "Swing: top of the range on the last level your kit allows. "
         "A 16 kg kettlebell unlocks Two-hand, 16 kg."
     )
 

@@ -1368,8 +1368,9 @@ export interface paths {
         /**
          * Choose Place
          * @description Do today's session at home or at the gym (ADR-0071): the person's switch, never the
-         *     app's. 409 with ``kept_sets`` when sets are kept for the version shown (ask, then confirm),
-         *     or with a message when today has no choice to make.
+         *     app's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when
+         *     sets are kept for the version shown (ask, then confirm), or with a ``detail`` message when
+         *     today has no choice to make.
          */
         put: operations["choose_place_api_session_place_put"];
         post?: never;
@@ -2691,6 +2692,8 @@ export interface components {
             ready: components["schemas"]["ReadyView"][];
             /** Steps Climbed */
             steps_climbed: number;
+            /** Top */
+            top: components["schemas"]["TopView"][];
         };
         /**
          * LoadView
@@ -3430,6 +3433,8 @@ export interface components {
             start: string;
             /** Strength Block */
             strength_block: boolean;
+            /** Top */
+            top: components["schemas"]["TopView"][];
             /** Zone2 Minutes */
             zone2_minutes: number;
             /** Zone2 Target */
@@ -3892,6 +3897,20 @@ export interface components {
             readiness_note?: string | null;
             session: components["schemas"]["GuidedView"] | null;
             test_day?: components["schemas"]["TestDayDueView"] | null;
+        };
+        /**
+         * TopView
+         * @description The ready rule met with no level to move to, said once per level (ADR-0078). ``unlock``
+         *     says what opens the next level when the kit is what's missing (ADR-0071); else None, the
+         *     top of the ladder.
+         */
+        TopView: {
+            /** Exercise */
+            exercise: string;
+            /** Slug */
+            slug: string;
+            /** Unlock */
+            unlock: string | null;
         };
         /** TotalsView */
         TotalsView: {

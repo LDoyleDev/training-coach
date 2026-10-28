@@ -176,6 +176,11 @@ class SessionTemplate(Base):
         home version (ADR-0071)."""
         return self.gym_items if place is Place.GYM and self.gym_items else self.items
 
+    def done_at(self, place: Place) -> Place:
+        """Where ``version(place)`` is done: the gym only when there is a gym version, so a
+        gym-only person's session without one is recorded at home, with home kit (ADR-0071)."""
+        return Place.GYM if place is Place.GYM and self.gym_items else Place.HOME
+
 
 class TemplateItem(Base):
     """A planned exercise within a session. For duration exercises the range is minutes."""
