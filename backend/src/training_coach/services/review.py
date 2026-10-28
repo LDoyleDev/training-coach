@@ -147,7 +147,8 @@ def _bests(session: Session, workouts: list[Workout]) -> list[Best]:
                 ]
             )
             if earlier is not None:  # a second record that week: keep the higher of each
-                if bests.best_set is None and earlier.bests.best_set is not None:
+                kept = earlier.bests.best_set
+                if kept is not None and (bests.best_set is None or bests.best_set < kept):
                     kg = earlier.load_kg  # the best set is still the earlier session's
                 bests = NewBests(
                     _higher(bests.best_set, earlier.bests.best_set),

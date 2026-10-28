@@ -10,7 +10,7 @@ from training_coach.db.models import Exercise, SessionTemplate, SetLog, Workout
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.habits import Habit, HabitWeek
 from training_coach.domain.records import NewBests
-from training_coach.services import habits, users
+from training_coach.services import habits, progress, users
 from training_coach.services.progress import Ready
 from training_coach.services.review import week_start, weekly
 from training_coach.services.seed import apply_seed, load_plan
@@ -127,6 +127,19 @@ def test_a_best_names_the_weight_of_the_session_that_set_it(plan: Session) -> No
     _log(plan, "hammer-curl", [13, 9, 9], MONDAY + timedelta(days=4), kg=(14.0,) * 3)
     (best,) = weekly(plan, SUNDAY).bests
     assert (best.bests.best_set, best.load_kg) == (13, 14.0)
+
+
+def test_the_weight_stays_with_the_higher_best_set(
+    plan: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review of #446: a later record with a lower best set (bests that compare only part of
+    the history) leaves the earlier session's best set, and so its weight."""
+    found = iter([NewBests(best_set=13), NewBests(best_set=12, total=40)])
+    monkeypatch.setattr(progress, "bests_in", lambda *_args, **_kwargs: next(found))
+    _log(plan, "hammer-curl", [13, 9, 9], MONDAY, kg=(10.0,) * 3)
+    _log(plan, "hammer-curl", [12, 12, 12], MONDAY + timedelta(days=3), kg=(14.0,) * 3)
+    (best,) = weekly(plan, SUNDAY).bests
+    assert (best.bests, best.load_kg) == (NewBests(best_set=13, total=40), 10.0)
 
 
 def test_ready_to_move_up(plan: Session) -> None:
