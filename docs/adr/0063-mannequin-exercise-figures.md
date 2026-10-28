@@ -96,9 +96,10 @@ step whose set-up, load or movement looks different gets its own drawing in `ste
 changes only the tempo, a pause or the weight of a bell already drawn shows the figure as it is.
 `steps.test.tsx` holds the audit: every step of an exercise with a figure must be drawn in
 `steps.ts` or listed in `SAME` with the reason, so a new loaded or one-sided step can't ship
-without its figure. Steps still to draw sit in its `PENDING` list until they are.
+without its figure.
 
 - `bell: 'goblet'`: a kettlebell held by the horns at the chest, the bell under the hands.
+- A plank's toes now bend along whatever the balls of the feet rest on, such as a chair seat.
 - `kneel` (body.ts): a pose pivoting on the knee, so a Nordic curl keeps its knees put; the
   reverse Nordic's deeper steps use it too.
 - `bell: 'one'`: a one-arm swing's bell along the near forearm; `bell: 'toes'`: a bell resting
@@ -141,17 +142,17 @@ without its figure. Steps still to draw sit in its `PENDING` list until they are
 | One-arm kettlebell row | 8 kg | | the figure (a bell in the hand) |
 | | 8 kg, 3 s lowering; 16 kg; 16 kg, 3 s lowering; 16 kg, pause at top | the tempo, a heavier bell | none |
 | Push-up | Standard | | the figure |
-| | Feet elevated | feet on a chair, the body sloping down | to draw |
-| | Deficit | hands raised on blocks, the chest below them | to draw |
-| | Archer | one arm bends, the other stays straight out wide | to draw |
+| | Feet elevated | feet on a chair, the body sloping down | own poses, chair |
+| | Deficit | hands raised on blocks, the chest below them | own poses, a block |
+| | Archer | one arm bends, the other stays straight out wide | the straight arm drawn short, in front |
 | Pike push-up | Feet on floor | | the figure |
-| | Feet on chair | feet on a chair, more upside down | to draw |
-| | Wall handstand push-up negatives | upside down, feet on a wall | to draw |
+| | Feet on chair | feet on a chair, more upside down | own poses, chair |
+| | Wall handstand push-up negatives | upside down, heels on a wall | own poses, wall |
 | Chin-up | Strict | | the figure |
 | | 3 s lowering | the tempo | none |
 | | Vest or backpack, 5, 10 and 15 kg | a pack on the upper back | pack |
 | Diamond push-up | Standard | | the figure |
-| | Feet elevated | feet on a chair | to draw |
+| | Feet elevated | feet on a chair | own poses, chair |
 | Kettlebell curl | 8 kg | | the figure |
 | | 8 kg, slow tempo; 8 kg, 3 s lowering, pause at top; 16 kg, slow tempo | the tempo, a heavier bell | none |
 | | 16 kg, hammer grip | the handle upright | hammer grip |

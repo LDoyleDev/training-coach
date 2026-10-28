@@ -148,7 +148,7 @@ function fromPlank(pose: Pose): Pose & { hip: Vec } {
     ball[1] - BODY.ball * uy - BODY.ankle * ny,
   ]
   const hip = along(ankle, angle, BODY.thigh + BODY.shin - 0.1)
-  const leg: Limb = { at: ankle, angle: foot }
+  const leg: Limb = { at: ankle, angle: foot, floor: ball[1] } // toes bend along what's under them
   return { ...pose, hip, lean: 90 - angle, legN: leg, legF: { ...leg } }
 }
 
