@@ -2046,6 +2046,70 @@
         "title": "HomeWeekView",
         "type": "object"
       },
+      "IncrementsChange": {
+        "description": "Only the kits sent change; the default value goes back to the default.",
+        "properties": {
+          "barbell": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barbell"
+          },
+          "dumbbells": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dumbbells"
+          },
+          "machine": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine"
+          }
+        },
+        "title": "IncrementsChange",
+        "type": "object"
+      },
+      "IncrementsView": {
+        "description": "The smallest weight step for each loaded kit (ADR-0072); dumbbells: per hand.",
+        "properties": {
+          "barbell": {
+            "title": "Barbell",
+            "type": "number"
+          },
+          "dumbbells": {
+            "title": "Dumbbells",
+            "type": "number"
+          },
+          "machine": {
+            "title": "Machine",
+            "type": "number"
+          }
+        },
+        "required": [
+          "barbell",
+          "dumbbells",
+          "machine"
+        ],
+        "title": "IncrementsView",
+        "type": "object"
+      },
       "IngestReceived": {
         "description": "How many records of each type were stored, and skipped as not fitting. A press of the\napp's Test button also gets ``test`` and a ``note`` saying nothing was stored, so its log\nshows it; a real sync gets neither.",
         "properties": {
@@ -5550,6 +5614,16 @@
             ],
             "title": "Habits Enabled"
           },
+          "increments": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncrementsChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "morning_time": {
             "anyOf": [
               {
@@ -5663,6 +5737,9 @@
             ],
             "title": "Blocks Since"
           },
+          "default_increments": {
+            "$ref": "#/components/schemas/IncrementsView"
+          },
           "extra_cardio_min": {
             "title": "Extra Cardio Min",
             "type": "integer"
@@ -5670,6 +5747,9 @@
           "habits_enabled": {
             "title": "Habits Enabled",
             "type": "boolean"
+          },
+          "increments": {
+            "$ref": "#/components/schemas/IncrementsView"
           },
           "morning_time": {
             "title": "Morning Time",
@@ -5728,6 +5808,8 @@
           "sound",
           "extra_cardio_min",
           "places",
+          "increments",
+          "default_increments",
           "paused",
           "timezone"
         ],

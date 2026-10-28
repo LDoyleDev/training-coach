@@ -22,7 +22,7 @@ from training_coach.db.models import (
 )
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind, Place
-from training_coach.domain.load import Load, carried, next_weight, top_weight
+from training_coach.domain.load import DEFAULTS, Increments, Load, carried, next_weight, top_weight
 from training_coach.domain.muscles import Muscle, Part, ranked
 from training_coach.domain.places import can_switch, day_place
 from training_coach.domain.queue import ADVANCING, Position, advance
@@ -131,11 +131,17 @@ def _worked() -> dict[str, Worked]:
 
 
 def _item_plan(
-    session: Session, item: TemplateItem, strength: bool, pace: Pace, chosen: int | None = None
+    session: Session,
+    item: TemplateItem,
+    strength: bool,
+    pace: Pace,
+    chosen: int | None = None,
+    increments: Increments = DEFAULTS,
 ) -> ItemPlan:
     """One exercise: its step, cue and targets, under the strength prescription if it applies
     (ADR-0028), with targets from the matching block's history (ADR-0027) at the person's
-    ``pace`` (ADR-0057). ``chosen``: a step of its ladder picked for today (ADR-0080)."""
+    ``pace`` (ADR-0057). ``chosen``: a step of its ladder picked for today (ADR-0080). A loaded
+    step moves by the person's own ``increments`` (ADR-0072)."""
     step = session.get(LadderStep, chosen) if chosen is not None else None
     plan = blocks.assign(
         session,
@@ -156,7 +162,7 @@ def _item_plan(
     ]
     load = None
     if kit is not None:
-        load = carried(kit, plan.prescription.sets, last)
+        load = carried(kit, plan.prescription.sets, last, increments)
         latest = history[0] if history else None
         suggested = next_weight(plan.prescription, latest, last, load.increment)
         load = replace(load, suggested=suggested)
@@ -215,6 +221,7 @@ def session_plan(
                 blocks.strength_applies(block, template.kind),
                 pace,
                 (steps or {}).get(item.exercise.slug),
+                prefs.increments,
             )
             for item in template.version(at)
         ),

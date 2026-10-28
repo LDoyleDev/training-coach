@@ -127,3 +127,15 @@ Decided while building, within this ADR:
   (builder step 9); until then they are logged by text or voice, and an exercise in no
   session shows on Progress once it has been logged. Their figures (ADR-0063) are still to
   be drawn; they are needed before step 9 offers them on the set screen.
+
+## Built (own increments, 28 Oct 2026)
+
+Decided while building, within this ADR:
+
+- **Where:** "Weight steps" on Account, under My equipment: one step for each kit (barbell,
+  dumbbells per hand, machine or cable), shown with its default. − and + on the set screen move
+  by it, and the suggested next weight adds it, at home and at the gym.
+- **Stored per person** on `settings` (`barbell_increment_kg`, `dumbbells_increment_kg`,
+  `machine_increment_kg`); empty keeps the default, and a step set back to the default is kept
+  as empty, so a later change to a default reaches them. A step is 0.25 to 20 kg, in quarters
+  of a kilo. `PATCH /api/settings` takes `increments`, only the kits sent change.

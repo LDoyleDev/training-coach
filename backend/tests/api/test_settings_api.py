@@ -11,6 +11,7 @@ from training_coach.api.app import create_app
 from training_coach.config import Settings
 from training_coach.db.models import User
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.load import Increments, LoadKit
 from training_coach.domain.queue import local_date
 from training_coach.services import auth, user_settings
 from training_coach.services.user_settings import Prefs
@@ -66,6 +67,8 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "sound": "ring",
         "extra_cardio_min": 0,
         "places": "home",
+        "increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0},
+        "default_increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0},
         "paused": False,
         "timezone": "Europe/Berlin",
     }
@@ -184,6 +187,33 @@ def test_where_you_train_is_home_gym_or_both(signed_in: TestClient, engine: Engi
     assert _stored(engine).places == "both"
     assert signed_in.patch("/api/settings", json={"places": "away"}).status_code == 422
     assert signed_in.patch("/api/settings", json={"places": "gym"}).json()["places"] == "gym"
+
+
+def test_a_persons_own_weight_steps_replace_the_defaults(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0072: each person can change theirs; only the kits sent change, and setting the
+    default back keeps no step of their own."""
+    changed = signed_in.patch("/api/settings", json={"increments": {"barbell": 1.25}}).json()
+    assert changed["increments"] == {"barbell": 1.25, "dumbbells": 2.0, "machine": 5.0}
+    assert changed["default_increments"]["barbell"] == 2.5
+    signed_in.patch("/api/settings", json={"increments": {"machine": 2.5}})
+    assert _stored(engine).increments == Increments(barbell=1.25, machine=2.5)
+    for bad in (0, 0.1, 1.3, 25):
+        body = {"increments": {"dumbbells": bad}}
+        assert signed_in.patch("/api/settings", json=body).status_code == 422
+    signed_in.patch("/api/settings", json={"increments": {"barbell": 2.5}})
+    assert _stored(engine).increments == Increments(machine=2.5)
+
+
+def test_a_second_persons_weight_steps_are_their_own(engine: Engine) -> None:
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=OTHER))
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as theirs:
+        user_settings.update(theirs, increments={LoadKit.DUMBBELLS: 1.0})
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as theirs:
+        assert user_settings.load(theirs).increments == Increments(dumbbells=1.0)
+    assert _stored(engine).increments == Increments()  # the owner's are untouched
 
 
 def test_signed_out_gets_nothing(client: TestClient) -> None:
