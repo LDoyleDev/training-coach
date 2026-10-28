@@ -256,6 +256,33 @@ const straightOut = (pose: Pose): Pose => {
   return { ...pose, armN: { ...pose.armN, mid: [dx * share, dy * share] } }
 }
 
+/** The archer seen from in front of the head, where the straight arm reads (front.ts, laid face
+ * down): hands wide, both arms straight; then down over the right arm as it bends, the body
+ * shifting towards it, the left arm straight out to the side. The hands stay put on the floor. */
+const ARCHER: Figure['front'] = {
+  view: [-85, 79, -83, 79],
+  camera: { at: [0, 230, 330], look: [0, 15, 75] },
+  standing: true,
+  start: {
+    hip: [0, 100],
+    tilt: 90,
+    lie: { slope: 13.3, lift: 10.89 },
+    legL: { at: [10, 13.1] },
+    legR: { at: [-10, 13.1] },
+    armL: { at: [55, 144], mid: [19.82, 0], toward: [22.52, 42.04] },
+    armR: { at: [-55, 144], mid: [-19.82, 0], toward: [22.52, 42.04] },
+  },
+  end: {
+    hip: [-14.94, 100],
+    tilt: 90,
+    lie: { slope: 4, lift: 13.06 },
+    legL: { at: [2, 14] },
+    legR: { at: [-16, 14] },
+    armL: { at: [55, 148.75], mid: [27.82, 2.54], toward: [10.92, 20.38] },
+    armR: { at: [-55, 148.75], mid: [-29.75, 0], toward: [-3.9, 20.38] },
+  },
+}
+
 /** A pike push-up with the feet on a chair: hips over the shoulders, nearly upside down. */
 const pike = FIGURES['pike-push-up']
 const PIKE_FEET = {
@@ -475,6 +502,7 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
       order: ['armF', 'legF', 'legN', 'torso', 'head', 'armN'],
       start: straightOut(push.start),
       end: straightOut(push.end),
+      front: ARCHER,
     },
   },
   'diamond-push-up': {

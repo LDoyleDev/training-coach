@@ -80,6 +80,17 @@ export function lens(camera: Camera) {
 }
 
 type Project = ReturnType<typeof lens>
+
+/** Where a point of a body laid face down (``FrontPose.lie``) is: its plane turned about the x
+ * axis, the chest (+z) to the floor and the head (+y) towards the camera. */
+export function layDown([x, y, z]: Vec3, { slope, lift }: NonNullable<FrontPose['lie']>): Vec3 {
+  const [c, s] = [Math.cos((slope * Math.PI) / 180), Math.sin((slope * Math.PI) / 180)]
+  return [x, lift + y * s - z * c, y * c + z * s]
+}
+const laid =
+  (world: Project, lie: NonNullable<FrontPose['lie']>): Project =>
+  (p) =>
+    world(layDown(p, lie))
 interface Drawn {
   depth: number
   shapes: Shape[]
@@ -275,7 +286,8 @@ export function perspectiveShapes(
   seat?: Bench3,
   kit: Kit = {},
 ): Shape[] {
-  const see = lens(camera)
+  const world = lens(camera)
+  const see = pose.lie ? laid(world, pose.lie) : world
   const j = solveFront(pose)
   const [hipL, hipR] = [at(j.legL.root), at(j.legR.root)]
   const [shL, shR] = [at(j.armL.root), at(j.armR.root)]
@@ -290,14 +302,15 @@ export function perspectiveShapes(
         [elbow[0] + 1.5, 2.4, 30],
       ]
   const nose: Vec3 = [j.head[0], j.head[1], 9.5]
-  const [x0, x1] = kit.standing ? [-60, 60] : [-75, 48]
+  const [x0, x1] = pose.lie ? [-80, 80] : kit.standing ? [-60, 60] : [-75, 48]
+  const [z0, z1] = pose.lie ? [-10, 180] : [-32, 42] // lying, the mat runs away from you
   const mat: Vec3[] = [
-    [x0, 0, -32],
-    [x1, 0, -32],
-    [x1, 0, 42],
-    [x0, 0, 42],
+    [x0, 0, z0],
+    [x1, 0, z0],
+    [x1, 0, z1],
+    [x0, 0, z1],
   ]
-  const edges: Shape[] = [{ kind: 'floor', d: path(mat.map((c) => see(c).p)) }]
+  const edges: Shape[] = [{ kind: 'floor', d: path(mat.map((c) => world(c).p)) }]
   const parts: Drawn[] = [
     ...(seat ? bench(see, camera, seat) : []),
     ...cables(see, camera, j, kit),

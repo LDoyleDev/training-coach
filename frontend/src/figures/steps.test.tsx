@@ -2,7 +2,8 @@ import { render, screen } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import plan from '../../../backend/src/training_coach/seed/plan.toml?raw'
 import { BODY, blend, dist, heading, solve, type Vec } from './body'
-import { solveFront } from './front'
+import { solveFront, type FrontJoints, type FrontLimbJoints, type FrontPose } from './front'
+import { layDown, perspectiveShapes } from './perspective'
 import Figure from './Figure'
 import { FIGURES } from './poses'
 import { SOFA, shapes, type Props, type Shape } from './shapes'
@@ -542,4 +543,30 @@ test('pike push-ups go further upside down: feet on a chair, then a handstand at
     expect(j.head.c[1] - 11.5, 'head off the floor').toBeGreaterThan(0)
   }
   expect(solve(wall.start).head.c[1] - solve(wall.end).head.c[1], 'lowered').toBeGreaterThan(15)
+})
+
+test('an archer push-up is seen from in front of the head: one arm bends, the other stays straight', () => {
+  const front = figureFor('push-up', 'Archer')!.front!
+  type Seen = { pose: FrontPose; j: FrontJoints }
+  const [top, low]: Seen[] = [front.start, front.end].map((pose) => ({ pose, j: solveFront(pose) }))
+  const world = (pose: FrontPose, p: Vec, z: number) => layDown([p[0], p[1], z], pose.lie!)
+  const reach = (arm: FrontLimbJoints) =>
+    Math.hypot(arm.end[0] - arm.root[0], arm.end[1] - arm.root[1], arm.z[1])
+  const hands = ({ pose, j }: Seen) => [j.armL, j.armR].map((arm) => world(pose, arm.end, arm.z[1]))
+  for (const [a, b] of [0, 1].map((i) => [hands(top)[i], hands(low)[i]])) {
+    expect(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]), 'hands put').toBeLessThan(0.5)
+    expect(a[1], 'on the floor').toBeLessThan(4)
+  }
+  for (const { pose, j } of [top, low])
+    for (const leg of [j.legL, j.legR])
+      expect(world(pose, [leg.end[0], leg.end[1] - 1], 13)[1], 'toes down').toBeLessThan(2)
+  expect(reach(top.j.armL), 'straight').toBeGreaterThan(55.5)
+  expect(reach(top.j.armR), 'straight').toBeGreaterThan(55.5)
+  expect(reach(low.j.armL), 'still straight, out to the side').toBeGreaterThan(55.5)
+  expect(reach(low.j.armR), 'bent').toBeLessThan(35)
+  const shoulders = (t: Seen) => world(t.pose, t.j.shoulders, 0)[1]
+  expect(shoulders(low), 'down').toBeLessThan(shoulders(top) - 15)
+  expect(low.j.hip[0], 'over the bent arm').toBeLessThan(top.j.hip[0] - 10)
+  const drawn = perspectiveShapes(front.end, front.camera, undefined, front)
+  expect(JSON.stringify(drawn)).not.toMatch(/NaN|null/)
 })
