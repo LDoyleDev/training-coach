@@ -3,7 +3,7 @@ import { fetchDay, type DayLog, type LoggedWorkout } from '../api'
 import { day as dayName } from '../home/logic'
 import { card, secondary } from '../ui'
 import HabitsCard from './Habits'
-import { details, shift } from './days'
+import { details, shift, weights } from './days'
 
 type Exercise = LoggedWorkout['exercises'][number]
 type LoggedSet = Exercise['sets'][number]
@@ -58,6 +58,7 @@ function Workout({ workout }: { workout: LoggedWorkout }) {
               {exercise.step && (
                 <span className="text-[var(--slate)]"> ({exercise.step})</span>
               )}: {exercise.sets.map((set) => setText(set, exercise.unit)).join(' · ')}
+              {weights(exercise.sets)}
             </li>
           ))}
         </ul>

@@ -1,9 +1,9 @@
 import pytest
 
 from training_coach.domain.enums import ExerciseKind, Side
+from training_coach.domain.load import NO_WEIGHT
 from training_coach.domain.parser import (
     MAX_TEXT,
-    NO_WEIGHT,
     Entry,
     Known,
     parse_log,

@@ -9,7 +9,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Connection, Engine, create_engine, event
 from sqlalchemy.orm import ORMExecuteState, Session, sessionmaker, with_loader_criteria
 from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.sql import visitors
@@ -37,6 +37,18 @@ def make_engine(database_url: str) -> Engine:
             cursor.execute("PRAGMA synchronous=NORMAL")
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
+
+        @event.listens_for(engine, "savepoint")
+        def _begin_before_savepoint(connection: Connection, _name: str | None) -> None:
+            # Python's sqlite3 opens a transaction only at an INSERT, UPDATE or DELETE. A
+            # savepoint opened before any write then stood alone: releasing it committed its
+            # rows, and a later rollback left them in. Open the transaction first. Only here:
+            # SQLAlchemy's full recipe (BEGIN for every transaction) would put each session's
+            # reads in its transaction too, and a read-then-write racing another write then
+            # fails "database is locked" instead of waiting (see the fitness test race).
+            driver = connection.connection.driver_connection
+            if driver is not None and not driver.in_transaction:
+                connection.exec_driver_sql("BEGIN")
 
     return engine
 

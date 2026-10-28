@@ -62,11 +62,14 @@ const tibialis = muscle({
 })
 
 const coverage: Coverage = {
+  place: 'home',
+  places: 'home',
   muscles: [glutes, lats, neck, tibialis],
   sessions: [
     {
       session: 'Legs',
       slug: 'legs',
+      place: 'home',
       spine_sets: 10,
       grip_sets: 3,
       spine_heavy: true,
@@ -79,6 +82,7 @@ const coverage: Coverage = {
     {
       session: 'Arms',
       slug: 'arms',
+      place: 'home',
       spine_sets: 0,
       grip_sets: 9,
       spine_heavy: false,
@@ -207,6 +211,18 @@ describe('SessionMap', () => {
     expect(screen.getByText('Kettlebell swing: 3 × 0.5 = 1.5')).toBeVisible()
     fireEvent.click(container.querySelector('path[data-muscle="lats"]')!)
     expect(screen.getByText(/Lats: 1.5 sets in this session, a little/)).toBeVisible()
+  })
+
+  it('says which version the gym view counts', () => {
+    const gym: Coverage = { ...coverage, place: 'gym' }
+    const { rerender } = render(
+      <SessionMap coverage={gym} day={{ ...coverage.sessions[0], place: 'gym' }} />,
+    )
+    expect(screen.getByText(/What its gym version works/)).toBeVisible()
+    rerender(<SessionMap coverage={gym} day={coverage.sessions[0]} />)
+    expect(screen.getByText('Done the same way at the gym.')).toBeVisible()
+    rerender(<SessionMap coverage={coverage} day={coverage.sessions[0]} />)
+    expect(screen.queryByText(/gym/)).not.toBeInTheDocument()
   })
 
   it('draws nothing for a session that works no muscle', () => {

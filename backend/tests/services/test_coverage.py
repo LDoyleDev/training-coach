@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Exercise, ExerciseState
 from training_coach.domain.coverage import Band
+from training_coach.domain.enums import Place, Places
 from training_coach.domain.muscles import Muscle
-from training_coach.services.coverage import plan_coverage, trained_steps
+from training_coach.services import user_settings
+from training_coach.services.coverage import map_place, plan_coverage, trained_steps
 from training_coach.services.seed import apply_seed, load_plan
 
 
@@ -73,3 +75,41 @@ def test_a_loaded_step_adds_to_the_spine_count(plan: Session) -> None:
 def test_an_exercise_not_started_counts_at_the_plans_start(session: Session) -> None:
     assert trained_steps(session) == {}
     assert plan_coverage(session).days[0].spine_sets == 6
+
+
+def test_the_gym_view_counts_each_sessions_gym_version(plan: Session) -> None:
+    home, gym = plan_coverage(plan), plan_coverage(plan, Place.GYM)
+    assert {d.slug: d.place for d in gym.days} == {
+        "legs": Place.GYM,
+        "recovery": Place.HOME,  # no gym version: counted the same in both views
+        "torso": Place.GYM,
+        "moderate-cardio": Place.GYM,
+        "hiit": Place.HOME,
+        "arms": Place.GYM,
+        "zone2": Place.HOME,
+    }
+    assert {d.place for d in home.days} == {Place.HOME}
+    assert gym.days[1] == home.days[1]  # Recovery, the same week in both
+    by = {m.muscle: m for m in gym.muscles}
+    assert (by[Muscle.HAMSTRINGS].sets, by[Muscle.HAMSTRINGS].days) == (12, 3)
+    glutes = {s.exercise for s in by[Muscle.GLUTES].sources}
+    assert "Hip thrust" in glutes
+    assert "Kettlebell swing" not in glutes  # the home Legs'
+    assert gym.days[0].spine_sets == 3  # the gym Legs at its starting steps
+
+
+@pytest.mark.parametrize(
+    ("places", "last", "starts"),
+    [
+        (Places.HOME, Place.GYM, Place.HOME),
+        (Places.GYM, Place.HOME, Place.GYM),
+        (Places.BOTH, Place.GYM, Place.GYM),  # the last place chosen on Today's switch
+        (Places.BOTH, Place.HOME, Place.HOME),
+    ],
+)
+def test_the_map_starts_at_the_days_place(
+    session: Session, places: Places, last: Place, starts: Place
+) -> None:
+    assert map_place(session) == (Places.HOME, Place.HOME)  # everyone starts at home
+    user_settings.update(session, places=places, place=last)
+    assert map_place(session) == (places, starts)

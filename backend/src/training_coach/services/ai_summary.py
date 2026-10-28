@@ -28,12 +28,13 @@ from training_coach.domain.enums import ExerciseKind, Side
 from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.habits import Habit
 from training_coach.domain.kit import label as kit_label
+from training_coach.domain.load import weights_text
 from training_coach.domain.measurements import CADENCE, CHECKLIST, ESTIMATE_LABEL, SPECS, Kind, how
 from training_coach.domain.progression import Progress
 from training_coach.domain.readiness import QUESTIONS
 from training_coach.services import equipment, fitness_tests, measurements, progress
 
-GUIDE_VERSION = 3  # bump with docs/ai-guide.md when the format or its meaning changes
+GUIDE_VERSION = 4  # bump with docs/ai-guide.md when the format or its meaning changes
 GUIDE_URL = "https://github.com/LDoyleDev/training-coach/blob/main/docs/ai-guide.md"
 
 UNITS = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: " s", ExerciseKind.DURATION_MIN: " min"}
@@ -136,9 +137,9 @@ def _sessions(session: Session, since: date | None) -> str:
         name = names.get(w.template_id, "Extra") if w.template_id is not None else "Extra"
         block = f", {w.block} block" if w.block else ""
         lines.append(f"- {w.local_date.isoformat()} {name}: {w.status}{block}")
-        by_exercise: dict[int, list[tuple[str, int, int]]] = defaultdict(list)
+        by_exercise: dict[int, list[Logged]] = defaultdict(list)
         for s in sorted(w.sets, key=lambda s: (s.exercise_id, s.set_no, s.side)):
-            by_exercise[s.exercise_id].append((s.side, s.set_no, s.value))
+            by_exercise[s.exercise_id].append((s.side, s.set_no, s.value, s.load_kg))
         for exercise_id, sets in by_exercise.items():
             exercise = exercises[exercise_id]
             unit = UNITS[ExerciseKind(exercise.kind)]
@@ -147,15 +148,24 @@ def _sessions(session: Session, since: date | None) -> str:
     return "\n".join(lines)
 
 
-def _sets(sets: list[tuple[str, int, int]], unit: str) -> str:
-    if all(side == Side.BOTH for side, _, _ in sets):
-        return " / ".join(f"{v}{unit}" for _, _, v in sets)
+Logged = tuple[str, int, int, float | None]  # side, set number, value, kg
+
+
+def _sets(sets: list[Logged], unit: str) -> str:
+    """The sets as "10 / 10 / 9 at 16 kg", or "left 8 / 8; right 8 / 7": a weight covers both
+    sides of a set (ADR-0072), so the weights follow the sides, one per set."""
+    weights: dict[int, float | None] = {}
+    for _, number, _, kg in sets:
+        weights[number] = kg if kg is not None else weights.get(number)
+    loads = weights_text([weights[n] for n in sorted(weights)])
+    if all(side == Side.BOTH for side, _, _, _ in sets):
+        return " / ".join(f"{v}{unit}" for _, _, v, _ in sets) + loads
     sides = []
     for side, label in ((Side.LEFT, "left"), (Side.RIGHT, "right")):
-        values = [f"{v}{unit}" for s, _, v in sets if s == side]
+        values = [f"{v}{unit}" for s, _, v, _ in sets if s == side]
         if values:
             sides.append(f"{label} {' / '.join(values)}")
-    return "; ".join(sides)
+    return "; ".join(sides) + loads
 
 
 def _tests(session: Session, since: date | None) -> str:
@@ -284,7 +294,7 @@ def exercise(session: Session, slug: str, since: date | None) -> str | None:
             key=lambda s: (s.set_no, s.side),
         )
         step = steps.get(sets[0].ladder_step_id, "?")
-        values = [(s.side, s.set_no, s.value) for s in sets]
+        values = [(s.side, s.set_no, s.value, s.load_kg) for s in sets]
         lines.append(f"- {w.local_date.isoformat()} ({step}): {_sets(values, unit)}")
     if not workouts:
         lines.append("None in this period.")
