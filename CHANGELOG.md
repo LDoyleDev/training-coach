@@ -4,6 +4,21 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.7.1](https://github.com/LDoyleDev/training-coach/compare/v1.7.0...v1.7.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* **web:** archer push-up seen from in front of the head ([#422](https://github.com/LDoyleDev/training-coach/issues/422)) ([0feab91](https://github.com/LDoyleDev/training-coach/commit/0feab9183f1f7971ccd411f7747ebf817e42c4a8))
+* **web:** figure props stand out from the dark paper ([#419](https://github.com/LDoyleDev/training-coach/issues/419)) ([5a06cb5](https://github.com/LDoyleDev/training-coach/commit/5a06cb59c4c9088cac66aa77f1dfbe497c73b896))
+* **web:** front views fill their picture; machine pec deck; Pallof cable ([#417](https://github.com/LDoyleDev/training-coach/issues/417)) ([697f3ce](https://github.com/LDoyleDev/training-coach/commit/697f3ce9bc62e782aacf30501577922af5f4002f))
+* **web:** Nordic curls hook under a sofa; reverse Nordics drawn bigger ([#420](https://github.com/LDoyleDev/training-coach/issues/420)) ([9b3afa8](https://github.com/LDoyleDev/training-coach/commit/9b3afa84199640eca67c3b8dabe0035c2267cce3))
+
+
+### Documentation
+
+* session log for the 1.7.1 wrap ([#424](https://github.com/LDoyleDev/training-coach/issues/424)) ([8f6f398](https://github.com/LDoyleDev/training-coach/commit/8f6f3986ba42aad73314be8d8d9574bac17c3c94))
+
 ## [1.7.0](https://github.com/LDoyleDev/training-coach/compare/v1.6.0...v1.7.0) (2026-10-28)
 
 
