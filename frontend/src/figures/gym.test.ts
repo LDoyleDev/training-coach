@@ -251,3 +251,61 @@ test('calf raises rise from the balls of the feet on the edge, under the pads', 
     }
   }
 })
+
+test('a cable runs from its pulley to the hands, and the hand holds its grip', () => {
+  for (const slug of ['lat-pulldown', 'overhead-cable-extension', 'cable-crunch', 'pallof-press']) {
+    const f = GYM[slug]
+    for (const pose of [f.start, f.end]) {
+      const drawn = shapes(pose, f.props, f.order)
+      const pulley = drawn.find((s) => s.kind === 'ball' && s.r === 4.5)
+      expect(pulley?.kind === 'ball' && pulley.c, slug).toEqual(
+        [...f.props!.cable!.pulley].map((v, i) => (i ? -v : v)),
+      )
+      // the cable ends at the near fist: it's the thinnest path, just before the grip
+      const cable = drawn.findIndex((s) => s.kind === 'path' && s.d.includes('A 1.1 1.1'))
+      expect(cable, slug).toBeGreaterThan(-1)
+    }
+  }
+})
+
+test('a lat pulldown pulls the bar from overhead to the upper chest, the cable straight down', () => {
+  const { pulley } = GYM['lat-pulldown'].props!.cable!
+  const [up, down] = [solve(GYM['lat-pulldown'].start), solve(GYM['lat-pulldown'].end)]
+  expect(fist(up)[1], 'arms up').toBeGreaterThan(up.head.c[1] + 25)
+  expect(fist(down)[1], 'to the upper chest').toBeLessThan(down.neckBase[1])
+  expect(fist(down)[1]).toBeGreaterThan(down.midChest[1])
+  expect(down.armN.elbow[1], 'elbows down').toBeLessThan(down.shoulder[1] - 15)
+  for (const j of [up, down])
+    expect(Math.abs(fist(j)[0] - pulley[0]), 'under the pulley').toBeLessThan(8)
+})
+
+test('an overhead extension bends and straightens the elbows above the shoulders', () => {
+  const [bent, straight] = [
+    solve(GYM['overhead-cable-extension'].start),
+    solve(GYM['overhead-cable-extension'].end),
+  ]
+  expect(bent.armN.elbow[1], 'elbows by the ears').toBeGreaterThan(bent.shoulder[1] + 20)
+  expect(bent.armN.wrist[0], 'hands behind the head').toBeLessThan(bent.head.c[0] - 15)
+  expect(angleAt(straight.shoulder, straight.armN.elbow, straight.armN.wrist)).toBeGreaterThan(170)
+  expect(straight.armN.wrist[1], 'forward and up').toBeGreaterThan(straight.shoulder[1])
+})
+
+test('a cable crunch curls the trunk with the hips still and the rope by the head', () => {
+  for (const j of along('cable-crunch')) {
+    near(j.hip, [0, 49.4])
+    expect(dist(j.armN.wrist, j.head.c), 'rope beside the head').toBeLessThan(12)
+    expect(j.legN.knee[1], 'knees on the mat').toBeLessThan(7)
+  }
+  const [tall, curled] = [solve(GYM['cable-crunch'].start), solve(GYM['cable-crunch'].end)]
+  expect(curled.head.c[1], 'ribs towards the hips').toBeLessThan(tall.head.c[1] - 40)
+  expect(GYM['cable-crunch'].end.spine, 'back rounded').toBeGreaterThan(30)
+})
+
+test('a Pallof press pushes the handle straight out from the chest', () => {
+  const [chest, out] = [solve(GYM['pallof-press'].start), solve(GYM['pallof-press'].end)]
+  expect(dist(fist(chest), chest.midChest), 'at the chest').toBeLessThan(28)
+  expect(angleAt(out.shoulder, out.armN.elbow, out.armN.wrist), 'arms straight').toBeGreaterThan(
+    165,
+  )
+  expect(Math.abs(fist(out)[1] - fist(chest)[1]), 'straight out').toBeLessThan(12)
+})
