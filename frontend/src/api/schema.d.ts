@@ -2407,11 +2407,11 @@ export interface components {
         /** Health */
         Health: {
             /** Bot Enabled */
-            bot_enabled: boolean;
+            bot_enabled?: boolean | null;
             /** Status */
             status: string;
             /** Version */
-            version: string;
+            version?: string | null;
         };
         /**
          * HealthView
