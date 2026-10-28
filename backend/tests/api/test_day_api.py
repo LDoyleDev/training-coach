@@ -47,6 +47,7 @@ def _logged(engine: Engine, on: date) -> None:
                 set_no=1,
                 side=Side.BOTH,
                 value=6,
+                load_kg=12.5,  # the weight comes with the set (ADR-0072)
             )
         ]
         mine.add(workout)
@@ -63,7 +64,7 @@ def test_today_lists_what_was_logged(signed_in: TestClient, engine: Engine) -> N
             "name": "Pull-up",
             "unit": "reps",
             "step": "Negatives",
-            "sets": [{"set_no": 1, "left": 6, "right": None}],
+            "sets": [{"set_no": 1, "left": 6, "right": None, "load_kg": 12.5}],
         }
     ]
 

@@ -24,6 +24,7 @@ class LoggedSetView(BaseModel):
     set_no: int
     left: int
     right: int | None  # a one-sided set's right side; empty otherwise
+    load_kg: float | None  # its weight, on a loaded step (ADR-0072)
 
 
 class LoggedExerciseView(BaseModel):

@@ -2916,6 +2916,8 @@ export interface components {
         LoggedSetView: {
             /** Left */
             left: number;
+            /** Load Kg */
+            load_kg: number | null;
             /** Right */
             right: number | null;
             /** Set No */

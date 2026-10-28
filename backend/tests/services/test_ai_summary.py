@@ -21,7 +21,7 @@ from training_coach.domain.muscles import Kit
 from training_coach.domain.progression import Progress
 from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import KEYS, VERSION
-from training_coach.services import equipment, measurements, progress, workout_log
+from training_coach.services import ai_summary, equipment, measurements, progress, workout_log
 from training_coach.services.ai_summary import GUIDE_URL, GUIDE_VERSION, Options, summary
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -93,6 +93,29 @@ def test_sessions_in_the_period_with_their_sets(plan: Session) -> None:
     assert "left 8 / 8; right 8 / 8" in recent  # split squat 8 8: each set both sides
     assert "Dip" not in recent
     assert "10 / 9" in _section(summary(plan, TODAY, Options(weeks=None)), "## Sessions")
+
+
+def test_sets_done_with_a_weight_carry_it(plan: Session) -> None:
+    """ADR-0072: "10 / 10 / 9 at 12 kg", as the confirm step writes it, in the summary and in
+    one exercise's sessions (MCP get_exercise)."""
+    _log(plan, "hammer curls 10 10 at 12\nhammer curls 9 at 14", TODAY)
+    _log(plan, "hammer curls 12 11 at 10", TODAY - timedelta(days=2))
+    recent = _section(summary(plan, TODAY, Options(weeks=4)), "## Sessions")
+    assert "Hammer curl (Dumbbells): 10 / 10 / 9 at 12 / 12 / 14 kg" in recent
+    assert "Hammer curl (Dumbbells): 12 / 11 at 10 kg" in recent
+    one = ai_summary.exercise(plan, "hammer-curl", None)
+    assert one is not None
+    assert f"- {TODAY.isoformat()} (Dumbbells): 10 / 10 / 9 at 12 / 12 / 14 kg" in one
+
+
+def test_a_one_sided_sets_weight_follows_both_sides() -> None:
+    sets = [
+        ("left", 1, 8, 16.0),
+        ("right", 1, 8, 16.0),
+        ("left", 2, 7, 16.0),
+        ("right", 2, 7, None),
+    ]
+    assert ai_summary._sets(sets, "") == "left 8 / 7; right 8 / 7 at 16 kg"
 
 
 def _section(text: str, heading: str) -> str:

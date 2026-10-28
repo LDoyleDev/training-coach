@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { details, shift } from './days'
+import { details, shift, weights } from './days'
 
 test('steps days on the calendar, across months, years and clock changes', () => {
   expect(shift('2026-10-23', -1)).toBe('2026-10-22')
@@ -27,4 +27,13 @@ test('cardio details show only what was given', () => {
   const ride = { ...none, distance_m: 36200, pace_s_per_km: 148, speed_kmh: 24.4 }
   expect(details(ride, 'bike')).toBe('36.20 km · 24.4 km/h') // a ride: speed, not pace
   expect(details(ride, 'run')).toBe('36.20 km · 2:28/km')
+})
+
+test('weights follow the sets as the confirm step writes them, a dash for a set without one', () => {
+  const set = (load_kg: number | null) => ({ set_no: 1, left: 8, right: null, load_kg })
+  expect(weights([set(16), set(16)])).toBe(` at 16${String.fromCharCode(0xa0)}kg`)
+  expect(weights([set(16), set(null), set(18)])).toBe(
+    ` at 16 / ${String.fromCharCode(0x2013)} / 18${String.fromCharCode(0xa0)}kg`,
+  )
+  expect(weights([set(null), set(null)])).toBe('')
 })

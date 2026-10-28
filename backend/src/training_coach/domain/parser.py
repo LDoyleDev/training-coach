@@ -21,7 +21,7 @@ from difflib import SequenceMatcher
 
 from training_coach.domain.cardio import TIMED, WORDS
 from training_coach.domain.enums import ExerciseKind, Side
-from training_coach.domain.load import kg_text, valid_kg
+from training_coach.domain.load import valid_kg, weights_text
 
 MAX_TEXT = 2000
 MAX_ENTRIES = 30
@@ -81,7 +81,6 @@ TOKEN = re.compile(
 SIDE_WORDS = {"left": Side.LEFT, "l": Side.LEFT, "right": Side.RIGHT, "r": Side.RIGHT}
 EACH_WORDS = frozenset({"each", "per", "side", "sides", "leg", "legs", "arm", "arms"})
 ACTIVITY_WORDS = frozenset().union(*WORDS.values())  # "walk", "ran", "cycling"...
-NO_WEIGHT = chr(0x2013)  # an en dash on the confirm step, for a set given no weight
 # One weight for a line's sets (ADR-0072): "at 16", "@ 22.5", or a number with its unit, "60 kg".
 # A full stop or comma may end it ("at 16 kg." in a voice transcript) unless a digit follows, and
 # a weight is never the tail of a longer number ("1250 kg" isn't "250 kg").
@@ -470,10 +469,4 @@ def sets_text(entry: Entry, kind: ExerciseKind) -> str:
     # Each set's weight in set order, a dash for a set given none (it is saved without one).
     by_set = dict(entry.loads)
     numbers = sorted({n for n, _, _ in entry.sets})
-    weights = [by_set.get(n) for n in numbers]
-    if not by_set:
-        return text
-    if len(set(weights)) == 1 and weights[0] is not None:
-        return f"{text} at {kg_text(weights[0])} kg"
-    shown = " / ".join(kg_text(kg) if kg is not None else NO_WEIGHT for kg in weights)
-    return f"{text} at {shown} kg"
+    return text + weights_text([by_set.get(n) for n in numbers])
