@@ -29,11 +29,15 @@ type State =
 export default function App() {
   const [state, setState] = useState<State>({ status: 'loading' })
   const [open, setOpen] = useState<string | null>(null)
-  const [place, setPlace] = useState<Place>()
-  const coverage = useCoverage(place)
+  const [asked, setAsked] = useState<{ place: Place }>()
+  const coverage = useCoverage(asked)
   const counted = coverage.status === 'ready' ? coverage.coverage : undefined
   const choice = counted?.places === 'both' && (
-    <MapPlace place={place ?? counted.place} onChoose={setPlace} />
+    <MapPlace
+      place={counted.place}
+      problem={coverage.status === 'ready' ? coverage.problem : undefined}
+      onChoose={(place) => place !== counted.place && setAsked({ place })}
+    />
   )
 
   useEffect(() => {

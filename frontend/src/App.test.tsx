@@ -191,6 +191,36 @@ describe('App', () => {
     )
   })
 
+  it('keeps the maps when the other view fails to load, and tries again on a tap', async () => {
+    const both = { ...coverage, places: 'both' } as Coverage
+    let down = true
+    globalThis.fetch = vi.fn((url: string) =>
+      Promise.resolve(
+        url === '/api/plan'
+          ? { ok: true, json: () => Promise.resolve(plan) }
+          : url === '/api/plan/coverage' || !down
+            ? {
+                ok: true,
+                json: () =>
+                  Promise.resolve({ ...both, place: url.endsWith('=gym') ? 'gym' : 'home' }),
+              }
+            : { ok: false, status: 503 },
+      ),
+    ) as unknown as typeof fetch
+    render(<App />)
+    const total = await screen.findByRole('region', { name: 'What the week gives each muscle' })
+    fireEvent.click(await within(total).findByRole('button', { name: 'Gym' }))
+    expect(await within(total).findByRole('alert')).toHaveTextContent(
+      "Couldn't load the gym view. The server answered 503. Try again.",
+    )
+    expect(within(total).getByRole('button', { name: 'Home', pressed: true })).toBeVisible()
+    expect(within(total).getByText('0 of 10 main muscles on target')).toBeVisible()
+    down = false
+    fireEvent.click(within(total).getByRole('button', { name: 'Gym' }))
+    expect(await within(total).findByRole('button', { name: 'Gym', pressed: true })).toBeVisible()
+    expect(within(total).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('selecting a ring segment opens that session', async () => {
     mockFetch({ ok: true, json: () => Promise.resolve(plan) })
     Element.prototype.scrollIntoView = vi.fn()
