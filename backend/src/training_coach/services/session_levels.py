@@ -77,8 +77,7 @@ def change(
     else:
         # Nothing kept for this session yet: start its progress, as the first confirmed set
         # would, so the choice has somewhere to live and a reload keeps it. Every refusal is
-        # above or in keep(), which writes nothing then: on SQLite a started row is committed
-        # as its savepoint is released, so nothing after this may refuse.
+        # above or in keep(), which writes nothing then.
         started = guided.keep(session, plan, revision, 0, [], [])
         if isinstance(started, str):
             return started
