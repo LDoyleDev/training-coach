@@ -615,6 +615,9 @@ class SessionProgress(Owned, Base):
     # Where these sets were done, so its version (ADR-0071): a day left unsaved is saved in the
     # version it was done in, even after a switch to the other place since.
     place: Mapped[str] = mapped_column(String(8), server_default=Place.HOME.value)
+    # Levels chosen "for today" during the session (ADR-0080), exercise slug -> ladder step id:
+    # its sets are saved at that step and the person's level stays as it is.
+    steps: Mapped[dict[str, int]] = mapped_column(JSON, default=dict, server_default="{}")
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

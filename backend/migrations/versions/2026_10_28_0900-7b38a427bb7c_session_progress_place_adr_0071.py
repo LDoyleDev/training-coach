@@ -4,7 +4,7 @@
 even after a switch to the other place since. Every row kept so far was kept at home.
 
 Revision ID: 7b38a427bb7c
-Revises: b4f9e2a7c1d6
+Revises: d5a2c7e4b8f1
 Create Date: 2026-10-28 09:00:00.000000
 
 """
@@ -16,7 +16,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "7b38a427bb7c"
-down_revision: str | Sequence[str] | None = "b4f9e2a7c1d6"
+down_revision: str | Sequence[str] | None = "d5a2c7e4b8f1"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

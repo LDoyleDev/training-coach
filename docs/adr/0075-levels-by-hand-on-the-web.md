@@ -1,6 +1,6 @@
 # ADR-0075: Move up, Not yet and any level by hand, on the web
 
-- Status: Accepted
+- Status: Accepted; a level can also be changed during a session, for today or from now on (ADR-0080)
 - Date: 2026-10-25
 - Deciders: Liam
 
