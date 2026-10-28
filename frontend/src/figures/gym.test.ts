@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import { blend, dist, solve, type Joints, type Vec } from './body'
 import { GYM } from './gym'
 import { FIGURES } from './poses'
-import { shapes } from './shapes'
+import { moving, shapes } from './shapes'
 import { figureFor } from './steps'
 
 const STEPS = [0, 0.25, 0.5, 0.75, 1]
@@ -173,4 +173,81 @@ test('a chest-supported row keeps the chest on the pad and pulls to the ribs', (
   expect(dist(long.armN.wrist, long.shoulder), 'arms long').toBeGreaterThan(54)
   expect(dist(pulled.armN.wrist, pulled.waist), 'to the lower ribs').toBeLessThan(25)
   expect(pulled.armN.elbow[1], 'elbow above the back').toBeGreaterThan(pulled.shoulder[1] - 15)
+})
+
+/** The middle of the pad of ``slug``'s machine that moves with the body, at its start or end. */
+const movingPad = (slug: string, t: 0 | 1) => {
+  const f = GYM[slug]
+  const [a, b, c, d] = moving(solve(t ? f.end : f.start), f.props!.machine!.moves!.on)
+  return [(a + c) / 2, (b + d) / 2] as const
+}
+
+test('a machine draws its moving pad, and its lever or carriage', () => {
+  for (const slug of ['leg-press', 'leg-extension', 'standing-calf-raise']) {
+    const f = GYM[slug]
+    const tubes = shapes(f.start, f.props, f.order).filter(
+      (s) => s.kind === 'path' && (s.tone === 'prop' || s.tone === 'bell'),
+    )
+    expect(tubes.length, slug).toBeGreaterThan(f.props!.machine!.frame!.length + 1)
+  }
+})
+
+test('a leg press bends the knees well with the back still on the pad and the sled under the feet', () => {
+  const [long, bent] = [solve(GYM['leg-press'].start), solve(GYM['leg-press'].end)]
+  expect(angleAt(long.hip, long.legN.knee, long.legN.ankle), 'nearly straight').toBeGreaterThan(150)
+  expect(angleAt(bent.hip, bent.legN.knee, bent.legN.ankle), 'well bent').toBeLessThan(80)
+  near(long.hip, bent.hip)
+  for (const t of [0, 1] as const) {
+    const j = t ? bent : long
+    expect(dist(movingPad('leg-press', t), j.legN.ball), 'the plate under the feet').toBeLessThan(
+      15,
+    )
+  }
+  // the sled runs on its 45° rails
+  const move = [bent.legN.ankle[0] - long.legN.ankle[0], bent.legN.ankle[1] - long.legN.ankle[1]]
+  expect(Math.abs(move[0] - move[1])).toBeLessThan(0.5)
+})
+
+test('a leg extension straightens the knee against a roller on the shins; a leg curl bends it', () => {
+  const ext = [solve(GYM['leg-extension'].start), solve(GYM['leg-extension'].end)]
+  const curl = [solve(GYM['seated-leg-curl'].start), solve(GYM['seated-leg-curl'].end)]
+  expect(angleAt(ext[0].hip, ext[0].legN.knee, ext[0].legN.ankle), 'bent').toBeLessThan(100)
+  expect(angleAt(ext[1].hip, ext[1].legN.knee, ext[1].legN.ankle), 'straight').toBeGreaterThan(165)
+  expect(angleAt(curl[0].hip, curl[0].legN.knee, curl[0].legN.ankle), 'straight').toBeGreaterThan(
+    165,
+  )
+  expect(
+    angleAt(curl[1].hip, curl[1].legN.knee, curl[1].legN.ankle),
+    'under the seat',
+  ).toBeLessThan(90)
+  for (const t of [0, 1] as const) {
+    const [e, c] = [ext[t], curl[t]]
+    const front = movingPad('leg-extension', t)
+    const back = movingPad('seated-leg-curl', t)
+    expect(dist(front, e.legN.ankle), 'the roller just above the ankle').toBeLessThan(16)
+    expect(dist(back, c.legN.ankle)).toBeLessThan(16)
+    // in front of the shin for the extension, behind it for the curl
+    const side = (p: Vec, j: Joints) =>
+      (j.legN.knee[0] - j.legN.ankle[0]) * (p[1] - j.legN.ankle[1]) -
+      (j.legN.knee[1] - j.legN.ankle[1]) * (p[0] - j.legN.ankle[0])
+    expect(side(front, e)).toBeLessThan(0)
+    expect(side(back, c)).toBeGreaterThan(0)
+  }
+})
+
+test('calf raises rise from the balls of the feet on the edge, under the pads', () => {
+  for (const slug of ['standing-calf-raise', 'seated-calf-raise']) {
+    const { top, x0 } = GYM[slug].props!.step!
+    const [low, high] = [solve(GYM[slug].start), solve(GYM[slug].end)]
+    for (const j of [low, high]) near(j.legN.ball, [x0 + 1, top], 0.2)
+    expect(low.legN.heel[1], `${slug}: heel below the edge`).toBeLessThan(top - 5)
+    expect(high.legN.heel[1], `${slug}: up high`).toBeGreaterThan(top + 10)
+    for (const t of [0, 1] as const) {
+      const j = t ? high : low
+      const pad = movingPad(slug, t)
+      const on = slug === 'standing-calf-raise' ? j.shoulder : j.legN.knee
+      expect(dist(pad, on), `${slug}: the pad on the shoulders or the knees`).toBeLessThan(18)
+      expect(pad[1], 'on top').toBeGreaterThan(on[1])
+    }
+  }
 })

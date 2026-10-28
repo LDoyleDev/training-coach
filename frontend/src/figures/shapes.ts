@@ -63,9 +63,18 @@ export interface Props {
   dumbbells?: 'across' | 'along'
   /** A gym machine seen side on, fixed in place: steel tubes (``frame``) and pads (``pads``)
    * behind the figure, and pads in front of it (``over``), each from [x, y] to [x, y]. A pad from
-   * a point to itself is a roller. */
-  machine?: { frame?: readonly Seg[]; pads?: readonly Seg[]; over?: readonly Seg[] }
+   * a point to itself is a roller. ``moves`` is the pad that moves with you, on a lever from
+   * ``pivot``: the plate under the soles (a leg press's sled), a roller in front of the shins or
+   * behind the calves, a pad on the thighs above the knees, or pads on the shoulders. */
+  machine?: {
+    frame?: readonly Seg[]
+    pads?: readonly Seg[]
+    over?: readonly Seg[]
+    moves?: Moves
+  }
 }
+
+type Moves = { on: 'sole' | 'shin' | 'calf' | 'knee' | 'shoulder'; pivot?: Vec }
 
 type Seg = readonly [number, number, number, number]
 
@@ -301,6 +310,42 @@ function dumbbell(arm: ArmJoints, grip: 'across' | 'along'): Shape[] {
   ]
 }
 
+/** The pad of a machine that moves with the body, as a segment. */
+export function moving(j: Joints, on: Moves['on']): Seg {
+  const seg = (a: Vec, b: Vec): Seg => [a[0], a[1], b[0], b[1]]
+  const leg = j.legN
+  if (on === 'sole') {
+    const h = heading(leg.heel, leg.tip)
+    return seg(along(along(leg.heel, h, -8), h - 90, 5), along(along(leg.tip, h, 8), h - 90, 5))
+  }
+  if (on === 'shin' || on === 'calf') {
+    const up = heading(leg.ankle, leg.knee)
+    const c = along(along(leg.ankle, up, 9), up + (on === 'shin' ? -90 : 90), 9)
+    return seg(c, c)
+  }
+  if (on === 'knee') {
+    const back = heading(leg.knee, leg.hip)
+    return seg(
+      along(along(leg.knee, back, 4), back - 90, 11),
+      along(along(leg.knee, back, 18), back - 90, 11),
+    )
+  }
+  const up = heading(j.waist, j.neckBase)
+  return seg(inFrame(j.shoulder, up, [-10, 10]), inFrame(j.shoulder, up, [5, 10]))
+}
+
+/** A machine's moving pad, and the lever or the sled's carriage it moves on. */
+function mover(j: Joints, moves: Moves) {
+  const [a, b, c, d] = moving(j, moves.on)
+  const mid: Vec = [(a + c) / 2, (b + d) / 2]
+  // A sled runs on rails straight back from the soles; anything else swings on a lever.
+  const pivot = moves.on === 'sole' ? along(mid, heading([a, b], [c, d]) - 90, 18) : moves.pivot
+  return {
+    pad: tubes([[a, b, c, d]], PAD, moves.on === 'sole' ? 'bell' : 'prop'),
+    lever: pivot ? tubes([[pivot[0], pivot[1], mid[0], mid[1]]], 3) : [],
+  }
+}
+
 /** A squat rack's uprights and safety bars, behind the figure. */
 function rack({ x0, x1, pins }: NonNullable<Props['rack']>): Shape[] {
   return [
@@ -384,6 +429,8 @@ export function scenery(props: Props): Shape[] {
 export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = ORDER): Shape[] {
   const j = solve(pose)
   const out = scenery(props)
+  const moves = props.machine?.moves && mover(j, props.machine.moves)
+  if (moves) out.push(...moves.lever)
   if (props.towel) out.push(...towel(j))
   for (const part of order) {
     if (part === 'armF') out.push(...arm(j.armF, 'far'))
@@ -404,6 +451,7 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
   if (props.bar) out.push(ball(props.bar, BAR, 'bell'))
   if (props.barbell === true) out.push(ball(fist(j), 2.6, 'bell')) // the bar's end, nearest
   if (props.machine) out.push(...tubes(props.machine.over, PAD, 'prop'))
+  if (moves) out.push(...moves.pad)
   if (props.chair?.beside) out.push(...chair(props.chair))
   return out
 }
