@@ -24,6 +24,12 @@ chosen sound, and the setting only spoke of the mobility flow.
   the default one, so it moves too. Downgrading moves `ring` back to `chime`.
 - The setting is one **Timer sound**, used by every guided timer: rest end, the mobility flow
   and guided stretching. It is listed with the boxing bell first; tapping one plays it.
+- Addendum (27 Oct 2026): the end of a whole session has its own louder, celebratory voice in
+  each sound (`playSessionEnd`): four quick notes up a major chord, then "ding-ding" on the
+  octave left to ring out, on a hotter bus through a limiter. It rings once when a guided
+  session is saved, when HIIT, the mobility flow closing a session or guided stretching runs to
+  its end, and when cardio or stretching is logged by a tap; 'none' stays silent. A timer's
+  own `finish` (three strikes) is kept for a timer that doesn't end the session.
 
 ## Options considered
 

@@ -46,6 +46,16 @@ class ReadyView(BaseModel):
     slug: str
 
 
+class TopView(BaseModel):
+    """The ready rule met with no level to move to, said once per level (ADR-0078). ``unlock``
+    says what opens the next level when the kit is what's missing (ADR-0071); else None, the
+    top of the ladder."""
+
+    exercise: str
+    slug: str
+    unlock: str | None
+
+
 class StandingView(BaseModel):
     exercise: str
     slug: str

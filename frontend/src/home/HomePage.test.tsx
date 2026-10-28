@@ -34,6 +34,7 @@ const make = (over: Partial<Home> = {}): Home => ({
     steps_climbed: 5,
     ready: [{ exercise: 'Pull-up', slug: 'pull-up' }],
     bests: ['Dip (chairs)'],
+    top: [],
   },
   recent: [
     { day: '2026-10-10', session: 'Torso + neck' },
@@ -109,7 +110,7 @@ test('before the first session, and with nothing left today', async () => {
         cardio_left: null,
         zones: make().week.zones,
       },
-      progress: { steps_climbed: 1, ready: [], bests: [] },
+      progress: { steps_climbed: 1, ready: [], bests: [], top: [] },
       recent: [],
       today: null,
       today_minutes: null,
@@ -122,10 +123,48 @@ test('before the first session, and with nothing left today', async () => {
   expect(screen.queryByText(/Since/)).not.toBeInTheDocument()
   expect(screen.getByText('ladder step climbed', { exact: false })).toBeInTheDocument()
   expect(screen.queryByText(/Ready to move up/)).not.toBeInTheDocument()
+  expect(screen.queryByText('At the top:')).not.toBeInTheDocument()
   expect(screen.getByText('Cardio 0 min · zone 2 0')).toBeInTheDocument() // no targets
   expect(screen.queryByRole('meter')).not.toBeInTheDocument()
   expect(screen.getByText('Nothing logged in the last 7 days.')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Go to today' })).toHaveAttribute('href', '/session')
+})
+
+test('the top for the kit and of the ladder, as the saved screen says them (ADR-0078)', async () => {
+  serve(
+    make({
+      progress: {
+        steps_climbed: 5,
+        ready: [],
+        bests: [],
+        top: [
+          {
+            exercise: 'Kettlebell swing',
+            slug: 'kb-swing',
+            unlock: 'a 16 kg kettlebell unlocks Two-hand, 16 kg',
+          },
+          { exercise: 'Push-up', slug: 'push-up', unlock: null },
+        ],
+      },
+    }),
+  )
+  render(<HomePage />)
+  expect(await screen.findByText('At the top:')).toBeInTheDocument()
+  const [swing, push] = screen.getAllByRole('listitem').filter((li) => li.closest('ul.pl-5'))
+  expect(swing).toHaveTextContent(
+    'Kettlebell swing: top of the range on the last level your kit allows. ' +
+      'A 16 kg kettlebell unlocks Two-hand, 16 kg. My equipment',
+  )
+  expect(push).toHaveTextContent('Push-up: top of the range on the last level of its ladder.')
+  expect(screen.getByRole('link', { name: 'Kettlebell swing' })).toHaveAttribute(
+    'href',
+    '/plan?move=kb-swing',
+  )
+  expect(screen.getByRole('link', { name: 'My equipment' })).toHaveAttribute(
+    'href',
+    '/account#my-equipment',
+  )
+  expect(screen.queryByText(/Ready to move up/)).not.toBeInTheDocument()
 })
 
 test('the button says how long today usually takes, once it has been timed', async () => {
