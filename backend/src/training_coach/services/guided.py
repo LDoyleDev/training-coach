@@ -21,7 +21,14 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, SetLog, Workout
+from training_coach.db.models import (
+    Exercise,
+    LadderStep,
+    SessionProgress,
+    SessionTemplate,
+    SetLog,
+    Workout,
+)
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.domain.load import MAX_KG, valid_kg
@@ -120,9 +127,18 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
     if held_today(session, on):
         return None
     block = blocks.current(session, on, tz)
-    plan = session_plan(session, template.id, block)
+    plan = session_plan(session, template.id, block, chosen(session, on, template.id, False))
     assert plan is not None  # noqa: S101 - target() returned this template a moment ago
     return _guided(on, plan, plan.items, block, first, after_run=False)
+
+
+def chosen(session: Session, on: date, template_id: int, after_run: bool) -> dict[str, int]:
+    """The levels chosen for today in ``on``'s guided session of ``template_id`` (ADR-0080),
+    by exercise slug: none once that progress no longer belongs to the session shown."""
+    row = _row(session, on)
+    if row is None or row.template_id != template_id or row.after_run != after_run:
+        return {}
+    return dict(row.steps)
 
 
 def _guided(
@@ -193,7 +209,9 @@ def _after_run(session: Session, on: date, tz: ZoneInfo, first: Collection[int])
     if workout is None or workout.template_id is None:
         return None
     block = blocks.current(session, on, tz)
-    plan = session_plan(session, workout.template_id, block)
+    plan = session_plan(
+        session, workout.template_id, block, chosen(session, on, workout.template_id, True)
+    )
     if plan is None:
         return None
     items = _left(session, workout, plan.items)
@@ -222,7 +240,9 @@ def held_today(session: Session, on: date) -> bool:
 class Done:
     """A confirmed set: ``right`` only for one-sided exercises (None means the same as left).
     ``started_at`` and ``done_at``: when its screen appeared and when it was confirmed
-    (ADR-0061), both or neither. ``load_kg``: the weight, on a loaded step only (ADR-0072)."""
+    (ADR-0061), both or neither. ``load_kg``: the weight, on a loaded step only (ADR-0072).
+    ``step_id``: the ladder step it was done at, set by the server when the exercise's level
+    changes later in the session (ADR-0080); None: the step the session has for it."""
 
     item: int
     set_no: int
@@ -231,6 +251,7 @@ class Done:
     started_at: datetime | None = None
     done_at: datetime | None = None
     load_kg: float | None = None
+    step_id: int | None = None
 
 
 def _stored(done: Done) -> dict[str, Any]:
@@ -246,6 +267,8 @@ def _stored(done: Done) -> dict[str, Any]:
         row["done_at"] = done.done_at.isoformat()
     if done.load_kg is not None:
         row["load_kg"] = done.load_kg
+    if done.step_id is not None:
+        row["step_id"] = done.step_id
     return row
 
 
@@ -260,6 +283,7 @@ def _done(row: dict[str, Any]) -> Done:
         started_at=datetime.fromisoformat(started) if started else None,
         done_at=datetime.fromisoformat(ended) if ended else None,
         load_kg=row.get("load_kg"),
+        step_id=row.get("step_id"),
     )
 
 
@@ -286,6 +310,7 @@ class Kept:
     saved: bool
     revision: int = 0
     after_run: bool = False  # kept for the block after a run (ADR-0066)
+    steps: tuple[tuple[str, int], ...] = ()  # levels chosen for today (ADR-0080): slug, step
 
 
 @dataclass(frozen=True)
@@ -299,6 +324,11 @@ def _row(session: Session, day: date) -> SessionProgress | None:
     return session.scalar(select(SessionProgress).where(SessionProgress.local_date == day))
 
 
+def progress_row(session: Session, day: date) -> SessionProgress | None:
+    """``day``'s kept progress itself, for a change made during the session (ADR-0080)."""
+    return _row(session, day)
+
+
 def _kept(row: SessionProgress) -> Kept:
     return Kept(
         day=row.local_date,
@@ -309,6 +339,7 @@ def _kept(row: SessionProgress) -> Kept:
         saved=row.saved_workout_id is not None,
         revision=row.revision,
         after_run=row.after_run,
+        steps=tuple(sorted(row.steps.items())),
     )
 
 
@@ -318,9 +349,13 @@ def kept(session: Session, day: date) -> Kept | None:
     return _kept(row) if row is not None else None
 
 
-def sets_problem(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> str | None:
+def sets_problem(
+    items: tuple[ItemPlan, ...], sets: Sequence[Done], loaded: Collection[int] = ()
+) -> str | None:
     """What's wrong with ``sets`` against the plan's items, or None: each set is one the plan
-    has, recorded once, with values in range and sides only where the exercise has them."""
+    has, recorded once, with values in range and sides only where the exercise has them. A
+    set done at an earlier level (ADR-0080) takes a weight only when its step is in ``loaded``
+    (see ``loaded_steps``), whatever the step the session has now."""
     seen: set[tuple[int, int]] = set()
     for done in sets:
         if not 0 <= done.item < len(items):
@@ -337,20 +372,38 @@ def sets_problem(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> str | Non
             return f"{item.exercise}: values must be 0 to {limit}"
         if done.right is not None and not item.per_side:
             return f"{item.exercise} isn't done one side at a time"
-        if done.load_kg is not None and item.load is None:
+        weighted = item.load is not None if done.step_id is None else done.step_id in loaded
+        if done.load_kg is not None and not weighted:
             return f"{item.exercise} isn't done with a weight"
         if done.load_kg is not None and not valid_kg(done.load_kg):
             return f"{item.exercise}: a weight is more than 0 and at most {MAX_KG:g} kg"
     return None
 
 
-def _problem(plan: Guided, position: int, first: Sequence[int], sets: Sequence[Done]) -> str | None:
+def loaded_steps(
+    session: Session, items: tuple[ItemPlan, ...], sets: Sequence[Done]
+) -> frozenset[int]:
+    """The earlier levels ``sets`` were done at (ADR-0080) that take a weight: a set's weight
+    is checked against the step it was done at, not the one the session has now."""
+    found = set()
+    for done in sets:
+        if done.step_id is None or not 0 <= done.item < len(items):
+            continue
+        step = session.get(LadderStep, done.step_id)
+        if step is not None and blocks.load_kit(items[done.item].slug, step.name) is not None:
+            found.add(step.id)
+    return frozenset(found)
+
+
+def _problem(
+    session: Session, plan: Guided, position: int, first: Sequence[int], sets: Sequence[Done]
+) -> str | None:
     if not 0 <= position <= len(plan.order):
         return "position out of range"
     pairs = {item.pair for item in plan.items if item.pair is not None}
     if any(number not in pairs for number in first):
         return "no such pair"
-    return sets_problem(plan.items, sets)
+    return sets_problem(plan.items, sets, loaded_steps(session, plan.items, sets))
 
 
 STALE = "this session changed on another device; reload it"
@@ -370,11 +423,13 @@ def keep(
     Every value is checked against the plan: nothing from the browser is trusted. The browser
     names the ``revision`` it last saw (0 before any); if the kept one is newer (another device
     moved on), nothing is written and ``STALE`` is returned. A set's times are kept only when
-    plausible at ``now`` (default: the clock's now; ADR-0061)."""
-    problem = _problem(plan, position, first, sets)
+    plausible at ``now`` (default: the clock's now; ADR-0061). A set already kept keeps the
+    level it was done at (ADR-0080): the browser never sends it."""
+    row = _row(session, plan.day)
+    sets = _with_levels(row, plan, sets)
+    problem = _problem(session, plan, position, first, sets)
     if problem is not None:
         return problem
-    row = _row(session, plan.day)
     restart = row is not None and (
         row.after_run != plan.after_run or (plan.after_run and row.saved_workout_id is not None)
     )
@@ -419,6 +474,34 @@ def keep(
     except IntegrityError:
         return STALE
     return row.revision
+
+
+def _with_levels(row: SessionProgress | None, plan: Guided, sets: Sequence[Done]) -> list[Done]:
+    """``sets`` with the level each was done at, as kept for the session shown (ADR-0080)."""
+    if (
+        row is None
+        or row.template_id != plan.template_id
+        or row.after_run != plan.after_run
+        or row.saved_workout_id is not None
+    ):
+        return list(sets)
+    levels = {(s["item"], s["set_no"]): s["step_id"] for s in row.sets if s.get("step_id")}
+    return [replace(d, step_id=levels.get((d.item, d.set_no), d.step_id)) for d in sets]
+
+
+def set_levels(
+    items: tuple[ItemPlan, ...], sets: Sequence[Done], steps: dict[str, int]
+) -> tuple[tuple[str, int, int], ...]:
+    """The step each logged set was done at when it isn't the exercise's current one (ADR-0080):
+    the level a set was done at, else the level chosen for today. Numbered as the log is."""
+    found = []
+    for index, numbered in _numbered(sets):
+        slug = items[index].slug
+        for number, done in numbered:
+            step = done.step_id if done.step_id is not None else steps.get(slug)
+            if step is not None:
+                found.append((slug, number, step))
+    return tuple(found)
 
 
 def _numbered(sets: Sequence[Done]) -> Iterator[tuple[int, list[tuple[int, Done]]]]:
@@ -479,10 +562,11 @@ def save(
     if row.after_run:
         return _save_after_run(session, row, day, today, tz)
     template = session.get_one(SessionTemplate, row.template_id)  # cascades with its progress
-    plan = session_plan(session, template.id, blocks.current(session, day, tz))
+    plan = session_plan(session, template.id, blocks.current(session, day, tz), row.steps)
     assert plan is not None  # noqa: S101 - the template exists
     sets = tuple(_done(s) for s in row.sets)
-    if sets_problem(plan.items, sets) is not None:  # checked again: the plan may have changed
+    # Checked again: the plan may have changed.
+    if sets_problem(plan.items, sets, loaded_steps(session, plan.items, sets)) is not None:
         return "the plan changed since these sets were recorded"
     draft = workout_log.Draft(
         token=row.token,
@@ -493,6 +577,7 @@ def save(
         problems=(),
         strength=workout_log.strength_on(session, day, tz, template),
         backdated=day < today,
+        steps=set_levels(plan.items, sets, row.steps),
     )
     result = workout_log.save(session, draft, tz, answer)
     if isinstance(result, workout_log.Saved):
@@ -513,7 +598,7 @@ def _save_after_run(
     if day != today or workout is None or workout.template_id != row.template_id:
         return workout_log.Stale()
     template = session.get_one(SessionTemplate, row.template_id)
-    plan = session_plan(session, template.id, blocks.current(session, day, tz))
+    plan = session_plan(session, template.id, blocks.current(session, day, tz), row.steps)
     assert plan is not None  # noqa: S101 - the template exists
     items = _left(session, workout, plan.items)
     if items is None:
@@ -521,14 +606,22 @@ def _save_after_run(
     if not items:  # the block is in the workout already: a repeated save
         return workout_log.Saved(workout.id, already_saved=True)
     sets = tuple(_done(s) for s in row.sets)
-    if sets_problem(items, sets) is not None:  # checked again: the plan may have changed
+    # Checked again: the plan may have changed.
+    if sets_problem(items, sets, loaded_steps(session, items, sets)) is not None:
         return "the plan changed since these sets were recorded"
     strength = workout_log.strength_on(session, day, tz, template)
     try:
         # A racing duplicate save files the same sets again: the sets' uniqueness in a workout
         # rolls it back here, so the block is never added twice.
         with session.begin_nested():
-            result = workout_log.add_to(session, workout, entries(items, sets), strength, tz)
+            result = workout_log.add_to(
+                session,
+                workout,
+                entries(items, sets),
+                strength,
+                tz,
+                set_levels(items, sets, row.steps),
+            )
             if isinstance(result, workout_log.Saved):
                 row.saved_workout_id = result.workout_id
                 _stamp(session, result.workout_id, items, sets)

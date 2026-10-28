@@ -604,6 +604,9 @@ class SessionProgress(Owned, Base):
     # The block after a conditioning session's cardio, once the cardio is logged (ADR-0066):
     # its sets are added to that day's workout instead of saving a second one.
     after_run: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # Levels chosen "for today" during the session (ADR-0080), exercise slug -> ladder step id:
+    # its sets are saved at that step and the person's level stays as it is.
+    steps: Mapped[dict[str, int]] = mapped_column(JSON, default=dict, server_default="{}")
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

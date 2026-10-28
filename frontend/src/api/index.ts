@@ -771,6 +771,27 @@ export async function moveOnLadder(
   return (await res.json()) as Moved
 }
 
+export type ItemLevel = Schemas['ItemLevelView']
+export type LevelBody = Schemas['LevelBody']
+export type LevelChanged = Schemas['LevelChangedView']
+
+/** Change an exercise's level during today's session, for today or from now on (ADR-0080).
+ * 'stale': the session changed or moved on elsewhere; a string: why it was refused. */
+export async function changeLevel(body: LevelBody): Promise<LevelChanged | 'stale' | string> {
+  const res = signedIn(
+    await fetch('/api/session/level', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) return 'stale'
+  if (res.status === 422) return "That step isn't on this exercise's ladder."
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as LevelChanged
+}
+
 export type SessionTime = Schemas['SessionTimeView']
 export type Timing = Schemas['TimingView']
 
