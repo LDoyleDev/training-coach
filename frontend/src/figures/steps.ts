@@ -400,6 +400,9 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
       [-118, 60, -3, 165],
     ),
   },
+  'back-extension-45': {
+    'Holding a plate': { props: { ...FIGURES['back-extension-45'].props, barbell: 'plate' } },
+  },
   'kb-curl': {
     '16 kg, hammer grip': {
       frames: ['Handle held upright, elbows at your sides', 'Curled up, handle still upright'],

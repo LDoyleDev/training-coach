@@ -344,6 +344,18 @@ def test_undoing_a_replace_puts_the_old_workout_back(seeded: Session) -> None:
     assert seeded.scalars(select(ReplacedWorkout)).all() == []
 
 
+def test_undoing_a_replace_puts_it_back_where_it_was_done(seeded: Session) -> None:
+    """A gym workout comes back at the gym (ADR-0071)."""
+    old = _saved(seeded, _past(seeded, 2, "Upper\npull-ups 8 7"))
+    seeded.get_one(Workout, old).place = "gym"
+    seeded.flush()
+    draft = _past(seeded, 2, "Zone 2\nzone 2 run 40")
+    _saved(seeded, draft, Resolution(day_clash.REPLACE, _clash(seeded, draft).ids))
+    _undo(seeded)
+    back = seeded.scalars(select(Workout).where(Workout.local_date == _ago(2))).one()
+    assert back.place == "gym"
+
+
 def test_undoing_a_replace_links_the_band_workout_again(seeded: Session) -> None:
     old = _saved(seeded, _past(seeded, 2, "Zone 2\nzone 2 run 40"))
     band = ImportedWorkout(

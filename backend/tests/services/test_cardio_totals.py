@@ -163,6 +163,7 @@ def test_count_it_now_logs_the_whole_walk(week: Session) -> None:
 
 
 def test_the_targets_are_the_cycles_cardio_plus_extra(week: Session) -> None:
+    # Cardio + core's gym version has the same 30-40 minutes: counted once (ADR-0071).
     assert cardio_totals.targets(week) == Targets((45, 75), (75, 115))
     user_settings.update(week, extra_cardio_min=60)  # walks outside the sessions: easy cardio
     assert cardio_totals.targets(week) == Targets((105, 135), (135, 175))
