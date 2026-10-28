@@ -249,8 +249,9 @@ export async function choosePlace(
     }),
   )
   if (res.status === 409) {
-    const { detail } = (await res.json()) as { detail: unknown }
-    const kept = (detail as { kept_sets?: unknown } | null)?.kept_sets
+    // The ask is a PlaceAsk at the top of the body; "no choice today" is a plain detail message.
+    const body = (await res.json()) as Partial<Schemas['PlaceAsk']> | null
+    const kept = body?.kept_sets
     return typeof kept === 'number' ? { ask: kept } : 'stale'
   }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)

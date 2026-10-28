@@ -57,8 +57,8 @@ test('a tap switches before anything is kept', async () => {
 
 test('with sets kept it asks first, and Keep my sets changes nothing', async () => {
   const sent = serve(
-    Response.json({ detail: { kept_sets: 3 } }, { status: 409 }),
-    Response.json({ detail: { kept_sets: 3 } }, { status: 409 }),
+    Response.json({ kept_sets: 3 }, { status: 409 }),
+    Response.json({ kept_sets: 3 }, { status: 409 }),
     Response.json(AT_GYM),
   )
   const { onChanged } = show()
@@ -81,7 +81,7 @@ test('with sets kept it asks first, and Keep my sets changes nothing', async () 
 })
 
 test('one kept set is said as one', async () => {
-  serve(Response.json({ detail: { kept_sets: 1 } }, { status: 409 }))
+  serve(Response.json({ kept_sets: 1 }, { status: 409 }))
   show({ ...SESSION, place: 'gym' })
   fireEvent.click(button('Home'))
   expect(
