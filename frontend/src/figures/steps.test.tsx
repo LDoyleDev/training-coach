@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import plan from '../../../backend/src/training_coach/seed/plan.toml?raw'
-import { BODY, blend, dist, heading, solve } from './body'
+import { BODY, blend, dist, heading, solve, type Vec } from './body'
+import { solveFront } from './front'
 import Figure from './Figure'
 import { FIGURES } from './poses'
 import { shapes, type Shape } from './shapes'
@@ -11,11 +12,85 @@ const ALONG = [0, 0.25, 0.5, 0.75, 1]
 
 /** The ladder of ``slug`` in plan.toml. */
 function ladder(slug: string): string[] {
-  const blocks = plan.split('[[exercises]]')
+  // Each exercise's block runs to the next table that isn't its own, such as [exercises.needs].
+  const blocks = plan.split('[[exercises]]').map((b) => b.split(/\n\[(?!exercises\.)/)[0])
   const block = blocks.find((b) => b.includes(`slug = "${slug}"\n`) && b.includes('ladder = '))
   const line = (block ?? '').split('\n').find((l) => l.startsWith('ladder = ')) ?? 'ladder = []'
   return JSON.parse(line.slice('ladder = '.length)) as string[]
 }
+
+/** The audit (ADR-0063, addendum of 27 Oct): the steps of an exercise with a figure that show
+ * the figure as it is, and why. The figure draws one of them; the rest change only the tempo, a
+ * pause, the weight of a bell already drawn, or how far a movement drawn the same way goes. Every
+ * other step is drawn in steps.ts. A ladder of one step is its figure. */
+const SAME: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  'tibialis-raise': { 'Back against wall, heels forward': 'the figure' },
+  'jump-squat': {
+    'Bodyweight, full rest': 'the figure',
+    'Pause at bottom, then jump': 'a pause',
+  },
+  'kb-swing': {
+    'Two-hand, 8 kg': 'the figure',
+    'Two-hand, 16 kg': 'a heavier bell',
+    'Two-hand, 24 kg': 'a heavier bell',
+  },
+  'bulgarian-split-squat': { 'Bodyweight, back foot on chair': 'the figure' },
+  'pistol-squat': { 'Full pistol': 'the figure' },
+  'single-leg-rdl': {
+    '8 kg': 'the figure, a bell in the hand',
+    '8 kg, pause at bottom': 'a pause',
+    '16 kg': 'a heavier bell',
+    '16 kg, pause at bottom': 'a heavier bell and a pause',
+  },
+  'hamstring-curl': { 'Towel slide, both legs': 'the figure' },
+  'calf-raise': { 'Bodyweight on a step': 'the figure' },
+  'pull-up': {
+    'Slow negatives': 'the same path, lowering slowly',
+    'Strict pull-up': 'the figure',
+    'Pause at top': 'a pause',
+  },
+  dip: { 'Feet on floor': 'the figure' },
+  'kb-row': {
+    '8 kg': 'the figure, a bell in the hand',
+    '8 kg, 3 s lowering': 'the tempo',
+    '16 kg': 'a heavier bell',
+    '16 kg, 3 s lowering': 'a heavier bell and the tempo',
+    '16 kg, pause at top': 'a heavier bell and a pause',
+  },
+  'push-up': { Standard: 'the figure' },
+  'pike-push-up': { 'Feet on floor': 'the figure' },
+  'chin-up': { Strict: 'the figure', '3 s lowering': 'the tempo' },
+  'diamond-push-up': { Standard: 'the figure' },
+  'kb-curl': {
+    '8 kg': 'the figure, a bell in the hand',
+    '8 kg, slow tempo': 'the tempo',
+    '8 kg, 3 s lowering, pause at top': 'the tempo and a pause',
+    '16 kg, slow tempo': 'a heavier bell and the tempo',
+  },
+  'copenhagen-plank': {
+    'Knee on a chair': 'the figure',
+    'Knee on a chair, 3 s lowering': 'the tempo',
+  },
+  'reverse-nordic': { 'Lean back about 30 degrees': 'the figure' },
+  // The gym figures (#397): the plate is drawn there.
+  'back-extension-45': { Bodyweight: 'the figure' },
+}
+
+test('every step of an exercise with a figure is drawn, or listed as showing it as it is', () => {
+  const unmet: string[] = []
+  for (const slug of Object.keys(FIGURES)) {
+    const steps = ladder(slug)
+    if (steps.length < 2) continue
+    for (const step of steps) {
+      const drawn = step in (STEPS[slug] ?? {})
+      const same = step in (SAME[slug] ?? {})
+      if (drawn === same) unmet.push(`${slug} / ${step}`)
+    }
+  }
+  expect(unmet, 'draw these in steps.ts, or say in SAME why the figure fits').toEqual([])
+  for (const [slug, why] of Object.entries(SAME))
+    for (const step of Object.keys(why)) expect(ladder(slug), slug).toContain(step)
+})
 
 /** Every exercise's figure at every step that changes it. */
 const VARIANTS = Object.entries(STEPS).flatMap(([slug, steps]) =>
@@ -170,4 +245,278 @@ test('the figure shows the set-up of the step it is given', () => {
   render(<Figure slug="dip" name="Dip" step="Dip bars, bodyweight, full range" />)
   expect(screen.getByRole('img', { name: /^Dip, start: Arms straight on the bars/ })).toBeVisible()
   vi.unstubAllGlobals()
+})
+
+const GOBLET = [
+  ...[
+    'Goblet hold, 8 kg',
+    'Goblet hold, 3 s lowering',
+    'Goblet hold, 16 kg',
+    'Goblet hold 16 kg, 3 s lowering',
+  ].map((step) => ['bulgarian-split-squat', step] as const),
+  ['jump-squat', 'Holding 8 kg'] as const,
+  ['pistol-squat', 'Holding 8 kg'] as const,
+]
+
+test('a goblet hold holds the bell at the chest, in front of the body, all the way', () => {
+  for (const [slug, step] of GOBLET) {
+    const held = figureFor(slug, step)!
+    expect(held.props!.bell, step).toBe('goblet')
+    expect(held.props!.chair, 'the chair stays').toEqual(FIGURES[slug].props?.chair)
+    for (const t of ALONG) {
+      const pose = blend(held.start, held.end, t)
+      const j = solve(pose)
+      const drawn = shapes(pose, held.props, held.order)
+      const [bell] = bells(drawn)
+      if (bell?.kind !== 'ball') throw new Error('a bell')
+      const c: Vec = [bell.c[0], -bell.c[1]]
+      expect(c[0], `${slug}: in front of the chest`).toBeGreaterThan(j.midChest[0])
+      expect(dist(j.armN.wrist, j.armF.wrist), 'both hands on it').toBeLessThan(3)
+      expect(dist(c, j.armN.wrist), 'under the hands').toBeLessThan(11)
+      expect(c[1], 'under the hands').toBeLessThan(j.armN.wrist[1])
+      expect(dist(j.armN.wrist, j.midChest), 'in front of the chest').toBeLessThan(40)
+      const torso = drawn.findIndex((s) => s.kind === 'ball' && s.tone === 'near' && s.r === 7.6)
+      expect(drawn.indexOf(bell), 'in front of the body').toBeGreaterThan(torso)
+    }
+  }
+})
+
+test('a single-leg curl slides one heel and holds the other leg up, straight', () => {
+  const curl = figureFor('hamstring-curl', 'Towel slide, single leg')!
+  for (const t of ALONG) {
+    const j = solve(blend(curl.start, curl.end, t))
+    expect(j.legN.heel[1], 'heel on the towel').toBeLessThan(6)
+    expect(dist(j.legF.hip, j.legF.ankle), 'straight').toBeGreaterThan(BODY.thigh + BODY.shin - 1)
+    expect(Math.min(j.legF.heel[1], j.legF.ankle[1]), 'off the floor').toBeGreaterThan(55)
+  }
+  const [long, curled] = [solve(curl.start), solve(curl.end)]
+  expect(curled.legN.heel[0], 'heel pulled in').toBeLessThan(long.legN.heel[0] - 30)
+})
+
+test('a Nordic curl falls forward in one line from knees that stay put', () => {
+  for (const step of ['Nordic curl negatives', 'Full Nordic curl']) {
+    const nordic = figureFor('hamstring-curl', step)!
+    expect(nordic.props!.towel, 'no towel').toBeUndefined()
+    for (const t of ALONG) {
+      const j = solve(blend(nordic.start, nordic.end, t))
+      expect(dist(j.legN.knee, [0.1, 5.4]), `${step}: knee put`).toBeLessThan(0.5)
+      const thigh = heading(j.legN.knee, j.hip)
+      expect(Math.abs(heading(j.hip, j.neckBase) - thigh), 'one line').toBeLessThan(1)
+      expect(j.legN.ankle[1], 'feet anchored').toBeCloseTo(11.6, 1)
+    }
+    const [tall, low] = [solve(nordic.start), solve(nordic.end)]
+    expect(tall.neckBase[1], 'tall').toBeGreaterThan(90)
+    expect(low.neckBase[1], 'lowered').toBeLessThan(40)
+    expect(low.armN.wrist[1] < 4, `${step}: hands on the floor`).toBe(
+      step === 'Nordic curl negatives',
+    )
+  }
+})
+
+test('a pistol to a seat sits down onto it, on one leg, the other leg out straight', () => {
+  const seats = { 'Sit to chair on one leg': 45, 'Lower box': 32 }
+  for (const [step, top] of Object.entries(seats)) {
+    const sit = figureFor('pistol-squat', step)!
+    const { chair, step: box } = sit.props!
+    const [x0, x1] = chair ? [chair.x0, chair.x1] : [box!.x0, box!.x1]
+    expect(chair?.seat ?? box?.top, step).toBe(top)
+    expect(sit.start, 'starts as the pistol does').toBe(FIGURES['pistol-squat'].start)
+    for (const t of ALONG) {
+      const j = solve(blend(sit.start, sit.end, t))
+      expect(dist(j.legN.ankle, [0, 7]), 'the standing foot stays').toBeLessThan(0.01)
+      expect(dist(j.legF.hip, j.legF.ankle), 'the free leg straight').toBeGreaterThan(80)
+      expect(Math.min(j.legF.heel[1], j.legF.tip[1]), 'and off the floor').toBeGreaterThan(5)
+    }
+    const down = solve(sit.end)
+    expect(down.hip[1] - top, `${step}: sat on it`).toBeGreaterThan(6)
+    expect(down.hip[1] - top).toBeLessThan(12)
+    expect(down.hip[0] - 8, 'the seat under you').toBeGreaterThan(Math.min(x0, x1))
+    expect(down.hip[0] - 8).toBeLessThan(Math.max(x0, x1))
+  }
+})
+
+test('the calf raise holds its bell on the working side, clear of the step', () => {
+  for (const step of ['Holding 8 kg', '8 kg, 2 s pause at top']) {
+    const calf = figureFor('calf-raise', step)!
+    const { step: block, wall } = calf.props!
+    for (const t of ALONG) {
+      const pose = blend(calf.start, calf.end, t)
+      const j = solve(pose)
+      const [bell] = bells(shapes(pose, calf.props, calf.order))
+      if (bell?.kind !== 'ball') throw new Error('a bell')
+      expect(bell.c[0], step).toBeCloseTo(j.armN.wrist[0], 5)
+      expect(-bell.c[1] - bell.r, 'clear of the step').toBeGreaterThan(block!.top + 20)
+      expect(j.armF.wrist[0], 'the other hand on the wall').toBeCloseTo(wall!.x0 - 10, 0)
+    }
+  }
+})
+
+test('tibialis raises: heels further out, on one foot, or lifting a bell on the toes', () => {
+  const base = solve(FIGURES['tibialis-raise'].start)
+  const out = solve(figureFor('tibialis-raise', 'Heels further from wall')!.start)
+  expect(out.legN.heel[0] - base.legN.heel[0], 'further out').toBeGreaterThan(10)
+  expect(out.shoulder[0] - 13.5, 'back still on the wall').toBeLessThan(-43)
+  const one = figureFor('tibialis-raise', 'Single leg')!
+  for (const t of ALONG) {
+    const j = solve(blend(one.start, one.end, t))
+    expect(j.legN.heel[1], 'on one heel').toBeLessThan(2)
+    expect(Math.min(j.legF.heel[1], j.legF.tip[1]), 'the other foot up').toBeGreaterThan(15)
+  }
+  const toes = figureFor('tibialis-raise', 'Holding 8 kg on toes')!
+  const [low, high] = [toes.start, toes.end].map((pose) => {
+    const [bell] = bells(shapes(pose, toes.props, toes.order))
+    if (bell?.kind !== 'ball') throw new Error('a bell')
+    expect(-bell.c[1] - bell.r, 'resting on the foot, off the floor').toBeGreaterThan(1)
+    const foot = solve(pose).legN
+    expect(bell.c[0], 'over the forefoot').toBeGreaterThan(foot.ankle[0])
+    expect(bell.c[0]).toBeLessThan(foot.tip[0])
+    return -bell.c[1]
+  })
+  expect(high - low, 'lifted with the toes').toBeGreaterThan(5)
+})
+
+test('a one-arm swing holds the bell in one hand, the other hand at your side', () => {
+  for (const step of ['One-arm, 8 kg', 'One-arm, 16 kg']) {
+    const swing = figureFor('kb-swing', step)!
+    for (const t of ALONG) {
+      const pose = blend(swing.start, swing.end, t)
+      const j = solve(pose)
+      const drawn = shapes(pose, swing.props, swing.order)
+      const ring = drawn.find((s) => s.kind === 'ring')
+      if (ring?.kind !== 'ring') throw new Error('a handle')
+      expect(dist([ring.c[0], -ring.c[1]], j.armN.wrist), step).toBeLessThan(4)
+    }
+    for (const pose of [swing.start, swing.end]) {
+      const j = solve(pose)
+      expect(dist(j.armF.wrist, j.armN.wrist), 'the free hand off it').toBeGreaterThan(15)
+    }
+    expect(solve(swing.end).armF.wrist[1], 'at your side').toBeLessThan(solve(swing.end).hip[1])
+  }
+})
+
+test('a Copenhagen plank with the ankle on the chair keeps the top leg straight on the seat', () => {
+  for (const step of ['Ankle on a chair', 'Ankle on a chair, 3 s lowering']) {
+    const plank = figureFor('copenhagen-plank', step)!
+    const { bench } = plank.props!
+    const seat = plank.front!.seat!
+    const onSeat = (ankle: Vec, { x0, x1, top }: { x0: number; x1: number; top: number }) => {
+      expect(ankle[1] - top, `${step}: the ankle on the seat`).toBeGreaterThan(3)
+      expect(ankle[1] - top).toBeLessThan(7)
+      expect(ankle[0]).toBeGreaterThan(x0)
+      expect(ankle[0]).toBeLessThan(x1)
+    }
+    for (const t of ALONG) {
+      const side = solve(blend(plank.start, plank.end, t))
+      onSeat(side.legN.ankle, bench!)
+      expect(dist(side.hip, side.legN.ankle), 'top leg straight').toBeGreaterThan(
+        BODY.thigh + BODY.shin - 1,
+      )
+      expect(dist(side.armF.elbow, [0, 4]), 'elbow under the shoulder').toBeLessThan(3)
+      const front = solveFront(blend(plank.front!.start, plank.front!.end, t))
+      onSeat(front.legR.end, seat)
+      expect(dist(front.legR.root, front.legR.end), 'straight').toBeGreaterThan(
+        BODY.thigh + BODY.shin - 2,
+      )
+      expect(dist(front.armL.mid, [0, 4]), 'elbow under the shoulder').toBeLessThan(3)
+    }
+    const [low, high] = [solve(plank.start), solve(plank.end)]
+    expect(high.hip[1] - low.hip[1], 'hips up').toBeGreaterThan(15)
+    const line = heading(high.legN.ankle, high.shoulder)
+    expect(Math.abs(heading(high.legN.ankle, high.hip) - line), 'one line').toBeLessThan(2)
+  }
+})
+
+test('a reverse Nordic leans further back the further up the ladder, knees put, body in line', () => {
+  const lean = (step?: string) => {
+    const figure = figureFor('reverse-nordic', step)!
+    for (const t of ALONG) {
+      const j = solve(blend(figure.start, figure.end, t))
+      if (step) expect(dist(j.legN.knee, [0.1, 5.4]), `${step}: knees put`).toBeLessThan(0.5)
+      expect(
+        Math.abs(heading(j.legN.knee, j.hip) - heading(j.hip, j.neckBase)),
+        'in line',
+      ).toBeLessThan(1)
+      expect(j.head.c[1] - 11.5, 'head off the floor').toBeGreaterThan(20)
+    }
+    const end = solve(figure.end)
+    return { back: heading(end.legN.knee, end.hip), hands: end.armN.tip[1] }
+  }
+  const base = lean()
+  const deeper = lean('Lean deeper, 3 s lowering')
+  const hands = lean('To the floor, hands push you back')
+  const none = lean('To the floor and back, no hands')
+  expect(deeper.back).toBeGreaterThan(base.back + 15)
+  expect(hands.back).toBeGreaterThan(deeper.back + 10)
+  expect(none.back).toBe(hands.back)
+  expect(hands.hands, 'hands to the floor').toBeLessThan(3)
+  expect(none.hands, 'arms crossed').toBeGreaterThan(40)
+})
+
+test('push-ups with the feet on a chair: toes on the seat, the body sloping down to the hands', () => {
+  for (const slug of ['push-up', 'diamond-push-up']) {
+    const up = figureFor(slug, 'Feet elevated')!
+    const { seat, x0, x1 } = up.props!.chair!
+    for (const t of ALONG) {
+      const j = solve(blend(up.start, up.end, t))
+      for (const leg of [j.legN, j.legF]) {
+        expect(leg.ball[1], `${slug}: on the seat`).toBeCloseTo(seat, 5)
+        expect(leg.tip[1], 'toes not through it').toBeGreaterThan(seat - 0.5)
+        expect(leg.ball[0]).toBeGreaterThan(Math.min(x0, x1))
+        expect(leg.ball[0]).toBeLessThan(Math.max(x0, x1))
+      }
+      expect(j.armN.wrist[1], 'hands on the floor').toBeCloseTo(3, 5)
+    }
+    const low = solve(up.end)
+    expect(low.shoulder[1], 'shoulders below the feet').toBeLessThan(low.legN.ankle[1] - 20)
+  }
+})
+
+test('a deficit push-up has the hands on blocks and the chest going down past them', () => {
+  const deficit = figureFor('push-up', 'Deficit')!
+  const { top, x0, x1 } = deficit.props!.step!
+  for (const pose of [deficit.start, deficit.end]) {
+    const j = solve(pose)
+    expect(j.armN.wrist[1] - top, 'hands on the block').toBeCloseTo(3, 5)
+    expect(j.armN.wrist[0]).toBeGreaterThan(x0)
+    expect(j.armN.wrist[0]).toBeLessThan(x1)
+  }
+  expect(solve(deficit.end).shoulder[1] - 12, 'chest below the hands').toBeLessThan(top)
+})
+
+test('an archer push-up keeps one arm straight while the other bends', () => {
+  const archer = figureFor('push-up', 'Archer')!
+  for (const t of ALONG) {
+    const j = solve(blend(archer.start, archer.end, t))
+    const { shoulder, elbow, wrist } = j.armN
+    const off = Math.abs(heading(shoulder, elbow) - heading(elbow, wrist))
+    expect(off, 'the near arm straight').toBeLessThan(4)
+  }
+  const low = solve(archer.end).armF
+  const bend = Math.abs(heading(low.elbow, low.shoulder) - heading(low.elbow, low.wrist))
+  expect(Math.min(bend, 360 - bend), 'the far arm bent').toBeLessThan(120)
+  expect(archer.order!.at(-1), 'the straight arm in front').toBe('armN')
+})
+
+test('pike push-ups go further upside down: feet on a chair, then a handstand at a wall', () => {
+  const chair = figureFor('pike-push-up', 'Feet on chair')!
+  const { seat } = chair.props!.chair!
+  for (const t of ALONG) {
+    const j = solve(blend(chair.start, chair.end, t))
+    for (const leg of [j.legN, j.legF])
+      expect(Math.min(leg.ball[1], leg.tip[1]), 'toes on the seat').toBeCloseTo(seat, 0)
+    expect(j.hip[1], 'hips over the shoulders').toBeGreaterThan(j.shoulder[1] + 25)
+    expect(j.armN.wrist[1]).toBeCloseTo(3, 5)
+  }
+  const wall = figureFor('pike-push-up', 'Wall handstand push-up negatives')!
+  const { x0 } = wall.props!.wall!
+  for (const t of ALONG) {
+    const j = solve(blend(wall.start, wall.end, t))
+    expect(j.head.c[1], 'upside down').toBeLessThan(j.hip[1] - 50)
+    expect(j.legN.ankle[1], 'feet up').toBeGreaterThan(j.hip[1] + 80)
+    expect(x0 - j.legN.heel[0], 'heels on the wall').toBeLessThan(3)
+    expect(x0 - j.legN.heel[0]).toBeGreaterThan(0)
+    expect(j.armN.wrist[1]).toBeCloseTo(3, 5)
+    expect(j.head.c[1] - 11.5, 'head off the floor').toBeGreaterThan(0)
+  }
+  expect(solve(wall.start).head.c[1] - solve(wall.end).head.c[1], 'lowered').toBeGreaterThan(15)
 })

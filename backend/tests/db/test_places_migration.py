@@ -63,3 +63,39 @@ def test_existing_workouts_and_items_are_home_and_a_downgrade_drops_only_gym_ite
         assert db.execute(text("SELECT count(*) FROM workouts")).scalar_one() == 1
     engine.dispose()
     get_settings.cache_clear()
+
+
+def test_progress_kept_before_the_place_column_is_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``session_progress.place`` (7b38a427bb7c): progress kept before it was kept at home."""
+    from sqlalchemy import create_engine, text
+
+    from training_coach.config import get_settings
+
+    url = f"sqlite:///{tmp_path / 'progress.db'}"
+    monkeypatch.setenv("TC_DATABASE_URL", url)
+    get_settings.cache_clear()
+    cfg = Config(str(BACKEND / "alembic.ini"))
+    command.upgrade(cfg, "d5a2c7e4b8f1")
+    engine = create_engine(url)
+    with engine.begin() as db:
+        db.execute(
+            text(
+                "INSERT INTO session_templates (id, position, slug, name, focus)"
+                " VALUES (1, 0, 'legs', 'Legs', 'Legs')"
+            )
+        )
+        db.execute(
+            text(
+                "INSERT INTO session_progress"
+                " (user_id, local_date, template_id, position, first, sets, token, revision,"
+                " updated_at) VALUES (1, '2026-10-27', 1, 0, '[]', '[]', 'ab', 1,"
+                " '2026-10-27 07:00:00')"
+            )
+        )
+    command.upgrade(cfg, "head")
+    with engine.begin() as db:
+        assert db.execute(text("SELECT place FROM session_progress")).scalars().all() == ["home"]
+    engine.dispose()
+    get_settings.cache_clear()
