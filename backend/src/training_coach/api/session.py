@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -12,7 +13,7 @@ from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.daily_check import summary as daily_summary
-from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.load import MAX_KG, Load
 from training_coach.domain.mobility_flow import Flow
 from training_coach.domain.queue import local_date
@@ -27,6 +28,7 @@ from training_coach.services import (
     queue_actions,
     readiness,
     retests,
+    session_levels,
     session_times,
     stretching,
     workout_log,
@@ -138,6 +140,24 @@ def load_view(load: Load | None) -> LoadView | None:
     )
 
 
+class LevelView(BaseModel):
+    """One step of an exercise's ladder, to change the level on the set screen (ADR-0080)."""
+
+    id: int
+    name: str
+    cue: str | None
+    missing: list[str]  # the kit it needs that isn't listed: locked, still choosable (ADR-0071)
+
+
+class ItemLevelView(BaseModel):
+    """Changing the level on the set screen (ADR-0080): the step trained today, whether it was
+    chosen for today only, and the exercise's ladder, easiest first."""
+
+    step_id: int
+    for_today: bool
+    ladder: list[LevelView]
+
+
 class ItemView(BaseModel):
     slug: str
     name: str
@@ -153,6 +173,7 @@ class ItemView(BaseModel):
     parts: list[str]  # muscle parts it reaches: "triceps long head", "rectus femoris"
     flow: FlowView | None = None  # guided one movement at a time (ADR-0062)
     load: LoadView | None = None  # a loaded step: the set screen records a weight (ADR-0072)
+    level: ItemLevelView | None = None  # empty for an exercise with one step: none to change
 
 
 def muscle_views(item: ItemPlan) -> list[ItemMuscleView]:
@@ -188,6 +209,9 @@ class GuidedView(BaseModel):
     # What's left of a conditioning session once its cardio is logged (ADR-0066): offered
     # "after your run", saved into that day's workout.
     after_run: bool = False
+    # Where it is done, and so which version (ADR-0071); ``place_choice``: show Home | Gym.
+    place: Place = Place.HOME
+    place_choice: bool = False
 
 
 class DoneView(BaseModel):
@@ -248,6 +272,7 @@ class TodayView(BaseModel):
 
 class KeepBody(BaseModel):
     template_id: int  # the session the browser shows: a different one now is a conflict
+    place: Place  # the version it shows (ADR-0071): another one now is too
     revision: int = Field(default=0, ge=0)  # the kept revision this browser saw; 0: none
     position: int = Field(ge=0, le=500)
     first: list[int] = Field(default_factory=list, max_length=10)
@@ -292,6 +317,14 @@ def timing_view(found: Timing | None) -> TimingView | None:
     )
 
 
+class LevelDoneView(BaseModel):
+    """An exercise whose level changed during the session, and the steps its sets were done
+    at, in order (ADR-0080)."""
+
+    exercise: str
+    steps: list[str]
+
+
 class SavedView(BaseModel):
     workout_id: int
     already_saved: bool
@@ -299,6 +332,7 @@ class SavedView(BaseModel):
     earned: list[EarnedView]
     stretching: bool  # offered after a resistance session (ADR-0032)
     timing: TimingView | None = None  # empty when the sets weren't timed
+    levels: list[LevelDoneView] = Field(default_factory=list)
 
 
 class PendingView(BaseModel):
@@ -327,6 +361,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
         and kept is not None
         and (
             kept.template_id != plan.template_id
+            or kept.place is not plan.place  # kept in the other version (ADR-0071)
             or kept.after_run != plan.after_run
             or (plan.after_run and kept.saved)  # a block saved short: what's left starts afresh
         )
@@ -340,6 +375,8 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
     daily = daily_summary(answers) if answers is not None else None
     if plan is None:
         return TodayView(session=None, test_day=test_day, readiness_note=caution, daily_check=daily)
+    ladders = session_levels.ladders(session, (i.slug for i in plan.items))
+    today_only = session_levels.today_only(session, dict(kept.steps) if kept is not None else {})
     queue = position(session)
     planned = None
     if queue is not None and queue.pointer != plan.template_id:
@@ -392,6 +429,16 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                     parts=list(i.parts),
                     flow=flow_view(mobility_flow.flow_for(i.slug)),
                     load=load_view(i.load),
+                    level=ItemLevelView(
+                        step_id=i.step_id,
+                        for_today=i.slug in today_only,
+                        ladder=[
+                            LevelView(id=r.id, name=r.name, cue=r.cue, missing=list(r.missing))
+                            for r in ladders[i.slug]
+                        ],
+                    )
+                    if i.slug in ladders
+                    else None,
                 )
                 for i in plan.items
             ],
@@ -406,6 +453,8 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                 for s in plan.order
             ],
             after_run=plan.after_run,
+            place=plan.place,
+            place_choice=plan.switch,
         ),
     )
 
@@ -421,7 +470,7 @@ def keep(body: KeepBody, request: Request, user: Owner) -> KeptView:
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         plan = guided.today(session, on, settings.tz, set(body.first))
-        if plan is None or plan.template_id != body.template_id:
+        if plan is None or plan.template_id != body.template_id or body.place is not plan.place:
             raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
         sets = [guided.Done(**d.model_dump()) for d in body.sets]
         result = guided.keep(
@@ -432,6 +481,40 @@ def keep(body: KeepBody, request: Request, user: Owner) -> KeptView:
     if isinstance(result, str):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result)
     return KeptView(revision=result)
+
+
+class PlaceBody(BaseModel):
+    place: Place
+    confirm: bool = False  # drop the sets kept for the version shown
+
+
+class PlaceAsk(BaseModel):
+    """The answer to a switch with sets kept: ask first, then send it again with confirm."""
+
+    kept_sets: int
+
+
+@router.put(
+    "/place",
+    response_model=TodayView,
+    responses={status.HTTP_409_CONFLICT: {"model": PlaceAsk}},
+)
+def choose_place(body: PlaceBody, request: Request, user: Owner) -> TodayView | JSONResponse:
+    """Do today's session at home or at the gym (ADR-0071): the person's switch, never the
+    app's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when
+    sets are kept for the version shown (ask, then confirm), or with a ``detail`` message when
+    today has no choice to make."""
+    settings, on = _settings_and_day(request)
+    with session_scope(_bound(request, user)) as session:
+        plan = guided.today(session, on, settings.tz)
+        if plan is None or not plan.switch:
+            raise HTTPException(status.HTTP_409_CONFLICT, "today's session has one place")
+        kept = guided.switch(session, plan, body.place, body.confirm)
+        if kept is not None:
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT, content=PlaceAsk(kept_sets=kept).model_dump()
+            )
+        return today_view(session, on, settings)
 
 
 @router.post("/save", response_model=SavedView, responses=CLASH)
@@ -475,6 +558,10 @@ def save(body: SaveBody, request: Request, user: Owner) -> SavedView:
             ],
             stretching=day == today and stretching.offered(session, result.workout_id),
             timing=timing_view(session_times.of_workout(session, result.workout_id)),
+            levels=[
+                LevelDoneView(exercise=name, steps=list(steps))
+                for name, steps in session_levels.done_at(session, day, result.workout_id)
+            ],
         )
 
 
@@ -487,6 +574,44 @@ def pending(request: Request, user: Owner) -> list[PendingView]:
             PendingView(day=p.day, session=p.session, sets=p.sets)
             for p in guided.pending(session, today)
         ]
+
+
+class LevelBody(BaseModel):
+    """A level chosen on the set screen (ADR-0080): for today only, or from now on."""
+
+    template_id: int  # the session the browser shows: a different one now is a conflict
+    revision: int = Field(default=0, ge=0)  # the kept revision this browser saw; 0: none
+    first: list[int] = Field(default_factory=list, max_length=10)
+    slug: str = Field(max_length=64)
+    step_id: int
+    scope: session_levels.Scope
+
+
+class LevelChangedView(BaseModel):
+    today: TodayView  # the session with the new step's targets, and the new revision
+    # The step needs kit that isn't listed: chosen anyway, the person decides (ADR-0071).
+    warning: str | None
+
+
+@router.put("/level", response_model=LevelChangedView)
+def change_level(body: LevelBody, request: Request, user: Owner) -> LevelChangedView:
+    """Change an exercise's level during today's session, for today or from now on. 409 when
+    the session changed or another device moved on (reload); 422 for a step not on its ladder."""
+    settings, on = _settings_and_day(request)
+    with session_scope(_bound(request, user)) as session:
+        plan = guided.today(session, on, settings.tz, set(body.first))
+        if plan is None or plan.template_id != body.template_id:
+            raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
+        result = session_levels.change(
+            session, plan, body.revision, body.slug, body.step_id, body.scope
+        )
+        if isinstance(result, session_levels.Changed):
+            return LevelChangedView(today=today_view(session, on, settings), warning=result.warning)
+        # Raised inside the scope, so it rolls back: a refused change writes nothing, not even
+        # the progress it may have started.
+        if result == guided.STALE:
+            raise HTTPException(status.HTTP_409_CONFLICT, result)
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result)
 
 
 # ------------------------------------------------------------------ stretching (#135)

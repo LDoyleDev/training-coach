@@ -1518,6 +1518,15 @@
             "title": "Order",
             "type": "array"
           },
+          "place": {
+            "$ref": "#/components/schemas/Place",
+            "default": "home"
+          },
+          "place_choice": {
+            "default": false,
+            "title": "Place Choice",
+            "type": "boolean"
+          },
           "rest_seconds": {
             "title": "Rest Seconds",
             "type": "integer"
@@ -2198,6 +2207,33 @@
         "title": "IngestView",
         "type": "object"
       },
+      "ItemLevelView": {
+        "description": "Changing the level on the set screen (ADR-0080): the step trained today, whether it was\nchosen for today only, and the exercise's ladder, easiest first.",
+        "properties": {
+          "for_today": {
+            "title": "For Today",
+            "type": "boolean"
+          },
+          "ladder": {
+            "items": {
+              "$ref": "#/components/schemas/LevelView"
+            },
+            "title": "Ladder",
+            "type": "array"
+          },
+          "step_id": {
+            "title": "Step Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step_id",
+          "for_today",
+          "ladder"
+        ],
+        "title": "ItemLevelView",
+        "type": "object"
+      },
       "ItemMuscleView": {
         "properties": {
           "muscle": {
@@ -2237,6 +2273,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/FlowView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ItemLevelView"
               },
               {
                 "type": "null"
@@ -2349,6 +2395,9 @@
             "title": "First",
             "type": "array"
           },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          },
           "position": {
             "maximum": 500.0,
             "minimum": 0.0,
@@ -2376,6 +2425,7 @@
         },
         "required": [
           "template_id",
+          "place",
           "position"
         ],
         "title": "KeepBody",
@@ -2686,6 +2736,134 @@
           "top"
         ],
         "title": "LadderView",
+        "type": "object"
+      },
+      "LevelBody": {
+        "description": "A level chosen on the set screen (ADR-0080): for today only, or from now on.",
+        "properties": {
+          "first": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 10,
+            "title": "First",
+            "type": "array"
+          },
+          "revision": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "slug": {
+            "maxLength": 64,
+            "title": "Slug",
+            "type": "string"
+          },
+          "step_id": {
+            "title": "Step Id",
+            "type": "integer"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "slug",
+          "step_id",
+          "scope"
+        ],
+        "title": "LevelBody",
+        "type": "object"
+      },
+      "LevelChangedView": {
+        "properties": {
+          "today": {
+            "$ref": "#/components/schemas/TodayView"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "required": [
+          "today",
+          "warning"
+        ],
+        "title": "LevelChangedView",
+        "type": "object"
+      },
+      "LevelDoneView": {
+        "description": "An exercise whose level changed during the session, and the steps its sets were done\nat, in order (ADR-0080).",
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "exercise",
+          "steps"
+        ],
+        "title": "LevelDoneView",
+        "type": "object"
+      },
+      "LevelView": {
+        "description": "One step of an exercise's ladder, to change the level on the set screen (ADR-0080).",
+        "properties": {
+          "cue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cue"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "cue",
+          "missing"
+        ],
+        "title": "LevelView",
         "type": "object"
       },
       "LoadView": {
@@ -3974,6 +4152,46 @@
         "title": "PickBody",
         "type": "object"
       },
+      "Place": {
+        "description": "Where a workout is done (ADR-0071): at home, with the person's own kit, or at a gym,\nwhich has everything. A session can hold a version for each.",
+        "enum": [
+          "home",
+          "gym"
+        ],
+        "title": "Place",
+        "type": "string"
+      },
+      "PlaceAsk": {
+        "description": "The answer to a switch with sets kept: ask first, then send it again with confirm.",
+        "properties": {
+          "kept_sets": {
+            "title": "Kept Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kept_sets"
+        ],
+        "title": "PlaceAsk",
+        "type": "object"
+      },
+      "PlaceBody": {
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          }
+        },
+        "required": [
+          "place"
+        ],
+        "title": "PlaceBody",
+        "type": "object"
+      },
       "Places": {
         "description": "Where a person trains, a setting (ADR-0071). Everyone starts at home.",
         "enum": [
@@ -4967,6 +5185,13 @@
             "title": "Earned",
             "type": "array"
           },
+          "levels": {
+            "items": {
+              "$ref": "#/components/schemas/LevelDoneView"
+            },
+            "title": "Levels",
+            "type": "array"
+          },
           "next_session": {
             "anyOf": [
               {
@@ -5006,6 +5231,14 @@
         ],
         "title": "SavedView",
         "type": "object"
+      },
+      "Scope": {
+        "enum": [
+          "today",
+          "from_now_on"
+        ],
+        "title": "Scope",
+        "type": "string"
       },
       "ServerMetadata": {
         "properties": {
@@ -9151,6 +9384,48 @@
         ]
       }
     },
+    "/api/session/level": {
+      "put": {
+        "description": "Change an exercise's level during today's session, for today or from now on. 409 when\nthe session changed or another device moved on (reload); 422 for a step not on its ladder.",
+        "operationId": "change_level_api_session_level_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LevelBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LevelChangedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Level",
+        "tags": [
+          "session"
+        ]
+      }
+    },
     "/api/session/pending": {
       "get": {
         "description": "Earlier days' guided sessions with sets but never saved, to offer saving them.",
@@ -9172,6 +9447,58 @@
           }
         },
         "summary": "Pending",
+        "tags": [
+          "session"
+        ]
+      }
+    },
+    "/api/session/place": {
+      "put": {
+        "description": "Do today's session at home or at the gym (ADR-0071): the person's switch, never the\napp's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when\nsets are kept for the version shown (ask, then confirm), or with a ``detail`` message when\ntoday has no choice to make.",
+        "operationId": "choose_place_api_session_place_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceAsk"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Choose Place",
         "tags": [
           "session"
         ]

@@ -113,9 +113,15 @@ class Assignment:
     history: BlockKind | None  # which block's sessions its targets come from
 
 
-def assign(session: Session, item: TemplateItem, strength: bool) -> Assignment:
+def assign(
+    session: Session, item: TemplateItem, strength: bool, chosen: LadderStep | None = None
+) -> Assignment:
+    """``chosen``: a level picked for today in the session (ADR-0080), trained as it is: no
+    step harder in a strength block, as the person picked the step they do."""
     kind = ExerciseKind(item.exercise.kind)
-    step, at_top = step_for(session, item.exercise, strength)
+    step, at_top = (
+        (chosen, False) if chosen is not None else step_for(session, item.exercise, strength)
+    )
     if not strength or kind is not ExerciseKind.REPS:
         return Assignment(
             step=step,

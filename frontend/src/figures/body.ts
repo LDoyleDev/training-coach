@@ -50,6 +50,10 @@ export interface Pose {
   /** The hip joint, or for a plank the ball of the feet and the body line's angle. */
   hip?: Vec
   plank?: { ball: Vec; angle: number }
+  /** Kneeling, pivoting on the knee: the thigh's angle (90 upright) gives the hip, and ``lean``
+   * counts from the thigh's line, so 0 keeps knees to head in one line. Blends by angle, so the
+   * knee stays put on the way (a Nordic curl). */
+  kneel?: { knee: Vec; angle: number }
   lean: number // the trunk, degrees forward of vertical
   spine?: number // + rounds (cat), - arches (cow)
   neck?: number // + tucks the chin, - looks up
@@ -144,8 +148,13 @@ function fromPlank(pose: Pose): Pose & { hip: Vec } {
     ball[1] - BODY.ball * uy - BODY.ankle * ny,
   ]
   const hip = along(ankle, angle, BODY.thigh + BODY.shin - 0.1)
-  const leg: Limb = { at: ankle, angle: foot }
+  const leg: Limb = { at: ankle, angle: foot, floor: ball[1] } // toes bend along what's under them
   return { ...pose, hip, lean: 90 - angle, legN: leg, legF: { ...leg } }
+}
+
+function fromKneel(pose: Pose): Pose & { hip: Vec } {
+  const { knee, angle } = pose.kneel!
+  return { ...pose, hip: along(knee, angle, BODY.thigh), lean: 90 - angle + pose.lean }
 }
 
 /** The foot from its ankle and angle: u along the foot, n towards the sole. Toes that would go
@@ -174,7 +183,11 @@ function foot(ankle: Vec, angle: number, floor = 0) {
 
 /** Every joint of ``input``. */
 export function solve(input: Pose): Joints {
-  const pose = input.plank ? fromPlank(input) : { ...input, hip: input.hip ?? ([0, 0] as Vec) }
+  const pose = input.plank
+    ? fromPlank(input)
+    : input.kneel
+      ? fromKneel(input)
+      : { ...input, hip: input.hip ?? ([0, 0] as Vec) }
   const lower = 90 - pose.lean
   const spine = pose.spine ?? 0
   const midDir = lower - spine / 2

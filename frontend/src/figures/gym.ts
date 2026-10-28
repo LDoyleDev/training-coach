@@ -5,6 +5,10 @@
 import type { Figure } from './poses'
 
 const STAND = { legN: { at: [0, 7] }, legF: { at: [3, 7] } } as const
+const CABLE = ['armF', 'legF', 'torso', 'head', 'legN', 'bell', 'armN'] as const
+/** Standing, seen from in front at chest height (front.ts, perspective.ts). */
+const UPRIGHT = { hip: [0, 93.5], tilt: 90, legL: { at: [11, 7] }, legR: { at: [-11, 7] } } as const
+const FACING = { at: [0, 125, 330], look: [0, 100, 0] } as const
 
 export const GYM: Readonly<Record<string, Figure>> = {
   // ---------------------------------------------------------------- barbell and bench
@@ -571,6 +575,131 @@ export const GYM: Readonly<Record<string, Figure>> = {
       legF: { at: [-4, 7] },
       armN: { at: [55.8, 127] },
       armF: { at: [56.5, 127] },
+    },
+  },
+  // ---------------------------------------------------------------- sideways, seen from the front
+  'cable-lateral-raise': {
+    frames: [
+      'Side-on to a low pulley, the handle in your far hand',
+      'Arm raised out to the side to shoulder height',
+    ],
+    view: [-40, 60, -3, 182],
+    props: { cable: { x: 2, pulley: [6, 15], grip: 'handle' } },
+    order: CABLE,
+    tempo: [1000, 400, 1800, 400],
+    start: {
+      hip: [0, 93.5],
+      lean: 0,
+      ...STAND,
+      armN: { at: [4, 82], mid: [1, -30] },
+      armF: { at: [4, -2], from: 'waist' },
+    },
+    end: {
+      hip: [0, 93.5],
+      lean: 0,
+      ...STAND,
+      armN: { at: [6, 128], mid: [3, -5] },
+      armF: { at: [4, -2], from: 'waist' },
+    },
+    front: {
+      view: [-75, 95, -110, 92],
+      camera: FACING,
+      standing: true,
+      cables: [{ pulley: [-48, 14, 10], hand: 'L' }],
+      start: {
+        ...UPRIGHT,
+        armL: { at: [10, 85], mid: [2, -29.9], toward: [4, 12] },
+        armR: { at: [-14, -2], from: 'waist', bend: -1 },
+      },
+      end: {
+        ...UPRIGHT,
+        armL: { at: [70, 133], mid: [29, -3], toward: [0, 2] },
+        armR: { at: [-14, -2], from: 'waist', bend: -1 },
+      },
+    },
+  },
+  'chest-fly': {
+    frames: ['Arms wide, a soft bend in the elbows', 'Hands together in front of your chest'],
+    view: [-40, 70, -3, 182],
+    props: { cable: { x: -4, pulley: [0, 150], grip: 'handle' } },
+    order: CABLE,
+    tempo: [1200, 400, 1600, 400],
+    start: {
+      hip: [0, 93.5],
+      lean: 0,
+      ...STAND,
+      armN: { at: [10, 126], mid: [6, -5] },
+      armF: { at: [11, 126], mid: [7, -5] },
+    },
+    end: {
+      hip: [0, 93.5],
+      lean: 0,
+      ...STAND,
+      armN: { at: [50, 120], mid: [27, -6] },
+      armF: { at: [51, 120], mid: [28, -6] },
+    },
+    front: {
+      view: [-100, 100, -110, 92],
+      camera: FACING,
+      standing: true,
+      cables: [
+        { pulley: [88, 150, -6], hand: 'L' },
+        { pulley: [-88, 150, -6], hand: 'R' },
+      ],
+      start: {
+        ...UPRIGHT,
+        armL: { at: [73, 128], mid: [29.7, -4], toward: [-2, -4] },
+        armR: { at: [-73, 128], mid: [-29.7, -4], toward: [-2, -4] },
+      },
+      end: {
+        ...UPRIGHT,
+        armL: { at: [6, 120], mid: [10, -9], toward: [26, 50] },
+        armR: { at: [-6, 120], mid: [-10, -9], toward: [26, 50] },
+      },
+    },
+  },
+  'reverse-pec-deck': {
+    frames: [
+      'Arms out in front at shoulder height, hands together',
+      'Opened wide and back, elbows leading',
+    ],
+    view: [-40, 70, -3, 182],
+    props: { cable: { x: -4, pulley: [6, 137], grip: 'handle' } },
+    order: CABLE,
+    tempo: [1100, 500, 1700, 400],
+    start: {
+      hip: [0, 93.5],
+      lean: 0,
+      ...STAND,
+      armN: { at: [54, 136], mid: [30, 0] },
+      armF: { at: [55, 136], mid: [30, 0] },
+    },
+    end: {
+      hip: [0, 93.5],
+      lean: 0,
+      ...STAND,
+      armN: { at: [-4, 134], mid: [-1, -2] },
+      armF: { at: [-3, 134], mid: [-1, -2] },
+    },
+    front: {
+      view: [-100, 100, -110, 92],
+      camera: FACING,
+      standing: true,
+      // Crossed: each hand holds the cable from the other side, which runs in front of you.
+      cables: [
+        { pulley: [85, 165, 30], hand: 'R' },
+        { pulley: [-85, 165, 30], hand: 'L' },
+      ],
+      start: {
+        ...UPRIGHT,
+        armL: { at: [5, 136], mid: [6, -1], toward: [28, 52] },
+        armR: { at: [-5, 136], mid: [-6, -1], toward: [28, 52] },
+      },
+      end: {
+        ...UPRIGHT,
+        armL: { at: [73, 136], mid: [30, 0], toward: [-4, -8] },
+        armR: { at: [-73, 136], mid: [-30, 0], toward: [-4, -8] },
+      },
     },
   },
 }

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Exercise, PlanState, SetLog, Workout
-from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
+from training_coach.domain.enums import ExerciseKind, Place, Places, Side, WorkoutStatus
 from training_coach.domain.targets import Pace
 from training_coach.services import user_settings, users
 from training_coach.services.seed import apply_seed, load_plan
@@ -261,3 +261,18 @@ def test_a_missed_target_is_held_across_logged_sessions(seeded: Session) -> None
     plan = today(seeded, DAY)
     assert plan is not None
     assert plan.session.items[0].targets == (10, 8, 8)
+
+
+def test_the_bots_today_is_the_days_version(session: Session) -> None:
+    """The morning message and /today list what Today shows (ADR-0071): the gym version once
+    the person trains at both and last chose the gym."""
+    apply_seed(session, load_plan())
+    session.flush()
+    found = today(session, date(2026, 10, 12))
+    assert found is not None
+    assert "back-squat" not in {i.slug for i in found.session.items}
+    user_settings.update(session, places=Places.BOTH, place=Place.GYM)
+    found = today(session, date(2026, 10, 12))
+    assert found is not None
+    assert (found.session.place, found.session.switch) == (Place.GYM, True)
+    assert "back-squat" in {i.slug for i in found.session.items}

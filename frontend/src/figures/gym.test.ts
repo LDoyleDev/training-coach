@@ -1,6 +1,8 @@
 import { expect, test } from 'vitest'
 import { blend, dist, solve, type Joints, type Vec } from './body'
+import { solveFront } from './front'
 import { GYM } from './gym'
+import { perspectiveShapes } from './perspective'
 import { FIGURES } from './poses'
 import { moving, shapes } from './shapes'
 import { figureFor } from './steps'
@@ -308,4 +310,40 @@ test('a Pallof press pushes the handle straight out from the chest', () => {
     165,
   )
   expect(Math.abs(fist(out)[1] - fist(chest)[1]), 'straight out').toBeLessThan(12)
+})
+
+/** The front view of ``slug`` at its start and end. */
+const facing = (slug: string) => {
+  const front = GYM[slug].front!
+  return [solveFront(front.start), solveFront(front.end)]
+}
+
+test('sideways cable moves are seen from the front, standing, with a cable to each working hand', () => {
+  for (const slug of ['cable-lateral-raise', 'chest-fly', 'reverse-pec-deck']) {
+    const front = GYM[slug].front!
+    expect(front.standing, slug).toBe(true)
+    const bare = perspectiveShapes(front.start, front.camera, undefined, { standing: true })
+    const drawn = perspectiveShapes(front.start, front.camera, undefined, front)
+    // each cable adds its column, stack, pulley, cable and handle
+    expect(drawn.length - bare.length, slug).toBeGreaterThanOrEqual(front.cables!.length * 5)
+  }
+  const [low, high] = facing('cable-lateral-raise')
+  expect(low.armL.end[1], 'the hand by the thigh').toBeLessThan(low.hip[1])
+  expect(Math.abs(high.armL.end[1] - high.armL.root[1]), 'to shoulder height').toBeLessThan(8)
+  expect(high.armL.end[0] - high.armL.root[0], 'out to the side').toBeGreaterThan(45)
+  near(low.armR.end, high.armR.end) // the other hand stays on the hip
+})
+
+test('a fly brings the hands together in front; a reverse fly opens them wide', () => {
+  const [wide, hug] = facing('chest-fly')
+  const [hands, open] = facing('reverse-pec-deck')
+  for (const j of [wide, open]) {
+    expect(j.armL.end[0] - j.armR.end[0], 'arms wide').toBeGreaterThan(120)
+    expect(j.armL.z[1], 'in line with the body').toBeLessThan(5)
+  }
+  for (const j of [hug, hands]) {
+    expect(j.armL.end[0] - j.armR.end[0], 'hands together').toBeLessThan(15)
+    expect(j.armL.z[1], 'out in front').toBeGreaterThan(40)
+  }
+  expect(Math.abs(hands.armL.end[1] - hands.armL.root[1]), 'at shoulder height').toBeLessThan(5)
 })

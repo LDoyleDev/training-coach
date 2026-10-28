@@ -10,15 +10,19 @@ from sqlalchemy.orm import Session
 from tests import factories
 from training_coach.db.models import Exercise, SessionProgress, SessionTemplate, SetLog, Workout
 from training_coach.db.session import make_session_factory
-from training_coach.domain.enums import WorkoutStatus
+from training_coach.domain.enums import Place, Places, Side, WorkoutStatus
+from training_coach.domain.kit import Item
 from training_coach.domain.load import Load, LoadKit
+from training_coach.domain.muscles import Kit
 from training_coach.domain.progression import Progress
 from training_coach.services import (
     blocks,
+    equipment,
     guided,
     progress,
     queue_actions,
     today,
+    user_settings,
     users,
     workout_log,
 )
@@ -516,3 +520,200 @@ def test_the_next_weight_waits_until_every_set_was_at_the_weight(
     load = plan.items[0].load
     assert load is not None
     assert (load.suggested.kg if load.suggested else None) == suggested
+
+
+# ------------------------------------------------------------ home or gym (ADR-0071)
+
+
+def _at_both(session: Session, place: Place = Place.HOME) -> Session:
+    seeded = _seeded(session)
+    user_settings.update(seeded, places=Places.BOTH, place=place)
+    return seeded
+
+
+def test_someone_at_home_only_gets_the_home_version_and_no_switch(session: Session) -> None:
+    plan = guided.today(_seeded(session), DAY, BERLIN)
+    assert plan is not None
+    assert (plan.place, plan.switch) == (Place.HOME, False)
+    assert "back-squat" not in {i.slug for i in plan.items}
+
+
+def test_at_both_the_last_place_chosen_gives_its_version_and_a_switch(session: Session) -> None:
+    plan = guided.today(_at_both(session, Place.GYM), DAY, BERLIN)
+    assert plan is not None
+    assert (plan.place, plan.switch) == (Place.GYM, True)
+    squat = next(i for i in plan.items if i.slug == "back-squat")
+    assert squat.load is not None
+    assert squat.load.kit is LoadKit.BARBELL
+    assert [plan.items[s.item].slug for s in plan.order[:2]] == ["jump-squat", "tibialis-raise"]
+
+
+def test_someone_at_the_gym_only_gets_the_gym_version_without_a_switch(session: Session) -> None:
+    seeded = _seeded(session)
+    user_settings.update(seeded, places=Places.GYM)
+    plan = guided.today(seeded, DAY, BERLIN)
+    assert plan is not None
+    assert (plan.place, plan.switch) == (Place.GYM, False)
+    assert "seated-leg-curl" in {i.slug for i in plan.items}
+
+
+def test_a_session_with_one_version_has_no_switch(session: Session) -> None:
+    seeded = _at_both(session, Place.GYM)
+    state = users.plan_state(seeded)
+    assert state is not None
+    state.next_template_id = seeded.scalars(
+        select(SessionTemplate.id).where(SessionTemplate.slug == "recovery")
+    ).one()
+    plan = guided.today(seeded, DAY, BERLIN)
+    assert plan is not None
+    assert plan.slug == "recovery"
+    assert (plan.place, plan.switch) == (Place.HOME, False)  # its one version is the home one
+    assert "prone-ytw" in {i.slug for i in plan.items}
+
+
+def test_switching_before_any_set_changes_the_exercises_and_the_next_default(
+    session: Session,
+) -> None:
+    seeded = _at_both(session)
+    plan = guided.today(seeded, DAY, BERLIN)
+    assert plan is not None
+    guided.keep(seeded, plan, 0, 0, [1], [])  # a pair swapped, no set yet
+    assert guided.switch(seeded, plan, Place.GYM, confirm=False) is None
+    assert guided.kept(seeded, DAY) is None  # the swap belonged to the home version
+    assert user_settings.load(seeded).place is Place.GYM
+    gym = guided.today(seeded, DAY, BERLIN)
+    assert gym is not None
+    assert gym.place is Place.GYM
+    assert guided.switch(seeded, gym, Place.GYM, confirm=False) is None  # already there
+
+
+def test_switching_with_sets_kept_asks_first_then_drops_them(session: Session) -> None:
+    seeded = _at_both(session)
+    plan = guided.today(seeded, DAY, BERLIN)
+    assert plan is not None
+    guided.keep(seeded, plan, 0, 2, [], [guided.Done(0, 1, 6), guided.Done(1, 1, 18)])
+    assert guided.switch(seeded, plan, Place.GYM, confirm=False) == 2
+    assert user_settings.load(seeded).place is Place.HOME  # nothing changed
+    assert guided.kept(seeded, DAY) is not None
+    assert guided.switch(seeded, plan, Place.GYM, confirm=True) is None
+    assert guided.kept(seeded, DAY) is None
+    assert user_settings.load(seeded).place is Place.GYM
+
+
+def test_a_gym_session_is_saved_at_the_gym_with_its_weights(session: Session) -> None:
+    seeded = _at_both(session, Place.GYM)
+    plan = guided.today(seeded, DAY, BERLIN)
+    assert plan is not None
+    squat = next(n for n, i in enumerate(plan.items) if i.slug == "back-squat")
+    assert guided.keep(seeded, plan, 0, 1, [], [guided.Done(squat, 1, 8, load_kg=60)]) == 1
+    saved = guided.save(seeded, DAY, DAY, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = seeded.get_one(Workout, saved.workout_id)
+    assert workout.place == "gym"
+    assert [(s.value, s.load_kg) for s in workout.sets] == [(8, 60.0)]
+
+
+def test_a_typed_log_is_filed_at_the_days_place(session: Session) -> None:
+    seeded = _at_both(session, Place.GYM)
+    draft = workout_log.draft(seeded, "back squat 8 8 8 at 60", DAY, BERLIN)
+    assert draft.problems == ()
+    saved = workout_log.save(seeded, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    assert seeded.get_one(Workout, saved.workout_id).place == "gym"
+
+
+def test_a_day_left_unsaved_at_home_saves_at_home_after_a_switch_to_the_gym(
+    session: Session,
+) -> None:
+    seeded = _at_both(session)
+    home = guided.today(seeded, DAY, BERLIN)
+    assert home is not None
+    assert home.place is Place.HOME
+    sets = [guided.Done(0, 1, 6), guided.Done(1, 1, 18)]
+    assert guided.keep(seeded, home, 0, 2, [], sets) == 1  # left unsaved
+    later = DAY + timedelta(days=1)
+    tomorrow = guided.today(seeded, later, BERLIN)
+    assert tomorrow is not None
+    assert guided.switch(seeded, tomorrow, Place.GYM, confirm=False) is None  # the next day
+    saved = guided.save(seeded, DAY, later, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = seeded.get_one(Workout, saved.workout_id)
+    assert workout.place == "home"
+    slugs = dict(seeded.execute(select(Exercise.id, Exercise.slug)).all())
+    assert {slugs[s.exercise_id] for s in workout.sets} == {i.slug for i in home.items[:2]}
+
+
+def _gym_only_at(session: Session, slug: str) -> Session:
+    """Someone who trains only at a gym, with ``slug`` next in the queue."""
+    seeded = _seeded(session)
+    user_settings.update(seeded, places=Places.GYM)
+    state = users.plan_state(seeded)
+    assert state is not None
+    state.next_template_id = seeded.scalars(
+        select(SessionTemplate.id).where(SessionTemplate.slug == slug)
+    ).one()
+    seeded.flush()
+    return seeded
+
+
+def test_at_the_gym_only_a_session_without_a_gym_version_is_saved_at_home(
+    session: Session,
+) -> None:
+    """Review of #406: Recovery has no gym version, so at the gym it is its home exercises, and
+    the plan, the guided save and the saved screen's kit locks all say home, not gym."""
+    seeded = _gym_only_at(session, "recovery")
+    equipment.save(seeded, [Item(Kit.KETTLEBELL, kg=8)], datetime(2026, 10, 1, 9, tzinfo=UTC))
+    plan = guided.today(seeded, DAY, BERLIN)
+    assert plan is not None
+    assert (plan.slug, plan.place, plan.switch) == ("recovery", Place.HOME, False)
+    carry = next(n for n, i in enumerate(plan.items) if i.slug == "suitcase-carry")
+    exercise = seeded.scalars(select(Exercise).where(Exercise.slug == "suitcase-carry")).one()
+    state = users.exercise_state(seeded, exercise.id)
+    assert state is not None
+    before = Workout(  # the top of the range once already, at 8 kg
+        local_date=DAY - timedelta(days=3), template_id=plan.template_id, status="done"
+    )
+    before.sets.extend(
+        SetLog(
+            exercise_id=exercise.id,
+            ladder_step_id=state.ladder_step_id,
+            set_no=n,
+            side=side,
+            value=45,
+        )
+        for n in (1, 2)
+        for side in (Side.LEFT, Side.RIGHT)
+    )
+    seeded.add(before)
+    seeded.flush()
+    sets = [guided.Done(carry, 1, 45, 45), guided.Done(carry, 2, 45, 45)]
+    assert guided.keep(seeded, plan, 0, 2, [], sets) == 1
+    saved = guided.save(seeded, DAY, DAY, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    assert seeded.get_one(Workout, saved.workout_id).place == "home"
+    found = next(f for f in progress.feedback(seeded, saved.workout_id, BERLIN))
+    # Only an 8 kg bell at home: the 16 kg step is locked, as it would not be at a gym
+    assert (found.status, found.next_step) == (Progress.TOP_OF_LADDER, None)
+    assert found.unlock == "a 16 kg kettlebell unlocks 16 kg"
+
+
+def test_at_the_gym_only_a_typed_log_of_a_one_version_session_is_filed_at_home(
+    session: Session,
+) -> None:
+    seeded = _gym_only_at(session, "recovery")
+    draft = workout_log.draft(seeded, "dead hang 45", DAY, BERLIN)
+    assert (draft.problems, draft.session_name) == ((), "Recovery + posture")
+    saved = workout_log.save(seeded, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    assert seeded.get_one(Workout, saved.workout_id).place == "home"
+
+
+def test_at_the_gym_only_a_typed_log_of_a_gym_session_is_filed_at_the_gym(
+    session: Session,
+) -> None:
+    seeded = _gym_only_at(session, "legs")
+    draft = workout_log.draft(seeded, "back squat 8 8 8 at 60", DAY, BERLIN)
+    assert draft.problems == ()
+    saved = workout_log.save(seeded, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    assert seeded.get_one(Workout, saved.workout_id).place == "gym"

@@ -74,7 +74,12 @@ def test_the_run_then_the_block_after_it(signed_in: TestClient, engine: Engine) 
     sets = [{"item": s["item"], "set_no": s["set_no"], "left": 10} for s in after["order"]]
     kept = signed_in.put(
         "/api/session/progress",
-        json={"template_id": after["template_id"], "position": len(sets), "sets": sets},
+        json={
+            "template_id": after["template_id"],
+            "place": after["place"],
+            "position": len(sets),
+            "sets": sets,
+        },
     )
     assert kept.status_code == 200
     saved = signed_in.post("/api/session/save", json={})

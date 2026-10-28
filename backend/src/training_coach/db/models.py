@@ -176,6 +176,11 @@ class SessionTemplate(Base):
         home version (ADR-0071)."""
         return self.gym_items if place is Place.GYM and self.gym_items else self.items
 
+    def done_at(self, place: Place) -> Place:
+        """Where ``version(place)`` is done: the gym only when there is a gym version, so a
+        gym-only person's session without one is recorded at home, with home kit (ADR-0071)."""
+        return Place.GYM if place is Place.GYM and self.gym_items else Place.HOME
+
 
 class TemplateItem(Base):
     """A planned exercise within a session. For duration exercises the range is minutes."""
@@ -584,7 +589,10 @@ class SessionProgress(Owned, Base):
     (it becomes the workout's ``log_token``)."""
 
     __tablename__ = "session_progress"
-    __table_args__ = (UniqueConstraint("user_id", "local_date"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "local_date"),
+        CheckConstraint(_in("place", Place), name="place_valid"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = _owner()
@@ -604,6 +612,12 @@ class SessionProgress(Owned, Base):
     # The block after a conditioning session's cardio, once the cardio is logged (ADR-0066):
     # its sets are added to that day's workout instead of saving a second one.
     after_run: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # Where these sets were done, so its version (ADR-0071): a day left unsaved is saved in the
+    # version it was done in, even after a switch to the other place since.
+    place: Mapped[str] = mapped_column(String(8), server_default=Place.HOME.value)
+    # Levels chosen "for today" during the session (ADR-0080), exercise slug -> ladder step id:
+    # its sets are saved at that step and the person's level stays as it is.
+    steps: Mapped[dict[str, int]] = mapped_column(JSON, default=dict, server_default="{}")
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

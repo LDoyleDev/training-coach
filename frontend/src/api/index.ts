@@ -229,6 +229,35 @@ export async function fetchToday(signal?: AbortSignal): Promise<TodayView | null
   return (await res.json()) as TodayView
 }
 
+export type Place = Guided['place']
+
+/**
+ * Do today's session at home or at the gym (ADR-0071): the person's switch. ``ask``: sets are
+ * kept for the version shown, so ask first and send ``confirm`` to drop them. 'stale': today
+ * has no choice any more (reload).
+ */
+export async function choosePlace(
+  place: Place,
+  confirm = false,
+): Promise<TodayView | { ask: number } | 'stale'> {
+  const res = signedIn(
+    await fetch('/api/session/place', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ place, confirm }),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) {
+    // The ask is a PlaceAsk at the top of the body; "no choice today" is a plain detail message.
+    const body = (await res.json()) as Partial<Schemas['PlaceAsk']> | null
+    const kept = body?.kept_sets
+    return typeof kept === 'number' ? { ask: kept } : 'stale'
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as TodayView
+}
+
 /** Keep where the person is. 'stale': another device moved on (reload). */
 export async function keepProgress(body: KeepBody): Promise<number | 'stale'> {
   const res = signedIn(
@@ -769,6 +798,27 @@ export async function moveOnLadder(
   if (res.status === 404 || res.status === 422) return "That step isn't on this exercise's ladder."
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Moved
+}
+
+export type ItemLevel = Schemas['ItemLevelView']
+export type LevelBody = Schemas['LevelBody']
+export type LevelChanged = Schemas['LevelChangedView']
+
+/** Change an exercise's level during today's session, for today or from now on (ADR-0080).
+ * 'stale': the session changed or moved on elsewhere; a string: why it was refused. */
+export async function changeLevel(body: LevelBody): Promise<LevelChanged | 'stale' | string> {
+  const res = signedIn(
+    await fetch('/api/session/level', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) return 'stale'
+  if (res.status === 422) return "That step isn't on this exercise's ladder."
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as LevelChanged
 }
 
 export type SessionTime = Schemas['SessionTimeView']

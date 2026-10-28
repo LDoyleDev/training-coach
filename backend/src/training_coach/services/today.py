@@ -4,6 +4,7 @@ Returns plain data; the bot formats it. ``None`` means there is no plan in the d
 example a failed seed on a fresh install, ADR-0015), which callers must tell the user about.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from functools import lru_cache
@@ -14,14 +15,16 @@ from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import (
     FitnessTestDay,
+    LadderStep,
     SessionTemplate,
     TemplateItem,
     Workout,
 )
 from training_coach.domain.blocks import Block
-from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.load import Load, carried, next_weight, top_weight
 from training_coach.domain.muscles import Muscle, Part, ranked
+from training_coach.domain.places import can_switch, day_place
 from training_coach.domain.queue import ADVANCING, Position, advance
 from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
@@ -51,6 +54,7 @@ class ItemPlan:
     parts: tuple[Part, ...] = ()
     # A loaded step (ADR-0072): its kit, increment and each set's starting weight.
     load: Load | None = None
+    step_id: int = 0  # the ladder step trained, for changing it in the session (ADR-0080)
 
 
 @dataclass(frozen=True)
@@ -68,6 +72,9 @@ class SessionPlan:
     items: tuple[ItemPlan, ...]
     kind: str = "strength"  # strength | conditioning | recovery (plan.toml)
     slug: str = ""  # the session template's, e.g. "hiit"
+    # Where it is done, and so which version (ADR-0071); ``switch``: Today offers Home | Gym.
+    place: Place = Place.HOME
+    switch: bool = False
 
 
 @dataclass(frozen=True)
@@ -123,11 +130,19 @@ def _worked() -> dict[str, Worked]:
     }
 
 
-def _item_plan(session: Session, item: TemplateItem, strength: bool, pace: Pace) -> ItemPlan:
+def _item_plan(
+    session: Session, item: TemplateItem, strength: bool, pace: Pace, chosen: int | None = None
+) -> ItemPlan:
     """One exercise: its step, cue and targets, under the strength prescription if it applies
     (ADR-0028), with targets from the matching block's history (ADR-0027) at the person's
-    ``pace`` (ADR-0057)."""
-    plan = blocks.assign(session, item, strength)
+    ``pace`` (ADR-0057). ``chosen``: a step of its ladder picked for today (ADR-0080)."""
+    step = session.get(LadderStep, chosen) if chosen is not None else None
+    plan = blocks.assign(
+        session,
+        item,
+        strength,
+        step if step is not None and step.exercise_id == item.exercise_id else None,
+    )
     kit = load_kit(item.exercise.slug, plan.step.name)
     last = last_loads(session, item.exercise_id, plan.step.id, plan.history) if kit else []
     # A loaded step's targets come from the sessions at the weight it last used: a heavier
@@ -160,32 +175,53 @@ def _item_plan(session: Session, item: TemplateItem, strength: bool, pace: Pace)
         muscles=found.muscles,
         parts=found.parts,
         load=load,
+        step_id=plan.step.id,
     )
 
 
 def session_plan(
-    session: Session, template_id: int, block: Block | None = None
+    session: Session,
+    template_id: int,
+    block: Block | None = None,
+    steps: Mapping[str, int] | None = None,
+    place: Place | None = None,
 ) -> SessionPlan | None:
-    """One session of the plan with today's ladder steps and targets, in ``block``."""
+    """One session of the plan with today's ladder steps and targets, in ``block``: its
+    version for ``place``, by default the day's (ADR-0071), so the bot's messages, a typed
+    log and the guided session all see the same exercises. ``steps`` holds levels chosen for
+    today in the guided session, by exercise slug (ADR-0080)."""
     template = session.scalar(
         select(SessionTemplate)
         .where(SessionTemplate.id == template_id)
-        .options(selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise))
+        .options(
+            selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise),
+            selectinload(SessionTemplate.gym_items).selectinload(TemplateItem.exercise),
+        )
     )
     if template is None:
         return None
-    pace = user_settings.load(session).pace
+    prefs = user_settings.load(session)
+    pace = prefs.pace
+    at = place if place is not None else day_place(prefs.places, prefs.place)
     return SessionPlan(
         template_id=template.id,
         name=template.name,
         focus=template.focus,
         optional=template.is_rest_optional,
         items=tuple(
-            _item_plan(session, item, blocks.strength_applies(block, template.kind), pace)
-            for item in template.items
+            _item_plan(
+                session,
+                item,
+                blocks.strength_applies(block, template.kind),
+                pace,
+                (steps or {}).get(item.exercise.slug),
+            )
+            for item in template.version(at)
         ),
         kind=template.kind,
         slug=template.slug,
+        place=template.done_at(at),  # the version's place, not only the one asked for
+        switch=can_switch(prefs.places, bool(template.gym_items)),
     )
 
 
