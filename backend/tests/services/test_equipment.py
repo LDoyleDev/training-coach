@@ -2,6 +2,7 @@
 Move up, the levels list and a level by hand respecting the kit."""
 
 from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import select
@@ -20,7 +21,7 @@ from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.kit import Item, Resistance
 from training_coach.domain.muscles import Kit
 from training_coach.domain.progression import Progress
-from training_coach.services import equipment, progress, users
+from training_coach.services import equipment, home, progress, review, users
 from training_coach.services.progress import MoveOutcome
 from training_coach.services.seed import apply_seed, load_plan
 
@@ -258,3 +259,52 @@ def test_a_locked_level_can_be_chosen_with_a_warning(plan: Session) -> None:
     back = progress.set_level(plan, exercise.id, exercise.ladder[0].id)
     assert back is not None
     assert back.warning is None
+
+
+BERLIN = ZoneInfo("Europe/Berlin")
+NOTED = datetime(2026, 10, 22, 10, tzinfo=UTC)  # a Thursday
+
+
+def _top_noted(session: Session, slug: str, position: int) -> None:
+    """The ready rule met at ``position`` with nothing open above it, saved on NOTED."""
+    step = _put(session, slug, position)
+    (item,) = progress.feedback(session, _ready(session, step))
+    assert (item.status, item.note_top) == (Progress.TOP_OF_LADDER, True)
+    event = session.scalars(select(Event).where(Event.kind == progress.TOP_NOTED)).one()
+    event.at = NOTED
+    session.flush()
+
+
+def test_home_and_the_review_name_the_top_for_the_kit(plan: Session) -> None:
+    """Like the saved screen and /progress (ADR-0078): the ready rule met with the next level
+    locked by kit, naming what opens it, said in the week it was first met."""
+    equipment.save(plan, [KB8], NOW)
+    _top_noted(plan, "kb-swing", 1)
+    swing = progress.Top(
+        "Kettlebell swing", "kb-swing", "a 16 kg kettlebell unlocks Two-hand, 16 kg"
+    )
+    assert home.home(plan, date(2026, 10, 25), BERLIN).progress.top == [swing]
+    assert home.home(plan, date(2026, 10, 25), BERLIN).progress.ready == []
+    assert review.weekly(plan, date(2026, 10, 25), BERLIN).top == [swing]
+    # Said once: not on Home after its 7 days, nor in the next week's review.
+    assert home.home(plan, date(2026, 10, 29), BERLIN).progress.top == []
+    assert review.weekly(plan, date(2026, 10, 26), BERLIN).top == []
+    assert review.weekly(plan, date(2026, 10, 25)).top == []  # no time zone, no week to place it
+    # The kettlebell arrives: ready to move up, no longer at the top.
+    equipment.save(plan, [KB8, KB16], NOW)
+    found = home.home(plan, date(2026, 10, 25), BERLIN).progress
+    assert (found.top, [r.slug for r in found.ready]) == ([], ["kb-swing"])
+
+
+def test_home_names_the_top_of_the_ladder(plan: Session) -> None:
+    _top_noted(plan, "kb-swing", 4)  # Two-hand, 24 kg; no kit listed, so nothing locks
+    assert home.home(plan, date(2026, 10, 22), BERLIN).progress.top == [
+        progress.Top("Kettlebell swing", "kb-swing", None)
+    ]
+
+
+def test_a_top_noted_at_another_level_is_not_said_again(plan: Session) -> None:
+    """The note belongs to the level it was met at: back down a level, the exercise isn't there."""
+    _top_noted(plan, "kb-swing", 4)
+    _put(plan, "kb-swing", 3)
+    assert home.home(plan, date(2026, 10, 22), BERLIN).progress.top == []
