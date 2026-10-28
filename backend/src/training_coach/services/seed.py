@@ -181,17 +181,20 @@ class SessionSeed(_Strict):
     focus: str = Field(min_length=1, max_length=120)
     is_rest_optional: bool = False
     items: list[ItemSeed] = Field(min_length=1)
+    # The gym version (ADR-0071); empty: done the same way at the gym.
+    gym: list[ItemSeed] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _pairs(self) -> Self:
-        """Each pair number marks exactly two items, next to each other."""
-        numbers = [item.pair for item in self.items]
-        for number in {n for n in numbers if n is not None}:
-            where = [i for i, n in enumerate(numbers) if n == number]
-            if len(where) != 2 or where[1] != where[0] + 1:
-                raise ValueError(
-                    f"session {self.slug}: pair {number} must be two neighbouring items"
-                )
+        """Each pair number marks exactly two items, next to each other, in each version."""
+        for version in (self.items, self.gym):
+            numbers = [item.pair for item in version]
+            for number in {n for n in numbers if n is not None}:
+                where = [i for i, n in enumerate(numbers) if n == number]
+                if len(where) != 2 or where[1] != where[0] + 1:
+                    raise ValueError(
+                        f"session {self.slug}: pair {number} must be two neighbouring items"
+                    )
         return self
 
 
@@ -335,7 +338,7 @@ class PlanSeed(_Strict):
                 )
         retired = {e.slug for e in self.exercises if e.retired}
         for session in self.sessions:
-            for item in session.items:
+            for item in (*session.items, *session.gym):
                 if item.exercise not in known:
                     raise ValueError(f"session {session.slug}: unknown exercise {item.exercise}")
                 if item.exercise in retired:
@@ -488,6 +491,36 @@ def _set(obj: object, result: SeedResult, **values: object) -> None:
         result.updated += 1
 
 
+def _version(
+    items: list[TemplateItem],
+    seeds: list[ItemSeed],
+    exercises: dict[str, Exercise],
+    result: SeedResult,
+) -> None:
+    """Make one version of a session (its home or gym items, ADR-0071) match the plan: items
+    matched by position, added at the end, and removed past the plan's last."""
+    found = {item.position: item for item in items}
+    for position, seed in enumerate(seeds):
+        values = {
+            "exercise_id": exercises[seed.exercise].id,
+            "sets": seed.sets,
+            "rep_min": seed.rep_min,
+            "rep_max": seed.rep_max,
+            "per_side": seed.per_side,
+            "pair": seed.pair,
+        }
+        item = found.get(position)
+        if item is None:
+            items.append(TemplateItem(position=position, **values))
+            result.created += 1
+        else:
+            _set(item, result, **values)
+    for position, item in found.items():
+        if position >= len(seeds):
+            items.remove(item)  # delete-orphan: removed from the plan
+            result.deleted += 1
+
+
 def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
     """Upsert the plan. The caller owns the transaction (commit / rollback).
 
@@ -584,26 +617,8 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 is_rest_optional=seed_session.is_rest_optional,
                 kind=seed_session.type,
             )
-        items = {item.position: item for item in template.items}
-        for item_position, item_seed in enumerate(seed_session.items):
-            values = {
-                "exercise_id": exercises[item_seed.exercise].id,
-                "sets": item_seed.sets,
-                "rep_min": item_seed.rep_min,
-                "rep_max": item_seed.rep_max,
-                "per_side": item_seed.per_side,
-                "pair": item_seed.pair,
-            }
-            item = items.get(item_position)
-            if item is None:
-                template.items.append(TemplateItem(position=item_position, **values))
-                result.created += 1
-            else:
-                _set(item, result, **values)
-        for position, item in items.items():
-            if position >= len(seed_session.items):
-                template.items.remove(item)  # delete-orphan: removed from the plan
-                result.deleted += 1
+        _version(template.items, seed_session.items, exercises, result)
+        _version(template.gym_items, seed_session.gym, exercises, result)
     session.flush()
 
     _apply_versions(session, plan, result)

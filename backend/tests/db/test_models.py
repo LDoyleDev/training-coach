@@ -24,7 +24,7 @@ from training_coach.db.models import (
     UserSettings,
     Workout,
 )
-from training_coach.domain.enums import Side, WorkoutStatus
+from training_coach.domain.enums import Place, Side, WorkoutStatus
 
 BACKEND = Path(__file__).resolve().parents[2]
 
@@ -298,4 +298,35 @@ def test_log_token_is_unique_but_may_repeat_as_null(session: Session) -> None:
     session.flush()
     session.add(Workout(local_date=day, status=WorkoutStatus.DONE, log_token="a" * 32))
     with pytest.raises(IntegrityError):
+        session.flush()
+
+
+def test_a_session_keeps_its_home_and_gym_versions_apart(session: Session) -> None:
+    """ADR-0071: each version numbers its own items; ``items`` is the home version, and the gym
+    is done as at home when the session has no gym version."""
+    exercise = factories.exercise(session)
+    template = factories.template(session, exercise)
+    home = template.items[0]
+    assert template.version(Place.GYM) == [home]  # no gym version yet
+    template.gym_items.append(
+        TemplateItem(position=0, exercise_id=exercise.id, sets=3, rep_min=6, rep_max=10)
+    )
+    session.flush()
+    session.expire_all()
+    assert [i.place for i in template.items] == ["home"]
+    assert [(i.place, i.rep_max) for i in template.gym_items] == [("gym", 10)]
+    assert template.version(Place.HOME) == template.items
+    assert template.version(Place.GYM) == template.gym_items
+    session.add(
+        TemplateItem(
+            template_id=template.id,
+            position=0,
+            place="gym",
+            exercise_id=exercise.id,
+            sets=3,
+            rep_min=6,
+            rep_max=10,
+        )
+    )
+    with pytest.raises(IntegrityError):  # one item a position, within each version
         session.flush()
