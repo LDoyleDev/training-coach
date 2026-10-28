@@ -99,7 +99,8 @@ changes only the tempo, a pause or the weight of a bell already drawn shows the 
 without its figure. Steps still to draw sit in its `PENDING` list until they are.
 
 - `bell: 'goblet'`: a kettlebell held by the horns at the chest, the bell under the hands.
-- `kneel` (body.ts): a pose pivoting on the knee, so a Nordic curl keeps its knees put.
+- `kneel` (body.ts): a pose pivoting on the knee, so a Nordic curl keeps its knees put; the
+  reverse Nordic's deeper steps use it too.
 - `bell: 'one'`: a one-arm swing's bell along the near forearm; `bell: 'toes'`: a bell resting
   on the near forefoot, rising with the toes.
 
@@ -156,11 +157,11 @@ without its figure. Steps still to draw sit in its `PENDING` list until they are
 | | 16 kg, hammer grip | the handle upright | hammer grip |
 | Copenhagen plank | Knee on a chair | | the figure |
 | | Knee on a chair, 3 s lowering | the tempo | none |
-| | Ankle on a chair; Ankle on a chair, 3 s lowering | top leg straight, the ankle on the seat | to draw |
+| | Ankle on a chair; Ankle on a chair, 3 s lowering | top leg straight, the ankle on the seat | own poses, side and front |
 | Reverse Nordic | Lean back about 30 degrees | | the figure |
-| | Lean deeper, 3 s lowering | further back | to draw |
-| | To the floor, hands push you back | all the way down, hands to the floor | to draw |
-| | To the floor and back, no hands | all the way down and back | to draw |
+| | Lean deeper, 3 s lowering | further back | own end |
+| | To the floor, hands push you back | back until the hands reach the floor | own end |
+| | To the floor and back, no hands | as far back, arms crossed | own end |
 | 45° back extension (#397) | Bodyweight; Holding a plate | a plate at the chest | the figure; plate |
 | The other gym exercises | one step each | | the figure |
 

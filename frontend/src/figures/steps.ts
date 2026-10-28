@@ -157,6 +157,71 @@ const further = (pose: Pose): Pose => ({
   legF: { ...pose.legF, at: [15, 7.3] },
 })
 
+/** A Copenhagen plank with the top ankle on the chair: the top leg straight, a longer lever, the
+ * chair further away. As in the figure, the shoulder stays over the bottom elbow; low, the hips
+ * drop; up, ankle to shoulder in one line, seen from the side and from the front. */
+const copenhagen = FIGURES['copenhagen-plank']
+const ANKLE_ON_CHAIR: Change = {
+  frames: [
+    'On your side, top ankle on a chair, top leg straight, hips low',
+    'Hips up until the body is straight, ankle to shoulder',
+  ],
+  view: [-162, 35, -3, 95],
+  props: { bench: { x0: -158, x1: -110, top: 46 } },
+  start: {
+    ...copenhagen.start,
+    legN: { at: [-124, 51], angle: 180, bend: -1 },
+  },
+  end: {
+    ...copenhagen.end,
+    hip: [-43.63, 39.68],
+    lean: 97.45,
+    legN: { at: [-130, 51], angle: 180, bend: -1 },
+  },
+  front: copenhagen.front && {
+    ...copenhagen.front,
+    view: [-90, 82, -62, 72],
+    seat: { x0: -160, x1: -116, top: 46, depth: 40 },
+    start: { ...copenhagen.front.start, legR: { at: [-133, 52], bend: -1 } },
+    end: {
+      ...copenhagen.front.end,
+      hip: [-45.2, 49.2],
+      tilt: 4,
+      legR: { at: [-132.6, 52.1], bend: -1 },
+    },
+  },
+}
+
+/** A reverse Nordic leaning further back than the figure: the thighs ``angle`` degrees from the
+ * floor in front (90 upright), knees to head in one line, pivoting on the knees; the hands at
+ * ``hands`` from the waist at the bottom. */
+const reverse = FIGURES['reverse-nordic']
+const KNEEL_F = { at: [-42, 11.6], angle: -100 } as const // the far knee stays down with the near
+const leanBack = (
+  frames: Figure['frames'],
+  angle: number,
+  hands: Vec,
+  view: Figure['view'],
+): Change => ({
+  frames,
+  view,
+  start: {
+    ...reverse.start,
+    hip: undefined,
+    kneel: { knee: [0.1, 5.4], angle: 90 },
+    legF: KNEEL_F,
+  },
+  end: {
+    ...reverse.end,
+    hip: undefined,
+    kneel: { knee: [0.1, 5.4], angle },
+    lean: 0,
+    legF: KNEEL_F,
+    armN: { at: hands, from: 'waist' },
+    armF: { at: [hands[0] + 1, hands[1]], from: 'waist' },
+  },
+})
+
 export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
   'pull-up': LOADED(VEST, FIGURES['pull-up']),
   'chin-up': LOADED(VEST, FIGURES['chin-up']),
@@ -310,6 +375,30 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
         armF: { at: [30, 140], angle: 10 },
       },
     }),
+  },
+  'copenhagen-plank': {
+    'Ankle on a chair': ANKLE_ON_CHAIR,
+    'Ankle on a chair, 3 s lowering': ANKLE_ON_CHAIR,
+  },
+  'reverse-nordic': {
+    'Lean deeper, 3 s lowering': leanBack(
+      ['Kneeling upright, feet anchored', 'Leaning further back, slowly, knees to head in line'],
+      140,
+      [12, 22],
+      [-102, 60, -3, 165],
+    ),
+    'To the floor, hands push you back': leanBack(
+      ['Kneeling upright, feet anchored', 'Back until your hands reach the floor behind you'],
+      156,
+      [-34.2, 23.7],
+      [-118, 60, -3, 165],
+    ),
+    'To the floor and back, no hands': leanBack(
+      ['Kneeling upright, feet anchored', 'Back towards the floor and up again, no hands'],
+      156,
+      [12, 22],
+      [-118, 60, -3, 165],
+    ),
   },
   'back-extension-45': {
     'Holding a plate': { props: { ...FIGURES['back-extension-45'].props, barbell: 'plate' } },

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import plan from '../../../backend/src/training_coach/seed/plan.toml?raw'
 import { BODY, blend, dist, heading, solve, type Vec } from './body'
+import { solveFront } from './front'
 import Figure from './Figure'
 import { FIGURES } from './poses'
 import { shapes, type Shape } from './shapes'
@@ -81,12 +82,6 @@ const PENDING: Readonly<Record<string, readonly string[]>> = {
   'push-up': ['Feet elevated', 'Deficit', 'Archer'],
   'pike-push-up': ['Feet on chair', 'Wall handstand push-up negatives'],
   'diamond-push-up': ['Feet elevated'],
-  'copenhagen-plank': ['Ankle on a chair', 'Ankle on a chair, 3 s lowering'],
-  'reverse-nordic': [
-    'Lean deeper, 3 s lowering',
-    'To the floor, hands push you back',
-    'To the floor and back, no hands',
-  ],
 }
 
 test('every step of an exercise with a figure is drawn, or listed as showing it as it is', () => {
@@ -409,4 +404,62 @@ test('a one-arm swing holds the bell in one hand, the other hand at your side', 
     }
     expect(solve(swing.end).armF.wrist[1], 'at your side').toBeLessThan(solve(swing.end).hip[1])
   }
+})
+
+test('a Copenhagen plank with the ankle on the chair keeps the top leg straight on the seat', () => {
+  for (const step of ['Ankle on a chair', 'Ankle on a chair, 3 s lowering']) {
+    const plank = figureFor('copenhagen-plank', step)!
+    const { bench } = plank.props!
+    const seat = plank.front!.seat!
+    const onSeat = (ankle: Vec, { x0, x1, top }: { x0: number; x1: number; top: number }) => {
+      expect(ankle[1] - top, `${step}: the ankle on the seat`).toBeGreaterThan(3)
+      expect(ankle[1] - top).toBeLessThan(7)
+      expect(ankle[0]).toBeGreaterThan(x0)
+      expect(ankle[0]).toBeLessThan(x1)
+    }
+    for (const t of ALONG) {
+      const side = solve(blend(plank.start, plank.end, t))
+      onSeat(side.legN.ankle, bench!)
+      expect(dist(side.hip, side.legN.ankle), 'top leg straight').toBeGreaterThan(
+        BODY.thigh + BODY.shin - 1,
+      )
+      expect(dist(side.armF.elbow, [0, 4]), 'elbow under the shoulder').toBeLessThan(3)
+      const front = solveFront(blend(plank.front!.start, plank.front!.end, t))
+      onSeat(front.legR.end, seat)
+      expect(dist(front.legR.root, front.legR.end), 'straight').toBeGreaterThan(
+        BODY.thigh + BODY.shin - 2,
+      )
+      expect(dist(front.armL.mid, [0, 4]), 'elbow under the shoulder').toBeLessThan(3)
+    }
+    const [low, high] = [solve(plank.start), solve(plank.end)]
+    expect(high.hip[1] - low.hip[1], 'hips up').toBeGreaterThan(15)
+    const line = heading(high.legN.ankle, high.shoulder)
+    expect(Math.abs(heading(high.legN.ankle, high.hip) - line), 'one line').toBeLessThan(2)
+  }
+})
+
+test('a reverse Nordic leans further back the further up the ladder, knees put, body in line', () => {
+  const lean = (step?: string) => {
+    const figure = figureFor('reverse-nordic', step)!
+    for (const t of ALONG) {
+      const j = solve(blend(figure.start, figure.end, t))
+      if (step) expect(dist(j.legN.knee, [0.1, 5.4]), `${step}: knees put`).toBeLessThan(0.5)
+      expect(
+        Math.abs(heading(j.legN.knee, j.hip) - heading(j.hip, j.neckBase)),
+        'in line',
+      ).toBeLessThan(1)
+      expect(j.head.c[1] - 11.5, 'head off the floor').toBeGreaterThan(20)
+    }
+    const end = solve(figure.end)
+    return { back: heading(end.legN.knee, end.hip), hands: end.armN.tip[1] }
+  }
+  const base = lean()
+  const deeper = lean('Lean deeper, 3 s lowering')
+  const hands = lean('To the floor, hands push you back')
+  const none = lean('To the floor and back, no hands')
+  expect(deeper.back).toBeGreaterThan(base.back + 15)
+  expect(hands.back).toBeGreaterThan(deeper.back + 10)
+  expect(none.back).toBe(hands.back)
+  expect(hands.hands, 'hands to the floor').toBeLessThan(3)
+  expect(none.hands, 'arms crossed').toBeGreaterThan(40)
 })
