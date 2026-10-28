@@ -169,12 +169,18 @@ test('a sign-in that ended while confirming says so', async () => {
       if (path === '/api/account/sign-ins') return new Response(JSON.stringify(SIGN_INS))
       if (path === '/api/auth/passkeys/confirm/options') return new Response('{"challenge":"c"}')
       if (path === '/api/auth/passkeys/confirm') return new Response(null, { status: 401 })
-      return new Response(null, { status: 403 })
+      if (path === '/api/account/export') return new Response(null, { status: 403 })
+      // The page's other sections hide when signed out. A 403 here would fail "My equipment"
+      // with its own "Check your connection", which the toast check could match instead.
+      return new Response(null, { status: 401 })
     }),
   )
   render(<Account />)
   fireEvent.click(await screen.findByRole('button', { name: 'Download all my data' }))
-  expect(await screen.findByText(/Check your connection/)).toBeInTheDocument()
+  expect(
+    await screen.findByText("That didn't work. Check your connection and try again."),
+  ).toBeInTheDocument()
+  expect(screen.queryByText(/Couldn't load your kit/)).not.toBeInTheDocument()
 })
 
 test('cancelling the fingerprint prompt explains what to do', async () => {
