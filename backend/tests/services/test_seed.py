@@ -563,6 +563,7 @@ def test_the_bundled_resistance_sessions_are_fully_paired() -> None:
     sessions = {s.slug: s for s in load_plan().sessions}
     for slug in ("legs", "torso", "arms"):
         assert all(item.pair is not None for item in sessions[slug].items), slug
+        assert all(item.pair is not None for item in sessions[slug].gym), slug
     alone = [item.exercise for item in sessions["recovery"].items if item.pair is None]
     assert alone == ["mobility"]
 
@@ -578,7 +579,7 @@ def test_every_reps_range_tops_out_at_18_except_high_rep_work() -> None:
     over = {
         f"{s.slug}: {item.exercise} {item.rep_min}-{item.rep_max}"
         for s in plan.sessions
-        for item in s.items
+        for item in (*s.items, *s.gym)
         if kinds[item.exercise] is ExerciseKind.REPS
         and item.exercise not in HIGH_REP
         and item.rep_max > REP_TOP
@@ -591,7 +592,8 @@ def test_every_reps_range_tops_out_at_18_except_high_rep_work() -> None:
 
 
 def test_the_rep_tops_take_effect_as_their_own_plan_version() -> None:
-    assert load_plan().versions[-1].since == date(2026, 10, 27)
+    versions = {v.since: v.name for v in load_plan().versions}
+    assert versions[date(2026, 10, 27)].startswith("Rep tops at 18")
 
 
 STRETCH = """
@@ -623,7 +625,7 @@ def test_the_bundled_plan_has_a_stretch_for_every_resistance_muscle() -> None:
         group
         for session in plan.sessions
         if session.type == "strength"
-        for item in session.items
+        for item in (*session.items, *session.gym)
         for group in exercises[item.exercise].muscles
     }
     assert worked - stretched == {"adductors"}  # no adductor stretch yet
@@ -688,7 +690,7 @@ def test_the_seed_marks_retired_exercises(session: Session) -> None:
 def test_every_exercise_in_a_session_says_how_to_do_it() -> None:
     """The guided session and the bot's Start message show each exercise's how-to (#116)."""
     plan = load_plan()
-    used = {item.exercise for session in plan.sessions for item in session.items}
+    used = {i.exercise for session in plan.sessions for i in (*session.items, *session.gym)}
     missing = sorted(e.slug for e in plan.exercises if e.slug in used and not e.summary)
     assert missing == []
 
@@ -920,15 +922,98 @@ def test_split_squats_load_the_spine_only_with_a_kettlebell() -> None:
     assert all(exercises["kb-swing"].step_stress(s) for s in exercises["kb-swing"].ladder)
 
 
-def test_the_gym_catalogue_takes_load_on_its_last_step_and_waits_for_the_gym_sessions() -> None:
+def test_the_gym_catalogue_takes_load_on_its_last_step_in_the_gym_versions_only() -> None:
     """ADR-0072: a loaded exercise is one step, or a ladder whose top step takes load; the gym
-    exercises join sessions with the gym versions (builder step 9), not before."""
+    exercises are in the sessions' gym versions (builder step 9), never the home ones."""
     plan = load_plan()
     loaded = [e for e in plan.exercises if e.loads]
     assert len(loaded) == 23
     assert all(list(e.loads) == [e.ladder[-1]] for e in loaded)
-    in_sessions = {i.exercise for s in plan.sessions for i in s.items}
-    assert not in_sessions & {e.slug for e in loaded}
+    at_home = {i.exercise for s in plan.sessions for i in s.items}
+    assert not at_home & {e.slug for e in loaded}
+    at_the_gym = {i.exercise for s in plan.sessions for i in s.gym}
+    unused = {e.slug for e in loaded} - at_the_gym
+    assert unused == {"hammer-curl", "wrist-curl", "chest-fly"}  # in the catalogue for later
     assert {e.slug for e in loaded if "triceps long head" in e.parts} == {
         "overhead-cable-extension"
     }
+
+
+# ------------------------------------------------------------- gym versions (ADR-0071)
+
+
+def test_four_sessions_have_a_gym_version_and_three_are_the_same_at_both() -> None:
+    gym = {s.slug for s in load_plan().sessions if s.gym}
+    assert gym == {"legs", "torso", "moderate-cardio", "arms"}
+
+
+def test_a_gym_version_keeps_its_sessions_muscles() -> None:
+    """No muscle loses more than a set and a half against the home version (ADR-0064), so the
+    week's coverage holds wherever each session is done."""
+    plan = load_plan()
+    exercises = {e.slug: e.muscles for e in plan.exercises}
+    for session in plan.sessions:
+        if not session.gym:
+            continue
+        home = dict(weekly_sets((exercises[i.exercise], i.sets) for i in session.items))
+        gym = dict(weekly_sets((exercises[i.exercise], i.sets) for i in session.gym))
+        short = {m: (home[m], gym.get(m, 0)) for m in home if gym.get(m, 0) < home[m] - 1.5}
+        assert not short, (session.slug, short)
+
+
+def test_a_gym_version_pairs_by_the_home_rules() -> None:
+    """Pairs (program-builder J3): at most one spine-loading or grip-heavy exercise, and no
+    shared prime mover unless the home version pairs the same two (the neck pair)."""
+    plan = load_plan()
+    exercises = {e.slug: e for e in plan.exercises}
+    for session in plan.sessions:
+        home_pairs = {
+            (a.exercise, b.exercise) for a, b in zip(session.items, session.items[1:], strict=False)
+        }
+        for a, b in zip(session.gym, session.gym[1:], strict=False):
+            if a.pair is None or a.pair != b.pair:
+                continue
+            first, second = exercises[a.exercise], exercises[b.exercise]
+            for stress in ("spine", "grip"):
+                assert not (stress in first.stress and stress in second.stress), (a, b)
+            primes = {m for m, w in first.muscles.items() if w == 1}
+            shared = primes & {m for m, w in second.muscles.items() if w == 1}
+            assert not shared or (a.exercise, b.exercise) in home_pairs, (a, b)
+
+
+def test_the_seed_stores_each_version_with_its_place(session: Session) -> None:
+    apply_seed(session, load_plan())
+    session.flush()
+    legs = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "legs")).one()
+    assert {i.place for i in legs.items} == {"home"}
+    assert {i.place for i in legs.gym_items} == {"gym"}
+    assert [i.exercise.slug for i in legs.gym_items][2] == "back-squat"
+    zone2 = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "zone2")).one()
+    assert zone2.gym_items == []
+    assert apply_seed(session, load_plan()).changed is False  # idempotent
+
+
+def _upper_gym(gym: str) -> str:
+    """The mini plan with a gym version of its upper session."""
+    return _upper_items(f"{PULL} }}]\ngym = [{gym}")
+
+
+def test_a_gym_version_shrinks_and_goes_like_a_home_one(session: Session) -> None:
+    apply_seed(session, load_plan(_upper_gym(f"{PULL}, pair = 1 }}, {DIP}, pair = 1 }}")))
+    session.flush()
+    upper = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "upper")).one()
+    assert [(i.position, i.pair) for i in upper.gym_items] == [(0, 1), (1, 1)]
+    assert [i.position for i in upper.items] == [0]
+    result = apply_seed(session, load_plan(_upper_items(f"{PULL} }}")))
+    session.flush()
+    session.expire_all()
+    assert result.deleted == 2
+    assert upper.gym_items == []
+    assert [i.position for i in upper.items] == [0]
+
+
+def test_a_gym_version_names_known_exercises_in_pairs() -> None:
+    with pytest.raises(ValidationError, match="unknown exercise squat"):
+        load_plan(_upper_gym('{ exercise = "squat", sets = 3, rep_min = 5, rep_max = 8 }'))
+    with pytest.raises(ValidationError, match="pair 1 must be two neighbouring items"):
+        load_plan(_upper_gym(f"{PULL}, pair = 1 }}"))

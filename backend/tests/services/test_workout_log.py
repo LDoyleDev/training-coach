@@ -18,7 +18,7 @@ from training_coach.db.models import (
     SetLog,
     Workout,
 )
-from training_coach.domain.enums import Side, WorkoutStatus
+from training_coach.domain.enums import Places, Side, WorkoutStatus
 from training_coach.domain.load import LoadKit
 from training_coach.domain.queue import local_date
 from training_coach.services import (
@@ -546,20 +546,25 @@ def test_a_typed_weight_is_saved_on_a_step_that_takes_load(
 def test_a_gym_exercise_is_logged_with_its_weight_before_any_session_uses_it(
     session: Session,
 ) -> None:
-    """The gym catalogue (ADR-0072) is in no session until builder step 9; a typed log takes it,
-    weight and all, and only then does it show on Progress."""
+    """A catalogue exercise in no session (ADR-0072) takes a typed log, weight and all, and only
+    then shows on Progress; one in a session's gym version shows from the start for someone who
+    trains at a gym (ADR-0071)."""
     apply_seed(session, load_plan())  # the bundled plan, with the gym catalogue
     session.flush()
     seeded = session
-    assert "Leg press" not in {s.exercise for s in progress.overview(seeded)}
-    draft = workout_log.draft(seeded, "leg press 10 10 9 at 80", TODAY, BERLIN)
+    assert "Leg press" not in {s.exercise for s in progress.overview(seeded)}  # home only
+    user_settings.update(seeded, places=Places.BOTH)
+    shown = {s.exercise for s in progress.overview(seeded)}
+    assert "Leg press" in shown
+    assert "Hammer curl" not in shown
+    draft = workout_log.draft(seeded, "hammer curls 10 10 9 at 12", TODAY, BERLIN)
     assert draft.problems == ()
     saved = workout_log.save(seeded, draft, BERLIN)
     assert isinstance(saved, workout_log.Saved)
     sets = seeded.get_one(Workout, saved.workout_id).sets
     assert sorted((s.set_no, s.value, s.load_kg) for s in sets) == [
-        (1, 10, 80.0),
-        (2, 10, 80.0),
-        (3, 9, 80.0),
+        (1, 10, 12.0),
+        (2, 10, 12.0),
+        (3, 9, 12.0),
     ]
-    assert "Leg press" in {s.exercise for s in progress.overview(seeded)}
+    assert "Hammer curl" in {s.exercise for s in progress.overview(seeded)}

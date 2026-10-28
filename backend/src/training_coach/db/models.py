@@ -35,7 +35,15 @@ from training_coach.db.types import UTCDateTime, utcnow
 from training_coach.domain.band_watch import Feed, Refusal
 from training_coach.domain.blocks import BlockKind
 from training_coach.domain.daily_check import Energy, Sleep, Soreness
-from training_coach.domain.enums import CardioActivity, ExerciseKind, Side, Sound, WorkoutStatus
+from training_coach.domain.enums import (
+    CardioActivity,
+    ExerciseKind,
+    Place,
+    Places,
+    Side,
+    Sound,
+    WorkoutStatus,
+)
 from training_coach.domain.fitness_tests import TimeOfDay
 from training_coach.domain.habits import Habit
 from training_coach.domain.kit import Resistance
@@ -145,11 +153,28 @@ class SessionTemplate(Base):
     # and, in a strength block, the strength prescription (ADR-0028).
     kind: Mapped[str] = mapped_column(String(16), server_default="strength")
 
+    # The home version (ADR-0071): what every reader of the plan sees unless it asks for a place.
     items: Mapped[list["TemplateItem"]] = relationship(
+        primaryjoin="and_(SessionTemplate.id == TemplateItem.template_id, "
+        "TemplateItem.place == 'home')",
         back_populates="template",
         order_by="TemplateItem.position",
         cascade="all, delete-orphan",
+        overlaps="gym_items",
     )
+    # The gym version, empty when the session is done the same way at both (ADR-0071).
+    gym_items: Mapped[list["TemplateItem"]] = relationship(
+        primaryjoin="and_(SessionTemplate.id == TemplateItem.template_id, "
+        "TemplateItem.place == 'gym')",
+        order_by="TemplateItem.position",
+        cascade="all, delete-orphan",
+        overlaps="items,template",
+    )
+
+    def version(self, place: Place) -> list["TemplateItem"]:
+        """The items done at ``place``: the gym version at the gym when there is one, else the
+        home version (ADR-0071)."""
+        return self.gym_items if place is Place.GYM and self.gym_items else self.items
 
 
 class TemplateItem(Base):
@@ -157,7 +182,8 @@ class TemplateItem(Base):
 
     __tablename__ = "template_items"
     __table_args__ = (
-        UniqueConstraint("template_id", "position"),
+        UniqueConstraint("template_id", "place", "position"),
+        CheckConstraint(_in("place", Place), name="place_valid"),
         CheckConstraint("position >= 0", name="position_non_negative"),
         CheckConstraint("sets >= 1", name="sets_positive"),
         CheckConstraint("rep_min >= 1", name="rep_min_positive"),
@@ -174,9 +200,22 @@ class TemplateItem(Base):
     per_side: Mapped[bool] = mapped_column(Boolean, server_default=false())
     # Items sharing a number are done alternately, set by set (#97); empty means alone.
     pair: Mapped[int | None] = mapped_column(Integer)
+    # Which version of the session it belongs to (ADR-0071); positions count within a version.
+    place: Mapped[str] = mapped_column(String(8), server_default=Place.HOME.value)
 
-    template: Mapped[SessionTemplate] = relationship(back_populates="items")
+    template: Mapped[SessionTemplate] = relationship(back_populates="items", overlaps="gym_items")
     exercise: Mapped[Exercise] = relationship()
+
+
+@event.listens_for(SessionTemplate.items, "append")
+def _home_item(_template: SessionTemplate, item: TemplateItem, _initiator: object) -> None:
+    item.place = Place.HOME
+
+
+@event.listens_for(SessionTemplate.gym_items, "append")
+def _gym_item(_template: SessionTemplate, item: TemplateItem, _initiator: object) -> None:
+    """An item added to the gym version is a gym item, whatever it was built with."""
+    item.place = Place.GYM
 
 
 # ----------------------------------------------------------------------- people
@@ -265,6 +304,8 @@ class UserSettings(Owned, Base):
         CheckConstraint("thigh_offset_cm BETWEEN 5 AND 30", name="thigh_offset_cm_range"),
         CheckConstraint(_in("body_fat_estimate", BodyFatEstimate), name="body_fat_estimate_valid"),
         CheckConstraint("extra_cardio_min BETWEEN 0 AND 600", name="extra_cardio_min_range"),
+        CheckConstraint(_in("places", Places), name="places_valid"),
+        CheckConstraint(_in("place", Place), name="place_valid"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -301,6 +342,10 @@ class UserSettings(Owned, Base):
     )
     # Cardio a week outside the plan's sessions, added to its cardio targets (ADR-0079).
     extra_cardio_min: Mapped[int] = mapped_column(Integer, server_default="0")
+    # Where the person trains (ADR-0071): home, gym or both. Home for everyone until they say.
+    places: Mapped[str] = mapped_column(String(8), server_default=Places.HOME.value)
+    # With both: the place Today starts at, the last one chosen on its switch (Decided 4).
+    place: Mapped[str] = mapped_column(String(8), server_default=Place.HOME.value)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
@@ -345,6 +390,7 @@ class Workout(Owned, Base):
         CheckConstraint(_in("block", BlockKind), name="block_valid"),
         CheckConstraint(_in("activity", CardioActivity), name="activity_valid"),
         CheckConstraint(CARDIO_DETAILS_VALID, name="cardio_details_valid"),
+        CheckConstraint(_in("place", Place), name="place_valid"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -368,6 +414,8 @@ class Workout(Owned, Base):
     avg_hr: Mapped[int | None] = mapped_column(Integer)
     max_hr: Mapped[int | None] = mapped_column(Integer)
     started_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    # Where it was done (ADR-0071); every workout from before places is at home.
+    place: Mapped[str] = mapped_column(String(8), server_default=Place.HOME.value)
     # The plan version in force on local_date (ADR-0034), set on insert; empty only when
     # the plan has no versions yet (the seed fills those in once it has).
     plan_version_id: Mapped[int | None] = mapped_column(

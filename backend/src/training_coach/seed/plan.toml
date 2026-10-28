@@ -49,6 +49,10 @@ name = "Rear delts + carries (Oct 2026)"
 since = 2026-10-27
 name = "Rep tops at 18 (Oct 2026, ADR-0078)"
 
+[[versions]]
+since = 2026-10-28
+name = "Gym versions (Oct 2026, ADR-0071)"
+
 # ------------------------------------------------------------------- baseline tests
 # The product spec's performance tests (2-A, ADR-0037), on two days. Retest under the same
 # conditions. A test with results can't leave the plan; its name and cue can change.
@@ -704,6 +708,13 @@ ladder = ["Brisk walk / hike", "Easy jog / bike", "Easy jog with weight vest or 
 # A range counted in reps tops out at 18 (ADR-0078): at 18 on every set, twice, the next step is
 # due. Calf raise, tibialis raise, kettlebell swing and band face pull are high-rep work and keep
 # theirs. A test holds every range to this.
+#
+# `gym` is a session's gym version (ADR-0071), chosen on Today by someone who trains at both: the
+# same focus and about the same sets for each muscle, from the gym catalogue below, with the
+# home exercises a gym does no better (tibialis raise, neck work, the Copenhagen plank, carries).
+# A session without one is done the same way at the gym. Loaded exercises climb within their
+# range and then take the next weight (ADR-0072). The choices and reasons are in
+# docs/specs/program-builder.md (Gym versions).
 
 [[sessions]]
 slug = "legs"
@@ -719,6 +730,16 @@ items = [
   { exercise = "hamstring-curl", sets = 3, rep_min = 6, rep_max = 15, pair = 3 },
   { exercise = "pistol-squat", sets = 3, rep_min = 5, rep_max = 10, per_side = true, pair = 4 },
   { exercise = "single-leg-rdl", sets = 3, rep_min = 10, rep_max = 15, per_side = true, pair = 4 },
+]
+gym = [
+  { exercise = "jump-squat", sets = 3, rep_min = 5, rep_max = 8, pair = 1 },
+  { exercise = "tibialis-raise", sets = 3, rep_min = 15, rep_max = 25, pair = 1 },
+  { exercise = "back-squat", sets = 3, rep_min = 6, rep_max = 10, pair = 2 },
+  { exercise = "standing-calf-raise", sets = 4, rep_min = 10, rep_max = 15, pair = 2 },
+  { exercise = "barbell-rdl", sets = 3, rep_min = 6, rep_max = 10, pair = 3 },
+  { exercise = "leg-extension", sets = 3, rep_min = 10, rep_max = 15, pair = 3 },
+  { exercise = "seated-leg-curl", sets = 4, rep_min = 8, rep_max = 12, pair = 4 },
+  { exercise = "hip-thrust", sets = 3, rep_min = 8, rep_max = 12, pair = 4 },
 ]
 
 [[sessions]]
@@ -758,6 +779,18 @@ items = [
   { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 18, pair = 5 },
   { exercise = "kb-curl", sets = 2, rep_min = 12, rep_max = 18, pair = 5 },
 ]
+gym = [
+  { exercise = "lat-pulldown", sets = 4, rep_min = 8, rep_max = 12, pair = 1 },
+  { exercise = "db-bench-press", sets = 4, rep_min = 6, rep_max = 10, pair = 1 },
+  { exercise = "chest-supported-row", sets = 3, rep_min = 8, rep_max = 12, pair = 2 },
+  { exercise = "incline-db-press", sets = 4, rep_min = 8, rep_max = 12, pair = 2 },
+  { exercise = "db-overhead-press", sets = 3, rep_min = 8, rep_max = 12, pair = 3 },
+  { exercise = "reverse-pec-deck", sets = 3, rep_min = 12, rep_max = 18, pair = 3 },
+  { exercise = "neck-flexion", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
+  { exercise = "neck-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
+  { exercise = "cable-lateral-raise", sets = 3, rep_min = 12, rep_max = 18, pair = 5 },
+  { exercise = "incline-db-curl", sets = 2, rep_min = 10, rep_max = 15, pair = 5 },
+]
 
 [[sessions]]
 slug = "moderate-cardio"
@@ -771,6 +804,15 @@ items = [
   { exercise = "back-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 2 },
   { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
   { exercise = "band-face-pull", sets = 2, rep_min = 12, rep_max = 20, pair = 3 },
+  { exercise = "suitcase-carry", sets = 2, rep_min = 30, rep_max = 45, per_side = true, pair = 3 },
+]
+gym = [
+  { exercise = "moderate-cardio", sets = 1, rep_min = 30, rep_max = 40 },
+  { exercise = "cable-crunch", sets = 3, rep_min = 10, rep_max = 15, pair = 1 },
+  { exercise = "copenhagen-plank", sets = 2, rep_min = 6, rep_max = 12, per_side = true, pair = 1 },
+  { exercise = "back-extension-45", sets = 2, rep_min = 10, rep_max = 15, pair = 2 },
+  { exercise = "pallof-press", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
+  { exercise = "reverse-pec-deck", sets = 2, rep_min = 12, rep_max = 18, pair = 3 },
   { exercise = "suitcase-carry", sets = 2, rep_min = 30, rep_max = 45, per_side = true, pair = 3 },
 ]
 
@@ -796,6 +838,16 @@ items = [
   { exercise = "lateral-raise", sets = 4, rep_min = 12, rep_max = 18, pair = 4 },
   { exercise = "calf-raise", sets = 4, rep_min = 12, rep_max = 20, per_side = true, pair = 4 },
 ]
+gym = [
+  { exercise = "chin-up", sets = 3, rep_min = 6, rep_max = 12, pair = 1 },
+  { exercise = "diamond-push-up", sets = 3, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "leg-press", sets = 3, rep_min = 10, rep_max = 15, pair = 2 },
+  { exercise = "overhead-cable-extension", sets = 3, rep_min = 10, rep_max = 15, pair = 2 },
+  { exercise = "seated-leg-curl", sets = 3, rep_min = 10, rep_max = 15, pair = 3 },
+  { exercise = "incline-db-curl", sets = 4, rep_min = 10, rep_max = 15, pair = 3 },
+  { exercise = "cable-lateral-raise", sets = 4, rep_min = 12, rep_max = 18, pair = 4 },
+  { exercise = "seated-calf-raise", sets = 4, rep_min = 10, rep_max = 15, pair = 4 },
+]
 
 [[sessions]]
 slug = "zone2"
@@ -812,9 +864,9 @@ items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
 # the home exercises' own ladders. Each is one step that takes load (`[exercises.loads]`), so
 # reps climb within the range and then the next weight is suggested; the 45° back extension
 # starts at bodyweight and then holds a plate. Muscle weights are the research file's (Weights
-# by exercise, gym catalogue). No session uses them until the gym versions of the sessions
-# (builder step 9); until then they are logged by text or voice ("leg press 10 10 9 at 80").
-# A gym has everything (ADR-0071), so they name no kit: places decide where they're done.
+# by exercise, gym catalogue). The sessions' gym versions use them (builder step 9); they can
+# also be logged by text or voice ("leg press 10 10 9 at 80"). A gym has everything (ADR-0071),
+# so they name no kit: places decide where they're done.
 
 [[exercises]]
 slug = "back-squat"

@@ -65,6 +65,7 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "pace": "standard",
         "sound": "ring",
         "extra_cardio_min": 0,
+        "places": "home",
         "paused": False,
         "timezone": "Europe/Berlin",
     }
@@ -175,6 +176,14 @@ def test_extra_cardio_a_week_adds_to_the_cardio_targets(
         signed_in.patch("/api/settings", json={"extra_cardio_min": 0}).json()["extra_cardio_min"]
         == 0
     )
+
+
+def test_where_you_train_is_home_gym_or_both(signed_in: TestClient, engine: Engine) -> None:
+    """Places (ADR-0071): home until the person says otherwise, and only one of the three."""
+    assert signed_in.patch("/api/settings", json={"places": "both"}).json()["places"] == "both"
+    assert _stored(engine).places == "both"
+    assert signed_in.patch("/api/settings", json={"places": "away"}).status_code == 422
+    assert signed_in.patch("/api/settings", json={"places": "gym"}).json()["places"] == "gym"
 
 
 def test_signed_out_gets_nothing(client: TestClient) -> None:

@@ -33,7 +33,7 @@ from training_coach.db.models import (
     version_on,
 )
 from training_coach.domain.dates import day_problem
-from training_coach.domain.enums import ExerciseKind, WorkoutStatus
+from training_coach.domain.enums import ExerciseKind, Place, WorkoutStatus
 from training_coach.domain.queue import ADVANCING, DoneOn
 
 REPLACE, MOVE, ADD = "replace", "move", "add"
@@ -241,6 +241,7 @@ def _set_aside(session: Session, workout: Workout) -> int:
             "block": workout.block,
             "log_token": workout.log_token,
             "activity": workout.activity,
+            "place": workout.place,
             "plan_version_id": workout.plan_version_id,
             "created_at": workout.created_at.isoformat(),
             "sets": [
@@ -312,6 +313,7 @@ def put_back(session: Session, undo: dict[str, Any]) -> None:
             block=data["block"],
             log_token=data["log_token"],
             activity=data["activity"],
+            place=data.get("place", Place.HOME),  # kept before places (ADR-0071): at home
             plan_version_id=data["plan_version_id"],
             created_at=datetime.fromisoformat(data["created_at"]).astimezone(UTC),
         )
