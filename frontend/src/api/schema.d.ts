@@ -2812,8 +2812,9 @@ export interface components {
         };
         /**
          * LoadView
-         * @description A loaded step (ADR-0072): - and + move the weight by ``increment``; each set starts at
-         *     its ``kg``, the same set's weight last time when ``carried``, else the kit's first weight.
+         * @description A loaded step (ADR-0072): - and + move the weight by ``increment``, or at home through
+         *     the weights ``owned``; each set starts at its ``kg``, the same set's weight last time when
+         *     ``carried``, else the kit's first weight (at home, the lightest owned).
          */
         LoadView: {
             /** Carried */
@@ -2827,7 +2828,11 @@ export interface components {
              * @enum {string}
              */
             kit: "barbell" | "dumbbells" | "machine";
+            /** Owned */
+            owned?: number[] | null;
             suggested?: components["schemas"]["NextWeightView"] | null;
+            /** Unlock */
+            unlock?: string | null;
         };
         /** LogBody */
         LogBody: {

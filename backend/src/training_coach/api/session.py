@@ -117,14 +117,17 @@ class NextWeightView(BaseModel):
 
 
 class LoadView(BaseModel):
-    """A loaded step (ADR-0072): - and + move the weight by ``increment``; each set starts at
-    its ``kg``, the same set's weight last time when ``carried``, else the kit's first weight."""
+    """A loaded step (ADR-0072): - and + move the weight by ``increment``, or at home through
+    the weights ``owned``; each set starts at its ``kg``, the same set's weight last time when
+    ``carried``, else the kit's first weight (at home, the lightest owned)."""
 
     kit: Literal["barbell", "dumbbells", "machine"]  # dumbbells: the weight of one
     increment: float
     kg: list[float]  # one per planned set
     carried: bool
     suggested: NextWeightView | None = None
+    owned: list[float] | None = None  # at home, the weights owned for this kit, lightest first
+    unlock: str | None = None  # ready for more at home, none heavier owned: "18 kg dumbbells"
 
 
 def load_view(load: Load | None) -> LoadView | None:
@@ -137,6 +140,8 @@ def load_view(load: Load | None) -> LoadView | None:
         kg=list(load.kg),
         carried=load.carried,
         suggested=NextWeightView(kg=up.kg, targets=list(up.targets)) if up is not None else None,
+        owned=list(load.owned) if load.owned is not None else None,
+        unlock=load.unlock,
     )
 
 
