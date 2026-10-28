@@ -70,6 +70,17 @@ export function lens(camera: Camera) {
 }
 
 type Project = ReturnType<typeof lens>
+
+/** Where a point of a body laid face down (``FrontPose.lie``) is: its plane turned about the x
+ * axis, the chest (+z) to the floor and the head (+y) towards the camera. */
+export function layDown([x, y, z]: Vec3, { slope, lift }: NonNullable<FrontPose['lie']>): Vec3 {
+  const [c, s] = [Math.cos((slope * Math.PI) / 180), Math.sin((slope * Math.PI) / 180)]
+  return [x, lift + y * s - z * c, y * c + z * s]
+}
+const laid =
+  (world: Project, lie: NonNullable<FrontPose['lie']>): Project =>
+  (p) =>
+    world(layDown(p, lie))
 interface Drawn {
   depth: number
   shapes: Shape[]
@@ -236,17 +247,6 @@ function cables(see: Project, camera: Camera, j: ReturnType<typeof solveFront>, 
     ]
   })
 }
-
-/** Where a point of a body laid face down (``FrontPose.lie``) is: its plane turned about the x
- * axis, the chest (+z) to the floor and the head (+y) towards the camera. */
-export function layDown([x, y, z]: Vec3, { slope, lift }: NonNullable<FrontPose['lie']>): Vec3 {
-  const [c, s] = [Math.cos((slope * Math.PI) / 180), Math.sin((slope * Math.PI) / 180)]
-  return [x, lift + y * s - z * c, y * c + z * s]
-}
-const laid =
-  (world: Project, lie: NonNullable<FrontPose['lie']>): Project =>
-  (p) =>
-    world(layDown(p, lie))
 
 /** Everything to draw for ``pose`` seen by ``camera``, far to near. */
 export function perspectiveShapes(
