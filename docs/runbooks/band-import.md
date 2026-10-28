@@ -117,6 +117,44 @@ sent the last sync.
 app and version that sent it, and the last refused sync with why. A wrong secret can't be shown
 there: the coach doesn't know whose phone sent it.
 
+## When the reader closes as the screen turns off
+
+Nothing in the reader closes it: it never finishes its screen or ends its process. A sync runs
+until the screen is destroyed, not when it is paused or the screen goes off, and an interrupted
+sync loses nothing (it is sent again next time). Keeping the screen on during a sync only stops
+the timeout; the power button still turns it off. So find out what closed it, with the phone
+plugged into the desktop (USB debugging on) and these in Git Bash:
+
+1. `adb logcat -c`, then leave `adb logcat -b all -v time | grep -i -E "coach\.reader|FATAL"`
+   running. Open the reader, tap **Sync now**, press the power button, wait two minutes, unlock.
+2. `adb shell pidof com.vybedev.coach.reader` before and after. A number both times: the
+   process lived. Nothing after: it was killed.
+3. `adb shell dumpsys activity exit-info com.vybedev.coach.reader | head -40`: why the process
+   last ended, even if the logcat missed it. `CRASH` or `ANR` is the reader's bug (send the
+   stack trace from step 1's `FATAL EXCEPTION` lines); `LOW_MEMORY`, `SIGNALED` or `OTHER`
+   with a MIUI name in the description is the phone killing it (step 6).
+4. In step 1's output:
+   - `wm_on_stop_called` and nothing more: Android stopped the screen as it should; if it
+     looked closed on unlock, the lock screen took you home, not the reader.
+   - `wm_destroy_activity` or `wm_relaunch` with the process alive: the screen was destroyed
+     (a setting in step 5, or a change such as dark mode at lock), which ends a sync in
+     progress. That one is the reader's to fix: say so.
+   - `am_kill` or `am_proc_died`, or lines from MIUI's process or power manager naming the
+     reader: MIUI ended it (step 6).
+5. `adb shell settings get global always_finish_activities`: `1` means Developer options >
+   **Don't keep activities** is on, which destroys the reader every time the screen goes off.
+   Turn it off.
+6. MIUI: the settings in step 3.4 (Battery saver **No restrictions**, **Autostart** on, the
+   reader locked in recent apps); check them with
+   `adb shell cmd appops get com.vybedev.coach.reader RUN_ANY_IN_BACKGROUND` (`ignore` means
+   restricted) and `adb shell dumpsys deviceidle whitelist | grep coach.reader` (listed means
+   out of battery optimisation). Also look in the Security app's settings for an option that
+   cleans up memory when the phone locks, and turn it off for the reader.
+7. The background sync, if a 12-hour run seems not to happen:
+   `adb shell dumpsys jobscheduler | grep -A 15 coach.reader` shows the job, its network
+   constraint and its last run. `adb shell am get-standby-bucket com.vybedev.coach.reader`:
+   `40` or `45` (rare, restricted) means Android runs it seldom.
+
 ## HC Webhook (retired)
 
 Until October 2026 the bridge was HC Webhook (`com.hcwebhook.app`, ADR-0055). Every version
