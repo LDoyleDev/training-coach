@@ -558,13 +558,14 @@ export const GYM: Readonly<Record<string, Figure>> = {
       armF: { at: [5, -6], from: 'head' },
     },
   },
+  // The column stands beside you, a little behind, so its cable shows all the way to the hands.
   'pallof-press': {
     frames: [
       'Side-on to the cable, the handle at your chest',
       "Pressed straight out; hold, don't let it turn you",
     ],
-    view: [-40, 75, -3, 182],
-    props: { cable: { x: -12, pulley: [-6, 128], grip: 'handle' } },
+    view: [-62, 75, -3, 182],
+    props: { cable: { x: -50, pulley: [-46, 118], grip: 'handle' } },
     order: ['armF', 'legF', 'torso', 'head', 'legN', 'bell', 'armN'],
     tempo: [1000, 1200, 1000, 500],
     start: {
@@ -582,6 +583,27 @@ export const GYM: Readonly<Record<string, Figure>> = {
       legF: { at: [-4, 7] },
       armN: { at: [55.8, 127] },
       armF: { at: [56.5, 127] },
+    },
+    front: {
+      view: [-74, 62, -107, 73],
+      // From in front, off to the column's side, so the arms are seen pressing out.
+      camera: { at: [-240, 130, 220], look: [-20, 100, 0] },
+      standing: true,
+      cables: [{ pulley: [-62, 118, -30], hand: 'R' }],
+      start: {
+        ...UPRIGHT,
+        legL: { at: [17, 7] },
+        legR: { at: [-17, 7] },
+        armL: { at: [3, 116], mid: [-2, -27], toward: [10, 24] },
+        armR: { at: [-3, 116], mid: [2, -27], toward: [10, 24] },
+      },
+      end: {
+        ...UPRIGHT,
+        legL: { at: [17, 7] },
+        legR: { at: [-17, 7] },
+        armL: { at: [3, 121], mid: [-7, -5], toward: [28, 49.5] },
+        armR: { at: [-3, 121], mid: [7, -5], toward: [28, 49.5] },
+      },
     },
   },
   // ---------------------------------------------------------------- sideways, seen from the front

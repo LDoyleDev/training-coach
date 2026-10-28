@@ -310,6 +310,20 @@ test('a Pallof press pushes the handle straight out from the chest', () => {
     165,
   )
   expect(Math.abs(fist(out)[1] - fist(chest)[1]), 'straight out').toBeLessThan(12)
+  // The column stands clear of the body, so its cable shows all the way to the hands.
+  const { cable } = GYM['pallof-press'].props!
+  for (const j of [chest, out]) expect(cable!.pulley[0], 'beside you').toBeLessThan(j.hip[0] - 30)
+  expect(Math.abs(cable!.pulley[1] - fist(chest)[1]), 'at chest height').toBeLessThan(10)
+  // From the front, beside you, the cable at chest height to the hands pressed out in front.
+  const front = GYM['pallof-press'].front!
+  const [pulley] = front.cables!
+  const [low, high] = facing('pallof-press')
+  expect(pulley.pulley[0], 'beside you').toBeLessThan(low.hip[0] - 40)
+  for (const j of [low, high]) {
+    expect(Math.abs(j.armR.end[1] - pulley.pulley[1]), 'at chest height').toBeLessThan(6)
+    expect(j.armL.end[0] - j.armR.end[0], 'both hands on the handle').toBeLessThan(8)
+  }
+  expect(high.armR.z[1] - low.armR.z[1], 'pressed out in front').toBeGreaterThan(20)
 })
 
 /** The front view of ``slug`` at its start and end. */

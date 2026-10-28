@@ -172,15 +172,15 @@ function box(see: Project, camera: Camera, lo: Vec3, hi: Vec3, tone: Tone, bias 
         bias,
       ),
     )
-  if (c[0] > x1)
+  for (const x of c[0] > x1 ? [x1] : c[0] < x0 ? [x0] : [])
     out.push(
       face(
         see,
         [
-          [x1, y0, z0],
-          [x1, y0, z1],
-          [x1, y1, z1],
-          [x1, y1, z0],
+          [x, y0, z0],
+          [x, y0, z1],
+          [x, y1, z1],
+          [x, y1, z0],
         ],
         tone,
         bias,
