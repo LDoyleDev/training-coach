@@ -1671,22 +1671,34 @@
       "Health": {
         "properties": {
           "bot_enabled": {
-            "title": "Bot Enabled",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bot Enabled"
           },
           "status": {
             "title": "Status",
             "type": "string"
           },
           "version": {
-            "title": "Version",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
           }
         },
         "required": [
-          "status",
-          "version",
-          "bot_enabled"
+          "status"
         ],
         "title": "Health",
         "type": "object"
