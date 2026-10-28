@@ -11,12 +11,17 @@ import java.time.Duration
 /** One type's week: [amount] null when Health Connect has none of it. */
 data class WeekType(val type: String, val amount: String?, val apps: Set<String>)
 
-/** Apps the phone has, by the name the person knows; others go by their package name. */
+/**
+ * Apps the phone has, by the name the person knows; others go by their package name.
+ * "_platform" is no app (a package name can't start with "_"): it is the name Health Connect
+ * itself gives data no installed app wrote, such as values it works out on its own.
+ */
 private val APP_NAMES = mapOf(
     "com.mi.health" to "Mi Fitness",
     "com.xiaomi.wearable" to "Mi Fitness",
     "com.google.android.apps.healthdata" to "Health Connect",
     "com.google.android.apps.fitness" to "Google Fit",
+    "_platform" to "Health Connect itself",
 )
 
 fun appName(packageName: String): String = APP_NAMES[packageName] ?: packageName

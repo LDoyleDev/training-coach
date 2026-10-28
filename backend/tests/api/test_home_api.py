@@ -46,7 +46,7 @@ def test_home_before_anything_is_done(signed_in: TestClient) -> None:
     assert found["week"]["zone2_target"] == [45, 75]  # the cycle's zone 2 (ADR-0079)
     assert (found["week"]["cardio_minutes"], found["week"]["cardio_target"]) == (0, [75, 115])
     assert (found["week"]["zone2_left"], found["week"]["cardio_left"]) == (45, 75)
-    assert found["progress"] == {"steps_climbed": 0, "ready": [], "bests": []}
+    assert found["progress"] == {"steps_climbed": 0, "ready": [], "bests": [], "top": []}
     assert found["recent"] == []
     assert isinstance(found["today"], str)
     assert isinstance(found["today_minutes"], int)

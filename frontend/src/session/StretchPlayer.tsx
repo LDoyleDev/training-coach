@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type Routine, fetchSettings } from '../api'
 import Figure from '../figures/Figure'
-import { DEFAULT_SOUND, type Sound, playChange } from '../hiit/sounds'
+import { DEFAULT_SOUND, type Sound, playChange, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import { card, primary, secondary } from '../ui'
 import {
   type Cue,
@@ -28,7 +28,8 @@ const PHASE = { position: 'Get into position', hold: 'Hold', release: 'Let go' }
 /** Guided stretching (ADR-0032 addendum): the overview, then each stretch timed with a bell at
  * every change, so the phone can sit on the floor. 15 s to get into position before each
  * stretch and side, the hold counted down, 5 s to let go between rounds. At the end it logs
- * the minutes done by itself; stopped early, the person logs what was done or nothing. */
+ * the minutes done by itself; stopped early, the person logs what was done or nothing. The end
+ * of stretching (run out, or logged by a tap) rings the end of the session, once. */
 export default function StretchPlayer({
   routine,
   busy,
@@ -60,11 +61,25 @@ export default function StretchPlayer({
     return () => ask.abort()
   }, [])
 
+  // The end of the session rings once: at the timer's end, or on a tap that logs it.
+  const rang = useRef(false)
+  const ringEnd = () => {
+    if (rang.current) return
+    rang.current = true
+    playSessionEnd(sound)
+  }
+  const logNow = (minutes: number) => {
+    unlockAudio() // inside the tap: browsers only allow sound after a gesture
+    ringEnd()
+    onLog(minutes)
+  }
+
   const clockState = useGuidedClock(
     total,
     (from, to) => stretchCues(parts, from, to),
     (cue) => {
-      playChange(sound, cue)
+      if (cue === 'finish') ringEnd()
+      else playChange(sound, cue)
       navigator.vibrate?.(BUZZ[cue])
     },
   )
@@ -116,7 +131,7 @@ export default function StretchPlayer({
           type="button"
           className={secondary}
           disabled={busy}
-          onClick={() => onLog(routine.minutes)}
+          onClick={() => logNow(routine.minutes)}
         >
           Done stretching
         </button>
@@ -133,7 +148,7 @@ export default function StretchPlayer({
           <p className="m-0">Stopped early: log the {minutes} min you did, or nothing.</p>
         )}
         {minutes > 0 ? (
-          <button type="button" className={primary} disabled={busy} onClick={() => onLog(minutes)}>
+          <button type="button" className={primary} disabled={busy} onClick={() => logNow(minutes)}>
             Log {minutes} min
           </button>
         ) : (

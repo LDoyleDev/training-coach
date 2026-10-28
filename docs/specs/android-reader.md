@@ -112,7 +112,9 @@ publishes no numbers for either.
 - **In Health Connect, last 7 days** (0.0.6): per type, how much there is (steps, heart-rate
   samples, hours of sleep and exercise) and which apps wrote it, from one aggregate a type and
   its data origins: four reads, only when tapped. Reading 7 days of raw records would spend the
-  quota this plan is saving.
+  quota this plan is saving. Apps go by the names the person knows; the origin "_platform",
+  which is no app but Health Connect's own name for data no installed app wrote, reads
+  "Health Connect itself" (0.0.7).
 
 ### Permissions and Android 12
 

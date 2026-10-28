@@ -9,7 +9,7 @@ from training_coach.bot.messages import review_text
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.habits import Habit, HabitWeek
 from training_coach.domain.records import NewBests
-from training_coach.services.progress import Ready
+from training_coach.services.progress import Ready, Top
 from training_coach.services.review import Best, Review
 
 App = Application  # type: ignore[type-arg]  # see build_bot
@@ -102,6 +102,24 @@ def test_in_a_strength_block_moving_up_waits_and_strength_bests_say_so() -> None
     )
     assert "- Pull-up (Pause at top, strength block): 6 reps in one set" in text
     assert text.endswith("Ready to move up when the hypertrophy block starts: Pull-up.")
+
+
+def test_the_top_for_the_kit_and_of_the_ladder_are_named() -> None:
+    """Reached this week (ADR-0078), as the web's review says it."""
+    text = review_text(
+        _review(
+            top=[
+                Top("Kettlebell swing", "kb-swing", "a 16 kg kettlebell unlocks Two-hand, 16 kg"),
+                Top("Push-up", "push-up", None),
+            ]
+        )
+    )
+    assert text.endswith(
+        "At the top:\n"
+        "- Kettlebell swing, top for your kit: a 16 kg kettlebell unlocks Two-hand, 16 kg\n"
+        "- Push-up, top of the ladder"
+    )
+    assert "At the top" not in review_text(_review())
 
 
 def test_habits_show_days_done_with_so_far_mid_week() -> None:
