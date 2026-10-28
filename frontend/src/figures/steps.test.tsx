@@ -337,6 +337,34 @@ test('kneeling figures fill their picture: no empty band above the head', () => 
   }
 })
 
+/** How big ``figure`` is drawn at 360px, in px per cm: its two stills one above the other at
+ * full width when wide, else side by side, none taller than 288px (Figure.tsx). */
+const perCm = ({ view: [x0, x1, y0, y1] }: { view: readonly number[] }) => {
+  const width = (x1 - x0) / (y1 - y0) > 1.3 ? 328 : (328 - 12) / 2
+  return Math.min(width / (x1 - x0), 288 / (y1 - y0))
+}
+
+test('a Nordic curl is drawn as big as a reverse Nordic, its sofa in the picture', () => {
+  for (const step of ['Nordic curl negatives', 'Full Nordic curl']) {
+    const nordic = figureFor('hamstring-curl', step)!
+    expect(perCm(nordic), step).toBeGreaterThanOrEqual(perCm(FIGURES['reverse-nordic']))
+    const [x0, x1] = nordic.view
+    for (const t of ALONG)
+      for (const shape of shapes(blend(nordic.start, nordic.end, t), nordic.props)) {
+        const xs =
+          shape.kind === 'path'
+            ? [...shape.d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => +m[1])
+            : shape.kind === 'ball'
+              ? [shape.c[0] - shape.r, shape.c[0] + shape.r]
+              : []
+        for (const x of xs) {
+          expect(x, step).toBeGreaterThan(x0)
+          expect(x, step).toBeLessThan(x1)
+        }
+      }
+  }
+})
+
 test('a pistol to a seat sits down onto it, on one leg, the other leg out straight', () => {
   const seats = { 'Sit to chair on one leg': 45, 'Lower box': 32 }
   for (const [step, top] of Object.entries(seats)) {

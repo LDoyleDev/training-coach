@@ -24,6 +24,7 @@ RAW = "raw SQL"  # sqlalchemy text(), .connection(), .connect(), exec_driver_sql
 ALLOWED: dict[tuple[str, str], str] = {
     ("db.session::<module>", ALL): "defines the option",
     ("db.session::_only_this_users_rows", ALL): "the guard itself, reading the option",
+    ("db.session::make_engine._begin_before_savepoint", RAW): "BEGIN: touches no rows",
     ("services.auth::<module>", ALL): "EVERYONE: sign-in looks up a token before knowing whose",
     ("services.auth::has_passkeys", ALL): "names the user in the query",
     ("services.auth::redeem_link", ALL): "whose link is this; acts on that user only",

@@ -691,6 +691,7 @@ export const GYM: Readonly<Record<string, Figure>> = {
     },
   },
   // Seated facing the machine, chest on its pad: a lever from above each shoulder to each hand.
+  // From the front each lever drops beside the head to the handle's height (perspective.ts).
   'reverse-pec-deck': {
     frames: [
       'Seated, chest on the pad, arms out in front at shoulder height, hands together',
@@ -761,8 +762,8 @@ export const GYM: Readonly<Record<string, Figure>> = {
             [0, 150, -4],
           ],
           [
-            [-14, 150, -4],
-            [14, 150, -4],
+            [-18, 150, -4],
+            [18, 150, -4],
           ],
         ],
         pads: [
@@ -776,8 +777,8 @@ export const GYM: Readonly<Record<string, Figure>> = {
           ],
         ],
         levers: [
-          { pivot: [14, 150, -4], hand: 'L' },
-          { pivot: [-14, 150, -4], hand: 'R' },
+          { pivot: [18, 150, -4], hand: 'L' },
+          { pivot: [-18, 150, -4], hand: 'R' },
         ],
       },
       start: {

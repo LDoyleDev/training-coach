@@ -65,3 +65,8 @@ exercise table, not what that session works.
   session rows match coverage by slug.
 - Tests' headings stay as they were inside the Body tab; Body's own heading is shown once.
 - `ux-flow-plan.md` D2 and `dashboard-design.md` now point here.
+
+## Addendum (28 Oct 2026): home or gym
+
+The page's maps count one place's versions of the sessions, with Home | Gym for someone who
+trains at both, and fetch again when it changes (ADR-0071, "Built (the body map's place)").

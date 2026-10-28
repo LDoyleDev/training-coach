@@ -39,10 +39,12 @@ figures follow light and dark.
   the chest, past the head, so the body runs away from you towards the feet and looks nothing
   like the side view (`perspective.ts`: a camera, nearer parts bigger and drawn later, the seat
   and a mat in the round, the down side in the far tone; cable columns, and a machine's frame, pads
-  and levers to the hands, as the reverse pec deck has). It moves at the same pace, with the
-  same captions, and is shown first, with a Front / Side switch under it. Its two positions go one
-  above the other, so it is drawn as big as a side view. A movement the side view can't show at
-  all, such as a fly (the arms sweep towards you and away), is shown from the front alone
+  and levers to the hands, as the reverse pec deck has; a lever drops from its pivot beside the
+  head, then runs level to the handle, so it never crosses the face). It moves at the same pace,
+  with the same captions, and is shown first, with a Front / Side switch under it. Its two
+  positions go one above the other, so it is drawn as big as a side view. A movement the side
+  view can't show at all, such as a fly (the arms sweep towards you and away), is shown from the
+  front alone
   (`only`, no switch; added 28 Oct 2026). A small movement can carry an `inset`: a circle of the
   side view drawn about twice as big where the picture is empty, with a ring round the part it
   shows (the calf raise's heel on the step's edge).

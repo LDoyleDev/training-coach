@@ -11,6 +11,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
+from training_coach.domain.enums import Place
 from training_coach.domain.muscles import PART_OF, Muscle, Part, Stress
 
 
@@ -141,6 +142,7 @@ class Day:
     name: str
     items: Sequence[Item]
     slug: str = ""  # the session template's, so a page can match its own list
+    place: Place = Place.HOME  # the version counted: its gym one, or the one done at both
 
 
 @dataclass(frozen=True)
@@ -180,6 +182,7 @@ class DayLoad:
     grip_sets: int
     slug: str = ""
     muscles: tuple[tuple[Muscle, float], ...] = ()
+    place: Place = Place.HOME
 
     @property
     def spine_heavy(self) -> bool:
@@ -225,6 +228,7 @@ def coverage(week: Sequence[Day]) -> Coverage:
             grip_sets=sum(i.sets for i in day.items if Stress.GRIP in i.stress),
             slug=day.slug,
             muscles=tuple((m, totals[m]) for m in _ordered(Muscle) if totals.get(m, 0) > 0),
+            place=day.place,
         )
         for day, totals in zip(week, per_day, strict=True)
     )
