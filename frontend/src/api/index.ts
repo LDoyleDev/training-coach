@@ -27,10 +27,12 @@ export type Band = Schemas['Band']
 export type SessionCoverage = Schemas['SessionLoadView']
 export type Heat = Schemas['Heat']
 
-/** The body map: weekly sets per muscle with its band and warnings (program-builder.md F);
- * null when not signed in. */
-export async function fetchCoverage(signal?: AbortSignal): Promise<Coverage | null> {
-  const res = await fetch('/api/plan/coverage', { signal, credentials: 'same-origin' })
+/** The body map: weekly sets per muscle with its band and warnings (program-builder.md F),
+ * counting each session's version at ``place`` (default: the day's place, ADR-0071); null when
+ * not signed in. */
+export async function fetchCoverage(place?: Place, signal?: AbortSignal): Promise<Coverage | null> {
+  const url = place ? `/api/plan/coverage?place=${place}` : '/api/plan/coverage'
+  const res = await fetch(url, { signal, credentials: 'same-origin' })
   if (res.status === 401) return null
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Coverage
