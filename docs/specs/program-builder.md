@@ -432,7 +432,10 @@ muscles, so the choices rest on EMG, strength trials and estimates. The decision
    strip, and 23 gym exercises (the other six are home ladders already). Still to come: the
    AI's `propose_log` and the summaries showing weights, each person's own increments and the
    next weight owned at home (with places, step 9), and figures for the gym exercises.
-9. **Home and gym versions**, `workouts.place`, the switch on Today.
+9. **Home and gym versions**, `workouts.place`, the switch on Today. **Places built** (ADR-0071,
+   Built): where you train on Account (home, gym or both), `workouts.place`, and
+   `template_items.place` for a session's two versions. Still to come: the gym versions in
+   `plan.toml` and the switch on Today.
 10. **Setup flow** (H), the 3- and 4-day starters, and the level questions (G1).
 
 Pictures arrive alongside, as poses are drawn: the set screen first, then the picker. Steps 2-4, 8 and 9

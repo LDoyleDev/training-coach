@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, FitnessTestDay, UserSettings, Workout
-from training_coach.domain.enums import Sound
+from training_coach.domain.enums import Places, Sound
 from training_coach.domain.targets import Pace
 from training_coach.services import users
 
@@ -29,6 +29,7 @@ class Prefs:
     pace: Pace = Pace.STANDARD  # how big a step the targets take (ADR-0057)
     sound: Sound = Sound.RING  # what every guided timer plays at each change (ADR-0074)
     extra_cardio_min: int = 0  # a week, outside the sessions, added to cardio targets (ADR-0079)
+    places: Places = Places.HOME  # where the person trains: home, gym or both (ADR-0071)
 
 
 def load(session: Session) -> Prefs:
@@ -47,6 +48,7 @@ def load(session: Session) -> Prefs:
         Pace(row.pace),
         Sound(row.sound),
         row.extra_cardio_min,
+        Places(row.places),
     )
 
 
@@ -65,6 +67,7 @@ def update(
     pace: Pace | None = None,
     sound: Sound | None = None,
     extra_cardio_min: int | None = None,
+    places: Places | None = None,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
@@ -91,6 +94,7 @@ def update(
         pace=old.pace if pace is None else pace,
         sound=old.sound if sound is None else sound,
         extra_cardio_min=old.extra_cardio_min if extra_cardio_min is None else extra_cardio_min,
+        places=old.places if places is None else places,
     )
     changes: dict[str, str | bool | int] = {}
     if morning_time is not None:
@@ -115,6 +119,8 @@ def update(
         changes["sound"] = sound.value
     if extra_cardio_min is not None:
         changes["extra_cardio_min"] = extra_cardio_min
+    if places is not None:
+        changes["places"] = places.value
     row = users.settings_row(session)
     if row is None:
         row = UserSettings()
@@ -130,6 +136,7 @@ def update(
     row.pace = prefs.pace.value
     row.sound = prefs.sound.value
     row.extra_cardio_min = prefs.extra_cardio_min
+    row.places = prefs.places.value
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

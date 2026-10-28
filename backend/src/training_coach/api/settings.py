@@ -16,7 +16,7 @@ from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.cardio import EXTRA_CARDIO
 from training_coach.domain.clock import parse_hhmm
-from training_coach.domain.enums import Sound
+from training_coach.domain.enums import Places, Sound
 from training_coach.domain.habits import PROTEIN_GRAMS
 from training_coach.domain.queue import local_date
 from training_coach.domain.targets import Pace
@@ -65,6 +65,7 @@ class SettingsView(BaseModel):
     pace: Pace  # how big a step the targets take (ADR-0057)
     sound: Sound  # what every guided timer plays at each change (ADR-0062, ADR-0074)
     extra_cardio_min: int  # a week, outside the sessions, added to cardio targets (ADR-0079)
+    places: Places  # where the person trains: home, gym or both (ADR-0071)
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -82,6 +83,7 @@ class SettingsChange(BaseModel):
     pace: Pace | None = None
     sound: Sound | None = None
     extra_cardio_min: int | None = Field(default=None, ge=EXTRA_CARDIO[0], le=EXTRA_CARDIO[1])
+    places: Places | None = None
     paused: bool | None = None
 
 
@@ -102,6 +104,7 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
         pace=prefs.pace,
         sound=prefs.sound,
         extra_cardio_min=prefs.extra_cardio_min,
+        places=prefs.places,
         paused=prefs.paused,
         timezone=settings.timezone,
     )
@@ -132,6 +135,7 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             pace=body.pace,
             sound=body.sound,
             extra_cardio_min=body.extra_cardio_min,
+            places=body.places,
             today=local_date(datetime.now(UTC), settings.tz),
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)
