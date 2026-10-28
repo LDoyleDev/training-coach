@@ -37,8 +37,9 @@ export interface Props {
   bar?: Vec // a pull-up bar seen end on: its centre, on a bracket from the wall in front
   /** A kettlebell in both hands, hanging along the forearms; 'near' hangs it straight down
    * from the near hand, as in a one-arm row; 'hammer' holds it there by the handle stood
-   * upright; 'sides' hangs one from each hand, the near one heavier (a suitcase hold). */
-  bell?: boolean | 'near' | 'hammer' | 'sides'
+   * upright; 'sides' hangs one from each hand, the near one heavier (a suitcase hold);
+   * 'goblet' holds it by the horns at the chest, the bell under the hands. */
+  bell?: boolean | 'near' | 'hammer' | 'sides' | 'goblet'
   /** A weighted vest or backpack, packed high on the upper back. */
   load?: boolean
   /** Dip bars seen along their length, their top ``top`` cm off the floor, centred on ``x``. */
@@ -206,13 +207,20 @@ function torso(j: Joints, tone: Tone): Shape[] {
 }
 
 /** A kettlebell held in both hands, hanging along the forearms, or in the near hand, hanging
- * straight down: from the bottom of the handle, or held by its upright handle ('hammer'). */
-function bell(j: Joints, hold: true | 'near' | 'hammer'): Shape[] {
+ * straight down: from the bottom of the handle, or held by its upright handle ('hammer'); or
+ * by the horns at the chest ('goblet'). */
+function bell(j: Joints, hold: true | 'near' | 'hammer' | 'goblet'): Shape[] {
   const w: Vec =
-    hold === true
+    hold === true || hold === 'goblet'
       ? [(j.armN.wrist[0] + j.armF.wrist[0]) / 2, (j.armN.wrist[1] + j.armF.wrist[1]) / 2]
       : j.armN.wrist
   const dir = hold === true ? heading(j.armN.elbow, j.armN.wrist) : -90
+  // Held by the horns, the handle round the hands and the bell under them, against the chest.
+  if (hold === 'goblet')
+    return [
+      { kind: 'ring', c: svg(w), r: 5, ry: 3, width: 2.2, tone: 'bell' },
+      ball(along(w, -90, 9.5), 8.6, 'bell'),
+    ]
   // The handle stands upright round the fist, the bell under it.
   if (hold === 'hammer')
     return [

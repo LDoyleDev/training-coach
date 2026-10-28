@@ -88,3 +88,85 @@ Keyed by name, a renamed step would quietly lose its change, so a test checks ev
 `steps.ts` against the ladders in `plan.toml` (Vite may read the seed folder for it). A step that
 only changes the motion, such as the overhead extension's 1.5 reps, gets no figure: its cue
 says what to do, and the set screen now shows the step's cue under the step's name.
+
+## Addendum (27 Oct 2026): every ladder step checked against its figure
+
+All 164 ladder steps of the 62 exercises in `plan.toml` were checked against their figure. A
+step whose set-up, load or movement looks different gets its own drawing in `steps.ts`; one that
+changes only the tempo, a pause or the weight of a bell already drawn shows the figure as it is.
+`steps.test.tsx` holds the audit: every step of an exercise with a figure must be drawn in
+`steps.ts` or listed in `SAME` with the reason, so a new loaded or one-sided step can't ship
+without its figure. Steps still to draw sit in its `PENDING` list until they are.
+
+- `bell: 'goblet'`: a kettlebell held by the horns at the chest, the bell under the hands.
+- `kneel` (body.ts): a pose pivoting on the knee, so a Nordic curl keeps its knees put.
+
+| Exercise | Step | What changes | Figure |
+| --- | --- | --- | --- |
+| Tibialis raise | Back against wall, heels forward | | the figure |
+| | Heels further from wall | feet further out, more weight on the wall | to draw |
+| | Single leg | one foot works, the other off the floor | to draw |
+| | Holding 8 kg on toes | a bell hung over the toes | to draw |
+| Jump squat | Bodyweight, full rest | | the figure |
+| | Pause at bottom, then jump | a pause | none |
+| | Holding 8 kg | a bell at the chest | to draw |
+| Kettlebell swing | Two-hand, 8 kg | | the figure |
+| | One-arm, 8 kg; One-arm, 16 kg | one hand on the bell, the other free | to draw |
+| | Two-hand, 16 kg; Two-hand, 24 kg | a heavier bell | none |
+| Bulgarian split squat | Bodyweight, back foot on chair | | the figure |
+| | Goblet hold, 8 kg; Goblet hold, 16 kg | a bell at the chest | goblet hold |
+| | Goblet hold, 3 s lowering; Goblet hold 16 kg, 3 s lowering | a bell at the chest, the tempo | goblet hold |
+| | Suitcase hold, 16 kg + 8 kg | a bell in each hand | bells at the sides |
+| Pistol squat | Sit to chair on one leg | sits down to a chair behind, a shorter range | to draw |
+| | Lower box | sits down to a low box | to draw |
+| | Full pistol | | the figure |
+| | Holding 8 kg | a bell held out in front | to draw |
+| Single-leg RDL | 8 kg | | the figure (a bell in the hand) |
+| | 8 kg, pause at bottom; 16 kg; 16 kg, pause at bottom | a pause, a heavier bell | none |
+| Hamstring curl | Towel slide, both legs | | the figure |
+| | Towel slide, single leg | one heel slides, the other leg held up straight | own poses |
+| | Nordic curl negatives | kneeling, heels anchored, lowered from the knees, hands catch | own poses |
+| | Full Nordic curl | the same, pulled back up by the hamstrings | own poses |
+| Single-leg calf raise | Bodyweight on a step | | the figure |
+| | Holding 8 kg; 8 kg, 2 s pause at top | a bell in the free hand | to draw |
+| Pull-up | Strict pull-up | | the figure |
+| | Slow negatives; Pause at top | the tempo, a pause | none |
+| | Vest or backpack, 5, 10 and 15 kg | a pack on the upper back | pack |
+| Dip (chairs) | Feet on floor | | the figure |
+| | Feet off floor; with 5 kg; 10 kg | between two chairs, feet up; a pack | own poses, pack |
+| | Dip bars, bodyweight, full range | bars in place of chairs | own poses |
+| One-arm kettlebell row | 8 kg | | the figure (a bell in the hand) |
+| | 8 kg, 3 s lowering; 16 kg; 16 kg, 3 s lowering; 16 kg, pause at top | the tempo, a heavier bell | none |
+| Push-up | Standard | | the figure |
+| | Feet elevated | feet on a chair, the body sloping down | to draw |
+| | Deficit | hands raised on blocks, the chest below them | to draw |
+| | Archer | one arm bends, the other stays straight out wide | to draw |
+| Pike push-up | Feet on floor | | the figure |
+| | Feet on chair | feet on a chair, more upside down | to draw |
+| | Wall handstand push-up negatives | upside down, feet on a wall | to draw |
+| Chin-up | Strict | | the figure |
+| | 3 s lowering | the tempo | none |
+| | Vest or backpack, 5, 10 and 15 kg | a pack on the upper back | pack |
+| Diamond push-up | Standard | | the figure |
+| | Feet elevated | feet on a chair | to draw |
+| Kettlebell curl | 8 kg | | the figure |
+| | 8 kg, slow tempo; 8 kg, 3 s lowering, pause at top; 16 kg, slow tempo | the tempo, a heavier bell | none |
+| | 16 kg, hammer grip | the handle upright | hammer grip |
+| Copenhagen plank | Knee on a chair | | the figure |
+| | Knee on a chair, 3 s lowering | the tempo | none |
+| | Ankle on a chair; Ankle on a chair, 3 s lowering | top leg straight, the ankle on the seat | to draw |
+| Reverse Nordic | Lean back about 30 degrees | | the figure |
+| | Lean deeper, 3 s lowering | further back | to draw |
+| | To the floor, hands push you back | all the way down, hands to the floor | to draw |
+| | To the floor and back, no hands | all the way down and back | to draw |
+| 45° back extension (#397) | Bodyweight; Holding a plate | a plate at the chest | the figure; plate |
+| The other gym exercises | one step each | | the figure |
+
+No figure yet, so nothing to vary; these steps will need a drawing when their exercise gets one:
+goblet squat (none: the bell is always at the chest), reverse lunge (a bell; a step under the
+front foot), rear-delt fly (one arm), suitcase carry (a bell in each hand), the three neck
+exercises (a hand or a weight on the head), overhead extension (a heavier bell), lateral raise
+(one arm, leaning away), hanging raise (straight legs, toes to the bar), dead hang (one hand),
+prone Y-T-W (bottles), back extension (on the bed's edge; a bell at the chest), chin tuck
+(lying), ab rollout (a wheel; standing), side plank hip dip (straight legs; top leg up; a bell on
+the hip). Mobility and the three cardio entries have no single figure.

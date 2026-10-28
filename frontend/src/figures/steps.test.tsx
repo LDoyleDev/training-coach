@@ -11,11 +11,108 @@ const ALONG = [0, 0.25, 0.5, 0.75, 1]
 
 /** The ladder of ``slug`` in plan.toml. */
 function ladder(slug: string): string[] {
-  const blocks = plan.split('[[exercises]]')
+  // Each exercise's block runs to the next table that isn't its own, such as [exercises.needs].
+  const blocks = plan.split('[[exercises]]').map((b) => b.split(/\n\[(?!exercises\.)/)[0])
   const block = blocks.find((b) => b.includes(`slug = "${slug}"\n`) && b.includes('ladder = '))
   const line = (block ?? '').split('\n').find((l) => l.startsWith('ladder = ')) ?? 'ladder = []'
   return JSON.parse(line.slice('ladder = '.length)) as string[]
 }
+
+/** The audit (ADR-0063, addendum of 27 Oct): the steps of an exercise with a figure that show
+ * the figure as it is, and why. The figure draws one of them; the rest change only the tempo, a
+ * pause, the weight of a bell already drawn, or how far a movement drawn the same way goes. Every
+ * other step is drawn in steps.ts. A ladder of one step is its figure. */
+const SAME: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  'tibialis-raise': { 'Back against wall, heels forward': 'the figure' },
+  'jump-squat': {
+    'Bodyweight, full rest': 'the figure',
+    'Pause at bottom, then jump': 'a pause',
+  },
+  'kb-swing': {
+    'Two-hand, 8 kg': 'the figure',
+    'Two-hand, 16 kg': 'a heavier bell',
+    'Two-hand, 24 kg': 'a heavier bell',
+  },
+  'bulgarian-split-squat': { 'Bodyweight, back foot on chair': 'the figure' },
+  'pistol-squat': { 'Full pistol': 'the figure' },
+  'single-leg-rdl': {
+    '8 kg': 'the figure, a bell in the hand',
+    '8 kg, pause at bottom': 'a pause',
+    '16 kg': 'a heavier bell',
+    '16 kg, pause at bottom': 'a heavier bell and a pause',
+  },
+  'hamstring-curl': { 'Towel slide, both legs': 'the figure' },
+  'calf-raise': { 'Bodyweight on a step': 'the figure' },
+  'pull-up': {
+    'Slow negatives': 'the same path, lowering slowly',
+    'Strict pull-up': 'the figure',
+    'Pause at top': 'a pause',
+  },
+  dip: { 'Feet on floor': 'the figure' },
+  'kb-row': {
+    '8 kg': 'the figure, a bell in the hand',
+    '8 kg, 3 s lowering': 'the tempo',
+    '16 kg': 'a heavier bell',
+    '16 kg, 3 s lowering': 'a heavier bell and the tempo',
+    '16 kg, pause at top': 'a heavier bell and a pause',
+  },
+  'push-up': { Standard: 'the figure' },
+  'pike-push-up': { 'Feet on floor': 'the figure' },
+  'chin-up': { Strict: 'the figure', '3 s lowering': 'the tempo' },
+  'diamond-push-up': { Standard: 'the figure' },
+  'kb-curl': {
+    '8 kg': 'the figure, a bell in the hand',
+    '8 kg, slow tempo': 'the tempo',
+    '8 kg, 3 s lowering, pause at top': 'the tempo and a pause',
+    '16 kg, slow tempo': 'a heavier bell and the tempo',
+  },
+  'copenhagen-plank': {
+    'Knee on a chair': 'the figure',
+    'Knee on a chair, 3 s lowering': 'the tempo',
+  },
+  'reverse-nordic': { 'Lean back about 30 degrees': 'the figure' },
+  // The gym figures (#397): the plate is drawn there.
+  'back-extension-45': { Bodyweight: 'the figure' },
+}
+
+/** Steps that need their own figure and are drawn in a follow-up change (ADR-0063, addendum of
+ * 27 Oct). Drawing one means taking it off this list. */
+const PENDING: Readonly<Record<string, readonly string[]>> = {
+  'tibialis-raise': ['Heels further from wall', 'Single leg', 'Holding 8 kg on toes'],
+  'jump-squat': ['Holding 8 kg'],
+  'kb-swing': ['One-arm, 8 kg', 'One-arm, 16 kg'],
+  'pistol-squat': ['Sit to chair on one leg', 'Lower box', 'Holding 8 kg'],
+  'calf-raise': ['Holding 8 kg', '8 kg, 2 s pause at top'],
+  'push-up': ['Feet elevated', 'Deficit', 'Archer'],
+  'pike-push-up': ['Feet on chair', 'Wall handstand push-up negatives'],
+  'diamond-push-up': ['Feet elevated'],
+  'copenhagen-plank': ['Ankle on a chair', 'Ankle on a chair, 3 s lowering'],
+  'reverse-nordic': [
+    'Lean deeper, 3 s lowering',
+    'To the floor, hands push you back',
+    'To the floor and back, no hands',
+  ],
+}
+
+test('every step of an exercise with a figure is drawn, or listed as showing it as it is', () => {
+  const unmet: string[] = []
+  for (const slug of Object.keys(FIGURES)) {
+    const steps = ladder(slug)
+    if (steps.length < 2) continue
+    for (const step of steps) {
+      const drawn = step in (STEPS[slug] ?? {})
+      const same = step in (SAME[slug] ?? {})
+      const pending = (PENDING[slug] ?? []).includes(step)
+      if (Number(drawn) + Number(same) + Number(pending) !== 1) unmet.push(`${slug} / ${step}`)
+    }
+  }
+  expect(unmet, 'draw these in steps.ts, or say in SAME why the figure fits').toEqual([])
+  for (const [slug, steps] of [
+    ...Object.entries(SAME).map(([slug, why]) => [slug, Object.keys(why)] as const),
+    ...Object.entries(PENDING),
+  ])
+    for (const step of steps) expect(ladder(slug), slug).toContain(step)
+})
 
 /** Every exercise's figure at every step that changes it. */
 const VARIANTS = Object.entries(STEPS).flatMap(([slug, steps]) =>
@@ -170,4 +267,67 @@ test('the figure shows the set-up of the step it is given', () => {
   render(<Figure slug="dip" name="Dip" step="Dip bars, bodyweight, full range" />)
   expect(screen.getByRole('img', { name: /^Dip, start: Arms straight on the bars/ })).toBeVisible()
   vi.unstubAllGlobals()
+})
+
+const GOBLET = [
+  'Goblet hold, 8 kg',
+  'Goblet hold, 3 s lowering',
+  'Goblet hold, 16 kg',
+  'Goblet hold 16 kg, 3 s lowering',
+]
+
+test('a goblet hold holds the bell at the chest, in front of the body, all the way down', () => {
+  for (const step of GOBLET) {
+    const split = figureFor('bulgarian-split-squat', step)!
+    expect(split.props!.bell, step).toBe('goblet')
+    expect(split.props!.chair, 'the chair stays').toEqual(
+      FIGURES['bulgarian-split-squat'].props!.chair,
+    )
+    for (const t of ALONG) {
+      const pose = blend(split.start, split.end, t)
+      const j = solve(pose)
+      const drawn = shapes(pose, split.props, split.order)
+      const [bell] = bells(drawn)
+      if (bell?.kind !== 'ball') throw new Error('a bell')
+      const [x, y] = [bell.c[0], -bell.c[1]]
+      expect(x, 'in front of the chest').toBeGreaterThan(j.midChest[0])
+      expect(y, 'at chest height').toBeGreaterThan(j.waist[1])
+      expect(y).toBeLessThan(j.shoulder[1])
+      expect(dist(j.armN.wrist, j.armF.wrist), 'both hands on it').toBeLessThan(3)
+      const torso = drawn.findIndex((s) => s.kind === 'ball' && s.tone === 'near' && s.r === 7.6)
+      expect(drawn.indexOf(bell), 'in front of the body').toBeGreaterThan(torso)
+    }
+  }
+})
+
+test('a single-leg curl slides one heel and holds the other leg up, straight', () => {
+  const curl = figureFor('hamstring-curl', 'Towel slide, single leg')!
+  for (const t of ALONG) {
+    const j = solve(blend(curl.start, curl.end, t))
+    expect(j.legN.heel[1], 'heel on the towel').toBeLessThan(6)
+    expect(dist(j.legF.hip, j.legF.ankle), 'straight').toBeGreaterThan(BODY.thigh + BODY.shin - 1)
+    expect(Math.min(j.legF.heel[1], j.legF.ankle[1]), 'off the floor').toBeGreaterThan(55)
+  }
+  const [long, curled] = [solve(curl.start), solve(curl.end)]
+  expect(curled.legN.heel[0], 'heel pulled in').toBeLessThan(long.legN.heel[0] - 30)
+})
+
+test('a Nordic curl falls forward in one line from knees that stay put', () => {
+  for (const step of ['Nordic curl negatives', 'Full Nordic curl']) {
+    const nordic = figureFor('hamstring-curl', step)!
+    expect(nordic.props!.towel, 'no towel').toBeUndefined()
+    for (const t of ALONG) {
+      const j = solve(blend(nordic.start, nordic.end, t))
+      expect(dist(j.legN.knee, [0.1, 5.4]), `${step}: knee put`).toBeLessThan(0.5)
+      const thigh = heading(j.legN.knee, j.hip)
+      expect(Math.abs(heading(j.hip, j.neckBase) - thigh), 'one line').toBeLessThan(1)
+      expect(j.legN.ankle[1], 'feet anchored').toBeCloseTo(11.6, 1)
+    }
+    const [tall, low] = [solve(nordic.start), solve(nordic.end)]
+    expect(tall.neckBase[1], 'tall').toBeGreaterThan(90)
+    expect(low.neckBase[1], 'lowered').toBeLessThan(40)
+    expect(low.armN.wrist[1] < 4, `${step}: hands on the floor`).toBe(
+      step === 'Nordic curl negatives',
+    )
+  }
 })
