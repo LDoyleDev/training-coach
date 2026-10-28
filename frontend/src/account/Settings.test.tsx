@@ -17,6 +17,7 @@ const PREFS: MessageSettings = {
   pace: 'standard',
   sound: 'ring',
   extra_cardio_min: 0,
+  places: 'home',
   paused: false,
   timezone: 'Europe/Berlin',
 }
@@ -113,6 +114,25 @@ test('the pace is one of three, with a line saying what each means', async () =>
   expect(await screen.findByText('Pace: fast.')).toBeInTheDocument()
   expect(button(/^Fast/)).toHaveTextContent('At least two reps at a time.')
   expect(sent).toEqual([{ pace: 'steady' }, { pace: 'fast' }])
+})
+
+test('where you train is home, gym or both, home until changed', async () => {
+  const sent = serve()
+  render(<Settings />)
+  const group = (await screen.findByRole('group', { name: 'Where you train' })) as HTMLElement
+  const home = within(group).getByRole('button', { name: /^Home/ })
+  expect(home).toHaveAttribute('aria-pressed', 'true')
+  fireEvent.click(home) // already chosen: nothing to save
+  fireEvent.click(within(group).getByRole('button', { name: /^Both/ }))
+  expect(await screen.findByText('Where you train: both.')).toBeInTheDocument()
+  expect(within(group).getByRole('button', { name: /^Both/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  expect(within(group).getByRole('button', { name: /^Gym/ })).toHaveTextContent(
+    'A gym has everything.',
+  )
+  expect(sent).toEqual([{ places: 'both' }])
 })
 
 test('the protein target is set and cleared', async () => {

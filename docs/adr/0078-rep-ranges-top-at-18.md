@@ -65,5 +65,10 @@ Adding load where a ladder simply ends is builder step 8 (ADR-0072), not this de
 - `tests/services/test_seed.py` names the high-rep set; adding an exercise to it is a decision,
   not a test fix.
 - The saved view (`EarnedView`) gains `at_top` and `unlock`; the API types are regenerated.
-- Home and the weekly review still list only exercises ready to move up; the top of a ladder
-  shows on Progress, the Plan tab's levels, the saved screen and the bot.
+- The top of a ladder shows on Progress, the Plan tab's levels, the saved screen and the bot.
+  Since 27 Oct 2026 (Liam's follow-ups) Home and the weekly review show it as well, under "At the
+  top", with the top for the kit naming what opens the next level and linking to My equipment.
+  They show it once per level: Home for the 7 days after the save that first met the rule
+  there (the saved screen's note, a `progress.top_of_ladder` event), and the review in that
+  week, on the web and in Telegram. It goes when the exercise moves, or when added kit makes
+  it ready.

@@ -28,4 +28,10 @@ class WeekTest {
         assertEquals("org.example", appName("org.example"))
         assertEquals("Health Connect", appName("com.google.android.apps.healthdata"))
     }
+
+    @Test
+    fun `data no app wrote is Health Connect's own, not a package called _platform`() {
+        val exercise = WeekType("Exercise", "2 h 15 min", setOf("_platform", "com.mi.health"))
+        assertEquals("Exercise: 2 h 15 min, from Health Connect itself, Mi Fitness", weekLine(exercise))
+    }
 }

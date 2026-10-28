@@ -24,7 +24,7 @@ from training_coach.services import (
     review,
     session_times,
 )
-from training_coach.services.progress import Ready
+from training_coach.services.progress import Ready, Top
 
 MOVED_UP = "progress.moved_up"  # written by progress.move_up
 
@@ -59,6 +59,7 @@ class Ladder:
     steps_climbed: int  # ladder steps moved up so far
     ready: list[Ready]  # exercises ready to move up now
     bests: list[str]  # exercises with a personal best in the last 7 days
+    top: list[Top] = field(default_factory=list)  # reached the top in the last 7 days (ADR-0078)
 
 
 @dataclass(frozen=True)
@@ -152,6 +153,7 @@ def home(session: Session, on: date, tz: ZoneInfo) -> Home:
     span = review.span(session, start, on)
     targets = cardio_totals.targets(session)
     climbed = session.scalar(select(func.count()).select_from(Event).where(Event.kind == MOVED_UP))
+    standings = progress.overview(session)
     return Home(
         totals=_totals(session, on),
         week=Week(
@@ -167,8 +169,9 @@ def home(session: Session, on: date, tz: ZoneInfo) -> Home:
         ),
         progress=Ladder(
             steps_climbed=climbed or 0,
-            ready=progress.ready(progress.overview(session)),
+            ready=progress.ready(standings),
             bests=list(dict.fromkeys(b.exercise for b in span.bests)),
+            top=progress.tops(session, standings, start, tz),
         ),
         recent=_recent(session, on),
         today=today,
