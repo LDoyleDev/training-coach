@@ -90,3 +90,19 @@ Decided while building, within this ADR:
   25 Oct 2026): each vague top step renamed in place and the rest appended, so nobody's place
   moves. `plan.toml` gained step cues (`[exercises.cues]`) and band strengths in needs
   (`band:medium`, met by that band or a stronger one).
+
+## Built (places, builder step 9, 27 Oct 2026)
+
+Decided while building, within this ADR:
+
+- **Where you train** is a setting on Account (`settings.places`: home, gym or both), home for
+  everyone until they say, so nothing changes for anyone who doesn't. Liam picks Both there.
+- **`workouts.place`** says where a workout was done; every workout from before is at home.
+  `/undo` of a replaced workout brings its place back with it.
+- **`template_items.place`** puts an item in a session's home or gym version; positions count
+  within a version. Every reader of the plan sees the home version unless it asks for a place
+  (`SessionTemplate.items`; `gym_items` is the gym's), so the Plan tab, the body map, the bot's
+  week and the cardio targets stay the home plan's. A session with no gym version is done the
+  same way at the gym.
+- **`settings.place`** keeps the place Today starts at for someone at both: the last one chosen
+  on Today's switch (Decided 4).
