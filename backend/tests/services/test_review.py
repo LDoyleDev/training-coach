@@ -42,6 +42,7 @@ def _log(
     *,
     template: int | None = None,
     sides: tuple[Side, ...] = (Side.BOTH,),
+    kg: tuple[float | None, ...] = (),
 ) -> None:
     exercise = _exercise(session, slug)
     state = users.exercise_state(session, exercise.id)
@@ -54,6 +55,7 @@ def _log(
             set_no=n,
             side=side,
             value=v,
+            load_kg=kg[n - 1] if kg else None,
         )
         for n, v in enumerate(values, start=1)
         for side in sides
@@ -106,11 +108,25 @@ def test_bests_this_week_keep_the_highest(plan: Session) -> None:
     _log(plan, "pull-up", [9, 8, 8, 8], MONDAY)  # best set 9, total 33
     _log(plan, "pull-up", [10, 9, 8, 7], MONDAY + timedelta(days=3))  # best set 10, total 34
     (best,) = weekly(plan, SUNDAY).bests
-    assert (best.exercise, best.step, best.bests) == (
+    assert (best.exercise, best.step, best.bests, best.load_kg) == (
         "Pull-up",
         "Strict pull-up",
         NewBests(best_set=10, total=34),
+        None,  # bodyweight
     )
+
+
+def test_a_best_names_the_weight_of_the_session_that_set_it(plan: Session) -> None:
+    """The review counts bests at every weight (ADR-0072), so it says which: the heaviest set's
+    of the session with the best set, kept when a later session only beats the total."""
+    _log(plan, "hammer-curl", [10, 10, 10], MONDAY - timedelta(days=3), kg=(12.0,) * 3)
+    _log(plan, "hammer-curl", [12, 10, 9], MONDAY, kg=(10.0, 12.0, 12.0))  # best set 12
+    _log(plan, "hammer-curl", [11, 11, 11], MONDAY + timedelta(days=2), kg=(8.0,) * 3)  # total
+    (best,) = weekly(plan, SUNDAY).bests
+    assert (best.bests, best.load_kg) == (NewBests(best_set=12, total=33), 12.0)
+    _log(plan, "hammer-curl", [13, 9, 9], MONDAY + timedelta(days=4), kg=(14.0,) * 3)
+    (best,) = weekly(plan, SUNDAY).bests
+    assert (best.bests.best_set, best.load_kg) == (13, 14.0)
 
 
 def test_ready_to_move_up(plan: Session) -> None:
