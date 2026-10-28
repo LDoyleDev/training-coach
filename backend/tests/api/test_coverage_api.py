@@ -8,7 +8,8 @@ from sqlalchemy import Engine
 from training_coach.api.app import create_app
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory
-from training_coach.services import auth
+from training_coach.domain.enums import Place, Places
+from training_coach.services import auth, user_settings
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -60,12 +61,14 @@ def test_coverage_gives_each_muscle_its_band_and_warnings(client: TestClient) ->
     assert {k: v for k, v in legs.items() if k != "muscles"} == {
         "session": "Legs",
         "slug": "legs",
+        "place": "home",
         "spine_sets": 6,
         "grip_sets": 3,
         "spine_heavy": False,
         "grip_heavy": False,
     }
     assert body["hard_from"] == 6
+    assert (body["place"], body["places"]) == ("home", "home")
 
 
 def test_each_session_has_its_own_heat_map(client: TestClient) -> None:
@@ -78,3 +81,25 @@ def test_each_session_has_its_own_heat_map(client: TestClient) -> None:
     assert by_slug["zone2"]["muscles"] == []  # cardio only
     core = {m["muscle"] for m in by_slug["moderate-cardio"]["muscles"]}
     assert {"abs", "obliques", "adductors"} <= core
+
+
+def test_coverage_counts_the_place_asked_for(client: TestClient) -> None:
+    body = client.get("/api/plan/coverage", params={"place": "gym"}).json()
+    assert (body["place"], body["places"]) == ("gym", "home")  # anyone may look
+    by_slug = {s["slug"]: s for s in body["sessions"]}
+    assert (by_slug["legs"]["place"], by_slug["recovery"]["place"]) == ("gym", "home")
+    hamstrings = {m["muscle"]: m for m in body["muscles"]}["hamstrings"]
+    assert (hamstrings["sets"], hamstrings["days"]) == (12, 3)
+    assert client.get("/api/plan/coverage", params={"place": "park"}).status_code == 422
+
+
+def test_coverage_starts_at_the_days_place(client: TestClient, engine: Engine) -> None:
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        user_settings.update(bound, places=Places.BOTH, place=Place.GYM)
+        bound.commit()
+    body = client.get("/api/plan/coverage").json()
+    assert (body["place"], body["places"]) == ("gym", "both")
+    home = client.get("/api/plan/coverage", params={"place": "home"}).json()
+    assert home["place"] == "home"
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        assert user_settings.load(bound).place is Place.GYM  # looking changes nothing

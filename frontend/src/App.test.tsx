@@ -1,6 +1,14 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import App from './App'
-import { prescription, sessionSize, type Exercise, type Plan, type Session } from './api'
+import {
+  prescription,
+  sessionSize,
+  type Coverage,
+  type Exercise,
+  type Place,
+  type Plan,
+  type Session,
+} from './api'
 
 const pullUp: Exercise = {
   slug: 'pull-up',
@@ -58,6 +66,33 @@ const plan: Plan = {
   volume_target_max: 20,
 }
 
+const coverage: Coverage = {
+  place: 'home',
+  places: 'home',
+  muscles: [],
+  sessions: [
+    {
+      session: 'Torso + neck',
+      slug: 'torso',
+      place: 'home',
+      spine_sets: 0,
+      grip_sets: 4,
+      spine_heavy: false,
+      grip_heavy: false,
+      muscles: [{ muscle: 'lats', sets: 8, heat: 'hard' }],
+    },
+  ],
+  main_on_target: 0,
+  main_total: 10,
+  session_cap: 11,
+  back_to_back: 4,
+  spine_cap: 8,
+  grip_cap: 8,
+  hard_from: 6,
+  minimum: 4,
+  ceiling: 30,
+}
+
 /** The plan answers ``response``; the body map has its own tests and stays out of the way. */
 function mockFetch(response: Partial<Response>) {
   globalThis.fetch = vi.fn((url: string) =>
@@ -91,29 +126,6 @@ describe('App', () => {
   })
 
   it("an open session shows its own body map first, and the week's comes last", async () => {
-    const coverage = {
-      muscles: [],
-      sessions: [
-        {
-          session: 'Torso + neck',
-          slug: 'torso',
-          spine_sets: 0,
-          grip_sets: 4,
-          spine_heavy: false,
-          grip_heavy: false,
-          muscles: [{ muscle: 'lats', sets: 8, heat: 'hard' }],
-        },
-      ],
-      main_on_target: 0,
-      main_total: 10,
-      session_cap: 11,
-      back_to_back: 4,
-      spine_cap: 8,
-      grip_cap: 8,
-      hard_from: 6,
-      minimum: 4,
-      ceiling: 30,
-    }
     globalThis.fetch = vi.fn((url: string) =>
       Promise.resolve({
         ok: true,
@@ -136,6 +148,47 @@ describe('App', () => {
     expect(
       vi.mocked(globalThis.fetch).mock.calls.filter(([u]) => u === '/api/plan/coverage'),
     ).toHaveLength(1)
+    expect(screen.queryByRole('group', { name: 'Count the sessions at' })).not.toBeInTheDocument()
+  })
+
+  it('counts the home or gym versions for someone who trains at both', async () => {
+    const at = (place: Place): Coverage => ({
+      ...coverage,
+      place,
+      places: 'both',
+      main_on_target: place === 'gym' ? 9 : 10,
+      sessions: [
+        {
+          ...coverage.sessions[0],
+          place,
+          muscles: [{ muscle: 'lats', sets: place === 'gym' ? 10 : 8, heat: 'hard' }],
+        },
+      ],
+    })
+    globalThis.fetch = vi.fn((url: string) =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve(url === '/api/plan' ? plan : at(url.endsWith('=gym') ? 'gym' : 'home')),
+      }),
+    ) as unknown as typeof fetch
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: /Torso \+ neck/, expanded: false }))
+    const week = screen.getByRole('region', { name: 'The week' })
+    const total = screen.getByRole('region', { name: 'What the week gives each muscle' })
+    expect(await within(week).findByRole('button', { name: 'Home', pressed: true })).toBeVisible()
+    expect(within(total).getByText('10 of 10 main muscles on target')).toBeVisible()
+    fireEvent.click(within(total).getByRole('button', { name: 'Gym' }))
+    expect(await within(total).findByText('9 of 10 main muscles on target')).toBeVisible()
+    expect(within(total).getByText(/The whole week at the gym/)).toBeVisible()
+    expect(within(week).getByRole('button', { name: 'Gym', pressed: true })).toBeVisible()
+    const panel = document.getElementById('session-torso')!
+    expect(within(panel).getByRole('button', { name: /Lats: 10 sets/ })).toBeVisible()
+    expect(within(panel).getByText(/What its gym version works/)).toBeVisible()
+    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledWith(
+      '/api/plan/coverage?place=gym',
+      expect.anything(),
+    )
   })
 
   it('selecting a ring segment opens that session', async () => {

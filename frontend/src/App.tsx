@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { fetchPlan, type Plan } from './api'
+import { fetchPlan, type Place, type Plan } from './api'
 import { BodyMap } from './bodymap/BodyMap'
+import { MapPlace } from './bodymap/MapPlace'
 import { useCoverage } from './bodymap/useCoverage'
 import { CycleRing } from './components/CycleRing'
 import { Ladders } from './components/Ladders'
@@ -22,11 +23,18 @@ type State =
   | { status: 'ready'; plan: Plan }
 
 /** The plan: the cycle, each session with what it works (its own body map, ADR-0069), the
- * ladders, and at the bottom what the whole week gives each muscle. Its page gives it the frame. */
+ * ladders, and at the bottom what the whole week gives each muscle. The maps count the home or
+ * gym versions: the day's place, with Home | Gym for someone who trains at both (ADR-0071). Its
+ * page gives it the frame. */
 export default function App() {
   const [state, setState] = useState<State>({ status: 'loading' })
   const [open, setOpen] = useState<string | null>(null)
-  const coverage = useCoverage()
+  const [place, setPlace] = useState<Place>()
+  const coverage = useCoverage(place)
+  const counted = coverage.status === 'ready' ? coverage.coverage : undefined
+  const choice = counted?.places === 'both' && (
+    <MapPlace place={place ?? counted.place} onChoose={setPlace} />
+  )
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -94,11 +102,12 @@ export default function App() {
             <p className="block-intro">
               Open a session to see what it works, its exercises and targets.
             </p>
+            {choice}
             <SessionList
               sessions={state.plan.sessions}
               open={open}
               onToggle={toggle}
-              coverage={coverage.status === 'ready' ? coverage.coverage : undefined}
+              coverage={counted}
             />
           </section>
 
@@ -121,8 +130,10 @@ export default function App() {
           <section className="block" aria-labelledby="volume">
             <h2 id="volume">What the week gives each muscle</h2>
             <p className="block-intro">
-              The whole week: hard sets per muscle, coloured by how close each is to its target.
+              The whole week{counted?.place === 'gym' && ' at the gym'}: hard sets per muscle,
+              coloured by how close each is to its target.
             </p>
+            {choice}
             <BodyMap state={coverage} />
           </section>
         </div>
