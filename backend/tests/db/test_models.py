@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlalchemy import Engine, func, insert, select
+from sqlalchemy import Engine, func, insert, select, text
 from sqlalchemy.exc import IntegrityError, StatementError
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,7 @@ from training_coach.db.models import (
     ExerciseState,
     LadderStep,
     PlanState,
+    SessionProgress,
     SessionTemplate,
     SetLog,
     TemplateItem,
@@ -80,6 +81,19 @@ def test_one_settings_and_plan_row_per_user(
     session.add(model())
     with pytest.raises(IntegrityError):
         session.commit()
+
+
+def test_session_progress_place_is_home_or_gym(session: Session) -> None:
+    """ADR-0071: kept progress records where its sets were done, home unless set."""
+    exercise = factories.exercise(session)
+    template = factories.template(session, exercise)
+    session.add(
+        SessionProgress(local_date=date(2026, 10, 28), template_id=template.id, token="ab" * 16)
+    )
+    session.commit()
+    assert session.execute(text("SELECT place FROM session_progress")).scalar_one() == "home"
+    with pytest.raises(IntegrityError):
+        session.execute(text("UPDATE session_progress SET place = 'office'"))
 
 
 def test_several_workouts_per_day_allowed(session: Session) -> None:
