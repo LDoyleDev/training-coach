@@ -31,7 +31,9 @@ export interface Cable3 {
 }
 
 /** A gym machine seen in the round: steel tubes from point to point, pads as blocks from their
- * low corner to their high one, and a lever from each pivot to a hand, holding a handle. */
+ * low corner to their high one, and a lever from each pivot to a hand, holding a handle. A lever
+ * drops straight down from its pivot to the top of the handle, then runs level to it, as a pec
+ * deck's does, so from the front it passes beside the head, not across the face. */
 export interface Machine3 {
   frame?: readonly (readonly [Vec3, Vec3])[]
   pads?: readonly (readonly [Vec3, Vec3])[]
@@ -270,9 +272,11 @@ function machine(see: Project, camera: Camera, j: ReturnType<typeof solveFront>,
     ...(m.pads ?? []).flatMap(([lo, hi]) => box(see, camera, lo, hi, 'prop')),
     ...(m.levers ?? []).flatMap(({ pivot, hand }): Drawn[] => {
       const [x, y, z] = grip(hand)
+      const bend: Vec3 = [pivot[0], y + 6, pivot[2]]
       return [
         sphere(see, pivot, 3.5, 'bell'),
-        capsule(see, pivot, [x, y + 6, z], [2, 2], 'bell'),
+        capsule(see, pivot, bend, [2, 2], 'bell'),
+        capsule(see, bend, [x, y + 6, z], [2, 2], 'bell'),
         { ...capsule(see, [x, y - 6, z], [x, y + 6, z], [1.8, 1.8], 'bell'), depth: 0 },
       ]
     }),
