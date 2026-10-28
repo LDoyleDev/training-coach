@@ -2,19 +2,37 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, expect, test, vi } from 'vitest'
 import type { CardioLogged, CardioOptions } from '../api'
 import type { HiitTimerProps } from '../hiit/HiitTimer'
+import { playSessionEnd, unlockAudio } from '../hiit/sounds'
 import { emptyWeek } from '../test/cardioWeek'
 import Cardio from './Cardio'
 
-// The timer has its own tests; here it finishes or cancels on a click.
+vi.mock('../hiit/sounds', () => ({
+  DEFAULT_SOUND: 'ring',
+  unlockAudio: vi.fn(),
+  playSessionEnd: vi.fn(),
+}))
+
+// The timer has its own tests; here it finishes (ringing the end), stops early or cancels.
 vi.mock('../hiit/HiitTimer', () => ({
-  default: ({ defaults, onFinish, onCancel }: HiitTimerProps) => (
+  default: ({ defaults, onFinish, onCancel, sound }: HiitTimerProps) => (
     <div>
       <p>Timer for {defaults?.rounds ?? 8} rounds</p>
+      <p>Timer sound {sound}</p>
       <button
         type="button"
-        onClick={() => onFinish?.({ rounds: 6, work: 20, rest: 10, sets: 1, seconds: 230 })}
+        onClick={() =>
+          onFinish?.({ rounds: 6, work: 20, rest: 10, sets: 1, seconds: 230, early: false })
+        }
       >
         Finish timer
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onFinish?.({ rounds: 3, work: 20, rest: 10, sets: 1, seconds: 90, early: true })
+        }
+      >
+        Stop timer
       </button>
       <button type="button" onClick={() => onCancel?.()}>
         Cancel timer
@@ -75,7 +93,10 @@ function serve(server: Server = {}) {
   return sent
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.clearAllMocks()
+})
 
 const click = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }))
 
@@ -106,6 +127,24 @@ test('a planned zone 2 day is done in one tap', async () => {
   expect(screen.getByText('Next up: Legs.')).toBeInTheDocument()
   expect(screen.getByText(/^Zone 2:/)).toHaveTextContent('Zone 2: 80 of 45–75 min · on target')
   expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/')
+  expect(unlockAudio).toHaveBeenCalled() // inside the tap
+  expect(playSessionEnd).toHaveBeenCalledExactlyOnceWith('ring') // the end of the session
+})
+
+test("the end of the session rings in the person's timer sound, and not for a repeat", async () => {
+  serve({ log: { ...LOGGED, already_saved: true } })
+  render(<Cardio featured sound="wood" />)
+  fireEvent.click(await screen.findByRole('button', { name: /Done as planned/ }))
+  expect(await screen.findByText(/already saved/)).toBeInTheDocument()
+  expect(playSessionEnd).not.toHaveBeenCalled() // saved before: it rang then
+})
+
+test('a failed save rings nothing', async () => {
+  serve({ log: 'error' })
+  render(<Cardio featured sound="wood" />)
+  fireEvent.click(await screen.findByRole('button', { name: /Done as planned/ }))
+  expect(await screen.findByText(/Couldn't save/)).toBeInTheDocument()
+  expect(playSessionEnd).not.toHaveBeenCalled()
 })
 
 test('the exact minutes, the effort and what it was', async () => {
@@ -171,6 +210,20 @@ test('a planned HIIT day: the timer, then save the rounds', async () => {
   click('Save 7 rounds')
   expect(await screen.findByText('7 HIIT rounds.')).toBeInTheDocument()
   expect(sent).toEqual([expect.objectContaining({ kind: 'hiit', value: 7, activity: null })])
+  expect(playSessionEnd).not.toHaveBeenCalled() // the timer rang the end; the save doesn't again
+})
+
+test('HIIT stopped early rings the end of the session when its rounds are saved', async () => {
+  serve({
+    options: { ...ZONE2_DAY, planned: { kind: 'hiit', session: 'High intensity', target: 10 } },
+  })
+  render(<Cardio featured sound="chime" />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start HIIT timer' }))
+  expect(screen.getByText('Timer sound chime')).toBeInTheDocument()
+  click('Stop timer')
+  click('Save 3 rounds')
+  expect(await screen.findByText('3 HIIT rounds.')).toBeInTheDocument()
+  expect(playSessionEnd).toHaveBeenCalledExactlyOnceWith('chime')
 })
 
 test('rounds can be logged without the timer, or not saved', async () => {

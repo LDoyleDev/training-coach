@@ -2670,12 +2670,20 @@
           "steps_climbed": {
             "title": "Steps Climbed",
             "type": "integer"
+          },
+          "top": {
+            "items": {
+              "$ref": "#/components/schemas/TopView"
+            },
+            "title": "Top",
+            "type": "array"
           }
         },
         "required": [
           "steps_climbed",
           "ready",
-          "bests"
+          "bests",
+          "top"
         ],
         "title": "LadderView",
         "type": "object"
@@ -3966,6 +3974,16 @@
         "title": "PickBody",
         "type": "object"
       },
+      "Places": {
+        "description": "Where a person trains, a setting (ADR-0071). Everyone starts at home.",
+        "enum": [
+          "home",
+          "gym",
+          "both"
+        ],
+        "title": "Places",
+        "type": "string"
+      },
       "PlanView": {
         "properties": {
           "sessions": {
@@ -4747,6 +4765,13 @@
             "title": "Strength Block",
             "type": "boolean"
           },
+          "top": {
+            "items": {
+              "$ref": "#/components/schemas/TopView"
+            },
+            "title": "Top",
+            "type": "array"
+          },
           "zone2_minutes": {
             "title": "Zone2 Minutes",
             "type": "integer"
@@ -4789,6 +4814,7 @@
           "moderate_minutes",
           "bests",
           "ready",
+          "top",
           "strength_block",
           "habits",
           "ai_comments",
@@ -5345,6 +5371,16 @@
             ],
             "title": "Paused"
           },
+          "places": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Places"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "protein_g": {
             "anyOf": [
               {
@@ -5421,6 +5457,9 @@
             "title": "Paused",
             "type": "boolean"
           },
+          "places": {
+            "$ref": "#/components/schemas/Places"
+          },
           "protein_g": {
             "anyOf": [
               {
@@ -5455,6 +5494,7 @@
           "pace",
           "sound",
           "extra_cardio_min",
+          "places",
           "paused",
           "timezone"
         ],
@@ -6101,6 +6141,37 @@
           "session"
         ],
         "title": "TodayView",
+        "type": "object"
+      },
+      "TopView": {
+        "description": "The ready rule met with no level to move to, said once per level (ADR-0078). ``unlock``\nsays what opens the next level when the kit is what's missing (ADR-0071); else None, the\ntop of the ladder.",
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "unlock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unlock"
+          }
+        },
+        "required": [
+          "exercise",
+          "slug",
+          "unlock"
+        ],
+        "title": "TopView",
         "type": "object"
       },
       "TotalsView": {

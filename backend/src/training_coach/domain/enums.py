@@ -54,3 +54,19 @@ class Sound(StrEnum):
     WOOD = "wood"
     BELL = "bell"
     NONE = "none"
+
+
+class Place(StrEnum):
+    """Where a workout is done (ADR-0071): at home, with the person's own kit, or at a gym,
+    which has everything. A session can hold a version for each."""
+
+    HOME = "home"
+    GYM = "gym"
+
+
+class Places(StrEnum):
+    """Where a person trains, a setting (ADR-0071). Everyone starts at home."""
+
+    HOME = "home"
+    GYM = "gym"
+    BOTH = "both"

@@ -17,22 +17,28 @@ const BUZZ: Record<Cue, number | number[]> = {
   finish: [300, 100, 300],
 }
 
-/** The chosen sound for a change, and a buzz where the phone has one (ADR-0062). */
-function play(sound: Sound, cue: Cue): void {
-  playChange(sound, cue)
+/** The chosen sound for a change, and a buzz where the phone has one (ADR-0062). At the end,
+ * `onEnd` (when the flow ends the session) rings the end of the session instead. */
+function play(sound: Sound, cue: Cue, onEnd?: () => void): void {
+  if (cue === 'finish' && onEnd) onEnd()
+  else playChange(sound, cue)
   navigator.vibrate?.(BUZZ[cue])
 }
 
 /** The mobility flow, one movement at a time (ADR-0062): a countdown per movement or side, a
- * sound and a buzz at each change, then the next starts by itself. Logs the minutes moved. */
+ * sound and a buzz at each change, then the next starts by itself. Logs the minutes moved.
+ * `onEnd`, given when the flow is the session's last set, rings when it runs to its end in
+ * place of the timer's finish. */
 export default function FlowPlayer({
   flow,
   busy,
   onDone,
+  onEnd,
 }: {
   flow: Flow
   busy: boolean
   onDone: (minutes: number, startedAt: number) => void
+  onEnd?: () => void
 }) {
   const sections = useMemo(() => schedule(flow.moves), [flow])
   const total = totalSeconds(sections)
@@ -72,7 +78,7 @@ export default function FlowPlayer({
   const tick = () => {
     const now = position()
     const due = cues(sections, last.current, now)
-    for (const cue of now - last.current > CATCH_UP ? due.slice(-1) : due) play(sound, cue)
+    for (const cue of now - last.current > CATCH_UP ? due.slice(-1) : due) play(sound, cue, onEnd)
     last.current = now
     setT(now)
     if (now >= total) finish()

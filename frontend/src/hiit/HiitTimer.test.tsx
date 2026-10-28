@@ -1,13 +1,14 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import HiitTimer from './HiitTimer'
-import { playBeep, playBell, playFinished, speak, unlockAudio, voiceSupported } from './sounds'
+import { playBeep, playBell, playSessionEnd, speak, unlockAudio, voiceSupported } from './sounds'
 
 vi.mock('./sounds', () => ({
+  DEFAULT_SOUND: 'ring',
   unlockAudio: vi.fn(),
   playBeep: vi.fn(),
   playBell: vi.fn(),
-  playFinished: vi.fn(),
+  playSessionEnd: vi.fn(),
   speak: vi.fn(),
   voiceSupported: vi.fn(),
 }))
@@ -143,10 +144,10 @@ test('beeps come at 3, 2 and 1 before each transition and the rest bell rings on
   expect(screen.getByText('Rest')).toBeInTheDocument()
 })
 
-test('the full workout ends with the finished sound, a summary and onFinish', () => {
+test('the full workout ends with the end-of-session bell, a summary and onFinish', () => {
   const { onFinish, onCancel } = start()
   advance(18_000)
-  expect(playFinished).toHaveBeenCalledOnce()
+  expect(playSessionEnd).toHaveBeenCalledExactlyOnceWith('ring') // the default timer sound
   expect(playBell).toHaveBeenCalledTimes(3)
   expect(playBeep).toHaveBeenCalledTimes(12)
   expect(onFinish).toHaveBeenCalledExactlyOnceWith({
@@ -155,6 +156,7 @@ test('the full workout ends with the finished sound, a summary and onFinish', ()
     rest: 5,
     sets: 1,
     seconds: 15,
+    early: false,
   })
   expect(onCancel).not.toHaveBeenCalled()
   expect(screen.getByRole('heading', { name: 'Done!' })).toBeInTheDocument()
@@ -181,6 +183,7 @@ test('sets: rest between sets, the set counter, cool down, and every round count
     rest: 5,
     sets: 2,
     seconds: 37,
+    early: false,
   })
   expect(screen.getByText('5 s on / 5 s off, 2 sets')).toBeInTheDocument()
 })
@@ -216,8 +219,14 @@ test('skip forward and back move between sections; a skipped work does not count
   advance(5000) // work 1 done
   click('Skip') // rest -> work 2
   click('Skip') // work 2 skipped -> the end
-  expect(playFinished).toHaveBeenCalledOnce()
-  expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ rounds: 1 }))
+  expect(playSessionEnd).toHaveBeenCalledOnce()
+  expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ rounds: 1, early: false }))
+})
+
+test("the end rings in the person's timer sound", () => {
+  start({ defaults: SHORT, sound: 'none' })
+  advance(18_000)
+  expect(playSessionEnd).toHaveBeenCalledExactlyOnceWith('none') // which plays nothing
 })
 
 test('skipping while paused stays paused', () => {
@@ -263,12 +272,13 @@ test('stopping mid-rest finishes with the rounds done', () => {
     rest: 5,
     sets: 1,
     seconds: 7,
+    early: true,
   })
   expect(onCancel).not.toHaveBeenCalled()
   expect(screen.getByText('Stopped early')).toBeInTheDocument()
   expect(screen.getByText('1 round in 0:07')).toBeInTheDocument()
   advance(20_000)
-  expect(playFinished).not.toHaveBeenCalled()
+  expect(playSessionEnd).not.toHaveBeenCalled() // the save rings it (Cardio)
 })
 
 test('stopping before the first round ends cancels and returns to setup', () => {

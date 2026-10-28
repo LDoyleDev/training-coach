@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, insert, select
 
 from tests.db.test_migrations import BACKEND
 from training_coach.db.models import Exercise, ImportedWorkout, LadderStep, SetLog, Workout
@@ -14,7 +14,7 @@ from training_coach.db.session import make_session_factory
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.services.users import OWNER
 
-BEFORE = "a7d4c2e9f1b3"  # extra cardio: the schema is the same as at head
+BEFORE = "a7d4c2e9f1b3"  # extra cardio
 MONDAY = date(2026, 10, 26)
 
 
@@ -47,18 +47,25 @@ def test_only_a_walk_the_old_rule_logged_gets_its_full_minutes(
         def counted(day: int, slug: str, logged: int, zones: tuple[int, ...]) -> int:
             on = MONDAY - timedelta(days=day)
             exercise_id, step_id = steps[slug]
-            workout = Workout(local_date=on, status=WorkoutStatus.DONE, activity="walk")
-            workout.sets = [
-                SetLog(
+            # Core, not the ORM, for the workout and its set (whose flush loads the workout): the
+            # schema at BEFORE has no `workouts.place` (ADR-0071).
+            workouts = Workout.__table__
+            workout_id = session.execute(
+                insert(workouts)
+                .values(user_id=OWNER, local_date=on, status=WorkoutStatus.DONE, activity="walk")
+                .returning(workouts.c.id)
+            ).scalar_one()
+            session.execute(
+                insert(SetLog.__table__).values(
+                    user_id=OWNER,
+                    workout_id=workout_id,
                     exercise_id=exercise_id,
                     ladder_step_id=step_id,
                     set_no=1,
                     side=Side.BOTH,
                     value=logged,
                 )
-            ]
-            session.add(workout)
-            session.flush()
+            )
             start = datetime(2026, 10, 26 - day, 6, 0, tzinfo=UTC)
             band = ImportedWorkout(
                 source="com.mi.health",
@@ -69,12 +76,12 @@ def test_only_a_walk_the_old_rule_logged_gets_its_full_minutes(
                 activity="walk",
                 minutes=66,
                 status="counted",
-                workout_id=workout.id,
+                workout_id=workout_id,
             )
             band.zone1_min, band.zone2_min, band.zone3_min, band.zone4_min, band.zone5_min = zones
             session.add(band)
             session.flush()
-            return workout.id
+            return workout_id
 
         legacy = counted(0, "zone2", 35, (7, 35, 4, 0, 0))  # Monday's walk
         full = counted(1, "zone2", 66, (7, 35, 4, 0, 0))  # counted the new way
