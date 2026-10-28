@@ -111,3 +111,19 @@ Decided while building, within this ADR:
   at both. The choices and reasons are in `program-builder.md` (L), proposed for Liam's review.
   Plan version "Gym versions" from 28 Oct 2026. Progress shows an exercise that is only in the
   gym versions to someone who trains at a gym, or once it has been logged.
+- **The day's place:** at one place, that place; at both, the last one chosen (Decided 4).
+  Every reader of today's session takes it by default (the guided session, the bot's morning
+  message and /today, a typed or spoken log, Change today), so they all show the same version;
+  a session without a gym version is done as at home, wherever, and its plan and log say home,
+  so the home kit's locks apply. A log is saved with the place of the version done.
+  `PUT /api/session/place` is the switch: refused when today has no choice, and with sets kept
+  for the version shown it answers `{"kept_sets": n}` and changes nothing until the person
+  confirms, which drops them (ADR-0060's ask first). A browser still showing the other version
+  is told the session changed.
+- **Kit locks at home only:** after a gym workout the saved screen offers Move up without
+  checking the home kit; Progress and Move up stay with the kit, as they aren't tied to a place.
+- **On Today** the switch is a card above the session, "Where are you training today?",
+  Home | Gym, the chosen one ticked as well as filled; with sets kept it asks "Switch to the gym
+  version? They are dropped; nothing saved changes." before anything happens.
+- **Still to come:** each person's own increments and the next weight owned at home (ADR-0072),
+  and the body map's home or gym view (Consequences).
