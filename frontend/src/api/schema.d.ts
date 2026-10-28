@@ -1368,8 +1368,9 @@ export interface paths {
         /**
          * Choose Place
          * @description Do today's session at home or at the gym (ADR-0071): the person's switch, never the
-         *     app's. 409 with ``kept_sets`` when sets are kept for the version shown (ask, then confirm),
-         *     or with a message when today has no choice to make.
+         *     app's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when
+         *     sets are kept for the version shown (ask, then confirm), or with a ``detail`` message when
+         *     today has no choice to make.
          */
         put: operations["choose_place_api_session_place_put"];
         post?: never;

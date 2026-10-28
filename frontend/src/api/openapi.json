@@ -9232,7 +9232,7 @@
     },
     "/api/session/place": {
       "put": {
-        "description": "Do today's session at home or at the gym (ADR-0071): the person's switch, never the\napp's. 409 with ``kept_sets`` when sets are kept for the version shown (ask, then confirm),\nor with a message when today has no choice to make.",
+        "description": "Do today's session at home or at the gym (ADR-0071): the person's switch, never the\napp's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when\nsets are kept for the version shown (ask, then confirm), or with a ``detail`` message when\ntoday has no choice to make.",
         "operationId": "choose_place_api_session_place_put",
         "requestBody": {
           "content": {

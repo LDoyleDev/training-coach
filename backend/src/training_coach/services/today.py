@@ -197,7 +197,7 @@ def session_plan(
         ),
         kind=template.kind,
         slug=template.slug,
-        place=at,
+        place=template.done_at(at),  # the version's place, not only the one asked for
         switch=can_switch(prefs.places, bool(template.gym_items)),
     )
 

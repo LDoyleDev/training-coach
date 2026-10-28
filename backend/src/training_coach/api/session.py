@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -457,10 +458,11 @@ class PlaceAsk(BaseModel):
     response_model=TodayView,
     responses={status.HTTP_409_CONFLICT: {"model": PlaceAsk}},
 )
-def choose_place(body: PlaceBody, request: Request, user: Owner) -> TodayView:
+def choose_place(body: PlaceBody, request: Request, user: Owner) -> TodayView | JSONResponse:
     """Do today's session at home or at the gym (ADR-0071): the person's switch, never the
-    app's. 409 with ``kept_sets`` when sets are kept for the version shown (ask, then confirm),
-    or with a message when today has no choice to make."""
+    app's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when
+    sets are kept for the version shown (ask, then confirm), or with a ``detail`` message when
+    today has no choice to make."""
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         plan = guided.today(session, on, settings.tz)
@@ -468,7 +470,9 @@ def choose_place(body: PlaceBody, request: Request, user: Owner) -> TodayView:
             raise HTTPException(status.HTTP_409_CONFLICT, "today's session has one place")
         kept = guided.switch(session, plan, body.place, body.confirm)
         if kept is not None:
-            raise HTTPException(status.HTTP_409_CONFLICT, PlaceAsk(kept_sets=kept).model_dump())
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT, content=PlaceAsk(kept_sets=kept).model_dump()
+            )
         return today_view(session, on, settings)
 
 
