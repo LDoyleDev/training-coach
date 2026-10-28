@@ -1,7 +1,7 @@
 """a level for today (ADR-0080): the guided session keeps the levels chosen for today only
 
 Revision ID: d5a2c7e4b8f1
-Revises: c3e8a1f5d9b2
+Revises: b4f9e2a7c1d6
 Create Date: 2026-10-27 20:00:00.000000
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "d5a2c7e4b8f1"
-down_revision: str | Sequence[str] | None = "c3e8a1f5d9b2"
+down_revision: str | Sequence[str] | None = "b4f9e2a7c1d6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
