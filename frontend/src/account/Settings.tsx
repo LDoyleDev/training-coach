@@ -11,6 +11,7 @@ import { card, primaryInline, secondary } from '../ui'
 
 type TimeKey = 'morning_time' | 'nudge_time' | 'review_time'
 type Pace = MessageSettings['pace']
+type Places = MessageSettings['places']
 type Note = { at: string; text: string }
 
 const TIMES: { key: TimeKey; label: string }[] = [
@@ -24,6 +25,13 @@ const PACES: { pace: Pace; label: string; line: string }[] = [
   { pace: 'steady', label: 'Steady', line: 'One rep at a time.' },
   { pace: 'standard', label: 'Standard', line: 'About a tenth of the range at a time.' },
   { pace: 'fast', label: 'Fast', line: 'At least two reps at a time.' },
+]
+
+/** Where the person trains (ADR-0071): a gym has everything, home has the kit they list. */
+const PLACES: { places: Places; label: string; line: string }[] = [
+  { places: 'home', label: 'Home', line: 'With the kit you list under My equipment.' },
+  { places: 'gym', label: 'Gym', line: 'A gym has everything.' },
+  { places: 'both', label: 'Both', line: 'You pick home or gym on the day.' },
 ]
 
 /**
@@ -264,6 +272,32 @@ export default function Settings() {
       {toggle('blocks', prefs.blocks_since !== null, ['Train in blocks', 'Stop training blocks'], {
         blocks: prefs.blocks_since === null,
       })}
+
+      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend className="mb-2 font-bold">Where you train</legend>
+        {PLACES.map(({ places, label, line }) => (
+          <button
+            key={places}
+            type="button"
+            aria-pressed={prefs.places === places}
+            className={choice(prefs.places === places)}
+            disabled={busy}
+            onClick={() =>
+              prefs.places !== places &&
+              save(
+                'places',
+                { places },
+                `Where you train: ${label.toLowerCase()}.`,
+                "That couldn't be saved.",
+              )
+            }
+          >
+            {label}
+            <span className="block font-normal">{line}</span>
+          </button>
+        ))}
+        {noteAt('places')}
+      </fieldset>
 
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
         <legend className="mb-2 font-bold">Pace: how much each set aims for next time</legend>

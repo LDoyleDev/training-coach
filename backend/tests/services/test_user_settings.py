@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, UserSettings, Workout
-from training_coach.domain.enums import Sound, WorkoutStatus
+from training_coach.domain.enums import Places, Sound, WorkoutStatus
 from training_coach.domain.targets import Pace
 from training_coach.services import user_settings
 from training_coach.services.user_settings import Prefs
@@ -71,3 +71,16 @@ def test_the_sound_is_the_boxing_bell_until_changed_and_logged(session: Session)
     assert user_settings.load(session) == Prefs(sound=Sound.BELL)
     payloads = session.scalars(select(Event.payload).where(Event.kind == "settings.changed"))
     assert list(payloads) == [{"sound": "bell"}]
+
+
+def test_everyone_trains_at_home_until_they_say_otherwise(session: Session) -> None:
+    """Places (ADR-0071): home with no row and with a row made by another setting."""
+    assert Prefs().places is Places.HOME
+    session.add(UserSettings())
+    session.flush()
+    assert user_settings.load(session).places is Places.HOME
+    assert user_settings.update(session, places=Places.BOTH).places is Places.BOTH
+    session.flush()
+    assert user_settings.load(session) == Prefs(places=Places.BOTH)
+    payloads = session.scalars(select(Event.payload).where(Event.kind == "settings.changed"))
+    assert list(payloads) == [{"places": "both"}]
