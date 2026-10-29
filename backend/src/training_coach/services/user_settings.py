@@ -48,6 +48,7 @@ def _increments(old: Increments, change: Mapping[LoadKit, float]) -> Increments:
         barbell=pick(LoadKit.BARBELL, old.barbell),
         dumbbells=pick(LoadKit.DUMBBELLS, old.dumbbells),
         machine=pick(LoadKit.MACHINE, old.machine),
+        backpack=pick(LoadKit.BACKPACK, old.backpack),
     )
 
 
@@ -69,7 +70,12 @@ def load(session: Session) -> Prefs:
         row.extra_cardio_min,
         Places(row.places),
         Place(row.place),
-        Increments(row.barbell_increment_kg, row.dumbbells_increment_kg, row.machine_increment_kg),
+        Increments(
+            row.barbell_increment_kg,
+            row.dumbbells_increment_kg,
+            row.machine_increment_kg,
+            row.backpack_increment_kg,
+        ),
     )
 
 
@@ -171,6 +177,7 @@ def update(
     row.barbell_increment_kg = prefs.increments.barbell
     row.dumbbells_increment_kg = prefs.increments.dumbbells
     row.machine_increment_kg = prefs.increments.machine
+    row.backpack_increment_kg = prefs.increments.backpack
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs
