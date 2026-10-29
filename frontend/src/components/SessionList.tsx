@@ -1,11 +1,13 @@
-import { prescription, sessionSize, type Coverage, type Session } from '../api'
+import { prescription, sessionAt, sessionSize, type Coverage, type Session } from '../api'
 import { SessionMap } from '../bodymap/BodyMap'
 
 type Props = {
   sessions: Session[]
   open: string | null
   onToggle: (slug: string) => void
-  coverage?: Coverage // when loaded: an open session shows its own body map first (ADR-0069)
+  // when loaded: an open session shows its own body map first (ADR-0069), and each session the
+  // version the maps count, home or gym (ADR-0071)
+  coverage?: Coverage
 }
 
 const TYPE_LABEL = { strength: 'Strength', conditioning: 'Conditioning', recovery: 'Recovery' }
@@ -13,10 +15,11 @@ const TYPE_LABEL = { strength: 'Strength', conditioning: 'Conditioning', recover
 export function SessionList({ sessions, open, onToggle, coverage }: Props) {
   return (
     <ol className="sessions">
-      {sessions.map((s) => {
-        const isOpen = open === s.slug
-        const panel = `session-${s.slug}`
-        const day = coverage?.sessions.find((d) => d.slug === s.slug)
+      {sessions.map((planned) => {
+        const isOpen = open === planned.slug
+        const panel = `session-${planned.slug}`
+        const day = coverage?.sessions.find((d) => d.slug === planned.slug)
+        const s = sessionAt(planned, day?.place ?? 'home')
         return (
           <li key={s.slug} className={`session session-${s.type}`} id={`row-${s.slug}`}>
             <button

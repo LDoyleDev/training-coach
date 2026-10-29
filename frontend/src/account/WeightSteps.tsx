@@ -10,9 +10,10 @@ const KITS: { kit: Kit; label: string }[] = [
   { kit: 'barbell', label: 'Barbell' },
   { kit: 'dumbbells', label: 'Dumbbells, each' },
   { kit: 'machine', label: 'Machine or cable' },
+  { kit: 'backpack', label: 'Vest or backpack' },
 ]
 const WRONG = 'From 0.25 to 20 kg, in steps of 0.25.'
-const blank: Record<Kit, string> = { barbell: '', dumbbells: '', machine: '' }
+const blank: Record<Kit, string> = { barbell: '', dumbbells: '', machine: '', backpack: '' }
 
 /** A typed step in kg, or null unless it is one the server takes. A decimal comma is fine. */
 function typedStep(text: string): number | null {

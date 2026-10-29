@@ -46,6 +46,17 @@ def test_plan_endpoint_exercise_details(client: TestClient) -> None:
     assert torso["total_sets"] == sum(e["sets"] for e in torso["exercises"])
 
 
+def test_each_session_lists_its_gym_version(client: TestClient) -> None:
+    by_slug = {s["slug"]: s for s in client.get("/api/plan").json()["sessions"]}
+    gym = {s.slug: [i.exercise for i in s.gym] for s in load_plan().sessions}
+    assert {slug: [e["slug"] for e in s["gym"]] for slug, s in by_slug.items()} == gym
+    legs = by_slug["legs"]
+    assert "hip-thrust" in [e["slug"] for e in legs["gym"]]
+    assert "hip-thrust" not in [e["slug"] for e in legs["exercises"]]  # still the home version
+    assert legs["total_sets"] == sum(e["sets"] for e in legs["exercises"])
+    assert by_slug["recovery"]["gym"] == []  # done the same way at the gym
+
+
 def test_plan_endpoint_volume_excludes_qualities(client: TestClient) -> None:
     body = client.get("/api/plan").json()
     groups = {v["group"] for v in body["volume"]}
@@ -76,8 +87,10 @@ def test_plan_endpoint_exposes_only_static_plan_fields(client: TestClient) -> No
         "optional",
         "total_sets",
         "exercises",
+        "gym",
     }
-    assert {k for s in body["sessions"] for e in s["exercises"] for k in e} == {
+    listed = [e for s in body["sessions"] for e in (*s["exercises"], *s["gym"])]
+    assert {k for e in listed for k in e} == {
         "slug",
         "name",
         "kind",
