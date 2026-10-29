@@ -277,19 +277,17 @@ pattern = "vertical pull"
 stress = ["grip"]
 aliases = ["pullups", "pull ups", "pull-ups"]
 start = 1
-ladder = ["Slow negatives", "Strict pull-up", "Pause at top", "Vest or backpack, 5 kg", "Vest or backpack, 10 kg", "Vest or backpack, 15 kg"]
-renames = { "Weighted backpack" = "Vest or backpack, 5 kg" }
+ladder = ["Slow negatives", "Strict pull-up", "Pause at top", "Vest or backpack"]
+renames = { "Weighted backpack" = "Vest or backpack", "Vest or backpack, 5 kg" = "Vest or backpack" }
 [exercises.needs]
 "Slow negatives" = ["pull-up bar"]
 "Strict pull-up" = ["pull-up bar"]
 "Pause at top" = ["pull-up bar"]
-"Vest or backpack, 5 kg" = ["pull-up bar", "backpack:5"]
-"Vest or backpack, 10 kg" = ["pull-up bar", "backpack:10"]
-"Vest or backpack, 15 kg" = ["pull-up bar", "backpack:15"]
+"Vest or backpack" = ["pull-up bar", "backpack:5"]
 [exercises.cues]
-"Vest or backpack, 5 kg" = "Pack it tight and high so it doesn't swing."
-"Vest or backpack, 10 kg" = "Same reps, chest to the bar."
-"Vest or backpack, 15 kg" = "Add load only when every set of 5-12 is clean."
+"Vest or backpack" = "Pack it tight and high so it doesn't swing; add weight only when every set of 5-12 is clean."
+[exercises.loads]
+"Vest or backpack" = "backpack"
 
 [[exercises]]
 slug = "dip"
@@ -446,18 +444,16 @@ pattern = "vertical pull"
 stress = ["grip"]
 aliases = ["chinups", "chin ups", "chin-ups"]
 start = 0
-ladder = ["Strict", "3 s lowering", "Vest or backpack, 5 kg", "Vest or backpack, 10 kg", "Vest or backpack, 15 kg"]
-renames = { "Weighted backpack" = "Vest or backpack, 5 kg" }
+ladder = ["Strict", "3 s lowering", "Vest or backpack"]
+renames = { "Weighted backpack" = "Vest or backpack", "Vest or backpack, 5 kg" = "Vest or backpack" }
 [exercises.needs]
 "Strict" = ["pull-up bar"]
 "3 s lowering" = ["pull-up bar"]
-"Vest or backpack, 5 kg" = ["pull-up bar", "backpack:5"]
-"Vest or backpack, 10 kg" = ["pull-up bar", "backpack:10"]
-"Vest or backpack, 15 kg" = ["pull-up bar", "backpack:15"]
+"Vest or backpack" = ["pull-up bar", "backpack:5"]
 [exercises.cues]
-"Vest or backpack, 5 kg" = "Pack it tight and high so it doesn't swing."
-"Vest or backpack, 10 kg" = "Same reps, chest to the bar."
-"Vest or backpack, 15 kg" = "Add load only when every set of 6-12 is clean."
+"Vest or backpack" = "Pack it tight and high so it doesn't swing; add weight only when every set of 6-12 is clean."
+[exercises.loads]
+"Vest or backpack" = "backpack"
 
 [[exercises]]
 slug = "diamond-push-up"

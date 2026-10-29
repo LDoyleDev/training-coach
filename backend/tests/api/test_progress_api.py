@@ -237,7 +237,7 @@ def test_a_level_can_be_chosen_down_and_up(signed_in: TestClient, engine: Engine
         "warning": None,
     }
     up = signed_in.post(url, json={"step_id": top}).json()
-    assert up["step"] == "Vest or backpack, 15 kg"
+    assert up["step"] == "Vest or backpack"
     same = signed_in.post(url, json={"step_id": top}).json()
     assert same["outcome"] == "same_level"
     assert _pull_up(engine)["step_id"] == top
