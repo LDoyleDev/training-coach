@@ -5,6 +5,7 @@ import {
   STRIP,
   WEEKS,
   chart,
+  fitSize,
   kindFor,
   local,
   shortDay,
@@ -41,6 +42,8 @@ export default function TrendChart({ standing, today }: { standing: Standing; to
       .join('')
   const bottom = BOX.height - BOX.bottom
   const weights = strip(found.dots)
+  // Both ends of the strip's scale, with their unit.
+  const scale = weights ? [`${weights.high} kg`, `${weights.low} kg`] : []
   return (
     <figure className="m-0 flex flex-col gap-1">
       <figcaption className="text-sm text-[var(--slate)]">
@@ -134,13 +137,13 @@ export default function TrendChart({ standing, today }: { standing: Standing; to
           }
           className="w-full"
         >
-          <g fontSize="10" fill="var(--slate)">
+          <g fontSize={fitSize(scale, BOX.left - 4)} fill="var(--slate)">
             <text x={BOX.left - 4} y={STRIP.top + 4} textAnchor="end">
-              {weights.high} kg
+              {scale[0]}
             </text>
             {weights.low !== weights.high && (
               <text x={BOX.left - 4} y={STRIP.height - STRIP.bottom} textAnchor="end">
-                {weights.low} kg
+                {scale[1]}
               </text>
             )}
           </g>
