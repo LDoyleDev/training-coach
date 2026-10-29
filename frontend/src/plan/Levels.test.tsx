@@ -100,6 +100,30 @@ test('a ready exercise offers Move up and Not yet, with its ladder, last, best a
   expect(screen.queryByRole('button', { name: /Move up to/ })).not.toBeInTheDocument()
 })
 
+test('a loaded exercise names its weights, as on Progress (ADR-0072)', async () => {
+  serve([
+    {
+      standings: [
+        make({
+          exercise: 'Hammer curl',
+          slug: 'hammer-curl',
+          status: 'hold',
+          last: [10, 9, 8],
+          last_kg: [16, 18, null],
+          best_set: 12,
+          best_kg: 14.5,
+        }),
+      ],
+    },
+  ])
+  render(<Levels />)
+  await showAll()
+  await open(/Hammer curl/)
+  expect(
+    screen.getByText('Last 10 · 9 · 8 at 16 / 18 / – kg · best 12 at 14.5 kg'),
+  ).toBeInTheDocument()
+})
+
 test('Not yet stays on the step the page showed', async () => {
   const calls = serve([{ standings: [make()] }], {
     outcome: 'stayed',
