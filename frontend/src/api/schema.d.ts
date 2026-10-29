@@ -3839,6 +3839,8 @@ export interface components {
         };
         /** StandingView */
         StandingView: {
+            /** Best Kg */
+            best_kg: number | null;
             /** Best Set */
             best_set: number | null;
             /** Exercise */
@@ -3847,6 +3849,8 @@ export interface components {
             ladder: components["schemas"]["RungView"][];
             /** Last */
             last: number[];
+            /** Last Kg */
+            last_kg: (number | null)[];
             /** Retired */
             retired: boolean;
             /** Slug */

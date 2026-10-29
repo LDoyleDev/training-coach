@@ -48,6 +48,7 @@ def test_every_planned_exercise_is_listed_with_its_step(signed_in: TestClient) -
         [],
     )
     assert first["status"] == "hold"
+    assert (first["last_kg"], first["best_kg"]) == ([], None)
     assert {s["unit"] for s in standings} >= {"reps", "seconds", "minutes"}
     assert not any(s["retired"] for s in standings)  # retired ones only show with history
 
@@ -147,6 +148,37 @@ def test_the_standing_carries_what_the_plan_page_needs(
     }
     assert found["kit_listed"] is False
     assert pull_up["unlock"] is None
+
+
+def test_the_last_session_and_the_best_carry_their_weights(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """For "Last 10 · 10 · 9 at 16 kg · best 12 at 12 kg" (ADR-0072)."""
+    pull_up = _pull_up(engine)
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        for days_ago, values, kg in ((3, (12, 8), (12.0, 10.0)), (1, (10, 9), (16.0, None))):
+            workout = Workout(
+                local_date=datetime.now(UTC).date() - timedelta(days=days_ago),
+                template_id=None,
+                status=WorkoutStatus.DONE,
+            )
+            workout.sets = [
+                SetLog(
+                    exercise_id=pull_up["id"],
+                    ladder_step_id=pull_up["step_id"],
+                    set_no=n,
+                    side=Side.BOTH,
+                    value=value,
+                    load_kg=load,
+                )
+                for n, (value, load) in enumerate(zip(values, kg, strict=True), start=1)
+            ]
+            bound.add(workout)
+        bound.commit()
+    found = signed_in.get("/api/progress").json()
+    standing = next(s for s in found["standings"] if s["slug"] == "pull-up")
+    assert (standing["last"], standing["last_kg"]) == ([10, 9], [16.0, None])
+    assert (standing["best_set"], standing["best_kg"]) == (12, 12.0)
 
 
 def test_move_up_when_ready_and_a_second_press_changes_nothing(
