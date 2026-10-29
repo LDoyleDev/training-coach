@@ -4,6 +4,31 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.8.0](https://github.com/LDoyleDev/training-coach/compare/v1.7.1...v1.8.0) (2026-10-29)
+
+
+### Features
+
+* **api:** each person's own weight steps for - and + and the next weight ([#436](https://github.com/LDoyleDev/training-coach/issues/436)) ([121190c](https://github.com/LDoyleDev/training-coach/commit/121190c664a94ef5b12ec9e90d117ca5a212248b))
+* **api:** propose_log takes a weight per set on loaded steps ([#434](https://github.com/LDoyleDev/training-coach/issues/434)) ([a6ffcde](https://github.com/LDoyleDev/training-coach/commit/a6ffcded3250d8e92dcb2194a2bf8d110601b79f))
+* **bot:** new bests name the weight they were set at ([#446](https://github.com/LDoyleDev/training-coach/issues/446)) ([cacf540](https://github.com/LDoyleDev/training-coach/commit/cacf54048ffff5ea063ef3be428fa5ea189d4d84))
+* **domain:** at home the next weight is the next one owned ([#445](https://github.com/LDoyleDev/training-coach/issues/445)) ([0f1ce22](https://github.com/LDoyleDev/training-coach/commit/0f1ce22f9a5f4e3ca4648684013a0fd718efc648))
+* **web:** body map counts the home or gym versions ([#433](https://github.com/LDoyleDev/training-coach/issues/433)) ([48dd866](https://github.com/LDoyleDev/training-coach/commit/48dd86676047ac642d061ecf9cd6252af818da67))
+* **web:** the day's log and the AI's read tools show each set's weight ([#439](https://github.com/LDoyleDev/training-coach/issues/439)) ([92e166d](https://github.com/LDoyleDev/training-coach/commit/92e166d1a7957fcca648da30f8fcfa716d487324))
+
+
+### Bug Fixes
+
+* **api:** /healthz through the tunnel says only that the app is up ([#447](https://github.com/LDoyleDev/training-coach/issues/447)) ([b2fdc47](https://github.com/LDoyleDev/training-coach/commit/b2fdc47a74164537df7e0da97cbc07db3ab8d121))
+* **db:** a SQLite savepoint opened first no longer commits on release ([#443](https://github.com/LDoyleDev/training-coach/issues/443)) ([451b13e](https://github.com/LDoyleDev/training-coach/commit/451b13ebe524453c153ced0856ca012685e6faba))
+* **web:** pec deck levers pass beside the head; Nordic curl drawn bigger ([#437](https://github.com/LDoyleDev/training-coach/issues/437)) ([3076125](https://github.com/LDoyleDev/training-coach/commit/3076125966987ef0ca8e12cff385425352bd8193))
+
+
+### Documentation
+
+* adb plan for the reader closing when the screen turns off ([#431](https://github.com/LDoyleDev/training-coach/issues/431)) ([d074b78](https://github.com/LDoyleDev/training-coach/commit/d074b78a6d4f2d26aff3dbba1a8152876b59b172))
+* session log for 1.8.0 ([#448](https://github.com/LDoyleDev/training-coach/issues/448)) ([2500d49](https://github.com/LDoyleDev/training-coach/commit/2500d49a1b151b51da09609be0be20779f0bb6ff))
+
 ## [1.7.1](https://github.com/LDoyleDev/training-coach/compare/v1.7.0...v1.7.1) (2026-10-28)
 
 
