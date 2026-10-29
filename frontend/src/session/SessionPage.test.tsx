@@ -1289,6 +1289,27 @@ test('at home − and + step through the weights owned; none heavier names what 
   expect(screen.queryByRole('group', { name: 'Next weight' })).not.toBeInTheDocument()
 })
 
+test('a vest or backpack step counts the weight added, from 5 kg in the persons step', async () => {
+  const vest: Guided = {
+    ...LOADED,
+    items: [
+      {
+        ...LOADED.items[0],
+        load: { kit: 'backpack', increment: 1, kg: [5, 5], carried: false, owned: [5, 6, 7] },
+      },
+      LOADED.items[1],
+    ],
+  }
+  serve({ today: { session: vest, progress: null } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const weight = screen.getByRole('group', { name: 'Added weight, kg' })
+  expect(weight).toHaveTextContent('5')
+  expect(screen.getByRole('button', { name: 'Lighter' })).toBeDisabled()
+  click(/^Heavier: 6\skg$/)
+  expect(weight).toHaveTextContent('6')
+})
+
 test('every set at the top last time offers the next weight; a tap takes it or goes back', async () => {
   const ready: Guided = {
     ...LOADED,

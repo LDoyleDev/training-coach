@@ -121,7 +121,8 @@ class LoadView(BaseModel):
     the weights ``owned``; each set starts at its ``kg``, the same set's weight last time when
     ``carried``, else the kit's first weight (at home, the lightest owned)."""
 
-    kit: Literal["barbell", "dumbbells", "machine"]  # dumbbells: the weight of one
+    # dumbbells: the weight of one; backpack: the weight a vest or backpack adds
+    kit: Literal["barbell", "dumbbells", "machine", "backpack"]
     increment: float
     kg: list[float]  # one per planned set
     carried: bool

@@ -23,7 +23,8 @@
 # stronger one). Bodyweight and household things need nothing. `[exercises.cues]` gives a step
 # its cue, shown with the ladder; the seed rewrites cues on every run (ADR-0071).
 # `[exercises.loads]` names the steps that take load and what carries the weight ("barbell",
-# "dumbbells", "machine"): each set records its kg, and the kit gives the increment (ADR-0072).
+# "dumbbells", "machine", or "backpack": a vest or backpack, its kg the weight added): each set
+# records its kg, and the kit gives the increment (ADR-0072).
 
 # Plan versions, oldest first: each is in force from `since` until the next (ADR-0034). Every
 # workout records the version in force on its date. Add a version when the plan changes; a
@@ -299,16 +300,20 @@ muscles = { chest = 1, triceps = 0.5, "front delts" = 0.5 }
 pattern = "vertical push"
 aliases = ["dips"]
 start = 0
-ladder = ["Feet on floor", "Feet off floor", "Feet off floor, 5 kg vest or backpack", "Feet off floor, 10 kg", "Dip bars, bodyweight, full range"]
+ladder = ["Feet on floor", "Feet off floor", "Feet off floor, 5 kg vest or backpack", "Feet off floor, 10 kg", "Dip bars, bodyweight, full range", "Dip bars, vest or backpack"]
 renames = { "Weighted backpack" = "Feet off floor, 5 kg vest or backpack" }
 [exercises.needs]
 "Feet off floor, 5 kg vest or backpack" = ["backpack:5"]
 "Feet off floor, 10 kg" = ["backpack:10"]
 "Dip bars, bodyweight, full range" = ["dip bars"]
+"Dip bars, vest or backpack" = ["dip bars", "backpack:5"]
 [exercises.cues]
 "Feet off floor, 5 kg vest or backpack" = "Chairs back to back and braced against a wall; stop if they rock."
 "Feet off floor, 10 kg" = "Shoulders down, lower to upper arms level with the floor."
 "Dip bars, bodyweight, full range" = "Lean slightly forward; elbows back."
+"Dip bars, vest or backpack" = "Pack it tight and high so it doesn't swing; add weight only when every set of 8-15 is clean."
+[exercises.loads]
+"Dip bars, vest or backpack" = "backpack"
 
 [[exercises]]
 slug = "kb-row"

@@ -2081,6 +2081,17 @@
       "IncrementsChange": {
         "description": "Only the kits sent change; the default value goes back to the default.",
         "properties": {
+          "backpack": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backpack"
+          },
           "barbell": {
             "anyOf": [
               {
@@ -2121,6 +2132,10 @@
       "IncrementsView": {
         "description": "The smallest weight step for each loaded kit (ADR-0072); dumbbells: per hand.",
         "properties": {
+          "backpack": {
+            "title": "Backpack",
+            "type": "number"
+          },
           "barbell": {
             "title": "Barbell",
             "type": "number"
@@ -2137,7 +2152,8 @@
         "required": [
           "barbell",
           "dumbbells",
-          "machine"
+          "machine",
+          "backpack"
         ],
         "title": "IncrementsView",
         "type": "object"
@@ -2984,7 +3000,8 @@
             "enum": [
               "barbell",
               "dumbbells",
-              "machine"
+              "machine",
+              "backpack"
             ],
             "title": "Kit",
             "type": "string"
@@ -5585,6 +5602,13 @@
             "title": "Focus",
             "type": "string"
           },
+          "gym": {
+            "items": {
+              "$ref": "#/components/schemas/ExerciseView"
+            },
+            "title": "Gym",
+            "type": "array"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -5623,7 +5647,8 @@
           "type",
           "optional",
           "total_sets",
-          "exercises"
+          "exercises",
+          "gym"
         ],
         "title": "SessionView",
         "type": "object"

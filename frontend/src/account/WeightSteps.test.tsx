@@ -3,7 +3,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import WeightSteps from './WeightSteps'
 
 type Patch = 'ok' | 'invalid' | 'fail' | 'signed-out'
-const DEFAULTS = { barbell: 2.5, dumbbells: 2, machine: 5 }
+const DEFAULTS = { barbell: 2.5, dumbbells: 2, machine: 5, backpack: 1 }
 
 /** A fake settings API: PATCH merges the steps sent; the default value is the default again. */
 function serve(patch: Patch = 'ok', status = 200) {
@@ -42,7 +42,19 @@ test('a step of their own replaces the default', async () => {
   expect(sent).toEqual([{ increments: { barbell: 1.25 } }])
   expect(screen.getByRole('textbox', { name: /Barbell/ })).toHaveAttribute('placeholder', '1.25')
   expect(screen.getByText('default 2.5 kg')).toBeInTheDocument()
-  expect(screen.getAllByText('the default')).toHaveLength(2) // dumbbells and machine
+  expect(screen.getAllByText('the default')).toHaveLength(3) // dumbbells, machine and vest
+})
+
+test('the vest or backpack has its own step, 1 kg by default', async () => {
+  const sent = serve()
+  render(<WeightSteps />)
+  const vest = await screen.findByRole('textbox', { name: /Vest or backpack/ })
+  expect(vest).toHaveAttribute('placeholder', '1')
+  fireEvent.change(vest, { target: { value: '0.5' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByRole('status')).toHaveTextContent('Saved.')
+  expect(sent).toEqual([{ increments: { backpack: 0.5 } }])
+  expect(screen.getByText('default 1 kg')).toBeInTheDocument()
 })
 
 test.each(['1.3', '0', '20.25', 'two', '1.333'])(
