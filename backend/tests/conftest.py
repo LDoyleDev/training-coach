@@ -42,8 +42,7 @@ def migrated_database(tmp_path_factory: pytest.TempPathFactory) -> Path:
         get_settings.cache_clear()
         command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
     get_settings.cache_clear()
-    # The backup API reads through the WAL, so the snapshot is complete and self-contained
-    # even though alembic's engine still holds the upgraded file open.
+    # The backup API reads through the WAL, so the snapshot is complete and self-contained.
     snapshot = folder / "head.db"
     with (
         closing(sqlite3.connect(folder / "upgrade.db")) as source,

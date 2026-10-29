@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from sqlalchemy import Engine, create_engine, select
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.error import Forbidden, NetworkError, RetryAfter, TimedOut
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
@@ -24,9 +24,7 @@ from training_coach.bot.app import (
 from training_coach.bot.messages import NO_PLAN, SOMETHING_WENT_WRONG
 from training_coach.config import Settings
 from training_coach.db.models import ReplacedWorkout, UserSettings
-from training_coach.db.session import make_session_factory
 from training_coach.services.user_settings import Prefs
-from training_coach.services.users import OWNER as OWNER_ID
 
 
 def test_owner_only_requires_configured_user() -> None:
@@ -238,9 +236,10 @@ async def test_send_outcome_tells_refused_from_unreachable() -> None:
     assert await send_outcome(fine, OWNER, "hi") == "sent"  # type: ignore[arg-type]
 
 
-async def test_morning_survives_a_database_error(engine: Engine) -> None:
+async def test_morning_survives_a_database_error(
+    engine: Engine, broken: sessionmaker[Session]
+) -> None:
     """No tables: the read fails, nothing is sent and the job does not raise."""
-    broken = make_session_factory(create_engine("sqlite://"), user_id=OWNER_ID)
     context = _context()
     await Handlers(SETTINGS, broken).morning(context)  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()
@@ -248,9 +247,8 @@ async def test_morning_survives_a_database_error(engine: Engine) -> None:
 
 @pytest.mark.parametrize(("sender", "replies"), [(OWNER, 1), (STRANGER, 0)])
 async def test_a_failing_command_gets_a_fixed_reply_for_the_owner_only(
-    sender: int, replies: int
+    sender: int, replies: int, broken: sessionmaker[Session]
 ) -> None:
-    broken = make_session_factory(create_engine("sqlite://"), user_id=OWNER_ID)
     application = build_bot(SETTINGS, broken)
     sent = await _replies(application, "/today", sender)
     assert sent == [SOMETHING_WENT_WRONG] * replies
