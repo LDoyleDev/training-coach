@@ -13,10 +13,11 @@ set of the last session at that weight reached the top of the range, the next we
 suggested, with reps starting again at the bottom; a missed target holds. The person decides:
 a suggestion is a tap on the set screen, never a change made for them.
 
-At home, a kit the person lists in My equipment (dumbbells: fixed pairs, or an adjustable set)
-goes up by the weights they own: - and + step through them, and the next weight is the next
-heavier one owned. Owning none heavier, nothing is suggested and the set screen names the
-weight that would open it, as "top for your kit" does for a ladder (ADR-0071).
+At home, a kit the person lists in My equipment (dumbbells: fixed pairs, or an adjustable set; a
+weighted vest or backpack, up to its kg) goes up by the weights they own: - and + step through
+them, and the next weight is the next heavier one owned. Owning none heavier, nothing is
+suggested and the set screen names the weight that would open it, as "top for your kit" does for
+a ladder (ADR-0071).
 """
 
 from collections.abc import Sequence
@@ -37,6 +38,7 @@ class LoadKit(StrEnum):
     BARBELL = "barbell"
     DUMBBELLS = "dumbbells"  # the weight of one, per hand
     MACHINE = "machine"  # a machine's or a cable's stack
+    BACKPACK = "backpack"  # a weighted vest or backpack: the weight added to the body
 
 
 # The smallest step up or down by default (program-builder.md, Decided 6); each person can
@@ -45,6 +47,7 @@ INCREMENT: dict[LoadKit, float] = {
     LoadKit.BARBELL: 2.5,
     LoadKit.DUMBBELLS: 2.0,
     LoadKit.MACHINE: 5.0,
+    LoadKit.BACKPACK: 1.0,
 }
 INCREMENT_KG = (0.25, 20.0)  # a person's own: from a pair of small plates to a big jump
 
@@ -56,6 +59,7 @@ class Increments:
     barbell: float | None = None
     dumbbells: float | None = None
     machine: float | None = None
+    backpack: float | None = None
 
     def of(self, kit: LoadKit) -> float:
         """The step - and + move by and the next weight adds, for ``kit``."""
@@ -63,6 +67,7 @@ class Increments:
             LoadKit.BARBELL: self.barbell,
             LoadKit.DUMBBELLS: self.dumbbells,
             LoadKit.MACHINE: self.machine,
+            LoadKit.BACKPACK: self.backpack,
         }[kit]
         return INCREMENT[kit] if own is None else own
 
@@ -75,12 +80,13 @@ def valid_increment(kg: float) -> bool:
     return INCREMENT_KG[0] <= kg <= INCREMENT_KG[1] and (kg * 4).is_integer()
 
 
-# Where a first set starts: the empty bar, a light pair, a light stack. A starting point for
-# - and +, never a suggestion of what to lift.
+# Where a first set starts: the empty bar, a light pair, a light stack, 5 kg in the vest or
+# backpack. A starting point for - and +, never a suggestion of what to lift.
 FIRST_KG: dict[LoadKit, float] = {
     LoadKit.BARBELL: 20.0,
     LoadKit.DUMBBELLS: 8.0,
     LoadKit.MACHINE: 20.0,
+    LoadKit.BACKPACK: 5.0,
 }
 
 
@@ -110,15 +116,16 @@ class Load:
 
 
 # The loaded kits a person lists at home (ADR-0071); a barbell or a machine is the gym's.
-LISTED: dict[LoadKit, Kit] = {LoadKit.DUMBBELLS: Kit.DUMBBELLS}
+LISTED: dict[LoadKit, Kit] = {LoadKit.DUMBBELLS: Kit.DUMBBELLS, LoadKit.BACKPACK: Kit.BACKPACK}
 
 
 def owned_weights(
     kit: LoadKit, items: Sequence[Item] | None, increments: Increments = DEFAULTS
 ) -> tuple[float, ...] | None:
     """The weights owned at home for ``kit``, lightest first: each fixed pair, and an adjustable
-    set's from its lightest in the person's own step, with its heaviest. None when nothing is
-    known: no kit listed yet (``None``), a kit nobody lists, or none of it listed; then the
+    set's from its lightest in the person's own step, with its heaviest; a vest or backpack's
+    from the first weight (5 kg) in the person's step, with the most it holds. None when nothing
+    is known: no kit listed yet (``None``), a kit nobody lists, or none of it listed; then the
     increment rule stands, as at the gym."""
     listed = LISTED.get(kit)
     if items is None or listed is None:
@@ -129,8 +136,9 @@ def owned_weights(
         if item.kit is not listed or item.kg is None:
             continue
         found.add(item.kg)
+        low = FIRST_KG[kit] if kit is LoadKit.BACKPACK else item.min_kg  # any weight it holds
         count = 0
-        while item.min_kg is not None and (kg := round(item.min_kg + count * step, 2)) < item.kg:
+        while low is not None and (kg := round(low + count * step, 2)) < item.kg:
             found.add(kg)
             count += 1
     return tuple(sorted(found)) or None

@@ -23,9 +23,9 @@ type State =
   | { status: 'ready'; plan: Plan }
 
 /** The plan: the cycle, each session with what it works (its own body map, ADR-0069), the
- * ladders, and at the bottom what the whole week gives each muscle. The maps count the home or
- * gym versions: the day's place, with Home | Gym for someone who trains at both (ADR-0071). Its
- * page gives it the frame. */
+ * ladders, and at the bottom what the whole week gives each muscle. The maps and each session's
+ * exercises are the home or gym versions: the day's place, with Home | Gym for someone who trains
+ * at both (ADR-0071). Its page gives it the frame. */
 export default function App() {
   const [state, setState] = useState<State>({ status: 'loading' })
   const [open, setOpen] = useState<string | null>(null)

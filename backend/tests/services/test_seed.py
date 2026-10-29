@@ -25,6 +25,7 @@ from training_coach.db.models import (
 )
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import ExerciseKind, WorkoutStatus
+from training_coach.domain.load import LoadKit
 from training_coach.domain.volume import weekly_sets
 from training_coach.services import users
 from training_coach.services.seed import PlanSeed, SeedError, apply_seed, load_plan
@@ -926,7 +927,7 @@ def test_the_gym_catalogue_takes_load_on_its_last_step_in_the_gym_versions_only(
     """ADR-0072: a loaded exercise is one step, or a ladder whose top step takes load; the gym
     exercises are in the sessions' gym versions (builder step 9), never the home ones."""
     plan = load_plan()
-    loaded = [e for e in plan.exercises if e.loads]
+    loaded = [e for e in plan.exercises if e.loads and LoadKit.BACKPACK not in e.loads.values()]
     assert len(loaded) == 23
     assert all(list(e.loads) == [e.ladder[-1]] for e in loaded)
     at_home = {i.exercise for s in plan.sessions for i in s.items}
@@ -937,6 +938,15 @@ def test_the_gym_catalogue_takes_load_on_its_last_step_in_the_gym_versions_only(
     assert {e.slug for e in loaded if "triceps long head" in e.parts} == {
         "overhead-cable-extension"
     }
+
+
+def test_the_dips_top_step_adds_weight_in_a_vest_or_backpack() -> None:
+    """ADR-0072 (29 Oct 2026): after the dip bars, a step that takes load carried by a vest or
+    backpack, from 5 kg; appended, so nobody's step moves."""
+    dip = next(e for e in load_plan().exercises if e.slug == "dip")
+    assert dip.ladder[-2:] == ["Dip bars, bodyweight, full range", "Dip bars, vest or backpack"]
+    assert dip.loads == {"Dip bars, vest or backpack": LoadKit.BACKPACK}
+    assert dip.needs["Dip bars, vest or backpack"] == ["dip bars", "backpack:5"]
 
 
 # ------------------------------------------------------------- gym versions (ADR-0071)

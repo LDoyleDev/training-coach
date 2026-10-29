@@ -1114,7 +1114,12 @@ function LoadCounter({
   last: number
   onChange: (kg: number) => void
 }) {
-  const label = load.kit === 'dumbbells' ? 'Each dumbbell, kg' : 'Weight, kg'
+  const label =
+    load.kit === 'dumbbells'
+      ? 'Each dumbbell, kg'
+      : load.kit === 'backpack'
+        ? 'Added weight, kg'
+        : 'Weight, kg'
   const [down, up] = [stepTo(load, kg, -1), stepTo(load, kg, 1)]
   const owned = !!load.owned?.length
   const note = !load.carried

@@ -121,6 +121,10 @@ Not chosen, Option A: the top step becomes 16 kg straight away. Later, with dumb
 stays on a loaded step (at 5 kg). The 8 kg kettlebell in a backpack is a fine 8 kg step if the
 owner wants one: **Backpack with the 8 kg bell** (pull-up bar, backpack, kettlebell:8).
 
+On 29 Oct 2026 Liam chose one step instead of the three, **Vest or backpack**, that takes load
+from 5 kg in his own step (ADR-0072, Built 29 Oct). It waits: the 10 and 15 kg steps can't
+leave the ladder without a data change he approves first.
+
 ### Dip (chairs) (`dip`, Torso 4 x 8-15)
 
 | Step | Needs | Cue |
@@ -128,6 +132,7 @@ owner wants one: **Backpack with the 8 kg bell** (pull-up bar, backpack, kettleb
 | rename "Weighted backpack" -> **Feet off floor, 5 kg vest or backpack** | backpack:5 | Chairs back to back and braced against a wall; stop if they rock. |
 | + **Feet off floor, 10 kg** | backpack:10 | Shoulders down, lower to upper arms level with the floor. |
 | + **Dip bars, bodyweight, full range** | dip bars | Lean slightly forward; elbows back. |
+| + **Dip bars, vest or backpack** (29 Oct 2026; takes load from 5 kg, ADR-0072) | dip bars, backpack:5 | Pack it tight and high so it doesn't swing; add weight only when every set of 8-15 is clean. |
 
 The last one is a different set-up, not more load: listing "dip bars or two chairs" covers
 chairs today, so it is only open once someone owns bars or trains at the gym (accepted as
