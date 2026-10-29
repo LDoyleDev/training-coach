@@ -140,5 +140,6 @@ From here the body map no longer stays the home plan's (Built, above).
   "the version used most recently", for the whole week rather than per session.
 - On Plan someone who trains at both gets Home | Gym above the sessions and above the week's
   map; both follow it, as does each open session's own map, which in the gym view says which
-  version it counts. It is only a view: the place Today starts at stays as it is. The exercise
-  lists under each session are still the home versions.
+  version it counts. It is only a view: the place Today starts at stays as it is. Since 29 Oct
+  the exercise lists under each session follow it too: `GET /api/plan` gives each session its
+  gym version (`gym`, empty when it is done the same way at both).

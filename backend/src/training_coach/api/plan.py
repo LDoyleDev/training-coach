@@ -1,4 +1,5 @@
-"""Read-only view of the training plan for the dashboard (``GET /api/plan``).
+"""Read-only view of the training plan for the dashboard (``GET /api/plan``), each session with
+its home version and its gym one (ADR-0071).
 
 Public by design (ADR-0019): it serves only the static plan bundled in the image. It must
 never carry per-user data (progress, logs, measurements, photos, settings); those stay behind
@@ -13,7 +14,7 @@ from pydantic import BaseModel
 from training_coach.api.auth import Owner
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, weekly_sets
-from training_coach.services.seed import bundled_plan
+from training_coach.services.seed import ExerciseSeed, ItemSeed, bundled_plan
 
 router = APIRouter(prefix="/api", tags=["plan"])
 
@@ -41,7 +42,8 @@ class SessionView(BaseModel):
     type: Literal["strength", "conditioning", "recovery"]
     optional: bool
     total_sets: int
-    exercises: list[ExerciseView]
+    exercises: list[ExerciseView]  # the home version
+    gym: list[ExerciseView]  # the gym version (ADR-0071); empty: done the same way at the gym
 
 
 class VolumeView(BaseModel):
@@ -56,42 +58,48 @@ class PlanView(BaseModel):
     volume_target_max: int
 
 
+def _exercise_views(
+    items: list[ItemSeed], exercises: dict[str, ExerciseSeed]
+) -> list[ExerciseView]:
+    views = []
+    for item in items:
+        ex = exercises[item.exercise]
+        views.append(
+            ExerciseView(
+                slug=ex.slug,
+                name=ex.name,
+                kind=ex.kind,
+                sets=item.sets,
+                rep_min=item.rep_min,
+                rep_max=item.rep_max,
+                per_side=item.per_side,
+                muscles=dict(ex.muscles),
+                qualities=list(ex.qualities),
+                pattern=ex.pattern,
+                ladder=list(ex.ladder),
+                start_step=ex.start,
+            )
+        )
+    return views
+
+
 def build_plan_view() -> PlanView:
     plan = bundled_plan()
     exercises = {e.slug: e for e in plan.exercises}
-    sessions: list[SessionView] = []
-    for position, session in enumerate(plan.sessions):
-        views = []
-        for item in session.items:
-            ex = exercises[item.exercise]
-            views.append(
-                ExerciseView(
-                    slug=ex.slug,
-                    name=ex.name,
-                    kind=ex.kind,
-                    sets=item.sets,
-                    rep_min=item.rep_min,
-                    rep_max=item.rep_max,
-                    per_side=item.per_side,
-                    muscles=dict(ex.muscles),
-                    qualities=list(ex.qualities),
-                    pattern=ex.pattern,
-                    ladder=list(ex.ladder),
-                    start_step=ex.start,
-                )
-            )
-        sessions.append(
-            SessionView(
-                position=position,
-                slug=session.slug,
-                name=session.name,
-                focus=session.focus,
-                type=session.type,
-                optional=session.is_rest_optional,
-                total_sets=sum(i.sets for i in session.items),
-                exercises=views,
-            )
+    sessions = [
+        SessionView(
+            position=position,
+            slug=session.slug,
+            name=session.name,
+            focus=session.focus,
+            type=session.type,
+            optional=session.is_rest_optional,
+            total_sets=sum(i.sets for i in session.items),
+            exercises=_exercise_views(session.items, exercises),
+            gym=_exercise_views(session.gym, exercises),
         )
+        for position, session in enumerate(plan.sessions)
+    ]
     volume = weekly_sets(
         (exercises[item.exercise].muscles, item.sets)
         for session in plan.sessions
