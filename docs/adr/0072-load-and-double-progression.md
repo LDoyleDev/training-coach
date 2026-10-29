@@ -142,6 +142,15 @@ Decided while building, within this ADR:
   0.01 kg. The card and the Telegram message show it ("10 / 10 / 9 at 16 kg"), and Save writes
   it to `load_kg`.
 
+## Confirmed (29 Oct 2026)
+
+Liam confirmed the choices made while building own increments and the next weight owned at
+home (below): weight steps are set on Account only, 0.25 to 20 kg in quarters; − and + step
+through the weights owned at home, and a first set starts at the lightest. He changed one: the
+vest and backpack also count as weight owned at home, so the pull-up and chin-up "Vest or
+backpack" steps become one step that takes load from 5 kg, and dips gain a loaded step after
+dip bars. That is built in its own PR, with an addendum here.
+
 ## Built (own increments, 28 Oct 2026)
 
 Decided while building, within this ADR:
