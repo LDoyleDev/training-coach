@@ -6,7 +6,6 @@ import pytest
 import respx
 from cryptography.fernet import Fernet
 from pydantic import SecretStr
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
@@ -26,7 +25,7 @@ from training_coach.bot import settings as settings_ui
 from training_coach.bot.app import MORNING_JOB, NUDGE_JOB, REVIEW_JOB, Handlers
 from training_coach.bot.messages import NUDGE, SOMETHING_WENT_WRONG
 from training_coach.db.models import Workout
-from training_coach.db.session import make_session_factory, session_scope
+from training_coach.db.session import session_scope
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.targets import Pace
 from training_coach.services import ai_comment, ai_key, user_settings
@@ -394,8 +393,7 @@ async def test_the_review_is_skipped_while_paused(seeded: Sessions) -> None:
     context.bot.send_message.assert_not_awaited()
 
 
-async def test_the_review_survives_a_database_error() -> None:
-    broken = make_session_factory(create_engine("sqlite://"), user_id=1)
+async def test_the_review_survives_a_database_error(broken: sessionmaker[Session]) -> None:
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
     await Handlers(SETTINGS, broken).weekly_review(context)  # type: ignore[arg-type]  # fake
     context.bot.send_message.assert_not_awaited()
