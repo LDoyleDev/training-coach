@@ -6011,6 +6011,17 @@
       },
       "StandingView": {
         "properties": {
+          "best_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Kg"
+          },
           "best_set": {
             "anyOf": [
               {
@@ -6038,6 +6049,20 @@
               "type": "integer"
             },
             "title": "Last",
+            "type": "array"
+          },
+          "last_kg": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Last Kg",
             "type": "array"
           },
           "retired": {
@@ -6111,7 +6136,9 @@
           "steps",
           "ladder",
           "last",
+          "last_kg",
           "best_set",
+          "best_kg",
           "status",
           "retired",
           "trend",

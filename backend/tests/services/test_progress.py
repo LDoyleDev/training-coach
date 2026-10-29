@@ -304,6 +304,56 @@ def test_each_point_on_the_trend_carries_its_sessions_heaviest_weight(plan: Sess
     assert [p.kg for p in dip.trend] == [None, 12.5]
 
 
+def _weigh(session: Session, workout_id: int, kg: list[float | None]) -> None:
+    """Each set's weight, by set number, on both sides of a one-sided set."""
+    for row in session.get_one(Workout, workout_id).sets:
+        row.load_kg = kg[row.set_no - 1]
+    session.flush()
+
+
+def test_overview_gives_the_last_sessions_weight_per_set(plan: Session) -> None:
+    """For "Last 10 · 10 · 9 at 16 kg" (ADR-0072); a dash's place for a set without one."""
+    _weigh(plan, _log(plan, "dip", [8, 8], 0), [12.0, 12.0])
+    _weigh(plan, _log(plan, "dip", [10, 10, 9], 2), [16.0, 16.0, None])
+    dip = next(s for s in overview(plan) if s.exercise == "Dip (chairs)")
+    assert (dip.last, dip.last_kg) == ((10, 10, 9), (16.0, 16.0, None))
+
+
+def test_a_one_sided_sets_weight_is_given_once(plan: Session) -> None:
+    sides = (Side.LEFT, Side.RIGHT)
+    _weigh(plan, _log(plan, "dip", [8, 7], 0, sides=sides), [10.0, 12.5])
+    dip = next(s for s in overview(plan) if s.exercise == "Dip (chairs)")
+    assert dip.last_kg == (10.0, 12.5)
+
+
+def test_a_one_sided_set_with_two_weights_gives_the_heavier(plan: Session) -> None:
+    """A weight covers both sides; if they ever differ, the heavier, whichever row is last."""
+    workout = _log(plan, "dip", [8], 0, sides=(Side.LEFT, Side.RIGHT))
+    for row in sorted(plan.get_one(Workout, workout).sets, key=lambda r: r.id):
+        row.load_kg = 12.5 if row.side == Side.LEFT else 10.0
+    plan.flush()
+    dip = next(s for s in overview(plan) if s.exercise == "Dip (chairs)")
+    assert (dip.last_kg, dip.best_kg) == ((12.5,), 12.5)
+
+
+def test_the_best_names_the_weight_of_the_session_that_set_it(plan: Session) -> None:
+    """As the weekly review does (ADR-0072): the best counts every weight, so it says which,
+    the heaviest set's of the first session to reach it; a later tie sets no best."""
+    _weigh(plan, _log(plan, "dip", [12, 10], 0), [10.0, 12.0])
+    _weigh(plan, _log(plan, "dip", [12, 12], 2), [16.0, 16.0])
+    _weigh(plan, _log(plan, "dip", [9, 9], 4), [18.0, 18.0])
+    dip = next(s for s in overview(plan) if s.exercise == "Dip (chairs)")
+    assert (dip.best_set, dip.best_kg, dip.last_kg) == (12, 12.0, (18.0, 18.0))
+
+
+def test_an_exercise_without_weights_names_none(plan: Session) -> None:
+    _log(plan, "dip", [10, 9], 0)
+    dip = next(s for s in overview(plan) if s.exercise == "Dip (chairs)")
+    assert (dip.last_kg, dip.best_kg) == ((None, None), None)
+    pull = next(s for s in overview(plan) if s.exercise == "Pull-up")
+    assert (pull.last_kg, pull.best_kg) == ((), None)  # not logged at this step yet
+
+
 def test_overview_reports_the_top_of_the_ladder(plan: Session) -> None:
     exercise = _exercise(plan, "pull-up")
     last = max(exercise.ladder, key=lambda s: s.position)
