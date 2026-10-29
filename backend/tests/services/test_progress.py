@@ -326,6 +326,16 @@ def test_a_one_sided_sets_weight_is_given_once(plan: Session) -> None:
     assert dip.last_kg == (10.0, 12.5)
 
 
+def test_a_one_sided_set_with_two_weights_gives_the_heavier(plan: Session) -> None:
+    """A weight covers both sides; if they ever differ, the heavier, whichever row is last."""
+    workout = _log(plan, "dip", [8], 0, sides=(Side.LEFT, Side.RIGHT))
+    for row in sorted(plan.get_one(Workout, workout).sets, key=lambda r: r.id):
+        row.load_kg = 12.5 if row.side == Side.LEFT else 10.0
+    plan.flush()
+    dip = next(s for s in overview(plan) if s.exercise == "Dip (chairs)")
+    assert (dip.last_kg, dip.best_kg) == ((12.5,), 12.5)
+
+
 def test_the_best_names_the_weight_of_the_session_that_set_it(plan: Session) -> None:
     """As the weekly review does (ADR-0072): the best counts every weight, so it says which,
     the heaviest set's of the first session to reach it; a later tie sets no best."""

@@ -556,8 +556,8 @@ def _trend(
 def _set_loads(
     session: Session, exercise_id: int, step_id: int, workout_ids: Sequence[int]
 ) -> dict[int, dict[int, float]]:
-    """Each set's weight by workout and set number, at this step: one for both sides of a set.
-    A workout or set without a weight is missing."""
+    """Each set's weight by workout and set number, at this step: one for both sides of a set,
+    the heavier if they ever differ. A workout or set without a weight is missing."""
     rows = session.execute(
         select(SetLog.workout_id, SetLog.set_no, SetLog.load_kg).where(
             SetLog.workout_id.in_(workout_ids),
@@ -568,8 +568,9 @@ def _set_loads(
     )
     found: dict[int, dict[int, float]] = {}
     for workout_id, set_no, kg in rows:
+        sets = found.setdefault(workout_id, {})
         if kg is not None:
-            found.setdefault(workout_id, {})[set_no] = kg
+            sets[set_no] = max(kg, sets.get(set_no, kg))
     return found
 
 
