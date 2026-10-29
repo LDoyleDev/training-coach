@@ -6,7 +6,7 @@ from training_coach.domain.blocks import WEEKS
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.habits import WEEK_DAYS
-from training_coach.domain.load import kg_text
+from training_coach.domain.load import kg_text, weights_text
 from training_coach.domain.parser import sets_text
 from training_coach.domain.progression import Progress
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
@@ -300,9 +300,12 @@ def progress_text(standings: list[Standing]) -> str:
         retired = " (retired)" if s.retired else ""
         line = f"- {s.exercise}{retired}: {s.step} ({s.step_number}/{s.steps})"
         if s.last:
-            line += f", last {_values(s.last, s.kind)}"
+            # The weights as the confirm step writes them; the best names its session's (ADR-0072).
+            line += f", last {_values(s.last, s.kind)}{weights_text(s.last_kg)}"
             if s.best_set is not None:
                 line += f", best {_amount(s.best_set, s.kind)}"
+                if s.best_kg is not None:
+                    line += f" at {kg_text(s.best_kg)} kg"
         else:
             line += ", not logged at this step yet"
         if s.status is Progress.READY:

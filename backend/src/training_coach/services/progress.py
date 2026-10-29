@@ -496,6 +496,10 @@ class Standing:
     slug: str = ""
     ladder: tuple[Rung, ...] = ()  # every step, easiest first
     unlock: str | None = None  # on the last step the kit allows: what opens the next one
+    last_kg: tuple[float | None, ...] = ()  # each of ``last``'s sets' weight, None without one
+    # The weight of the session that set ``best_set``, its heaviest set's (ADR-0072): the best
+    # counts every weight, so it says which, as the weekly review does. None without one.
+    best_kg: float | None = None
 
 
 TREND_WEEKS = 6  # the Progress graphs' window: long enough to see a change, short enough to feel it
@@ -549,6 +553,26 @@ def _trend(
     )
 
 
+def _set_loads(
+    session: Session, exercise_id: int, step_id: int, workout_ids: Sequence[int]
+) -> dict[int, dict[int, float]]:
+    """Each set's weight by workout and set number, at this step: one for both sides of a set.
+    A workout or set without a weight is missing."""
+    rows = session.execute(
+        select(SetLog.workout_id, SetLog.set_no, SetLog.load_kg).where(
+            SetLog.workout_id.in_(workout_ids),
+            SetLog.exercise_id == exercise_id,
+            SetLog.ladder_step_id == step_id,
+            SetLog.load_kg.is_not(None),
+        )
+    )
+    found: dict[int, dict[int, float]] = {}
+    for workout_id, set_no, kg in rows:
+        if kg is not None:
+            found.setdefault(workout_id, {})[set_no] = kg
+    return found
+
+
 def overview(session: Session, on: date | None = None) -> list[Standing]:
     """Every exercise in plan order (first session it appears in), then any the plan doesn't
     use. Ready means ready under at least one of its prescriptions, as Move up checks. With
@@ -578,7 +602,8 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
         # judged per prescription below, exactly as Move up re-checks it.
         per_side = items[0].per_side if items else exercise.per_side
         block = history_kind(ExerciseKind(exercise.kind), BlockKind.HYPERTROPHY)
-        history = [v for _, v in sessions_at_step(session, exercise_id, step.id, per_side, block)]
+        done = sessions_at_step(session, exercise_id, step.id, per_side, block)
+        history = [v for _, v in done]
         trained = [i for i in items if gym or i.place == Place.HOME]
         if (exercise.retired or not trained) and not history:
             # Nothing to show for an exercise no longer trained (#107), or one in no session
@@ -590,6 +615,16 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
         status = next(
             (s for s in (Progress.READY, Progress.TOP_OF_LADDER) if s in statuses), Progress.HOLD
         )
+        best = max((max(v, default=0) for v in history), default=None)
+        # The session that set the best: the first to reach it, as a tie is no new best. The
+        # history is newest first.
+        setter = next((w for w, v in reversed(done) if max(v, default=0) == best), None)
+        latest = done[0][0] if done else None
+        loads = _set_loads(
+            session, exercise_id, step.id, [w for w in (latest, setter) if w is not None]
+        )
+        at_last = loads.get(latest, {}) if latest is not None else {}
+        at_best = loads.get(setter, {}) if setter is not None else {}
         result.append(
             Standing(
                 exercise_id=exercise_id,
@@ -600,7 +635,7 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
                 step_number=step.position + 1,
                 steps=len(exercise.ladder),
                 last=tuple(history[0]) if history else (),
-                best_set=max((max(v, default=0) for v in history), default=None),
+                best_set=best,
                 status=status,
                 retired=exercise.retired,
                 trend=_trend(session, exercise_id, per_side, block, since)
@@ -612,6 +647,10 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
                     for r, n in zip(exercise.ladder, needs, strict=True)
                 ),
                 unlock=_unlock(step, kit),
+                last_kg=tuple(at_last.get(n) for n in range(1, len(history[0]) + 1))
+                if history
+                else (),
+                best_kg=top_weight(list(at_best.items())),
             )
         )
     return result
