@@ -85,4 +85,4 @@ Code). Template: [template.md](template.md).
 | [0078](0078-rep-ranges-top-at-18.md) | A rep range tops out at 18; high-rep work keeps its range | Accepted |
 | [0079](0079-cardio-total-zones-and-targets.md) | All cardio counts, split by heart-rate zone, against targets from the plan | Accepted |
 | [0080](0080-change-level-during-a-session.md) | Change an exercise's level during a session, for today or from now on | Accepted |
-| [0081](0081-sqlite-savepoints-open-the-transaction.md) | A SQLite savepoint opens the transaction first, so releasing it doesn't commit | Proposed |
+| [0081](0081-sqlite-savepoints-open-the-transaction.md) | A SQLite savepoint opens the transaction first, so releasing it doesn't commit | Accepted |

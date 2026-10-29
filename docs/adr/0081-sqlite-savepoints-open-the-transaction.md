@@ -1,6 +1,6 @@
 # ADR-0081: SQLite savepoints open the transaction first
 
-- Status: Proposed
+- Status: Accepted 2026-10-29 by Liam
 - Date: 2026-10-28
 - Deciders: Liam
 

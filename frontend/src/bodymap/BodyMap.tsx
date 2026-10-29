@@ -274,9 +274,7 @@ export function SessionMap({ coverage, day }: { coverage: Coverage; day: Session
     <div className="mb-4 max-w-[46rem]">
       {coverage.place === 'gym' && (
         <p className="mt-0 text-sm text-[var(--slate)]">
-          {day.place === 'gym'
-            ? 'What its gym version works. The exercises below are the home version.'
-            : 'Done the same way at the gym.'}
+          {day.place === 'gym' ? 'What its gym version works.' : 'Done the same way at the gym.'}
         </p>
       )}
       <div

@@ -69,6 +69,7 @@ class IncrementsView(BaseModel):
     barbell: float
     dumbbells: float
     machine: float  # a cable's stack too
+    backpack: float  # a weighted vest or backpack
 
 
 class IncrementsChange(BaseModel):
@@ -77,6 +78,7 @@ class IncrementsChange(BaseModel):
     barbell: Step | None = None
     dumbbells: Step | None = None
     machine: Step | None = None
+    backpack: Step | None = None
 
 
 class SettingsView(BaseModel):
@@ -120,6 +122,7 @@ def _steps(increments: Increments) -> IncrementsView:
         barbell=increments.of(LoadKit.BARBELL),
         dumbbells=increments.of(LoadKit.DUMBBELLS),
         machine=increments.of(LoadKit.MACHINE),
+        backpack=increments.of(LoadKit.BACKPACK),
     )
 
 

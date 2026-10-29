@@ -30,7 +30,7 @@ def test_with_no_history_every_set_starts_at_the_kits_first_weight() -> None:
 
 def test_a_persons_own_increment_replaces_the_kits_default() -> None:
     own = Increments(barbell=1.25, machine=2.5)
-    assert [own.of(kit) for kit in LoadKit] == [1.25, 2.0, 2.5]  # dumbbells: still the default
+    assert [own.of(kit) for kit in LoadKit] == [1.25, 2.0, 2.5, 1.0]  # dumbbells, vest: default
     assert carried(LoadKit.BARBELL, 3, [], own).increment == 1.25
     assert carried(LoadKit.MACHINE, 2, [(1, 40.0)], own).increment == 2.5
 
@@ -113,6 +113,21 @@ def test_the_dumbbells_owned_are_each_pair_and_an_adjustable_sets_steps() -> Non
     assert owned_weights(LoadKit.DUMBBELLS, kit) == (5.0, 7.0, 9.0, 10.0, 16.0)
     own = Increments(dumbbells=2.5)
     assert owned_weights(LoadKit.DUMBBELLS, kit, own) == (5.0, 7.5, 10.0, 16.0)
+
+
+def test_a_vest_or_backpack_holds_any_weight_from_5_kg_in_the_persons_step() -> None:
+    """ADR-0072 (29 Oct 2026): books, bottles or plates, from 5 kg up to what it holds."""
+    kit = [Item(Kit.BACKPACK, 8.5), Item(Kit.DUMBBELLS, 12.0)]
+    assert owned_weights(LoadKit.BACKPACK, kit) == (5.0, 6.0, 7.0, 8.0, 8.5)
+    own = Increments(backpack=2.0)
+    assert owned_weights(LoadKit.BACKPACK, kit, own) == (5.0, 7.0, 8.5)
+    assert owned_weights(LoadKit.BACKPACK, [Item(Kit.BACKPACK, 3.0)]) == (3.0,)  # under 5 kg
+    assert owned_weights(LoadKit.BACKPACK, [Item(Kit.DUMBBELLS, 12.0)]) is None  # none listed
+    first = carried(LoadKit.BACKPACK, 4, [])
+    assert (first.kg, first.increment) == ((5.0,) * 4, 1.0)  # no history: 5 kg, 1 kg steps
+    full = carried(LoadKit.BACKPACK, 3, at(8.5, 3), owned=owned_weights(LoadKit.BACKPACK, kit))
+    up = progressed(full, ROWS, [12, 12, 12], at(8.5, 3))
+    assert (up.suggested, up.unlock) == (None, "weighted vest or backpack, up to 9.5 kg")
 
 
 def test_nothing_is_known_owned_without_a_kit_or_for_the_gyms_kit() -> None:

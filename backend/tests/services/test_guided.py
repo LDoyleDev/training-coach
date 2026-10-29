@@ -539,6 +539,30 @@ def test_at_home_owning_none_heavier_names_what_would_open_it(session: Session) 
     assert (load.owned, load.suggested, load.unlock) == ((12.0,), None, "14 kg dumbbells")
 
 
+def test_at_home_a_vest_goes_from_5_kg_to_what_it_holds_in_the_persons_step(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR-0072 (29 Oct 2026): a vest or backpack step starts at 5 kg and goes up in the
+    person's own step to what the listed vest holds; at the gym, by the step alone."""
+    monkeypatch.setattr(
+        blocks, "_load_kits", lambda: factories.loads("jump-squat", LoadKit.BACKPACK)
+    )
+    seeded = _seeded(session)
+    user_settings.update(seeded, increments={LoadKit.BACKPACK: 2.5})
+    _own(seeded, Item(Kit.BACKPACK, 10.0))
+    template = _plan(seeded).template_id
+    home = today.session_plan(seeded, template)
+    assert home is not None
+    load = home.items[0].load
+    assert load is not None
+    assert (load.owned, load.kg, load.increment) == ((5.0, 7.5, 10.0), (5.0,) * 3, 2.5)
+    gym = today.session_plan(seeded, template, place=Place.GYM)
+    assert gym is not None
+    load = gym.items[0].load
+    assert load is not None
+    assert (load.owned, load.kg) == (None, (5.0,) * 3)
+
+
 @pytest.mark.usefixtures("loaded")
 def test_a_strength_block_keeps_a_loaded_step_without_the_tempo_cue(session: Session) -> None:
     seeded = _seeded(session)

@@ -48,6 +48,13 @@ export function prescription(e: Exercise): string {
   return e.sets === 1 ? body : `${e.sets} × ${body}`
 }
 
+/** The version of a session done at ``place`` (ADR-0071): its gym one at the gym, and its one
+ * version when it has no gym version. */
+export function sessionAt(s: Session, place: Place): Session {
+  if (place !== 'gym' || s.gym.length === 0) return s
+  return { ...s, exercises: s.gym, total_sets: s.gym.reduce((n, e) => n + e.sets, 0) }
+}
+
 /** Short headline figure for a session: sets for strength work, minutes for cardio. */
 export function sessionSize(s: Session): string {
   const timed = s.exercises.find((e) => e.kind === 'duration_min')
