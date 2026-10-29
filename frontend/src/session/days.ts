@@ -35,7 +35,11 @@ type LoggedSet = LoggedWorkout['exercises'][number]['sets'][number]
  * one weight, " at 16 / 16 / 18 kg" when they differ (a dash for a set without one), and
  * nothing when no set has one. */
 export function weights(sets: LoggedSet[]): string {
-  const kg = sets.map((set) => set.load_kg ?? null)
+  return weightsOf(sets.map((set) => set.load_kg ?? null))
+}
+
+/** The same, from each set's weight in set order (null for a set without one). */
+export function weightsOf(kg: (number | null)[]): string {
   const first = kg[0] ?? null
   if (kg.every((k) => k === null)) return ''
   if (first !== null && kg.every((k) => k === first)) return ` at ${kgText(first)}`

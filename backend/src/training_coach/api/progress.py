@@ -66,7 +66,9 @@ class StandingView(BaseModel):
     steps: int
     ladder: list[RungView]  # every step, easiest first
     last: list[int]  # the latest session at this step, per set; empty if none yet
+    last_kg: list[float | None]  # each of its sets' weight (ADR-0072), None without one
     best_set: int | None
+    best_kg: float | None  # the weight of the session that set it, its heaviest set's
     status: Literal["hold", "ready", "top_of_ladder"]
     retired: bool
     trend: list[PointView]  # the last six weeks, oldest first, across ladder steps
@@ -109,7 +111,9 @@ def standings(request: Request, user: Owner) -> StandingsView:
                     for r in s.ladder
                 ],
                 last=list(s.last),
+                last_kg=list(s.last_kg),
                 best_set=s.best_set,
+                best_kg=s.best_kg,
                 status=s.status.value,
                 retired=s.retired,
                 trend=[

@@ -17,7 +17,9 @@ const make = (over: Partial<Standing>): Standing => ({
   step_number: 2,
   steps: 4,
   last: [],
+  last_kg: [],
   best_set: null,
+  best_kg: null,
   status: 'hold',
   retired: false,
   trend: [],
@@ -85,6 +87,34 @@ test('each exercise shows its step, last session, best and status', async () => 
   expect(pull).toHaveTextContent('Today')
   expect(screen.getByRole('img', { name: /1 session, from 45 s to 45 s$/ })).toBeInTheDocument()
   expect(screen.getAllByText('No sessions in the last 6 weeks.')).toHaveLength(2)
+})
+
+test('a loaded exercise names the weights, as the confirm step writes them', async () => {
+  serve([
+    make({
+      exercise: 'Hammer curl',
+      last: [10, 10, 9],
+      last_kg: [16, 16, 16],
+      best_set: 12,
+      best_kg: 12,
+    }),
+    make({
+      exercise: 'Row',
+      last: [10, 9, 8],
+      last_kg: [16, 18, null],
+      best_set: 12,
+      best_kg: 14.5,
+    }),
+    make({ exercise: 'Dip', last: [10, 9], last_kg: [null, null], best_set: 12, best_kg: null }),
+  ])
+  render(<ProgressPage />)
+  expect(
+    await screen.findByText('Last 10 · 10 · 9 at 16 kg · best 12 at 12 kg'),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByText('Last 10 · 9 · 8 at 16 / 18 / – kg · best 12 at 14.5 kg'),
+  ).toBeInTheDocument()
+  expect(screen.getByText('Last 10 · 9 · best 12')).toBeInTheDocument() // no weights: as before
 })
 
 test('the trend runs oldest to newest and fits the box', () => {
