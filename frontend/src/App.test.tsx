@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import App from './App'
 import {
   prescription,
+  sessionAt,
   sessionSize,
   type Coverage,
   type Exercise,
@@ -25,6 +26,16 @@ const pullUp: Exercise = {
   start_step: 1,
 }
 
+const latPulldown: Exercise = {
+  ...pullUp,
+  slug: 'lat-pulldown',
+  name: 'Lat pulldown',
+  sets: 3,
+  rep_min: 8,
+  ladder: ['Cable'],
+  start_step: 0,
+}
+
 const torso: Session = {
   position: 0,
   slug: 'torso',
@@ -34,6 +45,7 @@ const torso: Session = {
   optional: false,
   total_sets: 4,
   exercises: [pullUp],
+  gym: [latPulldown, { ...latPulldown, slug: 'face-pull', name: 'Face pull' }],
 }
 
 const zone2: Session = {
@@ -44,6 +56,7 @@ const zone2: Session = {
   type: 'conditioning',
   optional: false,
   total_sets: 1,
+  gym: [],
   exercises: [
     {
       ...pullUp,
@@ -176,19 +189,55 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Torso \+ neck/, expanded: false }))
     const week = screen.getByRole('region', { name: 'The week' })
     const total = screen.getByRole('region', { name: 'What the week gives each muscle' })
+    const panel = document.getElementById('session-torso')!
     expect(await within(week).findByRole('button', { name: 'Home', pressed: true })).toBeVisible()
     expect(within(total).getByText('10 of 10 main muscles on target')).toBeVisible()
+    expect(within(panel).getByRole('rowheader', { name: 'Pull-up' })).toBeVisible()
+    expect(within(week).getByRole('button', { name: /Torso \+ neck/ })).toHaveTextContent('4 sets')
     fireEvent.click(within(total).getByRole('button', { name: 'Gym' }))
     expect(await within(total).findByText('9 of 10 main muscles on target')).toBeVisible()
     expect(within(total).getByText(/The whole week at the gym/)).toBeVisible()
     expect(within(week).getByRole('button', { name: 'Gym', pressed: true })).toBeVisible()
-    const panel = document.getElementById('session-torso')!
     expect(within(panel).getByRole('button', { name: /Lats: 10 sets/ })).toBeVisible()
-    expect(within(panel).getByText(/What its gym version works/)).toBeVisible()
+    expect(within(panel).getByText('What its gym version works.')).toBeVisible()
+    expect(
+      within(panel)
+        .getAllByRole('rowheader')
+        .map((h) => h.textContent),
+    ).toEqual(['Lat pulldown', 'Face pull'])
+    expect(within(panel).getAllByRole('cell')[0]).toHaveTextContent('3 × 8–12')
+    expect(within(week).getByRole('button', { name: /Torso \+ neck/ })).toHaveTextContent('6 sets')
     expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledWith(
       '/api/plan/coverage?place=gym',
       expect.anything(),
     )
+  })
+
+  it('at the gym only, lists the gym versions, and a session without one keeps its own', async () => {
+    const gym: Coverage = {
+      ...coverage,
+      place: 'gym',
+      places: 'gym',
+      sessions: [
+        { ...coverage.sessions[0], place: 'gym' },
+        { ...coverage.sessions[0], session: 'Long zone 2', slug: 'zone2', muscles: [] },
+      ],
+    }
+    globalThis.fetch = vi.fn((url: string) =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(url === '/api/plan' ? plan : gym),
+      }),
+    ) as unknown as typeof fetch
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: /Torso \+ neck/, expanded: false }))
+    const torsoPanel = document.getElementById('session-torso')!
+    expect(await within(torsoPanel).findByRole('rowheader', { name: 'Lat pulldown' })).toBeVisible()
+    expect(within(torsoPanel).queryByRole('rowheader', { name: 'Pull-up' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Count the sessions at' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Long zone 2/, expanded: false }))
+    const zone2Panel = document.getElementById('session-zone2')!
+    expect(within(zone2Panel).getByRole('rowheader', { name: 'Zone 2' })).toBeVisible()
   })
 
   it('keeps the maps when the other view fails to load, and tries again on a tap', async () => {
@@ -246,6 +295,12 @@ describe('App', () => {
 })
 
 describe('formatting', () => {
+  it("takes a session's gym version at the gym, and its one version without one", () => {
+    expect(sessionAt(torso, 'home')).toBe(torso)
+    expect(sessionAt(torso, 'gym')).toMatchObject({ exercises: torso.gym, total_sets: 6 })
+    expect(sessionAt(zone2, 'gym')).toBe(zone2)
+  })
+
   it('describes sets, ranges and sides', () => {
     expect(prescription(pullUp)).toBe('4 × 5–12')
     expect(prescription({ ...pullUp, per_side: true, rep_min: 8, rep_max: 8 })).toBe(

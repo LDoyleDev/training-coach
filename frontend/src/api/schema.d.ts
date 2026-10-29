@@ -3709,6 +3709,8 @@ export interface components {
             exercises: components["schemas"]["ExerciseView"][];
             /** Focus */
             focus: string;
+            /** Gym */
+            gym: components["schemas"]["ExerciseView"][];
             /** Name */
             name: string;
             /** Optional */

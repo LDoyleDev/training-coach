@@ -5602,6 +5602,13 @@
             "title": "Focus",
             "type": "string"
           },
+          "gym": {
+            "items": {
+              "$ref": "#/components/schemas/ExerciseView"
+            },
+            "title": "Gym",
+            "type": "array"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -5640,7 +5647,8 @@
           "type",
           "optional",
           "total_sets",
-          "exercises"
+          "exercises",
+          "gym"
         ],
         "title": "SessionView",
         "type": "object"
