@@ -184,3 +184,11 @@ Decided while building, within this ADR:
   for your kit" names what opens the next ladder step.
 - The home versions in `plan.toml` have no loaded step yet, so on the set screen this waits
   for a home version with one (editing the plan, builder step 6).
+
+## Built (Progress shows weights, 29 Oct 2026)
+
+- **Progress and `/progress`** write the last session's weights as the summaries do ("Last 10 ·
+  10 · 9 at 16 kg", "at 16 / 18 / – kg"; in Telegram "last 10 / 10 / 9 at 16 kg"), and the best
+  names a weight as the weekly review does: it counts every weight, so it names the heaviest
+  set's of the first session to reach it ("best 12 at 12 kg"; a later tie sets no best). An
+  exercise without weights reads as before.
