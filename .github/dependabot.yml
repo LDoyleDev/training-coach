@@ -46,12 +46,18 @@ updates:
 
   # Python and Node versions are pinned by ADR-0002/0004; only patch-level image updates.
   # By update type: version ranges don't match suffixed tags like 3.14-slim (#260, #261).
+  # The images are named docker.io/library/..., which Dependabot calls library/python and
+  # library/node, so a rule naming only python or node missed them (#272, #325).
   - package-ecosystem: docker
     directory: /
     schedule: { interval: monthly }
     ignore:
       - dependency-name: python
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: library/python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: node
+        update-types: ["version-update:semver-major"]
+      - dependency-name: library/node
         update-types: ["version-update:semver-major"]
     commit-message: { prefix: build }

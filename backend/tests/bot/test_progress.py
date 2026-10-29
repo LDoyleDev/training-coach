@@ -24,6 +24,7 @@ from training_coach.bot import progress as progress_ui
 from training_coach.bot.messages import feedback_text, progress_text, saved_reply
 from training_coach.db.models import Exercise, LadderStep, SetLog, Workout
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
+from training_coach.domain.load import NO_WEIGHT
 from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
 from training_coach.services import progress as progress_service
@@ -355,6 +356,30 @@ def test_progress_text_units_and_limits() -> None:
     long = progress_text([_standing(exercise="X" * 120, step="Y" * 120)] * 40)
     assert len(long) <= 4096
     assert "more not shown" in long
+
+
+def test_progress_text_names_the_weights() -> None:
+    """As the confirm step writes a line (ADR-0072); the best names its session's weight. With
+    no weights the line reads as before."""
+    curl = {"exercise": "Hammer curl", "step": "Dumbbells", "kind": ExerciseKind.REPS}
+    lines = progress_text(
+        [
+            _standing(**curl, last=(10, 10, 9), last_kg=kg, best_set=12, best_kg=best)
+            for kg, best in (
+                ((None, None, None), None),
+                ((16.0, 16.0, 16.0), 12.0),
+                ((16.0, 18.0, None), 14.5),
+            )
+        ]
+    ).splitlines()
+    assert lines[2] == "- Hammer curl: Dumbbells (1/3), last 10 / 10 / 9, best 12 reps"
+    assert lines[3] == (
+        "- Hammer curl: Dumbbells (1/3), last 10 / 10 / 9 at 16 kg, best 12 reps at 12 kg"
+    )
+    assert lines[4] == (
+        f"- Hammer curl: Dumbbells (1/3), last 10 / 10 / 9 at 16 / 18 / {NO_WEIGHT} kg,"
+        " best 12 reps at 14.5 kg"
+    )
 
 
 def test_the_keyboard_stays_under_telegrams_button_limit() -> None:
