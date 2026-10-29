@@ -175,6 +175,14 @@ test('on dip bars the hands stay on the bar and the feet stay off the floor', ()
   expect(Math.abs(down.armN.elbow[1] - down.shoulder[1]), 'upper arm about level').toBeLessThan(8)
 })
 
+test('on dip bars with a vest or backpack, the same dip carries the pack', () => {
+  const bars = figureFor('dip', 'Dip bars, bodyweight, full range')!
+  const loaded = figureFor('dip', 'Dip bars, vest or backpack')!
+  expect(loaded.props).toEqual({ ...bars.props, load: true })
+  expect([loaded.start, loaded.end]).toEqual([bars.start, bars.end])
+  expect(shapes(loaded.start, loaded.props)).toHaveLength(shapes(bars.start, bars.props).length + 2)
+})
+
 test('feet off the floor, the dip hangs between two chairs, knees bent, feet behind', () => {
   const steps = ['Feet off floor', 'Feet off floor, 5 kg vest or backpack', 'Feet off floor, 10 kg']
   for (const step of steps) {

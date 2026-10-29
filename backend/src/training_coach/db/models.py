@@ -363,6 +363,7 @@ class UserSettings(Owned, Base):
     barbell_increment_kg: Mapped[float | None] = mapped_column(Float)
     dumbbells_increment_kg: Mapped[float | None] = mapped_column(Float)
     machine_increment_kg: Mapped[float | None] = mapped_column(Float)
+    backpack_increment_kg: Mapped[float | None] = mapped_column(Float)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

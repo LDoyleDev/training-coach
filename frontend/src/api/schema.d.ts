@@ -2521,6 +2521,8 @@ export interface components {
          * @description Only the kits sent change; the default value goes back to the default.
          */
         IncrementsChange: {
+            /** Backpack */
+            backpack?: number | null;
             /** Barbell */
             barbell?: number | null;
             /** Dumbbells */
@@ -2533,6 +2535,8 @@ export interface components {
          * @description The smallest weight step for each loaded kit (ADR-0072); dumbbells: per hand.
          */
         IncrementsView: {
+            /** Backpack */
+            backpack: number;
             /** Barbell */
             barbell: number;
             /** Dumbbells */
@@ -2827,7 +2831,7 @@ export interface components {
              * Kit
              * @enum {string}
              */
-            kit: "barbell" | "dumbbells" | "machine";
+            kit: "barbell" | "dumbbells" | "machine" | "backpack";
             /** Owned */
             owned?: number[] | null;
             suggested?: components["schemas"]["NextWeightView"] | null;

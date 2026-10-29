@@ -67,8 +67,8 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "sound": "ring",
         "extra_cardio_min": 0,
         "places": "home",
-        "increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0},
-        "default_increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0},
+        "increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0, "backpack": 1.0},
+        "default_increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0, "backpack": 1.0},
         "paused": False,
         "timezone": "Europe/Berlin",
     }
@@ -195,14 +195,19 @@ def test_a_persons_own_weight_steps_replace_the_defaults(
     """ADR-0072: each person can change theirs; only the kits sent change, and setting the
     default back keeps no step of their own."""
     changed = signed_in.patch("/api/settings", json={"increments": {"barbell": 1.25}}).json()
-    assert changed["increments"] == {"barbell": 1.25, "dumbbells": 2.0, "machine": 5.0}
+    assert changed["increments"] == {
+        "barbell": 1.25,
+        "dumbbells": 2.0,
+        "machine": 5.0,
+        "backpack": 1.0,
+    }
     assert changed["default_increments"]["barbell"] == 2.5
-    signed_in.patch("/api/settings", json={"increments": {"machine": 2.5}})
-    assert _stored(engine).increments == Increments(barbell=1.25, machine=2.5)
+    signed_in.patch("/api/settings", json={"increments": {"machine": 2.5, "backpack": 0.5}})
+    assert _stored(engine).increments == Increments(barbell=1.25, machine=2.5, backpack=0.5)
     for bad in (0, 0.1, 1.3, 25):
         body = {"increments": {"dumbbells": bad}}
         assert signed_in.patch("/api/settings", json=body).status_code == 422
-    signed_in.patch("/api/settings", json={"increments": {"barbell": 2.5}})
+    signed_in.patch("/api/settings", json={"increments": {"barbell": 2.5, "backpack": 1}})
     assert _stored(engine).increments == Increments(machine=2.5)
 
 

@@ -184,3 +184,30 @@ Decided while building, within this ADR:
   for your kit" names what opens the next ladder step.
 - The home versions in `plan.toml` have no loaded step yet, so on the set screen this waits
   for a home version with one (editing the plan, builder step 6).
+
+## Built (vest and backpack, 29 Oct 2026)
+
+Decided while building, within this ADR, from Liam's answers of 29 Oct (Confirmed, above):
+
+- **A vest or backpack carries load.** `[exercises.loads]` takes `backpack`: a weighted vest
+  or a backpack, adjustable or packed with books, bottles or plates. A set's kg is the weight
+  added, as for any added-weight step. A first set with no history starts at 5 kg.
+- **Its own weight step** on Account, "Vest or backpack", 1 kg by default
+  (`settings.backpack_increment_kg`, stored like the others: empty keeps the default).
+- **The weights owned at home** run from 5 kg up to what the listed vest or backpack holds (its
+  "up to" kg) in the person's step, with that top weight itself: a 10 kg vest in 2.5 kg steps
+  is 5, 7.5 and 10 kg. A vest listed under 5 kg is its own weight only. At the gym, and with no
+  kit listed yet, the increment rule stands. Owning none heavier is "Top for your kit: weighted
+  vest or backpack, up to 11 kg would open the next weight". The set screen calls it "Added
+  weight, kg". An exact weight in between ("dips 8 8 at 7.3") is typed or spoken, as for any
+  loaded step.
+- **Dips:** every chair step stays, and "Dip bars, vest or backpack" is appended after "Dip
+  bars, bodyweight, full range" (needs dip bars and a vest or backpack of 5 kg), so nobody's
+  step moves. Its figure is the dip-bars one with the pack on the back. It is the first loaded
+  step in a home version, so the weights owned now show at home. Appending a step adds no plan
+  version, as with the kit ladders (25 Oct).
+- **Pull-up and chin-up wait.** Their three "Vest or backpack, 5 / 10 / 15 kg" steps can't
+  become one without a data change: the seed matches steps by position, refuses a shorter
+  ladder (`seed._preflight`), and a rename keeps one position, so the 10 and 15 kg rows stay
+  in `ladder_steps` whatever `plan.toml` says. Removing them, or moving anything logged at
+  them, is a live-data change for Liam to approve, so both ladders are unchanged for now.

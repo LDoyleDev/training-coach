@@ -304,33 +304,37 @@ const handstand = (shoulder: number, lean: number): Pose => {
   }
 }
 
+/** On dip bars: hands on the bars, knees bent, leaning a little forward at the bottom. */
+const BARS: Change = {
+  frames: ['Arms straight on the bars, knees bent', 'Leaning slightly forward, elbows back'],
+  view: [-60, 70, -3, 230],
+  props: { bars: { x: 0, top: 120 } },
+  start: {
+    hip: [-3.1, 135.9],
+    lean: 8,
+    legN: { at: [-30, 76], angle: -60 },
+    legF: { at: [-27, 76], angle: -62 },
+    armN: { at: [0, 123.5], angle: 0 },
+    armF: { at: [0, 123.5], angle: 0 },
+  },
+  end: {
+    hip: [-1, 108.7],
+    lean: 20,
+    legN: { at: [-30, 48], angle: -60 },
+    legF: { at: [-27, 48], angle: -62 },
+    armN: { at: [0, 123.5], angle: 0 },
+    armF: { at: [0, 123.5], angle: 0 },
+  },
+}
+
 export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
   'pull-up': LOADED(VEST, FIGURES['pull-up']),
   'chin-up': LOADED(VEST, FIGURES['chin-up']),
   dip: {
     'Feet off floor': OFF_FLOOR,
     ...each(['Feet off floor, 5 kg vest or backpack', 'Feet off floor, 10 kg'], OFF_FLOOR_LOADED),
-    'Dip bars, bodyweight, full range': {
-      frames: ['Arms straight on the bars, knees bent', 'Leaning slightly forward, elbows back'],
-      view: [-60, 70, -3, 230],
-      props: { bars: { x: 0, top: 120 } },
-      start: {
-        hip: [-3.1, 135.9],
-        lean: 8,
-        legN: { at: [-30, 76], angle: -60 },
-        legF: { at: [-27, 76], angle: -62 },
-        armN: { at: [0, 123.5], angle: 0 },
-        armF: { at: [0, 123.5], angle: 0 },
-      },
-      end: {
-        hip: [-1, 108.7],
-        lean: 20,
-        legN: { at: [-30, 48], angle: -60 },
-        legF: { at: [-27, 48], angle: -62 },
-        armN: { at: [0, 123.5], angle: 0 },
-        armF: { at: [0, 123.5], angle: 0 },
-      },
-    },
+    'Dip bars, bodyweight, full range': BARS,
+    'Dip bars, vest or backpack': { ...BARS, props: { ...BARS.props, load: true } },
   },
   'bulgarian-split-squat': {
     ...each(
