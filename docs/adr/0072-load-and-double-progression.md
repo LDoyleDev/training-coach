@@ -220,8 +220,8 @@ Decided while building, within this ADR, from Liam's answers of 29 Oct (Confirme
 
 ## Built (Progress shows weights, 29 Oct 2026)
 
-- **Progress and `/progress`** write the last session's weights as the summaries do ("Last 10 ·
-  10 · 9 at 16 kg", "at 16 / 18 / – kg"; in Telegram "last 10 / 10 / 9 at 16 kg"), and the best
-  names a weight as the weekly review does: it counts every weight, so it names the heaviest
-  set's of the first session to reach it ("best 12 at 12 kg"; a later tie sets no best). An
-  exercise without weights reads as before.
+- **Progress, the Plan page's ladder cards and `/progress`** write the last session's weights
+  as the summaries do ("Last 10 · 10 · 9 at 16 kg", "at 16 / 18 / – kg"; in Telegram "last 10
+  / 10 / 9 at 16 kg"), and the best names a weight as the weekly review does: it counts every
+  weight, so it names the heaviest set's of the first session to reach it ("best 12 at 12 kg";
+  a later tie sets no best). An exercise without weights reads as before.

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchProgress, moveOnLadder, SignedOutError, type LadderMove, type Standing } from '../api'
-import { amount } from '../progress/logic'
+import { lastAndBest } from '../progress/logic'
 import { actions, card, primaryInline, secondary } from '../ui'
 import { KIT_HREF } from '../account/kit'
 import { WAITS, confirmText, needs, nextRung, said, topLabel, wanted } from './ladder'
@@ -224,12 +224,7 @@ function Panel({
               )
             })}
           </ol>
-          <p className="m-0">
-            {s.last.length > 0
-              ? `Last ${s.last.map((v) => amount(s, v)).join(' · ')}`
-              : 'Not logged at this step yet'}
-            {s.best_set !== null && ` · best ${amount(s, s.best_set)}`}
-          </p>
+          <p className="m-0">{lastAndBest(s)}</p>
           {upcoming ? (
             <p className="m-0">
               Next: <span className="font-bold">{upcoming.name}</span>
