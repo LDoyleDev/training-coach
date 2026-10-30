@@ -949,6 +949,18 @@ def test_the_dips_top_step_adds_weight_in_a_vest_or_backpack() -> None:
     assert dip.needs["Dip bars, vest or backpack"] == ["dip bars", "backpack:5"]
 
 
+def test_pull_ups_and_chin_ups_end_in_one_vest_step_that_takes_load() -> None:
+    """ADR-0072 (29 Oct 2026): one "Vest or backpack" step in place of 5, 10 and 15 kg; the
+    5 kg step is renamed in place, so anyone on it stays on it."""
+    exercises = {e.slug: e for e in load_plan().exercises}
+    for slug in ("pull-up", "chin-up"):
+        bars = exercises[slug]
+        assert bars.ladder[-1] == "Vest or backpack"
+        assert bars.loads == {"Vest or backpack": LoadKit.BACKPACK}
+        assert bars.needs["Vest or backpack"] == ["pull-up bar", "backpack:5"]
+        assert bars.renames["Vest or backpack, 5 kg"] == "Vest or backpack"
+
+
 # ------------------------------------------------------------- gym versions (ADR-0071)
 
 

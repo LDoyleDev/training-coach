@@ -23,7 +23,7 @@ const fist = (pose: Pose): Pose => ({
   armF: { ...pose.armF, hand: 0.5 },
 })
 
-const VEST = ['Vest or backpack, 5 kg', 'Vest or backpack, 10 kg', 'Vest or backpack, 15 kg']
+const VEST = ['Vest or backpack']
 
 /** A kettlebell held by the horns at the chest, elbows down in front of the ribs: the same
  * movement, the hands placed on the trunk so they ride with it, ``at`` from the waist. */
