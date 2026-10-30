@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { BOX, BY_LOAD, BY_STEP, type Point, chart, kindFor, split, strip } from './chart'
+import { BOX, BY_LOAD, BY_STEP, type Point, chart, fitSize, kindFor, split, strip } from './chart'
 
 const today = new Date(2026, 9, 21) // the window runs 10 Sep to 21 Oct
 const at = (day: string, best: number, step_number: number): Point => ({ day, best, step_number })
@@ -91,4 +91,10 @@ test('the kg strip breaks at a session without a weight, as the chart does', () 
   expect(found.path.match(/M/g)).toHaveLength(2) // two runs, nothing drawn across the gap
   expect(found.path.split('M')[1]).not.toMatch(/V/) // 20 kg stays flat until its run ends
   expect([found.low, found.high]).toEqual([20, 22.5])
+})
+
+test('labels fit their room at the chart size or smaller; none keep the chart size', () => {
+  expect(fitSize(['16 kg', '12 kg'], 30)).toBe(10)
+  expect(fitSize(['102.5 kg', '97.5 kg'], 30)).toBe(6.8)
+  expect(fitSize([], 30)).toBe(10)
 })

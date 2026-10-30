@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { expect, test } from 'vitest'
 import type { Standing } from '../api'
+import { BOX } from './chart'
 import TrendChart from './TrendChart'
 
 const today = new Date(2026, 9, 21)
@@ -139,6 +140,44 @@ test('on a loaded step each weight is a period, and a strip shows the weight (AD
     '20 kg',
   ])
   expect(container.querySelector('path')?.getAttribute('d')).toMatch(/^M[\d.]+,[\d.]+H/)
+})
+
+/** Each of the strip's labels, its text and an upper bound on its width in viewBox units: at
+ * the 10-unit text Archivo's figures and letters run at most 5.5 units each. */
+const stripLabels = (strip: Element) =>
+  [...strip.querySelectorAll('text')].map((t) => {
+    const size = Number(t.closest('[font-size]')!.getAttribute('font-size'))
+    return { text: t.textContent!, width: t.textContent!.length * 5.5 * (size / 10), size }
+  })
+
+test("the strip's labels fit the gap left of it, never cut off at the edge", () => {
+  const weighed = (low: number, high: number) => {
+    const { unmount } = render(
+      <TrendChart
+        standing={standing([
+          { day: '2026-10-01', best: 12, step_number: 1, kg: low },
+          { day: '2026-10-15', best: 8, step_number: 1, kg: high },
+        ])}
+        today={today}
+      />,
+    )
+    const found = stripLabels(screen.getAllByRole('img')[1])
+    unmount()
+    return found
+  }
+  const room = BOX.left - 4 // the labels end there, so they start no further left than 0
+  for (const [low, high] of [
+    [14.5, 18],
+    [97.5, 102.5],
+    [100.25, 102.25],
+  ]) {
+    const found = weighed(low, high)
+    expect(found.map((l) => l.text)).toEqual([`${high} kg`, `${low} kg`])
+    for (const label of found) expect(label.width).toBeLessThanOrEqual(room)
+    expect(new Set(found.map((l) => l.size)).size).toBe(1) // both ends alike
+  }
+  // Short ones keep the chart's own size.
+  expect(weighed(12, 16).map((l) => l.size)).toEqual([10, 10])
 })
 
 test('a bodyweight exercise has no weight strip', () => {
