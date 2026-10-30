@@ -12,7 +12,8 @@ type Loaded =
   | { status: 'ready'; standings: Standing[]; strength: boolean; kitListed: boolean }
 
 /** Your level on each exercise's ladder (ADR-0075): Move up / Not yet when ready, as the bot's
- * prompt, and Change level to choose any step, up or down. `?move=<slug>` opens that one. */
+ * prompt, and Change level to choose any step, up or down. `?move=<slug>` opens that one. Each
+ * step shows its "Can you do ...?" question as a hint (G1); nothing sets a level from it. */
 export default function Levels() {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
   const [open, setOpen] = useState<string | null>(() => wanted(window.location.search))
@@ -219,6 +220,11 @@ function Panel({
                   {now && ' (now)'}
                   {locked && (
                     <span className="font-normal text-[var(--slate)]"> · Locked: {locked}</span>
+                  )}
+                  {r.question && (
+                    <span className="flex text-sm font-normal text-[var(--slate)]">
+                      Ready for this if yes: {r.question}
+                    </span>
                   )}
                 </li>
               )

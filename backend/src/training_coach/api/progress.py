@@ -37,6 +37,9 @@ class RungView(BaseModel):
     # The kit it needs that isn't in the person's kit, in plain words ("a 16 kg kettlebell");
     # empty when they can do it, or before they list a kit (ADR-0071).
     missing: list[str]
+    # "Can you do ...?": a yes says the person can start at this step (G1, ADR-0075). A hint
+    # only, nothing sets a level from it; None on the first step.
+    question: str | None
 
 
 class ReadyView(BaseModel):
@@ -107,7 +110,13 @@ def standings(request: Request, user: Owner) -> StandingsView:
                 step_number=s.step_number,
                 steps=s.steps,
                 ladder=[
-                    RungView(id=r.id, name=r.name, cue=r.cue, missing=list(r.missing))
+                    RungView(
+                        id=r.id,
+                        name=r.name,
+                        cue=r.cue,
+                        missing=list(r.missing),
+                        question=r.question,
+                    )
                     for r in s.ladder
                 ],
                 last=list(s.last),

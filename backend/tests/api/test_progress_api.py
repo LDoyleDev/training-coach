@@ -145,7 +145,12 @@ def test_the_standing_carries_what_the_plan_page_needs(
         "name": "Slow negatives",
         "cue": None,
         "missing": [],  # no kit listed yet: nothing is locked (ADR-0071)
+        "question": None,  # anyone can start at the first step
     }
+    # Each later step asks whether the person can already do it (G1, ADR-0075)
+    assert pull_up["ladder"][1]["question"] == (
+        "Can you do 5 strict pull-ups, from a full hang to your chin over the bar?"
+    )
     assert found["kit_listed"] is False
     assert pull_up["unlock"] is None
 

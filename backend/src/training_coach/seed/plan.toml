@@ -26,7 +26,8 @@
 # person can start at that step. It asks for the bottom of the step's range in one set, in good
 # form (each side when one-sided), the first target a step with no history gets (ADR-0027);
 # HIIT's steps name their rounds, so its questions use those. Setup will walk them from the
-# bottom (builder G1); nothing sets a level from them (ADR-0075).
+# bottom (builder G1) and the Plan page shows them with the ladder; nothing sets a level from
+# them (ADR-0075).
 # `[exercises.loads]` names the steps that take load and what carries the weight ("barbell",
 # "dumbbells", "machine", or "backpack": a vest or backpack, its kg the weight added): each set
 # records its kg, and the kit gives the increment (ADR-0072).

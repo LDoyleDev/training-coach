@@ -87,4 +87,6 @@ Liam (30 Oct 2026) asked for the level questions before plans per person: the se
   seed refuses a question for a step not in the ladder, or for the first step.
 - **Read from the bundled plan**, like the kit a step needs: nothing logged refers to a
   question, so no migration.
-- **They suggest, the person decides:** nothing sets a level from an answer.
+- **They suggest, the person decides.** The Plan page's ladder panel shows each step's
+  question under its name ("Ready for this if yes: ..."), in `GET /api/progress`'s ladder;
+  nothing sets a level from an answer.
