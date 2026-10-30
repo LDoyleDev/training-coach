@@ -4,6 +4,25 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.10.0](https://github.com/LDoyleDev/training-coach/compare/v1.9.0...v1.10.0) (2026-10-30)
+
+
+### Features
+
+* **domain:** the warm-up is 5 minutes, not 10 ([#485](https://github.com/LDoyleDev/training-coach/issues/485)) ([603c539](https://github.com/LDoyleDev/training-coach/commit/603c539f60ea7f947a3d80d6950cf098e5d047d6))
+* **web:** "Can you do ...?" level questions on every ladder step ([#489](https://github.com/LDoyleDev/training-coach/issues/489)) ([4789cdf](https://github.com/LDoyleDev/training-coach/commit/4789cdf68b89835336f4a85296a14c6b8f623250))
+
+
+### Bug Fixes
+
+* **web:** the chart's side labels fit beside it, never cut off ([#480](https://github.com/LDoyleDev/training-coach/issues/480)) ([ff7653f](https://github.com/LDoyleDev/training-coach/commit/ff7653fc619e92d7cba64651ff1753e201d5ad88))
+
+
+### Documentation
+
+* **docs:** session log for 1.9.0 ([#472](https://github.com/LDoyleDev/training-coach/issues/472)) ([8707da7](https://github.com/LDoyleDev/training-coach/commit/8707da79b0173c3b444edfcdbe6c6e107cdbe32f))
+* **docs:** what reads the plan, and a draft migration for step 5 ([#487](https://github.com/LDoyleDev/training-coach/issues/487)) ([e54b0b3](https://github.com/LDoyleDev/training-coach/commit/e54b0b398d3e012d3ed65f0c04eb9457809d93ba))
+
 ## [1.9.0](https://github.com/LDoyleDev/training-coach/compare/v1.8.0...v1.9.0) (2026-10-30)
 
 
