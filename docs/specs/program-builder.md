@@ -305,7 +305,8 @@ home stays a ladder step, because 8 to 16 kg is a different exercise, not a smal
 G1 for everything, G2 as a suggestion where a test exists, G3 always available. A level can be
 set by hand on the Plan tab too (down as well as up; it records an event, like Move up does).
 **Set by hand: done** (ADR-0075): the Plan page's ladder panels, with Move up and Not yet, and
-every "Ready to move up" links there. G1 and G2 are still to come.
+every "Ready to move up" links there. G1's questions are in the seed (ADR-0075) and the flow that
+asks them comes with step 10; G2 is still to come.
 
 ### H. Setting up, for a new person (and the owner, again)
 
@@ -345,6 +346,8 @@ between its own sets. To decide:
 3. **Pairing rules for the editor (step 6):** no shared prime mover without the longer rest, not
    two grip-heavy exercises, at most one spine-loading exercise per pair.
 4. **Warm-up** 10 or 5 minutes (5 saves 15 minutes a week; a choice, not a finding).
+   **Decided 30 Oct 2026** (ADR-0065 addendum): 5 minutes, in the guided session, its time
+   estimate and the warm-up line before a resistance session.
 5. **Drop sets and rest-pause:** an optional set type for isolation exercises, counted at
    matched volume, later. They save little inside pairs.
 6. **Kit order** for the equipment step: 16 kg kettlebell, then a weighted vest; each saves

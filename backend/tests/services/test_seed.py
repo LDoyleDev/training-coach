@@ -645,6 +645,9 @@ DIP_FACTS = 'muscles = { chest = 1 }\npattern = "vertical push"'
         (DIP_FACTS + '\nparts = ["triceps long head"]', "reaches the triceps long head"),
         (DIP_FACTS + '\nneeds = { "Rings" = ["rings"] }', "needs for \\['Rings'\\]"),
         (DIP_FACTS + '\nneeds = { "Feet up" = ["kettlebell"] }', "'Feet up'.*say the weight in kg"),
+        (DIP_FACTS + '\nquestions = { "Rings" = "Can you?" }', "questions for \\['Rings'\\]"),
+        (DIP_FACTS + '\nquestions = { "Feet down" = "Can you?" }', "first step needs no question"),
+        (DIP_FACTS + '\nquestions = { "Feet up" = "Can you" }', "questions.Feet up"),
     ],
 )
 def test_catalogue_facts_are_checked(facts: str, error: str) -> None:
@@ -669,6 +672,36 @@ def test_bundled_catalogue_needs_name_real_steps_and_kit() -> None:
                 assert "kettlebell:8" in exercise.needs.get(step, []), (exercise.slug, step)
     pull_up = next(e for e in plan.exercises if e.slug == "pull-up")
     assert all("pull-up bar" in pull_up.needs[step] for step in pull_up.ladder)
+
+
+def test_every_ladder_asks_can_you_do_it_of_each_step_after_the_first() -> None:
+    """The level questions (builder G1, ADR-0075): setup walks them from the bottom, so a step
+    without one would end the walk there. Retired exercises are never set up."""
+    plan = load_plan()
+    missing = {
+        e.slug: [step for step in e.ladder[1:] if step not in e.questions]
+        for e in plan.exercises
+        if not e.retired and len(e.ladder) > 1
+    }
+    assert {slug: steps for slug, steps in missing.items() if steps} == {}
+    assert all(q.startswith("Can you ") for e in plan.exercises for q in e.questions.values())
+
+
+def test_each_question_asks_for_the_bottom_of_its_exercises_range() -> None:
+    """A yes means the first target at that step, the bottom of the range (ADR-0027), is within
+    reach. HIIT's steps name their rounds, so its questions use those."""
+    plan = load_plan()
+    bottoms = {i.exercise: i.rep_min for s in plan.sessions for i in (*s.items, *s.gym)}
+    wrong = {
+        (e.slug, step): question
+        for e in plan.exercises
+        if e.slug != "hiit"
+        for step, question in e.questions.items()
+        if str(bottoms[e.slug]) not in re.findall(r"\d+", question)
+    }
+    assert wrong == {}
+    hiit = next(e for e in plan.exercises if e.slug == "hiit")
+    assert all(step.split()[0] in q for step, q in hiit.questions.items())
 
 
 def test_a_retired_exercise_cannot_be_in_a_session() -> None:

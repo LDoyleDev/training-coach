@@ -47,3 +47,19 @@ decision 1).
 - Later, in the builder's spec: a third, light exercise in a pair's rest (tri-sets), pairs on
   the Recovery day, and drop-set or rest-pause set types for isolation exercises.
 - Amends ADR-0031's timing; the pairs themselves are unchanged.
+
+## Addendum (30 Oct 2026): a 5-minute warm-up
+
+Liam chose a 5-minute warm-up in place of 10 (program-builder.md J, decision 4). It's a
+choice, not a finding: a general or specific warm-up didn't add reps on submaximal sets, and a
+few specific sets matter only above about 80% of a one-rep max (research file, Time
+efficiency). It saves 15 minutes a week over the three resistance sessions.
+
+- `WARM_UP_MINUTES` in `services/guided.py` is 5, so every resistance session's estimate
+  ("about N min" on Home and the overview) drops by 5 minutes.
+- The warm-up line says "Warm up for about 5 minutes first.": in the morning message before a
+  resistance session or a test day, and on a resistance session's overview in the app. It
+  replaces ADR-0028's "about 10 minutes of warm-up first". The bot's line takes the number from
+  `guided`.
+- The warm-up is a constant, not a per-person or per-session setting: a session gets it when
+  its kind is `strength`. Nothing is stored, so there is no data to change. It stays untimed.
