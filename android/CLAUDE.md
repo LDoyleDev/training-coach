@@ -8,6 +8,7 @@ Rules for `android/`, the band reader (ADR-0070, `docs/specs/android-reader.md`)
 ```
 VERSION                     the app's one version; a release is made on main when it moves
 build.gradle.kts            plugin versions; app/build.gradle.kts has the dependencies
+gradle/verification-metadata.xml   their checksums, written in CI (see Building)
 app/src/main/java/.../      Payload.kt, Delivery.kt, Reads.kt, Runs.kt and Week.kt (pure:
                             what a sync sends, whether it all arrived, how many reads it may
                             make, what a background run may do and leaves behind, the 7-day
@@ -22,8 +23,21 @@ app/src/test/               JVM unit tests for the pure parts
 ## Building
 
 - There are no Android tools on the desktop: CI (`.github/workflows/android.yml`) runs
-  `gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` with Gradle
-  8.14.4 and JDK 17. There's no Gradle wrapper; the workflow pins the version.
+  `gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+  :app:assembleRelease` with Gradle 8.14.4 and JDK 17. There's no Gradle wrapper; the workflow
+  pins the version.
+- Dependency verification: `gradle/verification-metadata.xml` holds a sha256 for every plugin
+  and library the build resolves, and the build fails on any artifact without a matching one.
+  Never write or edit a checksum by hand. When dependencies or plugins change (Dependabot's
+  Gradle PRs too, whose `android.yml` check fails until this is done), on that PR's branch:
+  1. Run `gh workflow run gradle-verification.yml --ref <branch>` twice; it rebuilds the file
+     from scratch with the same tasks as `android.yml` and keeps it as an artifact.
+  2. `gh run download <id> -n verification-metadata -D <dir outside the repo>` for both runs;
+     the two files must be identical.
+  3. Diff one against the committed file: only the components that changed version may
+     differ. A new checksum for a version already listed means stop and find out why.
+  4. Commit it to the branch as `android/gradle/verification-metadata.xml`.
+  The checksums are Linux-only for native tools such as aapt2, as CI is the only place that builds.
 - A release: bump `VERSION` in a PR. After merge, the build job makes an unsigned APK (no
   secrets), then the workflow waits for Liam's approval of the `android-release` environment,
   signs it with apksigner only (no Gradle there), checks its signer against
