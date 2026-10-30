@@ -66,13 +66,19 @@ def pair(engine: Engine) -> Iterator[Pair]:
         settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
         app = create_app(settings)
         with TestClient(app, base_url=ORIGIN) as first:
-            clients = {1: first, 2: TestClient(app, base_url=ORIGIN)}
+            # The second browser shares the app the first one started: entering it would run
+            # the app's start-up a second time. Closed after the test.
+            second = TestClient(app, base_url=ORIGIN)
+            clients = {1: first, 2: second}
             for user, client in clients.items():
                 with make_session_factory(engine, user_id=user)() as bound:
                     token = auth.create_link(bound, NOW)
                     bound.commit()
                 assert client.post("/api/auth/redeem", json={"token": token}).status_code == 204
-            yield app, clients, engine
+            try:
+                yield app, clients, engine
+            finally:
+                second.close()
 
 
 def _readable(response: Response) -> bytes:
