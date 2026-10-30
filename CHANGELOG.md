@@ -4,6 +4,29 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.9.0](https://github.com/LDoyleDev/training-coach/compare/v1.8.0...v1.9.0) (2026-10-30)
+
+
+### Features
+
+* **db:** pull-ups and chin-ups end in one vest step that takes load ([#465](https://github.com/LDoyleDev/training-coach/issues/465)) ([bca43ec](https://github.com/LDoyleDev/training-coach/commit/bca43ec79a0216c6ab8349374dace277d90cd62f))
+* **domain:** a vest or backpack takes load; dips gain a loaded step ([#459](https://github.com/LDoyleDev/training-coach/issues/459)) ([c818a33](https://github.com/LDoyleDev/training-coach/commit/c818a33d43608ee16b3b8467bdf137e7742958b2))
+* **web:** Plan's exercise lists follow the home or gym view ([#455](https://github.com/LDoyleDev/training-coach/issues/455)) ([7c6b532](https://github.com/LDoyleDev/training-coach/commit/7c6b5323294251cc9720f12ef9c92a4d2cf1bde5))
+* **web:** Plan's ladder cards name the weights of the last session and the best ([#463](https://github.com/LDoyleDev/training-coach/issues/463)) ([a7ee764](https://github.com/LDoyleDev/training-coach/commit/a7ee7649e3e63633d8334fe077e2310b9b591b18))
+* **web:** Progress and /progress name the weights of the last session and the best ([#458](https://github.com/LDoyleDev/training-coach/issues/458)) ([0a551de](https://github.com/LDoyleDev/training-coach/commit/0a551dee135d3db0e0664466dfe049dd67f86f19))
+
+
+### Bug Fixes
+
+* **db:** close the migration engine and the tests' SQLite connections ([#461](https://github.com/LDoyleDev/training-coach/issues/461)) ([1d6e991](https://github.com/LDoyleDev/training-coach/commit/1d6e991fb72ed21df46d73bf22967577a8bf498f))
+* **web:** the weight strip's labels fit beside it, never cut off ([#467](https://github.com/LDoyleDev/training-coach/issues/467)) ([9d54f9c](https://github.com/LDoyleDev/training-coach/commit/9d54f9c58862ea6f9adf5442dcabfcf01d9a6106))
+
+
+### Documentation
+
+* **adr:** accept ADR-0081, confirm ADR-0072's built choices ([#449](https://github.com/LDoyleDev/training-coach/issues/449)) ([06fff29](https://github.com/LDoyleDev/training-coach/commit/06fff293cdcb405e654053672b835f15859fa202))
+* **docs:** threat model row for the home kit (equipment) ([#451](https://github.com/LDoyleDev/training-coach/issues/451)) ([85a75f2](https://github.com/LDoyleDev/training-coach/commit/85a75f2e9a78ce955d1374ab2a87e24c9bd8b507))
+
 ## [1.8.0](https://github.com/LDoyleDev/training-coach/compare/v1.7.1...v1.8.0) (2026-10-29)
 
 
