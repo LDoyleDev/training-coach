@@ -24,7 +24,7 @@ export function nextRung(s: Standing): Rung | null {
 }
 
 /** A locked step in words, never colour alone: "needs a 16 kg kettlebell". Null when open. */
-export function needs(r: Rung): string | null {
+export function needs(r: Pick<Rung, 'missing'>): string | null {
   return r.missing.length > 0 ? `needs ${r.missing.join(' and ')}` : null
 }
 

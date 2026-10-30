@@ -95,6 +95,11 @@ class ExerciseSeed(_Strict):
     cues: dict[str, Annotated[str, Field(min_length=1, max_length=200)]] = Field(
         default_factory=dict
     )
+    # ladder step -> "Can you do ...?": a yes says the person can start at that step (G1,
+    # ADR-0075); read from the bundled plan like needs. The first step needs none.
+    questions: dict[str, Annotated[str, Field(min_length=1, max_length=160, pattern=r"\?$")]] = (
+        Field(default_factory=dict)
+    )
     # ladder step -> what carries its weight: the step takes load (ADR-0072); read from the
     # bundled plan like needs
     loads: dict[str, LoadKit] = Field(default_factory=dict)
@@ -144,6 +149,11 @@ class ExerciseSeed(_Strict):
         unknown = sorted(set(self.cues) - set(self.ladder))
         if unknown:
             raise ValueError(f"{self.slug}: cues for {unknown}, which is not in its ladder")
+        unknown = sorted(set(self.questions) - set(self.ladder))
+        if unknown:
+            raise ValueError(f"{self.slug}: questions for {unknown}, which is not in its ladder")
+        if self.ladder[0] in self.questions:
+            raise ValueError(f"{self.slug}: the first step needs no question, anyone starts there")
         unknown = sorted(set(self.loads) - set(self.ladder))
         if unknown:
             raise ValueError(f"{self.slug}: loads for {unknown}, which is not in its ladder")
