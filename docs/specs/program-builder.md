@@ -449,7 +449,8 @@ fly. They can be logged by text or voice and are there for the editor (steps 6 a
    [kit-ladder-proposal.md](kit-ladder-proposal.md)), with step cues and band strengths. Still
    to come: figures for the new set-ups (the proposal's Figures section).
 5. **Plans per person** (A2): the migration copies the plan to every user; the seed keeps the
-   catalogue and starters; the canary test (multi-user L2) covers the plan routes.
+   catalogue and starters; the canary test (multi-user L2) covers the plan routes. What reads
+   the plan today and a draft migration: [plans-per-person.md](plans-per-person.md).
 6. **Edit the plan:** set level (done, ADR-0075), swap, sets and range; Save makes a version. Import from
    `plan.toml` the same way.
 7. **The picker and an interactive map:** add and remove exercises; add a session.
