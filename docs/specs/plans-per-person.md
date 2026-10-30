@@ -143,11 +143,14 @@ Telegram button moves. Only copies for other people need new ids.
    - `workouts`: `(user_id, template_id)` and `(user_id, plan_version_id)` composite keys, RESTRICT.
      `plan_state`: `(user_id, next_template_id)`. `session_progress`: `(user_id, template_id)`,
      CASCADE. (SQLite doesn't check a composite key with a null part, so an extra still works.)
-2. **Data**: `UPDATE ... SET user_id = 1` on the three tables.
+2. **Data**: `UPDATE ... SET user_id = 1` on the three tables. The owner is user 1 everywhere
+   (`users.OWNER`, the ownership migration `c8b760ed9e52`, `link_owner` recreating id 1), so the
+   migration first checks that user 1 exists, and the check in step 3 counts users other than 1:
+   one definition of the owner for both.
 3. **Other people** (members; the switch is off, so the Pi should have none). Two options:
    - **Refuse** (recommended): the migration fails with a clear message if any user but the
      owner exists, and copying a plan is the join's job (the seed's, below). Check first,
-     read-only: `SELECT count(*) FROM users`.
+     read-only: `SELECT count(*) FROM users WHERE id != 1`.
    - **Copy**: for each other user, copy the owner's sessions, items and versions (what they
      have been training), then remap by slug and date: `workouts.template_id`, `plan_version_id`,
      `plan_state.next_template_id` and `queued`, `session_progress.template_id`, and the JSON ids
