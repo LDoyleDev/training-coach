@@ -148,15 +148,21 @@ def test_a_log_at_an_older_step_counts_for_bests_only(plan: Session) -> None:
     assert item.status is Progress.HOLD
 
 
-def test_the_top_of_the_ladder_is_said_once(plan: Session) -> None:
-    exercise = _exercise(plan, "pull-up")
-    last = max(exercise.ladder, key=lambda s: s.position)
-    state = users.exercise_state(plan, exercise.id)
+PUSH_TOP = [18, 18, 18, 18]  # push-up in Torso: 4 sets of 10-18; its top step takes no load
+
+
+def _on_top(session: Session, slug: str) -> None:
+    exercise = _exercise(session, slug)
+    state = users.exercise_state(session, exercise.id)
     assert state is not None
-    state.ladder_step_id = last.id
-    _log(plan, "pull-up", TOP, 0)
-    (first,) = feedback(plan, _log(plan, "pull-up", TOP, 2))
-    (again,) = feedback(plan, _log(plan, "pull-up", TOP, 4))
+    state.ladder_step_id = max(exercise.ladder, key=lambda s: s.position).id
+
+
+def test_the_top_of_the_ladder_is_said_once(plan: Session) -> None:
+    _on_top(plan, "push-up")
+    _log(plan, "push-up", PUSH_TOP, 0)
+    (first,) = feedback(plan, _log(plan, "push-up", PUSH_TOP, 2))
+    (again,) = feedback(plan, _log(plan, "push-up", PUSH_TOP, 4))
     assert first.status is again.status is Progress.TOP_OF_LADDER
     assert (first.note_top, again.note_top) == (True, False)
 
@@ -258,7 +264,7 @@ def test_overview_lists_every_exercise_in_plan_order(plan: Session) -> None:
     names = [s.exercise for s in standings]
     assert names.index("Pull-up") < names.index("Dip (chairs)")  # Torso lists pull-ups first
     pull = standings[names.index("Pull-up")]
-    assert (pull.step, pull.step_number, pull.steps) == ("Strict pull-up", 2, 6)
+    assert (pull.step, pull.step_number, pull.steps) == ("Strict pull-up", 2, 4)
     assert (pull.last, pull.best_set, pull.status) == ((), None, Progress.HOLD)
 
 
@@ -355,15 +361,23 @@ def test_an_exercise_without_weights_names_none(plan: Session) -> None:
 
 
 def test_overview_reports_the_top_of_the_ladder(plan: Session) -> None:
-    exercise = _exercise(plan, "pull-up")
-    last = max(exercise.ladder, key=lambda s: s.position)
-    state = users.exercise_state(plan, exercise.id)
-    assert state is not None
-    state.ladder_step_id = last.id
+    _on_top(plan, "push-up")
+    _log(plan, "push-up", PUSH_TOP, 0)
+    _log(plan, "push-up", PUSH_TOP, 2)
+    by_name = {s.exercise: s for s in overview(plan)}
+    assert by_name["Push-up"].status is Progress.TOP_OF_LADDER
+
+
+def test_the_vest_step_at_the_top_is_never_the_top_of_the_ladder(plan: Session) -> None:
+    """ADR-0072 (29 Oct 2026): the pull-up's last step takes load, so it gets harder by weight."""
+    _on_top(plan, "pull-up")
     _log(plan, "pull-up", TOP, 0)
     _log(plan, "pull-up", TOP, 2)
     by_name = {s.exercise: s for s in overview(plan)}
-    assert by_name["Pull-up"].status is Progress.TOP_OF_LADDER
+    assert (by_name["Pull-up"].step, by_name["Pull-up"].status) == (
+        "Vest or backpack",
+        Progress.HOLD,
+    )
 
 
 # ------------------------------------------------------------------ retired exercises (#107)

@@ -206,11 +206,17 @@ Decided while building, within this ADR, from Liam's answers of 29 Oct (Confirme
   step moves. Its figure is the dip-bars one with the pack on the back. It is the first loaded
   step in a home version, so the weights owned now show at home. Appending a step adds no plan
   version, as with the kit ladders (25 Oct).
-- **Pull-up and chin-up wait.** Their three "Vest or backpack, 5 / 10 / 15 kg" steps can't
-  become one without a data change: the seed matches steps by position, refuses a shorter
-  ladder (`seed._preflight`), and a rename keeps one position, so the 10 and 15 kg rows stay
-  in `ladder_steps` whatever `plan.toml` says. Removing them, or moving anything logged at
-  them, is a live-data change for Liam to approve, so both ladders are unchanged for now.
+- **Pull-up and chin-up: one step.** Their three "Vest or backpack, 5 / 10 / 15 kg" steps
+  couldn't become one without a data change: the seed matches steps by position, refuses a
+  shorter ladder (`seed._preflight`), and a rename keeps one position. Liam approved a one-off
+  migration (29 Oct; `b7e1c3d5f9a2`), checked first on the Pi, read-only: nothing used the 10
+  or 15 kg steps. It finds them by exercise and name, stops before any write if a logged set,
+  someone's level, a guided session in progress or a workout kept for /undo uses one, and
+  deletes them; sets at the 5 kg step without a weight get 5 kg (there were none). The seed
+  then renames "Vest or backpack, 5 kg" in place to "Vest or backpack", which takes load
+  carried by the vest (needs the bar and a 5 kg vest or backpack), so anyone on it stays on
+  it. The figure is the 5 kg one's. A downgrade puts the two steps back at the top, without
+  what was logged since.
 
 ## Built (Progress shows weights, 29 Oct 2026)
 

@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -8,16 +9,22 @@ from training_coach.db.models import Exercise
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 
 
-def test_sqlite_pragmas_applied(tmp_path: Path) -> None:
+@pytest.fixture
+def blank(tmp_path: Path) -> Iterator[Engine]:
+    """An engine on an empty file, disposed afterwards so no connection is left open."""
     engine = make_engine(f"sqlite:///{tmp_path / 'test.db'}")
-    with engine.connect() as conn:
+    yield engine
+    engine.dispose()
+
+
+def test_sqlite_pragmas_applied(blank: Engine) -> None:
+    with blank.connect() as conn:
         assert conn.execute(text("PRAGMA journal_mode")).scalar() == "wal"
         assert conn.execute(text("PRAGMA foreign_keys")).scalar() == 1
 
 
-def test_session_scope_rolls_back_on_error(tmp_path: Path) -> None:
-    engine = make_engine(f"sqlite:///{tmp_path / 'test.db'}")
-    factory = make_session_factory(engine)
+def test_session_scope_rolls_back_on_error(blank: Engine) -> None:
+    factory = make_session_factory(blank)
     with session_scope(factory) as session:
         session.execute(text("CREATE TABLE t (x INTEGER)"))
 
