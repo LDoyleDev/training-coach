@@ -1,0 +1,44 @@
+# Writes android/gradle/verification-metadata.xml (Gradle dependency verification, sha256) for the
+# band reader and keeps it as a workflow artifact. Run by hand when the reader's dependencies or
+# plugins change; commit the file it produces in a PR. It never pushes or opens PRs itself.
+#
+# Same JDK, Gradle and tasks as the build job in android.yml, so every plugin and library the real
+# build resolves (lint and the release build included) gets a checksum. No cache: every artifact
+# comes fresh from the repositories, not from a cache an earlier run left behind.
+name: Gradle verification metadata
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          gradle-version: "8.14.4"
+          cache-disabled: true
+      - name: Write the checksums while running the real build
+        run: >-
+          gradle -p android --no-daemon --write-verification-metadata sha256
+          :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease
+      - name: Count the components
+        run: |
+          echo "Components with checksums: $(grep -c '<component ' android/gradle/verification-metadata.xml)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-metadata
+          path: android/gradle/verification-metadata.xml
+          if-no-files-found: error
+          retention-days: 7
