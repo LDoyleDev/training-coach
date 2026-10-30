@@ -30,8 +30,9 @@ KIT_LADDERS = {
 
 def _before(exercise: ExerciseSeed) -> ExerciseSeed:
     """The exercise as it was before the kit ladders: the renamed step under its old name, and
-    nothing after it."""
-    ((old, new),) = exercise.renames.items()
+    nothing after it. The first rename is the kit ladders' (a later one, such as the vest's on
+    29 Oct, renames a step it named)."""
+    old, new = next(iter(exercise.renames.items()))
     at = exercise.ladder.index(new)
     ladder = [*exercise.ladder[:at], old]
     needs = {step: kit for step, kit in exercise.needs.items() if step in ladder}
@@ -108,7 +109,7 @@ def test_every_new_step_has_needs_and_a_cue() -> None:
     for exercise in load_plan().exercises:
         if not exercise.renames:
             continue
-        (new,) = exercise.renames.values()
+        new = next(iter(exercise.renames.values()))
         for step in exercise.ladder[exercise.ladder.index(new) :]:
             assert exercise.needs.get(step), (exercise.slug, step)
             assert exercise.cues.get(step), (exercise.slug, step)

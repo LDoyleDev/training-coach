@@ -222,17 +222,18 @@ def test_move_up_skips_a_locked_step_to_the_next_open_one(
         monkeypatch,
         "pull-up",
         {"Slow negatives": bar, "Strict pull-up": bar, "Pause at top": ["rings"]}
-        | {"Vest or backpack, 5 kg": bar},
+        | {"Vest or backpack": bar},
     )
     equipment.save(plan, [Item(Kit.PULL_UP_BAR)], NOW)
     strict = _put(plan, "pull-up", 1)
     _ready(plan, strict, "torso", [12, 12, 12, 12])
     move = progress.move_up(plan, strict.exercise_id, strict.id)
     assert move is not None
-    assert (move.outcome, move.step) == (MoveOutcome.MOVED, "Vest or backpack, 5 kg")
+    assert (move.outcome, move.step) == (MoveOutcome.MOVED, "Vest or backpack")
 
-    vest = ("Vest or backpack, 5 kg", "Vest or backpack, 10 kg", "Vest or backpack, 15 kg")
-    _needs(monkeypatch, "pull-up", {name: ["rings"] for name in ("Pause at top", *vest)})
+    _needs(
+        monkeypatch, "pull-up", {name: ["rings"] for name in ("Pause at top", "Vest or backpack")}
+    )
     _put(plan, "pull-up", 1)
     blocked = progress.move_up(plan, strict.exercise_id, strict.id)
     assert blocked is not None

@@ -6,9 +6,7 @@ import BodyFatTrend from './BodyFatTrend'
 import SessionTimes from './SessionTimes'
 import TrendChart from './TrendChart'
 import { local } from './chart'
-import { amount } from './logic'
-import { weightsOf } from '../session/days'
-import { kgText } from '../session/logic'
+import { lastAndBest } from './logic'
 import { KIT_HREF } from '../account/kit'
 import { moveButton, moveHref, needs, topLabel } from '../plan/ladder'
 import { card, secondary } from '../ui'
@@ -97,13 +95,7 @@ function Standings() {
                 <span className="text-[var(--slate)]">
                   {s.step} · step {s.step_number} of {s.steps}
                 </span>
-                <span>
-                  {s.last.length > 0
-                    ? `Last ${s.last.map((v) => amount(s, v)).join(' · ')}${weightsOf(s.last_kg)}`
-                    : 'Not logged at this step yet'}
-                  {s.best_set !== null && ` · best ${amount(s, s.best_set)}`}
-                  {s.best_set !== null && s.best_kg !== null && ` at ${kgText(s.best_kg)}`}
-                </span>
+                <span>{lastAndBest(s)}</span>
                 {s.status === 'ready' ? (
                   <a href={moveHref(s.slug)} className={moveButton}>
                     {status}

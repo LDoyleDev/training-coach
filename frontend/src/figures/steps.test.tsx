@@ -107,7 +107,7 @@ test('another step, or none, shows the figure as it is; no figure, nothing', () 
   expect(figureFor('dip')).toBe(FIGURES.dip)
   expect(figureFor('dip', 'Feet on floor')).toBe(FIGURES.dip)
   expect(figureFor('no-such-move', 'Dip bars, bodyweight, full range')).toBeUndefined()
-  const loaded = figureFor('pull-up', 'Vest or backpack, 10 kg')!
+  const loaded = figureFor('pull-up', 'Vest or backpack')!
   expect(loaded.props).toEqual({ ...FIGURES['pull-up'].props, load: true })
   expect(loaded.start).toBe(FIGURES['pull-up'].start)
 })
@@ -145,7 +145,7 @@ test("every step's figure keeps its limbs, stays in its picture and off the floo
 const bells = (drawn: Shape[]) => drawn.filter((s) => s.kind === 'ball' && s.tone === 'bell')
 
 test('a vest or backpack sits on the upper back, behind the body', () => {
-  const pull = figureFor('pull-up', 'Vest or backpack, 5 kg')!
+  const pull = figureFor('pull-up', 'Vest or backpack')!
   const drawn = shapes(pull.start, pull.props, pull.order)
   const plain = shapes(FIGURES['pull-up'].start, FIGURES['pull-up'].props)
   expect(drawn).toHaveLength(plain.length + 2) // the pack and a strap

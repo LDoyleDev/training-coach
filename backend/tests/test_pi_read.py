@@ -8,6 +8,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -60,7 +61,7 @@ def _query_script() -> str:
 def _run(tmp_path: Path, query: str, db: Path | None = None) -> subprocess.CompletedProcess[str]:
     db = db or tmp_path / "coach.db"
     if not db.exists():
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             conn.execute(
                 "CREATE TABLE ingest_keys (id INTEGER, secret_hash TEXT, last_used_at TEXT)"
             )
@@ -97,7 +98,7 @@ def test_a_select_reads_with_secret_columns_blank(tmp_path: Path) -> None:
 def test_anything_but_a_plain_read_is_refused(tmp_path: Path, query: str) -> None:
     assert _run(tmp_path, query).returncode != 0
     assert _run(tmp_path, "SELECT secret_hash FROM ingest_keys").stdout.splitlines()[1] == ""
-    with sqlite3.connect(tmp_path / "coach.db") as conn:
+    with closing(sqlite3.connect(tmp_path / "coach.db")) as conn:
         assert conn.execute("SELECT secret_hash FROM ingest_keys").fetchone() == ("HASH",)
 
 
@@ -118,7 +119,7 @@ def _planted(engine: Engine) -> Path:
         "INSERT INTO passkey_challenges(handle_hash, challenge, purpose, expires_at) "
         "VALUES (?, X'00', 'sign_in', '2027')",
     ]
-    with sqlite3.connect(path) as conn:
+    with closing(sqlite3.connect(path)) as conn, conn:
         for insert, secret in zip(inserts, PLANTED, strict=True):
             conn.execute(insert, (secret,))
     return path
@@ -168,7 +169,7 @@ def test_the_real_schema_refuses_more_than_a_read(
 ) -> None:
     db = _planted(engine)
     assert _run(tmp_path, query, db).returncode != 0
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn:
         assert conn.execute("SELECT key_hash FROM ingest_keys").fetchone() == (PLANTED[0],)
 
 

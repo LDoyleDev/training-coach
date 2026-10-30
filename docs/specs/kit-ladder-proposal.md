@@ -122,8 +122,8 @@ stays on a loaded step (at 5 kg). The 8 kg kettlebell in a backpack is a fine 8 
 owner wants one: **Backpack with the 8 kg bell** (pull-up bar, backpack, kettlebell:8).
 
 On 29 Oct 2026 Liam chose one step instead of the three, **Vest or backpack**, that takes load
-from 5 kg in his own step (ADR-0072, Built 29 Oct). It waits: the 10 and 15 kg steps can't
-leave the ladder without a data change he approves first.
+from 5 kg in his own step (ADR-0072, Built 29 Oct). The 10 and 15 kg steps left the ladder by a
+one-off migration he approved, as nothing used them; the 5 kg step was renamed in place.
 
 ### Dip (chairs) (`dip`, Torso 4 x 8-15)
 

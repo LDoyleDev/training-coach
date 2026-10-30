@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic import command
@@ -17,6 +18,34 @@ def test_migrations_upgrade_and_downgrade(tmp_path: Path, monkeypatch: pytest.Mo
     command.upgrade(cfg, "head")
     command.downgrade(cfg, "base")
     get_settings.cache_clear()
+
+
+def test_a_migration_closes_its_connections(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Alembic's engine kept its pooled connection open until garbage collection, which
+    Python 3.13+ reports as an unclosed database (ResourceWarning) and the suite's warnings
+    filter turns into failures. Checked directly here, so it holds on 3.12 too."""
+    import sqlite3
+
+    from training_coach.config import get_settings
+
+    opened: list[sqlite3.Connection] = []  # held, so the garbage collector can't close them
+    connect = sqlite3.dbapi2.connect
+
+    def recorded(*args: Any, **kwargs: Any) -> sqlite3.Connection:
+        opened.append(connect(*args, **kwargs))
+        return opened[-1]
+
+    monkeypatch.setattr(sqlite3.dbapi2, "connect", recorded)
+    monkeypatch.setenv("TC_DATABASE_URL", f"sqlite:///{tmp_path / 'm.db'}")
+    get_settings.cache_clear()
+    command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
+    get_settings.cache_clear()
+    assert opened
+    for conn in opened:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+            conn.execute("SELECT 1")
 
 
 def test_batch_migrations_keep_logged_sets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
