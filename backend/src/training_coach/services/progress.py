@@ -39,6 +39,7 @@ from training_coach.domain.queue import local_date
 from training_coach.domain.records import NewBests, new_bests
 from training_coach.domain.targets import Prescription
 from training_coach.services import blocks, equipment, user_settings, users
+from training_coach.services.seed import bundled_plan
 
 TOP_NOTED = "progress.top_of_ladder"
 LEVEL_SET = "progress.level_set"
@@ -465,6 +466,15 @@ class Rung:
     name: str
     cue: str | None
     missing: tuple[str, ...] = ()  # the kit it needs that isn't listed: locked (ADR-0071)
+    # "Can you do ...?": a yes says the person can start here (G1, ADR-0075); None on the
+    # first step, which anyone can start at
+    question: str | None = None
+
+
+def step_questions(slug: str) -> dict[str, str]:
+    """Ladder step name -> its level question, for one exercise of the bundled plan."""
+    found = next((e for e in bundled_plan().exercises if e.slug == slug), None)
+    return dict(found.questions) if found is not None else {}
 
 
 @dataclass(frozen=True)
@@ -613,6 +623,7 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
             continue
         statuses = {_status(session, item, step, kit) for item in items}
         needs = equipment.ladder_needs(exercise)
+        questions = step_questions(exercise.slug)
         status = next(
             (s for s in (Progress.READY, Progress.TOP_OF_LADDER) if s in statuses), Progress.HOLD
         )
@@ -644,7 +655,13 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
                 else (),
                 slug=exercise.slug,
                 ladder=tuple(
-                    Rung(r.id, r.name, r.cue, tuple(kit_rules.missing(kit, n)))
+                    Rung(
+                        r.id,
+                        r.name,
+                        r.cue,
+                        tuple(kit_rules.missing(kit, n)),
+                        questions.get(r.name),
+                    )
                     for r, n in zip(exercise.ladder, needs, strict=True)
                 ),
                 unlock=_unlock(step, kit),

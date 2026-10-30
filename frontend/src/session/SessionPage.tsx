@@ -1015,7 +1015,7 @@ function Overview({
       {session.after_run && (
         <p className={card}>After your run: it's logged, and these sets are saved with it.</p>
       )}
-      {session.warm_up && <p className={card}>Warm up for about 10 minutes first.</p>}
+      {session.warm_up && <p className={card}>Warm up for about 5 minutes first.</p>}
       <p className="text-[var(--slate)]">
         Stop if you feel sharp pain, dizziness or chest tightness.
       </p>

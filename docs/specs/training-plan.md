@@ -44,7 +44,7 @@ shift everything back (ADR-0006).
   above applies to each pair's first exercise; the second can be a small muscle (calves,
   tibialis, core, neck) that fills the bigger lift's rest, so small-muscle work can come
   early. Sessions list every set in the order it's done.
-- **Session length:** ~10 min warm-up + 50-60 min of work.
+- **Session length:** ~5 min warm-up + 50-60 min of work.
 - **Neck:** controlled flexion, extension and side bending, plus chin tucks; no neck bridges.
   About 10-15 reps, twice a week (Torso and Recovery).
 - **Posture / upper back:** rear-delt reverse fly with the chest supported, prone Y-T-W, back

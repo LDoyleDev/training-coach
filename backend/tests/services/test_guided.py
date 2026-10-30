@@ -52,6 +52,15 @@ def test_today_is_the_queued_session_in_work_order(session: Session) -> None:
     assert 40 <= plan.minutes <= 90  # warm-up plus 25 sets, some per side
 
 
+def test_a_strength_session_counts_a_five_minute_warm_up(session: Session) -> None:
+    """The warm-up is 5 minutes, not 10 (program-builder.md J.4, ADR-0065 addendum)."""
+    plan = guided.today(_seeded(session), DAY, BERLIN)
+    assert plan is not None
+    assert plan.warm_up is True
+    without = guided._minutes(plan.items, plan.order, warm_up=False)  # the sets alone
+    assert plan.minutes - without == 5
+
+
 def test_a_pair_switches_inside_and_rests_after_the_round(session: Session) -> None:
     """Jump squat + tibialis raise share no prime mover: 15 s to move, 60 s after (ADR-0065)."""
     plan = guided.today(_seeded(session), DAY, BERLIN)

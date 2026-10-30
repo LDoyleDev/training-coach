@@ -11,7 +11,7 @@
 # the light core, grip and neck side work. Every main muscle gets 10+ hard sets on two or more
 # days (program-builder-research.md). Order within a session: power -> strength -> hypertrophy
 # -> small muscles (Galpin). Each resistance session
-# starts with a ~10 min warm-up and stays within ~60 min of work.
+# starts with a ~5 min warm-up and stays within ~60 min of work.
 # `pair = N` on two neighbouring items: they are done alternately, set by set, and should not
 # compete for the same muscles, so one rests while the other works. The order above applies to
 # each pair's first exercise; the second may be a small muscle filling that lift's rest (ADR-0031).
@@ -22,6 +22,12 @@
 # kit each ladder step needs ("kettlebell:16", "backpack:10", "band:medium": that band or a
 # stronger one). Bodyweight and household things need nothing. `[exercises.cues]` gives a step
 # its cue, shown with the ladder; the seed rewrites cues on every run (ADR-0071).
+# `[exercises.questions]` asks "Can you do ...?" of every step after the first: a yes means the
+# person can start at that step. It asks for the bottom of the step's range in one set, in good
+# form (each side when one-sided), the first target a step with no history gets (ADR-0027);
+# HIIT's steps name their rounds, so its questions use those. Setup will walk them from the
+# bottom (builder G1) and the Plan page shows them with the ladder; nothing sets a level from
+# them (ADR-0075).
 # `[exercises.loads]` names the steps that take load and what carries the weight ("barbell",
 # "dumbbells", "machine", or "backpack": a vest or backpack, its kg the weight added): each set
 # records its kg, and the kit gives the increment (ADR-0072).
@@ -144,6 +150,10 @@ start = 0
 ladder = ["Back against wall, heels forward", "Heels further from wall", "Single leg", "Holding 8 kg on toes"]
 [exercises.needs]
 "Holding 8 kg on toes" = ["kettlebell:8"]
+[exercises.questions]
+"Heels further from wall" = "Can you do 15 tibialis raises with your heels further from the wall?"
+"Single leg" = "Can you do 15 single-leg tibialis raises on each leg?"
+"Holding 8 kg on toes" = "Can you do 15 tibialis raises with 8 kg resting on your toes?"
 
 [[exercises]]
 slug = "jump-squat"
@@ -158,6 +168,9 @@ start = 0
 ladder = ["Bodyweight, full rest", "Pause at bottom, then jump", "Holding 8 kg"]
 [exercises.needs]
 "Holding 8 kg" = ["kettlebell:8"]
+[exercises.questions]
+"Pause at bottom, then jump" = "Can you do 5 jump squats with a pause at the bottom, landing softly?"
+"Holding 8 kg" = "Can you do 5 jump squats holding 8 kg, landing softly?"
 
 [[exercises]]
 slug = "kb-swing"
@@ -181,6 +194,11 @@ renames = { "Heavier kettlebell" = "Two-hand, 16 kg" }
 "Two-hand, 16 kg" = "Same snap from the hips; the heavier bell floats lower, chest height is not the goal."
 "One-arm, 16 kg" = "Free hand out to the side; don't let the bell twist your shoulders."
 "Two-hand, 24 kg" = "Hike it deep between the legs before each rep."
+[exercises.questions]
+"One-arm, 8 kg" = "Can you do 15 one-arm swings with 8 kg, the snap coming from your hips?"
+"Two-hand, 16 kg" = "Can you do 15 two-hand swings with 16 kg?"
+"One-arm, 16 kg" = "Can you do 15 one-arm swings with 16 kg, shoulders square?"
+"Two-hand, 24 kg" = "Can you do 15 two-hand swings with 24 kg?"
 
 [[exercises]]
 slug = "bulgarian-split-squat"
@@ -204,6 +222,12 @@ renames = { "Heavier kettlebell" = "Goblet hold, 16 kg" }
 "Goblet hold, 16 kg" = "Bell at the chest, elbows in; lower straight down."
 "Goblet hold 16 kg, 3 s lowering" = "Three seconds down, drive up."
 "Suitcase hold, 16 kg + 8 kg" = "A bell in each hand, heavier on the side of the front leg; swap each set."
+[exercises.questions]
+"Goblet hold, 8 kg" = "Can you do 8 split squats on each leg holding 8 kg at your chest?"
+"Goblet hold, 3 s lowering" = "Can you do 8 split squats on each leg holding 8 kg, three seconds down?"
+"Goblet hold, 16 kg" = "Can you do 8 split squats on each leg holding 16 kg at your chest?"
+"Goblet hold 16 kg, 3 s lowering" = "Can you do 8 split squats on each leg holding 16 kg, three seconds down?"
+"Suitcase hold, 16 kg + 8 kg" = "Can you do 8 split squats on each leg with 16 kg in one hand and 8 kg in the other?"
 
 [[exercises]]
 slug = "pistol-squat"
@@ -218,6 +242,10 @@ start = 0
 ladder = ["Sit to chair on one leg", "Lower box", "Full pistol", "Holding 8 kg"]
 [exercises.needs]
 "Holding 8 kg" = ["kettlebell:8"]
+[exercises.questions]
+"Lower box" = "Can you sit to a low box on one leg and stand up 5 times, each leg, without your hands?"
+"Full pistol" = "Can you do 5 full pistol squats on each leg?"
+"Holding 8 kg" = "Can you do 5 pistol squats on each leg holding 8 kg?"
 
 [[exercises]]
 slug = "single-leg-rdl"
@@ -239,6 +267,10 @@ renames = { "Heavier kettlebell" = "16 kg" }
 [exercises.cues]
 "16 kg" = "Bell in the hand opposite the standing leg; hips square to the floor."
 "16 kg, pause at bottom" = "One second at the stretch, back flat."
+[exercises.questions]
+"8 kg, pause at bottom" = "Can you do 10 single-leg deadlifts with 8 kg on each leg, pausing a second at the bottom?"
+"16 kg" = "Can you do 10 single-leg deadlifts with 16 kg on each leg, back flat?"
+"16 kg, pause at bottom" = "Can you do 10 single-leg deadlifts with 16 kg on each leg, pausing a second at the bottom?"
 
 [[exercises]]
 slug = "hamstring-curl"
@@ -250,6 +282,10 @@ pattern = "isolation"
 aliases = ["hamstring curl", "towel curl", "sliders", "leg curl", "nordic", "nordics"]
 start = 0
 ladder = ["Towel slide, both legs", "Towel slide, single leg", "Nordic curl negatives", "Full Nordic curl"]
+[exercises.questions]
+"Towel slide, single leg" = "Can you do 6 single-leg towel slide curls, hips up the whole time?"
+"Nordic curl negatives" = "Can you lower yourself slowly to the floor in a Nordic curl 6 times?"
+"Full Nordic curl" = "Can you do 6 full Nordic curls, down and back up?"
 
 [[exercises]]
 slug = "calf-raise"
@@ -264,6 +300,9 @@ ladder = ["Bodyweight on a step", "Holding 8 kg", "8 kg, 2 s pause at top"]
 [exercises.needs]
 "Holding 8 kg" = ["kettlebell:8"]
 "8 kg, 2 s pause at top" = ["kettlebell:8"]
+[exercises.questions]
+"Holding 8 kg" = "Can you do 12 single-leg calf raises on a step holding 8 kg, each leg?"
+"8 kg, 2 s pause at top" = "Can you do 12 single-leg calf raises holding 8 kg, two seconds at the top, each leg?"
 
 # ------------------------------------------------------------------ torso
 
@@ -288,6 +327,10 @@ renames = { "Weighted backpack" = "Vest or backpack", "Vest or backpack, 5 kg" =
 "Vest or backpack" = "Pack it tight and high so it doesn't swing; add weight only when every set of 5-12 is clean."
 [exercises.loads]
 "Vest or backpack" = "backpack"
+[exercises.questions]
+"Strict pull-up" = "Can you do 5 strict pull-ups, from a full hang to your chin over the bar?"
+"Pause at top" = "Can you do 5 pull-ups, holding your chin over the bar for a second each time?"
+"Vest or backpack" = "Can you do 5 pull-ups wearing a vest or backpack with 5 kg in it?"
 
 [[exercises]]
 slug = "dip"
@@ -312,6 +355,12 @@ renames = { "Weighted backpack" = "Feet off floor, 5 kg vest or backpack" }
 "Dip bars, vest or backpack" = "Pack it tight and high so it doesn't swing; add weight only when every set of 8-15 is clean."
 [exercises.loads]
 "Dip bars, vest or backpack" = "backpack"
+[exercises.questions]
+"Feet off floor" = "Can you do 8 chair dips with your feet off the floor?"
+"Feet off floor, 5 kg vest or backpack" = "Can you do 8 chair dips, feet off the floor, wearing 5 kg in a vest or backpack?"
+"Feet off floor, 10 kg" = "Can you do 8 chair dips, feet off the floor, wearing 10 kg?"
+"Dip bars, bodyweight, full range" = "Can you do 8 dips on bars, upper arms down to level with the floor?"
+"Dip bars, vest or backpack" = "Can you do 8 dips on bars wearing a vest or backpack with 5 kg in it?"
 
 [[exercises]]
 slug = "kb-row"
@@ -334,6 +383,11 @@ renames = { "Heavier kettlebell" = "16 kg" }
 "16 kg" = "Hand and knee on the stools; check they're stable before loading."
 "16 kg, 3 s lowering" = "Pull to the hip, three seconds down."
 "16 kg, pause at top" = "Hold one second with the elbow past the ribs."
+[exercises.questions]
+"8 kg, 3 s lowering" = "Can you do 10 rows with 8 kg on each arm, three seconds down?"
+"16 kg" = "Can you do 10 rows with 16 kg on each arm?"
+"16 kg, 3 s lowering" = "Can you do 10 rows with 16 kg on each arm, three seconds down?"
+"16 kg, pause at top" = "Can you do 10 rows with 16 kg on each arm, holding a second at the top?"
 
 [[exercises]]
 slug = "push-up"
@@ -345,6 +399,10 @@ pattern = "horizontal push"
 aliases = ["pushups", "push ups", "push-ups", "press ups"]
 start = 0
 ladder = ["Standard", "Feet elevated", "Deficit", "Archer"]
+[exercises.questions]
+"Feet elevated" = "Can you do 10 good push-ups with your feet on a chair?"
+"Deficit" = "Can you do 10 deficit push-ups, hands raised so your chest goes below them?"
+"Archer" = "Can you do 10 archer push-ups, alternating sides?"
 
 [[exercises]]
 slug = "pike-push-up"
@@ -356,6 +414,9 @@ pattern = "vertical push"
 aliases = ["pike", "pikes", "pike pushups"]
 start = 0
 ladder = ["Feet on floor", "Feet on chair", "Wall handstand push-up negatives"]
+[exercises.questions]
+"Feet on chair" = "Can you do 6 pike push-ups with your feet on a chair?"
+"Wall handstand push-up negatives" = "Can you lower slowly from a handstand against a wall to your head 6 times?"
 
 [[exercises]]
 slug = "reverse-fly"
@@ -371,6 +432,9 @@ ladder = ["Chest on bench/bed, water bottles", "Chest on bench/bed, 8 kg one arm
 [exercises.needs]
 "Chest on bench/bed, 8 kg one arm" = ["kettlebell:8"]
 "Chest-supported, 3 s lowering" = ["kettlebell:8"]
+[exercises.questions]
+"Chest on bench/bed, 8 kg one arm" = "Can you do 12 reverse flies, chest supported, with 8 kg in one hand?"
+"Chest-supported, 3 s lowering" = "Can you do 12 reverse flies, chest supported, three seconds down?"
 
 [[exercises]]
 slug = "band-face-pull"
@@ -392,6 +456,10 @@ renames = { "Heavier band" = "Medium band" }
 [exercises.cues]
 "Medium band" = "Step back until taut; hands finish beside the ears."
 "Heavy band" = "Same height and pace; don't lean back to cheat it."
+[exercises.questions]
+"Light band, 2 s hold" = "Can you do 12 face pulls with a light band, holding two seconds at the end?"
+"Medium band" = "Can you do 12 face pulls with a medium band?"
+"Heavy band" = "Can you do 12 face pulls with a heavy band, without leaning back?"
 
 [[exercises]]
 slug = "suitcase-carry"
@@ -408,6 +476,9 @@ ladder = ["8 kg", "16 kg", "Farmer carry, 16 kg + 8 kg, swap hands each set"]
 "8 kg" = ["kettlebell:8"]
 "16 kg" = ["kettlebell:16"]
 "Farmer carry, 16 kg + 8 kg, swap hands each set" = ["kettlebell:8", "kettlebell:16"]
+[exercises.questions]
+"16 kg" = "Can you carry 16 kg in one hand for 30 seconds, each side, standing tall?"
+"Farmer carry, 16 kg + 8 kg, swap hands each set" = "Can you carry 16 kg in one hand and 8 kg in the other for 30 seconds?"
 
 [[exercises]]
 slug = "neck-flexion"
@@ -419,6 +490,9 @@ pattern = "isolation"
 aliases = ["neck flexion", "neck curl", "neck curls", "neck front"]
 start = 0
 ladder = ["Bodyweight, slow", "Hand resistance on forehead", "Folded towel + light plate/bottle on forehead"]
+[exercises.questions]
+"Hand resistance on forehead" = "Can you do 10 slow, pain-free neck lifts with your hand pressing lightly on your forehead?"
+"Folded towel + light plate/bottle on forehead" = "Can you do 10 slow, pain-free neck lifts with a light weight on a towel on your forehead?"
 
 [[exercises]]
 slug = "neck-extension"
@@ -431,6 +505,9 @@ pattern = "isolation"
 aliases = ["neck extension", "neck back", "neck extensions"]
 start = 0
 ladder = ["Bodyweight, slow", "Hand resistance on back of head", "Towel-wrapped light weight on back of head"]
+[exercises.questions]
+"Hand resistance on back of head" = "Can you do 10 slow, pain-free neck lifts with your hand pressing lightly on the back of your head?"
+"Towel-wrapped light weight on back of head" = "Can you do 10 slow, pain-free neck lifts with a towel-wrapped light weight on the back of your head?"
 
 # ------------------------------------------------------- arms, calves, neck
 
@@ -454,6 +531,9 @@ renames = { "Weighted backpack" = "Vest or backpack", "Vest or backpack, 5 kg" =
 "Vest or backpack" = "Pack it tight and high so it doesn't swing; add weight only when every set of 6-12 is clean."
 [exercises.loads]
 "Vest or backpack" = "backpack"
+[exercises.questions]
+"3 s lowering" = "Can you do 6 chin-ups, taking three seconds to lower each one?"
+"Vest or backpack" = "Can you do 6 chin-ups wearing a vest or backpack with 5 kg in it?"
 
 [[exercises]]
 slug = "diamond-push-up"
@@ -465,6 +545,8 @@ pattern = "horizontal push"
 aliases = ["diamonds", "diamond pushups"]
 start = 0
 ladder = ["Standard", "Feet elevated"]
+[exercises.questions]
+"Feet elevated" = "Can you do 8 diamond push-ups with your feet on a chair?"
 
 [[exercises]]
 slug = "overhead-triceps-extension"
@@ -488,6 +570,11 @@ renames = { "Heavier kettlebell" = "8 kg, 1.5 reps" }
 "8 kg, 1.5 reps" = "Lower all the way, press halfway, lower again, then press to the top: that's one rep."
 "16 kg, both hands" = "Elbows in; lower only as far as your shoulders allow."
 "16 kg, 3 s lowering" = "Three seconds down behind the head, then press up in one."
+[exercises.questions]
+"8 kg, 3 s lowering" = "Can you do 10 overhead extensions with 8 kg, three seconds down?"
+"8 kg, 1.5 reps" = "Can you do 10 one-and-a-half reps of the overhead extension with 8 kg?"
+"16 kg, both hands" = "Can you do 10 overhead extensions with 16 kg, elbows in?"
+"16 kg, 3 s lowering" = "Can you do 10 overhead extensions with 16 kg, three seconds down?"
 
 [[exercises]]
 slug = "kb-curl"
@@ -510,6 +597,11 @@ renames = { "Heavier kettlebell" = "8 kg, 3 s lowering, pause at top" }
 "8 kg, 3 s lowering, pause at top" = "Squeeze for one second at the top, then take three seconds down."
 "16 kg, hammer grip" = "Hold the handle upright; elbows stay pinned to your sides."
 "16 kg, slow tempo" = "Two seconds up, three down; no swinging."
+[exercises.questions]
+"8 kg, slow tempo" = "Can you do 12 curls with 8 kg, two seconds up and three down?"
+"8 kg, 3 s lowering, pause at top" = "Can you do 12 curls with 8 kg, a one-second squeeze at the top and three seconds down?"
+"16 kg, hammer grip" = "Can you do 12 hammer curls with 16 kg, no swinging?"
+"16 kg, slow tempo" = "Can you do 12 hammer curls with 16 kg, two seconds up and three down?"
 
 [[exercises]]
 slug = "lateral-raise"
@@ -521,6 +613,8 @@ pattern = "isolation"
 aliases = ["lateral raises", "laterals", "side raises"]
 start = 0
 ladder = ["8 kg or water bottles", "Lean-away single-arm"]
+[exercises.questions]
+"Lean-away single-arm" = "Can you do 12 single-arm lateral raises, leaning away from a post you hold?"
 
 [[exercises]]
 slug = "neck-lateral"
@@ -532,6 +626,9 @@ pattern = "isolation"
 aliases = ["neck side", "neck lateral", "side neck"]
 start = 0
 ladder = ["Bodyweight, slow", "Hand resistance on side of head", "Towel-wrapped light weight"]
+[exercises.questions]
+"Hand resistance on side of head" = "Can you do 10 slow, pain-free side neck lifts on each side with your hand pressing lightly?"
+"Towel-wrapped light weight" = "Can you do 10 slow, pain-free side neck lifts on each side with a towel-wrapped light weight?"
 
 [[exercises]]
 slug = "hanging-raise"
@@ -548,6 +645,9 @@ ladder = ["Knee raises", "Straight-leg raises", "Toes to bar"]
 "Knee raises" = ["pull-up bar"]
 "Straight-leg raises" = ["pull-up bar"]
 "Toes to bar" = ["pull-up bar"]
+[exercises.questions]
+"Straight-leg raises" = "Can you do 8 hanging straight-leg raises without swinging?"
+"Toes to bar" = "Can you touch the bar with your toes 8 times without swinging?"
 
 [[exercises]]
 slug = "dead-hang"
@@ -564,6 +664,9 @@ ladder = ["Two hands", "Two hands, active shoulders", "One hand, alternating"]
 "Two hands" = ["pull-up bar"]
 "Two hands, active shoulders" = ["pull-up bar"]
 "One hand, alternating" = ["pull-up bar"]
+[exercises.questions]
+"Two hands, active shoulders" = "Can you hang for 30 seconds with your shoulders pulled down, away from your ears?"
+"One hand, alternating" = "Can you hang for 30 seconds from one hand at a time, swapping when you need to?"
 
 # --------------------------------------------------------- recovery + posture
 
@@ -578,6 +681,9 @@ pattern = "isolation"
 aliases = ["ytw", "y t w", "y-t-w", "prone raises"]
 start = 0
 ladder = ["Bodyweight", "Water bottles", "3 s hold at top"]
+[exercises.questions]
+"Water bottles" = "Can you do 8 rounds of Y, T and W holding small water bottles?"
+"3 s hold at top" = "Can you do 8 rounds of Y, T and W, holding each lift for three seconds?"
 
 [[exercises]]
 slug = "back-extension"
@@ -593,6 +699,9 @@ start = 0
 ladder = ["Floor superman", "Hips on bed edge, feet anchored", "Holding 8 kg at chest"]
 [exercises.needs]
 "Holding 8 kg at chest" = ["kettlebell:8"]
+[exercises.questions]
+"Hips on bed edge, feet anchored" = "Can you do 10 back extensions with your hips on the edge of a bed, feet anchored?"
+"Holding 8 kg at chest" = "Can you do 10 back extensions over a bed edge holding 8 kg at your chest?"
 
 [[exercises]]
 slug = "chin-tuck"
@@ -604,6 +713,9 @@ pattern = "mobility"
 aliases = ["chin tuck", "chin tucks"]
 start = 0
 ladder = ["5 s hold", "10 s hold", "Lying, head lifted 1 cm, 10 s hold"]
+[exercises.questions]
+"10 s hold" = "Can you do 8 chin tucks against a wall, holding each one for 10 seconds?"
+"Lying, head lifted 1 cm, 10 s hold" = "Can you do 8 chin tucks lying on your back, head lifted 1 cm, holding each for 10 seconds?"
 
 [[exercises]]
 slug = "mobility"
@@ -633,6 +745,10 @@ ladder = ["Kneeling towel slide, short range", "Kneeling towel slide, full range
 [exercises.needs]
 "Kneeling ab wheel" = ["ab wheel"]
 "Standing ab wheel negatives" = ["ab wheel"]
+[exercises.questions]
+"Kneeling towel slide, full range" = "Can you do 8 kneeling towel rollouts all the way out without your lower back sagging?"
+"Kneeling ab wheel" = "Can you do 8 kneeling ab wheel rollouts without your lower back sagging?"
+"Standing ab wheel negatives" = "Can you roll out from standing to the floor 8 times under control?"
 
 [[exercises]]
 slug = "copenhagen-plank"
@@ -644,6 +760,10 @@ pattern = "core"
 aliases = ["copenhagen", "copenhagens", "copenhagen planks", "adductor plank"]
 start = 0
 ladder = ["Knee on a chair", "Knee on a chair, 3 s lowering", "Ankle on a chair", "Ankle on a chair, 3 s lowering"]
+[exercises.questions]
+"Knee on a chair, 3 s lowering" = "Can you do 6 Copenhagen planks on each side, knee on a chair, three seconds down?"
+"Ankle on a chair" = "Can you do 6 Copenhagen planks on each side with your ankle on the chair?"
+"Ankle on a chair, 3 s lowering" = "Can you do 6 Copenhagen planks on each side, ankle on the chair, three seconds down?"
 
 [[exercises]]
 slug = "side-plank-hip-dip"
@@ -657,6 +777,10 @@ start = 0
 ladder = ["On the knees", "Straight legs", "Top leg raised", "Holding 8 kg on the hip"]
 [exercises.needs]
 "Holding 8 kg on the hip" = ["kettlebell:8"]
+[exercises.questions]
+"Straight legs" = "Can you do 10 side plank hip dips on each side with straight legs?"
+"Top leg raised" = "Can you do 10 side plank hip dips on each side with your top leg raised?"
+"Holding 8 kg on the hip" = "Can you do 10 side plank hip dips on each side holding 8 kg on your hip?"
 
 [[exercises]]
 slug = "reverse-nordic"
@@ -669,6 +793,10 @@ pattern = "isolation"
 aliases = ["reverse nordics", "reverse nordic curl", "reverse nordic curls"]
 start = 0
 ladder = ["Lean back about 30 degrees", "Lean deeper, 3 s lowering", "To the floor, hands push you back", "To the floor and back, no hands"]
+[exercises.questions]
+"Lean deeper, 3 s lowering" = "Can you do 5 reverse Nordics leaning back further than 30 degrees, three seconds down?"
+"To the floor, hands push you back" = "Can you lean back to the floor 5 times, pushing yourself back up with your hands?"
+"To the floor and back, no hands" = "Can you lean back to the floor and come back up 5 times without your hands?"
 
 # ------------------------------------------------------------- conditioning
 
@@ -693,6 +821,10 @@ pattern = "cardio"
 aliases = ["hiit", "intervals", "sprints", "tabata"]
 start = 0
 ladder = ["8 rounds", "10 rounds", "12 rounds", "12 rounds, 30 s on"]
+[exercises.questions]
+"10 rounds" = "Can you do 10 rounds of 20 seconds all-out and 10 seconds easy?"
+"12 rounds" = "Can you do 12 rounds of 20 seconds all-out and 10 seconds easy?"
+"12 rounds, 30 s on" = "Can you do 12 rounds with 30 seconds all-out in each?"
 
 [[exercises]]
 slug = "zone2"
@@ -858,6 +990,9 @@ focus = "60-75 min at conversational pace (30 min minimum)"
 items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
 [exercises.needs]
 "Easy jog with weight vest or backpack" = ["backpack"]
+[exercises.questions]
+"Easy jog / bike" = "Can you jog or cycle easily for 45 minutes, still able to talk?"
+"Easy jog with weight vest or backpack" = "Can you jog easily for 45 minutes wearing a weighted vest or backpack, still able to talk?"
 
 # ---------------------------------------------------------------- the gym catalogue (ADR-0072)
 # The gym exercises of program-builder.md (Decided 5) that the home plan doesn't already have:
@@ -971,6 +1106,8 @@ ladder = ["Bodyweight", "Holding a plate"]
 "Holding a plate" = "barbell"
 [exercises.cues]
 "Holding a plate" = "Hug the plate to your chest; same range as without it."
+[exercises.questions]
+"Holding a plate" = "Can you do 10 back extensions on a 45° bench holding a light plate to your chest?"
 
 [[exercises]]
 slug = "standing-calf-raise"
