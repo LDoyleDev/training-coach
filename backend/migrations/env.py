@@ -82,6 +82,15 @@ def run_migrations_online() -> None:
     engine = make_engine(database_url)
     if engine.dialect.name == "sqlite":
         _real_sqlite_transactions(engine)
+    try:
+        _migrate(engine)
+    finally:
+        # Close the pooled connection: left open, it held the file until garbage collection,
+        # which Python 3.13+ reports as an unclosed database (ResourceWarning).
+        engine.dispose()
+
+
+def _migrate(engine: Engine) -> None:
     with engine.connect() as connection:
         if connection.dialect.name != "sqlite":
             _run(connection, check_foreign_keys=False)
