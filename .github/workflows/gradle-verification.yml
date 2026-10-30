@@ -5,6 +5,10 @@
 # Same JDK, Gradle and tasks as the build job in android.yml, so every plugin and library the real
 # build resolves (lint and the release build included) gets a checksum. No cache: every artifact
 # comes fresh from the repositories, not from a cache an earlier run left behind.
+#
+# The committed file is deleted first, so the new one is written from scratch: versions no longer
+# used drop out, and a diff against the committed file shows every checksum that changed. Run it
+# on the branch whose dependencies changed: gh workflow run gradle-verification.yml --ref <branch>
 name: Gradle verification metadata
 
 on:
@@ -30,9 +34,10 @@ jobs:
           gradle-version: "8.14.4"
           cache-disabled: true
       - name: Write the checksums while running the real build
-        run: >-
-          gradle -p android --no-daemon --write-verification-metadata sha256
-          :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease
+        run: |
+          rm -f android/gradle/verification-metadata.xml
+          gradle -p android --no-daemon --write-verification-metadata sha256 \
+            :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease
       - name: Count the components
         run: |
           echo "Components with checksums: $(grep -c '<component ' android/gradle/verification-metadata.xml)" >> "$GITHUB_STEP_SUMMARY"
