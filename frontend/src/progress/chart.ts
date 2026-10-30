@@ -16,8 +16,9 @@ const CHAR = 5.5
 export const PAD = 3
 
 /** The text size, the chart's 10 or smaller, at which every one of ``labels`` fits ``room``
- * viewBox units: a weight such as "102.5 kg" is wider than the gap left of the plot, and would
- * otherwise run off the picture's edge. One size for all, so the labels look alike. */
+ * viewBox units: a weight such as "102.5 kg" or a time such as "120 min" is wider than the gap
+ * left of the plot, and would otherwise run off the picture's edge. One size for all, so the
+ * labels look alike. */
 export function fitSize(labels: string[], room: number): number {
   const longest = Math.max(0, ...labels.map((label) => label.length))
   if (longest === 0) return 10 // nothing to fit

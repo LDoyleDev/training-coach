@@ -65,7 +65,7 @@ def test_today_text_lists_exercises_and_notes() -> None:
         logged_today=("Legs (done)",),
     )
     assert today_text(plan) == (
-        "Today: Arms\nAccessories\nWarm up for about 10 minutes first.\n"
+        "Today: Arms\nAccessories\nWarm up for about 5 minutes first.\n"
         "Stop if you feel sharp pain, dizziness or chest tightness.\n\n"
         "1. Plank (Knees): 8\n\n"
         "This one is optional: resting today is fine.\n\nAlready logged today: Legs (done)"
