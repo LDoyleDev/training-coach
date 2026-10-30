@@ -305,7 +305,8 @@ home stays a ladder step, because 8 to 16 kg is a different exercise, not a smal
 G1 for everything, G2 as a suggestion where a test exists, G3 always available. A level can be
 set by hand on the Plan tab too (down as well as up; it records an event, like Move up does).
 **Set by hand: done** (ADR-0075): the Plan page's ladder panels, with Move up and Not yet, and
-every "Ready to move up" links there. G1 and G2 are still to come.
+every "Ready to move up" links there. G1's questions are in the seed (ADR-0075) and the flow that
+asks them comes with step 10; G2 is still to come.
 
 ### H. Setting up, for a new person (and the owner, again)
 
