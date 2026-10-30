@@ -5272,13 +5272,25 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
           }
         },
         "required": [
           "id",
           "name",
           "cue",
-          "missing"
+          "missing",
+          "question"
         ],
         "title": "RungView",
         "type": "object"

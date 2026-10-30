@@ -5,10 +5,16 @@ import Levels from './Levels'
 import { moveHref, nextRung, said, wanted } from './ladder'
 
 const LADDER = [
-  { id: 1, name: 'Slow negatives', cue: null, missing: [] },
-  { id: 2, name: 'Strict pull-up', cue: null, missing: [] },
-  { id: 3, name: 'Pause at top', cue: 'Hold two seconds with your chin over the bar', missing: [] },
-  { id: 4, name: 'Weighted backpack', cue: null, missing: [] },
+  { id: 1, name: 'Slow negatives', cue: null, missing: [], question: null },
+  { id: 2, name: 'Strict pull-up', cue: null, missing: [], question: null },
+  {
+    id: 3,
+    name: 'Pause at top',
+    cue: 'Hold two seconds with your chin over the bar',
+    missing: [],
+    question: null,
+  },
+  { id: 4, name: 'Weighted backpack', cue: null, missing: [], question: null },
 ]
 
 const make = (over: Partial<Standing> = {}): Standing => ({
@@ -98,6 +104,27 @@ test('a ready exercise offers Move up and Not yet, with its ladder, last, best a
   expect(calls).toEqual([{ path: '/api/progress/pull-up/move-up', body: { from_step_id: 2 } }])
   expect(await screen.findByText('Step 3 of 4: Pause at top')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Move up to/ })).not.toBeInTheDocument()
+})
+
+test("each step's question is a hint under its name; nothing moves from it (G1)", async () => {
+  const strict = 'Can you do 5 strict pull-ups, from a full hang to your chin over the bar?'
+  const calls = serve([
+    {
+      standings: [
+        make({
+          status: 'hold',
+          ladder: LADDER.map((r) => (r.id === 2 ? { ...r, question: strict } : r)),
+        }),
+      ],
+    },
+  ])
+  render(<Levels />)
+  await showAll()
+  await open(/Pull-up/)
+  const steps = screen.getAllByRole('listitem').filter((li) => li.closest('ol'))
+  expect(steps[0]).toHaveTextContent(/^Slow negatives$/)
+  expect(within(steps[1]).getByText(`Ready for this if yes: ${strict}`)).toBeInTheDocument()
+  expect(calls).toEqual([])
 })
 
 test('a loaded exercise names its weights, as on Progress (ADR-0072)', async () => {
@@ -264,10 +291,10 @@ test('every outcome is said in plain words', () => {
 })
 
 const LOCKED = [
-  { id: 1, name: 'Two-hand, 8 kg', cue: null, missing: [] },
-  { id: 2, name: 'One-arm, 8 kg', cue: null, missing: [] },
-  { id: 3, name: 'Two-hand, 16 kg', cue: null, missing: ['a 16 kg kettlebell'] },
-  { id: 4, name: 'One-arm, 16 kg', cue: null, missing: ['a 16 kg kettlebell'] },
+  { id: 1, name: 'Two-hand, 8 kg', cue: null, missing: [], question: null },
+  { id: 2, name: 'One-arm, 8 kg', cue: null, missing: [], question: null },
+  { id: 3, name: 'Two-hand, 16 kg', cue: null, missing: ['a 16 kg kettlebell'], question: null },
+  { id: 4, name: 'One-arm, 16 kg', cue: null, missing: ['a 16 kg kettlebell'], question: null },
 ]
 
 const swing = (over: Partial<Standing> = {}) =>
@@ -304,7 +331,11 @@ test('a locked step says what it needs; at the top for the kit, what unlocks the
 })
 
 test('Move up goes past a locked step to the next one the kit allows', async () => {
-  const ladder = [LOCKED[0], LOCKED[2], { id: 5, name: 'Two-hand, 12 kg', cue: null, missing: [] }]
+  const ladder = [
+    LOCKED[0],
+    LOCKED[2],
+    { id: 5, name: 'Two-hand, 12 kg', cue: null, missing: [], question: null },
+  ]
   serve([
     {
       standings: [

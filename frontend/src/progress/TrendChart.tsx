@@ -41,6 +41,8 @@ export default function TrendChart({ standing, today }: { standing: Standing; to
       .map((p, i) => change(p, found.periods[i]))
       .join('')
   const bottom = BOX.height - BOX.bottom
+  // The best set's range up the side: "120 min" is wider than the gap left of the plot.
+  const side = found.low === found.high ? [show(found.high)] : [show(found.high), show(found.low)]
   const weights = strip(found.dots)
   // Both ends of the strip's scale, with their unit.
   const scale = weights ? [`${weights.high} kg`, `${weights.low} kg`] : []
@@ -80,14 +82,16 @@ export default function TrendChart({ standing, today }: { standing: Standing; to
           stroke="var(--slate)"
         />
         <g fontSize="10" fill="var(--slate)">
-          <text x={BOX.left - 4} y={BOX.top + 4} textAnchor="end">
-            {show(found.high)}
-          </text>
-          {found.low !== found.high && (
-            <text x={BOX.left - 4} y={bottom} textAnchor="end">
-              {show(found.low)}
+          <g fontSize={fitSize(side, BOX.left - 4)}>
+            <text x={BOX.left - 4} y={BOX.top + 4} textAnchor="end">
+              {side[0]}
             </text>
-          )}
+            {side.length > 1 && (
+              <text x={BOX.left - 4} y={bottom} textAnchor="end">
+                {side[1]}
+              </text>
+            )}
+          </g>
           <text x={BOX.left} y={BOX.height - 4}>
             {shortDay(found.start)}
           </text>

@@ -3600,6 +3600,8 @@ export interface components {
             missing: string[];
             /** Name */
             name: string;
+            /** Question */
+            question: string | null;
         };
         /** SaveBody */
         SaveBody: {
