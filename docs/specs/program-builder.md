@@ -313,7 +313,7 @@ A short flow, one question per screen, every step skippable:
 
 1. Where do you train? Home, gym, or both.
 2. What's at home? The kit list (C).
-3. How many days a week? A starter for it: 3-day or 4-day full body, or the 7-day cycle
+3. How many days a week? A starter for it: 3-day full body or 4-day upper/lower (M), or the 7-day cycle
    (Decided 7).
 4. Your levels (G).
 5. The body map for the result; Save. Then the Plan tab for anything else.
