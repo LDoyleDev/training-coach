@@ -10,7 +10,7 @@ from training_coach.domain.load import kg_text, weights_text
 from training_coach.domain.parser import sets_text
 from training_coach.domain.progression import Progress
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
-from training_coach.services.guided import work_groups
+from training_coach.services.guided import WARM_UP_MINUTES, work_groups
 from training_coach.services.progress import Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.review import Review
@@ -55,7 +55,7 @@ def _paired(items: tuple[ItemPlan, ...]) -> bool:
     return any(item.pair is not None for item in items)
 
 
-WARM_UP = "Warm up for about 10 minutes first."
+WARM_UP = f"Warm up for about {WARM_UP_MINUTES} minutes first."
 # Shown with every session and test day (legal review): safety is design and warnings.
 STOP = "Stop if you feel sharp pain, dizziness or chest tightness."
 BASELINE = (

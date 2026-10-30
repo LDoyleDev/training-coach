@@ -41,7 +41,7 @@ from training_coach.services.day_clash import Clash, Refused, Resolution
 from training_coach.services.seed import bundled_plan
 from training_coach.services.today import ItemPlan, SessionPlan, position, session_plan
 
-WARM_UP_MINUTES = 10
+WARM_UP_MINUTES = 5  # program-builder.md J.4 (ADR-0065 addendum)
 SET_SECONDS = 45  # a rough working set, for the time estimate only
 
 
