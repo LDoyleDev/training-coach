@@ -131,6 +131,32 @@ test('a planned zone 2 day is done in one tap', async () => {
   expect(playSessionEnd).toHaveBeenCalledExactlyOnceWith('ring') // the end of the session
 })
 
+test('with the talk test on, effort shows as the talk test; what is logged stays the same', async () => {
+  const sent = serve({ log: { ...LOGGED, planned: false } })
+  render(<Cardio featured talkTest />)
+  expect(
+    await screen.findByText('Talk test: Moderate: you can talk in full sentences.'),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('list', { name: 'Cardio minutes by heart-rate zone' })).toBeVisible()
+  click(/different minutes/)
+  expect(screen.queryByRole('button', { name: 'Easy (zone 2)' })).not.toBeInTheDocument()
+  expect(screen.getByText('Easy: you can sing.')).toBeInTheDocument()
+  expect(screen.getByText('Hard: you can say only a few words.')).toBeInTheDocument()
+  click('A few words')
+  click('Effort 7')
+  click('Save 45 min')
+  await screen.findByRole('heading', { name: 'Logged' })
+  expect(sent).toEqual([expect.objectContaining({ kind: 'moderate-cardio', value: 45 })])
+})
+
+test('with the talk test off, effort shows as heart-rate zones', async () => {
+  serve()
+  render(<Cardio featured />)
+  fireEvent.click(await screen.findByRole('button', { name: /different minutes/ }))
+  expect(screen.getByRole('button', { name: 'Easy (zone 2)' })).toBeInTheDocument()
+  expect(screen.queryByText(/Talk test|you can sing/)).not.toBeInTheDocument()
+})
+
 test("the end of the session rings in the person's timer sound, and not for a repeat", async () => {
   serve({ log: { ...LOGGED, already_saved: true } })
   render(<Cardio featured sound="wood" />)

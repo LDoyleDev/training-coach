@@ -369,6 +369,11 @@ class UserSettings(Owned, Base):
     dumbbells_increment_kg: Mapped[float | None] = mapped_column(Float)
     machine_increment_kg: Mapped[float | None] = mapped_column(Float)
     backpack_increment_kg: Mapped[float | None] = mapped_column(Float)
+    # Cardio effort told by the talk test, not heart-rate zones (ADR-0083): a preference, asked
+    # without a reason; nothing about why is stored.
+    talk_test: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # The stop signs were shown before their first guided session (spec B7).
+    stop_signs_seen: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

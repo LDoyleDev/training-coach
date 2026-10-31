@@ -368,6 +368,14 @@ def test_the_suggestion_comes_from_the_persons_own_zones(
     assert card["suggestion"].startswith(line)
 
 
+def test_with_the_talk_test_on_heart_rate_suggests_nothing(client: TestClient, token: str) -> None:
+    """ADR-0083: heart rate isn't their guide, so no zone is read into it; the person picks."""
+    client.patch("/api/settings", json={"talk_test": True})
+    propose(client, token, kind="cardio", cardio="zone2", minutes=40, avg_hr=139)
+    (card,) = client.get("/api/proposals").json()
+    assert (card["suggested"], card["suggestion"]) == (None, None)
+
+
 @pytest.mark.parametrize(
     ("arguments", "why"),
     [

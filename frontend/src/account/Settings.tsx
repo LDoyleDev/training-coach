@@ -221,6 +221,17 @@ export default function Settings() {
         habits_enabled: !prefs.habits_enabled,
       })}
 
+      <p className="m-0">
+        Use the talk test, not heart-rate zones: {prefs.talk_test ? 'on' : 'off'}
+      </p>
+      <p className="m-0 text-sm text-[var(--slate)]">
+        Cardio effort then shows as how well you can talk: easy, you can sing; moderate, full
+        sentences; hard, only a few words. Your logs and totals stay the same.
+      </p>
+      {toggle('talk', prefs.talk_test, ['Use the talk test', 'Use heart-rate zones'], {
+        talk_test: !prefs.talk_test,
+      })}
+
       <form className={row} onSubmit={saveProtein}>
         <label htmlFor="protein" className="basis-full font-bold">
           Protein target, grams a day (1.6-2.2 g per kg of bodyweight)

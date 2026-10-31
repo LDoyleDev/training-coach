@@ -16,6 +16,7 @@ import SignedOutNotice from '../components/SignedOutNotice'
 import ClashQuestion from './ClashQuestion'
 import { dayText, recentDays, stepOf, unitText } from './logic'
 import { actions, card, primary, secondary } from '../ui'
+import { effortLabel } from './safety'
 
 type Kind = CardioKind
 type What =
@@ -41,7 +42,13 @@ const setKey = (item: number, setNo: number) => `${item}:${setNo}`
  * already has its session, the question comes first and nothing is saved until it's answered.
  * ``onSaved`` gets the text to show; the page then offers Undo.
  */
-export default function LogDay({ onSaved }: { onSaved: (text: string) => void }) {
+export default function LogDay({
+  onSaved,
+  talkTest = false,
+}: {
+  onSaved: (text: string) => void
+  talkTest?: boolean // effort by the talk test, not heart-rate zones (ADR-0083)
+}) {
   const [options, setOptions] = useState<LogOptions | null>(null)
   const [open, setOpen] = useState(false)
   const [day, setDay] = useState<string | null>(null)
@@ -312,7 +319,7 @@ export default function LogDay({ onSaved }: { onSaved: (text: string) => void })
                   setAmount(k.kind === 'hiit' ? 8 : 30)
                 }}
               >
-                {k.label}
+                {effortLabel(k.kind, talkTest, k.label)}
               </button>
             ))}
           </div>

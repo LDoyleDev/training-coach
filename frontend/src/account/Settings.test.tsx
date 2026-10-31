@@ -20,6 +20,8 @@ const PREFS: MessageSettings = {
   places: 'home',
   increments: { barbell: 2.5, dumbbells: 2, machine: 5, backpack: 1 },
   default_increments: { barbell: 2.5, dumbbells: 2, machine: 5, backpack: 1 },
+  talk_test: false,
+  stop_signs_seen: false,
   paused: false,
   timezone: 'Europe/Berlin',
 }
@@ -97,6 +99,18 @@ test('switches send the opposite of what is on', async () => {
     { paused: true },
     { blocks: true },
   ])
+})
+
+test('the talk test is a switch, asked without a reason (ADR-0083)', async () => {
+  const sent = serve()
+  render(<Settings />)
+  expect(await screen.findByText('Use the talk test, not heart-rate zones: off')).toBeVisible()
+  fireEvent.click(button('Use the talk test'))
+  expect(await screen.findByText('Use the talk test, not heart-rate zones: on')).toBeVisible()
+  fireEvent.click(button('Use heart-rate zones'))
+  expect(await screen.findByText('Use the talk test, not heart-rate zones: off')).toBeVisible()
+  expect(sent).toEqual([{ talk_test: true }, { talk_test: false }])
+  expect(screen.queryByText(/why|reason|condition/i)).not.toBeInTheDocument()
 })
 
 test('the pace is one of three, with a line saying what each means', async () => {

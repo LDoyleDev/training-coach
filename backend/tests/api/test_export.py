@@ -65,6 +65,7 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
             AiComment(week=date(2026, 10, 5), text="Sleep more.", created_at=datetime.now(UTC))
         )
 
+    signed_in.patch("/api/settings", json={"talk_test": True})  # a preference (ADR-0083)
     answer = signed_in.get("/api/account/export")
     assert answer.status_code == 200
     assert answer.headers["content-type"] == "application/zip"
@@ -77,6 +78,7 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
     assert data["account"]["country"] == "IE"  # mine, not theirs (ADR-0085)
     assert datetime.fromisoformat(data["account"]["last_seen_in_europe"]).tzinfo is not None
     assert [m["tenths"] for m in tables["measurements"]] == [834]  # mine only
+    assert tables["settings"][0]["talk_test"] is True
     assert tables["signed_in_browsers"][0]["label"]
     assert all("token_hash" not in row for row in tables["signed_in_browsers"])
     assert all("jpeg" not in row for row in tables["progress_photos"])

@@ -16,6 +16,7 @@ import SignedOutNotice from '../components/SignedOutNotice'
 import CardioWeek from './CardioWeek'
 import Undo from './Undo'
 import { actions, card, primary, primaryInline, secondary } from '../ui'
+import { TALK_TEST, TALK_TEST_FOR, effortLabel } from './safety'
 
 const EFFORTS: { kind: CardioKind; label: string }[] = [
   { kind: 'zone2', label: 'Easy (zone 2)' },
@@ -93,16 +94,19 @@ export type CardioChange = 'saved' | 'closed' | 'undone'
  * "done as planned", or time HIIT intervals and save the rounds. ``featured`` when today's
  * planned session is this cardio: it then stands in for the session's Start button. The saved
  * screen offers Undo (C3). A save rings the end of the session in the person's timer sound,
- * unless the HIIT timer rang it at its end.
+ * unless the HIIT timer rang it at its end. With ``talkTest`` (ADR-0083) effort shows as the
+ * talk test, not heart-rate zones; what is logged stays the same.
  */
 export default function Cardio({
   featured,
   onChange,
   sound = DEFAULT_SOUND,
+  talkTest = false,
 }: {
   featured: boolean
   onChange?: (change: CardioChange) => void
   sound?: Sound
+  talkTest?: boolean
 }) {
   const [options, setOptions] = useState<CardioOptions | null>(null)
   const [fetched, setFetched] = useState(false)
@@ -270,10 +274,17 @@ export default function Cardio({
                 className={chip(kind === effort.kind)}
                 onClick={() => setKind(effort.kind)}
               >
-                {effort.label}
+                {effortLabel(effort.kind, talkTest, effort.label)}
               </button>
             ))}
           </div>
+          {talkTest && (
+            <ul className="m-0 pl-5 text-sm text-[var(--slate)]">
+              {TALK_TEST.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          )}
         </fieldset>
         <fieldset className="flex flex-col gap-2 border-0 p-0">
           <legend className="mb-2 font-bold">What it was</legend>
@@ -426,6 +437,9 @@ export default function Cardio({
         <p className="m-0 text-[var(--slate)]">
           Target {planned.target} {planned.kind === 'hiit' ? 'rounds' : 'min'}
         </p>
+        {talkTest && TALK_TEST_FOR[planned.kind] && (
+          <p className="m-0 font-bold">Talk test: {TALK_TEST_FOR[planned.kind]}</p>
+        )}
         {options && <CardioWeek week={options.week} />}
         {planned.kind === 'hiit' ? (
           <>
