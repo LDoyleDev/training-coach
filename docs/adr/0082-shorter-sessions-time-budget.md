@@ -14,35 +14,54 @@ growth on Pelland 2026's dose curve (derived; `any-level-research.md` Part 1). A
 easing a session automatically from the daily check; a shorter session the person picks is a
 different thing: the person decides (product rule).
 
+A plan review and a walk-through as four people (31 Oct) shaped the details below: the guided
+session keeps sets by item index (`guided.py`, `session_progress.sets`), targets fill missing
+sets from the weakest (ADR-0027) and readiness needs every planned set (ADR-0016), so a shorter
+day has to record what it planned (ADR-0084), and both ship together.
+
 ## Decision
 
 - **Two ways to set the time, both built, T1 first.**
   - **Short on time today:** on the session overview and Today, As planned, 40, 30 or 20
-    minutes. It applies to that day's session only; the plan doesn't change. The choice is kept
-    with the session's progress, so a reload or another device shows it, and the saved workout
-    records the minutes chosen.
-  - **Minutes per session:** a setting on Account (and later in setup). Every session runs at
+    minutes, for that day's session only; the plan doesn't change. The choice is kept in the
+    session's progress, so a reload or another device shows it.
+  - **Minutes per session:** a setting on Account (and later in setup); every session runs at
     that length unless the day says otherwise. Empty means as planned.
-- **One pure trim** in `domain/` takes a session's items (sets, what each trains, single-joint or
-  a main pattern), the estimate and the minutes, and returns the shorter version and what it
-  dropped. Each rule applies only while the session still doesn't fit, in this order:
-  1. fourth and later sets go;
-  2. the third round goes, so every exercise keeps two sets;
-  3. pairs become threes where three exercises with no shared prime mover sit next to each
-     other, at 20 minutes or less;
-  4. whole exercises go: first those whose muscles another kept exercise in the session also
-     trains as a prime mover, then single-joint exercises; the main patterns (squat or lunge,
-     hinge, push, pull) last;
-  5. never under one set of a kept exercise, or under 60 s between two sets for the same muscle.
-- **The estimate uses the person's pace** where it is known: when a session has a "usually"
-  time (ADR-0061), the trim scales the estimator by usually over the estimate for that session.
-- **The warm-up in a very short session:** at 30 minutes or less the 5-minute warm-up is
-  replaced by ramp sets: one or two easy sets of the first exercise at about half its target,
-  well short of failure, not logged as work sets and counted as 2 minutes. Above 30 minutes the
-  warm-up stays 5 minutes.
-- **What's dropped is named before Start.** The guided session, the bot's work list and the time
-  estimate all follow the trimmed version.
-- **Progress on a shorter day** is judged on that day's own sets (ADR-0084).
+- **Which sessions:** strength sessions and the part of a conditioning session left after its
+  run (ADR-0066). A cardio item (`duration_min`) shortens to fit, never below 10 minutes. Recovery
+  sessions and test days aren't trimmed. In a strength block the block's prescription comes
+  first (ADR-0028), then the trim.
+- **One pure trim** in `domain/` takes the items (sets, prime movers, pattern, kind), the
+  estimate and the minutes, and returns each item's set count (0 means dropped; items are never
+  removed from the list, so kept sets keep their indexes) and what was dropped. Each rule applies
+  only while the session still doesn't fit, in this order:
+  1. fourth and later sets go, from every exercise at once;
+  2. third sets go, from every exercise at once, so every exercise keeps two;
+  3. whole exercises go, one at a time, by this key: first single-joint and accessory work
+     (isolation, core, carry, neck) whose prime movers another kept exercise also trains; then
+     the other single-joint and accessory work; then main patterns (squat or lunge, hinge, push,
+     pull) whose prime movers another kept exercise trains; main patterns not covered by any
+     other last. Within a group, the exercise later in the session goes first. An exercise the
+     person pins with **Keep** for the day isn't dropped;
+  4. never under one set of a kept exercise, or under 60 s between two sets for the same muscle.
+  - When even the floor doesn't fit, the overview says "The shortest this session gets is N
+    minutes" and offers that.
+  - Pairs into threes is left for later: `work_order` and the rests only know pairs (ADR-0065).
+- **The estimate uses the person's pace** where it is known: the estimate without the warm-up,
+  scaled by the session's "usually" (ADR-0061, which excludes the warm-up and breaks) over its
+  estimate, per place (home or gym), from at least three timed sessions done as planned. Trimmed
+  days don't count toward "usually". Without that, the plain estimator.
+- **Fixed for the session once it starts:** the set counts, the pace factor and the minutes are
+  kept in `session_progress` when the first set is kept, so a recomputation can't move indexes.
+- **The warm-up in a very short session:** at 30 minutes or less the 5-minute warm-up becomes
+  ramp sets: one or two easy sets of the first exercise at about half its target, well short of
+  failure, not logged as work sets, counted as 2 minutes. When the first exercise's step is level
+  3 or below (ADR-0083) the 5-minute warm-up stays, at any length. This amends ADR-0065's
+  addendum ("a constant") and ADR-0028's warm-up line.
+- **What's dropped is named before Start.** The guided session, the time estimate and the bot's
+  work list follow the trimmed version once the day's minutes are chosen; the morning message,
+  sent before, shows the planned length and says it can be shortened.
+- **The saved workout records what was planned** (ADR-0084) and the minutes chosen.
 
 ## Options considered
 
@@ -55,9 +74,10 @@ different thing: the person decides (product rule).
 
 ## Consequences
 
-- `domain/trim.py` is pure and held at 100% coverage with table-driven tests pinning each rule.
-- The session's progress keeps the minutes chosen; `workouts` gets a nullable `minutes` column
-  so progress can tell a shortened day (ADR-0084). A migration, no data change.
-- Settings gain minutes per session. The body map can later show the week at that length.
-- The 30-minute line for ramp sets is a choice, not a finding (Iversen 2021 allows ramp sets in
-  short sessions); it is one constant.
+- `domain/trim.py` is pure and held at 100% coverage with table-driven tests pinning each rule
+  and the drop key.
+- `session_progress` keeps the day's minutes, set counts and pace factor; `workouts` gets a
+  nullable `minutes` and the planned sets (ADR-0084). Migrations add columns; no data change.
+- Settings gain minutes per session.
+- The 30-minute line and the level-3 exception are choices, not findings (Iversen 2021 allows
+  ramp sets in short sessions); each is one constant.

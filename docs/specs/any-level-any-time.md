@@ -84,25 +84,13 @@ The week's fractional sets for the main muscles, the whole cycle at home:
 Nothing shortens a session today. ADR-0053 rejected easing a session automatically, because it
 changes the plan without asking; a shorter version the person picks is a different thing.
 
-### How a session gets shorter (proposed)
+### How a session gets shorter
 
-Each rule applies only while the session still doesn't fit the minutes, in this order:
-
-1. **Fourth and later sets go first.** Every exercise keeps three.
-2. **The third round goes next:** every exercise keeps two sets (ACSM 2026: at least two sets
-   per exercise). Two rounds keep about 80% of the growth (derived, Pelland 2026).
-3. **Pairs become threes** where three exercises with no shared prime mover sit next to each
-   other: the same 18 sets took 24 minutes in pairs and 17.7 in threes (Weakley 2017), at a
-   higher effort. For 20 minutes or less.
-4. **Whole exercises go last,** in this order: those whose muscles the rest of the week already
-   has in green; then single-joint exercises; the main patterns (a squat or lunge, a hinge, a
-   push, a pull) stay to the end (Iversen 2021). Each dropped exercise is named before Start.
-5. **Never:** under one set of a kept exercise, or under 60 s between two sets for the same
-   muscle (Singer 2024).
-
-The warm-up stays 5 minutes (decided 30 Oct, ADR-0065 addendum) unless Liam chooses otherwise:
-the evidence would allow one or two easy ramp sets of the first exercise instead in sessions
-of 30 minutes or less (Iversen 2021; Part 1, Warm-up).
+Decided: [ADR-0082](../adr/0082-shorter-sessions-time-budget.md) holds the rules (fourth sets,
+then third sets, then whole exercises by a fixed key, a floor, ramp sets at 30 minutes or less).
+After the plan review (31 Oct), pairs into threes is left for later and the trim never removes an
+item, only sets its count to 0. Progress on a shorter day:
+[ADR-0084](../adr/0084-short-days-last-set-and-stepping-down.md).
 
 ### Two ways to set the time
 
@@ -167,8 +155,9 @@ raise the others' targets.
 - **The seed only adds steps at the end of a ladder** (`plan.toml`'s header; steps are matched by
   position). Each person's level (`exercise_state`) and every logged set point at the step's
   id, not its position, so a one-off migration can move a ladder's steps up to make room at the
-  bottom without moving anyone's level or history, as `b7e1c3d5f9a2` did for the vest steps.
-  `start` positions move by the same amount.
+  bottom without moving anyone's level or history. No migration has moved a step yet
+  (`b7e1c3d5f9a2` deleted two); ADR-0083 sets out how the one migration does it, `start`
+  included.
 
 ### B1. One level scale across all ladders
 
@@ -221,6 +210,42 @@ Where the movement differs from anything in the catalogue:
 | **Interval walk** (rounds) | 3 min brisk / 3 min easy, 3 rounds up to 5 | 2-3 | The step between walking and HIIT: more leg strength and fitness than steady walking, in people averaging 63 (Nemoto 2007) |
 
 Each needs figures (ADR-0063) and its "Can you do...?" questions (ADR-0075), as every step does.
+
+### B2-B3 revised after the evals (31 Oct 2026)
+
+A walk-through as four people (a frail 78-year-old who can't get to the floor, a 140 kg
+beginner with sore knees, a trained woman with 20 minutes, a 60-year-old on beta-blockers) found
+gaps in the tables above; this list replaces them as the draft to build (ADR-0083). Easiest
+first, levels in brackets; **bold** is today's bottom step. Level-1 ranges start at 3-10.
+
+| Area | Steps |
+| --- | --- |
+| Squat (entry; the revived `goblet-squat`) | Raised seat (a cushion), hands push off (1); sit to stand, hands push off (1); hands on thighs (1); arms crossed (2); a lower seat (2); to a chair, touch and go (3); to a chair holding a backpack (3); full depth (4); then the old goblet steps. "Fast up, slow down" in the cue from arms crossed on |
+| Push-up | Wall (1); kitchen counter (1); table (2); chair seat against a wall (2); knees (3, kneeling); stair or low step (3); **standard** (4); ... ; vest or backpack, loaded (6, open top) |
+| Plank | Hands on a counter (1); a table (2); a chair seat against a wall (2); knees (3); full (4); arm reach (5) |
+| Side plank | Side lean on a wall (1); forearm on a counter (2); knees (3); **today's bottom** |
+| Triceps | Armchair press-up, seated, push down on the armrests to lift the hips (1); band pushdown (2); then dips for those who get there |
+| Row | Seated band row (1); one-arm row with a bag, about 4 kg (2); doorframe row, feet close (2; cue: a sturdy frame, both hands, only as far back as you stay in control); doorframe row, feet forward (3); **one-arm row, 8 kg** (4) |
+| Rear delts | Band pull-apart (1); then today's steps |
+| Pull-up | Band pulldown (2, for "No hanging"); pull-up with feet on a chair (3); scapular pulls (3); **slow negatives** (4, capped at 3 sets in the first weeks) |
+| Hinge | Counter hinge, hands on the counter, hips back (1); hip hinge to a wall (2); good morning holding a backpack (3). Deadlift as its own ladder: bag from a block (2), 8 kg (3), 16 kg (4), 24 kg (5). Swings keep **two-hand swing** (4) |
+| Glute bridge (entry) | Standing hip extension at the counter (1, the off-floor version); glute bridge (2, floor); 3 s hold (2); hip thrust, shoulders on the sofa (3); single-leg bridge (4); single-leg hip thrust (5) |
+| Hamstrings | Standing hamstring curl at the counter (1); standing band leg curl (2); **towel slide** (4) |
+| Hip flexors | Seated march (1); standing knee lift at the counter (2); then today's steps |
+| Adductors | Seated pillow squeeze (1); standing band adduction (2); side-lying adduction (3, floor); short-lever Copenhagen, bottom foot down (3); **Copenhagen, knee on a chair** (4) |
+| Lower back | Counter hinge (1); back extension lying on a bed (2); **superman** (4, floor) |
+| Calf | Both legs, hands on a wall (1); both legs on a step (2); **single leg on a step** (3) |
+| Tibialis | Seated toe lifts (1); **wall tibialis raise** (2) |
+| Shoulders, arms | Seated bottle press (1); seated bottle lateral raise (1); **bottle lateral raise** (2); bottle curl, about 1 kg (1); bag curl, 2-4 kg (2); **8 kg curl** (3) |
+| Step-up (entry) | 10 cm step, hand on the rail (1); one stair, hand on the rail (2); one stair, no hands (3); holding a bag (3); holding 8 kg (4) |
+| Split squat | Holding a chair, short range (2); full range (3); back foot on a low step (3); **back foot on a chair** (4) |
+| Carry | Static hold beside the counter, bag 1-3 kg (1); walking along the counter (2); bag 3-5 kg (2); **8 kg** (3) |
+| Balance (entry) | As in B3, every step beside a counter at levels 1-3 |
+| Cardio | Easy walk, can be split into short bouts (1); bike or seated stepping (1-3, knee-friendly); interval walk from 2 rounds (2-3); **brisk walk** (2) |
+
+Neck work stays out of the starting starters. For people 65 and over the walk-through suggests
+a daily 10-minute balance and sit-to-stand "snack" (WHO: 3 days or more; Sherrington 2019: the
+falls effect needs about 3 hours a week of balance work); that belongs to the starting starters.
 
 ### B4. What a step asks of the body, and preferences
 
@@ -314,8 +339,9 @@ Builder step 5 (plans per person) waits for Liam's go around 4 Nov; these steps 
 it, except the starters, which live in `plan.toml` after it (ADR-0073).
 
 1. **ADRs** for what Liam decides here.
-2. **Short on time today** (T1): the trim, the overview and Today, the guided session and the
-   bot. Two or three PRs, usable at once.
+2. **Short on time today** (T1) with ADR-0084's shorter-day progress rule and the stored
+   planned sets: the trim, the overview and Today, the guided session and the bot. Several PRs,
+   usable once all are in.
 3. **Stop signs and the talk test** (B7): small.
 4. **The catalogue from the bottom** (B1-B4): levels, marks, the migration, the new steps and
    exercises with questions. Mostly data and review; figures follow as poses are drawn.
