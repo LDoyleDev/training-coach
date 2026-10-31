@@ -6,7 +6,9 @@ endpoint serve them only for 30 days after it. Every existing person gets the mi
 so nothing stops on deploy: the owner has 30 days to visit the website from Europe, which any
 visit does.
 
-Downgrade drops both columns.
+Downgrade drops both columns, losing every country given and every last-seen date (upgrading
+again marks everyone seen now, with no country). Restore the pre-deploy backup to keep them
+(docs/runbooks/deploy.md, Rollback).
 
 Revision ID: f3a9c1d7e5b2
 Revises: b7e1c3d5f9a2

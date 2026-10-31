@@ -28,10 +28,19 @@ def test_existing_people_are_seen_now_and_a_downgrade_drops_the_columns(
     engine = create_engine(url)
     with engine.begin() as db:
         db.execute(text("INSERT INTO users (id, created_at) VALUES (2, '2026-10-01 07:00:00')"))
+        # The first rebuild of users: a child row must survive it (foreign keys are off).
+        db.execute(
+            text(
+                "INSERT INTO plan_state (user_id, queued, updated_at)"
+                " VALUES (2, '[]', '2026-10-01 07:00:00')"
+            )
+        )
     command.upgrade(cfg, "head")
     with engine.begin() as db:
         rows = db.execute(text("SELECT country, last_seen_in_europe FROM users")).all()
     assert len(rows) == 2  # the owner and the person added above
+    with engine.begin() as db:
+        assert db.execute(text("SELECT user_id FROM plan_state")).scalars().all() == [2]
     for country, seen in rows:
         assert country is None
         moment = datetime.fromisoformat(seen).replace(tzinfo=UTC)
@@ -41,5 +50,6 @@ def test_existing_people_are_seen_now_and_a_downgrade_drops_the_columns(
     assert not {"country", "last_seen_in_europe"} & columns
     with engine.begin() as db:
         assert db.execute(text("SELECT count(*) FROM users")).scalar_one() == 2
+        assert db.execute(text("SELECT user_id FROM plan_state")).scalars().all() == [2]
     engine.dispose()
     get_settings.cache_clear()

@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
+from telegram import CallbackQuery
+from telegram.error import BadRequest
 from telegram.ext import Application
 
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, command, press, run, text_message, texts
@@ -77,3 +79,30 @@ async def test_scheduled_messages_are_skipped_while_paused(
     _last_seen(seeded, 0)
     await paused(AsyncMock())
     job.assert_awaited_once()
+
+
+async def test_a_failed_reply_still_stops_the_update(
+    application: Application,  # type: ignore[type-arg]
+    seeded: sessionmaker[Session],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stale button can't be answered: the press must still not reach its handler."""
+    monkeypatch.setattr(CallbackQuery, "answer", AsyncMock(side_effect=BadRequest("too old")))
+    _last_seen(seeded, 31)
+    calls = await run(application, press("q:rest:1", OWNER))
+    assert texts(calls) == []
+    assert not {"editMessageText", "editMessageReplyMarkup"} & set(calls)
+
+
+async def test_every_scheduled_job_is_paused(
+    application: Application,  # type: ignore[type-arg]
+    seeded: sessionmaker[Session],
+) -> None:
+    """Daily messages and the band and proposal checks alike."""
+    _last_seen(seeded, 31)
+    jobs = application.job_queue.jobs() if application.job_queue else ()
+    assert len(jobs) >= 6
+    context = AsyncMock()
+    for job in jobs:
+        await job.callback(context)
+    assert not context.bot.mock_calls

@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
 from training_coach.api.app import create_app
+from training_coach.api.region import exempt
 from training_coach.config import Settings
 
 TUNNEL = ("172.17.0.1", 50000)  # the Docker bridge: a trusted proxy by default
@@ -96,3 +97,17 @@ def test_unknown_and_tor_are_told_why(tunnel: TestClient, country: str) -> None:
     assert api.json()["reason"].startswith("We can't tell where you are")
     plain = tunnel.get("/api/auth/me", headers={"CF-IPCountry": "US"}).json()["reason"]
     assert "We can't tell" not in plain
+
+
+def test_dot_segments_after_an_exempt_prefix_are_not_exempt(tunnel: TestClient) -> None:
+    """The static files normalise "..", and the raw path reaches the check un-normalised (an
+    HTTP client would tidy it first, so ask ``exempt`` directly): only exact paths skip it."""
+    for path in ("/.well-known/oauth-x/../../assets/app.js", "/mcp/../signin", "/mcp/"):
+        assert not exempt(path), path
+    assert tunnel.get("/healthz/", headers={"CF-IPCountry": "US"}).status_code == 451
+
+
+def test_a_header_that_is_not_a_country_code_counts_as_unknown(tunnel: TestClient) -> None:
+    page = tunnel.get("/signin", headers={"CF-IPCountry": "DE<script>"})
+    assert page.status_code == 451
+    assert "We can't tell where you are" in page.text
