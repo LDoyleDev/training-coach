@@ -197,10 +197,6 @@ class TemplateItem(Base):
     __table_args__ = (
         UniqueConstraint("template_id", "place", "position"),
         CheckConstraint(_in("place", Place), name="place_valid"),
-        CheckConstraint(
-            "session_minutes IS NULL OR session_minutes IN (40, 30, 20)",
-            name="session_minutes_valid",
-        ),
         CheckConstraint("position >= 0", name="position_non_negative"),
         CheckConstraint("sets >= 1", name="sets_positive"),
         CheckConstraint("rep_min >= 1", name="rep_min_positive"),
@@ -321,6 +317,10 @@ class UserSettings(Owned, Base):
         CheckConstraint("thigh_offset_cm BETWEEN 5 AND 30", name="thigh_offset_cm_range"),
         CheckConstraint(_in("body_fat_estimate", BodyFatEstimate), name="body_fat_estimate_valid"),
         CheckConstraint("extra_cardio_min BETWEEN 0 AND 600", name="extra_cardio_min_range"),
+        CheckConstraint(
+            "session_minutes IS NULL OR session_minutes IN (40, 30, 20)",
+            name="session_minutes_valid",
+        ),
         CheckConstraint(_in("places", Places), name="places_valid"),
         CheckConstraint(_in("place", Place), name="place_valid"),
         *(

@@ -124,6 +124,17 @@ def test_minutes_per_session_is_empty_or_40_30_or_20(session: Session) -> None:
         session.rollback()
 
 
+def test_the_minutes_check_belongs_to_the_settings_model() -> None:
+    """The model declares the check on ``settings``, where the migration put it, so a schema
+    built from the models matches the migrated one (review of #529)."""
+    names = {
+        table: {c.name for c in Base.metadata.tables[table].constraints}
+        for table in ("settings", "template_items")
+    }
+    assert any("session_minutes_valid" in str(n) for n in names["settings"])
+    assert not any("session_minutes_valid" in str(n) for n in names["template_items"])
+
+
 @pytest.mark.parametrize("kit", ["barbell", "dumbbells", "machine"])
 def test_an_own_weight_step_is_empty_or_in_range(session: Session, kit: str) -> None:
     """ADR-0072: empty keeps the default; a step of their own is 0.25 to 20 kg."""
