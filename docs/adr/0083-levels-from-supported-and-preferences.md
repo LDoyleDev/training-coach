@@ -111,7 +111,8 @@ Decided while building, within this ADR:
   "Show all" and says "You've chosen to avoid this; pick another step."
 - **Top of your open steps:** with every harder step locked and no kit that opens one, Plan and
   Progress say "Top of your open steps". `unlock` names kit only, passing over steps the person
-  avoids, as it is said on Telegram and to their AI; there "top of the ladder" stays, with no
-  reason given.
-- **Not yet:** a strength block's one-step-harder rule (ADR-0028) doesn't look at locks, for kit
-  or marks; it waits for the session to swap in a marked alternative (builder step 5).
+  avoids. Telegram, the AI summary, the saved screen and the reviews say "no open step above
+  this one", true without saying why; "top of the ladder" stays for the real last step.
+- **Strength blocks** (ADR-0028): the one step harder is the next open step, skipping kit
+  locks at home and what the person avoids anywhere; with none open above, the current step
+  with the top's tempo cue.
