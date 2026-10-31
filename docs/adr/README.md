@@ -20,7 +20,7 @@ Code). Template: [template.md](template.md).
 | [0013](0013-uv-for-python-dependencies.md) | uv and pyproject.toml for Python dependencies | Accepted |
 | [0014](0014-multiple-workouts-per-day.md) | Several workouts per day | Accepted |
 | [0015](0015-seed-failure-does-not-block-startup.md) | A failed plan seed does not block startup | Accepted |
-| [0016](0016-queue-and-target-rules.md) | Queue edge cases and target rules | Accepted (targets superseded by 0027) |
+| [0016](0016-queue-and-target-rules.md) | Queue edge cases and target rules | Accepted (targets superseded by 0027; shortened days, 0084) |
 | [0017](0017-plan-follows-huberman-protocol.md) | The training plan follows Huberman's Foundational Fitness Protocol | Accepted |
 | [0018](0018-develop-in-wsl2-on-windows.md) | Develop in WSL 2 on the Windows desktop | Accepted |
 | [0019](0019-public-plan-endpoint.md) | The bundled training plan is public at GET /api/plan | Superseded by 0041 |
@@ -31,8 +31,8 @@ Code). Template: [template.md](template.md).
 | [0024](0024-backups-run-in-the-app-not-the-bot.md) | Backups run in the app, not the bot, and only a complete copy counts | Accepted |
 | [0025](0025-personal-bests-and-progress-prompts.md) | Personal bests and the "ready to progress" prompt | Accepted |
 | [0026](0026-multi-user-direction.md) | Built for one, designed for many | Accepted |
-| [0027](0027-progressive-overload-step.md) | Progressive overload step of about 10% of the range | Accepted |
-| [0028](0028-training-blocks.md) | Optional 4-week strength and hypertrophy blocks | Accepted |
+| [0027](0027-progressive-overload-step.md) | Progressive overload step of about 10% of the range | Accepted (shortened days, 0084) |
+| [0028](0028-training-blocks.md) | Optional 4-week strength and hypertrophy blocks | Accepted (warm-up, 0065 and 0082) |
 | [0029](0029-sessions-bound-to-a-user.md) | Per-person data is scoped by binding the session to a user | Accepted |
 | [0030](0030-deploy-releases-from-a-timer.md) | The Pi deploys new releases itself, from a timer | Accepted |
 | [0031](0031-exercise-pairs-and-work-order.md) | Resistance sessions are done in fixed pairs, listed set by set | Accepted |

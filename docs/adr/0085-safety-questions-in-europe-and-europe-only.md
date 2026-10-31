@@ -85,7 +85,8 @@ ADR-0046 stores readiness answers on the server (`readiness_answers`) as consent
   3. **Sign-up:** it asks for the country of residence from the list; "Somewhere else" is
      refused. The terms say the service is for people living in the EU or EEA.
   4. **A "last seen in Europe" date** on the account, set only by a signed-in request from that
-     account's own session coming from a listed country. The bot and the MCP endpoint serve an
+     account's own session coming from a listed country, as layer 2 reads it (the header
+     believed only from `TC_TRUSTED_PROXIES`), so a direct request can't set it. The bot and the MCP endpoint serve an
      account only within 30 days of it, since neither can see where the person is. The check
      sits in one place each (the bot's `owner_only` filter, the MCP auth dependency), tested
      for the allowed and the expired case.
@@ -95,7 +96,9 @@ ADR-0046 stores readiness answers on the server (`readiness_answers`) as consent
   without the header is let through, so a missing Cloudflare setting can never lock the owner
   out; Cloudflare's rule is the outer gate. The 451 gate is listed in the route test (ADR-0036),
   and the threat model records the header trust and that the exempt MCP and OAuth paths are
-  reachable from anywhere, so their own auth carries the whole burden.
+  reachable from anywhere, so their own auth carries the whole burden. The implementing PR
+  updates `docs/security/threat-model.md` and `mcp-threat-model.md` with the header, the 451
+  gate and the new field.
 - **Acceptance items:** `country` and the last-seen date are in the export, erased with the
   account, and named in the privacy notice.
 
