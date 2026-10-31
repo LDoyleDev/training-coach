@@ -512,6 +512,11 @@ def set_levels(
     return tuple(found)
 
 
+def planned(items: tuple[ItemPlan, ...]) -> tuple[tuple[str, int], ...]:
+    """What the session planned, for the saved workout (ADR-0084): each item's sets."""
+    return tuple((item.slug, len(item.targets)) for item in items)
+
+
 def _numbered(sets: Sequence[Done]) -> Iterator[tuple[int, list[tuple[int, Done]]]]:
     """Each exercise's confirmed sets in set order, numbered from 1 as the log numbers them. A
     skipped set isn't logged, so sets 1 and 3 done become sets 1 and 2 of the log."""
@@ -589,6 +594,7 @@ def save(
         backdated=day < today,
         place=plan.place,
         steps=set_levels(plan.items, sets, row.steps),
+        planned=planned(plan.items),
     )
     result = workout_log.save(session, draft, tz, answer)
     if isinstance(result, workout_log.Saved):
@@ -633,6 +639,7 @@ def _save_after_run(
                 strength,
                 tz,
                 set_levels(items, sets, row.steps),
+                planned(items),
             )
             if isinstance(result, workout_log.Saved):
                 row.saved_workout_id = result.workout_id
