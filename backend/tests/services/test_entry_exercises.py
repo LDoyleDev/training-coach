@@ -16,6 +16,8 @@ ENTRY_RANGE = (3, 10)  # a level-1 range: a frail person can't miss the bottom o
 ENTRY = {
     "glute-bridge", "step-up", "plank", "knee-lift", "adductor-squeeze", "standing-leg-curl",
     "hip-hinge", "deadlift", "toe-lift",
+    "armchair-press-up", "band-pushdown", "band-row", "band-pull-apart", "band-pulldown",
+    "seated-press",
 }  # fmt: skip
 
 
@@ -72,3 +74,22 @@ def test_a_ladder_from_level_1_counted_in_reps_starts_at_3_10() -> None:
         if e.range is not None and e.kind is ExerciseKind.REPS and e.range[1] > REP_TOP
     ]
     assert over == []
+
+
+@pytest.mark.parametrize("strength", ["light", "medium", "heavy"])
+def test_a_step_named_for_a_band_needs_that_band(strength: str) -> None:
+    """The band entries climb by band strength; a person without that band skips the step
+    (ADR-0071)."""
+    plan = load_plan()
+    named = [
+        (e.slug, step)
+        for e in plan.exercises
+        for step in e.ladder
+        if f"{strength} band" in step.lower()
+    ]
+    assert named
+    assert [
+        (slug, step)
+        for slug, step in named
+        if f"band:{strength}" not in next(e for e in plan.exercises if e.slug == slug).needs[step]
+    ] == []

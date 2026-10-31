@@ -128,6 +128,10 @@ PINNED = {
     ("plank", "On the knees"): (3, {"floor", "kneeling"}),
     ("deadlift", "A bag, from a block"): (2, set()),
     ("deadlift", "24 kg"): (5, set()),
+    ("armchair-press-up", "Feet helping"): (1, set()),
+    ("band-row", "Light band"): (1, set()),
+    ("band-pulldown", "Light band"): (2, set()),
+    ("seated-press", "8 kg, one arm at a time"): (3, set()),
 }
 
 
@@ -151,6 +155,8 @@ FAILURE_OK = {
     "cable-crunch",
     # the entry exercises (ADR-0083): isolation, seated or held, and a bodyweight bridge
     "glute-bridge", "knee-lift", "adductor-squeeze", "standing-leg-curl", "toe-lift",
+    "armchair-press-up", "band-pushdown", "band-row", "band-pull-apart", "band-pulldown",
+    "seated-press",
 }  # fmt: skip
 NEVER = {
     "jump-squat", "kb-swing", "pistol-squat", "hamstring-curl", "single-leg-rdl", "barbell-rdl",
