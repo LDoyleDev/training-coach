@@ -67,6 +67,8 @@ def planned(session: Session, on: date, tz: ZoneInfo) -> Planned | None:
     found = [i for i in plan.items if i.slug in KINDS]
     if len(found) != 1 or (len(plan.items) > 1 and plan.kind != "conditioning"):
         return None
+    if not found[0].targets:  # dropped from a shorter day (ADR-0082)
+        return None
     return Planned(found[0].slug, plan.name, found[0].targets[0])
 
 

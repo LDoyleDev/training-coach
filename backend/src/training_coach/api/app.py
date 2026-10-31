@@ -47,6 +47,7 @@ from training_coach.api.plan import router as plan_router
 from training_coach.api.progress import router as progress_router
 from training_coach.api.proposals import router as proposals_router
 from training_coach.api.readiness import router as readiness_router
+from training_coach.api.region import region_guard
 from training_coach.api.review import router as review_router
 from training_coach.api.security import request_guard, security_headers_middleware
 from training_coach.api.session import router as session_router
@@ -227,6 +228,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/api/openapi.json" if settings.environment != "production" else None,
     )
     app.middleware("http")(request_guard(settings.public_url))
+    app.middleware("http")(region_guard)  # the EU and EEA only (ADR-0085), before any route
     app.middleware("http")(security_headers_middleware)  # outermost: headers on refusals too
     app.state.shared_sessions = make_session_factory(engine)
     app.state.engine = engine

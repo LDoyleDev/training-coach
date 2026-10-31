@@ -1,4 +1,4 @@
-import type { Done, Guided, GuidedItem, Kept } from '../api'
+import type { Done, Guided, GuidedItem, Kept, LengthBody } from '../api'
 
 /** One set as the screen holds it: `split` means left and right differ. `confirmed`: kept on
  * the server or confirmed on this screen, as opposed to a set only touched with − and +. A
@@ -214,11 +214,13 @@ export function summary(session: Guided, values: Values) {
   })
 }
 
-/** The other exercise of a set's pair, if it has one. */
+/** The other exercise of a set's pair, if it has one. A partner a shorter day dropped
+ * (ADR-0082, no targets) isn't one: the exercise is done straight. */
 export function partnerOf(session: Guided, item: number): GuidedItem | null {
   const pair = session.items[item].pair
   if (pair === null) return null
-  return session.items.find((other, i) => i !== item && other.pair === pair) ?? null
+  const found = session.items.find((other, i) => i !== item && other.pair === pair)
+  return found && found.targets.length > 0 ? found : null
 }
 
 /** The cardio exercises logged in one step (ux-flow-plan A1): HIIT counts rounds, the others
@@ -242,4 +244,20 @@ export function recentDays(now: Date = new Date()): string[] {
     const pad = (v: number) => String(v).padStart(2, '0')
     return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`
   })
+}
+
+// ---------------------------------------------------------------- short on time today (ADR-0082)
+
+export type Minutes = LengthBody['minutes']
+
+/** What a change of length says once made. */
+export const lengthText = (name: string, minutes: Minutes) =>
+  minutes === null || minutes === undefined ? `${name} as planned.` : `${name} at ${minutes} min.`
+
+/** The warm-up line before Start: the 5-minute warm-up, ramp sets on a short day, or none. */
+export function warmUpText(session: Guided): string | null {
+  const kind = session.length?.warm_up ?? (session.warm_up ? 'full' : 'none')
+  if (kind === 'ramp')
+    return 'Warm-up: one or two easy sets of the first exercise at about half its target.'
+  return kind === 'full' ? 'Warm up for about 5 minutes first.' : null
 }
