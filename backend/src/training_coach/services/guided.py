@@ -916,7 +916,8 @@ def choose_length(
     if not set(pinned) <= {item.slug for item in plan.items}:
         return NOT_IN_SESSION
     row = _row(session, plan.day)
-    if row is not None and (row.template_id, row.after_run) == (plan.template_id, plan.after_run):
+    mine = (plan.template_id, plan.place, plan.after_run)
+    if row is not None and (row.template_id, row.place, row.after_run) == mine:
         if row.saved_workout_id is not None:
             return SAVED
         if row.revision != revision:
@@ -924,8 +925,9 @@ def choose_length(
         if row.sets or row.fixed is not None:
             return STARTED
     else:
-        # Nothing kept for this session yet: start its progress, as the first set would, so
-        # the choice has somewhere to live and a reload or another device shows it.
+        # Nothing kept for this session, or a row left from another session or the other
+        # place's version: start its progress as the first set would (``keep`` resets a row
+        # that isn't today's), so the choice lives where a reload or another device sees it.
         started = keep(session, plan, revision, 0, [], [])
         if isinstance(started, str):
             return started
