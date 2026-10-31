@@ -11,7 +11,7 @@ import Unavailable from './Unavailable.tsx'
 startPwa()
 
 const root = createRoot(document.getElementById('root')!)
-watchRegion(() => root.render(<Unavailable />))
+watchRegion((reason) => root.render(<Unavailable reason={reason} />))
 root.render(
   <StrictMode>
     <ReadinessGate>

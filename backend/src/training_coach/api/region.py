@@ -28,12 +28,23 @@ UNAVAILABLE = "Not available in your region"
 EXEMPT = frozenset({"/mcp", "/oauth/token", "/oauth/register", "/healthz"})
 EXEMPT_PREFIX = "/.well-known/oauth-"
 NO_STORE = {"Cache-Control": "no-store"}
-PAGE = f"""<!doctype html>
+ONLY_HERE = "Training Coach is only for people in the EU and EEA."
+# XX (no data) and T1 (Tor): say why, rather than leave the person guessing (ADR-0085).
+UNKNOWN = frozenset({"XX", "T1"})
+CANT_TELL = "We can't tell where you are, for example behind Tor or some VPNs."
+
+
+def reason(country: str) -> str:
+    return f"{CANT_TELL} {ONLY_HERE}" if country in UNKNOWN else ONLY_HERE
+
+
+def _page(why: str) -> str:
+    return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{UNAVAILABLE}</title></head>
 <body><h1>{UNAVAILABLE}</h1>
-<p>Training Coach is only for people in the EU and EEA.</p></body></html>
+<p>{why}</p></body></html>
 """
 
 
@@ -68,9 +79,11 @@ async def region_guard(
     if exempt(path):
         return await call_next(request)
     country = visitor_country(request)
-    if admits(country):
+    if country is None or admits(country):
         return await call_next(request)
     log.info("region.refused", country=country)
+    why = reason(country)
     if path.startswith("/api/"):
-        return JSONResponse({"detail": UNAVAILABLE}, status_code=451, headers=NO_STORE)
-    return HTMLResponse(PAGE, status_code=451, headers=NO_STORE)
+        body = {"detail": UNAVAILABLE, "reason": why}
+        return JSONResponse(body, status_code=451, headers=NO_STORE)
+    return HTMLResponse(_page(why), status_code=451, headers=NO_STORE)

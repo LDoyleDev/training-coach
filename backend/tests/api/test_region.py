@@ -35,7 +35,8 @@ def test_browser_routes_from_outside_the_list_get_451(tunnel: TestClient, countr
     assert page.headers["x-content-type-options"] == "nosniff"  # security headers too
     api = tunnel.get("/api/auth/me", headers={"CF-IPCountry": country})
     assert api.status_code == 451
-    assert api.json() == {"detail": "Not available in your region"}
+    assert api.json()["detail"] == "Not available in your region"
+    assert "only for people in the EU and EEA" in api.json()["reason"]
     # A change is refused the same way, before any route reads it.
     assert tunnel.post("/api/auth/redeem", headers={"CF-IPCountry": country}).status_code == 451
 
@@ -84,3 +85,14 @@ def test_connecting_an_ai_needs_a_visit_from_europe(tunnel: TestClient) -> None:
     """The consent steps a person takes in the browser are not exempt."""
     for path in ("/oauth/authorize", "/connect", "/api/connect/details"):
         assert tunnel.get(path, headers={"CF-IPCountry": "US"}).status_code == 451, path
+
+
+@pytest.mark.parametrize("country", ["XX", "T1"])
+def test_unknown_and_tor_are_told_why(tunnel: TestClient, country: str) -> None:
+    """ADR-0085: never a silent failure when Cloudflare can't place the visitor."""
+    page = tunnel.get("/signin", headers={"CF-IPCountry": country})
+    assert "We can't tell where you are" in page.text
+    api = tunnel.get("/api/auth/me", headers={"CF-IPCountry": country})
+    assert api.json()["reason"].startswith("We can't tell where you are")
+    plain = tunnel.get("/api/auth/me", headers={"CF-IPCountry": "US"}).json()["reason"]
+    assert "We can't tell" not in plain
