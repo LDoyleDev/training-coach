@@ -8,6 +8,7 @@ import {
   fetchToday,
   keepProgress,
   saveSession,
+  saveSettings,
   SignedOutError,
   type Answer,
   type Clash,
@@ -66,6 +67,8 @@ import useWakeLock from './useWakeLock'
 import { DEFAULT_SOUND, type Sound, playChange, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import { card, primary, primaryInline, secondary } from '../ui'
 import { KIT_HREF } from '../account/kit'
+import { BREATHING } from './safety'
+import { StopSignsCard, StopSignsTap } from './StopSigns'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
 
@@ -122,6 +125,12 @@ export default function SessionPage() {
   } | null>(null)
 
   const [sound, setSound] = useState<Sound>(DEFAULT_SOUND) // the person's choice, from Settings
+  const [talkTest, setTalkTest] = useState(false) // cardio effort by the talk test (ADR-0083)
+  // The stop signs (spec B7): due before the first guided session, and being read now. Due
+  // until the server says they were seen, so a slow or failed settings fetch still shows them.
+  const [stopSignsDue, setStopSignsDue] = useState(true)
+  const [reading, setReading] = useState(false)
+  const [breatheAt, setBreatheAt] = useState<number | null>(null) // the set with the cue
   const counting = useRef(0) // the last of a rest's final 3 seconds that sounded
   const rang = useRef(0) // the rest whose end has sounded, by its end time
   // The end of the session has rung: the mobility flow closing it rang it, so Save doesn't.
@@ -135,7 +144,12 @@ export default function SessionPage() {
   useEffect(() => {
     const ask = new AbortController()
     fetchSettings(ask.signal)
-      .then((found) => found && setSound(found.sound))
+      .then((found) => {
+        if (!found) return
+        setSound(found.sound)
+        setTalkTest(found.talk_test === true)
+        setStopSignsDue(found.stop_signs_seen !== true)
+      })
       .catch(() => {}) // the default sound still plays
     return () => ask.abort()
   }, [])
@@ -269,7 +283,7 @@ export default function SessionPage() {
   }
   const bandOffers = (
     <>
-      <Proposals onSaved={counted} />
+      <Proposals onSaved={counted} talkTest={talkTest} />
       <BandOffers onCounted={counted} />
     </>
   )
@@ -296,9 +310,9 @@ export default function SessionPage() {
         {loaded.status === 'none' && bandOffers}
         {loaded.status === 'none' && undoBar}
         {loaded.status === 'none' && (
-          <Cardio featured={false} onChange={cardioChange} sound={sound} />
+          <Cardio featured={false} onChange={cardioChange} sound={sound} talkTest={talkTest} />
         )}
-        {loaded.status === 'none' && <LogDay onSaved={counted} />}
+        {loaded.status === 'none' && <LogDay onSaved={counted} talkTest={talkTest} />}
       </AppShell>
     )
   const session = loaded.session
@@ -346,6 +360,22 @@ export default function SessionPage() {
   const value = kg === undefined ? base : { ...base, load_kg: kg }
   const sentLoad = session.items[step.item].load // before a suggested weight is taken
   const change = (v: Value) => setValues({ ...values, [key(step.item, step.set_no)]: v })
+
+  /** Start or resume. The breathing cue (ADR-0084) shows once a visit, on the first set
+   * after Start that isn't a mobility flow: once sets the habit, every set would be noise. */
+  const begin = () => {
+    unlockAudio() // so the rests can sound; nothing plays on Start
+    const at = screen.order.findIndex((s, n) => n >= position && !screen.items[s.item].flow)
+    setBreatheAt(at < 0 ? null : at)
+    goTo(position >= total ? 'check' : 'set')
+  }
+  /** The stop signs were read: remembered on the server, then the session starts. */
+  const read = () => {
+    setReading(false)
+    setStopSignsDue(false)
+    saveSettings({ stop_signs_seen: true }).catch(() => {}) // shown again next time, at worst
+    begin()
+  }
 
   /** Confirm this set: the counter's value, or the clock's reading when it runs; the mobility
    * flow passes its minutes and when it started (ADR-0062). */
@@ -547,21 +577,20 @@ export default function SessionPage() {
           )}
           {isCardio(session) ? (
             <>
-              <Cardio featured onChange={cardioChange} sound={sound} />
+              <Cardio featured onChange={cardioChange} sound={sound} talkTest={talkTest} />
               {afterRun(session).length > 0 && (
                 <p className={card}>
                   After your run: {afterRun(session).join(', ')}. Log the run, then this opens.
                 </p>
               )}
             </>
+          ) : reading ? (
+            <StopSignsCard onRead={read} />
           ) : (
             <Overview
               session={session}
               resumeAt={position > 0 && position < total ? position : null}
-              onStart={() => {
-                unlockAudio() // so the rests can sound; nothing plays on Start
-                goTo(position >= total ? 'check' : 'set')
-              }}
+              onStart={() => (stopSignsDue ? setReading(true) : begin())}
             />
           )}
           {!cardioSaved && (
@@ -575,8 +604,10 @@ export default function SessionPage() {
             />
           )}
           {undoBar}
-          {!isCardio(session) && <Cardio featured={false} onChange={cardioChange} sound={sound} />}
-          <LogDay onSaved={counted} />
+          {!isCardio(session) && (
+            <Cardio featured={false} onChange={cardioChange} sound={sound} talkTest={talkTest} />
+          )}
+          <LogDay onSaved={counted} talkTest={talkTest} />
           <DayCard refresh={undoKey} />
         </>
       )}
@@ -632,6 +663,7 @@ export default function SessionPage() {
               <p className="text-[var(--slate)]">{item.step}</p>
             )}
             {item.cue && <p className="text-[var(--slate)]">{item.cue}</p>}
+            {position === breatheAt && <p className="font-bold">{BREATHING}</p>}
             {item.baseline && (
               <p className="font-bold text-[var(--bell-ink)]">
                 Baseline: first time at this step. Do what you can; targets grow from it.
@@ -780,6 +812,8 @@ export default function SessionPage() {
           </div>
         </section>
       )}
+
+      {(stage === 'set' || stage === 'rest') && <StopSignsTap />}
 
       {stage === 'check' && (
         <section aria-labelledby="check" className="flex flex-col gap-4">

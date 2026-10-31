@@ -11,7 +11,7 @@ again marks everyone seen now, with no country). Restore the pre-deploy backup t
 (docs/runbooks/deploy.md, Rollback).
 
 Revision ID: f3a9c1d7e5b2
-Revises: b7e1c3d5f9a2
+Revises: c3f7a1e5d9b2
 Create Date: 2026-10-31 12:00:00.000000
 
 """
@@ -24,7 +24,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "f3a9c1d7e5b2"
-down_revision: str | Sequence[str] | None = "b7e1c3d5f9a2"
+down_revision: str | Sequence[str] | None = "c3f7a1e5d9b2"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

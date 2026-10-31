@@ -5884,6 +5884,28 @@
                 "type": "null"
               }
             ]
+          },
+          "stop_signs_seen": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Signs Seen"
+          },
+          "talk_test": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Talk Test"
           }
         },
         "title": "SettingsChange",
@@ -5956,6 +5978,14 @@
           "sound": {
             "$ref": "#/components/schemas/Sound"
           },
+          "stop_signs_seen": {
+            "title": "Stop Signs Seen",
+            "type": "boolean"
+          },
+          "talk_test": {
+            "title": "Talk Test",
+            "type": "boolean"
+          },
           "timezone": {
             "title": "Timezone",
             "type": "string"
@@ -5975,6 +6005,8 @@
           "places",
           "increments",
           "default_increments",
+          "talk_test",
+          "stop_signs_seen",
           "paused",
           "timezone"
         ],

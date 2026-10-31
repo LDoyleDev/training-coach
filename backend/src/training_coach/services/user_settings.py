@@ -34,6 +34,8 @@ class Prefs:
     places: Places = Places.HOME  # where the person trains: home, gym or both (ADR-0071)
     place: Place = Place.HOME  # at both: the last place chosen on Today's switch (Decided 4)
     increments: Increments = DEFAULTS  # their own weight steps (ADR-0072)
+    talk_test: bool = False  # cardio effort by the talk test, not heart-rate zones (ADR-0083)
+    stop_signs_seen: bool = False  # shown before their first guided session (spec B7)
 
 
 def _increments(old: Increments, change: Mapping[LoadKit, float]) -> Increments:
@@ -76,6 +78,8 @@ def load(session: Session) -> Prefs:
             row.machine_increment_kg,
             row.backpack_increment_kg,
         ),
+        row.talk_test,
+        row.stop_signs_seen,
     )
 
 
@@ -97,6 +101,8 @@ def update(
     places: Places | None = None,
     place: Place | None = None,
     increments: Mapping[LoadKit, float] | None = None,
+    talk_test: bool | None = None,
+    stop_signs_seen: bool | None = None,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
@@ -127,6 +133,8 @@ def update(
         places=old.places if places is None else places,
         place=old.place if place is None else place,
         increments=_increments(old.increments, increments or {}),
+        talk_test=old.talk_test if talk_test is None else talk_test,
+        stop_signs_seen=old.stop_signs_seen if stop_signs_seen is None else stop_signs_seen,
     )
     changes: dict[str, str | bool | int | float] = {}
     if morning_time is not None:
@@ -155,6 +163,10 @@ def update(
         changes["places"] = places.value
     if place is not None:
         changes["place"] = place.value
+    if talk_test is not None:
+        changes["talk_test"] = talk_test
+    if stop_signs_seen is not None:
+        changes["stop_signs_seen"] = stop_signs_seen
     for kit, kg in (increments or {}).items():
         changes[f"{kit.value}_increment_kg"] = kg
     row = users.settings_row(session)
@@ -178,6 +190,8 @@ def update(
     row.dumbbells_increment_kg = prefs.increments.dumbbells
     row.machine_increment_kg = prefs.increments.machine
     row.backpack_increment_kg = prefs.increments.backpack
+    row.talk_test = prefs.talk_test
+    row.stop_signs_seen = prefs.stop_signs_seen
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

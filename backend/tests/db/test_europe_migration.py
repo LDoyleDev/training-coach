@@ -10,7 +10,7 @@ from alembic.config import Config
 
 from tests.db.test_migrations import BACKEND
 
-BEFORE = "b7e1c3d5f9a2"  # the revision before country and last_seen_in_europe
+BEFORE = "c3f7a1e5d9b2"  # the revision before country and last_seen_in_europe
 
 
 def test_existing_people_are_seen_now_and_a_downgrade_drops_the_columns(
