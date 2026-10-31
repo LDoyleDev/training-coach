@@ -110,6 +110,9 @@ class ExerciseSeed(_Strict):
     marks: dict[str, Annotated[list[Mark], Field(min_length=1)]] = Field(default_factory=dict)
     # A last set to failure is safe here: isolation and stable exercises (ADR-0084)
     failure_ok: bool = False
+    # Reps, seconds or minutes a set, low to high, for an exercise no session uses yet (an
+    # entry exercise, ADR-0083): its questions ask for the bottom. A session item sets its own.
+    range: tuple[Annotated[int, Field(ge=1)], Annotated[int, Field(ge=1)]] | None = None
     aliases: list[str] = Field(default_factory=list)
     start: int = Field(ge=0)
     ladder: list[str] = Field(min_length=1)
@@ -189,6 +192,8 @@ class ExerciseSeed(_Strict):
             raise ValueError(
                 f"{self.slug}: only an exercise counted in reps has a last set to failure"
             )
+        if self.range is not None and self.range[1] < self.range[0]:
+            raise ValueError(f"{self.slug}: its range runs from high to low")
         self._levels_and_marks()
         for step, kit in self.needs.items():
             try:
@@ -378,6 +383,10 @@ class PlanSeed(_Strict):
                     "which must be an exercise counted in minutes"
                 )
         retired = {e.slug for e in self.exercises if e.retired}
+        used = {i.exercise for s in self.sessions for i in (*s.items, *s.gym)}
+        ranged = sorted(e.slug for e in self.exercises if e.range is not None and e.slug in used)
+        if ranged:
+            raise ValueError(f"{ranged} have a range, but a session sets theirs")
         for session in self.sessions:
             for item in (*session.items, *session.gym):
                 if item.exercise not in known:
