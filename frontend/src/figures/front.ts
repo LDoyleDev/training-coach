@@ -78,7 +78,7 @@ export function solveFront(pose: FrontPose): FrontJoints {
   const place = (limb: FrontLimb, root: Vec, a: number, b: number, tipLen: number) => {
     if (limb.swing) {
       const { dir, toward } = limb.swing
-      const flat = Math.sqrt((a + b) ** 2 - toward ** 2)
+      const flat = Math.sqrt(Math.max(0, (a + b) ** 2 - toward ** 2)) // end on, past its reach
       const [mid, end] = [along(root, dir, (flat * a) / (a + b)), along(root, dir, flat)]
       const z: Vec = [(toward * a) / (a + b), toward]
       return { root, mid, end, tip: along(end, limb.angle ?? dir, tipLen), z }
