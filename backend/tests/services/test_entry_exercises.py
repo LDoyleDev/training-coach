@@ -6,8 +6,10 @@ from pydantic import ValidationError
 
 from tests.services.test_seed import DIP_LEVELS, MINI_PLAN
 from training_coach.domain.enums import ExerciseKind
-from training_coach.domain.muscles import Kit, Muscle, parse_need
+from training_coach.domain.muscles import Kit, Muscle, Pattern, parse_need
+from training_coach.domain.rest import SMALL_SECONDS, Kind, straight
 from training_coach.domain.step_levels import Mark, StepLevel
+from training_coach.domain.trim import ACCESSORY
 from training_coach.services.seed import load_plan
 
 REP_TOP = 18  # ADR-0078
@@ -143,3 +145,9 @@ def test_balance_counts_seconds_and_marks_every_step_without_a_hold() -> None:
     assert all(Mark.BALANCE in balance.marks[step] for step in balance.ladder[1:])
     low = [step for step in balance.ladder if balance.levels[step] <= StepLevel.BUILDING]
     assert all("counter" in step + balance.cues[step] for step in low)
+
+
+def test_balance_rests_like_small_work_and_is_main_work_on_a_short_day() -> None:
+    """For the older people it is for, balance is kept, not trimmed first (ADR-0082)."""
+    assert straight(Kind(Pattern.BALANCE, frozenset())) == SMALL_SECONDS
+    assert Pattern.BALANCE not in ACCESSORY
