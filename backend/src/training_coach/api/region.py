@@ -11,12 +11,13 @@ Cloudflare header) is let through, so the owner can't be locked out by a header 
 """
 
 from collections.abc import Awaitable, Callable
+from ipaddress import ip_address, ip_network
 
 import structlog
 from fastapi import Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from training_coach.api.passkeys import _trusted_peer
+from training_coach.config import Settings
 from training_coach.domain.region import admits
 
 log = structlog.get_logger(__name__)
@@ -40,11 +41,22 @@ def exempt(path: str) -> bool:
     return path in EXEMPT or path.startswith(EXEMPT_PREFIX)
 
 
+def trusted_peer(request: Request, host: str) -> bool:
+    """Whether the connection comes from the tunnel's side (TC_TRUSTED_PROXIES: loopback and
+    Docker's bridge by default). Anyone else is the client itself."""
+    try:
+        address = ip_address(host)
+    except ValueError:
+        return False
+    settings: Settings = request.app.state.settings
+    return any(address in ip_network(cidr) for cidr in settings.trusted_proxies)
+
+
 def visitor_country(request: Request) -> str | None:
     """The visitor's country code from a trusted proxy, or None when there is none to believe."""
     country = request.headers.get(HEADER, "").strip().upper()
     peer = request.client.host if request.client is not None else ""
-    if not country or not _trusted_peer(request, peer):
+    if not country or not trusted_peer(request, peer):
         return None
     return country
 
