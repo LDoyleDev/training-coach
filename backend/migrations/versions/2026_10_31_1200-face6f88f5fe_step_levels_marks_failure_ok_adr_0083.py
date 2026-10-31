@@ -9,7 +9,7 @@ step's level is empty, its marks `[]` and failure_ok false, and nothing reads th
 Downgrade drops the columns; the seed writes them again after the next upgrade.
 
 Revision ID: face6f88f5fe
-Revises: b7e1c3d5f9a2
+Revises: c3f7a1e5d9b2
 Create Date: 2026-10-31 12:00:00.000000
 
 """
@@ -21,7 +21,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "face6f88f5fe"
-down_revision: str | Sequence[str] | None = "b7e1c3d5f9a2"
+down_revision: str | Sequence[str] | None = "c3f7a1e5d9b2"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
