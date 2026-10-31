@@ -98,3 +98,19 @@ def test_each_timed_session_in_plan_order(session: Session) -> None:
         ("Legs", 31, 31, 31, 1),
         ("Upper", 43, 46, 40, 2),
     ]
+
+
+def test_a_shorter_day_has_its_time_but_does_not_count_toward_usual(session: Session) -> None:
+    """ADR-0082: a day run at 20 minutes says nothing about the session as planned."""
+    pull = factories.exercise(session)
+    upper = factories.template(session, pull)
+    _workout(session, upper, pull, date(2026, 10, 12), _sets(5))  # 13 minutes
+    short = _workout(session, upper, pull, date(2026, 10, 14), _sets(2))  # 4 minutes
+    short.minutes = 20
+    session.flush()
+    assert session_times.usual_minutes(session, upper.id) == 13
+    (times,) = session_times.by_session(session)
+    assert (times.usual, times.last, times.fastest, times.timed) == (13, 13, 13, 1)
+    found = session_times.of_workout(session, short.id)
+    assert found is not None
+    assert found.total == timedelta(minutes=4)

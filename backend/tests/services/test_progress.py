@@ -61,6 +61,7 @@ def _log(
     template: str | None = "torso",
     sides: tuple[Side, ...] = (Side.BOTH,),
     step: LadderStep | None = None,
+    planned: dict[str, dict[str, int]] | None = None,
 ) -> int:
     exercise = _exercise(session, slug)
     at = step or _step(session, slug)
@@ -68,6 +69,7 @@ def _log(
         local_date=DAY + timedelta(days=days),
         template_id=_template(session, template) if template else None,
         status=WorkoutStatus.DONE,
+        planned=planned,
     )
     workout.sets = [
         SetLog(exercise_id=exercise.id, ladder_step_id=at.id, set_no=n, side=side, value=v)
@@ -119,6 +121,28 @@ def test_an_extra_session_is_judged_by_the_plan(plan: Session) -> None:
     _log(plan, "pull-up", TOP, 0, template=None)
     (item,) = feedback(plan, _log(plan, "pull-up", TOP, 2, template=None))
     assert item.status is Progress.READY
+
+
+def test_a_shorter_day_at_the_top_of_its_two_sets_counts_toward_ready(plan: Session) -> None:
+    """ADR-0084: a day that planned two of pull-up's four sets is judged on those two."""
+    _log(plan, "pull-up", [12, 12], 0, planned={"pull-up": {"sets": 2}})
+    (item,) = feedback(plan, _log(plan, "pull-up", TOP, 2))
+    assert item.status is Progress.READY
+
+
+def test_an_old_two_set_row_without_a_plan_still_holds(plan: Session) -> None:
+    """A workout saved without its plan planned every set: two sets of four is a miss."""
+    _log(plan, "pull-up", [12, 12], 0)
+    (item,) = feedback(plan, _log(plan, "pull-up", TOP, 2))
+    assert item.status is Progress.HOLD
+
+
+def test_planned_sets_read_each_workouts_plan_in_the_order_given(plan: Session) -> None:
+    short = _log(plan, "pull-up", [12], 0, planned={"pull-up": {"sets": 2}})
+    other = _log(plan, "pull-up", [12], 1, planned={"push-up": {"sets": 3}})
+    old = _log(plan, "pull-up", [12], 2)
+    found = progress.planned_sets(plan, "pull-up", [old, short, other])
+    assert found == [None, 2, None]  # no plan, and a plan not naming it: every set planned
 
 
 def test_one_side_short_holds_unilateral_work(plan: Session) -> None:

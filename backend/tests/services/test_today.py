@@ -82,11 +82,17 @@ def _log(
     values: list[tuple[int, Side, int]],
     on: date = date(2026, 10, 1),
     template_id: int | None = None,
+    planned: int | None = None,
 ) -> None:
     exercise = _exercise(session, slug)
     step = users.exercise_state(session, exercise.id)
     assert step is not None
-    workout = Workout(local_date=on, template_id=template_id, status=WorkoutStatus.DONE)
+    workout = Workout(
+        local_date=on,
+        template_id=template_id,
+        status=WorkoutStatus.DONE,
+        planned={slug: {"sets": planned}} if planned is not None else None,
+    )
     workout.sets = [
         SetLog(
             exercise_id=exercise.id, ladder_step_id=step.ladder_step_id, set_no=n, side=s, value=v
@@ -276,3 +282,18 @@ def test_the_bots_today_is_the_days_version(session: Session) -> None:
     assert found is not None
     assert (found.session.place, found.session.switch) == (Place.GYM, True)
     assert "back-squat" in {i.slug for i in found.session.items}
+
+
+@pytest.mark.parametrize(("planned", "expected"), [(2, (10, 10, 5)), (None, (10, 10, 9))])
+def test_a_set_a_shorter_day_did_not_plan_finds_its_level_when_it_comes_back(
+    seeded: Session, planned: int | None, expected: tuple[int, ...]
+) -> None:
+    """ADR-0084: the first day planned two of pull-up's three sets, so the third set's
+    baseline is the next day, the first to plan it. Without the plan (an old row) the first
+    day's two sets stand for all three and the weak third set is a miss."""
+    both = Side.BOTH
+    _log(seeded, "pull-up", [(1, both, 8), (2, both, 8)], date(2026, 10, 1), planned=planned)
+    _log(seeded, "pull-up", [(1, both, 9), (2, both, 9), (3, both, 4)], date(2026, 10, 3))
+    plan = today(seeded, DAY)
+    assert plan is not None
+    assert plan.session.items[0].targets == expected

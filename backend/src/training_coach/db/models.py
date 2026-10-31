@@ -439,6 +439,11 @@ class Workout(Owned, Base):
     plan_version_id: Mapped[int | None] = mapped_column(
         ForeignKey("plan_versions.id", ondelete="RESTRICT"), index=True
     )
+    # A guided session's day (ADR-0082, ADR-0084): the minutes chosen ("short on time
+    # today"), empty when done as planned; and what it planned, exercise slug ->
+    # {"sets": N}. Typed logs and workouts saved before have no plan: every set was planned.
+    minutes: Mapped[int | None] = mapped_column(Integer)
+    planned: Mapped[dict[str, dict[str, int]] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     sets: Mapped[list["SetLog"]] = relationship(

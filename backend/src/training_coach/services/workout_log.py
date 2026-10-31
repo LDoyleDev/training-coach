@@ -81,6 +81,10 @@ class Draft:
     # (ADR-0080), filed at that step instead of the current one. A step not on the exercise's
     # ladder is ignored.
     steps: tuple[tuple[str, int, int], ...] = ()
+    # A guided session's plan (ADR-0084): (slug, sets planned) per exercise, and the minutes
+    # chosen for the day (ADR-0082), None as planned. A typed log plans nothing (None).
+    planned: tuple[tuple[str, int], ...] | None = None
+    minutes: int | None = None
 
 
 @dataclass(frozen=True)
@@ -538,6 +542,8 @@ def save(
         log_token=confirmed.token,
         activity=confirmed.activity,
         place=_place(session, confirmed),
+        minutes=confirmed.minutes,
+        planned=plan_map(confirmed.planned),
         **_details(confirmed.cardio),
     )
     _file(session, workout, confirmed, exercises, strength, tz)
@@ -559,10 +565,12 @@ def add_to(
     strength: bool,
     tz: ZoneInfo,
     steps: tuple[tuple[str, int, int], ...] = (),
+    planned: tuple[tuple[str, int], ...] | None = None,
 ) -> Saved | Stale:
     """Add sets to a saved workout of the same session: the block after a conditioning
     session's cardio (ADR-0066). It is that session's log, so it neither clashes nor moves the
-    queue. ``Stale`` when an exercise is gone from the plan."""
+    queue. ``Stale`` when an exercise is gone from the plan. ``planned`` joins the workout's
+    plan (ADR-0084); an exercise the plan doesn't name had every set planned."""
     confirmed = Draft(
         token=workout.log_token or secrets.token_hex(16),
         on=workout.local_date,
@@ -577,6 +585,9 @@ def add_to(
     if exercises is None:
         return Stale()
     _file(session, workout, confirmed, exercises, strength, tz)
+    added = plan_map(planned)
+    if added is not None:
+        workout.planned = {**(workout.planned or {}), **added}
     session.flush()
     session.add(
         Event(
@@ -616,6 +627,8 @@ def _save_past(
         log_token=confirmed.token,
         activity=confirmed.activity,
         place=_place(session, confirmed),
+        minutes=confirmed.minutes,
+        planned=plan_map(confirmed.planned),
         **_details(confirmed.cardio),
     )
     _file(session, workout, confirmed, exercises, strength, tz)
@@ -625,6 +638,17 @@ def _save_past(
         return caught_up(_order(session), template.id) if template and later is None else None
 
     return _commit(session, workout, confirmed, rule, answer, tz)
+
+
+def plan_map(planned: tuple[tuple[str, int], ...] | None) -> dict[str, dict[str, int]] | None:
+    """A guided session's plan as ``workouts.planned`` keeps it (ADR-0084): exercise slug ->
+    {"sets": N}, room left for a later key per exercise. None for a log without a plan."""
+    if planned is None:
+        return None
+    found: dict[str, dict[str, int]] = {}
+    for slug, sets in planned:  # an exercise twice in a session plans the sets of both
+        found[slug] = {"sets": found.get(slug, {"sets": 0})["sets"] + sets}
+    return found
 
 
 def _details(details: Details) -> dict[str, object]:
