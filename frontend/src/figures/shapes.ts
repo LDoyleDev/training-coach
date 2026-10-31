@@ -55,6 +55,13 @@ export interface Props {
   step?: { x0: number; x1: number; top: number }
   /** A wall from x to x, from the floor to ``top``: behind your back or under a hand. */
   wall?: { x0: number; x1: number; top: number }
+  /** Stairs rising away from you, the bottom stair's front at ``x``, each ``rise`` cm high and
+   * ``STAIR.run`` deep; ``rail`` adds the banister beside them, behind you, from a newel post at
+   * the bottom stair, ``STAIR.rail`` cm above the stairs' edges. */
+  stair?: { x: number; rise: number; rail?: boolean }
+  /** A kitchen counter beside you, on the far side, from x to x: its cupboard behind your legs and
+   * its worktop ``WORKTOP`` cm up, so the far hand can rest on it or wait just above it. */
+  worktop?: readonly [number, number]
   /** A towel under the near heel, sliding with it. */
   towel?: boolean
   /** A barbell seen end on, in the near fist: a plate behind the figure, the bar's end in front
@@ -319,6 +326,36 @@ function chair({ x0, x1, seat }: NonNullable<Props['chair']>): Shape[] {
   ]
 }
 
+/** A staircase's depth per stair and the banister's height above the stairs' edges, in cm. */
+export const STAIR = { run: 28, rail: 90 }
+/** How high the banister of ``stair`` is ``x`` cm along: it rises with the stairs. */
+export const railAt = ({ x: x0, rise }: NonNullable<Props['stair']>, x: number) =>
+  rise + STAIR.rail + ((x - x0) * rise) / STAIR.run
+
+/** Three stairs in one outline; the banister's newel post and rail, behind the figure. */
+function stair(s: NonNullable<Props['stair']>): Shape[] {
+  const { x, rise } = s
+  const { run } = STAIR
+  const steps: Vec[] = [[x, 0]]
+  for (let i = 0; i < 3; i++)
+    steps.push([x + i * run, (i + 1) * rise], [x + (i + 1) * run, (i + 1) * rise])
+  steps.push([x + 3 * run, 0])
+  const out: Shape[] = [{ kind: 'path', d: polygon(steps), tone: 'prop' }]
+  if (!s.rail) return out
+  const [a, b] = [x + 3, x + 3 * run + 6]
+  return [
+    rect(x + 1, 0, x + 5, railAt(s, a) + 6),
+    limb([a, railAt(s, a)], [b, railAt(s, b)], [2.2, 2.2], 'prop'),
+    ...out,
+  ]
+}
+
+/** A kitchen counter's height, in cm. */
+export const WORKTOP = 90
+function worktop([x0, x1]: readonly [number, number]): Shape[] {
+  return [rect(x0 + 2, 0, x1 - 2, WORKTOP - 4), rect(x0, WORKTOP - 4, x1, WORKTOP)]
+}
+
 /** Dip bars along their length: the bar, and a post at each end, behind the figure. */
 function bars({ x, top }: NonNullable<Props['bars']>): Shape[] {
   return [
@@ -541,6 +578,8 @@ export function scenery(props: Props): Shape[] {
   if (props.machine)
     out.push(...tubes(props.machine.frame), ...tubes(props.machine.pads, PAD, 'prop'))
   if (props.bars) out.push(...bars(props.bars))
+  if (props.stair) out.push(...stair(props.stair))
+  if (props.worktop) out.push(...worktop(props.worktop))
   for (const block of [props.wall, props.step])
     if (block) out.push(rect(block.x0, 0, block.x1, block.top))
   return out

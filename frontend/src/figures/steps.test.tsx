@@ -80,6 +80,21 @@ const SAME: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     'On the floor': 'the figure',
     'On the floor, 3 s hold at the top': 'a pause',
   },
+  // The entry exercises (ADR-0083) for the lower body, the core, balance and walking
+  // (entry-lower.ts).
+  'step-up': { 'One stair, no hands': 'the figure' },
+  plank: { 'Full plank': 'the figure' },
+  'knee-lift': {
+    'Standing, at the counter': 'the figure',
+    'Standing, at the counter, 2 s hold': 'a pause',
+  },
+  deadlift: { '8 kg': 'the figure', '16 kg': 'a heavier bell', '24 kg': 'a heavier bell' },
+  'toe-lift': { 'Both feet': 'the figure', 'Both feet, 3 s hold at the top': 'a pause' },
+  balance: { 'Feet together, holding the counter': 'the figure' },
+  'interval-walk': {
+    '3 min brisk, 3 min easy': 'the figure',
+    '3 min fast, 3 min easy': 'a faster pace',
+  },
 }
 
 test('every step of an exercise with a figure is drawn, or listed as showing it as it is', () => {
