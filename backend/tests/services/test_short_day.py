@@ -222,6 +222,31 @@ def test_a_shorter_day_saves_its_minutes_and_what_it_planned(plan: Session) -> N
     assert workout.planned == {slug: {"sets": n} for slug, n in zip(LEGS, sets, strict=True)}
 
 
+@pytest.mark.parametrize(
+    ("slug", "timed", "chosen", "saved"),
+    [
+        ("hiit", None, 20, None),  # one short item, no warm-up: nothing to cut
+        ("zone2", None, 40, 40),  # its 45 minutes shorten to 40
+        ("legs", None, 40, 40),  # third sets go
+        ("legs", 26, 40, None),  # someone this quick fits 40 as planned, warm-up and all
+        ("legs", 26, 30, 30),  # the same sets, but ramp sets replace the warm-up
+    ],
+)
+def test_a_length_that_changed_nothing_saves_as_planned(
+    plan: Session, slug: str, timed: int | None, chosen: int, saved: int | None
+) -> None:
+    """Minutes chosen that cut no set, shortened nothing, dropped nothing and kept the warm-up
+    save no minutes: the day still counts toward "usually" and as done as planned."""
+    if timed is not None:
+        _timed_legs(plan, minutes=timed, times=3)
+    _at(plan, slug)
+    found = _choose(plan, chosen)
+    guided.keep(plan, found, 2, 1, [], [guided.Done(0, 1, 8)])
+    result = guided.save(plan, DAY, DAY, BERLIN)
+    assert isinstance(result, workout_log.Saved)
+    assert plan.get_one(Workout, result.workout_id).minutes == saved
+
+
 def test_a_shortened_cardio_is_saved_as_dropped_not_missed(plan: Session) -> None:
     _at(plan, "moderate-cardio")
     found = _choose(plan, 30)

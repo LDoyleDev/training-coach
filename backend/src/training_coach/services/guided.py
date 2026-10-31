@@ -207,6 +207,7 @@ class _Fixed:
     durations: tuple[int | None, ...]
     dropped: tuple[int, ...]
     pace: float
+    ramp: bool = False  # ramp sets replaced the warm-up
 
 
 def _fixed(row: SessionProgress | None, count: int) -> _Fixed | None:
@@ -221,6 +222,7 @@ def _fixed(row: SessionProgress | None, count: int) -> _Fixed | None:
         durations=tuple(found["durations"]),
         dropped=tuple(found["dropped"]),
         pace=float(found["pace"]),
+        ramp=found.get("warm_up") == WarmUp.RAMP.value,
     )
 
 
@@ -296,6 +298,7 @@ def _fix(length: Length) -> dict[str, Any]:
         "durations": list(trimmed.durations),
         "dropped": list(trimmed.dropped),
         "pace": length.pace,
+        "warm_up": trimmed.warm_up.value,
     }
 
 
@@ -728,9 +731,21 @@ def _planned(row: SessionProgress, items: tuple[ItemPlan, ...]) -> tuple[tuple[s
 
 
 def _day_minutes(row: SessionProgress, items: tuple[ItemPlan, ...]) -> int | None:
-    """The minutes chosen for the day, as fixed with the first set; None as planned."""
+    """The minutes chosen for the day, as fixed with the first set; None as planned, and None
+    when the minutes changed nothing (no set cut, no cardio shortened, nothing dropped, the
+    warm-up kept): that day is the session as planned and counts toward "usually"."""
     fixed = _fixed(row, len(items))
-    return fixed.minutes if fixed is not None else None
+    if fixed is None:
+        return None
+    unchanged = (
+        not fixed.dropped
+        and not fixed.ramp
+        and all(
+            n == len(item.targets) and (minutes is None or minutes >= max(item.targets, default=0))
+            for item, n, minutes in zip(items, fixed.sets, fixed.durations, strict=True)
+        )
+    )
+    return None if unchanged else fixed.minutes
 
 
 def _numbered(sets: Sequence[Done]) -> Iterator[tuple[int, list[tuple[int, Done]]]]:
