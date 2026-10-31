@@ -288,6 +288,26 @@ export async function chooseLength(body: LengthBody): Promise<TodayView | 'stale
   return (await res.json()) as TodayView
 }
 
+export type EaseBackBody = Schemas['EaseBackBody']
+
+/** Ease back in after three weeks or more away (ADR-0084): one step down for today only on
+ * each exercise offered, or not today. 'stale': the session changed or moved on elsewhere; a
+ * string: why it was refused. */
+export async function easeBackIn(body: EaseBackBody): Promise<TodayView | 'stale' | string> {
+  const res = signedIn(
+    await fetch('/api/session/ease-back', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) return 'stale'
+  if (res.status === 422) return 'Nothing to ease back into now.'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as TodayView
+}
+
 /** Keep where the person is. 'stale': another device moved on (reload). */
 export async function keepProgress(body: KeepBody): Promise<number | 'stale'> {
   const res = signedIn(

@@ -45,6 +45,7 @@ const session = (item: GuidedItem): Guided => ({
   after_run: false,
   place: 'home',
   place_choice: false,
+  ease_back: [],
   items: [item],
   order: item.targets.map((target, i) => ({
     item: 0,

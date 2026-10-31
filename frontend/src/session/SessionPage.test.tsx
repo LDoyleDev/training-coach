@@ -24,6 +24,7 @@ const SESSION: Guided = {
   after_run: false,
   place: 'home',
   place_choice: false,
+  ease_back: [],
   items: [
     {
       slug: 'jump-squat',
@@ -93,6 +94,7 @@ type Server = {
   sound?: string // the timer sound chosen in Settings; unset answers 404
   seen?: boolean | 'error' // the stop signs were read (spec B7); unset means read; 'error' fails the fetch
   place?: TodayView // what a Home | Gym switch answers (ADR-0071)
+  ease?: TodayView | number // what Ease back in answers (ADR-0084): a view or a status
 }
 
 /** A fake API; returns the bodies sent, by method and path. */
@@ -116,6 +118,10 @@ function serve(server: Server = {}) {
     }
     if (path === '/api/session/pending') return Response.json(server.pending ?? [])
     if (path === '/api/session/place' && server.place) return Response.json(server.place)
+    if (path === '/api/session/ease-back' && server.ease !== undefined)
+      return typeof server.ease === 'number'
+        ? new Response(null, { status: server.ease })
+        : Response.json(server.ease)
     if (path === '/api/settings')
       return server.seen === 'error'
         ? new Response(null, { status: 500 })
@@ -1545,4 +1551,43 @@ test('the switch shows only when today has both versions', async () => {
   render(<SessionPage />)
   await screen.findByRole('button', { name: 'Start session' })
   expect(screen.queryByText('Where are you training today?')).not.toBeInTheDocument()
+})
+
+const RETURNING: Guided = {
+  ...SESSION,
+  ease_back: [{ exercise: 'Jump squat', step: 'Bodyweight, full rest' }],
+}
+
+test('after three weeks away, one prompt to ease back in, one step down today (ADR-0084)', async () => {
+  const sent = serve({
+    today: { session: RETURNING, progress: null },
+    ease: { session: SESSION, progress: null },
+  })
+  render(<SessionPage />)
+  const prompt = await screen.findByRole('region', { name: 'Ease back in: one step down today' })
+  expect(prompt).toHaveTextContent('Jump squat at Bodyweight, full rest')
+  expect(prompt).toHaveTextContent('Your levels stay as they are.')
+  click('One step down today')
+  expect(
+    await screen.findByText('One step down today. Your levels stay as they are.'),
+  ).toBeInTheDocument()
+  expect(sent['PUT /api/session/ease-back']).toEqual([
+    { template_id: 3, revision: 0, first: [], ease: true },
+  ])
+  expect(screen.queryByRole('region', { name: /Ease back in/ })).not.toBeInTheDocument()
+})
+
+test.each([
+  [{ session: SESSION, progress: null } as TodayView, 'Not today: today is at your usual levels.'],
+  [409, "Today's session moved on elsewhere, so nothing changed. Here it is now."],
+  [422, 'Nothing to ease back into now.'],
+  [500, "Couldn't answer. Check your connection and try again."],
+])('not today, or a refused answer, says so (%#)', async (ease, text) => {
+  const sent = serve({ today: { session: RETURNING, progress: null }, ease })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Not today' }))
+  expect(await screen.findByText(text)).toBeInTheDocument()
+  expect(sent['PUT /api/session/ease-back']).toEqual([
+    { template_id: 3, revision: 0, first: [], ease: false },
+  ])
 })

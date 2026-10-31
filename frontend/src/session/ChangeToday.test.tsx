@@ -17,6 +17,7 @@ const LEGS: Guided = {
   after_run: false,
   place: 'home',
   place_choice: false,
+  ease_back: [],
   items: [
     {
       slug: 'jump-squat',

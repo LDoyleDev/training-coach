@@ -1,5 +1,7 @@
 """The step-down suggestion (ADR-0084): table tests."""
 
+from datetime import date
+
 import pytest
 
 from training_coach.domain.enums import ExerciseKind, Side
@@ -10,6 +12,7 @@ from training_coach.domain.progression import (
     easier_exercises,
     judged_sessions,
     out_of_reach,
+    returning,
     step_down,
 )
 from training_coach.domain.targets import Pace, Prescription, judged
@@ -142,3 +145,16 @@ def test_easier_exercises_share_a_prime_mover_and_start_low() -> None:
     found = easier_exercises(frozenset({"chest"}), catalogue)
     assert found == ["Wall push-up", "Incline push-up"]
     assert easier_exercises(frozenset(), catalogue) == []
+
+
+@pytest.mark.parametrize(
+    ("last_done", "expected"),
+    [
+        pytest.param(None, False, id="never-done"),
+        pytest.param(date(2026, 10, 11), False, id="20-days"),
+        pytest.param(date(2026, 10, 10), True, id="21-days"),
+        pytest.param(date(2026, 1, 1), True, id="months"),
+    ],
+)
+def test_a_return_is_three_weeks_or_more_away(last_done: date | None, expected: bool) -> None:
+    assert returning(last_done, date(2026, 10, 31)) is expected

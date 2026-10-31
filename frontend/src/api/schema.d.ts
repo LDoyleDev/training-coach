@@ -1380,6 +1380,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/session/ease-back": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Ease Back In
+         * @description Ease back in after a break, or not: one step down for today only on each exercise
+         *     offered, levels unchanged; either answer is asked once per return. 409 when the session
+         *     changed or another device moved on (reload); 422 when there is nothing to ease back into.
+         */
+        put: operations["ease_back_in_api_session_ease_back_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session/length": {
         parameters: {
             query?: never;
@@ -2299,6 +2321,34 @@ export interface components {
             unlock: string | null;
         };
         /**
+         * EaseBackBody
+         * @description The answer to "Ease back in: one step down today" (ADR-0084).
+         */
+        EaseBackBody: {
+            /** Ease */
+            ease: boolean;
+            /** First */
+            first?: number[];
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
+            /** Template Id */
+            template_id: number;
+        };
+        /**
+         * EaseBackView
+         * @description An exercise back after three weeks or more away, and the step below its level that
+         *     "Ease back in: one step down today" would do it at, for today only (ADR-0084).
+         */
+        EaseBackView: {
+            /** Exercise */
+            exercise: string;
+            /** Step */
+            step: string;
+        };
+        /**
          * Energy
          * @enum {string}
          */
@@ -2408,6 +2458,8 @@ export interface components {
             block: components["schemas"]["BlockView"] | null;
             /** Day */
             day: string;
+            /** Ease Back */
+            ease_back: components["schemas"]["EaseBackView"][];
             /** Focus */
             focus: string;
             /** Items */
@@ -6490,6 +6542,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReviewWeekView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ease_back_in_api_session_ease_back_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EaseBackBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TodayView"];
                 };
             };
             /** @description Validation Error */

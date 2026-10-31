@@ -251,7 +251,7 @@ def _unlock(step: LadderStep, kit: Kit) -> str | None:
     return f"{' and '.join(lacking)} unlocks {ladder[at + 1].name}" if lacking else None
 
 
-def _step_below(step: LadderStep, kit: Kit) -> LadderStep | None:
+def step_below(step: LadderStep, kit: Kit) -> LadderStep | None:
     """The nearest step below the kit allows: a step down skips the locked ones."""
     ladder, at = _at(step)
     found = kit_rules.previous_open(equipment.ladder_needs(step.exercise), at, kit)
@@ -286,7 +286,7 @@ def _down_rule(
     found = step_down_rule(
         _prescription(item),
         [v for _, v in done],
-        has_step_below=_step_below(step, kit) is not None,
+        has_step_below=step_below(step, kit) is not None,
         pace=pace,
         planned=planned_sets(session, step.exercise.slug, ids),
         skipped=skipped,
@@ -332,7 +332,7 @@ def down(
         found, latest = _down_rule(session, item, step, kit, pace)
         if found is StepDown.NONE or _dismissed(session, step.exercise_id, step.id, latest):
             continue
-        below = _step_below(step, kit)
+        below = step_below(step, kit)
         if below is not None:
             return Down(step.id, below.name)
         return Down(step.id, None, easier(step.exercise.slug))
@@ -611,7 +611,7 @@ def step_down(session: Session, exercise_id: int, from_step_id: int) -> Move | N
     if not isinstance(found, tuple):
         return found
     exercise, step = found
-    below = _step_below(step, equipment.kit(session))
+    below = step_below(step, equipment.kit(session))
     if below is None:
         return Move(MoveOutcome.NO_STEP_BELOW, exercise.name, step.name)
     moved = set_level(session, exercise_id, below.id)

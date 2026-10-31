@@ -51,6 +51,7 @@ const SESSION: Guided = {
   after_run: false,
   place: 'home',
   place_choice: false,
+  ease_back: [],
   items: [
     item('jump-squat', 'Jump squat', 1, [6, 6]),
     item('calf-raise', 'Calf raise', 1, [15, 15]),
