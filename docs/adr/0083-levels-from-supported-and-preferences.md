@@ -71,6 +71,11 @@ moved a step yet: `b7e1c3d5f9a2` deleted two unused top steps. A walk-through as
   asks for one, a reason for a preference, or stores one. People take responsibility for what
   they feel ready and able to do; the app says to get medical advice if they need it. Wording
   stays "You choose what you're ready for".
+- **How the preferences are kept:** on the server as settings, named neutrally, in the export
+  and erased with the account; not exposed over Telegram or the MCP read tools (ADR-0047 C).
+  Whether a stored preference such as "Keep me off the floor" could count as health data by
+  inference (CJEU C-21/23) is on the lawyer's list with ADR-0085's points; the privacy notice
+  draft names them.
 
 ## Options considered
 

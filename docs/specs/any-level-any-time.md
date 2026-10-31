@@ -306,8 +306,10 @@ Builder H's flow, with what the research adds (Part 3, Implications; Part 2, Scr
   of these mean stop and get help (call 112 if it doesn't settle); sharp joint pain means stop
   and try an easier step; very dark urine after a hard session means see a doctor (Part 2,
   Stop signs; the wording needs checking by a clinician).
-- **"My heart rate isn't a good guide"** (beta-blockers, atrial fibrillation, a pacemaker): the
-  cardio zones then show the talk test instead (ICFSR 2021; Reed and Pipe 2014).
+- **"Use the talk test, not heart-rate zones"** (decided, ADR-0083 and ADR-0085: named neutrally
+  and asked without a reason; it suits people whose heart rate is slowed by medicine or paced,
+  which the app doesn't ask about): the cardio zones then show the talk test instead (ICFSR
+  2021; Reed and Pipe 2014).
 
 ## Starters by level
 
@@ -328,8 +330,9 @@ pull-ups, Nordics, reverse Nordic, ab rollout, HIIT) need replacing. Options:
   a test that every step has a level.
 - **`domain/`:** a pure `trim` that takes a session's items, what each trains, the minutes and
   the person's pace, and returns the shorter version; the estimate uses it.
-- **Settings:** minutes per session, the four preferences, "heart rate isn't a good guide".
-  **`workouts`:** the minutes chosen for the day, so progress judges the day's own sets.
+- **Settings:** minutes per session, the four preferences, "use the talk test". They are stored
+  as preferences, in the export and erased with the account; not shown over Telegram or MCP
+  (ADR-0083). **`workouts`:** the minutes chosen and the sets planned (ADR-0084).
 - **ADRs:** the time budget and its rules; levels and preferences; the safety questions (not
   stored); stepping down; ADR-0016's changes (a shorter day's sets; a last set to failure).
 
