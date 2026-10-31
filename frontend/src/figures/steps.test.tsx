@@ -75,6 +75,11 @@ const SAME: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   'reverse-nordic': { 'Lean back about 30 degrees': 'the figure' },
   // The gym figures (#397): the plate is drawn there.
   'back-extension-45': { Bodyweight: 'the figure' },
+  // The entry exercises (ADR-0083) that share a flow movement's figure.
+  'glute-bridge': {
+    'On the floor': 'the figure',
+    'On the floor, 3 s hold at the top': 'a pause',
+  },
 }
 
 test('every step of an exercise with a figure is drawn, or listed as showing it as it is', () => {
@@ -605,4 +610,32 @@ test('an archer push-up is seen from in front of the head: one arm bends, the ot
   expect(low.j.hip[0], 'over the bent arm').toBeLessThan(top.j.hip[0] - 10)
   const drawn = perspectiveShapes(front.end, front.camera, undefined, front)
   expect(JSON.stringify(drawn)).not.toMatch(/NaN|null/)
+})
+
+test('the bridge at the counter keeps both hands on it and the standing foot down', () => {
+  const figure = figureFor('glute-bridge', 'Standing, at the counter')!
+  for (const t of ALONG) {
+    const j = solve(blend(figure.start, figure.end, t))
+    expect(Math.abs(j.armN.wrist[1] - 92)).toBeLessThan(1) // on the counter's top
+    expect(j.legF.ankle).toEqual(solve(figure.start).legF.ankle)
+  }
+  const back = solve(figure.end).legN
+  expect(back.ankle[0], 'the working leg goes back').toBeLessThan(-25)
+  expect(dist(back.hip, back.ankle), 'straight').toBeGreaterThan(BODY.thigh + BODY.shin - 1)
+})
+
+test('a bag hugged in the hinge is held at the hands, and a hip thrust lifts off the sofa', () => {
+  const figure = figureFor('hip-hinge', 'Holding a bag at the chest')!
+  for (const t of [0, 1]) {
+    const pose = blend(figure.start, figure.end, t)
+    const bag = shapes(pose, figure.props, figure.order).filter(
+      (s) => s.kind === 'path' && s.tone === 'bell',
+    )
+    expect(bag).toHaveLength(1)
+  }
+  const thrust = figureFor('glute-bridge', 'Shoulders on the sofa (hip thrust)')!
+  expect(solve(thrust.end).hip[1] - solve(thrust.start).hip[1]).toBeGreaterThan(20)
+  expect(figureFor('glute-bridge', 'Single leg, on the floor')!.start.legF.at![1]).toBeGreaterThan(
+    50,
+  )
 })
