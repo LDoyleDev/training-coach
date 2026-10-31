@@ -316,6 +316,19 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
     return _guided(session, on, plan, plan.items, block, first, after_run=False)
 
 
+def at_length(session: Session, on: date, plan: SessionPlan) -> tuple[SessionPlan, Length | None]:
+    """``plan`` as it runs on ``on`` (ADR-0082), for the bot's work list: its items cut to the
+    day's length once minutes are chosen for it in the app (a dropped item keeps its place
+    with no targets), and that length. None for a session that isn't trimmed (recovery)."""
+    row = _row(session, on)
+    mine = row if _mine(row, plan, after_run=False) else None
+    length = _length(session, plan, plan.items, (), mine, after_run=False)
+    if length is None:
+        return plan, None
+    items = _cut(plan.items, length.trimmed.sets, length.trimmed.durations)
+    return replace(plan, items=items), length
+
+
 def chosen(session: Session, on: date, template_id: int, after_run: bool) -> dict[str, int]:
     """The levels chosen for today in ``on``'s guided session of ``template_id`` (ADR-0080),
     by exercise slug: none once that progress no longer belongs to the session shown."""
