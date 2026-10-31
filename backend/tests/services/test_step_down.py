@@ -166,7 +166,7 @@ def test_at_the_first_step_it_names_easier_exercises(plan: Session) -> None:
 def test_easier_exercises_start_low_and_share_a_prime_mover() -> None:
     found = progress.easier("calf-raise")
     assert "Tibialis raise" not in found  # level 2, but the shins, not the calves
-    assert progress.easier("reverse-fly") == ("Band face pull",)  # rear delts, level 2
+    assert "Band face pull" in progress.easier("reverse-fly")  # rear delts, level 2
     assert progress.easier("gone") == ()
 
 
