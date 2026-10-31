@@ -132,6 +132,9 @@ PINNED = {
     ("band-row", "Light band"): (1, set()),
     ("band-pulldown", "Light band"): (2, set()),
     ("seated-press", "8 kg, one arm at a time"): (3, set()),
+    ("balance", "Feet together, holding the counter"): (1, set()),
+    ("balance", "One leg, eyes closed"): (5, {"balance"}),
+    ("interval-walk", "3 min brisk, 3 min easy"): (2, set()),
 }
 
 
@@ -163,6 +166,7 @@ NEVER = {
     "back-extension", "back-extension-45", "suitcase-carry", "neck-flexion", "neck-extension",
     "neck-lateral", "chin-tuck", "ab-rollout", "copenhagen-plank", "hiit",
     "deadlift", "hip-hinge", "step-up",  # loaded hinges; a stair is a fall risk
+    "interval-walk",
 }  # fmt: skip
 
 
