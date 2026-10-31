@@ -86,3 +86,6 @@ Code). Template: [template.md](template.md).
 | [0079](0079-cardio-total-zones-and-targets.md) | All cardio counts, split by heart-rate zone, against targets from the plan | Accepted |
 | [0080](0080-change-level-during-a-session.md) | Change an exercise's level during a session, for today or from now on | Accepted |
 | [0081](0081-sqlite-savepoints-open-the-transaction.md) | A SQLite savepoint opens the transaction first, so releasing it doesn't commit | Accepted |
+| [0082](0082-shorter-sessions-time-budget.md) | Shorter sessions: short on time today, and minutes per session | Accepted |
+| [0083](0083-levels-from-supported-and-preferences.md) | Every step has a level from "supported" up, with an open top, and four preferences | Accepted |
+| [0084](0084-short-days-last-set-and-stepping-down.md) | Progress on a shorter day, an as-many-as-you-can last set, and stepping down | Accepted |

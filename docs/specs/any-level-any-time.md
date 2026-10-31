@@ -1,6 +1,6 @@
 # Any level, any time: a proposal (31 Oct 2026)
 
-Status: **proposed 31 Oct 2026**, for Liam to decide; nothing built. The evidence, with every
+Status: **decided 31 Oct 2026** (Decided, at the end; ADR-0082 to ADR-0085); nothing built yet. The evidence, with every
 source and how far it was read, is in [any-level-research.md](any-level-research.md) (Part 1:
 shorter sessions; Part 2: older, untrained and heavier people; Part 3: placing a person). This
 file builds on the program builder ([program-builder.md](program-builder.md)): its levels (G),
@@ -338,17 +338,27 @@ it, except the starters, which live in `plan.toml` after it (ADR-0073).
   the person sees what's dropped before Start.
 - **Volume numbers fall** on short weeks; the map shows light green honestly instead of hiding it.
 
-## To decide
+## Decided (31 Oct 2026, Liam)
 
-1. **Shorter sessions:** T1, T2 or both (recommended: both, T1 first).
-2. **The trim's order:** as proposed (fourth sets, then third rounds, then threes, then whole
-   exercises), and the warm-up in short sessions: keep 5 minutes, or ramp sets at 30 minutes or
-   less.
-3. **Failure:** F1, **F2** (recommended) or F3.
-4. **The level scale:** six levels as in B1.
-5. **Lower steps:** extend the existing ladders where the movement is the same and add entry
-   exercises where it differs (B2, B3), or make every lower step its own exercise.
-6. **Preferences:** the four switches in B4.
-7. **Safety questions:** our own, not stored, with a link to PAR-Q+ (B5.1).
-8. **Starters:** S1 (recommended) or S2.
+1. **Shorter sessions:** both. "Short on time today" (T1) first, then "Minutes per session"
+   (T2). ADR-0082.
+2. **The trim's order:** as proposed. **The warm-up:** a very short session swaps the 5 minutes
+   for ramp sets of the first exercise; "very short" is taken as 30 minutes or less (the
+   proposal's line; Liam can lower it). ADR-0082.
+3. **Failure:** F2, the optional last set. ADR-0084. (ADR-0027's per-set targets already keep
+   one big last set from raising the other sets' targets, so the target rule doesn't change.)
+4. **The level scale:** the six levels, **open at the top**: where load can keep rising (push-ups,
+   pull-ups, dips with a vest or weights) the ladder keeps going above today's top, and levels
+   place people, never cap them. ADR-0083.
+5. **Lower steps:** option A (extend the ladder where the movement is the same, entry exercises
+   where it differs), and, where an exercise has no sensible low step, an easier exercise that
+   trains the same muscles, so an older or unwell person has a way in for every muscle.
+   ADR-0083.
+6. **Preferences:** the four switches. They are preferences, not medical: the app isn't
+   interested in conditions or diagnoses. People take responsibility for what they feel ready
+   and able to do, and get medical advice if they need it. ADR-0083.
+7. **Safety questions:** whatever is appropriate in Europe, researched; and the app can't be
+   used outside Europe. ADR-0085.
+8. **Starters:** S1, written "starting" versions (2- and 3-day). They live in `plan.toml` after
+   builder step 5 (ADR-0073).
 9. **Order:** as suggested, with T1 next, alongside step 5.
