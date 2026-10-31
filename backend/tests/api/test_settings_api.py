@@ -69,6 +69,8 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "places": "home",
         "increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0, "backpack": 1.0},
         "default_increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0, "backpack": 1.0},
+        "talk_test": False,
+        "stop_signs_seen": False,
         "paused": False,
         "timezone": "Europe/Berlin",
     }
@@ -221,6 +223,36 @@ def test_a_second_persons_weight_steps_are_their_own(engine: Engine) -> None:
     assert _stored(engine).increments == Increments()  # the owner's are untouched
 
 
+def test_the_talk_test_is_a_switch_asked_without_a_reason(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0083: a preference, not medical: only the switch is stored, no why."""
+    assert signed_in.patch("/api/settings", json={"talk_test": True}).json()["talk_test"] is True
+    assert _stored(engine).talk_test is True
+    assert signed_in.patch("/api/settings", json={"talk_test": "yes, AF"}).status_code == 422
+    assert signed_in.patch("/api/settings", json={"talk_test": False}).json()["talk_test"] is False
+
+
+def test_the_stop_signs_are_remembered_as_seen_per_person(engine: Engine) -> None:
+    """Spec B7: shown once before the first guided session, kept on the server for each
+    person, not in one browser."""
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=OTHER))
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        assert user_settings.update(mine, stop_signs_seen=True).stop_signs_seen is True
+    assert _stored(engine).stop_signs_seen is True
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as theirs:
+        assert user_settings.load(theirs).stop_signs_seen is False
+
+
+def test_the_seen_flag_is_saved_through_the_api(signed_in: TestClient, engine: Engine) -> None:
+    view = signed_in.patch("/api/settings", json={"stop_signs_seen": True}).json()
+    assert view["stop_signs_seen"] is True
+    assert signed_in.get("/api/settings").json()["stop_signs_seen"] is True
+
+
 def test_signed_out_gets_nothing(client: TestClient) -> None:
     assert client.get("/api/settings").status_code == 401
     assert client.patch("/api/settings", json={"paused": True}).status_code == 401
+    for change in ({"talk_test": True}, {"stop_signs_seen": True}):  # owner-only (spec B7)
+        assert client.patch("/api/settings", json=change).status_code == 401
