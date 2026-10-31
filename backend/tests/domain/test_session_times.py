@@ -7,10 +7,12 @@ import pytest
 from training_coach.domain.session_times import (
     BREAK,
     MAX_AGE,
+    PACE_FROM,
     SLACK,
     SetTime,
     Timing,
     minutes,
+    pace,
     plausible,
     timing,
     usual,
@@ -95,3 +97,23 @@ def test_the_usual_time_is_the_median_of_the_last_five() -> None:
     assert usual(m) == timedelta(minutes=40)
     assert usual(m[-2:]) == timedelta(minutes=38, seconds=30)
     assert usual([]) is None
+
+
+MINUTE = timedelta(minutes=1)
+
+
+@pytest.mark.parametrize(
+    ("totals", "estimate", "expected"),
+    [
+        ([], 40.0, 1.0),  # nothing timed yet
+        ([60 * MINUTE] * (PACE_FROM - 1), 40.0, 1.0),  # too few to go by
+        ([60 * MINUTE] * PACE_FROM, 40.0, 1.5),
+        ([30 * MINUTE, 50 * MINUTE, 40 * MINUTE], 50.0, 0.8),  # the median, 40
+        ([60 * MINUTE] * PACE_FROM, 0.0, 1.0),  # nothing to compare with
+    ],
+)
+def test_the_pace_is_the_usual_over_the_plain_estimate(
+    totals: list[timedelta], estimate: float, expected: float
+) -> None:
+    """ADR-0082: from three timed sessions done as planned; otherwise the plain estimator."""
+    assert pace(totals, estimate) == pytest.approx(expected)

@@ -1338,6 +1338,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/session/length": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose Length
+         * @description Run today's session shorter, or as planned again (ADR-0082): the session at that
+         *     length. 409 when the session changed, another device moved on since ``revision``
+         *     (reload), or a set is kept already (the length is fixed then); 422 for a session that
+         *     always runs as planned, or a Keep for an exercise it doesn't have.
+         */
+        put: operations["choose_length_api_session_length_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session/level": {
         parameters: {
             query?: never;
@@ -2351,6 +2374,7 @@ export interface components {
              * @enum {string}
              */
             kind: "strength" | "conditioning" | "recovery";
+            length?: components["schemas"]["LengthView"] | null;
             /** Minutes */
             minutes: number;
             /** Name */
@@ -2762,6 +2786,57 @@ export interface components {
             steps_climbed: number;
             /** Top */
             top: components["schemas"]["TopView"][];
+        };
+        /**
+         * LengthBody
+         * @description Short on time today (ADR-0082): as planned (empty) or 40, 30 or 20 minutes, never
+         *     dropping the exercises pinned with ``keep`` (slugs).
+         */
+        LengthBody: {
+            /** First */
+            first?: number[];
+            /** Keep */
+            keep?: string[];
+            /** Minutes */
+            minutes?: (40 | 30 | 20) | null;
+            place: components["schemas"]["Place"];
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
+            /** Template Id */
+            template_id: number;
+        };
+        /**
+         * LengthView
+         * @description Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on
+         *     offer, the exercises pinned with Keep, about how long as planned, what the chosen length
+         *     drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
+         *     ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
+         *     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
+         *     kept, so the length no longer changes.
+         */
+        LengthView: {
+            /** Dropped */
+            dropped: string[];
+            /** Fixed */
+            fixed: boolean;
+            /** Keep */
+            keep: string[];
+            /** Minutes */
+            minutes: number | null;
+            /** Options */
+            options: number[];
+            /** Planned Minutes */
+            planned_minutes: number;
+            /** Shortest */
+            shortest: number | null;
+            /**
+             * Warm Up
+             * @enum {string}
+             */
+            warm_up: "none" | "full" | "ramp";
         };
         /**
          * LevelBody
@@ -6283,6 +6358,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReviewWeekView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    choose_length_api_session_length_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LengthBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TodayView"];
                 };
             };
             /** @description Validation Error */

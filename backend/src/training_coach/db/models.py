@@ -85,6 +85,8 @@ class Exercise(Base):
     retired: Mapped[bool] = mapped_column(Boolean, server_default=false())
     # One side at a time when no session says (a retired exercise's logs).
     per_side: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # A last set to failure is safe on it (ADR-0084); the seed sets it from plan.toml.
+    failure_ok: Mapped[bool] = mapped_column(Boolean, server_default=false())
 
     ladder: Mapped[list["LadderStep"]] = relationship(
         back_populates="exercise",
@@ -102,6 +104,7 @@ class LadderStep(Base):
         # Target for composite FKs that guarantee a step belongs to the referenced exercise.
         UniqueConstraint("exercise_id", "id"),
         CheckConstraint("position >= 0", name="position_non_negative"),
+        CheckConstraint("level IS NULL OR level BETWEEN 1 AND 6", name="level_range"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -109,6 +112,10 @@ class LadderStep(Base):
     position: Mapped[int] = mapped_column(Integer)
     name: Mapped[str] = mapped_column(String(120))
     cue: Mapped[str | None] = mapped_column(Text)
+    # Who the step is for, 1-6, and what it asks of the body: domain.step_levels (ADR-0083).
+    # The seed writes both from plan.toml on every run; empty only before it first runs.
+    level: Mapped[int | None] = mapped_column(Integer)
+    marks: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
 
     exercise: Mapped[Exercise] = relationship(back_populates="ladder")
 
@@ -444,6 +451,11 @@ class Workout(Owned, Base):
     plan_version_id: Mapped[int | None] = mapped_column(
         ForeignKey("plan_versions.id", ondelete="RESTRICT"), index=True
     )
+    # A guided session's day (ADR-0082, ADR-0084): the minutes chosen ("short on time
+    # today"), empty when done as planned; and what it planned, exercise slug ->
+    # {"sets": N}. Typed logs and workouts saved before have no plan: every set was planned.
+    minutes: Mapped[int | None] = mapped_column(Integer)
+    planned: Mapped[dict[str, dict[str, int]] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     sets: Mapped[list["SetLog"]] = relationship(
@@ -636,6 +648,11 @@ class SessionProgress(Owned, Base):
     # Levels chosen "for today" during the session (ADR-0080), exercise slug -> ladder step id:
     # its sets are saved at that step and the person's level stays as it is.
     steps: Mapped[dict[str, int]] = mapped_column(JSON, default=dict, server_default="{}")
+    # Short on time today (ADR-0082): the day's choice, {"minutes": 30 or null, "keep": [slugs]},
+    # empty before one is made; and what the first kept set fixed for the rest of the session,
+    # {"minutes", "sets": [per item], "durations": [per item], "dropped": [items], "pace"}.
+    length: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    fixed: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

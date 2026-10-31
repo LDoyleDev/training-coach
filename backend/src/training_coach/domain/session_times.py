@@ -23,6 +23,7 @@ def plausible(started_at: datetime, done_at: datetime, now: datetime) -> bool:
 
 BREAK = timedelta(minutes=10)  # a longer gap between sets is a break, not a rest
 USUAL_OF = 5  # the usual time is the median of the last this many timed sessions
+PACE_FROM = 3  # timed sessions done as planned before an estimate takes the person's pace
 
 
 @dataclass(frozen=True)
@@ -80,3 +81,13 @@ def usual(totals: Sequence[timedelta]) -> timedelta | None:
     if len(recent) % 2:
         return recent[middle]
     return (recent[middle - 1] + recent[middle]) / 2
+
+
+def pace(totals: Sequence[timedelta], estimate: float) -> float:
+    """How the person's time on a session compares with its plain ``estimate`` in minutes
+    (ADR-0082): their usual over the estimate, both without the warm-up and breaks. 1.0 before
+    ``PACE_FROM`` timed sessions, or with nothing to compare."""
+    typical = usual(totals)
+    if typical is None or len(totals) < PACE_FROM or estimate <= 0:
+        return 1.0
+    return typical / timedelta(minutes=estimate)
