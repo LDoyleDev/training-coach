@@ -9,8 +9,9 @@ from training_coach.domain.habits import WEEK_DAYS
 from training_coach.domain.load import kg_text, weights_text
 from training_coach.domain.parser import sets_text
 from training_coach.domain.progression import Progress
+from training_coach.domain.trim import WARM_UP_MINUTES, WarmUp
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
-from training_coach.services.guided import WARM_UP_MINUTES, work_groups
+from training_coach.services.guided import OPTIONS, Length, work_groups
 from training_coach.services.progress import Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.review import Review
@@ -52,34 +53,81 @@ def work_list(items: tuple[ItemPlan, ...]) -> list[str]:
 
 
 def _paired(items: tuple[ItemPlan, ...]) -> bool:
-    return any(item.pair is not None for item in items)
+    """Whether two exercises alternate anywhere: a pair whose partner a shorter day dropped
+    is done straight (ADR-0082)."""
+    return any(len({index for index, _ in group}) > 1 for group in work_groups(items))
+
+
+def _joined(words: list[str], last: str = "and") -> str:
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + f" {last} " + words[-1]
 
 
 WARM_UP = f"Warm up for about {WARM_UP_MINUTES} minutes first."
+RAMP = "Warm up with one or two easy sets of the first exercise."  # 30 minutes or less
 # Shown with every session and test day (legal review): safety is design and warnings.
 STOP = "Stop if you feel sharp pain, dizziness or chest tightness."
 BASELINE = (
     "Baseline for {names}: the first session at this step. Aim for the targets and log what "
     "you manage; the next targets grow from it."
 )
+SHORT_ON_TIME = (
+    f"Short on time? Pick {_joined([str(m) for m in OPTIONS], 'or')} minutes in the app "
+    "before you start."
+)
+
+
+def _warm_up(length: Length | None) -> str:
+    """The warm-up line of a strength session: ramp sets on a short day (ADR-0082)."""
+    ramp = length is not None and length.trimmed.warm_up is WarmUp.RAMP
+    return RAMP if ramp else WARM_UP
+
+
+def _shortened(plan: SessionPlan, length: Length | None) -> list[str]:
+    """What the app shortened today's session to and what went, once minutes are chosen
+    there (ADR-0082); nothing as planned. When even the shortest version is longer than the
+    minutes chosen, it says how long that is."""
+    if length is None or length.minutes is None:
+        return []
+    shortest = length.trimmed.shortest
+    line = (
+        f"Shortened to {length.minutes} minutes in the app"
+        if shortest is None
+        else f"Shortened as far as it goes in the app: about {shortest} minutes"
+    )
+    dropped = [plan.items[i].exercise for i in length.trimmed.dropped]
+    return [f"{line}; dropped: {', '.join(dropped)}." if dropped else f"{line}."]
+
+
+def _length(plan: SessionPlan, length: Length | None) -> list[str]:
+    """How long today's session runs (ADR-0082): shortened in the app, or about how long as
+    planned and, before it starts, that it can be shortened. Nothing for a session that isn't
+    trimmed (recovery)."""
+    if length is None or length.minutes is not None:
+        return _shortened(plan, length)
+    about = f"About {length.planned} minutes" + (
+        ", warm-up included." if plan.kind == "strength" else "."
+    )
+    return [about if length.fixed else f"{about} {SHORT_ON_TIME}"]
 
 
 def _baseline(items: tuple[ItemPlan, ...]) -> list[str]:
     """A line naming the exercises whose targets this session sets (ADR-0034)."""
-    names = [item.exercise for item in items if item.baseline]
+    names = [item.exercise for item in items if item.baseline and item.targets]
     if not names:
         return []
-    joined = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
-    return [BASELINE.format(names=joined)]
+    return [BASELINE.format(names=_joined(names))]
 
 
-def today_text(today: Today) -> str:
+def today_text(today: Today, length: Length | None = None) -> str:
+    """The morning message and /today. ``length`` is the day's (ADR-0082), with
+    ``today.session`` already cut to it: a dropped exercise has no targets."""
     session = today.session
     lines = [f"Today: {session.name}", session.focus]
     if today.block is not None:
         lines.append(f"Week {today.block.week} of {WEEKS}, {today.block.kind} block.")
+    lines += _length(session, length)
     if session.kind == "strength":
-        lines.append(WARM_UP)
+        lines.append(_warm_up(length))
     lines.append(STOP)
     if _paired(session.items):
         lines.append(WORK_DOWN)
@@ -124,13 +172,15 @@ def week_text(days: list[Day]) -> str:
     return "\n".join(lines)
 
 
-def session_detail_text(plan: SessionPlan) -> str:
-    """Everything needed to train: the cues, then every set in the order it's done (#97)."""
+def session_detail_text(plan: SessionPlan, length: Length | None = None) -> str:
+    """Everything needed to train: the cues, then every set in the order it's done (#97).
+    ``length`` as in ``today_text``: on a shortened day, what went."""
     lines = [f"{plan.name}: {plan.focus}"]
+    lines += _shortened(plan, length)
     cues = [
         f"- {item.exercise}: {' '.join(part for part in (item.summary, item.cue) if part)}"
         for item in plan.items
-        if item.summary or item.cue
+        if (item.summary or item.cue) and item.targets
     ]
     if cues:
         lines += ["", "How to do them:", *cues]
