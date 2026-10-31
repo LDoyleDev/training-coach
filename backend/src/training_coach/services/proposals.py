@@ -48,7 +48,14 @@ from training_coach.domain.measurements import SPECS, first_sentence, how, to_te
 from training_coach.domain.measurements import Kind as Measure
 from training_coach.domain.parser import LOAD, Entry, sets_text
 from training_coach.domain.queue import local_date
-from training_coach.services import cardio, day_clash, habits, measurements, workout_log
+from training_coach.services import (
+    cardio,
+    day_clash,
+    habits,
+    measurements,
+    user_settings,
+    workout_log,
+)
 from training_coach.services import zones as heart
 from training_coach.services.cardio import MAX_MINUTES
 from training_coach.services.groq import Rewrite, RewriteLine
@@ -614,9 +621,12 @@ def _remeasure(session: Session, row: LogProposal) -> tuple[str, ...]:
     return tuple(measurements.remeasure(session, row.local_date, values))
 
 
-def _suggested(row: LogProposal, source: str) -> tuple[CardioKind | None, str | None]:
-    """A cardio proposal's suggested kind and the line saying why."""
-    if row.kind != CARDIO:
+def _suggested(
+    row: LogProposal, source: str, talk_test: bool
+) -> tuple[CardioKind | None, str | None]:
+    """A cardio proposal's suggested kind and the line saying why. With the talk test on
+    (ADR-0083) heart rate isn't their guide, so nothing is suggested from it."""
+    if row.kind != CARDIO or (talk_test and row.payload.get("observed")):
         return None, None
     # Before the person picked (ADR-0067, 2026-10-24) the AI's kind was saved: its hint now.
     kind = row.payload.get("suggested", row.payload.get("cardio"))
@@ -639,7 +649,7 @@ def _pending(session: Session, row: LogProposal, name: str) -> Pending:
         source,
         row.expires_at,
         _replaces(session, row),
-        *_suggested(row, source),
+        *_suggested(row, source, user_settings.load(session).talk_test),
         warnings=_remeasure(session, row),
     )
 

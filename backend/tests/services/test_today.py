@@ -19,6 +19,7 @@ kind = "reps"
 muscles = { lats = 1 }
 pattern = "vertical pull"
 start = 1
+levels = { Negatives = 4, Strict = 5, Weighted = 6 }
 ladder = ["Negatives", "Strict", "Weighted"]
 
 [[exercises]]
@@ -28,6 +29,7 @@ kind = "reps"
 muscles = { quads = 1 }
 pattern = "lunge"
 start = 0
+levels = { Bodyweight = 4 }
 ladder = ["Bodyweight"]
 
 [[exercises]]
@@ -37,6 +39,7 @@ kind = "duration_min"
 qualities = ["conditioning"]
 pattern = "cardio"
 start = 0
+levels = { Easy = 2 }
 ladder = ["Easy"]
 
 [[sessions]]

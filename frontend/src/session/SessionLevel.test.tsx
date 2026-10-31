@@ -96,6 +96,7 @@ function serve(server: Server = {}) {
       if (path === '/api/session/progress') return Response.json({ revision: 3 })
       if (path === '/api/session/pending') return Response.json([])
       if (path === '/api/session/save') return Response.json(server.save)
+      if (path === '/api/settings') return Response.json({ sound: 'ring', stop_signs_seen: true })
       return new Response(null, { status: 404 })
     }),
   )
