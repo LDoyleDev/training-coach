@@ -6,7 +6,7 @@ planned, every set planned. No data changes; downgrade drops both columns and wi
 plans of workouts saved since (their sets stay).
 
 Revision ID: c3e8a1f5d7b2
-Revises: b7e1c3d5f9a2
+Revises: face6f88f5fe
 Create Date: 2026-10-31 12:00:00.000000
 
 """
@@ -18,7 +18,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "c3e8a1f5d7b2"
-down_revision: str | Sequence[str] | None = "b7e1c3d5f9a2"
+down_revision: str | Sequence[str] | None = "face6f88f5fe"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

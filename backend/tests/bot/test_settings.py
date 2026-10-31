@@ -491,3 +491,10 @@ async def test_a_failing_comment_send_never_fails_the_review(
     context = SimpleNamespace(bot=SimpleNamespace(send_message=send))
     await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
     assert send.await_count == 2
+
+
+def test_the_talk_test_setting_is_never_shown_in_telegram() -> None:
+    """ADR-0083 review: the preference is on the web's Account page only."""
+    shown = settings_ui.text(user_settings.Prefs(talk_test=True)).lower()
+    assert "talk" not in shown
+    assert "heart" not in shown

@@ -3850,6 +3850,10 @@ export interface components {
             /** Review Time */
             review_time?: string | null;
             sound?: components["schemas"]["Sound"] | null;
+            /** Stop Signs Seen */
+            stop_signs_seen?: boolean | null;
+            /** Talk Test */
+            talk_test?: boolean | null;
         };
         /** SettingsView */
         SettingsView: {
@@ -3876,6 +3880,10 @@ export interface components {
             /** Review Time */
             review_time: string;
             sound: components["schemas"]["Sound"];
+            /** Stop Signs Seen */
+            stop_signs_seen: boolean;
+            /** Talk Test */
+            talk_test: boolean;
             /** Timezone */
             timezone: string;
         };

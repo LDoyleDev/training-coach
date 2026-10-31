@@ -85,6 +85,8 @@ class Exercise(Base):
     retired: Mapped[bool] = mapped_column(Boolean, server_default=false())
     # One side at a time when no session says (a retired exercise's logs).
     per_side: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # A last set to failure is safe on it (ADR-0084); the seed sets it from plan.toml.
+    failure_ok: Mapped[bool] = mapped_column(Boolean, server_default=false())
 
     ladder: Mapped[list["LadderStep"]] = relationship(
         back_populates="exercise",
@@ -102,6 +104,7 @@ class LadderStep(Base):
         # Target for composite FKs that guarantee a step belongs to the referenced exercise.
         UniqueConstraint("exercise_id", "id"),
         CheckConstraint("position >= 0", name="position_non_negative"),
+        CheckConstraint("level IS NULL OR level BETWEEN 1 AND 6", name="level_range"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -109,6 +112,10 @@ class LadderStep(Base):
     position: Mapped[int] = mapped_column(Integer)
     name: Mapped[str] = mapped_column(String(120))
     cue: Mapped[str | None] = mapped_column(Text)
+    # Who the step is for, 1-6, and what it asks of the body: domain.step_levels (ADR-0083).
+    # The seed writes both from plan.toml on every run; empty only before it first runs.
+    level: Mapped[int | None] = mapped_column(Integer)
+    marks: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
 
     exercise: Mapped[Exercise] = relationship(back_populates="ladder")
 
@@ -364,6 +371,11 @@ class UserSettings(Owned, Base):
     dumbbells_increment_kg: Mapped[float | None] = mapped_column(Float)
     machine_increment_kg: Mapped[float | None] = mapped_column(Float)
     backpack_increment_kg: Mapped[float | None] = mapped_column(Float)
+    # Cardio effort told by the talk test, not heart-rate zones (ADR-0083): a preference, asked
+    # without a reason; nothing about why is stored.
+    talk_test: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # The stop signs were shown before their first guided session (spec B7).
+    stop_signs_seen: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
