@@ -3,6 +3,7 @@ import SignedOutNotice from '../components/SignedOutNotice'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   changeLevel,
+  chooseLength,
   fetchPending,
   fetchSettings,
   fetchToday,
@@ -32,6 +33,9 @@ import {
   kgText,
   loadFor,
   partnerOf,
+  lengthText,
+  warmUpText,
+  type Minutes,
   restTitle,
   stepOf,
   summary,
@@ -57,6 +61,7 @@ import BandOffers from './BandOffers'
 import Proposals from './Proposals'
 import LogDay from './LogDay'
 import LevelChange from './LevelChange'
+import LengthChoice, { KeepToggle } from './Length'
 import { levelNote, type LevelScope } from './levels'
 import ClashQuestion from './ClashQuestion'
 import { ExerciseFigures } from '../bodymap/BodyMap'
@@ -261,8 +266,10 @@ export default function SessionPage() {
       null, // one step only: nothing more to undo until the next change
     )
 
-  const stale = () => {
-    setNote("Today's session changed (on another device or in Telegram). Here it is now.")
+  const stale = (
+    text = "Today's session changed (on another device or in Telegram). Here it is now.",
+  ) => {
+    setNote(text)
     refreshUndo()
     load()
   }
@@ -436,6 +443,34 @@ export default function SessionPage() {
     }
   }
 
+  /** Short on time today (ADR-0082): the session at that length, never dropping ``keep``. A
+   * 409 (changed, moved on or started elsewhere) reloads it, as the place switch does. */
+  const pickLength = async (minutes: Minutes, keep: string[], text: string) => {
+    setSignedOut(false) // a retry after signing in again
+    setBusy(true)
+    try {
+      const result = await chooseLength({
+        template_id: session.template_id,
+        place: session.place,
+        revision,
+        first,
+        minutes,
+        keep,
+      })
+      if (result === 'stale')
+        return stale(
+          "Today's session moved on elsewhere, so its length wasn't changed. Here it is now.",
+        )
+      if (typeof result === 'string') return setNote(result)
+      changed(result, text)
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't change the length. Check your connection and try again.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
   /** "Do <partner> first": before a pair has started, swap its order for this session. */
   const pairStarted =
     item.pair !== null &&
@@ -575,6 +610,16 @@ export default function SessionPage() {
               onStale={stale}
             />
           )}
+          {session.length && (
+            <LengthChoice
+              session={session}
+              length={session.length}
+              busy={busy}
+              onChoose={(minutes) =>
+                pickLength(minutes, session.length?.keep ?? [], lengthText(session.name, minutes))
+              }
+            />
+          )}
           {isCardio(session) ? (
             <>
               <Cardio featured onChange={cardioChange} sound={sound} talkTest={talkTest} />
@@ -590,6 +635,10 @@ export default function SessionPage() {
             <Overview
               session={session}
               resumeAt={position > 0 && position < total ? position : null}
+              busy={busy}
+              onKeep={(keep, text) =>
+                pickLength((session.length?.minutes ?? null) as Minutes, keep, text)
+              }
               onStart={() => (stopSignsDue ? setReading(true) : begin())}
             />
           )}
@@ -823,22 +872,25 @@ export default function SessionPage() {
           <p className="text-[var(--slate)]">Nothing is saved until you save.</p>
           {timesSoFar && <p className="font-bold">{soFar(timesSoFar)}</p>}
           <ul className={card}>
-            {summary(screen, values).map((row, index) => (
-              <li
-                key={row.name}
-                className="flex justify-between gap-3 border-b border-[var(--line)] py-2"
-              >
-                <span>
-                  <span className="font-bold">{row.name}</span>
-                  <br />
-                  <span className="text-sm text-[var(--slate)]">target {row.target}</span>
-                </span>
-                <span className="flex flex-col items-end text-right">
-                  <span className="font-bold">{row.done}</span>
-                  <SetTimes sets={timesSoFar?.rows[index] ?? []} />
-                </span>
-              </li>
-            ))}
+            {summary(screen, values).map((row, index) =>
+              // A dropped exercise (ADR-0082) had no sets today: nothing to check.
+              screen.items[index].targets.length === 0 ? null : (
+                <li
+                  key={row.name}
+                  className="flex justify-between gap-3 border-b border-[var(--line)] py-2"
+                >
+                  <span>
+                    <span className="font-bold">{row.name}</span>
+                    <br />
+                    <span className="text-sm text-[var(--slate)]">target {row.target}</span>
+                  </span>
+                  <span className="flex flex-col items-end text-right">
+                    <span className="font-bold">{row.done}</span>
+                    <SetTimes sets={timesSoFar?.rows[index] ?? []} />
+                  </span>
+                </li>
+              ),
+            )}
           </ul>
           {question && !question.day && (
             <ClashQuestion
@@ -1029,16 +1081,24 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
 function Overview({
   session,
   resumeAt,
+  busy,
+  onKeep,
   onStart,
 }: {
   session: Guided
   resumeAt: number | null
+  busy: boolean
+  onKeep: (keep: string[], text: string) => void
   onStart: () => void
 }) {
+  const length = session.length
+  // Keep matters only on a shorter day that hasn't started (ADR-0082).
+  const pinning = length && !length.fixed && length.minutes !== null ? length : null
+  const warmUp = warmUpText(session)
   return (
     <section aria-labelledby="session" className="flex flex-col gap-4">
       <p className="text-sm text-[var(--slate)]">
-        {session.usual_minutes
+        {session.usual_minutes && !length?.minutes
           ? `Usually ${session.usual_minutes} min` // from earlier timed sessions (ADR-0061)
           : `About ${session.minutes} min`}
       </p>
@@ -1049,30 +1109,41 @@ function Overview({
       {session.after_run && (
         <p className={card}>After your run: it's logged, and these sets are saved with it.</p>
       )}
-      {session.warm_up && <p className={card}>Warm up for about 5 minutes first.</p>}
+      {warmUp && <p className={card}>{warmUp}</p>}
       <p className="text-[var(--slate)]">
         Stop if you feel sharp pain, dizziness or chest tightness.
       </p>
       <ul className="flex flex-col gap-2">
-        {session.items.map((item) => (
-          <li key={item.slug} className={card + ' flex justify-between gap-3'}>
-            <span>
-              <span className="font-bold">{item.name}</span>
-              <br />
-              <span className="text-sm text-[var(--slate)]">
-                {item.pair !== null ? `Pair ${item.pair} · ` : ''}
-                {item.step}
-                {item.baseline ? ' · baseline' : ''}
+        {session.items.map((item, index) => (
+          <li key={item.slug} className={card + ' flex flex-col gap-2'}>
+            <span className="flex justify-between gap-3">
+              <span>
+                <span className="font-bold">{item.name}</span>
+                <br />
+                <span className="text-sm text-[var(--slate)]">
+                  {partnerOf(session, index) ? `Pair ${item.pair} · ` : ''}
+                  {item.step}
+                  {item.baseline ? ' · baseline' : ''}
+                </span>
               </span>
+              {item.targets.length === 0 ? (
+                <span className="text-[var(--slate)] whitespace-nowrap">Dropped today</span>
+              ) : (
+                <span className="font-bold whitespace-nowrap">
+                  {item.targets.length} × {unitText(item, item.targets[0])}
+                  {item.per_side ? ' each side' : ''}
+                </span>
+              )}
             </span>
-            <span className="font-bold whitespace-nowrap">
-              {item.targets.length} × {unitText(item, item.targets[0])}
-              {item.per_side ? ' each side' : ''}
-            </span>
+            {pinning && (
+              <span>
+                <KeepToggle item={item} length={pinning} busy={busy} onToggle={onKeep} />
+              </span>
+            )}
           </li>
         ))}
       </ul>
-      <button type="button" className={primary} onClick={onStart}>
+      <button type="button" className={primary} disabled={busy} onClick={onStart}>
         {resumeAt !== null
           ? `Resume: set ${resumeAt + 1} of ${session.order.length}`
           : 'Start session'}
