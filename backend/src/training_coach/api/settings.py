@@ -7,7 +7,7 @@ from datetime import UTC, datetime, time
 from typing import Annotated
 
 import structlog
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import AfterValidator, BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -21,7 +21,7 @@ from training_coach.domain.habits import PROTEIN_GRAMS
 from training_coach.domain.load import DEFAULTS, INCREMENT_KG, Increments, LoadKit, valid_increment
 from training_coach.domain.queue import local_date
 from training_coach.domain.targets import Pace
-from training_coach.services import user_settings
+from training_coach.services import last_set, user_settings
 from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
@@ -97,6 +97,10 @@ class SettingsView(BaseModel):
     default_increments: IncrementsView
     talk_test: bool  # cardio effort by the talk test, not heart-rate zones (ADR-0083)
     stop_signs_seen: bool  # shown before their first guided session (spec B7)
+    # Last set: as many good reps as you can, where it's safe (ADR-0084); locked while the
+    # person is new ("Available after your first 8 weeks"), when it can't be turned on.
+    last_set_amrap: bool
+    last_set_locked: bool
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -118,6 +122,7 @@ class SettingsChange(BaseModel):
     increments: IncrementsChange | None = None
     talk_test: bool | None = None
     stop_signs_seen: bool | None = None
+    last_set_amrap: bool | None = None  # true is refused with 409 while locked
     paused: bool | None = None
 
 
@@ -140,7 +145,7 @@ def _time(text: str | None) -> time | None:
     return None if text is None else time.fromisoformat(text)
 
 
-def _view(prefs: Prefs, settings: Settings) -> SettingsView:
+def _view(prefs: Prefs, settings: Settings, locked: bool) -> SettingsView:
     started = prefs.blocks_started_on
     return SettingsView(
         morning_time=f"{prefs.morning_time:%H:%M}",
@@ -158,6 +163,8 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
         default_increments=_steps(DEFAULTS),
         talk_test=prefs.talk_test,
         stop_signs_seen=prefs.stop_signs_seen,
+        last_set_amrap=prefs.last_set_amrap,
+        last_set_locked=locked,
         paused=prefs.paused,
         timezone=settings.timezone,
     )
@@ -165,15 +172,21 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
 
 @router.get("", response_model=SettingsView)
 def get_settings(request: Request, user: Owner) -> SettingsView:
+    settings: Settings = request.app.state.settings
     with session_scope(_bound(request, user)) as session:
         prefs = user_settings.load(session)
-    return _view(prefs, request.app.state.settings)
+        locked = not last_set.available(session, local_date(datetime.now(UTC), settings.tz))
+    return _view(prefs, settings, locked)
 
 
 @router.patch("", response_model=SettingsView)
 def patch_settings(body: SettingsChange, request: Request, user: Owner) -> SettingsView:
     settings: Settings = request.app.state.settings
+    today = local_date(datetime.now(UTC), settings.tz)
     with session_scope(_bound(request, user)) as session:
+        locked = not last_set.available(session, today)
+        if body.last_set_amrap and locked:  # nothing else changes either
+            raise HTTPException(status.HTTP_409_CONFLICT, last_set.LOCKED)
         prefs = user_settings.update(
             session,
             morning_time=_time(body.morning_time),
@@ -192,11 +205,12 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             increments=_changed(body.increments),
             talk_test=body.talk_test,
             stop_signs_seen=body.stop_signs_seen,
-            today=local_date(datetime.now(UTC), settings.tz),
+            last_set_amrap=body.last_set_amrap,
+            today=today,
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)
     reschedule: Reschedule | None = getattr(request.app.state, "reschedule", None)
     if moved and reschedule is not None:
         reschedule(user, prefs)
     log.info("api.settings_changed", what=sorted(body.model_dump(exclude_none=True)))
-    return _view(prefs, settings)
+    return _view(prefs, settings, locked)

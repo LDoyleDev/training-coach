@@ -36,6 +36,7 @@ class Prefs:
     increments: Increments = DEFAULTS  # their own weight steps (ADR-0072)
     talk_test: bool = False  # cardio effort by the talk test, not heart-rate zones (ADR-0083)
     stop_signs_seen: bool = False  # shown before their first guided session (spec B7)
+    last_set_amrap: bool = False  # last set: as many good reps as you can (ADR-0084)
 
 
 def _increments(old: Increments, change: Mapping[LoadKit, float]) -> Increments:
@@ -80,6 +81,7 @@ def load(session: Session) -> Prefs:
         ),
         row.talk_test,
         row.stop_signs_seen,
+        row.last_set_amrap,
     )
 
 
@@ -103,6 +105,7 @@ def update(
     increments: Mapping[LoadKit, float] | None = None,
     talk_test: bool | None = None,
     stop_signs_seen: bool | None = None,
+    last_set_amrap: bool | None = None,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
@@ -135,6 +138,7 @@ def update(
         increments=_increments(old.increments, increments or {}),
         talk_test=old.talk_test if talk_test is None else talk_test,
         stop_signs_seen=old.stop_signs_seen if stop_signs_seen is None else stop_signs_seen,
+        last_set_amrap=old.last_set_amrap if last_set_amrap is None else last_set_amrap,
     )
     changes: dict[str, str | bool | int | float] = {}
     if morning_time is not None:
@@ -167,6 +171,8 @@ def update(
         changes["talk_test"] = talk_test
     if stop_signs_seen is not None:
         changes["stop_signs_seen"] = stop_signs_seen
+    if last_set_amrap is not None:
+        changes["last_set_amrap"] = last_set_amrap
     for kit, kg in (increments or {}).items():
         changes[f"{kit.value}_increment_kg"] = kg
     row = users.settings_row(session)
@@ -192,6 +198,7 @@ def update(
     row.backpack_increment_kg = prefs.increments.backpack
     row.talk_test = prefs.talk_test
     row.stop_signs_seen = prefs.stop_signs_seen
+    row.last_set_amrap = prefs.last_set_amrap
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

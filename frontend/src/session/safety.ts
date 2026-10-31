@@ -44,3 +44,13 @@ export const effortLabel = (kind: CardioKind, talkTest: boolean, zones: string):
 
 /** The breathing cue (ADR-0084), once each guided session. */
 export const BREATHING = "Breathe out as you push; don't hold your breath."
+
+/** Last set: as many good reps as you can (ADR-0084): only where the catalogue allows it, and
+ * locked while a person is new. On Account, Today's length card and the set screen. */
+export const LAST_SET = 'Last set: as many good reps as you can'
+export const LAST_SET_LINE = "On exercises where it's safe. Stop at the first rep that isn't clean."
+export const LAST_SET_LOCKED = 'Available after your first 8 weeks'
+
+/** The set screen's target for that set: its usual target is the floor. */
+export const lastSetTarget = (target: string): string =>
+  `Last set: at least ${target}, then as many good reps as you can`

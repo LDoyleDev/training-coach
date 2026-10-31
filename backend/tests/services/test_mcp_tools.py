@@ -64,3 +64,21 @@ def test_no_read_tool_shows_the_talk_test_setting(session: Session) -> None:
         except mcp_tools.BadArgumentsError:  # no such exercise without a seeded plan
             continue
         assert "talk" not in text.lower(), tool.name
+
+
+def test_no_read_tool_shows_the_last_set_option(session: Session) -> None:
+    """ADR-0084: the last-set option is a setting between the person and the app."""
+    user_settings.update(session, last_set_amrap=True)
+    session.flush()
+    scopes = frozenset(s.value for s in Scope)
+    arguments = {"get_exercise": {"slug": "pull-up"}}
+    for tool in mcp_tools.TOOLS:
+        if tool.name in (mcp_tools.PROPOSE, "get_guide"):
+            continue
+        try:
+            text = mcp_tools.run(session, tool, arguments.get(tool.name, {}), scopes, TODAY)
+        except mcp_tools.BadArgumentsError:  # no such exercise without a seeded plan
+            continue
+        lowered = text.lower()
+        assert "last_set" not in lowered, tool.name
+        assert "as many" not in lowered, tool.name

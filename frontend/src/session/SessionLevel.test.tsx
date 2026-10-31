@@ -29,6 +29,7 @@ const SWING: GuidedItem = {
   baseline: false,
   muscles: [],
   parts: [],
+  last_set_amrap: false,
   level: { step_id: 20, for_today: false, ladder: LADDER },
 }
 

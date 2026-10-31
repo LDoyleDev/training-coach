@@ -14,6 +14,7 @@ from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.daily_check import summary as daily_summary
 from training_coach.domain.enums import ExerciseKind, Place
+from training_coach.domain.last_set import applies
 from training_coach.domain.load import MAX_KG, Load
 from training_coach.domain.mobility_flow import Flow
 from training_coach.domain.queue import local_date
@@ -180,6 +181,8 @@ class ItemView(BaseModel):
     flow: FlowView | None = None  # guided one movement at a time (ADR-0062)
     load: LoadView | None = None  # a loaded step: the set screen records a weight (ADR-0072)
     level: ItemLevelView | None = None  # empty for an exercise with one step: none to change
+    # Its last set today is as many good reps as you can, its target the floor (ADR-0084).
+    last_set_amrap: bool = False
 
 
 def muscle_views(item: ItemPlan) -> list[ItemMuscleView]:
@@ -205,7 +208,9 @@ class LengthView(BaseModel):
     drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
     ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
-    kept, so the length no longer changes."""
+    kept, so the length no longer changes. ``last_set``: the person's last-set option (ADR-0084),
+    offered here with a shorter day; empty when it isn't offered: locked while they are new, or
+    no exercise today it applies to."""
 
     minutes: int | None
     options: list[int]
@@ -215,6 +220,7 @@ class LengthView(BaseModel):
     warm_up: Literal["none", "full", "ramp"]
     shortest: int | None
     fixed: bool
+    last_set: bool | None = None
 
 
 def length_view(plan: guided.Guided) -> LengthView | None:
@@ -222,6 +228,7 @@ def length_view(plan: guided.Guided) -> LengthView | None:
     if found is None:
         return None
     trimmed = found.trimmed
+    offered = any(i.targets and applies(i.kind, i.failure_ok) for i in plan.items)
     return LengthView(
         minutes=found.minutes,
         options=list(guided.OPTIONS),
@@ -231,6 +238,7 @@ def length_view(plan: guided.Guided) -> LengthView | None:
         warm_up=trimmed.warm_up.value,
         shortest=trimmed.shortest,
         fixed=found.fixed,
+        last_set=found.last_set if offered else None,
     )
 
 
@@ -483,6 +491,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                     )
                     if i.slug in ladders
                     else None,
+                    last_set_amrap=i.last_set_amrap,
                 )
                 for i in plan.items
             ],

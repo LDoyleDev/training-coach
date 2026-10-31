@@ -151,18 +151,33 @@ def sessions_at_step(
     ]
 
 
+def _plan_values(
+    session: Session, slug: str, workout_ids: Sequence[int], key: str, least: int
+) -> list[int | None]:
+    """``key`` of each workout's plan of the exercise ``slug``, in the order given (ADR-0084):
+    None for a workout without a plan, whose plan doesn't name the exercise or has no such
+    value (at least ``least``)."""
+    query = select(Workout.id, Workout.planned).where(Workout.id.in_(workout_ids))
+    found = dict(session.execute(query).all())
+    values: list[int | None] = []
+    for workout_id in workout_ids:
+        entry = (found.get(workout_id) or {}).get(slug)
+        value = entry.get(key) if isinstance(entry, dict) else None
+        values.append(value if isinstance(value, int) and value >= least else None)
+    return values
+
+
 def planned_sets(session: Session, slug: str, workout_ids: Sequence[int]) -> list[int | None]:
     """The sets each workout planned of the exercise ``slug``, in the order given (ADR-0084):
     None for a workout without a plan (a typed log, or saved before plans were kept) or whose
     plan doesn't name the exercise, which planned every set."""
-    query = select(Workout.id, Workout.planned).where(Workout.id.in_(workout_ids))
-    found = dict(session.execute(query).all())
-    counts: list[int | None] = []
-    for workout_id in workout_ids:
-        entry = (found.get(workout_id) or {}).get(slug)
-        sets = entry.get("sets") if isinstance(entry, dict) else None
-        counts.append(sets if isinstance(sets, int) and sets >= 0 else None)
-    return counts
+    return _plan_values(session, slug, workout_ids, "sets", 0)
+
+
+def failure_sets(session: Session, slug: str, workout_ids: Sequence[int]) -> list[int | None]:
+    """The set each workout ran to as many good reps as it could of the exercise ``slug``, in
+    the order given (ADR-0084): None for a workout without one."""
+    return _plan_values(session, slug, workout_ids, "failure_set", 1)
 
 
 def _in_block[*Ts](query: Select[*Ts], block: BlockKind | None) -> Select[*Ts]:

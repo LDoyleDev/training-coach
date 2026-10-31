@@ -76,6 +76,7 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
     tables = data["tables"]
     assert [m["tenths"] for m in tables["measurements"]] == [834]  # mine only
     assert tables["settings"][0]["talk_test"] is True
+    assert tables["settings"][0]["last_set_amrap"] is False  # the last-set option (ADR-0084)
     assert tables["signed_in_browsers"][0]["label"]
     assert all("token_hash" not in row for row in tables["signed_in_browsers"])
     assert all("jpeg" not in row for row in tables["progress_photos"])

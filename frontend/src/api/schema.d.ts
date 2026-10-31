@@ -2637,6 +2637,11 @@ export interface components {
             /** Cue */
             cue: string | null;
             flow?: components["schemas"]["FlowView"] | null;
+            /**
+             * Last Set Amrap
+             * @default false
+             */
+            last_set_amrap: boolean;
             level?: components["schemas"]["ItemLevelView"] | null;
             load?: components["schemas"]["LoadView"] | null;
             /** Muscles */
@@ -2815,7 +2820,9 @@ export interface components {
          *     drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
          *     ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
          *     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
-         *     kept, so the length no longer changes.
+         *     kept, so the length no longer changes. ``last_set``: the person's last-set option (ADR-0084),
+         *     offered here with a shorter day; empty when it isn't offered: locked while they are new, or
+         *     no exercise today it applies to.
          */
         LengthView: {
             /** Dropped */
@@ -2824,6 +2831,8 @@ export interface components {
             fixed: boolean;
             /** Keep */
             keep: string[];
+            /** Last Set */
+            last_set?: boolean | null;
             /** Minutes */
             minutes: number | null;
             /** Options */
@@ -3835,6 +3844,8 @@ export interface components {
             /** Habits Enabled */
             habits_enabled?: boolean | null;
             increments?: components["schemas"]["IncrementsChange"] | null;
+            /** Last Set Amrap */
+            last_set_amrap?: boolean | null;
             /** Morning Time */
             morning_time?: string | null;
             /** Nudge Time */
@@ -3865,6 +3876,10 @@ export interface components {
             /** Habits Enabled */
             habits_enabled: boolean;
             increments: components["schemas"]["IncrementsView"];
+            /** Last Set Amrap */
+            last_set_amrap: boolean;
+            /** Last Set Locked */
+            last_set_locked: boolean;
             /** Morning Time */
             morning_time: string;
             /** Nudge Time */

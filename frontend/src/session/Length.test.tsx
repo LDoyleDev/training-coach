@@ -24,6 +24,7 @@ const item = (slug: string, name: string, pair: number | null, targets: number[]
   baseline: false,
   muscles: [],
   parts: [],
+  last_set_amrap: false,
 })
 
 const PLANNED: Length = {
@@ -351,4 +352,49 @@ test('a conditioning day logs its run at the shortened minutes once a length is 
   fireEvent.click(button('20 min'))
   expect(await screen.findByRole('button', { name: 'Done as planned: 12 min' })).toBeVisible()
   expect(screen.getByText('Target 12 min')).toBeInTheDocument()
+})
+
+/** At 40 min with the last-set option offered (ADR-0084): off, then on. */
+const FORTY: Guided = { ...SESSION, length: { ...PLANNED, minutes: 40, last_set: false } }
+const FORTY_ON: Guided = {
+  ...FORTY,
+  items: [SESSION.items[0], { ...SESSION.items[1], last_set_amrap: true }, SESSION.items[2]],
+  length: { ...PLANNED, minutes: 40, last_set: true },
+}
+const lastSet = () => screen.getByRole('button', { name: /as many good reps as you can/ })
+
+test('a shorter day offers the last set of as many good reps as you can, one tap', async () => {
+  const sent = serve({ today: [today(FORTY), today(FORTY_ON)] })
+  render(<SessionPage />)
+  expect(await screen.findByRole('heading', { name: 'Legs' })).toBeInTheDocument()
+  expect(lastSet()).toHaveAttribute('aria-pressed', 'false')
+  expect(
+    screen.getByText("On exercises where it's safe. Stop at the first rep that isn't clean."),
+  ).toBeInTheDocument()
+  fireEvent.click(lastSet())
+  expect(
+    await screen.findByText('Saved: last set, as many good reps as you can.'),
+  ).toBeInTheDocument()
+  expect(sent['PATCH /api/settings']).toEqual([{ last_set_amrap: true }])
+  expect(lastSet()).toHaveAttribute('aria-pressed', 'true')
+  expect(lastSet()).toHaveTextContent('✓ Last set: as many good reps as you can')
+})
+
+test('turning it off says so', async () => {
+  const sent = serve({ today: [today(FORTY_ON), today(FORTY)] })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: /as many good reps/ }))
+  expect(await screen.findByText('Saved: last sets as usual.')).toBeInTheDocument()
+  expect(sent['PATCH /api/settings']).toEqual([{ last_set_amrap: false }])
+})
+
+test.each([
+  ['as planned', { ...FORTY, length: { ...PLANNED, last_set: false } }],
+  ['locked or nothing it applies to', { ...FORTY, length: { ...PLANNED, minutes: 40 } }],
+  ['once a set is kept', { ...FORTY, length: { ...FORTY.length!, fixed: true } }],
+])('the last set is not offered %s', async (_, session) => {
+  serve({ today: [today(session)] })
+  render(<SessionPage />)
+  expect(await screen.findByRole('heading', { name: 'Legs' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /as many good reps/ })).not.toBeInTheDocument()
 })

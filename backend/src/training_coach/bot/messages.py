@@ -32,6 +32,8 @@ STALE = "That message is out of date. Send /today for the current session."
 UNIT = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: "s", ExerciseKind.DURATION_MIN: " min"}
 WORK_DOWN = "Work down the list, alternating the two exercises of each pair."
 FILL_IN = "Copy the list, put in what you did and send it back to log it."
+# A last set of as many good reps as you can (ADR-0084); brackets read back as a note.
+AS_MANY = " (last set: as many as you can)"
 
 
 def work_list(items: tuple[ItemPlan, ...]) -> list[str]:
@@ -48,7 +50,8 @@ def work_list(items: tuple[ItemPlan, ...]) -> list[str]:
             number += 1
             target = f"{item.targets[set_no - 1]}{UNIT[item.kind]}"
             side = " per side" if item.per_side else ""
-            lines.append(f"{number}. {item.exercise} ({item.step}): {target}{side}")
+            amrap = AS_MANY if item.last_set_amrap and set_no == len(item.targets) else ""
+            lines.append(f"{number}. {item.exercise} ({item.step}): {target}{side}{amrap}")
     return lines
 
 

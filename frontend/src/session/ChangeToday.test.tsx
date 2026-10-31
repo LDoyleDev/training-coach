@@ -31,6 +31,7 @@ const LEGS: Guided = {
       baseline: false,
       muscles: [],
       parts: [],
+      last_set_amrap: false,
     },
   ],
   order: [{ item: 0, set_no: 1, target: 6, rest_seconds: 0, switch: false }],

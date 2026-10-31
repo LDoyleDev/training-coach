@@ -376,6 +376,8 @@ class UserSettings(Owned, Base):
     talk_test: Mapped[bool] = mapped_column(Boolean, server_default=false())
     # The stop signs were shown before their first guided session (spec B7).
     stop_signs_seen: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # Last set: as many good reps as you can, where it's safe (ADR-0084). Off unless turned on.
+    last_set_amrap: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
