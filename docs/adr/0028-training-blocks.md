@@ -1,6 +1,6 @@
 # ADR-0028: Optional 4-week strength and hypertrophy blocks
 
-- Status: Accepted
+- Status: Accepted; its warm-up line was replaced by ADR-0065's addendum, and ADR-0082 swaps it for ramp sets at 30 minutes or less
 - Date: 2026-10-07
 - Deciders: Liam
 

@@ -1,6 +1,6 @@
 # ADR-0065: Rest by transition: a quick switch inside a pair, a rest after it
 
-- Status: Accepted
+- Status: Accepted; the warm-up in sessions of 30 minutes or less is amended by ADR-0082
 - Date: 2026-10-23
 - Deciders: Liam
 
