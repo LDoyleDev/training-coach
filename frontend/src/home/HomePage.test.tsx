@@ -142,20 +142,24 @@ test('the top for the kit and of the ladder, as the saved screen says them (ADR-
             exercise: 'Kettlebell swing',
             slug: 'kb-swing',
             unlock: 'a 16 kg kettlebell unlocks Two-hand, 16 kg',
+            capped: true,
           },
-          { exercise: 'Push-up', slug: 'push-up', unlock: null },
+          { exercise: 'Push-up', slug: 'push-up', unlock: null, capped: false },
+          { exercise: 'Pull-up', slug: 'pull-up', unlock: null, capped: true },
         ],
       },
     }),
   )
   render(<HomePage />)
   expect(await screen.findByText('At the top:')).toBeInTheDocument()
-  const [swing, push] = screen.getAllByRole('listitem').filter((li) => li.closest('ul.pl-5'))
+  const [swing, push, pull] = screen.getAllByRole('listitem').filter((li) => li.closest('ul.pl-5'))
   expect(swing).toHaveTextContent(
     'Kettlebell swing: top of the range on the last level your kit allows. ' +
       'A 16 kg kettlebell unlocks Two-hand, 16 kg. My equipment',
   )
   expect(push).toHaveTextContent('Push-up: top of the range on the last level of its ladder.')
+  // Harder steps above, every one locked: true, and never why (ADR-0083).
+  expect(pull).toHaveTextContent('Pull-up: top of the range, with no open step above this one.')
   expect(screen.getByRole('link', { name: 'Kettlebell swing' })).toHaveAttribute(
     'href',
     '/plan?move=kb-swing',

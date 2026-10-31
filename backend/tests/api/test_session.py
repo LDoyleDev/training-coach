@@ -589,10 +589,11 @@ def _put_on_step(engine: Engine, slug: str, position: int) -> None:
 
 
 @pytest.mark.parametrize(
-    ("position", "kit", "unlock"),
+    ("position", "kit", "unlock", "avoid"),
     [
-        (1, [], "an 8 kg kettlebell unlocks Holding 8 kg"),  # top for the kit (ADR-0071)
-        (2, None, None),  # the last step of the ladder
+        (1, [], "an 8 kg kettlebell unlocks Holding 8 kg", False),  # top for the kit (ADR-0071)
+        (2, None, None, False),  # the last step of the ladder
+        (1, None, None, True),  # every harder step avoided: no open step above (ADR-0083)
     ],
 )
 def test_the_saved_screen_says_when_there_is_no_step_to_move_to(
@@ -601,9 +602,13 @@ def test_the_saved_screen_says_when_there_is_no_step_to_move_to(
     position: int,
     kit: list[dict[str, Any]] | None,
     unlock: str | None,
+    avoid: bool,
 ) -> None:
-    """ADR-0078: the rule met with nowhere to move says so, and what would open the next step."""
+    """ADR-0078: the rule met with nowhere to move says so, and what would open the next step;
+    with harder steps all locked, ``capped``, never why."""
     _put_on_step(engine, "jump-squat", position)
+    if avoid:  # every jump squat step is marked impact
+        assert signed_in.patch("/api/settings", json={"avoid_impact": True}).status_code == 200
     if kit is not None:
         assert signed_in.put("/api/equipment", json={"items": kit}).status_code == 200
     _log_yesterday(engine, {"jump-squat": 8})  # 3 sets at the top of 5-8
@@ -614,6 +619,7 @@ def test_the_saved_screen_says_when_there_is_no_step_to_move_to(
     (earned,) = signed_in.post("/api/session/save", json={}).json()["earned"]
     assert (earned["exercise"], earned["next_step"]) == ("Jump squat", None)
     assert (earned["at_top"], earned["unlock"]) == (True, unlock)
+    assert earned["capped"] is (position < 2)
 
 
 def test_a_loaded_step_offers_its_weights_and_keeps_each_sets(

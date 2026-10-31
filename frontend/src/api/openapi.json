@@ -1149,6 +1149,10 @@
             ],
             "title": "Best Set"
           },
+          "capped": {
+            "title": "Capped",
+            "type": "boolean"
+          },
           "exercise": {
             "title": "Exercise",
             "type": "string"
@@ -1220,6 +1224,7 @@
           "slug",
           "at_top",
           "unlock",
+          "capped",
           "load_kg"
         ],
         "title": "EarnedView",
@@ -6866,6 +6871,10 @@
       "TopView": {
         "description": "The ready rule met with no level to move to, said once per level (ADR-0078). ``unlock``\nsays what opens the next level when the kit is what's missing (ADR-0071); else None, the\ntop of the ladder.",
         "properties": {
+          "capped": {
+            "title": "Capped",
+            "type": "boolean"
+          },
           "exercise": {
             "title": "Exercise",
             "type": "string"
@@ -6889,7 +6898,8 @@
         "required": [
           "exercise",
           "slug",
-          "unlock"
+          "unlock",
+          "capped"
         ],
         "title": "TopView",
         "type": "object"

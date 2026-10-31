@@ -60,6 +60,8 @@ class TopView(BaseModel):
     exercise: str
     slug: str
     unlock: str | None
+    # Harder steps exist, every one locked: "no open step above this one", never why (ADR-0083)
+    capped: bool
 
 
 class StandingView(BaseModel):

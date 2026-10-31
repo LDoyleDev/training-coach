@@ -338,6 +338,9 @@ class EarnedView(BaseModel):
     # what opens the next one when the kit is what's missing (ADR-0071).
     at_top: bool
     unlock: str | None
+    # At the top with harder steps above, every one locked: "no open step above this one",
+    # never why (ADR-0083)
+    capped: bool
     load_kg: float | None  # the session's weight, which its bests were counted at (ADR-0072)
 
 
@@ -636,6 +639,7 @@ def save(body: SaveBody, request: Request, user: Owner) -> SavedView:
                     slug=e.slug,
                     at_top=e.note_top,
                     unlock=e.unlock if e.note_top else None,
+                    capped=e.capped and e.note_top,
                     load_kg=e.load_kg,
                 )
                 for e in earned

@@ -60,6 +60,9 @@ export function topLabel(s: Standing): string | null {
   return at >= 0 && at < s.ladder.length - 1 ? 'Top of your open steps' : 'Top of the ladder'
 }
 
+/** Said where every harder step is locked, as the server says it on every surface (ADR-0083). */
+export const NO_OPEN_STEP = 'no open step above this one'
+
 export const WAITS =
   'Moving up waits for the hypertrophy block: this is a strength block. ' +
   'You can still choose a level by hand.'

@@ -2237,6 +2237,8 @@ export interface components {
             at_top: boolean;
             /** Best Set */
             best_set: number | null;
+            /** Capped */
+            capped: boolean;
             /** Exercise */
             exercise: string;
             /** Load Kg */
@@ -4155,6 +4157,8 @@ export interface components {
          *     top of the ladder.
          */
         TopView: {
+            /** Capped */
+            capped: boolean;
             /** Exercise */
             exercise: string;
             /** Slug */

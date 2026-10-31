@@ -43,6 +43,8 @@ from training_coach.services import blocks, step_locks, user_settings, users
 from training_coach.services.seed import bundled_plan
 
 TOP_NOTED = "progress.top_of_ladder"
+# Said where every harder step is locked, on every surface, without saying why (ADR-0083)
+NO_OPEN_STEP = "no open step above this one"
 NO_LIMITS = Limits()  # nothing listed, nothing avoided: no step locks
 LEVEL_SET = "progress.level_set"
 
@@ -62,6 +64,9 @@ class Feedback:
     slug: str = ""  # the exercise's, for a link to its ladder (ADR-0075)
     unlock: str | None = None  # at the top for the kit: what opens the next step (ADR-0071)
     load_kg: float | None = None  # the session's weight: its bests count only that (ADR-0072)
+    # At the top with harder steps above, every one locked (kit, or what the person avoids):
+    # said as "no open step above this one", never why (ADR-0083)
+    capped: bool = False
 
 
 class MoveOutcome(StrEnum):
@@ -224,6 +229,12 @@ def _unlock(step: LadderStep, limits: Limits) -> str | None:
     return f"{' and '.join(lacking)} unlocks {ladder[index].name}"
 
 
+def _below_top(step: LadderStep) -> bool:
+    """Whether harder steps exist above ``step`` on its ladder, open or not."""
+    ladder, at = _at(step)
+    return at < len(ladder) - 1
+
+
 def _status(
     session: Session, item: TemplateItem | None, step: LadderStep, limits: Limits = NO_LIMITS
 ) -> Progress:
@@ -351,6 +362,7 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
                 slug=exercise.slug,
                 unlock=_unlock(step, limits) if status is Progress.TOP_OF_LADDER else None,
                 load_kg=weight,
+                capped=status is Progress.TOP_OF_LADDER and _below_top(step),
             )
         )
     return result
@@ -530,6 +542,12 @@ class Standing:
     # counts every weight, so it says which, as the weekly review does. None without one.
     best_kg: float | None = None
 
+    @property
+    def capped(self) -> bool:
+        """At the top with harder steps above, every one locked: "no open step above this
+        one", never why (ADR-0083)."""
+        return self.status is Progress.TOP_OF_LADDER and self.step_number < self.steps
+
 
 TREND_WEEKS = 6  # the Progress graphs' window: long enough to see a change, short enough to feel it
 
@@ -700,6 +718,7 @@ class Top:
     exercise: str
     slug: str
     unlock: str | None
+    capped: bool = False  # harder steps exist, every one locked: never says why (ADR-0083)
 
 
 def tops(session: Session, standings: list[Standing], since: date, tz: ZoneInfo) -> list[Top]:
@@ -713,7 +732,7 @@ def tops(session: Session, standings: list[Standing], since: date, tz: ZoneInfo)
         if isinstance(payload, dict) and local_date(at, tz) >= since
     }
     return [
-        Top(s.exercise, s.slug, s.unlock)
+        Top(s.exercise, s.slug, s.unlock, s.capped)
         for s in standings
         if s.status is Progress.TOP_OF_LADDER and (s.exercise_id, s.step_id) in noted
     ]
