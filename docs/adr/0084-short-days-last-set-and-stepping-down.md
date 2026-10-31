@@ -22,10 +22,14 @@ for people starting low (ADR-0083).
   before this have no map and keep today's rules.
 - **A shorter day is judged on its own sets,** and ships with ADR-0082's trim.
   - **Readiness:** every set planned that day at the top of the range, in each of the last two
-    sessions at the step. A day counts only if it planned at least two sets of the exercise.
+    sessions at the step. A day counts only if it planned at least two sets of the exercise,
+    or every set when the prescription has fewer (a 1-set hang or neck exercise); "the last
+    two" are the last two days that count, so a 1-set day neither blocks nor helps. A day
+    that planned more sets than today's prescription is judged on all it planned.
   - **Targets:** a set the day didn't plan is neither a miss nor a 0: it isn't replayed for that
-    session. A set that comes back after being dropped starts from the nearest set before it in
-    the last session, as ADR-0072's built rule does for loads, not from a stale value.
+    session. A set that comes back after being dropped starts from the next target of the last
+    set that day planned (the nearest set before it), as ADR-0072's built rule does for loads,
+    with its miss count reset; its baseline is the first session at the step that planned it.
 - **Last set: as many good reps as you can.** A per-person option, off by default, offered with
   shorter sessions.
   - Only on exercises marked `failure_ok` in the catalogue: isolation and stable ones (curls,

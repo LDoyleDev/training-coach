@@ -45,6 +45,9 @@ day has to record what it planned (ADR-0084), and both ship together.
      other last. Within a group, the exercise later in the session goes first. An exercise the
      person pins with **Keep** for the day isn't dropped;
   5. never under one set of a kept exercise, or under 60 s between two sets for the same muscle.
+  - The last exercise left is never dropped, and a cardio item counts as main work. A session
+    fits when its shown estimate (rounded minutes plus the warm-up) is within the minutes; a
+    cardio item shortens a minute at a time from the longest.
   - When even the floor doesn't fit, the overview says "The shortest this session gets is N
     minutes" and offers that.
   - Pairs into threes is left for later: `work_order` and the rests only know pairs (ADR-0065).
