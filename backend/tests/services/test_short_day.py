@@ -8,7 +8,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Exercise, SessionTemplate, SetLog, Workout
+from training_coach.db.models import (
+    Exercise,
+    SessionProgress,
+    SessionTemplate,
+    SetLog,
+    Workout,
+)
 from training_coach.domain.enums import Place, Side, WorkoutStatus
 from training_coach.domain.trim import WarmUp
 from training_coach.services import cardio, guided, user_settings, users, workout_log
@@ -184,6 +190,31 @@ def test_a_stale_revision_is_refused_and_changes_nothing(plan: Session) -> None:
     length = _today(plan).length
     assert length is not None
     assert length.minutes == 20
+
+
+def test_a_length_chosen_after_a_place_switch_starts_afresh(plan: Session) -> None:
+    """A row left from the other place's version isn't today's: choosing a length resets it, as
+    keeping a set does, instead of writing the length where the session shown can't see it."""
+    found = _today(plan)
+    plan.add(
+        SessionProgress(
+            local_date=DAY,
+            template_id=found.template_id,
+            place=Place.GYM,
+            token="ab" * 16,
+            revision=1,
+            sets=[{"item": 0, "set_no": 1, "left": 6, "right": None}],
+        )
+    )
+    plan.flush()
+    assert guided.choose_length(plan, found, 1, 30, ()) == guided.STALE  # an old browser
+    assert guided.choose_length(plan, found, 0, 30, ()) == 2
+    again = _today(plan)
+    assert again.length is not None
+    assert again.length.minutes == 30
+    kept = guided.kept(plan, DAY)
+    assert kept is not None
+    assert (kept.place, kept.sets) == (Place.HOME, ())
 
 
 def test_as_planned_again_undoes_a_shorter_day(plan: Session) -> None:
