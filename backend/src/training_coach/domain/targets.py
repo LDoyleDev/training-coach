@@ -14,6 +14,13 @@ Example: last 8/7/6/5 in a 5-12 range, all targets met -> 9/8/7/6.
 
 The person's pace (ADR-0057) changes only the step: steady is the smallest step of each kind,
 fast at least twice that, standard the 10% rule above.
+
+A shorter day (ADR-0082) is judged on its own sets (ADR-0084): each session can say how many
+sets it planned, always the first ones. A set the day didn't plan isn't replayed, neither a miss
+nor a 0. When it comes back it starts from the nearest set before it that day, as a load does
+(ADR-0072): that set's next target, with no misses held against it. A set's baseline is the
+first session at the step that planned it. A session saved without its count (``None``) planned
+every set, so no past target moves.
 """
 
 from collections.abc import Sequence
@@ -75,33 +82,60 @@ def _cap(value: int, item: Prescription) -> int:
     return max(0, min(item.rep_max, value))
 
 
-def _performed(item: Prescription, values: Sequence[int]) -> list[int]:
-    """One value per planned set. Missing sets start from the weakest logged set."""
-    done = [_cap(v, item) for v in values[: item.sets]]
+def planned_counts(
+    history: Sequence[Sequence[int]], planned: Sequence[int | None] | None
+) -> list[int | None]:
+    """The sets each session in ``history`` planned, in the same order; ``None`` for a session
+    saved without its count, and for every session when ``planned`` is None."""
+    if planned is None:
+        return [None] * len(history)
+    if len(planned) != len(history):
+        raise ValueError(f"{len(planned)} planned counts for {len(history)} sessions")
+    if any(count is not None and count < 0 for count in planned):
+        raise ValueError(f"a planned count is below 0: {planned}")
+    return list(planned)
+
+
+def _performed(item: Prescription, values: Sequence[int], planned: int | None) -> list[int]:
+    """One value per set the session planned, at most the prescription's (all of them when
+    ``planned`` is None). Missing sets start from the weakest logged set."""
+    count = item.sets if planned is None else min(planned, item.sets)
+    done = [_cap(v, item) for v in values[:count]]
     if not done:
-        return [0] * item.sets
-    return done + [min(done)] * (item.sets - len(done))
+        return [0] * count
+    return done + [min(done)] * (count - len(done))
 
 
 def targets(
-    item: Prescription, history: Sequence[Sequence[int]], pace: Pace = Pace.STANDARD
+    item: Prescription,
+    history: Sequence[Sequence[int]],
+    pace: Pace = Pace.STANDARD,
+    planned: Sequence[int | None] | None = None,
 ) -> tuple[int, ...]:
     """Target value per planned set at the person's ``pace``. ``history`` holds every
     session's per-set values at this ladder step, newest first (as ``progression.assess``
-    takes them)."""
+    takes them); ``planned``, in the same order, the sets each one planned (ADR-0084)."""
     given = [item.rep_min] * item.sets
     misses = [0] * item.sets
-    for index, values in enumerate(reversed(history)):
-        done = _performed(item, values)
-        if index == 0:
-            # The first session at a step is the baseline, never a miss: below the range,
-            # targets grow from what was done instead of jumping to the bottom (ADR-0027).
-            given = list(done)
-        for n in range(item.sets):
-            if done[n] >= given[n]:
-                given[n], misses[n] = _cap(done[n] + step(item, pace), item), 0
+    reached = 0  # the most sets a session has planned so far
+    counts = planned_counts(history, planned)
+    for values, count in zip(reversed(history), reversed(counts), strict=True):
+        done = _performed(item, values, count)
+        # A set's first session at a step is its baseline, never a miss: below the range,
+        # targets grow from what was done instead of jumping to the bottom (ADR-0027).
+        given[reached : len(done)] = done[reached:]
+        reached = max(reached, len(done))
+        for n, value in enumerate(done):
+            if value >= given[n]:
+                given[n], misses[n] = _cap(value + step(item, pace), item), 0
             elif misses[n] + 1 >= MISSES_BEFORE_EASING:
-                given[n], misses[n] = _cap(done[n] + 1, item), 0
+                given[n], misses[n] = _cap(value + 1, item), 0
             else:
                 misses[n] += 1  # hold the target
+        if 0 < len(done) < item.sets:
+            # Sets the day didn't plan weren't replayed; they come back from the nearest set
+            # before them, its target and no misses, not from a stale value (ADR-0084).
+            dropped = item.sets - len(done)
+            given[len(done) :] = [given[len(done) - 1]] * dropped
+            misses[len(done) :] = [0] * dropped
     return tuple(given)
