@@ -1,6 +1,6 @@
 # ADR-0046: Readiness questions that advise, not block
 
-- Status: Accepted
+- Status: Accepted; its stored answers are superseded by ADR-0085 (answers stay on the device)
 - Date: 2026-10-10
 - Deciders: Liam
 
