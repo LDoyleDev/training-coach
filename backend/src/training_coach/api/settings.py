@@ -95,6 +95,8 @@ class SettingsView(BaseModel):
     places: Places  # where the person trains: home, gym or both (ADR-0071)
     increments: IncrementsView  # their own weight steps, or the defaults (ADR-0072)
     default_increments: IncrementsView
+    talk_test: bool  # cardio effort by the talk test, not heart-rate zones (ADR-0083)
+    stop_signs_seen: bool  # shown before their first guided session (spec B7)
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -114,6 +116,8 @@ class SettingsChange(BaseModel):
     extra_cardio_min: int | None = Field(default=None, ge=EXTRA_CARDIO[0], le=EXTRA_CARDIO[1])
     places: Places | None = None
     increments: IncrementsChange | None = None
+    talk_test: bool | None = None
+    stop_signs_seen: bool | None = None
     paused: bool | None = None
 
 
@@ -152,6 +156,8 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
         places=prefs.places,
         increments=_steps(prefs.increments),
         default_increments=_steps(DEFAULTS),
+        talk_test=prefs.talk_test,
+        stop_signs_seen=prefs.stop_signs_seen,
         paused=prefs.paused,
         timezone=settings.timezone,
     )
@@ -184,6 +190,8 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             extra_cardio_min=body.extra_cardio_min,
             places=body.places,
             increments=_changed(body.increments),
+            talk_test=body.talk_test,
+            stop_signs_seen=body.stop_signs_seen,
             today=local_date(datetime.now(UTC), settings.tz),
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)

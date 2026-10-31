@@ -12,6 +12,7 @@ import {
 import SignedOutNotice from '../components/SignedOutNotice'
 import ClashQuestion from './ClashQuestion'
 import { actions, card, primaryInline, secondary } from '../ui'
+import { effortLabel } from './safety'
 
 const chip = (on: boolean) =>
   'min-h-11 rounded-full border-2 px-2 font-bold ' +
@@ -48,7 +49,13 @@ const GONE = 'That proposal has gone: it expired after 24 hours, or its app was 
  * also picks zone 2 or moderate: the coach only suggests one, from their own heart-rate zones
  * or the AI's hint, and says why (ADR-0067, 2026-10-24).
  */
-export default function Proposals({ onSaved }: { onSaved: (text: string) => void }) {
+export default function Proposals({
+  onSaved,
+  talkTest = false,
+}: {
+  onSaved: (text: string) => void
+  talkTest?: boolean // effort by the talk test; the server then suggests nothing from heart rate
+}) {
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -112,7 +119,8 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
   /** What a cardio one still needs before Save, as the button's words; null when ready. */
   const unpicked = (proposal: Proposal): string | null => {
     if (proposal.kind !== 'cardio') return null
-    if (!kinds[proposal.token]) return 'Pick zone 2 or moderate to save'
+    if (!kinds[proposal.token])
+      return talkTest ? 'Pick how hard it was to save' : 'Pick zone 2 or moderate to save'
     return efforts[proposal.token] ? null : 'Pick how it felt to save'
   }
 
@@ -132,7 +140,9 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
           ))}
           {proposal.kind === 'cardio' && (
             <fieldset className="mt-2 flex flex-col gap-2 border-0 p-0">
-              <legend className="mb-2 font-bold">Zone 2 or moderate: you pick</legend>
+              <legend className="mb-2 font-bold">
+                {talkTest ? 'How hard, by the talk test' : 'Zone 2 or moderate'}: you pick
+              </legend>
               {proposal.suggestion && <p className="m-0">{proposal.suggestion}.</p>}
               <div className="grid grid-cols-2 gap-2">
                 {KINDS.map(({ kind, label }) => (
@@ -146,7 +156,7 @@ export default function Proposals({ onSaved }: { onSaved: (text: string) => void
                     )}
                     onClick={() => setKinds({ ...kinds, [proposal.token]: kind })}
                   >
-                    {label}
+                    {effortLabel(kind, talkTest, label)}
                     {proposal.suggested === kind ? ' (suggested)' : ''}
                   </button>
                 ))}
