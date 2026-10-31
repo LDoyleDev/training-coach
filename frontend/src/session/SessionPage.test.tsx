@@ -90,6 +90,7 @@ type Server = {
   clash?: Clash // answered to a save until it carries a resolution (ADR-0060)
   problem?: string // a 422: why the save was refused
   sound?: string // the timer sound chosen in Settings; unset answers 404
+  seen?: boolean | 'error' // the stop signs were read (spec B7); unset means read; 'error' fails the fetch
   place?: TodayView // what a Home | Gym switch answers (ADR-0071)
 }
 
@@ -115,9 +116,9 @@ function serve(server: Server = {}) {
     if (path === '/api/session/pending') return Response.json(server.pending ?? [])
     if (path === '/api/session/place' && server.place) return Response.json(server.place)
     if (path === '/api/settings')
-      return server.sound
-        ? Response.json({ sound: server.sound })
-        : new Response(null, { status: 404 })
+      return server.seen === 'error'
+        ? new Response(null, { status: 500 })
+        : Response.json({ sound: server.sound ?? 'ring', stop_signs_seen: server.seen ?? true })
     if (path === '/api/session/save') {
       if (server.problem) return Response.json({ detail: server.problem }, { status: 422 })
       if (server.clash && !String(init?.body).includes('resolution'))
@@ -196,6 +197,78 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
     sets: [{ item: 0, set_no: 1, left: 7, right: null }],
   })
   expect(kept[2]).toMatchObject({ revision: 1, position: 3 })
+})
+
+test('the stop signs show once before the first session, remembered on the server', async () => {
+  const sent = serve({ seen: false })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.getByRole('heading', { name: 'Before you start: stop signs' })).toBeVisible()
+  expect(screen.getByText(/Call 112 if it doesn't settle/)).toBeInTheDocument()
+  expect(screen.getByText('Sharp joint pain:')).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Jump squat' })).not.toBeInTheDocument()
+  click('Got it, start')
+  expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument()
+  expect(sent['PATCH /api/settings']).toEqual([{ stop_signs_seen: true }])
+  click('Leave')
+  click(/^(Start|Resume)/)
+  expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument() // not again
+})
+
+test('the stop signs still show when the settings fail to load', async () => {
+  serve({ seen: 'error' })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.getByRole('heading', { name: 'Before you start: stop signs' })).toBeVisible()
+})
+
+test('the stop signs show when Start is tapped before the settings arrive', async () => {
+  serve({ seen: true })
+  let release = () => {}
+  const fetchMock = vi.mocked(fetch)
+  const real = fetchMock.getMockImplementation()
+  fetchMock.mockImplementation(async (path, init) => {
+    if (path === '/api/settings') await new Promise<void>((done) => (release = done))
+    return real!(path, init)
+  })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.getByRole('heading', { name: 'Before you start: stop signs' })).toBeVisible()
+  release()
+})
+
+test('once read, Start goes straight to the first set', async () => {
+  const sent = serve({ seen: true })
+  render(<SessionPage />)
+  await waitFor(() => expect(sent['GET /api/settings']).toHaveLength(1))
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument()
+  expect(sent['PATCH /api/settings']).toBeUndefined()
+})
+
+test('the stop signs are one tap away on every set and rest', async () => {
+  serve()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const signs = screen.getByText('Very dark urine after a hard session:')
+  expect(signs).not.toBeVisible()
+  fireEvent.click(screen.getByText('Stop signs'))
+  expect(signs).toBeVisible()
+  click('Confirm set')
+  await screen.findByRole('button', { name: 'Skip rest' })
+  expect(screen.getByText('Stop signs')).toBeInTheDocument()
+})
+
+test('the breathing cue shows once, on the first set after Start (ADR-0084)', async () => {
+  serve()
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  const cue = "Breathe out as you push; don't hold your breath."
+  expect(screen.getByText(cue)).toBeInTheDocument()
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  await screen.findByRole('heading', { name: 'Calf raise' })
+  expect(screen.queryByText(cue)).not.toBeInTheDocument()
 })
 
 test('inside a pair the rest is a 15 s switch; after the pair it is a rest (ADR-0065)', async () => {
