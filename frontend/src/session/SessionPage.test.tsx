@@ -90,7 +90,7 @@ type Server = {
   clash?: Clash // answered to a save until it carries a resolution (ADR-0060)
   problem?: string // a 422: why the save was refused
   sound?: string // the timer sound chosen in Settings; unset answers 404
-  seen?: boolean // the stop signs were read (spec B7); unset answers 404 with sound
+  seen?: boolean | 'error' // the stop signs were read (spec B7); unset means read; 'error' fails the fetch
   place?: TodayView // what a Home | Gym switch answers (ADR-0071)
 }
 
@@ -116,9 +116,9 @@ function serve(server: Server = {}) {
     if (path === '/api/session/pending') return Response.json(server.pending ?? [])
     if (path === '/api/session/place' && server.place) return Response.json(server.place)
     if (path === '/api/settings')
-      return server.sound || server.seen !== undefined
-        ? Response.json({ sound: server.sound ?? 'ring', stop_signs_seen: server.seen })
-        : new Response(null, { status: 404 })
+      return server.seen === 'error'
+        ? new Response(null, { status: 500 })
+        : Response.json({ sound: server.sound ?? 'ring', stop_signs_seen: server.seen ?? true })
     if (path === '/api/session/save') {
       if (server.problem) return Response.json({ detail: server.problem }, { status: 422 })
       if (server.clash && !String(init?.body).includes('resolution'))
@@ -213,6 +213,28 @@ test('the stop signs show once before the first session, remembered on the serve
   click('Leave')
   click(/^(Start|Resume)/)
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument() // not again
+})
+
+test('the stop signs still show when the settings fail to load', async () => {
+  serve({ seen: 'error' })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.getByRole('heading', { name: 'Before you start: stop signs' })).toBeVisible()
+})
+
+test('the stop signs show when Start is tapped before the settings arrive', async () => {
+  serve({ seen: true })
+  let release = () => {}
+  const fetchMock = vi.mocked(fetch)
+  const real = fetchMock.getMockImplementation()
+  fetchMock.mockImplementation(async (path, init) => {
+    if (path === '/api/settings') await new Promise<void>((done) => (release = done))
+    return real!(path, init)
+  })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(screen.getByRole('heading', { name: 'Before you start: stop signs' })).toBeVisible()
+  release()
 })
 
 test('once read, Start goes straight to the first set', async () => {

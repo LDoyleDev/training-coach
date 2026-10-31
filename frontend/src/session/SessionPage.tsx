@@ -126,8 +126,9 @@ export default function SessionPage() {
 
   const [sound, setSound] = useState<Sound>(DEFAULT_SOUND) // the person's choice, from Settings
   const [talkTest, setTalkTest] = useState(false) // cardio effort by the talk test (ADR-0083)
-  // The stop signs (spec B7): due before the first guided session, and being read now.
-  const [stopSignsDue, setStopSignsDue] = useState(false)
+  // The stop signs (spec B7): due before the first guided session, and being read now. Due
+  // until the server says they were seen, so a slow or failed settings fetch still shows them.
+  const [stopSignsDue, setStopSignsDue] = useState(true)
   const [reading, setReading] = useState(false)
   const [breatheAt, setBreatheAt] = useState<number | null>(null) // the set with the cue
   const counting = useRef(0) // the last of a rest's final 3 seconds that sounded
@@ -147,7 +148,7 @@ export default function SessionPage() {
         if (!found) return
         setSound(found.sound)
         setTalkTest(found.talk_test === true)
-        setStopSignsDue(found.stop_signs_seen === false)
+        setStopSignsDue(found.stop_signs_seen !== true)
       })
       .catch(() => {}) // the default sound still plays
     return () => ask.abort()
