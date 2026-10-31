@@ -27,23 +27,24 @@ day has to record what it planned (ADR-0084), and both ship together.
     session's progress, so a reload or another device shows it.
   - **Minutes per session:** a setting on Account (and later in setup); every session runs at
     that length unless the day says otherwise. Empty means as planned.
-- **Which sessions:** strength sessions and the part of a conditioning session left after its
-  run (ADR-0066). A cardio item (`duration_min`) shortens to fit, never below 10 minutes. Recovery
-  sessions and test days aren't trimmed. In a strength block the block's prescription comes
-  first (ADR-0028), then the trim.
+- **Which sessions:** strength and conditioning sessions, including the part of a conditioning
+  session left after its run (ADR-0066). Recovery sessions and test days aren't trimmed. In a
+  strength block the block's prescription comes first (ADR-0028), then the trim.
 - **One pure trim** in `domain/` takes the items (sets, prime movers, pattern, kind), the
   estimate and the minutes, and returns each item's set count (0 means dropped; items are never
   removed from the list, so kept sets keep their indexes) and what was dropped. Each rule applies
   only while the session still doesn't fit, in this order:
   1. fourth and later sets go, from every exercise at once;
   2. third sets go, from every exercise at once, so every exercise keeps two;
-  3. whole exercises go, one at a time, by this key: first single-joint and accessory work
-     (isolation, core, carry, neck) whose prime movers another kept exercise also trains; then
+  3. a cardio item (`duration_min`) shortens, never below 10 minutes; its target counts as
+     dropped, not missed;
+  4. whole exercises go, one at a time, by this key: first single-joint and accessory work
+     (isolation, core, carry, mobility) whose prime movers another kept exercise also trains; then
      the other single-joint and accessory work; then main patterns (squat or lunge, hinge, push,
      pull) whose prime movers another kept exercise trains; main patterns not covered by any
      other last. Within a group, the exercise later in the session goes first. An exercise the
      person pins with **Keep** for the day isn't dropped;
-  4. never under one set of a kept exercise, or under 60 s between two sets for the same muscle.
+  5. never under one set of a kept exercise, or under 60 s between two sets for the same muscle.
   - When even the floor doesn't fit, the overview says "The shortest this session gets is N
     minutes" and offers that.
   - Pairs into threes is left for later: `work_order` and the rests only know pairs (ADR-0065).
