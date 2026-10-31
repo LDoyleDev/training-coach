@@ -384,7 +384,9 @@ it, except the starters, which live in `plan.toml` after it (ADR-0073).
    interested in conditions or diagnoses. People take responsibility for what they feel ready
    and able to do, and get medical advice if they need it. ADR-0083.
 7. **Safety questions:** whatever is appropriate in Europe, researched; and the app can't be
-   used outside Europe. ADR-0085.
+   used outside Europe. ADR-0085: ten questions in our own words, answered on the device, three
+   notes that never block; the EU and EEA only, in four layers. It supersedes B5.1 above and
+   ADR-0046's stored answers.
 8. **Starters:** S1, written "starting" versions (2- and 3-day). They live in `plan.toml` after
    builder step 5 (ADR-0073).
 9. **Order:** as suggested, with T1 next, alongside step 5.

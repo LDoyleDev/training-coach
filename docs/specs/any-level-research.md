@@ -1225,3 +1225,606 @@ That minimum does **not** cover the 150 min of aerobic activity. The app should 
 - No UX research on how to phrase time questions.
 - Rikli & Jones 1999/2013 tables, Araújo SRT norms and CSEP push-up tables were not retrieved in primary form.
 - App behaviour comes from help pages and reviews, not hands-on inspection.
+
+## Part 4: Europe: safety questions, the law, and keeping the app in Europe
+
+Researched 31 Oct 2026 for ADR-0085. Not legal or medical advice: the legal parts are a briefing
+for a lawyer, the medical parts for a clinician.
+
+How to read the marks:
+
+- **[full]**: I read the whole primary text, or the whole relevant section of it.
+- **[part]**: I read the primary text, but only the sections named.
+- **[abstract]**: abstract or official summary only.
+- **[secondary]**: a law firm, review or search summary describing the source; not checked
+  against the original.
+- **(derived)**: my inference, not something a source says.
+
+
+### Recommendation
+
+#### 1. Safety questions: what Europe expects
+
+1. **There is no single European pre-exercise form.** Europe's bodies do not prescribe one.
+   - The ESC 2020 guideline asks for "a self-assessment relating to symptoms" plus a
+     cardiovascular risk score, then medical checks only for sedentary or high-risk people
+     who plan high-intensity exercise.
+   - Germany's DGSP 2024 guideline is a doctor's examination before intense sport, not a
+     questionnaire. It has a recorded dissent from the GPs' society (DEGAM): offering exams
+     widely could put people off moving.
+   - The UK consensus (Reid 2022, with FSEM and Sport England) and WHO 2020 say routine medical
+     clearance is unnecessary if people build up gradually. People should seek advice when they
+     have symptoms.
+   - PAR-Q (old version) is common in gyms in the UK and Germany. PAR-Q+ is the international
+     research standard, but no European body adopts it as its standard (not confirmed for
+     EuropeActive; see Gaps).
+2. **Keep our own questions; don't embed PAR-Q+.** Its terms need prior written permission to put
+   it in an app or website, even unedited, and they allow fees. Linking to the official page and
+   to the official German PDF on eparmedx.com is fine (derived: a link copies nothing).
+   Translations exist in German, Spanish and Turkish (plus North-American French). Dutch,
+   Finnish, Greek, Norwegian and Slovenian are in progress. There is no Italian, Polish or
+   European Portuguese version.
+3. **Ask 10 yes-or-no questions, in our own words** (the table in Evidence 1.9 traces each one):
+   1. In the last 3 months, have you done planned exercise that made you breathe harder, on at
+      least 3 days in most weeks?
+   2. Are you 35 or older?
+   3. Has a doctor told you that you have a heart condition, or have you had a heart attack, a
+      stent, heart surgery or a stroke?
+   4. Do you have diabetes or kidney disease?
+   5. Has a doctor told you that your blood pressure is high and not yet under control?
+   6. In the last month, have you had pain, pressure or tightness in your chest, neck, jaw or
+      arms, at rest or when active?
+   7. Do you get unusually out of breath, or feel your heart racing or beating irregularly, with
+      light effort such as walking or one flight of stairs?
+   8. In the last 12 months, have you fainted, or fallen because you felt dizzy?
+   9. Has a doctor told you to exercise only under supervision, or not to exercise for now?
+   10. Are you pregnant, or have you had a baby in the last 6 months?
+
+   "Not sure" counts as yes (derived).
+4. **Show one of three notes.** The person can always continue, and no note blocks anything
+   (ADR-0046):
+   - **A. "Talk to a doctor before you start."** For a yes to 6, 7, 8 or 9. For 10, the note
+     says "your midwife or doctor".
+   - **B. "Start easy, and ask a doctor before hard sessions."** For a yes to 3, 4 or 5 with no
+     symptoms, or for no to 1 and yes to 2.
+   - **C. "Start easy and build up."** Everyone else.
+
+   Every note also shows the stop signs, says "if your health changes, answer again", and
+   offers the questions again after 12 months.
+5. **Words to avoid:** "cleared", "safe for you", "risk score", "screening result" and
+   "medical clearance". Use "we suggest" and "you decide". Don't show a SCORE2 or other risk
+   calculation (see 2a).
+
+#### 2. Law
+
+**(a) Medical device (MDR 2017/745, MDCG 2019-11 rev.1, June 2025).**
+
+- MDCG 2019-11 says plainly that "wellness or fitness apps, do not qualify as MDSW". What
+  decides it is the **intended purpose the maker states**, in the app, the documentation and
+  the marketing.
+- The line is crossed by software that acts on one person's data for "diagnosis, prevention,
+  monitoring, prediction, prognosis, treatment or alleviation of disease". Examples:
+  - a heart-risk score;
+  - "you're cleared" or "you're at risk";
+  - analysing heart rate to warn of illness (MDCG names "preventing the risk of illnesses by
+    analysing physiological parameters" as class IIa);
+  - exercise plans adapted to a declared disease (derived: that is treatment or alleviation).
+- To stay a fitness app:
+  1. Publish an intended-purpose statement (draft in Evidence 2.1).
+  2. Give the same three generic notes to anyone, drawn from public guidance. They point to a
+     doctor and never judge the person.
+  3. Keep "keep me off the floor" and similar as preferences without reasons.
+  4. Turn Part D of the research doc (adaptations by disease: diabetes, retinopathy,
+     osteoporosis and the like) into neutral preferences, or drop it (derived).
+  5. Label the heart-rate switch "Use the talk test instead of heart-rate zones", not "I take
+     beta-blockers".
+  6. Make no disease claims in marketing, for example "lowers blood pressure" or "for
+     arthritis" (derived; the German HWG may also apply to such claims).
+
+**(b) GDPR Art. 9.**
+
+- **Answers checked only in the browser, never sent and not kept**, is the strongest design:
+  - nothing reaches the Pi, Cloudflare (which decrypts traffic), the logs or the backups;
+  - there is nothing to breach, export or erase.
+- It does not settle **for certain** that the UG isn't a controller. The CJEU holds that a
+  controller need not have access to the data (Wirtschaftsakademie C-210/16, Jehovan todistajat
+  C-25/17), and the UG writes the questions and the logic. Some industry bodies argue that no
+  controller processes purely local data. This is unsettled, so the lawyer should decide.
+  Until then, say in the privacy notice that the answers are checked on the device and never
+  sent (derived).
+- **Sending but not storing is still processing** (Art. 4(2) lists collection, use and
+  transmission). It would need explicit consent under Art. 9(2)(a), and the answers would pass
+  through Cloudflare in the clear.
+- **Even the note is health data if stored on the server.** Note A or B lets someone infer a
+  health problem, and the CJEU reads health data broadly, including inference (Lindenapotheke
+  C-21/23, 2024).
+- So:
+  - keep the note only on the device, if at all;
+  - store on the server at most "questions answered on <date>, version N" (derived: this
+    reveals nothing about health);
+  - show the hard-day reminder to everyone in a generic form.
+- **This conflicts with ADR-0046**, which is accepted and stores the answers in
+  `readiness_answers` as consented health data. The B5 draft says the answers aren't stored.
+  One of them has to give way, through a new ADR that supersedes 0046.
+
+**(c) Liability.**
+
+- An EU or German consumer app **cannot exclude or limit liability for death or personal
+  injury caused by its own negligence**:
+  - Directive 93/13 Annex 1(a);
+  - BGB §309 Nr. 7a (void in standard terms, including slight negligence);
+  - §309 Nr. 7b for gross negligence and intent on other damage.
+- Tort liability (§823 BGB) exists anyway.
+- From **9 Dec 2026** the new Product Liability Directive (EU) 2024/2853 makes software a
+  product. Strict liability for defects causing injury then "cannot be limited or excluded by
+  contract" [secondary].
+- **What works:**
+  - an honest description of the service ("general exercise suggestions; it doesn't examine
+    you");
+  - clear warnings and stop signs;
+  - "you decide what you do".
+
+  These are information, not exclusions. They also support contributory fault (§254 BGB,
+  derived).
+- **What is void:** "no liability for any injury", "at your own risk" used as an exclusion,
+  "you waive all claims", "by continuing you confirm you are healthy".
+- Wording to use, and to avoid: Evidence 2.3.
+
+#### 3. "Can't be used outside Europe"
+
+1. **Define it as the EU and EEA:** 27 EU countries plus Iceland, Liechtenstein and Norway, and
+   the EU territories that have their own country codes.
+   - The full list of 37 codes: AT BE BG HR CY CZ DK EE FI FR DE GR IE IT LV LT LU MT NL PL PT
+     RO SK SI ES SE, plus IS LI NO, plus AX GF GP MQ RE YT MF (derived; Greece is `GR`, not
+     `EL`).
+   - Reasons: GDPR, MDR and the Geo-blocking Regulation all apply across the EEA. The
+     Geo-blocking Regulation was taken into the EEA Agreement in 2019, so refusing Norway while
+     serving Germany risks breaching it (derived).
+   - **Leave out the UK and Switzerland for now.** Each adds a local representative for
+     health-data processing and its own device regime (from memory, not re-read). They can be
+     added later.
+   - **Never use the continent code.** Cloudflare's `EU` means Europe the continent, not the
+     European Union. The brief says it includes Russia and Belarus; I couldn't confirm the list.
+   - **The EU-membership field is no good either.** `ip.src.is_in_european_union` needs the
+     Business plan, and it would leave out the EEA.
+2. **Geo-blocking Regulation 2018/302 doesn't stop this.** It protects "customers": EU or EEA
+   nationals or residents seeking a service "within the Union". It doesn't apply to people
+   elsewhere. What it does forbid is serving only Germany, or refusing some EU or EEA
+   countries.
+3. **Enforce it in four layers.** Full detail is in Evidence 3.4.
+   - **L1. Cloudflare WAF, one free custom rule** (Free allows 5). Block when
+     `not ip.src.country in {…37 codes…}`, except the machine paths `/mcp`, `/oauth/token`,
+     `/oauth/register` and `/.well-known/oauth-*`. Claude's MCP calls come from Anthropic's
+     egress in the US (`160.79.104.0/21`, ADR-0054). Keep `/oauth/authorize` and `/connect`
+     inside the rule, so connecting an AI needs a visit from Europe. Tor (`T1`) and unknown
+     (`XX`) are blocked because they aren't on the list.
+   - **L2. The app reads `CF-IPCountry`.** It trusts the header only from
+     `TC_TRUSTED_PROXIES`, as it does `CF-Connecting-IP`. Browser routes outside the list get
+     the app's own page, "Unavailable in your region", with status 451. This also covers
+     sign-up and sign-in if the WAF rule is ever off.
+   - **L3. Sign-up asks for the country of residence.** The list holds the 37 entries plus
+     "Somewhere else", which is refused. The terms say the service is for people living in the
+     EU or EEA. Store the country; it isn't health data.
+   - **L4. A "last seen in Europe" date on the account,** set by any web request from the
+     list. The Telegram bot and the MCP endpoint serve an account only if that date is within
+     30 days (derived; the number is a choice). They can't see a location themselves: the bot
+     uses long polling, so no IP reaches the app.
+4. **A member who travels outside Europe:** the website shows the 451 page there. The bot and
+   the connected AI keep working until 30 days after the last visit from Europe, then pause
+   until the next one. Tell people to export before a long trip.
+   - The simpler option, cutting off the bot and AI at once, isn't possible, because neither
+     shows where the person is.
+   - A VPN beats every layer. Cloudflare itself says IP location shouldn't be the only signal
+     for compliance; the residence declaration and the terms are the other signals.
+
+#### Things to decide (my suggestions in brackets)
+
+1. ADR-0046 stores the answers, but B5 says they aren't stored. [Supersede 0046: browser-only
+   answers, nothing on the server but the date and version.]
+2. Part D condition-based adaptations in the research doc. [Recast them as neutral preferences,
+   or drop them; they are the main medical-device risk.]
+3. The UK and Switzerland. [Not at launch.]
+4. The travel window for the bot and MCP. [30 days.]
+5. Whether to ask PAR-Q+ for permission to show the German PAR-Q+ inside the app. [No; link out.]
+6. A clinician to check the question and note wording, and a lawyer to check 2a, 2b and 2c.
+
+
+### Evidence
+
+#### 1. Screening in Europe
+
+**1.1 ESC 2020 Guidelines on sports cardiology and exercise in patients with CVD** (Pelliccia
+et al., Eur Heart J 2021;42:17-96). [full]: the sections on healthy individuals over 35,
+obesity, risk factors and ageing, read from the PDF text.
+
+- They are still the current ESC guideline. I found no 2025 or 2026 replacement, and the ESC
+  sports-cardiology page still teaches the 2020 version [secondary].
+- Section 4.2: "Preliminary evaluation should consist of a self-assessment relating to symptoms
+  and calculation of SCORE." Habitually active people at low or moderate risk "should not have
+  any restrictions".
+- Also 4.2: "Sedentary individuals and individuals at high or very high risk may engage in
+  low-intensity exercise without further evaluation."
+- Sedentary or high-risk people planning high-intensity exercise (and selected people planning
+  moderate) should have an examination, a 12-lead ECG and an exercise test. "All individuals
+  should, however, be thoroughly informed that development of symptoms during exercise should
+  prompt reassessment."
+- Recommendations for healthy individuals over 35:
+  - low-to-moderate-risk people may take part in all recreational sport without further
+    evaluation (IIa C);
+  - "Clinical evaluation, including maximal exercise testing, should be considered" for
+    sedentary or high-risk people planning intensive programmes (IIa C).
+- Obesity: a check before high-intensity exercise; with a normal check, "no restrictions".
+- Hypertension: with SBP above 160 mmHg, "high-intensity exercise is not recommended until blood
+  pressure has been controlled" (III C).
+- Section 4.3.2, ageing: "Moderate-intensity exercise is generally safe for older healthy people
+  and medical consultation before starting or progressing the level of exercise programme is not
+  usually required."
+  - The EAPC "recommends self-assessment by a brief questionnaire to determine the need for
+    advice from health professionals, but this approach has not been tested prospectively".
+  - "Risks are highest during the first few weeks of beginning vigorous exercise; therefore both
+    exercise intensity and duration should be increased gently (for example, every 4 weeks)."
+- Section 3.7, older athletes: routine exercise testing of asymptomatic adults is not
+  recommended. Testing is for people with symptoms, or at high risk on SCORE.
+- Link: https://academic.oup.com/eurheartj/article/42/1/17/5898937 (copy read:
+  https://sbkf.barnlakarforeningen.se/wp-content/uploads/sites/17/2023/04/ESCguide-sport-2020.pdf)
+
+**1.2 EACPR (now EAPC) position stand on middle-aged and senior leisure-time sport** (Borjesson
+et al., Eur J Cardiovasc Prev Rehabil 2011;18:446-58). [abstract], plus [secondary].
+
+- The evaluation should vary with the person's risk and the intended activity. "Self assessment
+  of the habitual physical activity level and of the risk factors" is recommended for large
+  populations, and people at risk go on to a physician.
+- Secondary sources say the questionnaire is a short form adapted from the AHA/ACSM 1998
+  questionnaire (Balady), and that a Canadian review names "PAR-Q+ or AHA/ACSM questionnaires".
+  I couldn't read the item list.
+- Links: https://pubmed.ncbi.nlm.nih.gov/21450560/ ;
+  https://bcmj.org/articles/cardiovascular-pre-participation-screening-and-risk-assessment-masters-athlete
+  [secondary]; https://www.tandfonline.com/doi/full/10.1080/14017431.2024.2418089 (blocked;
+  described only through search) [secondary].
+- The ESC 2020 reference 81 is Mont et al. 2017, the EHRA/EACPR position paper on athletic
+  participants. I didn't read it.
+
+**1.3 Germany: DGSP S2k guideline "Sportmedizinische Vorsorgeuntersuchung"** (AWMF 066-002,
+April 2024; English version Joisten et al., Sports Med 2025;55:1827-51). [part]: recommendations
+1-8 and the algorithm.
+
+- **Rec 1** (moderate, 85% consensus): "A PPE should be offered to adults practicing or intending
+  to start sports."
+  - **DEGAM dissent:** a "should" could "discourage individuals from starting or maintaining
+    physical activity", it costs staff time, and the evidence is insufficient.
+  - The guideline also says "The idea that every sporting activity entails increased risks should
+    be avoided."
+- **Rec 2** (100%): "A PPE should be conducted when starting an intense sport or exercise
+  program." It notes that the Canadian Academy of Sport and Exercise Medicine, endorsed by many
+  bodies, sees no exam as necessary before light-to-moderate activity.
+- **Rec 8** (strong): a validated risk score (Arriba, SCORE2) from age 35, used by the physician.
+- **Rec 3:** repeat every 1-5 years, depending on risk and intensity.
+- The algorithm is physician-led: history, examination, abnormal or normal. The guideline names
+  no lay questionnaire and doesn't mention PAR-Q.
+- Links: https://edoc.hu-berlin.de/items/802d40df-c976-4a76-80d4-b3da25623d2c/full ;
+  https://register.awmf.org/de/leitlinien/detail/066-002 (blocked to me).
+
+**1.4 DGSP "GesundheitsCheck / Einstiegsfragebogen für Sporttreibende"** (preliminary version,
+03/2002; a copy hosted by Klinikum Gütersloh). [full]
+
+- Its header says it is based on PAR-Q, "Empfohlen von American Heart Association und American
+  College of Sports Medicine".
+- Seven questions: heart problems with sport only under medical control; chest pain in the last
+  month; breathing problems; falls from dizziness or loss of consciousness; bone or joint
+  problems; medication for blood pressure, heart or breathing; any other reason.
+- Any yes: see a doctor first. All no: start slowly and build up. Wait if ill or pregnant.
+- Over 60: see a doctor in any case. That is more cautious than ESC 2020 and is now dated
+  (derived).
+- It ends: "Die DGSP übernimmt keine Verantwortung für den Einsatz des Fragebogens…"
+- Repeat every 2-3 years, or after a break from sport of more than 6 months.
+- Link:
+  https://www.klinikum-guetersloh.de/fileadmin/04_hauptseite/02_Medizinische_Zentren/Sportmedizinisches_Zentrum/eingangsfragebogen.pdf
+- German clubs and the DOSB "Sport pro Gesundheit" programme circulate PAR-Q-based forms
+  [secondary, via search].
+
+**1.5 UK.**
+
+- **Reid et al. 2022**, "Benefits outweigh the risks" (BJSM; Delphi of 28 experts; FSEM, Sport
+  England, RCGP). [full]
+  - "Evidence does not support routine preparticipation medical clearance for people with
+    stable LTCs if they build up gradually from their current level. The need for medical
+    guidance, as opposed to clearance, should be determined by individuals with specific
+    concerns about active symptoms."
+  - Stop and seek review for: "a dramatic increase in breathlessness, new or worsening chest
+    pain…, a sudden onset of rapid palpitations or irregular heartbeat, dizziness, a reduction in
+    exercise capacity or sudden change in vision."
+  - The authors support WHO that routine screening of people with long-term conditions is
+    unnecessary. They challenge clearance requirements as "an unnecessary barrier".
+  - Link: https://storre.stir.ac.uk/bitstream/1893/33537/1/427.full.pdf
+- **NHS, older adults page** (reviewed Aug 2024). [full]: "Speak to a GP first if you have not
+  exercised for some time, or if you have medical conditions or concerns." This is more cautious
+  than the consensus.
+  https://www.nhs.uk/live-well/exercise/physical-activity-guidelines-older-adults/
+- **CIMSPA gym induction guidance (2023)** still lists the PAR-Q as a standard step [secondary].
+  https://memberonly.cimspa.co.uk/wp-content/uploads/2025/08/dry-fitness_user-induction-considerations_march-2023-2.pdf
+- **UK CMO guidelines 2019:** the PDF download failed, so not read.
+
+**1.6 Ireland.** HSE "Every Move Counts" (2024) and its chronic-conditions guidelines: the
+downloads were refused (403), so not read. See Gaps.
+
+**1.7 WHO 2020.** As quoted in Reid 2022 [secondary]: "Medical clearance is generally
+unnecessary, provided the amount and intensity of physical activity are increased gradually."
+People with new symptoms should consult a healthcare provider.
+
+**1.8 PAR-Q+.**
+
+- **Terms** (eparmedx.com Terms and Conditions). [full, via summary of the page]
+  - Prior written authorisation is needed to "incorporate protected materials into third-party
+    electronic surveys, mobile applications, websites, commercial software". Even minor
+    modifications are covered.
+  - The Collaboration may charge "reasonable licensing or service fees"; earlier free permission
+    creates no entitlement.
+  - No one may claim endorsement. The contact is eparmedx@gmail.com.
+  - Nothing restricts linking. Link: https://eparmedx.com/about/terms-and-conditions/
+- **Translations.** [full]: Brazilian Portuguese, Chinese, English (official), French (North
+  America official), German, Gujarati, Malay, Spanish, Turkish, Vietnamese.
+  - In progress: Dutch, Finnish, Greek, Norwegian, Slovenian and others.
+  - "All translations must be approved by the PAR-Q+ Collaboration."
+  - German PDF: https://eparmedx.com/wp-content/uploads/2025/05/PARQGerman.pdf. A German
+    cross-cultural adaptation was published in 2024 (Thieme, doi 10.1055/a-2283-7569)
+    [secondary].
+  - Link: https://eparmedx.com/print-versions-of-par-q/languages/
+- **Is it the de facto European standard?** No (derived).
+  - ESC uses symptoms plus SCORE. The EAPC used an AHA/ACSM-type short questionnaire. DGSP
+    relies on a physician's examination, and its lay form is the 2002 PAR-Q adaptation.
+  - The gym sector in the UK and Germany uses the old PAR-Q.
+  - PAR-Q+ is widely cited and translated, but I found no European body naming it as its
+    standard.
+
+**1.9 The proposed questions, traced.**
+
+| # | Question (our words) | Why | Sources |
+| --- | --- | --- | --- |
+| 1 | Planned exercise that made you breathe harder, 3+ days most weeks, last 3 months? | Separates the active from the sedentary; drives note B for hard sessions | ACSM 2015 "exerciser" definition (repo research, Part 2); ESC 2020 4.2 "habitually active" or "sedentary" |
+| 2 | 35 or older? | ESC's algorithm and DGSP's risk score start at 35 | ESC 2020 Fig. 4; DGSP Rec 8 |
+| 3 | Heart condition, heart attack, stent, heart surgery or stroke? | Known disease | ESC 2020 (known CVD = high risk); ACSM 2015; DGSP 2002 Q1 |
+| 4 | Diabetes or kidney disease? | Known metabolic or renal disease | ACSM 2015; ESC 2020 Table 5 (diabetes) |
+| 5 | Blood pressure high and not yet under control? | ESC class III for high intensity above 160 | ESC 2020 (III C); PAR-Q+ (160/90 triggers follow-up) |
+| 6 | Chest, neck, jaw or arm pain, pressure or tightness, last month? | Symptom | ESC 2020 self-assessment of symptoms; ACSM symptom list; DGSP 2002 Q2; Reid 2022 |
+| 7 | Unusually out of breath, or racing or irregular heartbeat, on light effort? | Symptom | ACSM list; Reid 2022; DGSP 2002 Q3 |
+| 8 | Fainted, or fallen from dizziness, last 12 months? | Symptom | ACSM list; DGSP 2002 Q4; PAR-Q+ topic |
+| 9 | Told by a doctor to exercise only under supervision, or not for now? | A doctor's instruction | PAR-Q+ topic; DGSP 2002 Q1 |
+| 10 | Pregnant, or had a baby in the last 6 months? | A different programme | PAR-Q+ and DGSP 2002 ("wait, talk to your doctor"); WHO 2020 covers the postpartum period (the 6 months is derived) |
+
+Bone or joint problems, and short illnesses, go in the note text, not in a question. Wording:
+"If you have a fever or feel ill, wait. If a joint gets worse with a movement, choose an easier
+step or one of the preferences." Sources: PAR-Q+ and DGSP 2002 "warten Sie", the repo research
+item 27 (derived placement).
+
+**Notes, traced:**
+
+- **A:** symptoms → "talk to a doctor". Sources: ESC 2020 (symptoms get tested, and symptoms
+  "should prompt reassessment"); ACSM 2015; Reid 2022 (guidance for active symptoms); DGSP 2002.
+- **B:** known disease, uncontrolled blood pressure, or inactive and 35+ → "start easy; doctor
+  before hard sessions". Sources: ESC 2020 4.2 (low intensity needs no evaluation; high intensity
+  does, IIa C); DGSP Rec 2 (an exam before intense programmes); Reid 2022 (stable conditions
+  need no clearance if built up gradually).
+- **C:** "Start easy and build up". Sources: ESC 2020 4.3.2 ("not usually required"; increase
+  about every 4 weeks); WHO 2020.
+- **Re-asking:** 12 months, from the PAR-Q+ validity in the repo research. DGSP gives 1-5 years
+  (Rec 3) and 2-3 years (2002 form); 12 months is the cautious end.
+
+#### 2. Law
+
+**2.1 MDR and MDCG.**
+
+- **MDCG 2019-11 rev.1** (June 2025). [part]: sections 3.1-3.3, the decision steps and the
+  Rule 11 text.
+  - "software only intended for non-medical purposes … such as … wellness or fitness apps, do
+    not qualify as MDSW."
+  - Qualification turns on the intended purpose "as described by the manufacturer". The
+    intended purpose comes from "the label, … instructions for use or … promotional or sales
+    materials or statements".
+  - Decision step 4 asks whether the action is "for the benefit of individual patients". It
+    excludes "generic diagnostic or treatment pathways (not directed to individual patients)".
+  - Risk of harm "is not a criterion on whether the software qualifies".
+  - Under Rule 11: "a device intended to prevent the risk of illnesses or pathologies by
+    analysing physiological parameters … is in class IIa."
+  - The medical purposes include "diagnosis, prevention, monitoring, prediction, prognosis,
+    treatment or alleviation of disease".
+  - Link:
+    https://health.ec.europa.eu/document/download/b45335c5-1679-4c71-a91c-fc7a4d37f12b_en?filename=mdcg_2019_11_en.pdf
+- **Borderline and Classification Manual v5** (2026): searched in full; it has no fitness or
+  wellness app example. Link:
+  https://health.ec.europa.eu/document/download/71a87df8-5ca1-4555-b453-b65bdf8de909_en?filename=md_borderline_manual_en.pdf
+- **BfArM's orientation on medical apps:** health promotion, wellness and fitness are lifestyle;
+  diagnosis, therapy and monitoring are medical [secondary, 2016-17 summaries].
+- **Draft intended-purpose statement** (derived): "Training Coach is a general fitness app for
+  adults. It suggests exercises and sessions from the person's own choices, preferences and
+  logged training. It is not intended to diagnose, prevent, monitor, predict, treat or alleviate
+  any disease or injury, and it does not assess anyone's health or whether they are fit to
+  exercise. Its safety questions and stop signs repeat public health advice and suggest when to
+  ask a doctor; the person decides."
+- **What would tip it into a device** (derived from the above):
+  - risk scores (SCORE2), "cleared" or "not cleared", or "your heart risk";
+  - warnings drawn from heart-rate or band data that suggest illness;
+  - programmes or exercise changes keyed to a declared disease (research doc Part D, items
+    19-25), for example hiding lifts because of retinopathy, or hypoglycaemia prompts because of
+    insulin;
+  - claims such as "rehab" or "for arthritis".
+- **What keeps it a fitness app:**
+  - the same generic notes for everyone;
+  - preferences without reasons;
+  - the talk test as a neutral option;
+  - stop signs as general public-health text (generic, not individual: decision step 4).
+
+**2.2 GDPR.**
+
+- **Art. 4(2)** defines processing broadly, including "collection … use, disclosure by
+  transmission … erasure" (well known; I didn't re-read it). Sending the answers and dropping
+  them is still processing, and health data needs Art. 9(2)(a) explicit consent. Here they would
+  also pass through Cloudflare, which terminates TLS (derived from the setup).
+- **Controller without access:** the CJEU in Wirtschaftsakademie C-210/16 and Jehovan todistajat
+  C-25/17 [secondary]. Joint responsibility "does not require each of them to have access to the
+  personal data". That leaves room to argue the UG is a controller even of browser-only
+  processing, since it designs it.
+- **The other view:** DIGITALEUROPE, in its response to the EDPB connected-vehicles guidelines
+  1/2020, argued that purely local processing is outside the GDPR because "no controller or
+  processor is actually processing the data" [secondary]. The EDPB itself prefers local
+  processing and put purely personal in-car use under the household exemption [secondary].
+- **Health data by inference:** Lindenapotheke C-21/23 (4 Oct 2024) holds that it is enough that
+  health "can be inferred … by means of a mental combination or deduction" [secondary]. So a
+  stored note A or B is health data, and so is a switch labelled "I take beta-blockers"
+  (derived).
+- **Practical design** (derived):
+  - compute in the browser, hold the answers in memory only, and don't put them in a URL;
+  - no analytics or error reporting that captures form state;
+  - optionally keep the note number in the device's localStorage. That is "strictly necessary"
+    storage for a service the person asked for, so it is exempt from the consent rule in
+    §25(2) TDDDG (derived; not re-read).
+  - the server keeps only the date and version.
+  - Don't ask the questions over Telegram: that would send them to Telegram and to the server.
+- Links: https://curia.europa.eu/jcms/upload/docs/application/pdf/2024-10/cp240159en.pdf (press
+  release, not read); https://fpf.org/blog/edpb-draft-guidelines-on-connected-cars-focus-on-data-protection-by-design-and-push-for-consent/
+  [secondary].
+
+**2.3 Liability.**
+
+- **Directive 93/13 Annex 1(a):** an indicatively unfair term is one "excluding or limiting the
+  legal liability of a seller or supplier in the event of the death of a consumer" or personal
+  injury caused by them. [full for that point]
+  https://www.legislation.gov.uk/eudr/1993/13/annex
+- **BGB §309 Nr. 7a:** standard terms are void if they exclude or limit liability "für Schäden
+  aus der Verletzung des Lebens, des Körpers oder der Gesundheit, die auf einer fahrlässigen
+  Pflichtverletzung des Verwenders … beruhen". **7b** covers gross negligence for other damage.
+  [full] https://www.gesetze-im-internet.de/bgb/__309.html
+- **PLD 2024/2853:**
+  - software is a product "irrespective of how it is supplied", including SaaS;
+  - it covers personal injury, including medically recognised psychological harm;
+  - liability "cannot be limited or excluded by contract";
+  - instructions are part of what makes a product defective or not, but warnings can't cure a
+    defect;
+  - it applies to products placed on the market after 9 Dec 2026;
+  - free and open-source software supplied outside commercial activity is excluded.
+
+  [secondary: CMS] https://cms.law/en/int/publication/the-new-eu-product-liability-directive-eu-2024-2853
+- **Acceptable wording** (derived; for the lawyer):
+  - "Training Coach suggests exercises. It can't see you or examine you, and it doesn't know
+    your health. You decide what you do, how hard, and when to stop."
+  - "If you have a health condition, symptoms, or doubts, ask a doctor before you start or
+    before hard sessions."
+  - "Stop and get help if… (stop signs). Call 112 if it doesn't settle."
+  - "These settings are your preferences. We don't ask why, and they don't tell us anything
+    about your health."
+  - A German-style liability clause in the terms: unlimited for intent, gross negligence, and
+    injury to life, body or health; for slight negligence otherwise, only for essential
+    obligations, capped at typical foreseeable damage. This is the usual form that survives
+    §§307 and 309; I didn't re-read the case law.
+- **Void or risky wording:**
+  - "We accept no liability for injury."
+  - "You use the app entirely at your own risk" (as an exclusion).
+  - "You release the UG from all claims."
+  - "By continuing you confirm you are healthy, or have seen a doctor."
+  - "Medically cleared", or any "clearance" (this also invites the MDR).
+- DGSP's own 2002 form disclaims responsibility. That is a professional body's information
+  sheet, not consumer terms, so it is no precedent for the app (derived).
+
+#### 3. Europe only
+
+**3.1 Cloudflare.**
+
+- **WAF custom rules:** Free 5, Pro 20, Business 100. Free supports every action except Log, and
+  has no regex. [full] https://developers.cloudflare.com/waf/custom-rules/
+- **Allow-list example:** `(not ip.src.country in {"US" "MX"})` with action Block. [full]
+  https://developers.cloudflare.com/waf/custom-rules/use-cases/allow-traffic-from-specific-countries/
+- **`ip.src.country`:** an ISO 3166-1 alpha-2 code. [full]
+  https://developers.cloudflare.com/ruleset-engine/rules-language/fields/reference/ip.src.country/
+- **`ip.src.continent`:** "EU" means Europe; the codes are AF AN AS EU NA OC SA and T1 (Tor).
+  [full] The page doesn't list which countries fall under EU; the claim that Russia and Belarus
+  are included comes from the brief.
+  https://developers.cloudflare.com/ruleset-engine/rules-language/fields/reference/ip.src.continent/
+- **`ip.src.is_in_european_union`:** "Requires a Cloudflare Business or Enterprise plan."
+  [full]
+  https://developers.cloudflare.com/ruleset-engine/rules-language/fields/reference/ip.src.is_in_european_union/
+- **Country blocking:** blocking a country through IP Access rules is Enterprise-only; other
+  plans use custom rules [secondary, via search]. https://developers.cloudflare.com/waf/tools/ip-access-rules/
+- **`CF-IPCountry`:** `XX` means no data and `T1` means Tor. It is sent with IP Geolocation on
+  (all plans) or with the "Add visitor location headers" Managed Transform. [full]
+  https://developers.cloudflare.com/fundamentals/reference/http-headers/ ;
+  https://developers.cloudflare.com/rules/transform/managed-transforms/reference/
+- **Accuracy:** for "compliance-critical" uses, don't rely on IP location alone. The database is
+  updated several times a week, with no accuracy SLA. [full]
+  https://developers.cloudflare.com/network/ip-geolocation/
+
+**3.2 The repo facts used.**
+
+- The app sits behind a Cloudflare Tunnel, with the port published on 127.0.0.1.
+  `CF-Connecting-IP` is believed only from `TC_TRUSTED_PROXIES` (threat model). Read
+  `CF-IPCountry` the same way.
+- The bot uses long polling (CLAUDE.md), so Telegram never calls in.
+- The MCP and OAuth routes in `backend/src/training_coach/api/oauth.py`:
+  - machine-called: `/mcp`, `/oauth/register`, `/oauth/token`,
+    `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`;
+  - reached in the browser: `/oauth/authorize`, which redirects to `/connect`.
+- Anthropic's egress is `160.79.104.0/21` (ADR-0054). `docs/runbooks/connect-my-ai.md` already
+  warns that a WAF rule must not block it.
+
+**3.3 Geo-blocking Regulation 2018/302.** [full, Articles 1-4 as adopted]
+
+- "customer" means "a consumer who is a national of, or has his or her place of residence in, a
+  Member State … and receives a service … or seeks to do so, within the Union".
+- Art. 3(1): no blocking "for reasons related to the customer's nationality, place of residence
+  or place of establishment".
+- Art. 1(2): purely internal situations are excluded.
+- Art. 4(4): VAT-exempt small traders are excluded from 4(1)(b) only.
+- Therefore (derived):
+  - blocking people outside the EU or EEA is outside its scope;
+  - serving only some member states is not;
+  - a resident travelling abroad isn't "seeking … within the Union".
+- "Service" means one "normally provided for remuneration" (Art. 2(17)). If the app stays free,
+  whether the Regulation applies at all is a lawyer's question.
+- EEA: Joint Committee Decision 311/2019 took it into the EEA Agreement [secondary, via search].
+- Link: https://www.legislation.gov.uk/eur/2018/302/pdfs/eur_20180302_adopted_en.pdf
+
+**3.4 The rule, written out** (derived; not tested):
+
+```
+(not ip.src.country in {"AT" "BE" "BG" "HR" "CY" "CZ" "DK" "EE" "FI" "FR" "DE" "GR" "IE" "IT"
+ "LV" "LT" "LU" "MT" "NL" "PL" "PT" "RO" "SK" "SI" "ES" "SE" "IS" "LI" "NO"
+ "AX" "GF" "GP" "MQ" "RE" "YT" "MF"}
+ and not http.request.uri.path in {"/mcp" "/oauth/token" "/oauth/register"
+   "/.well-known/oauth-protected-resource" "/.well-known/oauth-authorization-server"}
+ and not starts_with(http.request.uri.path, "/.well-known/oauth-protected-resource/"))
+→ Block
+```
+
+- Check that the path set and `starts_with` are available on Free, and how many of the 5 slots
+  are in use (I couldn't see the account).
+- The rate limit on `/api/auth/*` is a separate rate-limiting rule (derived).
+
+
+### Gaps
+
+- **EuropeActive / EREPS:** I found no primary text on what their standards require for
+  pre-exercise screening (only book contents and a training provider's pages). Not confirmed
+  whether they name PAR-Q or PAR-Q+.
+- **Ireland:** the HSE "Every Move Counts" and chronic-conditions PDFs were blocked (403).
+  Irish practice is unconfirmed.
+- **UK CMO 2019:** the PDF wasn't retrieved.
+- **EAPC 2011 (Borjesson):** abstract only; I couldn't read the questionnaire items. Mont et al.
+  2017 (EHRA/EACPR) not read.
+- **DGSP S2k:** read recommendations 1-8 only, not 9-20. The AWMF site blocked me; I read the
+  English version on a university repository.
+- **ESC Table 6** (risks for older people) didn't extract from the PDF.
+- **Cloudflare:**
+  - not confirmed that `starts_with` and `in` with a path set work on Free;
+  - not confirmed which countries Cloudflare files under continent `EU`;
+  - not confirmed whether a custom block response page is available on Free.
+- **Article numbers:** the PLD figure "cannot be limited or excluded by contract" is from a law
+  firm's summary (sections on Articles 12-15). The exact article wasn't read; EUR-Lex refused
+  automated access.
+- **UK and Swiss representatives:** that each needs a local representative for health-data
+  processing is from memory (UK GDPR Art. 27; Swiss FADP Art. 14), not re-read.
+- **TDDDG §25(2):** the "strictly necessary" exemption for localStorage is from memory.
+- **Unsettled law:** whether browser-only processing makes the UG a controller. No regulator text
+  found; the lawyer should decide.
+- **Free app:** whether a free app is a "service" under the Geo-blocking Regulation, and under
+  93/13 and the PLD (commercial activity), depends on the UG's business model.
+- **ePARmed-X+ or PAR-Q+ online:** whether either is CE-marked as a device: not checked.
+- **Wording checks:** the questions and notes need a clinician's check, as B7 already says for the
+  stop signs.

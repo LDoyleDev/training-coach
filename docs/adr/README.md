@@ -50,7 +50,7 @@ Code). Template: [template.md](template.md).
 | [0043](0043-deploy-only-releases-github-signed.md) | The Pi deploys only releases GitHub signed | Accepted |
 | [0044](0044-erase-all-my-data.md) | Erasing all my data: delete the person, cascade, start fresh | Accepted |
 | [0045](0045-uptime-by-heartbeat.md) | Uptime monitoring by a heartbeat to Healthchecks.io | Accepted |
-| [0046](0046-readiness-questions.md) | Readiness questions that advise, not block | Accepted |
+| [0046](0046-readiness-questions.md) | Readiness questions that advise, not block | Accepted; stored answers superseded by 0085 |
 | [0047](0047-bring-your-own-ai.md) | Bring your own AI | Accepted |
 | [0048](0048-undo-the-last-change.md) | Undo the last change to the plan | Accepted |
 | [0049](0049-confirm-with-fingerprint.md) | Confirm it's you with your fingerprint, without signing out | Accepted |
@@ -89,3 +89,4 @@ Code). Template: [template.md](template.md).
 | [0082](0082-shorter-sessions-time-budget.md) | Shorter sessions: short on time today, and minutes per session | Accepted |
 | [0083](0083-levels-from-supported-and-preferences.md) | Every step has a level from "supported" up, with an open top, and four preferences | Accepted |
 | [0084](0084-short-days-last-set-and-stepping-down.md) | Progress on a shorter day, an as-many-as-you-can last set, and stepping down | Accepted |
+| [0085](0085-safety-questions-in-europe-and-europe-only.md) | Safety questions fit for Europe, answered on the device; the app serves the EU and EEA only | Accepted |
