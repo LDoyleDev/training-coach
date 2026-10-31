@@ -10,6 +10,7 @@ No country from a trusted proxy (local development, tests, a process on the Pi, 
 Cloudflare header) is let through, so the owner can't be locked out by a header that never came.
 """
 
+import re
 from collections.abc import Awaitable, Callable
 from ipaddress import ip_address, ip_network
 
@@ -24,9 +25,20 @@ log = structlog.get_logger(__name__)
 
 HEADER = "cf-ipcountry"
 UNAVAILABLE = "Not available in your region"
-# Called by machines, not browsers: an AI app's servers, and the Pi's own checks.
-EXEMPT = frozenset({"/mcp", "/oauth/token", "/oauth/register", "/healthz"})
-EXEMPT_PREFIX = "/.well-known/oauth-"
+# Called by machines, not browsers: an AI app's servers, and the Pi's own checks. Exact paths
+# only: a prefix would let "/.well-known/oauth-x/../../assets/" reach the static files.
+EXEMPT = frozenset(
+    {
+        "/mcp",
+        "/oauth/token",
+        "/oauth/register",
+        "/.well-known/oauth-protected-resource",
+        "/.well-known/oauth-protected-resource/mcp",
+        "/.well-known/oauth-authorization-server",
+        "/healthz",
+    }
+)
+CODE = re.compile(r"[A-Z0-9]{2}")
 NO_STORE = {"Cache-Control": "no-store"}
 ONLY_HERE = "Training Coach is only for people in the EU and EEA."
 # XX (no data) and T1 (Tor): say why, rather than leave the person guessing (ADR-0085).
@@ -49,7 +61,7 @@ def _page(why: str) -> str:
 
 
 def exempt(path: str) -> bool:
-    return path in EXEMPT or path.startswith(EXEMPT_PREFIX)
+    return path in EXEMPT
 
 
 def trusted_peer(request: Request, host: str) -> bool:
@@ -69,7 +81,7 @@ def visitor_country(request: Request) -> str | None:
     peer = request.client.host if request.client is not None else ""
     if not country or not trusted_peer(request, peer):
         return None
-    return country
+    return country if CODE.fullmatch(country) else "XX"  # not a code: as if unknown
 
 
 async def region_guard(
