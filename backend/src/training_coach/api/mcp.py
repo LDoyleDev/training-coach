@@ -70,8 +70,6 @@ def connection(request: Request) -> Access:
             "connect again",
             headers=_challenge(request, "invalid_token"),
         )
-    if away:
-        raise HTTPException(status.HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS, AWAY, NO_STORE)
     limits: RateLimit = request.app.state.connection_limits
     key, now = str(access.connection_id), time.monotonic()
     if not limits.allow(key, now):
@@ -80,6 +78,8 @@ def connection(request: Request) -> Access:
             "too many requests",
             headers={"Retry-After": str(limits.retry_after(key, now)), **NO_STORE},
         )
+    if away:  # after the limit, so a paused connection can't call without one
+        raise HTTPException(status.HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS, AWAY, NO_STORE)
     return access
 
 

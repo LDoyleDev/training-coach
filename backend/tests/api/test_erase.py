@@ -89,8 +89,8 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
         me = shared.get_one(User, OWNER)
         assert me.telegram_user_id == TELEGRAM  # the bot still knows me
         assert me.country is None  # asked again (ADR-0085)
-        # From this visit, so the bot and MCP keep serving after a fresh start.
-        assert datetime.now(UTC) - me.last_seen_in_europe < timedelta(minutes=1)
+        # Kept: an erase without a country mustn't restart the bot and MCP's 30 days.
+        assert me.last_seen_in_europe == datetime(2026, 1, 1, tzinfo=UTC)
     # A fresh start: the plan's first session and default settings, so everything still works.
     assert _count(engine, PlanState, OWNER) == 1
     assert _count(engine, UserSettings, OWNER) == 1

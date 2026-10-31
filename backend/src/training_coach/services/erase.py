@@ -21,13 +21,13 @@ def erase(session: Session, user_id: int, plan: PlanSeed) -> bool:
     user = session.get(User, user_id)
     if user is None:
         return False
-    telegram = user.telegram_user_id
+    telegram, seen = user.telegram_user_id, user.last_seen_in_europe
     session.delete(user)
     session.flush()  # the cascade runs here, in the database
     session.expunge_all()  # rows loaded before it are gone
-    # The country of residence goes with the rest (asked again); "last seen in Europe" starts
-    # now, from the website visit that erased it (ADR-0085), so the bot keeps answering.
-    session.add(User(id=user_id, telegram_user_id=telegram, country=None))
+    # The country of residence goes with the rest (asked again). "Last seen in Europe" is kept:
+    # an erase sent without a country (LAN, Tailscale) mustn't restart the 30 days (ADR-0085).
+    session.add(User(id=user_id, telegram_user_id=telegram, last_seen_in_europe=seen))
     session.flush()
     apply_seed(session, plan)
     # Nothing about what was there: only that it was erased, as the history starts again.

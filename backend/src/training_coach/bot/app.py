@@ -252,14 +252,18 @@ class Handlers:
             command = (update.message.text or "").split("@")[0].split(maxsplit=1)
             if command and command[0] in ANYWHERE:
                 return
-        if update.callback_query is not None:
-            await update.callback_query.answer()
-        if message is not None:
-            await message.reply_text(AWAY_TEXT)
+        try:
+            if update.callback_query is not None:
+                await update.callback_query.answer()
+            if message is not None:
+                await message.reply_text(AWAY_TEXT)
+        except TelegramError as exc:  # a stale button, the network: still nothing else runs
+            log.warning("bot.away_reply_failed", error=type(exc).__name__)
         raise ApplicationHandlerStop
 
     def unless_away(self, job: Job) -> Job:
-        """A scheduled message (morning, nudge, review) is skipped while the bot is paused."""
+        """Every scheduled message (morning, nudge, review, band and proposal checks) is
+        skipped while the bot is paused."""
 
         async def run(context: ContextTypes.DEFAULT_TYPE) -> None:
             if self._served():
@@ -603,16 +607,19 @@ def build_bot(
     jobs = application.job_queue
     assert jobs is not None  # noqa: S101 - the job-queue extra is a dependency
     # Band workouts to count (ADR-0055): checked every few minutes, each offered once.
-    jobs.run_repeating(band_handlers.announce, interval=band_ui.EVERY, name=band_ui.JOB)
+    announce_band = handlers.unless_away(band_handlers.announce)
+    jobs.run_repeating(announce_band, interval=band_ui.EVERY, name=band_ui.JOB)
     # And whether band data stopped arriving: checked hourly, told once per gap.
-    jobs.run_repeating(band_handlers.watch, interval=band_ui.WATCH_EVERY, name=band_ui.WATCH_JOB)
+    watch_band = handlers.unless_away(band_handlers.watch)
+    jobs.run_repeating(watch_band, interval=band_ui.WATCH_EVERY, name=band_ui.WATCH_JOB)
     # Logs a connected AI proposed (ADR-0058): sent as they come, and checked every few
     # minutes for any whose send failed.
     proposal_handlers = proposals_ui.ProposalHandlers(settings, sessions, send_outcome)
     application.add_handler(
         CallbackQueryHandler(proposal_handlers.button, pattern=proposals_ui.PATTERN)
     )
-    jobs.run_repeating(proposal_handlers.job, interval=proposals_ui.EVERY, name=proposals_ui.JOB)
+    resend = handlers.unless_away(proposal_handlers.job)
+    jobs.run_repeating(resend, interval=proposals_ui.EVERY, name=proposals_ui.JOB)
 
     async def announce() -> None:
         await proposal_handlers.announce(application.bot)

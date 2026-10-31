@@ -88,8 +88,10 @@ ADR-0046 stores readiness answers on the server (`readiness_answers`) as consent
      account's own session coming from a listed country, as layer 2 reads it (the header
      believed only from `TC_TRUSTED_PROXIES`), so a direct request can't set it. The bot and the MCP endpoint serve an
      account only within 30 days of it, since neither can see where the person is. The check
-     sits in one place each (the bot's `owner_only` filter, the MCP auth dependency), tested
-     for the allowed and the expired case.
+     sits in one place each (the bot: a handler that sees every update before the
+     `owner_only` handlers, since button presses can't take that filter and a filter can't
+     reply; the MCP auth dependency), tested for the allowed and the expired case. While paused
+     the bot still answers `/login` and `/recover`, the way back to the website.
 - **Failure modes.** `XX` (unknown) and `T1` (Tor) are refused like any unlisted country. The
   header is believed only from `TC_TRUSTED_PROXIES`; a request that didn't come through them
   (direct LAN or Tailscale access, the container's own health check) or a trusted request
