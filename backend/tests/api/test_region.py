@@ -1,5 +1,6 @@
 """The EU and EEA only (ADR-0085 layer 2): CF-IPCountry, believed only from a trusted proxy."""
 
+import re
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -7,6 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
+from tests.api.test_auth import ANY_REGION
+from tests.routes import api_routes
 from training_coach.api.app import create_app
 from training_coach.api.region import exempt
 from training_coach.config import Settings
@@ -111,3 +114,21 @@ def test_a_header_that_is_not_a_country_code_counts_as_unknown(tunnel: TestClien
     page = tunnel.get("/signin", headers={"CF-IPCountry": "DE<script>"})
     assert page.status_code == 451
     assert "We can't tell where you are" in page.text
+
+
+def test_every_route_but_the_exempt_ones_is_behind_the_gate(engine: Engine, tmp_path: Path) -> None:
+    """Every registered route, in the schema or not, gets 451 from outside the list through the
+    tunnel unless it is one of the exempt machine paths, and every exempt path is a real route,
+    so a renamed one can't leave a stale exemption behind (ADR-0085)."""
+    with _client(engine, tmp_path, TUNNEL) as client:
+        routes = api_routes(client.app)  # type: ignore[arg-type]  # TestClient.app is the ASGI app
+        paths = {path for path, _ in routes}
+        assert paths >= ANY_REGION
+        for path, route in routes:
+            url = re.sub(r"\{[^}]+\}", "1", path)
+            method = sorted(route.methods or {"GET"})[0]
+            answer = client.request(method, url, headers={"CF-IPCountry": "US"})
+            if path in ANY_REGION:
+                assert answer.status_code != 451, path
+            else:
+                assert answer.status_code == 451, path
