@@ -37,8 +37,10 @@
 # what a step asks of the body: "floor" (lying on it, or getting down to it), "kneeling" (weight
 # on a knee), "impact" (jumps or running, every way the step can be done), "hanging" (from a
 # bar), "balance" (on one leg, or balance work without a hold). The seed writes both on every
-# run, like cues. `failure_ok = true`: a last set to failure is safe on this exercise, isolation
-# and stable ones only (ADR-0084).
+# run, like cues. `failure_ok = true`: a last set to failure is safe on this exercise: isolation
+# and stable ones, plus push-ups and pull-ups, which ADR-0084 names (stopping at the first rep that
+# isn't full); never jumps, swings, pistols, Nordics, loaded hinges, carries, neck work, ab
+# rollouts or Copenhagen planks.
 
 # Plan versions, oldest first: each is in force from `since` until the next (ADR-0034). Every
 # workout records the version in force on its date. Add a version when the plan changes; a
