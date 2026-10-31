@@ -94,3 +94,24 @@ moved a step yet: `b7e1c3d5f9a2` deleted two unused top steps. A walk-through as
 - Settings gain the four preferences and the talk-test setting; nothing about a person's health
   is stored.
 - A fifth preference, "Easy on my knees", came out of the walk-through; it is for Liam to decide.
+
+## Built (the four preferences, #526, 31 Oct 2026)
+
+Decided while building, within this ADR:
+
+- **Settings** `avoid_floor`, `avoid_kneeling`, `avoid_impact` and `avoid_hanging`, off for
+  everyone. Account shows them under "What you'd rather avoid" with one line, "You choose what
+  you're ready for. These skip steps that need it.", and no question. Balance has no switch.
+- **One lock path:** `domain.locks` judges a step by its kit needs (ADR-0071) and its marks
+  together, and `services.step_locks` is the one way in for Move up, Plan, Progress, the set
+  screen's picker and a level by hand. A step's reasons are in words, "needs the floor — you've
+  chosen to keep off it", next to the kit's "needs a 16 kg kettlebell".
+- **What the person avoids goes with them:** it locks at the gym too, where kit doesn't.
+- **A step someone is on and now avoids** stays their level; Plan shows its exercise without
+  "Show all" and says "You've chosen to avoid this; pick another step."
+- **Top of your open steps:** with every harder step locked and no kit that opens one, Plan and
+  Progress say "Top of your open steps". `unlock` names kit only, passing over steps the person
+  avoids, as it is said on Telegram and to their AI; there "top of the ladder" stays, with no
+  reason given.
+- **Not yet:** a strength block's one-step-harder rule (ADR-0028) doesn't look at locks, for kit
+  or marks; it waits for the session to swap in a marked alternative (builder step 5).

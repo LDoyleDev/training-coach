@@ -153,6 +153,7 @@ class LevelView(BaseModel):
     name: str
     cue: str | None
     missing: list[str]  # the kit it needs that isn't listed: locked, still choosable (ADR-0071)
+    avoided: list[str]  # what it asks that the person avoids, in words: locked too (ADR-0083)
 
 
 class ItemLevelView(BaseModel):
@@ -477,7 +478,13 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                         step_id=i.step_id,
                         for_today=i.slug in today_only,
                         ladder=[
-                            LevelView(id=r.id, name=r.name, cue=r.cue, missing=list(r.missing))
+                            LevelView(
+                                id=r.id,
+                                name=r.name,
+                                cue=r.cue,
+                                missing=list(r.missing),
+                                avoided=list(r.avoided),
+                            )
                             for r in ladders[i.slug]
                         ],
                     )

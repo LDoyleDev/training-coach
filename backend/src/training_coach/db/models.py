@@ -376,6 +376,13 @@ class UserSettings(Owned, Base):
     talk_test: Mapped[bool] = mapped_column(Boolean, server_default=false())
     # The stop signs were shown before their first guided session (spec B7).
     stop_signs_seen: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # What the person would rather avoid (ADR-0083): each locks the ladder steps with that mark,
+    # as missing kit does (ADR-0071). Preferences, asked without a reason; nothing about why is
+    # stored, and neither Telegram nor the MCP read tools show them.
+    avoid_floor: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    avoid_kneeling: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    avoid_impact: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    avoid_hanging: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

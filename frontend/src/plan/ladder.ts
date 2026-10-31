@@ -15,23 +15,49 @@ export function wanted(search: string): string | null {
 }
 
 type Rung = Standing['ladder'][number]
+/** Why a step is locked: the kit it lacks (ADR-0071) and what it asks that the person has
+ * chosen to avoid, already in words (ADR-0083). */
+type Lockable = Pick<Rung, 'missing' | 'avoided'>
 
-/** The next step the kit allows, if there is one: Move up skips locked steps (ADR-0071). */
+/** The next open step, if there is one: Move up skips locked steps (ADR-0071, ADR-0083). */
 export function nextRung(s: Standing): Rung | null {
   const at = s.ladder.findIndex((r) => r.id === s.step_id)
   if (at < 0) return null
-  return s.ladder.slice(at + 1).find((r) => r.missing.length === 0) ?? null
+  return s.ladder.slice(at + 1).find((r) => needs(r) === null) ?? null
 }
 
-/** A locked step in words, never colour alone: "needs a 16 kg kettlebell". Null when open. */
-export function needs(r: Pick<Rung, 'missing'>): string | null {
-  return r.missing.length > 0 ? `needs ${r.missing.join(' and ')}` : null
+/** A locked step in words, never colour alone: "needs a 16 kg kettlebell", "needs the floor —
+ * you've chosen to keep off it". Null when open. */
+export function needs(r: Lockable): string | null {
+  const kit = r.missing.length > 0 ? [`needs ${r.missing.join(' and ')}`] : []
+  const reasons = [...kit, ...r.avoided]
+  return reasons.length > 0 ? reasons.join('; ') : null
 }
 
-/** "Top for your kit" when the steps above are all locked, else the plain top or nothing. */
+/** A locked step as a sentence, as the server's warning says it: "Two-hand, 16 kg needs a 16 kg
+ * kettlebell, not in your kit." Null when open. */
+export function lockedText(step: string, r: Lockable): string | null {
+  const kit = r.missing.length > 0 ? [`needs ${r.missing.join(' and ')}, not in your kit`] : []
+  const reasons = [...kit, ...r.avoided]
+  return reasons.length > 0 ? `${step} ${reasons.join('; ')}.` : null
+}
+
+/** Said on Plan when the step someone is on is one they've since chosen to avoid. Their level
+ * never changes by itself: they pick (ADR-0083). */
+export const AVOIDED_NOW = "You've chosen to avoid this; pick another step."
+
+/** Whether the step someone is on asks something they've chosen to avoid. */
+export function avoidedNow(s: Standing): boolean {
+  return s.ladder.some((r) => r.id === s.step_id && r.avoided.length > 0)
+}
+
+/** "Top for your kit" when kit locks the steps above; "Top of your open steps" when the steps
+ * above are all locked otherwise; the plain top; or nothing. */
 export function topLabel(s: Standing): string | null {
   if (s.unlock) return 'Top for your kit'
-  return s.status === 'top_of_ladder' ? 'Top of the ladder' : null
+  if (s.status !== 'top_of_ladder') return null
+  const at = s.ladder.findIndex((r) => r.id === s.step_id)
+  return at >= 0 && at < s.ladder.length - 1 ? 'Top of your open steps' : 'Top of the ladder'
 }
 
 export const WAITS =
@@ -53,7 +79,7 @@ export function said(m: Moved): string {
     case 'not_ready':
       return `${exercise} doesn't meet the rule any more. Keep going.`
     case 'no_next_step':
-      return `${exercise} is on the last step in your plan.`
+      return `${exercise} is on the last step in your plan, or the last one open to you.`
     case 'strength_block':
       return `${exercise} waits for the hypertrophy block: this is a strength block.`
     case 'stayed':

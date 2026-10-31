@@ -34,6 +34,17 @@ const PLACES: { places: Places; label: string; line: string }[] = [
   { places: 'both', label: 'Both', line: 'You pick home or gym on the day.' },
 ]
 
+type AvoidKey = 'avoid_floor' | 'avoid_kneeling' | 'avoid_impact' | 'avoid_hanging'
+
+/** What the person would rather avoid (ADR-0083): each locks the ladder steps that need it, as
+ * missing kit does. Preferences, not medical: no reason is asked or kept. */
+const AVOID: { key: AvoidKey; label: string }[] = [
+  { key: 'avoid_floor', label: 'Keep me off the floor' },
+  { key: 'avoid_kneeling', label: 'No kneeling' },
+  { key: 'avoid_impact', label: 'No jumping or running' },
+  { key: 'avoid_hanging', label: 'No hanging' },
+]
+
 /**
  * What every guided timer plays at each change (ADR-0062), in the order shown: the boxing bell,
  * everyone's default, first (ADR-0074). A record, so a new sound can't be left out.
@@ -231,6 +242,34 @@ export default function Settings() {
       {toggle('talk', prefs.talk_test, ['Use the talk test', 'Use heart-rate zones'], {
         talk_test: !prefs.talk_test,
       })}
+
+      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend className="mb-2 font-bold">What you'd rather avoid</legend>
+        <p className="m-0 text-sm text-[var(--slate)]">
+          You choose what you're ready for. These skip steps that need it.
+        </p>
+        {AVOID.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={prefs[key]}
+            className={choice(prefs[key])}
+            disabled={busy}
+            onClick={() =>
+              save(
+                'avoid',
+                { [key]: !prefs[key] },
+                `${label}: ${prefs[key] ? 'off' : 'on'}.`,
+                "That couldn't be saved.",
+              )
+            }
+          >
+            {label}
+            <span className="block font-normal">{prefs[key] ? 'On' : 'Off'}</span>
+          </button>
+        ))}
+        {noteAt('avoid')}
+      </fieldset>
 
       <form className={row} onSubmit={saveProtein}>
         <label htmlFor="protein" className="basis-full font-bold">

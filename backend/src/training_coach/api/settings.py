@@ -97,6 +97,12 @@ class SettingsView(BaseModel):
     default_increments: IncrementsView
     talk_test: bool  # cardio effort by the talk test, not heart-rate zones (ADR-0083)
     stop_signs_seen: bool  # shown before their first guided session (spec B7)
+    # What they'd rather avoid (ADR-0083): each locks the ladder steps with that mark. Owner-only
+    # here; never on Telegram or over MCP.
+    avoid_floor: bool  # "Keep me off the floor"
+    avoid_kneeling: bool  # "No kneeling"
+    avoid_impact: bool  # "No jumping or running"
+    avoid_hanging: bool  # "No hanging"
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -118,6 +124,10 @@ class SettingsChange(BaseModel):
     increments: IncrementsChange | None = None
     talk_test: bool | None = None
     stop_signs_seen: bool | None = None
+    avoid_floor: bool | None = None
+    avoid_kneeling: bool | None = None
+    avoid_impact: bool | None = None
+    avoid_hanging: bool | None = None
     paused: bool | None = None
 
 
@@ -158,6 +168,10 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
         default_increments=_steps(DEFAULTS),
         talk_test=prefs.talk_test,
         stop_signs_seen=prefs.stop_signs_seen,
+        avoid_floor=prefs.avoid_floor,
+        avoid_kneeling=prefs.avoid_kneeling,
+        avoid_impact=prefs.avoid_impact,
+        avoid_hanging=prefs.avoid_hanging,
         paused=prefs.paused,
         timezone=settings.timezone,
     )
@@ -192,6 +206,10 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             increments=_changed(body.increments),
             talk_test=body.talk_test,
             stop_signs_seen=body.stop_signs_seen,
+            avoid_floor=body.avoid_floor,
+            avoid_kneeling=body.avoid_kneeling,
+            avoid_impact=body.avoid_impact,
+            avoid_hanging=body.avoid_hanging,
             today=local_date(datetime.now(UTC), settings.tz),
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)
