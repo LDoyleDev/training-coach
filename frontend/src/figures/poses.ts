@@ -5,6 +5,7 @@
  */
 import type { Motion, Vec } from './body'
 import type { FrontPose } from './front'
+import { ENTRY_UPPER } from './entry-upper'
 import { GYM } from './gym'
 import type { Bench3, Camera, Kit } from './perspective'
 import type { Part, Props } from './shapes'
@@ -708,4 +709,5 @@ export const FIGURES: Readonly<Record<string, Figure>> = {
     },
   },
   ...GYM,
+  ...ENTRY_UPPER,
 }

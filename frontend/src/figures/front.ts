@@ -9,7 +9,7 @@ import { BODY, along, heading, inFrame, twoBone, type Vec } from './body'
 /** A hand or foot target; the elbow or knee is worked out, unless ``mid`` gives it. */
 export interface FrontLimb {
   /** World cm, or with ``from: 'waist'`` an offset [towards the left side, up the trunk]. */
-  at: Vec
+  at?: Vec
   from?: 'waist'
   /** The elbow or knee as an offset from the shoulder or hip, for a limb turned towards you. */
   mid?: Vec
@@ -19,6 +19,10 @@ export interface FrontLimb {
   angle?: number
   /** How far the elbow and the hand come towards you, in cm: a hand reaching out in front. */
   toward?: Vec
+  /** A straight limb swinging from the hip or shoulder, in place of ``at``: its way in the
+   * picture, and how far its end comes towards you. It blends by angle, so it keeps its length
+   * (a leg swept across in front of the other). */
+  swing?: { dir: number; toward: number }
 }
 
 export interface FrontPose {
@@ -72,7 +76,15 @@ export function solveFront(pose: FrontPose): FrontJoints {
     along(p, dir + (left ? -90 : 90), half)
 
   const place = (limb: FrontLimb, root: Vec, a: number, b: number, tipLen: number) => {
-    const target = limb.from === 'waist' ? inFrame(waist, tilt, limb.at) : limb.at
+    if (limb.swing) {
+      const { dir, toward } = limb.swing
+      const flat = Math.sqrt((a + b) ** 2 - toward ** 2)
+      const [mid, end] = [along(root, dir, (flat * a) / (a + b)), along(root, dir, flat)]
+      const z: Vec = [(toward * a) / (a + b), toward]
+      return { root, mid, end, tip: along(end, limb.angle ?? dir, tipLen), z }
+    }
+    const at = limb.at ?? root
+    const target = limb.from === 'waist' ? inFrame(waist, tilt, at) : at
     const { mid, end } = limb.mid
       ? { mid: [root[0] + limb.mid[0], root[1] + limb.mid[1]] as Vec, end: target }
       : twoBone(root, target, a, b, limb.bend ?? 1)
