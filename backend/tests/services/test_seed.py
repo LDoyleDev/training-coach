@@ -709,9 +709,11 @@ def test_every_ladder_asks_can_you_do_it_of_each_step_after_the_first() -> None:
 
 def test_each_question_asks_for_the_bottom_of_its_exercises_range() -> None:
     """A yes means the first target at that step, the bottom of the range (ADR-0027), is within
-    reach. HIIT's steps name their rounds, so its questions use those."""
+    reach. HIIT's steps name their rounds, so its questions use those. An exercise no session
+    uses gives its own range (ADR-0083)."""
     plan = load_plan()
-    bottoms = {i.exercise: i.rep_min for s in plan.sessions for i in (*s.items, *s.gym)}
+    bottoms = {e.slug: e.range[0] for e in plan.exercises if e.range is not None}
+    bottoms |= {i.exercise: i.rep_min for s in plan.sessions for i in (*s.items, *s.gym)}
     wrong = {
         (e.slug, step): question
         for e in plan.exercises

@@ -46,6 +46,9 @@ export interface Props {
   bell?: boolean | 'near' | 'hammer' | 'sides' | 'goblet' | 'one' | 'toes'
   /** A weighted vest or backpack, packed high on the upper back. */
   load?: boolean
+  /** A shopping bag: hanging by its handles from the near hand ('near'), or hugged to the chest
+   * in both arms ('chest'). Drawn where the order puts 'bell'. */
+  bag?: 'near' | 'chest'
   /** Dip bars seen along their length, their top ``top`` cm off the floor, centred on ``x``. */
   bars?: { x: number; top: number }
   /** A step or a box, its top ``top`` cm off the floor. */
@@ -254,6 +257,32 @@ function hanging(wrist: Vec, r: number): Shape[] {
     { kind: 'ring', c: svg(along(wrist, -90, 3.5)), r: r * 0.53, width: 2.2, tone: 'bell' },
     ball(along(wrist, -90, 4.4 + r), r, 'bell'),
   ]
+}
+
+/** A shopping bag, about 3-5 kg: its handles in the near fist and the bag hanging under them, or
+ * held in both arms against the chest, the hands at its top. */
+function bag(j: Joints, hold: 'near' | 'chest'): Shape[] {
+  const [x, y] =
+    hold === 'near'
+      ? along(j.armN.wrist, -90, 7)
+      : [(j.armN.wrist[0] + j.armF.wrist[0]) / 2, (j.armN.wrist[1] + j.armF.wrist[1]) / 2 + 2]
+  const body = polygon([
+    [x - 9, y],
+    [x + 9, y],
+    [x + 11, y - 24],
+    [x - 11, y - 24],
+  ])
+  const shapes: Shape[] = [{ kind: 'path', d: body, tone: 'bell' }]
+  if (hold === 'near')
+    shapes.unshift({
+      kind: 'ring',
+      c: svg(along(j.armN.wrist, -90, 3)),
+      r: 4,
+      ry: 4.5,
+      width: 2,
+      tone: 'bell',
+    })
+  return shapes
 }
 
 /** A vest or a backpack high on the upper back, behind the trunk, and a strap over the front. */
@@ -533,6 +562,7 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
     else if (part === 'torso') out.push(...torso(j, 'near'))
     else if (part === 'head') out.push(...head(j, 'near'))
     else if (props.barbell) out.push(...plate(j, props.barbell === 'plate'))
+    else if (props.bag) out.push(...bag(j, props.bag))
     else if (props.cable) out.push(...cableTo(j, props.cable))
     else if (props.bell === 'sides') out.push(...hanging(j.armN.wrist, 8.6))
     else if (props.bell === 'toes') out.push(...onToes(j))

@@ -40,7 +40,9 @@
 # run, like cues. `failure_ok = true`: a last set to failure is safe on this exercise: isolation
 # and stable ones, plus push-ups and pull-ups, which ADR-0084 names (stopping at the first rep that
 # isn't full); never jumps, swings, pistols, Nordics, loaded hinges, carries, neck work, ab
-# rollouts or Copenhagen planks.
+# rollouts or Copenhagen planks. `range = [low, high]` (reps, seconds or minutes a set) is for an
+# exercise no session uses yet: the range a session would give it, whose bottom its questions ask
+# for; a session item sets its own (ADR-0083).
 
 # Plan versions, oldest first: each is in force from `since` until the next (ADR-0034). Every
 # workout records the version in force on its date. Add a version when the plan changes; a
@@ -1664,6 +1666,275 @@ ladder = ["Cable"]
 [exercises.levels]
 "Cable" = 3
 
+
+# ---------------------------------------------------------------- entry exercises (ADR-0083)
+# For people starting low: older, untrained or heavier people, or anyone not yet at the bottom
+# steps above (docs/specs/any-level-any-time.md, "B2-B3 revised after the evals"). Each is a
+# movement the catalogue didn't have; where a low step is the same movement as a ladder above,
+# it extends that ladder instead (#508). No session uses them yet (sessions are shared until
+# builder step 5, ADR-0073), so each gives the `range` a session would: 3-10 reps where the
+# ladder starts at level 1, so a frail person can't miss the bottom on day one. Water bottles and
+# a bag need no kit; bands and kettlebells do (ADR-0071).
+
+[[exercises]]
+slug = "glute-bridge"
+name = "Glute bridge"
+summary = "Squeeze your glutes to drive your hips forward, then lower slowly. Standing, take a straight leg back; on the floor, lie on your back, knees bent, and lift until knees, hips and shoulders line up."
+kind = "reps"
+muscles = { glutes = 1, hamstrings = 0.5 }
+pattern = "hinge"
+aliases = ["bridge", "bridges", "glute bridges", "hip extension", "hip extensions"]
+start = 0
+range = [3, 10]
+ladder = ["Standing, at the counter", "On the floor", "On the floor, 3 s hold at the top", "Shoulders on the sofa (hip thrust)", "Single leg, on the floor", "Single leg, shoulders on the sofa"]
+failure_ok = true
+[exercises.cues]
+"Standing, at the counter" = "Hands on the counter, leaning forward a little. Take one straight leg back from the hip, squeeze, and lower; don't arch your back. Each leg."
+"On the floor, 3 s hold at the top" = "Squeeze for three seconds at the top, ribs down, then lower slowly."
+"Shoulders on the sofa (hip thrust)" = "Sit on the floor, upper back against the front of the sofa, knees bent. Drive your hips up level with your knees, chin tucked."
+"Single leg, on the floor" = "One foot down, the other leg straight in line with the thigh; keep the hips level."
+"Single leg, shoulders on the sofa" = "Shoulders on the sofa, one foot down; don't let the hip on the free side drop."
+[exercises.questions]
+"On the floor" = "Can you lie on your back on the floor, do 3 glute bridges and get up again?"
+"On the floor, 3 s hold at the top" = "Can you do 3 glute bridges on the floor, holding each one at the top for three seconds?"
+"Shoulders on the sofa (hip thrust)" = "Can you do 3 hip thrusts with your shoulders on the sofa, hips up level with your knees?"
+"Single leg, on the floor" = "Can you do 3 single-leg glute bridges on each leg, hips level?"
+"Single leg, shoulders on the sofa" = "Can you do 3 single-leg hip thrusts on each leg, shoulders on the sofa?"
+[exercises.levels]
+"Standing, at the counter" = 1
+"On the floor" = 2
+"On the floor, 3 s hold at the top" = 2
+"Shoulders on the sofa (hip thrust)" = 3
+"Single leg, on the floor" = 4
+"Single leg, shoulders on the sofa" = 5
+[exercises.marks]
+"On the floor" = ["floor"]
+"On the floor, 3 s hold at the top" = ["floor"]
+"Shoulders on the sofa (hip thrust)" = ["floor"]
+"Single leg, on the floor" = ["floor"]
+"Single leg, shoulders on the sofa" = ["floor"]
+
+[[exercises]]
+slug = "step-up"
+name = "Step-up"
+summary = "Put one whole foot on the step, push through that heel to stand up tall on it, then step down slowly with the other foot. Do all your reps on one leg, then the other."
+kind = "reps"
+muscles = { quads = 1, glutes = 1 }
+pattern = "lunge"
+stress = ["spine"]
+aliases = ["step up", "step ups", "step-ups"]
+start = 0
+range = [3, 10]
+ladder = ["Low step, hand on a support", "One stair, hand on the rail", "One stair, no hands", "One stair, holding a bag", "One stair, holding 8 kg"]
+[exercises.needs]
+"One stair, holding 8 kg" = ["kettlebell:8"]
+[exercises.cues]
+"Low step, hand on a support" = "A doorstep or a sturdy step about 10 cm high that can't slide; a hand on a rail, the counter or a wall."
+"One stair, hand on the rail" = "The bottom stair, a hand on the banister."
+"One stair, no hands" = "Close to the banister, so a hand can reach it at once."
+"One stair, holding a bag" = "A 3-5 kg bag in the hand on the stepping leg's side; the banister within reach."
+"One stair, holding 8 kg" = "The bell in the hand on the stepping leg's side; the banister within reach."
+[exercises.questions]
+"One stair, hand on the rail" = "Can you step up one stair 3 times on each leg, a hand on the rail?"
+"One stair, no hands" = "Can you step up one stair 3 times on each leg without holding on?"
+"One stair, holding a bag" = "Can you step up one stair 3 times on each leg holding a 3-5 kg bag?"
+"One stair, holding 8 kg" = "Can you step up one stair 3 times on each leg holding 8 kg?"
+[exercises.levels]
+"Low step, hand on a support" = 1
+"One stair, hand on the rail" = 2
+"One stair, no hands" = 3
+"One stair, holding a bag" = 3
+"One stair, holding 8 kg" = 4
+[exercises.marks]
+"One stair, no hands" = ["balance"]
+"One stair, holding a bag" = ["balance"]
+"One stair, holding 8 kg" = ["balance"]
+
+[[exercises]]
+slug = "plank"
+name = "Plank"
+summary = "Hands under your shoulders, body in one straight line from head to heels, and hold. Squeeze your glutes and brace as if about to cough; stop when your hips sag or your back aches."
+kind = "seconds"
+muscles = { abs = 1, obliques = 0.5 }
+pattern = "core"
+aliases = ["planks", "front plank", "incline plank"]
+start = 0
+range = [10, 30]
+ladder = ["Hands on a counter", "Hands on a table", "Hands on a chair seat against a wall", "On the knees", "Full plank", "Full plank, arm reach"]
+[exercises.cues]
+"Hands on a counter" = "Walk your feet back until your body is a straight slope from the counter; steeper is easier."
+"Hands on a table" = "A sturdy table that can't slide: lower than the counter, so your arms take more of your weight."
+"Hands on a chair seat against a wall" = "Back the chair against a wall so it can't move."
+"On the knees" = "Hands on the floor under your shoulders, a cushion under the knees; a straight line from knees to head."
+"Full plank" = "Hands under your shoulders, feet hip-width, on your toes."
+"Full plank, arm reach" = "Reach one arm forward for a second, then the other, without the hips rocking. Feet wider is easier."
+[exercises.questions]
+"Hands on a table" = "Can you hold a plank for 10 seconds with your hands on a table, body straight?"
+"Hands on a chair seat against a wall" = "Can you hold a plank for 10 seconds with your hands on a chair seat, body straight?"
+"On the knees" = "Can you hold a plank on your knees for 10 seconds, knees to head in a straight line?"
+"Full plank" = "Can you hold a full plank for 10 seconds, hips level?"
+"Full plank, arm reach" = "Can you hold a plank for 10 seconds while reaching each arm forward in turn?"
+[exercises.levels]
+"Hands on a counter" = 1
+"Hands on a table" = 2
+"Hands on a chair seat against a wall" = 2
+"On the knees" = 3
+"Full plank" = 4
+"Full plank, arm reach" = 5
+[exercises.marks]
+"On the knees" = ["floor", "kneeling"]
+"Full plank" = ["floor"]
+"Full plank, arm reach" = ["floor"]
+
+[[exercises]]
+slug = "knee-lift"
+name = "Knee lift"
+summary = "Sit or stand tall and lift one knee towards your chest, then lower it slowly; then the other. Don't lean back to help it up."
+kind = "reps"
+muscles = { "hip flexors" = 1 }
+pattern = "isolation"
+aliases = ["knee lifts", "seated march", "seated marching", "marching"]
+start = 0
+range = [3, 10]
+ladder = ["Seated march", "Standing, at the counter", "Standing, at the counter, 2 s hold"]
+failure_ok = true
+[exercises.cues]
+"Seated march" = "Sit near the front of a chair, back tall, hands on the seat. Lift one knee a hand's width, lower, then the other."
+"Standing, at the counter" = "Side on to the counter, a hand on it. Lift the outside knee to hip height and lower slowly; turn round for the other."
+"Standing, at the counter, 2 s hold" = "Hold the knee at hip height for two seconds, then lower slowly."
+[exercises.questions]
+"Standing, at the counter" = "Can you lift each knee to hip height 3 times, standing with a hand on the counter?"
+"Standing, at the counter, 2 s hold" = "Can you lift each knee to hip height 3 times at the counter, holding two seconds at the top?"
+[exercises.levels]
+"Seated march" = 1
+"Standing, at the counter" = 2
+"Standing, at the counter, 2 s hold" = 3
+
+[[exercises]]
+slug = "adductor-squeeze"
+name = "Adductor squeeze"
+summary = "Squeeze your inner thighs together against a pillow or a band, then ease off slowly. Keep breathing; don't hold your breath."
+kind = "reps"
+muscles = { adductors = 1 }
+pattern = "isolation"
+aliases = ["adductor squeezes", "pillow squeeze", "pillow squeezes", "band adduction", "hip adduction"]
+start = 0
+range = [3, 10]
+ladder = ["Seated pillow squeeze, 5 s hold", "Standing band adduction, light band", "Standing band adduction, medium band"]
+failure_ok = true
+[exercises.needs]
+"Standing band adduction, light band" = ["band:light"]
+"Standing band adduction, medium band" = ["band:medium"]
+[exercises.cues]
+"Seated pillow squeeze, 5 s hold" = "Sit tall, a folded pillow between your knees. Squeeze for five seconds, then relax: that's one."
+"Standing band adduction, light band" = "Band round a heavy table leg at ankle height, the loop round the near ankle, a hand on the counter. Sweep the leg across in front of the other."
+"Standing band adduction, medium band" = "The same with a stronger band; the standing leg straight, hips square."
+[exercises.questions]
+"Standing band adduction, light band" = "Can you sweep each leg across 3 times against a light band, a hand on the counter?"
+"Standing band adduction, medium band" = "Can you sweep each leg across 3 times against a medium band, a hand on the counter?"
+[exercises.levels]
+"Seated pillow squeeze, 5 s hold" = 1
+"Standing band adduction, light band" = 2
+"Standing band adduction, medium band" = 3
+
+[[exercises]]
+slug = "standing-leg-curl"
+name = "Standing hamstring curl"
+summary = "Stand tall holding the counter. Bend one knee to bring the heel up behind you towards your bottom, knees side by side, then lower slowly. Each leg."
+kind = "reps"
+muscles = { hamstrings = 1 }
+pattern = "isolation"
+aliases = ["standing leg curl", "standing leg curls", "standing hamstring curls", "band leg curl", "band leg curls"]
+start = 0
+range = [3, 10]
+ladder = ["At the counter", "Light band", "Medium band"]
+failure_ok = true
+[exercises.needs]
+"Light band" = ["band:light"]
+"Medium band" = ["band:medium"]
+[exercises.cues]
+"Light band" = "Band round a heavy table leg in front of you at ankle height, the loop round one ankle, hands on the counter. Curl the heel back against it."
+"Medium band" = "The same with a stronger band; the thigh stays still."
+[exercises.questions]
+"Light band" = "Can you do 3 standing hamstring curls on each leg against a light band?"
+"Medium band" = "Can you do 3 standing hamstring curls on each leg against a medium band?"
+[exercises.levels]
+"At the counter" = 1
+"Light band" = 2
+"Medium band" = 3
+
+[[exercises]]
+slug = "hip-hinge"
+name = "Hip hinge"
+summary = "Knees soft, push your hips back with a long, flat back until you feel the backs of your thighs, then squeeze your glutes to stand tall. Only as far as your back stays flat."
+kind = "reps"
+muscles = { hamstrings = 1, "lower back" = 1, glutes = 0.5 }
+pattern = "hinge"
+stress = ["spine"]
+aliases = ["hip hinges", "counter hinge", "good morning", "good mornings"]
+start = 0
+range = [3, 10]
+ladder = ["Hands on the counter", "Hips back to a wall", "Holding a bag at the chest"]
+[exercises.cues]
+"Hands on the counter" = "An arm's length from the counter, hands on its edge. Hips back until arms and back make one line, then stand."
+"Hips back to a wall" = "A foot's length from a wall, your back to it, hands on your hips. Push your hips back to touch the wall, then stand."
+"Holding a bag at the chest" = "Hug a 3-5 kg bag or backpack to your chest."
+[exercises.questions]
+"Hips back to a wall" = "Can you do 3 hip hinges without holding on, touching your hips to a wall behind you?"
+"Holding a bag at the chest" = "Can you do 3 hip hinges hugging a 3-5 kg bag to your chest, back flat?"
+[exercises.levels]
+"Hands on the counter" = 1
+"Hips back to a wall" = 2
+"Holding a bag at the chest" = 3
+
+[[exercises]]
+slug = "deadlift"
+name = "Deadlift"
+summary = "Feet hip-width, the weight between them. Hips back and knees bent, grip it with a flat back, then stand up tall by driving your hips forward. Lower it the same way, close to your legs."
+kind = "reps"
+muscles = { glutes = 1, hamstrings = 1, "lower back" = 0.5, forearms = 0.25 }
+pattern = "hinge"
+stress = ["spine", "grip"]
+aliases = ["deadlifts", "kb deadlift", "kettlebell deadlift", "kettlebell deadlifts"]
+start = 0
+range = [5, 12]
+ladder = ["A bag, from a block", "8 kg", "16 kg", "24 kg"]
+[exercises.needs]
+"8 kg" = ["kettlebell:8"]
+"16 kg" = ["kettlebell:16"]
+"24 kg" = ["kettlebell:24"]
+[exercises.cues]
+"A bag, from a block" = "A 3-5 kg bag on the bottom stair or a stack of books, so the handles start at shin height."
+"8 kg" = "The bell on the floor between your feet; both hands on the handle, shoulders over it."
+"16 kg" = "Brace before you lift; the bell travels straight up close to your legs."
+"24 kg" = "Pull the slack out of your arms before the bell leaves the floor."
+[exercises.questions]
+"8 kg" = "Can you do 5 deadlifts with 8 kg from the floor, back flat?"
+"16 kg" = "Can you do 5 deadlifts with 16 kg from the floor, back flat?"
+"24 kg" = "Can you do 5 deadlifts with 24 kg from the floor, back flat?"
+[exercises.levels]
+"A bag, from a block" = 2
+"8 kg" = 3
+"16 kg" = 4
+"24 kg" = 5
+
+[[exercises]]
+slug = "toe-lift"
+name = "Seated toe lift"
+summary = "Sit tall, feet flat in front of you. Keep your heels down and lift your toes and the fronts of your feet as high as you can, then lower slowly."
+kind = "reps"
+muscles = { tibialis = 1 }
+pattern = "isolation"
+aliases = ["toe lift", "toe lifts", "seated toe lifts"]
+start = 0
+range = [3, 10]
+ladder = ["Both feet", "Both feet, 3 s hold at the top"]
+failure_ok = true
+[exercises.questions]
+"Both feet, 3 s hold at the top" = "Can you do 3 seated toe lifts, holding each one at the top for three seconds?"
+[exercises.levels]
+"Both feet" = 1
+"Both feet, 3 s hold at the top" = 2
 
 # ---------------------------------------------------------- retired (#107, ADR-0034)
 # No longer in any session. Kept so their history stays and old days can still be logged;
