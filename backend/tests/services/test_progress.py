@@ -288,7 +288,8 @@ def test_overview_lists_every_exercise_in_plan_order(plan: Session) -> None:
     names = [s.exercise for s in standings]
     assert names.index("Pull-up") < names.index("Dip (chairs)")  # Torso lists pull-ups first
     pull = standings[names.index("Pull-up")]
-    assert (pull.step, pull.step_number, pull.steps) == ("Strict pull-up", 2, 4)
+    # Two steps below the negatives since ADR-0083: the same step, numbered two higher
+    assert (pull.step, pull.step_number, pull.steps) == ("Strict pull-up", 4, 6)
     assert (pull.last, pull.best_set, pull.status) == ((), None, Progress.HOLD)
 
 
@@ -408,16 +409,17 @@ def test_the_vest_step_at_the_top_is_never_the_top_of_the_ladder(plan: Session) 
 
 
 def test_a_retired_exercise_shows_its_history_but_is_never_ready(plan: Session) -> None:
-    for days in (0, 2):  # the top of the old 12-20 range twice: ready, were it still planned
-        _log(plan, "goblet-squat", [20, 20, 20], days, template="legs")
+    sides = (Side.LEFT, Side.RIGHT)
+    for days in (0, 2):  # the top of any range twice: ready, were it still planned
+        _log(plan, "reverse-lunge", [20, 20, 20], days, template="legs", sides=sides)
     by_name = {s.exercise: s for s in overview(plan)}
-    goblet = by_name["Goblet squat"]
-    assert (goblet.retired, goblet.status, goblet.last) == (True, Progress.HOLD, (20, 20, 20))
-    assert "Reverse lunge" not in by_name  # retired with no history: nothing to show
-    workout_id = _log(plan, "goblet-squat", [20, 20, 20], 4, template="legs")
+    lunge = by_name["Reverse lunge"]
+    assert (lunge.retired, lunge.status, lunge.last) == (True, Progress.HOLD, (20, 20, 20))
+    assert "Squat" not in by_name  # in no session and no history: nothing to show
+    workout_id = _log(plan, "reverse-lunge", [20, 20, 20], 4, template="legs", sides=sides)
     (said,) = feedback(plan, workout_id)
     assert said.status is Progress.HOLD
-    step = _step(plan, "goblet-squat")
+    step = _step(plan, "reverse-lunge")
     move = move_up(plan, step.exercise_id, step.id)
     assert move is not None
     assert move.outcome is MoveOutcome.NOT_READY
@@ -485,7 +487,7 @@ def test_not_yet_from_a_stale_page_changes_nothing(plan: Session) -> None:
 def test_overview_carries_the_slug_and_the_whole_ladder(plan: Session) -> None:
     pull_up = next(s for s in overview(plan) if s.exercise == "Pull-up")
     assert pull_up.slug == "pull-up"
-    assert [r.name for r in pull_up.ladder][:2] == ["Slow negatives", "Strict pull-up"]
+    assert [r.name for r in pull_up.ladder][2:4] == ["Slow negatives", "Strict pull-up"]
     assert len(pull_up.ladder) == pull_up.steps
     assert progress.exercise_id_for(plan, "pull-up") == pull_up.exercise_id
     assert progress.exercise_id_for(plan, "no-such") is None

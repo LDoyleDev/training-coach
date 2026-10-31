@@ -15,6 +15,7 @@ from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.services.users import OWNER
 
 BEFORE = "a7d4c2e9f1b3"  # extra cardio
+AFTER = "c3e8a1f5d9b2"  # this one; later ones expect a seeded plan's ladders (5ebed72122f7)
 MONDAY = date(2026, 10, 26)
 
 
@@ -104,7 +105,7 @@ def test_only_a_walk_the_old_rule_logged_gets_its_full_minutes(
             return dict(session.execute(select(SetLog.workout_id, SetLog.value)).all())
 
     before = values()
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, AFTER)
     assert values() == before | {legacy: 66}
     assert (values()[full], values()[edited], values()[harder], values()[tie]) == (66, 50, 66, 20)
     command.downgrade(cfg, BEFORE)

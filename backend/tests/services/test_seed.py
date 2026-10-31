@@ -738,7 +738,7 @@ def test_the_seed_marks_retired_exercises(session: Session) -> None:
     apply_seed(session, load_plan())
     session.flush()
     retired = session.scalars(select(Exercise.slug).where(Exercise.retired.is_(True))).all()
-    assert sorted(retired) == ["goblet-squat", "reverse-lunge"]
+    assert sorted(retired) == ["reverse-lunge"]  # the goblet squat is back as the Squat
     lunge = session.scalars(select(Exercise).where(Exercise.slug == "reverse-lunge")).one()
     assert lunge.per_side
 
@@ -973,7 +973,7 @@ def test_split_squats_load_the_spine_only_with_a_kettlebell() -> None:
     """program-builder.md, Decided 3: loaded squats count; bodyweight and jump squats don't."""
     exercises = {e.slug: e for e in load_plan().exercises}
     split = exercises["bulgarian-split-squat"]
-    assert [bool(split.step_stress(s)) for s in split.ladder] == [False, *[True] * 5]
+    assert [bool(split.step_stress(s)) for s in split.ladder] == [*[False] * 4, *[True] * 5]
     jump = exercises["jump-squat"]
     assert not any(jump.step_stress(s) for s in jump.ladder)
     assert all(exercises["kb-swing"].step_stress(s) for s in exercises["kb-swing"].ladder)

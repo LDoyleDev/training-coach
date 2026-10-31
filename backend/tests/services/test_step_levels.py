@@ -84,7 +84,7 @@ def test_the_seed_stores_levels_marks_and_failure_ok_and_rewrites_them(session: 
 
 
 def test_every_bundled_step_has_a_level_and_known_marks() -> None:
-    """Retired exercises too: the goblet squat comes back as the Squat entry (ADR-0083)."""
+    """Retired exercises too, such as the reverse lunge (the goblet squat is back as the Squat)."""
     for exercise in load_plan().exercises:
         assert set(exercise.levels) == set(exercise.ladder), exercise.slug
         assert all(set(marks) <= set(Mark) for marks in exercise.marks.values())
@@ -135,6 +135,18 @@ PINNED = {
     ("balance", "Feet together, holding the counter"): (1, set()),
     ("balance", "One leg, eyes closed"): (5, {"balance"}),
     ("interval-walk", "3 min brisk, 3 min easy"): (2, set()),
+    # the lower steps of #508's migration, below today's bottoms
+    ("push-up", "Hands on a wall"): (1, set()),
+    ("push-up", "On the knees"): (3, {"floor", "kneeling"}),
+    ("pull-up", "Feet on a chair"): (3, {"hanging"}),
+    ("calf-raise", "Both legs, hands on a wall"): (1, set()),
+    ("suitcase-carry", "A bag, 1-3 kg, standing at the counter"): (1, set()),
+    ("kb-curl", "Water bottles, about 1 kg"): (1, set()),
+    ("bulgarian-split-squat", "Back foot on a low step"): (3, {"balance"}),
+    ("copenhagen-plank", "Knee on a chair, bottom foot helping"): (3, {"floor"}),
+    ("goblet-squat", "Raised seat, hands push off"): (1, set()),
+    ("goblet-squat", "Full depth"): (4, set()),
+    ("zone2", "Easy walk, short bouts are fine"): (1, set()),
 }
 
 

@@ -316,7 +316,7 @@ async def test_progress_shows_each_exercise_and_offers_move_up(
     (reply,) = texts(calls)
     assert reply.startswith("Progress: current step, last session, best set at this step")
     assert (
-        "- Pull-up: Strict pull-up (2/4), last 12 / 12 / 12 / 12, best 12 reps. Ready to move up"
+        "- Pull-up: Strict pull-up (4/6), last 12 / 12 / 12 / 12, best 12 reps. Ready to move up"
     ) in reply
     assert "- Dip (chairs): Feet on floor (1/6), not logged at this step yet" in reply
     exercise_id, step_id = _pull_up(seeded)

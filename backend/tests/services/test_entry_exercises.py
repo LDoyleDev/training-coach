@@ -15,12 +15,14 @@ from training_coach.services.seed import load_plan
 REP_TOP = 18  # ADR-0078
 ENTRY_RANGE = (3, 10)  # a level-1 range: a frail person can't miss the bottom on day one
 
-# What this issue adds (#507); the rest of the spec's lower steps extend existing ladders (#508).
+# What #507 added; the rest of the spec's lower steps extend existing ladders (#508), and the
+# Squat is the retired goblet squat brought back with steps below its own.
 ENTRY = {
     "glute-bridge", "step-up", "plank", "knee-lift", "adductor-squeeze", "standing-leg-curl",
     "hip-hinge", "deadlift", "toe-lift",
     "armchair-press-up", "band-pushdown", "band-row", "band-pull-apart", "band-pulldown",
     "seated-press", "balance", "interval-walk",
+    "goblet-squat",  # the Squat (#508)
 }  # fmt: skip
 
 
@@ -102,14 +104,6 @@ def test_a_step_named_for_a_band_needs_that_band(strength: str) -> None:
 # mover, done standing or seated, with at most a chair, a wall, a counter, a table, a door frame,
 # a band, bottles or a bag. Household things need no kit, so a band is the only kit allowed.
 OFF_THE_FLOOR = {Mark.FLOOR, Mark.KNEELING, Mark.HANGING}
-# Their way in extends an existing ladder downward, which needs #508's migration: the push-up from
-# a wall (chest), the bottle curl (biceps), calf raises holding a wall (calves), the bag held
-# beside the counter (forearms, upper traps) and the side lean on a wall (obliques). Take each out
-# as #508 lands it; the test fails when one passes, so the list only shrinks.
-UNTIL_508 = {
-    Muscle.CHEST, Muscle.BICEPS, Muscle.CALVES, Muscle.FOREARMS, Muscle.UPPER_TRAPS,
-    Muscle.OBLIQUES,
-}  # fmt: skip
 # No step planned: the spec's revised list keeps neck work lying down at level 3; the draft's
 # seated hand-resistance hold (B2) would pass. Liam's call.
 NO_WAY_IN_YET = {Muscle.NECK}
@@ -132,7 +126,10 @@ def _ways_in() -> set[Muscle]:
 
 
 def test_every_muscle_has_a_way_in_at_level_1_or_2_standing_or_seated() -> None:
-    assert set(Muscle) - _ways_in() == UNTIL_508 | NO_WAY_IN_YET
+    """Since #508 (5ebed72122f7) the extended ladders give the rest theirs: the push-up from a
+    wall (chest), the bottle curl (biceps), calf raises holding a wall (calves), the bag held
+    beside the counter (forearms, upper traps) and the side lean on a wall (obliques)."""
+    assert set(Muscle) - _ways_in() == NO_WAY_IN_YET
 
 
 def test_balance_counts_seconds_and_marks_every_step_without_a_hold() -> None:
