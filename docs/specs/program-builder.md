@@ -471,9 +471,11 @@ fly. They can be logged by text or voice and are there for the editor (steps 6 a
    dropping kept sets. **Built:** the next weight owned at home (ADR-0072) and the body map's
    home or gym view (`?place=`, Home | Gym on Plan for someone at both), which the exercise
    lists follow.
-10. **Setup flow** (H), the 3- and 4-day starters, and the level questions (G1). It also asks
-   the country of residence from the EU and EEA list and refuses "Somewhere else" (ADR-0085);
-   until then it is set on Account (`/api/account/residence`).
+10. **Setup flow** (H), the 3- and 4-day starters, and the level questions (G1).
+    Proposed 31 Oct 2026: setup also asks the minutes a session has, places people from far below
+    today's ladders, and offers starting starters ([any-level-any-time.md](any-level-any-time.md)).
+    It also asks the country of residence from the EU and EEA list and refuses "Somewhere else"
+    (ADR-0085); until then it is set on Account (`/api/account/residence`).
 
 Pictures arrive alongside, as poses are drawn: the set screen first, then the picker. Steps 2-4, 8 and 9
 help the owner straight away with no change to how plans are stored; step 5 is the point of no
