@@ -102,6 +102,11 @@ def test_the_block_joins_the_runs_workout_and_the_queue_moves_once(session: Sess
     saved = guided.save(seeded, DAY, DAY, BERLIN)
     assert saved == workout_log.Saved(run, already_saved=False)
     assert _slugs(seeded, run) == ["back-extension", "hanging-raise", "moderate-cardio"]
+    # The block's plan joins the run's workout; the run, logged without one, planned it all.
+    assert seeded.get_one(Workout, run).planned == {
+        "hanging-raise": {"sets": 2},
+        "back-extension": {"sets": 2},
+    }
     workouts = seeded.scalars(select(Workout).where(Workout.local_date == DAY)).all()
     assert [w.id for w in workouts] == [run]  # no second workout, so nothing clashes
     after = position(seeded)

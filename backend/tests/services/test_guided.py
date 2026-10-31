@@ -365,6 +365,27 @@ def test_saving_puts_each_sets_times_on_its_rows(session: Session) -> None:
     assert sorted(sides) == [("left", one_sided, end), ("right", one_sided, end)]
 
 
+def test_saving_records_what_the_session_planned(session: Session) -> None:
+    """ADR-0084: every exercise's planned sets, done or not, and no minutes as planned."""
+    seeded = _seeded(session)
+    plan = _plan(seeded)
+    guided.keep(seeded, plan, 0, 1, [], [guided.Done(0, 1, 5)])
+    saved = guided.save(seeded, DAY, DAY, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = seeded.get_one(Workout, saved.workout_id)
+    assert workout.minutes is None
+    assert workout.planned == {i.slug: {"sets": len(i.targets)} for i in plan.items}
+
+
+def test_a_typed_log_records_no_plan(session: Session) -> None:
+    seeded = _seeded(session)
+    draft = workout_log.draft(seeded, "jump squat 8 8 8", DAY, BERLIN)
+    saved = workout_log.save(seeded, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = seeded.get_one(Workout, saved.workout_id)
+    assert (workout.minutes, workout.planned) == (None, None)
+
+
 def test_sets_without_times_save_without_them(session: Session) -> None:
     seeded = _seeded(session)
     guided.keep(seeded, _plan(seeded), 0, 1, [], [guided.Done(0, 1, 5)], now=NOW)
