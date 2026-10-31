@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Moved, Standing } from '../api'
 import Levels from './Levels'
-import { moveHref, nextRung, said, wanted } from './ladder'
+import { moveHref, nextRung, said, stepDownText, wanted } from './ladder'
 
 const LADDER = [
   { id: 1, name: 'Slow negatives', cue: null, missing: [], question: null },
@@ -237,7 +237,7 @@ test('a link with ?move= opens that exercise and scrolls to it', async () => {
   expect(screen.queryByText(/Goblet squat/)).not.toBeInTheDocument() // retired: not in the plan
   fireEvent.click(screen.getByRole('button', { name: /Dip/ }))
   expect(screen.getByRole('button', { name: /Dip/, expanded: false })).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Show only the ones ready' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Show only the ones to look at' }))
   expect(screen.queryByRole('button', { name: /Dip/ })).not.toBeInTheDocument()
 })
 
@@ -389,5 +389,55 @@ test('no kit listed: says nothing is locked and links to My equipment', async ()
   expect(screen.getByRole('link', { name: 'List your kit in My equipment' })).toHaveAttribute(
     'href',
     '/account#my-equipment',
+  )
+})
+
+const LOW = { step_id: 2, below: 'Slow negatives', easier: [] }
+
+test('a step down is suggested next to Move up, and taken only on a tap (ADR-0084)', async () => {
+  const calls = serve(
+    [
+      { standings: [make({ status: 'hold', last: [2, 2, 2, 2], step_down: LOW })] },
+      { standings: [make({ status: 'hold', step: 'Slow negatives', step_id: 1, step_number: 1 })] },
+    ],
+    { outcome: 'stepped_down', exercise: 'Pull-up', step: 'Slow negatives', warning: null },
+  )
+  render(<Levels />)
+  expect(await screen.findByText('1 exercise with a step down to consider.')).toBeInTheDocument()
+  await open(/Bottom of the range out of reach/)
+  expect(
+    screen.getByText('The bottom of the range was out of reach twice. Try the step below?'),
+  ).toBeInTheDocument()
+  expect(calls).toEqual([])
+  fireEvent.click(screen.getByRole('button', { name: 'Step down to Slow negatives' }))
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'Pull-up is now on Slow negatives. Targets for Slow negatives start fresh',
+  )
+  expect(calls).toEqual([{ path: '/api/progress/pull-up/step-down', body: { from_step_id: 2 } }])
+  expect(screen.queryByRole('button', { name: /Step down to/ })).not.toBeInTheDocument()
+})
+
+test('Not yet keeps the level; at the first step only Not yet, with easier exercises', async () => {
+  const first = { step_id: 1, below: null, easier: ['Wall push-up', 'Incline push-up'] }
+  const calls = serve(
+    [{ standings: [make({ status: 'hold', step_id: 1, step_number: 1, step_down: first })] }],
+    { outcome: 'stayed_down', exercise: 'Pull-up', step: 'Slow negatives', warning: null },
+  )
+  render(<Levels />)
+  await open(/Pull-up/)
+  expect(
+    screen.getByText(
+      "The bottom of the range was out of reach twice. This is the first step of its ladder, so there's no step below. An easier exercise for the same muscles might suit: Wall push-up or Incline push-up.",
+    ),
+  ).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Step down to/ })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Not yet' }))
+  expect(await screen.findByRole('status')).toHaveTextContent(/^Staying on Slow negatives\./)
+  expect(calls).toEqual([{ path: '/api/progress/pull-up/not-yet-down', body: { step_id: 1 } }])
+})
+
+test('the step-down words without easier exercises', () => {
+  expect(stepDownText({ step_id: 1, below: null, easier: [] })).toBe(
+    "The bottom of the range was out of reach twice. This is the first step of its ladder, so there's no step below.",
   )
 })

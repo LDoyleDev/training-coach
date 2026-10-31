@@ -814,16 +814,18 @@ export async function fetchProgress(signal?: AbortSignal): Promise<StandingsList
 
 export type Rung = Schemas['RungView']
 export type Moved = Schemas['MovedView']
-export type LadderMove = 'move-up' | 'not-yet' | 'level'
+export type LadderMove = 'move-up' | 'not-yet' | 'level' | 'step-down' | 'not-yet-down'
 
-/** Move up, Not yet, or choose a level by hand, from the Plan page (ADR-0075). The server checks
+/** Move up, Not yet, or choose a level by hand, from the Plan page (ADR-0075), and Step down or
+ * Not yet to a step down suggested (ADR-0084). The server checks
  * again, so a stale page changes nothing and says why. A string: why it was refused. */
 export async function moveOnLadder(
   slug: string,
   move: LadderMove,
   stepId: number,
 ): Promise<Moved | string> {
-  const body = move === 'move-up' ? { from_step_id: stepId } : { step_id: stepId }
+  const from = move === 'move-up' || move === 'step-down'
+  const body = from ? { from_step_id: stepId } : { step_id: stepId }
   const res = await post(`/api/progress/${encodeURIComponent(slug)}/${move}`, body)
   if (res.status === 404 || res.status === 422) return "That step isn't on this exercise's ladder."
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)

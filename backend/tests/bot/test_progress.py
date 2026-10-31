@@ -29,7 +29,7 @@ from training_coach.domain.progression import Progress
 from training_coach.domain.records import NewBests
 from training_coach.services import progress as progress_service
 from training_coach.services import user_settings, users
-from training_coach.services.progress import Feedback, Standing
+from training_coach.services.progress import Down, Feedback, Standing
 
 App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
@@ -49,7 +49,7 @@ def _pull_up(sessions: Sessions) -> tuple[int, int]:
         return exercise.id, state.ladder_step_id
 
 
-def _top_session(sessions: Sessions, days_ago: int) -> None:
+def _top_session(sessions: Sessions, days_ago: int, value: int = 12) -> None:
     exercise_id, step_id = _pull_up(sessions)
     with sessions() as session:
         workout = Workout(
@@ -59,7 +59,11 @@ def _top_session(sessions: Sessions, days_ago: int) -> None:
         )
         workout.sets = [
             SetLog(
-                exercise_id=exercise_id, ladder_step_id=step_id, set_no=n, side=Side.BOTH, value=12
+                exercise_id=exercise_id,
+                ladder_step_id=step_id,
+                set_no=n,
+                side=Side.BOTH,
+                value=value,
             )
             for n in range(1, 5)
         ]
@@ -166,7 +170,7 @@ async def test_a_forged_press_for_an_unready_exercise_changes_nothing(
     assert _step_name(seeded) == "Strict pull-up"
 
 
-@pytest.mark.parametrize("action", ["up", "no"])
+@pytest.mark.parametrize("action", ["up", "no", "dn", "nd"])
 async def test_strangers_get_nothing(application: App, seeded: Sessions, action: str) -> None:
     """Threat model T1: no answer, no reply, no change."""
     _top_session(seeded, days_ago=3)
@@ -430,3 +434,76 @@ def test_progress_text_labels_a_retired_exercise() -> None:
         retired=True,
     )
     assert progress_text([goblet]).splitlines()[2].startswith("- Goblet squat (retired): 8 kg")
+
+
+async def test_a_save_out_of_reach_twice_suggests_a_step_down(
+    application: App, seeded: Sessions
+) -> None:
+    """ADR-0084: the baseline, then two sessions short of the bottom of 5-12."""
+    _top_session(seeded, days_ago=5, value=2)
+    _top_session(seeded, days_ago=3, value=2)
+    calls = await _save(application, "pull-ups 2 2 2 2")
+    (reply,) = texts(calls)
+    assert (
+        "Pull-up: the bottom of the range was out of reach twice. "
+        "Try the step below, Slow negatives?"
+    ) in reply
+    exercise_id, step_id = _pull_up(seeded)
+    assert _progress_buttons(calls) == [
+        f"p:dn:{exercise_id}:{step_id}",
+        f"p:nd:{exercise_id}:{step_id}",
+    ]
+    assert _step_name(seeded) == "Strict pull-up"  # suggested, nothing changed
+
+
+async def test_step_down_and_not_yet_answer_the_suggestion(
+    application: App, seeded: Sessions
+) -> None:
+    exercise_id, step_id = _pull_up(seeded)
+    stay = await run(application, press(f"p:nd:{exercise_id}:{step_id}", OWNER))
+    assert texts(stay) == [
+        "Staying on Pull-up (Strict pull-up). I'll ask again if the bottom of the range is out "
+        "of reach in a later session."
+    ]
+    calls = await run(application, press(f"p:dn:{exercise_id}:{step_id}", OWNER))
+    assert texts(calls) == [
+        "Stepped down: Pull-up is now Slow negatives. Targets for it start fresh from its own "
+        "history."
+    ]
+    assert _step_name(seeded) == "Slow negatives"
+    again = await run(application, press(f"p:dn:{exercise_id}:{step_id}", OWNER))
+    assert texts(again) == ["Pull-up has already moved on since that message."]
+    _, below = _pull_up(seeded)
+    first = await run(application, press(f"p:dn:{exercise_id}:{below}", OWNER))
+    assert texts(first) == ["Pull-up has no step below Slow negatives."]
+    gone = await run(application, press("p:dn:999:999", OWNER))
+    assert texts(gone) == ["That exercise isn't in the plan any more."]
+
+
+async def test_progress_offers_a_step_down_even_in_a_strength_block(
+    application: App, seeded: Sessions
+) -> None:
+    for days_ago in (5, 3, 1):
+        _top_session(seeded, days_ago=days_ago, value=2)
+    _strength_block(seeded)
+    calls = await run(application, command("/progress", OWNER))
+    (reply,) = texts(calls)
+    assert "best 2 reps. The bottom of the range was out of reach twice" in reply
+    exercise_id, step_id = _pull_up(seeded)
+    assert button_data(calls["sendMessage"][0]) == [
+        f"p:dn:{exercise_id}:{step_id}",
+        f"p:nd:{exercise_id}:{step_id}",
+    ]
+
+
+def test_the_first_step_names_easier_exercises_and_only_offers_not_yet() -> None:
+    first = _feedback(exercise="Reverse fly", down=Down(1, None, ("Band face pull",)))
+    assert feedback_text([first]) == (
+        "Reverse fly: the bottom of the range was out of reach twice, on the first step of its "
+        "ladder. An easier exercise for the same muscles might suit: Band face pull."
+    )
+    bare = _feedback(exercise="Push-up", down=Down(1, None))
+    assert feedback_text([bare]).endswith("on the first step of its ladder.")
+    markup = progress_ui.keyboard([first])
+    assert markup is not None
+    assert [b.callback_data for r in markup.inline_keyboard for b in r] == ["p:nd:1:1"]

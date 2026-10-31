@@ -3,7 +3,7 @@ import { fetchProgress, moveOnLadder, SignedOutError, type LadderMove, type Stan
 import { lastAndBest } from '../progress/logic'
 import { actions, card, primaryInline, secondary } from '../ui'
 import { KIT_HREF } from '../account/kit'
-import { WAITS, confirmText, needs, nextRung, said, topLabel, wanted } from './ladder'
+import { WAITS, confirmText, needs, nextRung, said, stepDownText, topLabel, wanted } from './ladder'
 
 type Loaded =
   | { status: 'loading' }
@@ -12,7 +12,8 @@ type Loaded =
   | { status: 'ready'; standings: Standing[]; strength: boolean; kitListed: boolean }
 
 /** Your level on each exercise's ladder (ADR-0075): Move up / Not yet when ready, as the bot's
- * prompt, and Change level to choose any step, up or down. `?move=<slug>` opens that one. Each
+ * prompt, Step down / Not yet when the bottom of the range was out of reach twice (ADR-0084), and
+ * Change level to choose any step, up or down. `?move=<slug>` opens that one. Each
  * step shows its "Can you do ...?" question as a hint (G1); nothing sets a level from it. */
 export default function Levels() {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
@@ -90,7 +91,8 @@ export default function Levels() {
   )
 }
 
-/** The ready ones (and the one open), then every exercise on request: the plan has dozens. */
+/** The ready ones, those with a step down suggested (and the one open), then every exercise on
+ * request: the plan has dozens. */
 function List({
   standings,
   strength,
@@ -106,7 +108,10 @@ function List({
 }) {
   const [all, setAll] = useState(false)
   const ready = standings.filter((s) => s.status === 'ready').length
-  const shown = standings.filter((s) => all || s.status === 'ready' || s.slug === open)
+  const down = standings.filter((s) => s.step_down).length
+  const shown = standings.filter(
+    (s) => all || s.status === 'ready' || s.step_down || s.slug === open,
+  )
   return (
     <>
       <p className="m-0 font-bold">
@@ -114,6 +119,11 @@ function List({
           ? 'Nothing is ready to move up right now.'
           : `${ready} ready to move up${strength ? ' when the hypertrophy block starts' : ''}.`}
       </p>
+      {down > 0 && (
+        <p className="m-0 font-bold">
+          {down === 1 ? '1 exercise' : `${down} exercises`} with a step down to consider.
+        </p>
+      )}
       {shown.length > 0 && (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {shown.map((s) => (
@@ -134,7 +144,7 @@ function List({
         aria-expanded={all}
         onClick={() => setAll((cur) => !cur)}
       >
-        {all ? 'Show only the ones ready' : `Show all exercises (${standings.length})`}
+        {all ? 'Show only the ones to look at' : `Show all exercises (${standings.length})`}
       </button>
     </>
   )
@@ -197,6 +207,7 @@ function Panel({
             Step {s.step_number} of {s.steps}: {s.step}
           </span>
           {ready && <span className="text-[var(--bell-ink)]">Ready to move up</span>}
+          {s.step_down && <span>Bottom of the range out of reach</span>}
           {topLabel(s) && <span>{topLabel(s)}</span>}
         </span>
         <span aria-hidden="true" className="shrink-0 text-2xl">
@@ -266,6 +277,32 @@ function Panel({
               >
                 Not yet
               </button>
+            </div>
+          )}
+
+          {s.step_down && (
+            <div className="flex flex-col gap-2">
+              <p className="m-0">{stepDownText(s.step_down)}</p>
+              <div className={actions}>
+                {s.step_down.below && (
+                  <button
+                    type="button"
+                    className={primaryInline}
+                    disabled={busy}
+                    onClick={() => void press('step-down', s.step_id)}
+                  >
+                    Step down to {s.step_down.below}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={secondary}
+                  disabled={busy}
+                  onClick={() => void press('not-yet-down', s.step_id)}
+                >
+                  Not yet
+                </button>
+              </div>
             </div>
           )}
 
