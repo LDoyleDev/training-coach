@@ -5,6 +5,8 @@
  * shows the figure as it is.
  */
 import { BODY, solve, type Pose, type Vec } from './body'
+import { ENTRY_LOWER_STEPS } from './entry-lower'
+import { ENTRY_UPPER_STEPS } from './entry-upper'
 import { FIGURES, type Figure } from './poses'
 
 type Change = Partial<Figure>
@@ -703,6 +705,8 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
       end: hugged(FIGURES['hip-hinge'].end),
     },
   },
+  ...ENTRY_LOWER_STEPS,
+  ...ENTRY_UPPER_STEPS,
 }
 
 /** Steps set up differently from their exercise's figure that aren't drawn yet: the lower steps
