@@ -3,15 +3,23 @@
 Rule (product spec): an exercise is ready to progress when every planned set reached the top
 of the range in each of the last two sessions at the current ladder step. The user confirms
 the move; the new step starts again at the bottom of the range.
+
+A shorter day (ADR-0082) is judged on its own sets (ADR-0084): a session that says how many sets
+it planned meets the top when each of those, the first ones, reached it. It counts toward the
+two only if it planned at least two sets, or every set when the prescription plans fewer (a
+one-set exercise could never move up otherwise); a day that doesn't count is passed over, so the
+two are the last two that do. A session saved without its count (``None``) keeps the rule above:
+every set the prescription plans, and it always counts.
 """
 
 from collections.abc import Iterable, Sequence
 from enum import StrEnum
 
 from training_coach.domain.enums import Side
-from training_coach.domain.targets import Prescription
+from training_coach.domain.targets import Prescription, planned_counts
 
 SESSIONS_REQUIRED = 2
+SETS_TO_COUNT = 2  # a day planning fewer sets of the exercise doesn't count (ADR-0084)
 
 
 class Progress(StrEnum):
@@ -20,18 +28,30 @@ class Progress(StrEnum):
     TOP_OF_LADDER = "top_of_ladder"  # rule met, but there is no harder variation yet
 
 
-def session_met_top(item: Prescription, values: Sequence[int]) -> bool:
-    return len(values) >= item.sets and all(v >= item.rep_max for v in values[: item.sets])
+def session_met_top(item: Prescription, values: Sequence[int], planned: int | None = None) -> bool:
+    """Every set the session ``planned`` (every set of the prescription when None) reached the
+    top of the range; sets past them don't matter."""
+    count = item.sets if planned is None else planned
+    return len(values) >= count and all(v >= item.rep_max for v in values[:count])
+
+
+def _counts(item: Prescription, planned: int | None) -> bool:
+    return planned is None or planned >= min(SETS_TO_COUNT, item.sets)
 
 
 def assess(
     item: Prescription,
     recent: Sequence[Sequence[int]],
     has_next_step: bool,
+    planned: Sequence[int | None] | None = None,
 ) -> Progress:
-    """``recent`` holds the per-set values of recent sessions at this step, newest first."""
-    latest = recent[:SESSIONS_REQUIRED]
-    if len(latest) < SESSIONS_REQUIRED or not all(session_met_top(item, s) for s in latest):
+    """``recent`` holds the per-set values of recent sessions at this step, newest first;
+    ``planned``, in the same order, the sets each one planned (ADR-0084)."""
+    sessions = zip(recent, planned_counts(recent, planned), strict=True)
+    latest = [(s, count) for s, count in sessions if _counts(item, count)][:SESSIONS_REQUIRED]
+    if len(latest) < SESSIONS_REQUIRED or not all(
+        session_met_top(item, s, count) for s, count in latest
+    ):
         return Progress.HOLD
     return Progress.READY if has_next_step else Progress.TOP_OF_LADDER
 
