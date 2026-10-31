@@ -12,6 +12,7 @@ from sqlalchemy import ColumnElement, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import SessionTemplate, SetLog, Workout
+from training_coach.domain.enums import Place
 from training_coach.domain.session_times import SetTime, Timing, minutes, timing, usual
 
 AS_PLANNED = Workout.minutes.is_(None)  # not run shorter for the day (ADR-0082)
@@ -78,6 +79,13 @@ def usual_minutes(session: Session, template_id: int) -> int | None:
     totals = [t.timing.total for t in found]
     typical = usual(totals)
     return minutes(typical) if typical is not None else None
+
+
+def planned_totals(session: Session, template_id: int, place: Place) -> list[timedelta]:
+    """The timed totals of this session done as planned at ``place``, oldest first: what the
+    person's pace on it is read from (ADR-0082)."""
+    found = _timed(session, Workout.template_id == template_id, Workout.place == place, AS_PLANNED)
+    return [t.timing.total for t in found]
 
 
 def by_session(session: Session) -> list[SessionTimes]:

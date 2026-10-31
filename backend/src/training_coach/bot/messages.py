@@ -9,8 +9,9 @@ from training_coach.domain.habits import WEEK_DAYS
 from training_coach.domain.load import kg_text, weights_text
 from training_coach.domain.parser import sets_text
 from training_coach.domain.progression import Progress
+from training_coach.domain.trim import WARM_UP_MINUTES
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
-from training_coach.services.guided import WARM_UP_MINUTES, work_groups
+from training_coach.services.guided import work_groups
 from training_coach.services.progress import Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.review import Review

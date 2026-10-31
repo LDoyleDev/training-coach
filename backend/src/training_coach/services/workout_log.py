@@ -566,11 +566,13 @@ def add_to(
     tz: ZoneInfo,
     steps: tuple[tuple[str, int, int], ...] = (),
     planned: tuple[tuple[str, int], ...] | None = None,
+    minutes: int | None = None,
 ) -> Saved | Stale:
     """Add sets to a saved workout of the same session: the block after a conditioning
     session's cardio (ADR-0066). It is that session's log, so it neither clashes nor moves the
     queue. ``Stale`` when an exercise is gone from the plan. ``planned`` joins the workout's
-    plan (ADR-0084); an exercise the plan doesn't name had every set planned."""
+    plan (ADR-0084); an exercise the plan doesn't name had every set planned. ``minutes``: the
+    block ran shorter for the day (ADR-0082); None leaves the workout's own minutes as they are."""
     confirmed = Draft(
         token=workout.log_token or secrets.token_hex(16),
         on=workout.local_date,
@@ -588,6 +590,8 @@ def add_to(
     added = plan_map(planned)
     if added is not None:
         workout.planned = {**(workout.planned or {}), **added}
+    if minutes is not None:
+        workout.minutes = minutes
     session.flush()
     session.add(
         Event(
