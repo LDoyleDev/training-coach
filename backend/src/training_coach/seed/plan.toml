@@ -1936,6 +1936,164 @@ failure_ok = true
 "Both feet" = 1
 "Both feet, 3 s hold at the top" = 2
 
+[[exercises]]
+slug = "armchair-press-up"
+name = "Armchair press-up"
+summary = "Sit in a sturdy armchair, hands on the armrests by your hips. Push down to straighten your arms and lift your hips off the seat, then lower slowly. Shoulders down, away from your ears."
+kind = "reps"
+muscles = { triceps = 1, chest = 0.5, "front delts" = 0.25 }
+pattern = "vertical push"
+aliases = ["armchair press-ups", "armchair press up", "armchair push up", "seated dip", "seated dips"]
+start = 0
+range = [3, 10]
+ladder = ["Feet helping", "Arms only, feet resting", "Arms only, 2 s hold at the top"]
+failure_ok = true
+[exercises.cues]
+"Feet helping" = "Push through your feet as well as your hands; use your legs only as much as you need."
+"Arms only, feet resting" = "Feet stay on the floor but take no weight."
+"Arms only, 2 s hold at the top" = "Arms straight and hips up for two seconds, then lower slowly."
+[exercises.questions]
+"Arms only, feet resting" = "Can you lift your hips off an armchair 3 times with your arms only, feet resting?"
+"Arms only, 2 s hold at the top" = "Can you lift your hips off an armchair 3 times with your arms only, holding two seconds at the top?"
+[exercises.levels]
+"Feet helping" = 1
+"Arms only, feet resting" = 2
+"Arms only, 2 s hold at the top" = 3
+
+[[exercises]]
+slug = "band-pushdown"
+name = "Band pushdown"
+summary = "Loop a band over the top of a door that opens away from you and shut it. Hold the ends at chest height, elbows at your sides, and push down until your arms are straight; let them up slowly."
+kind = "reps"
+muscles = { triceps = 1 }
+pattern = "isolation"
+aliases = ["band pushdowns", "pushdown", "pushdowns", "triceps pushdown", "triceps pushdowns"]
+start = 0
+range = [8, 15]
+ladder = ["Light band", "Medium band", "Heavy band"]
+failure_ok = true
+[exercises.needs]
+"Light band" = ["band:light"]
+"Medium band" = ["band:medium"]
+"Heavy band" = ["band:heavy"]
+[exercises.cues]
+"Medium band" = "Elbows stay pinned to your sides; only the forearms move."
+"Heavy band" = "Stand a little further from the door; don't lean over the band to push it."
+[exercises.questions]
+"Medium band" = "Can you do 8 pushdowns with a medium band, elbows at your sides?"
+"Heavy band" = "Can you do 8 pushdowns with a heavy band, elbows at your sides?"
+[exercises.levels]
+"Light band" = 2
+"Medium band" = 3
+"Heavy band" = 4
+
+[[exercises]]
+slug = "band-row"
+name = "Seated band row"
+summary = "Sit tall on a chair, a band round a banister post or shut in a door at chest height in front of you. Pull the ends to your ribs, squeezing your shoulder blades together, then let your arms out slowly."
+kind = "reps"
+muscles = { "upper back" = 1, lats = 1, biceps = 0.5, "rear delts" = 0.5 }
+pattern = "horizontal pull"
+aliases = ["band row", "band rows", "seated row", "seated rows", "seated band rows"]
+start = 0
+range = [3, 10]
+ladder = ["Light band", "Medium band", "Heavy band"]
+failure_ok = true
+[exercises.needs]
+"Light band" = ["band:light"]
+"Medium band" = ["band:medium"]
+"Heavy band" = ["band:heavy"]
+[exercises.cues]
+"Light band" = "Shut the band in the door on its hinge side, or loop it round a post that can't move."
+"Heavy band" = "Move the chair back until the band is taut with your arms straight."
+[exercises.questions]
+"Medium band" = "Can you do 3 seated rows with a medium band, squeezing your shoulder blades together?"
+"Heavy band" = "Can you do 3 seated rows with a heavy band, squeezing your shoulder blades together?"
+[exercises.levels]
+"Light band" = 1
+"Medium band" = 2
+"Heavy band" = 3
+
+[[exercises]]
+slug = "band-pull-apart"
+name = "Band pull-apart"
+summary = "Hold a band in front of you at shoulder height, arms straight, hands shoulder-width apart. Pull your hands out to the sides, squeezing your shoulder blades, then bring them back slowly. Seated or standing."
+kind = "reps"
+muscles = { "rear delts" = 1, "upper back" = 0.5 }
+qualities = ["posture"]
+pattern = "isolation"
+aliases = ["pull apart", "pull aparts", "band pull aparts", "pull-aparts"]
+start = 0
+range = [3, 10]
+ladder = ["Light band", "Medium band", "Heavy band"]
+failure_ok = true
+[exercises.needs]
+"Light band" = ["band:light"]
+"Medium band" = ["band:medium"]
+"Heavy band" = ["band:heavy"]
+[exercises.cues]
+"Light band" = "Sitting tall on a chair is fine; keep your ribs down and don't shrug."
+[exercises.questions]
+"Medium band" = "Can you do 3 pull-aparts with a medium band, arms straight?"
+"Heavy band" = "Can you do 3 pull-aparts with a heavy band, arms straight?"
+[exercises.levels]
+"Light band" = 1
+"Medium band" = 2
+"Heavy band" = 3
+
+[[exercises]]
+slug = "band-pulldown"
+name = "Band pulldown"
+summary = "Sit on a chair facing a door, a band shut in its top. Hold the ends with your arms up, then pull your elbows down to your sides, chest up, and let them rise slowly. A way to train the back without hanging."
+kind = "reps"
+muscles = { lats = 1, biceps = 0.5, "upper back" = 0.5, "rear delts" = 0.25 }
+pattern = "vertical pull"
+aliases = ["band pulldowns", "band lat pulldown", "band lat pulldowns"]
+start = 0
+range = [5, 12]
+ladder = ["Light band", "Medium band", "Heavy band"]
+failure_ok = true
+[exercises.needs]
+"Light band" = ["band:light"]
+"Medium band" = ["band:medium"]
+"Heavy band" = ["band:heavy"]
+[exercises.cues]
+"Light band" = "The door opens away from you, so pulling shuts it tighter."
+"Heavy band" = "Move the chair back until the band is taut with your arms up."
+[exercises.questions]
+"Medium band" = "Can you do 5 pulldowns with a medium band, elbows to your sides?"
+"Heavy band" = "Can you do 5 pulldowns with a heavy band, elbows to your sides?"
+[exercises.levels]
+"Light band" = 2
+"Medium band" = 3
+"Heavy band" = 4
+
+[[exercises]]
+slug = "seated-press"
+name = "Seated press"
+summary = "Sit tall on a chair, a weight in each hand at your shoulders. Press up until your arms are straight overhead, without arching your back, then lower slowly."
+kind = "reps"
+muscles = { "front delts" = 1, "side delts" = 0.5, triceps = 0.5 }
+pattern = "vertical push"
+aliases = ["seated presses", "bottle press", "bottle presses", "seated bottle press"]
+start = 0
+range = [3, 10]
+ladder = ["Small water bottles", "Large water bottles", "8 kg, one arm at a time"]
+failure_ok = true
+[exercises.needs]
+"8 kg, one arm at a time" = ["kettlebell:8"]
+[exercises.cues]
+"Small water bottles" = "Half-litre bottles, about half a kilo each."
+"Large water bottles" = "1.5-litre bottles, about one and a half kilos each."
+"8 kg, one arm at a time" = "The bell resting on the back of your forearm at the shoulder; the free hand on your thigh."
+[exercises.questions]
+"Large water bottles" = "Can you press two 1.5-litre water bottles overhead 3 times, seated?"
+"8 kg, one arm at a time" = "Can you press 8 kg overhead 3 times with each arm, seated?"
+[exercises.levels]
+"Small water bottles" = 1
+"Large water bottles" = 2
+"8 kg, one arm at a time" = 3
+
 # ---------------------------------------------------------- retired (#107, ADR-0034)
 # No longer in any session. Kept so their history stays and old days can still be logged;
 # never deleted. "squat"/"squats" were aliases of the goblet squat in the first plan; they are
