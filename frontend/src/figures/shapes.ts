@@ -90,6 +90,23 @@ export interface Props {
     over?: readonly Seg[]
     moves?: Moves
   }
+  /** A resistance band (``Band``), drawn where the order puts 'bell'. */
+  band?: Band
+  /** An armchair seen side on, its back at ``x0`` and its front at ``x1``, the armrests behind
+   * the figure (``ARMCHAIR`` gives the heights). */
+  armchair?: { x0: number; x1: number }
+  /** A small water bottle in each fist, lying square to the forearm, its cap forward. */
+  bottles?: boolean
+}
+
+/** A resistance band from a fixed anchor at ``from`` to the near fist or the near ankle (a loop
+ * round it). It is fixed to the top or the edge of a door seen edge on, its edge at ``from[0]``
+ * ('door'), or to a heavy table leg at ``from[0]``, the table running away in front of you, behind
+ * the figure ('table'). */
+export interface Band {
+  from: Vec
+  to: 'hands' | 'ankle'
+  on: 'door' | 'table'
 }
 
 /** A cable column: its upright at ``x`` with the weight stack at its foot, the pulley at
@@ -534,6 +551,54 @@ function towel(j: Joints): Shape[] {
   return [rect(x - 10, 0, x + 12, 1.6)]
 }
 
+/** A door seen edge on, 200 cm high, or a heavy table running away from its near leg, in the far
+ * tone: what a band is fixed to. */
+export const DOOR = 200
+export const TABLE = 72
+function anchor({ from: [x], on }: Band): Shape[] {
+  if (on === 'door') return [rect(x, 0, x + 4, DOOR)]
+  return [rect(x - 3, 0, x + 3, TABLE - 4, 'far'), rect(x - 5, TABLE - 4, x + 45, TABLE, 'far')]
+}
+
+/** The band itself: a dark strip from the anchor to the near fist, or to a loop round the near
+ * ankle. */
+function band(j: Joints, { from, to }: Band): Shape[] {
+  const end = to === 'hands' ? fist(j) : j.legN.ankle
+  const strip = limb(from, end, [1.2, 1.2], 'bell')
+  if (to === 'hands') return [strip]
+  return [strip, { kind: 'ring', c: svg(end), r: 4.4, ry: 2.4, width: 2, tone: 'bell' }]
+}
+
+/** Armchair heights in cm: the seat cushion's top, the armrests' top and the back's. */
+export const ARMCHAIR = { seat: 45, arm: 62, back: 95 }
+
+/** An armchair side on: short legs, a deep seat cushion, a padded back and the armrest, all
+ * behind the figure, so the hands rest on the armrest and the body sits in front of it. */
+function armchair({ x0, x1 }: NonNullable<Props['armchair']>): Shape[] {
+  const s = Math.sign(x1 - x0)
+  const { seat, arm, back } = ARMCHAIR
+  return [
+    rect(x0 + 2 * s, 0, x0 + 6 * s, 12),
+    rect(x1 - 6 * s, 0, x1 - 2 * s, 12),
+    limb([x0 + 6 * s, 20], [x0 + 9 * s, back - 7], [7, 7], 'prop'),
+    limb([x0 + 6 * s, arm - 4], [x1 - 6 * s, arm - 4], [4, 4], 'prop'),
+    rect(x1 - 9 * s, 12, x1 - 2 * s, arm - 4),
+    rect(x0, 12, x1, seat - 9),
+    limb([x0 + 14 * s, seat - 5], [x1 - 6 * s, seat - 5], [5, 5], 'prop'),
+  ]
+}
+
+/** A half-litre bottle in the fist of ``arm``, square to the forearm, the cap forward. */
+function bottle(arm: ArmJoints): Shape[] {
+  const c: Vec = [(arm.wrist[0] + arm.tip[0]) / 2, (arm.wrist[1] + arm.tip[1]) / 2]
+  const d = heading(arm.elbow, arm.wrist) - 90 // forward, for a forearm pointing up
+  return [
+    limb(along(c, d, -8), along(c, d, 4), [3.4, 3.4], 'prop'),
+    limb(along(c, d, 4), along(c, d, 8.5), [3.4, 1.5], 'prop'),
+    limb(along(c, d, 8.5), along(c, d, 10.5), [1.8, 1.8], 'bell'),
+  ]
+}
+
 /** A bar on a bracket from a wall 40 cm in front, drawn behind the figure; the bar's end goes
  * in front of the hands, as the bar is wider than the grip. */
 const BAR = 3
@@ -571,6 +636,8 @@ export function scenery(props: Props): Shape[] {
   if (props.chair && !props.chair.beside) out.push(...chair(props.chair))
   if (props.bench) out.push(...bench(props.bench))
   if (props.sofa) out.push(...sofa(props.sofa))
+  if (props.armchair) out.push(...armchair(props.armchair))
+  if (props.band) out.push(...anchor(props.band))
   if (props.bar) out.push(...bracket(props.bar))
   if (props.rack) out.push(...rack(props.rack))
   if (props.cable) out.push(...column(props.cable))
@@ -593,6 +660,7 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
   if (moves) out.push(...moves.lever)
   if (props.towel) out.push(...towel(j))
   for (const part of order) {
+    if (part === 'bell' && props.band) out.push(...band(j, props.band))
     if (part === 'armF') out.push(...arm(j.armF, 'far'))
     else if (part === 'armN') out.push(...arm(j.armN, 'near'))
     else if (part === 'legF') out.push(...leg(j.legF, 'far'))
@@ -608,6 +676,8 @@ export function shapes(pose: Pose, props: Props = {}, order: readonly Part[] = O
     else if (props.bell) out.push(...bell(j, props.bell))
     if (part === 'armF' && props.dumbbells) out.push(...dumbbell(j.armF, props.dumbbells))
     if (part === 'armN' && props.dumbbells) out.push(...dumbbell(j.armN, props.dumbbells))
+    if (part === 'armF' && props.bottles) out.push(...bottle(j.armF))
+    if (part === 'armN' && props.bottles) out.push(...bottle(j.armN))
     // The far hand's bell, the lighter one, hangs behind the body.
     if (part === 'armF' && props.bell === 'sides') out.push(...hanging(j.armF.wrist, 6.8))
   }

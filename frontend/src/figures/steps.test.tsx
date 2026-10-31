@@ -95,6 +95,39 @@ const SAME: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     '3 min brisk, 3 min easy': 'the figure',
     '3 min fast, 3 min easy': 'a faster pace',
   },
+  // The entry exercises for the upper body and bands, and the adductor and hamstring moves
+  // (entry-upper.ts).
+  'armchair-press-up': {
+    'Feet helping': 'the figure',
+    'Arms only, feet resting': 'the same picture: the feet stay down, only taking no weight',
+    'Arms only, 2 s hold at the top': 'the same picture and a pause',
+  },
+  'band-pushdown': {
+    'Light band': 'the figure, a band in the hands',
+    'Medium band': 'a stronger band',
+    'Heavy band': 'a stronger band, a step further from the door',
+  },
+  'band-row': {
+    'Light band': 'the figure, a band in the hands',
+    'Medium band': 'a stronger band',
+    'Heavy band': 'a stronger band, the chair further back',
+  },
+  'band-pull-apart': {
+    'Light band': 'the figure, a band between the hands',
+    'Medium band': 'a stronger band',
+    'Heavy band': 'a stronger band',
+  },
+  'band-pulldown': {
+    'Light band': 'the figure, a band in the hands',
+    'Medium band': 'a stronger band',
+    'Heavy band': 'a stronger band, the chair further back',
+  },
+  'seated-press': {
+    'Small water bottles': 'the figure, a bottle in each hand',
+    'Large water bottles': 'bigger bottles',
+  },
+  'adductor-squeeze': { 'Seated pillow squeeze, 5 s hold': 'the figure' },
+  'standing-leg-curl': { 'At the counter': 'the figure' },
 }
 
 test('every step of an exercise with a figure is drawn, or listed as showing it as it is', () => {

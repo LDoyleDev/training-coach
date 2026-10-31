@@ -6,6 +6,7 @@
  */
 import { BODY, solve, type Pose, type Vec } from './body'
 import { ENTRY_LOWER_STEPS } from './entry-lower'
+import { ENTRY_UPPER_STEPS } from './entry-upper'
 import { FIGURES, type Figure } from './poses'
 
 type Change = Partial<Figure>
@@ -705,6 +706,7 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
     },
   },
   ...ENTRY_LOWER_STEPS,
+  ...ENTRY_UPPER_STEPS,
 }
 
 /** ``slug``'s figure as it looks at the ladder step ``step``; nothing for a slug without one. */
