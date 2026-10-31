@@ -119,7 +119,7 @@ const KNEELING = {
 } as const
 const ON_KNEES: Change = {
   frames: ['On your knees, hands under your shoulders', 'Hips forward: knees to head in one line'],
-  view: [-60, 106, -3, 86],
+  view: [-60, 118, -3, 92],
   props: { mat: [-50, 90] },
   order: ['armF', 'legF', 'legN', 'armN', 'torso', 'head'],
   start: {
