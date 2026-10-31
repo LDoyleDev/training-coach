@@ -25,7 +25,9 @@ def erase(session: Session, user_id: int, plan: PlanSeed) -> bool:
     session.delete(user)
     session.flush()  # the cascade runs here, in the database
     session.expunge_all()  # rows loaded before it are gone
-    session.add(User(id=user_id, telegram_user_id=telegram))
+    # The country of residence goes with the rest (asked again); "last seen in Europe" starts
+    # now, from the website visit that erased it (ADR-0085), so the bot keeps answering.
+    session.add(User(id=user_id, telegram_user_id=telegram, country=None))
     session.flush()
     apply_seed(session, plan)
     # Nothing about what was there: only that it was erased, as the history starts again.

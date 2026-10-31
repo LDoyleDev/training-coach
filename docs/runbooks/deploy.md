@@ -56,7 +56,8 @@ ask on the Pi, without it.
 ## The EU and EEA only (ADR-0085)
 
 The app serves the 27 EU countries, Iceland, Liechtenstein and Norway, and the EU territories
-with their own codes (37 codes in all, `domain/region.py`). Two layers sit in front of a visitor:
+with their own codes (37 codes in all, `domain/region.py`). Two layers sit in front of a
+visitor, and a third keeps the bot and a connected AI to people who visit from Europe:
 
 1. **Cloudflare (apply by hand, not done yet).** One WAF custom rule (Security, WAF, Custom
    rules; Free allows 5), action **Block**. **Untested on the Free plan:** check that the
@@ -85,6 +86,10 @@ with their own codes (37 codes in all, `domain/region.py`). Two layers sit in fr
    Managed Transform). From outside Europe, or a VPN exit there,
    `curl -si https://coach.vybe-dev.com/signin | head -1` should say 451 (403 once the WAF rule
    is on, which answers first).
+3. **The bot and a connected AI** pause 30 days after the person's last signed-in visit to the
+   website from a listed country, and start again with the next one. A visit without the
+   header doesn't count, so if the header stops arriving, the bot pauses 30 days later: the
+   threat model has the details.
 
 ## Install on the phone (D3)
 

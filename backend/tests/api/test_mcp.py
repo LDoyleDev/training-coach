@@ -4,7 +4,7 @@
 import itertools
 import re
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -120,6 +120,24 @@ def test_a_revoked_connection_is_refused(client: TestClient, engine: Engine) -> 
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         assert mcp_tokens.revoke(mine, 1, datetime.now(UTC))
     assert rpc(client, token, "ping").status_code == 401
+
+
+@pytest.mark.parametrize(("days", "status"), [(29.9, 200), (30.1, 451)])
+def test_served_only_within_30_days_of_a_visit_from_europe(
+    client: TestClient, engine: Engine, days: float, status: int
+) -> None:
+    """ADR-0085: the app can't see where the AI's person is, so the connection pauses 30 days
+    after their last visit to the website from the EU or EEA, and says how to resume."""
+    token = flow.mint(engine, ["training:read"])
+    with session_scope(make_session_factory(engine)) as shared:
+        user = shared.get(User, OWNER)
+        assert user is not None
+        user.last_seen_in_europe = datetime.now(UTC) - timedelta(days=days)
+    answer = rpc(client, token, "ping")
+    assert answer.status_code == status
+    if status == 451:
+        assert "Open its website from there" in answer.json()["detail"]
+        assert answer.headers["cache-control"] == "no-store"
 
 
 def test_there_is_no_event_stream(client: TestClient, engine: Engine) -> None:

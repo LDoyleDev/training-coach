@@ -13,8 +13,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.alerts import alert, device
+from training_coach.api.region import visitor_country
 from training_coach.db.session import session_scope
-from training_coach.services import auth
+from training_coach.domain.region import listed
+from training_coach.services import auth, users
 
 # __Host-: only this exact host may set it, with Path=/ and Secure, so a sibling site on the
 # same domain can't plant or shadow it (security review, 2026-10-10).
@@ -38,11 +40,17 @@ def _shared(request: Request) -> sessionmaker[Session]:
 
 def owner(request: Request, response: Response) -> int:
     """The signed-in user's id; 401 without a live session. When the session is renewed, the
-    cookie is sent again so the browser keeps it for the same 30 days as the server."""
+    cookie is sent again so the browser keeps it for the same 30 days as the server. A visit
+    from a listed country is recorded for the bot and MCP's 30 days (ADR-0085)."""
     token = request.cookies.get(COOKIE)
     if token:
+        now, country = datetime.now(UTC), visitor_country(request)
         with session_scope(_shared(request)) as session:
-            seen = auth.session_user(session, token, datetime.now(UTC))
+            seen = auth.session_user(session, token, now)
+            # This person's own visit from the EU or EEA keeps the bot and MCP on (ADR-0085);
+            # no country (a missing header) doesn't count.
+            if seen is not None and country is not None and listed(country):
+                users.seen_in_europe(session, seen.user_id, now)
         if seen is not None:
             if seen.renewed:
                 set_session_cookie(response, token)

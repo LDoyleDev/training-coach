@@ -26,10 +26,12 @@ from telegram import (
 from telegram.error import NetworkError, RetryAfter, TelegramError
 from telegram.ext import (
     Application,
+    ApplicationHandlerStop,
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
+    TypeHandler,
     filters,
 )
 from telegram.warnings import PTBDeprecationWarning
@@ -77,6 +79,7 @@ from training_coach.services import (
     queue_actions,
     review,
     user_settings,
+    users,
 )
 from training_coach.services.groq import GroqClient
 from training_coach.services.today import session_plan
@@ -123,6 +126,11 @@ RECOVER_TEXT = (
     "again after):"
 )
 LOGIN_OFF = "Web sign-in isn't set up yet: TC_PUBLIC_URL is missing on the server."
+AWAY_TEXT = (
+    "Training Coach serves the EU and EEA only. Open the website from there to turn me back on."
+)
+# Still answered when paused: the way back into the website, where a visit from Europe counts.
+ANYWHERE = frozenset({"/login", "/recover"})
 MORNING_JOB = "morning"
 NUDGE_JOB = "nudge"
 REVIEW_JOB = "weekly-review"
@@ -222,6 +230,44 @@ class Handlers:
                 return text, links.with_open(instead, url, links.TESTS)
             markup = buttons.morning(plan.session.template_id)
             return today_text(plan), links.with_open(markup, url, links.SESSION)
+
+    def _served(self) -> bool:
+        try:
+            with session_scope(self.sessions) as session:
+                return users.bot_served(session, datetime.now(UTC))
+        except SQLAlchemyError:  # the handler meets the same error and says so, once
+            return True
+
+    async def away(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Runs before every handler (ADR-0085): the bot can't see where its person is, so it
+        serves them for 30 days after their last visit to the website from the EU or EEA. Then
+        it answers one line and nothing else, except /login and /recover. Strangers pass on
+        untouched, to handlers that ignore them."""
+        user, chat, message = update.effective_user, update.effective_chat, update.effective_message
+        if user is None or user.id != self.settings.telegram_allowed_user_id:
+            return
+        if chat is None or chat.type != chat.PRIVATE or self._served():
+            return
+        if update.message is not None:
+            command = (update.message.text or "").split("@")[0].split(maxsplit=1)
+            if command and command[0] in ANYWHERE:
+                return
+        if update.callback_query is not None:
+            await update.callback_query.answer()
+        if message is not None:
+            await message.reply_text(AWAY_TEXT)
+        raise ApplicationHandlerStop
+
+    def unless_away(self, job: Job) -> Job:
+        """A scheduled message (morning, nudge, review) is skipped while the bot is paused."""
+
+        async def run(context: ContextTypes.DEFAULT_TYPE) -> None:
+            if self._served():
+                await job(context)
+            else:
+                log.info("bot.job_paused_away")
+
+        return run
 
     async def help(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_message is not None:
@@ -500,17 +546,18 @@ def _schedule_daily(
 
 
 def schedule_morning(application: Application, handlers: Handlers, at: time) -> None:  # type: ignore[type-arg]  # see build_bot
-    _schedule_daily(application, MORNING_JOB, handlers.morning, at, handlers.settings.tz)
+    morning = handlers.unless_away(handlers.morning)
+    _schedule_daily(application, MORNING_JOB, morning, at, handlers.settings.tz)
 
 
 def schedule_jobs(application: Application, handlers: Handlers, prefs: Prefs) -> None:  # type: ignore[type-arg]  # see build_bot
     """Schedule the morning message, the evening nudge and Sunday's review from the settings."""
     tz = handlers.settings.tz
     schedule_morning(application, handlers, prefs.morning_time)
-    _schedule_daily(application, NUDGE_JOB, handlers.nudge, prefs.nudge_time, tz)
-    _schedule_daily(
-        application, REVIEW_JOB, handlers.weekly_review, prefs.review_time, tz, days=(SUNDAY,)
-    )
+    nudge = handlers.unless_away(handlers.nudge)
+    weekly = handlers.unless_away(handlers.weekly_review)
+    _schedule_daily(application, NUDGE_JOB, nudge, prefs.nudge_time, tz)
+    _schedule_daily(application, REVIEW_JOB, weekly, prefs.review_time, tz, days=(SUNDAY,))
 
 
 # PTB's Application takes six type parameters, all fixed by the default builder; spelling them
@@ -525,6 +572,8 @@ def build_bot(
     )
     allowed = owner_only(settings)
     handlers = Handlers(settings, sessions)
+    # Before every other handler: paused 30 days after the last visit from Europe (ADR-0085).
+    application.add_handler(TypeHandler(Update, handlers.away), group=-1)
     application.add_handler(CommandHandler(["start", "help"], handlers.help, filters=allowed))
     application.add_handler(CommandHandler("today", handlers.today, filters=allowed))
     application.add_handler(CommandHandler("week", handlers.week, filters=allowed))
