@@ -3,11 +3,13 @@ import SignedOutNotice from '../components/SignedOutNotice'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   changeLevel,
+  chooseLength,
   fetchPending,
   fetchSettings,
   fetchToday,
   keepProgress,
   saveSession,
+  saveSettings,
   SignedOutError,
   type Answer,
   type Clash,
@@ -31,6 +33,9 @@ import {
   kgText,
   loadFor,
   partnerOf,
+  lengthText,
+  warmUpText,
+  type Minutes,
   restTitle,
   stepOf,
   summary,
@@ -56,6 +61,7 @@ import BandOffers from './BandOffers'
 import Proposals from './Proposals'
 import LogDay from './LogDay'
 import LevelChange from './LevelChange'
+import LengthChoice, { KeepToggle } from './Length'
 import { levelNote, type LevelScope } from './levels'
 import ClashQuestion from './ClashQuestion'
 import { ExerciseFigures } from '../bodymap/BodyMap'
@@ -66,6 +72,8 @@ import useWakeLock from './useWakeLock'
 import { DEFAULT_SOUND, type Sound, playChange, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import { card, primary, primaryInline, secondary } from '../ui'
 import { KIT_HREF } from '../account/kit'
+import { BREATHING } from './safety'
+import { StopSignsCard, StopSignsTap } from './StopSigns'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
 
@@ -122,6 +130,12 @@ export default function SessionPage() {
   } | null>(null)
 
   const [sound, setSound] = useState<Sound>(DEFAULT_SOUND) // the person's choice, from Settings
+  const [talkTest, setTalkTest] = useState(false) // cardio effort by the talk test (ADR-0083)
+  // The stop signs (spec B7): due before the first guided session, and being read now. Due
+  // until the server says they were seen, so a slow or failed settings fetch still shows them.
+  const [stopSignsDue, setStopSignsDue] = useState(true)
+  const [reading, setReading] = useState(false)
+  const [breatheAt, setBreatheAt] = useState<number | null>(null) // the set with the cue
   const counting = useRef(0) // the last of a rest's final 3 seconds that sounded
   const rang = useRef(0) // the rest whose end has sounded, by its end time
   // The end of the session has rung: the mobility flow closing it rang it, so Save doesn't.
@@ -135,7 +149,12 @@ export default function SessionPage() {
   useEffect(() => {
     const ask = new AbortController()
     fetchSettings(ask.signal)
-      .then((found) => found && setSound(found.sound))
+      .then((found) => {
+        if (!found) return
+        setSound(found.sound)
+        setTalkTest(found.talk_test === true)
+        setStopSignsDue(found.stop_signs_seen !== true)
+      })
       .catch(() => {}) // the default sound still plays
     return () => ask.abort()
   }, [])
@@ -247,8 +266,10 @@ export default function SessionPage() {
       null, // one step only: nothing more to undo until the next change
     )
 
-  const stale = () => {
-    setNote("Today's session changed (on another device or in Telegram). Here it is now.")
+  const stale = (
+    text = "Today's session changed (on another device or in Telegram). Here it is now.",
+  ) => {
+    setNote(text)
     refreshUndo()
     load()
   }
@@ -269,7 +290,7 @@ export default function SessionPage() {
   }
   const bandOffers = (
     <>
-      <Proposals onSaved={counted} />
+      <Proposals onSaved={counted} talkTest={talkTest} />
       <BandOffers onCounted={counted} />
     </>
   )
@@ -296,9 +317,9 @@ export default function SessionPage() {
         {loaded.status === 'none' && bandOffers}
         {loaded.status === 'none' && undoBar}
         {loaded.status === 'none' && (
-          <Cardio featured={false} onChange={cardioChange} sound={sound} />
+          <Cardio featured={false} onChange={cardioChange} sound={sound} talkTest={talkTest} />
         )}
-        {loaded.status === 'none' && <LogDay onSaved={counted} />}
+        {loaded.status === 'none' && <LogDay onSaved={counted} talkTest={talkTest} />}
       </AppShell>
     )
   const session = loaded.session
@@ -346,6 +367,22 @@ export default function SessionPage() {
   const value = kg === undefined ? base : { ...base, load_kg: kg }
   const sentLoad = session.items[step.item].load // before a suggested weight is taken
   const change = (v: Value) => setValues({ ...values, [key(step.item, step.set_no)]: v })
+
+  /** Start or resume. The breathing cue (ADR-0084) shows once a visit, on the first set
+   * after Start that isn't a mobility flow: once sets the habit, every set would be noise. */
+  const begin = () => {
+    unlockAudio() // so the rests can sound; nothing plays on Start
+    const at = screen.order.findIndex((s, n) => n >= position && !screen.items[s.item].flow)
+    setBreatheAt(at < 0 ? null : at)
+    goTo(position >= total ? 'check' : 'set')
+  }
+  /** The stop signs were read: remembered on the server, then the session starts. */
+  const read = () => {
+    setReading(false)
+    setStopSignsDue(false)
+    saveSettings({ stop_signs_seen: true }).catch(() => {}) // shown again next time, at worst
+    begin()
+  }
 
   /** Confirm this set: the counter's value, or the clock's reading when it runs; the mobility
    * flow passes its minutes and when it started (ADR-0062). */
@@ -401,6 +438,34 @@ export default function SessionPage() {
       if (error instanceof SignedOutError) setSignedOut(true)
       else setNote("Couldn't change the level. Check your connection and try again.")
       return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Short on time today (ADR-0082): the session at that length, never dropping ``keep``. A
+   * 409 (changed, moved on or started elsewhere) reloads it, as the place switch does. */
+  const pickLength = async (minutes: Minutes, keep: string[], text: string) => {
+    setSignedOut(false) // a retry after signing in again
+    setBusy(true)
+    try {
+      const result = await chooseLength({
+        template_id: session.template_id,
+        place: session.place,
+        revision,
+        first,
+        minutes,
+        keep,
+      })
+      if (result === 'stale')
+        return stale(
+          "Today's session moved on elsewhere, so its length wasn't changed. Here it is now.",
+        )
+      if (typeof result === 'string') return setNote(result)
+      changed(result, text)
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't change the length. Check your connection and try again.")
     } finally {
       setBusy(false)
     }
@@ -545,23 +610,42 @@ export default function SessionPage() {
               onStale={stale}
             />
           )}
+          {session.length && (
+            <LengthChoice
+              session={session}
+              length={session.length}
+              busy={busy}
+              onChoose={(minutes) =>
+                pickLength(minutes, session.length?.keep ?? [], lengthText(session.name, minutes))
+              }
+            />
+          )}
           {isCardio(session) ? (
             <>
-              <Cardio featured onChange={cardioChange} sound={sound} />
+              <Cardio
+                featured
+                onChange={cardioChange}
+                sound={sound}
+                talkTest={talkTest}
+                refresh={cardioMinutes(session)}
+              />
               {afterRun(session).length > 0 && (
                 <p className={card}>
                   After your run: {afterRun(session).join(', ')}. Log the run, then this opens.
                 </p>
               )}
             </>
+          ) : reading ? (
+            <StopSignsCard onRead={read} />
           ) : (
             <Overview
               session={session}
               resumeAt={position > 0 && position < total ? position : null}
-              onStart={() => {
-                unlockAudio() // so the rests can sound; nothing plays on Start
-                goTo(position >= total ? 'check' : 'set')
-              }}
+              busy={busy}
+              onKeep={(keep, text) =>
+                pickLength((session.length?.minutes ?? null) as Minutes, keep, text)
+              }
+              onStart={() => (stopSignsDue ? setReading(true) : begin())}
             />
           )}
           {!cardioSaved && (
@@ -575,8 +659,10 @@ export default function SessionPage() {
             />
           )}
           {undoBar}
-          {!isCardio(session) && <Cardio featured={false} onChange={cardioChange} sound={sound} />}
-          <LogDay onSaved={counted} />
+          {!isCardio(session) && (
+            <Cardio featured={false} onChange={cardioChange} sound={sound} talkTest={talkTest} />
+          )}
+          <LogDay onSaved={counted} talkTest={talkTest} />
           <DayCard refresh={undoKey} />
         </>
       )}
@@ -632,6 +718,7 @@ export default function SessionPage() {
               <p className="text-[var(--slate)]">{item.step}</p>
             )}
             {item.cue && <p className="text-[var(--slate)]">{item.cue}</p>}
+            {position === breatheAt && <p className="font-bold">{BREATHING}</p>}
             {item.baseline && (
               <p className="font-bold text-[var(--bell-ink)]">
                 Baseline: first time at this step. Do what you can; targets grow from it.
@@ -781,6 +868,8 @@ export default function SessionPage() {
         </section>
       )}
 
+      {(stage === 'set' || stage === 'rest') && <StopSignsTap />}
+
       {stage === 'check' && (
         <section aria-labelledby="check" className="flex flex-col gap-4">
           <h1 id="check" className="text-4xl font-extrabold">
@@ -789,22 +878,25 @@ export default function SessionPage() {
           <p className="text-[var(--slate)]">Nothing is saved until you save.</p>
           {timesSoFar && <p className="font-bold">{soFar(timesSoFar)}</p>}
           <ul className={card}>
-            {summary(screen, values).map((row, index) => (
-              <li
-                key={row.name}
-                className="flex justify-between gap-3 border-b border-[var(--line)] py-2"
-              >
-                <span>
-                  <span className="font-bold">{row.name}</span>
-                  <br />
-                  <span className="text-sm text-[var(--slate)]">target {row.target}</span>
-                </span>
-                <span className="flex flex-col items-end text-right">
-                  <span className="font-bold">{row.done}</span>
-                  <SetTimes sets={timesSoFar?.rows[index] ?? []} />
-                </span>
-              </li>
-            ))}
+            {summary(screen, values).map((row, index) =>
+              // A dropped exercise (ADR-0082) had no sets today: nothing to check.
+              screen.items[index].targets.length === 0 ? null : (
+                <li
+                  key={row.name}
+                  className="flex justify-between gap-3 border-b border-[var(--line)] py-2"
+                >
+                  <span>
+                    <span className="font-bold">{row.name}</span>
+                    <br />
+                    <span className="text-sm text-[var(--slate)]">target {row.target}</span>
+                  </span>
+                  <span className="flex flex-col items-end text-right">
+                    <span className="font-bold">{row.done}</span>
+                    <SetTimes sets={timesSoFar?.rows[index] ?? []} />
+                  </span>
+                </li>
+              ),
+            )}
           </ul>
           {question && !question.day && (
             <ClashQuestion
@@ -937,6 +1029,12 @@ function isCardio(session: Guided): boolean {
   return session.kind === 'conditioning' && !session.after_run && runs.length === 1
 }
 
+/** Today's cardio minutes, shortened on a shorter day (ADR-0082): the one-step log asks for
+ * its plan again when they change. */
+function cardioMinutes(session: Guided): number | undefined {
+  return session.items.find((item) => CARDIO.includes(item.slug))?.targets[0]
+}
+
 /** What a conditioning session has after its cardio, by name, until the cardio is logged. */
 function afterRun(session: Guided): string[] {
   if (session.after_run || !isCardio(session)) return []
@@ -995,16 +1093,24 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
 function Overview({
   session,
   resumeAt,
+  busy,
+  onKeep,
   onStart,
 }: {
   session: Guided
   resumeAt: number | null
+  busy: boolean
+  onKeep: (keep: string[], text: string) => void
   onStart: () => void
 }) {
+  const length = session.length
+  // Keep matters only on a shorter day that hasn't started (ADR-0082).
+  const pinning = length && !length.fixed && length.minutes !== null ? length : null
+  const warmUp = warmUpText(session)
   return (
     <section aria-labelledby="session" className="flex flex-col gap-4">
       <p className="text-sm text-[var(--slate)]">
-        {session.usual_minutes
+        {session.usual_minutes && !length?.minutes
           ? `Usually ${session.usual_minutes} min` // from earlier timed sessions (ADR-0061)
           : `About ${session.minutes} min`}
       </p>
@@ -1015,30 +1121,41 @@ function Overview({
       {session.after_run && (
         <p className={card}>After your run: it's logged, and these sets are saved with it.</p>
       )}
-      {session.warm_up && <p className={card}>Warm up for about 5 minutes first.</p>}
+      {warmUp && <p className={card}>{warmUp}</p>}
       <p className="text-[var(--slate)]">
         Stop if you feel sharp pain, dizziness or chest tightness.
       </p>
       <ul className="flex flex-col gap-2">
-        {session.items.map((item) => (
-          <li key={item.slug} className={card + ' flex justify-between gap-3'}>
-            <span>
-              <span className="font-bold">{item.name}</span>
-              <br />
-              <span className="text-sm text-[var(--slate)]">
-                {item.pair !== null ? `Pair ${item.pair} · ` : ''}
-                {item.step}
-                {item.baseline ? ' · baseline' : ''}
+        {session.items.map((item, index) => (
+          <li key={item.slug} className={card + ' flex flex-col gap-2'}>
+            <span className="flex justify-between gap-3">
+              <span>
+                <span className="font-bold">{item.name}</span>
+                <br />
+                <span className="text-sm text-[var(--slate)]">
+                  {partnerOf(session, index) ? `Pair ${item.pair} · ` : ''}
+                  {item.step}
+                  {item.baseline ? ' · baseline' : ''}
+                </span>
               </span>
+              {item.targets.length === 0 ? (
+                <span className="text-[var(--slate)] whitespace-nowrap">Dropped today</span>
+              ) : (
+                <span className="font-bold whitespace-nowrap">
+                  {item.targets.length} × {unitText(item, item.targets[0])}
+                  {item.per_side ? ' each side' : ''}
+                </span>
+              )}
             </span>
-            <span className="font-bold whitespace-nowrap">
-              {item.targets.length} × {unitText(item, item.targets[0])}
-              {item.per_side ? ' each side' : ''}
-            </span>
+            {pinning && (
+              <span>
+                <KeepToggle item={item} length={pinning} busy={busy} onToggle={onKeep} />
+              </span>
+            )}
           </li>
         ))}
       </ul>
-      <button type="button" className={primary} onClick={onStart}>
+      <button type="button" className={primary} disabled={busy} onClick={onStart}>
         {resumeAt !== null
           ? `Resume: set ${resumeAt + 1} of ${session.order.length}`
           : 'Start session'}

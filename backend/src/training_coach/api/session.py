@@ -1,7 +1,7 @@
 """Today's guided session for the web app (D1, #117). Owner-only."""
 
 from datetime import UTC, date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -199,6 +199,41 @@ class BlockView(BaseModel):
     week: int
 
 
+class LengthView(BaseModel):
+    """Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on
+    offer, the exercises pinned with Keep, about how long as planned, what the chosen length
+    drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
+    ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
+    chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
+    kept, so the length no longer changes."""
+
+    minutes: int | None
+    options: list[int]
+    keep: list[str]
+    planned_minutes: int
+    dropped: list[str]
+    warm_up: Literal["none", "full", "ramp"]
+    shortest: int | None
+    fixed: bool
+
+
+def length_view(plan: guided.Guided) -> LengthView | None:
+    found = plan.length
+    if found is None:
+        return None
+    trimmed = found.trimmed
+    return LengthView(
+        minutes=found.minutes,
+        options=list(guided.OPTIONS),
+        keep=list(found.keep),
+        planned_minutes=found.planned,
+        dropped=[plan.items[i].exercise for i in trimmed.dropped],
+        warm_up=trimmed.warm_up.value,
+        shortest=trimmed.shortest,
+        fixed=found.fixed,
+    )
+
+
 class GuidedView(BaseModel):
     day: str  # ISO date, local
     template_id: int
@@ -207,7 +242,7 @@ class GuidedView(BaseModel):
     kind: Literal["strength", "conditioning", "recovery"]
     warm_up: bool
     block: BlockView | None
-    minutes: int  # the plan's estimate
+    minutes: int  # the estimate at today's length, warm-up included
     usual_minutes: int | None = None  # how long this session usually takes (ADR-0061)
     rest_seconds: int  # the rest after a pair, for pages from before ADR-0065
     items: list[ItemView]
@@ -218,6 +253,8 @@ class GuidedView(BaseModel):
     # Where it is done, and so which version (ADR-0071); ``place_choice``: show Home | Gym.
     place: Place = Place.HOME
     place_choice: bool = False
+    # Short on time today (ADR-0082); empty for a session that always runs as planned.
+    length: LengthView | None = None
 
 
 class DoneView(BaseModel):
@@ -462,6 +499,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
             after_run=plan.after_run,
             place=plan.place,
             place_choice=plan.switch,
+            length=length_view(plan),
         ),
     )
 
@@ -522,6 +560,38 @@ def choose_place(body: PlaceBody, request: Request, user: Owner) -> TodayView | 
                 status_code=status.HTTP_409_CONFLICT, content=PlaceAsk(kept_sets=kept).model_dump()
             )
         return today_view(session, on, settings)
+
+
+class LengthBody(BaseModel):
+    """Short on time today (ADR-0082): as planned (empty) or 40, 30 or 20 minutes, never
+    dropping the exercises pinned with ``keep`` (slugs)."""
+
+    template_id: int  # the session the browser shows: a different one now is a conflict
+    place: Place  # the version it shows (ADR-0071): another one now is too
+    revision: int = Field(default=0, ge=0)  # the kept revision this browser saw; 0: none
+    first: list[int] = Field(default_factory=list, max_length=10)
+    minutes: Literal[40, 30, 20] | None = None
+    keep: list[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=30)
+
+
+@router.put("/length", response_model=TodayView)
+def choose_length(body: LengthBody, request: Request, user: Owner) -> TodayView:
+    """Run today's session shorter, or as planned again (ADR-0082): the session at that
+    length. 409 when the session changed, another device moved on since ``revision``
+    (reload), or a set is kept already (the length is fixed then); 422 for a session that
+    always runs as planned, or a Keep for an exercise it doesn't have."""
+    settings, on = _settings_and_day(request)
+    with session_scope(_bound(request, user)) as session:
+        plan = guided.today(session, on, settings.tz, set(body.first))
+        if plan is None or plan.template_id != body.template_id or body.place is not plan.place:
+            raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
+        result = guided.choose_length(session, plan, body.revision, body.minutes, body.keep)
+        if isinstance(result, int):
+            return today_view(session, on, settings)
+        # Raised inside the scope, so it rolls back: a refused choice writes nothing.
+        if result in (guided.STALE, guided.STARTED, guided.SAVED):
+            raise HTTPException(status.HTTP_409_CONFLICT, result)
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result)
 
 
 @router.post("/save", response_model=SavedView, responses=CLASH)

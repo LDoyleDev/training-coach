@@ -96,6 +96,18 @@ def test_session_progress_place_is_home_or_gym(session: Session) -> None:
         session.execute(text("UPDATE session_progress SET place = 'office'"))
 
 
+def test_a_step_level_is_empty_or_1_to_6_and_marks_start_empty(session: Session) -> None:
+    """ADR-0083: the seed writes both; a step written before it runs has none."""
+    exercise = factories.exercise(session)
+    session.commit()
+    assert session.execute(text("SELECT level, marks FROM ladder_steps")).first() == (None, "[]")
+    assert exercise.failure_ok is False
+    session.execute(text("UPDATE ladder_steps SET level = 6"))
+    for level in (0, 7):
+        with pytest.raises(IntegrityError):
+            session.execute(text("UPDATE ladder_steps SET level = :level"), {"level": level})
+
+
 @pytest.mark.parametrize("kit", ["barbell", "dumbbells", "machine"])
 def test_an_own_weight_step_is_empty_or_in_range(session: Session, kit: str) -> None:
     """ADR-0072: empty keeps the default; a step of their own is 0.25 to 20 kg."""
