@@ -1179,6 +1179,36 @@ export async function saveBodySettings(body: BodySettingsBody): Promise<BodySett
   return (await res.json()) as BodySettings
 }
 
+// ------------------------------------------------------ where you live (ADR-0085)
+
+export type Residence = Schemas['ResidenceView']
+
+/** The country of residence and the list to choose from; null when not signed in. */
+export async function fetchResidence(signal?: AbortSignal): Promise<Residence | null> {
+  const res = await fetch('/api/account/residence', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Residence
+}
+
+/** Save the country of residence; a string says why it was refused. */
+export async function saveResidence(country: string): Promise<Residence | string> {
+  const res = signedIn(
+    await fetch('/api/account/residence', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ country }),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 422) {
+    const detail = ((await res.json()) as { detail?: unknown }).detail
+    return typeof detail === 'string' ? detail : 'Choose a country from the list.'
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Residence
+}
+
 // ------------------------------------------------------ band import secret (ADR-0055)
 
 export type BandImport = Schemas['IngestView']

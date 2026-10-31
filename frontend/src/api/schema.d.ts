@@ -335,6 +335,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/residence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Residence */
+        get: operations["get_residence_api_account_residence_get"];
+        /**
+         * Set Residence
+         * @description Save the country; one off the list gets 422 with the reason.
+         */
+        put: operations["set_residence_api_account_residence_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/account/sign-ins": {
         parameters: {
             query?: never;
@@ -3471,6 +3492,18 @@ export interface components {
          * @enum {string}
          */
         Refusal: "too_large" | "not_json" | "failed" | "skipped";
+        /** ResidenceBody */
+        ResidenceBody: {
+            /** Country */
+            country: string;
+        };
+        /** ResidenceView */
+        ResidenceView: {
+            /** Choices */
+            choices: string[];
+            /** Country */
+            country: string | null;
+        };
         /**
          * Resistance
          * @description A resistance band's strength.
@@ -4711,6 +4744,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_residence_api_account_residence_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResidenceView"];
+                };
+            };
+        };
+    };
+    set_residence_api_account_residence_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResidenceBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResidenceView"];
+                };
             };
             /** @description Validation Error */
             422: {

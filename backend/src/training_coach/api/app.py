@@ -48,6 +48,7 @@ from training_coach.api.progress import router as progress_router
 from training_coach.api.proposals import router as proposals_router
 from training_coach.api.readiness import router as readiness_router
 from training_coach.api.region import region_guard
+from training_coach.api.residence import router as residence_router
 from training_coach.api.review import router as review_router
 from training_coach.api.security import request_guard, security_headers_middleware
 from training_coach.api.session import router as session_router
@@ -251,6 +252,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(passkeys_router)
     app.include_router(account_router)
+    app.include_router(residence_router)
     app.include_router(ai_router)
     app.include_router(session_router)
     app.include_router(cardio_router)

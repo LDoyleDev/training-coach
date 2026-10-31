@@ -4883,6 +4883,49 @@
         "title": "Refusal",
         "type": "string"
       },
+      "ResidenceBody": {
+        "properties": {
+          "country": {
+            "maxLength": 2,
+            "minLength": 2,
+            "title": "Country",
+            "type": "string"
+          }
+        },
+        "required": [
+          "country"
+        ],
+        "title": "ResidenceBody",
+        "type": "object"
+      },
+      "ResidenceView": {
+        "properties": {
+          "choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "required": [
+          "country",
+          "choices"
+        ],
+        "title": "ResidenceView",
+        "type": "object"
+      },
       "Resistance": {
         "description": "A resistance band's strength.",
         "enum": [
@@ -7613,6 +7656,67 @@
           }
         },
         "summary": "Remove Passkey",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/residence": {
+      "get": {
+        "operationId": "get_residence_api_account_residence_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResidenceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Residence",
+        "tags": [
+          "account"
+        ]
+      },
+      "put": {
+        "description": "Save the country; one off the list gets 422 with the reason.",
+        "operationId": "set_residence_api_account_residence_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResidenceBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResidenceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Residence",
         "tags": [
           "account"
         ]
