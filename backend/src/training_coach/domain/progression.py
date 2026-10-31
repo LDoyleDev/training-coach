@@ -10,13 +10,18 @@ two only if it planned at least two sets, or every set when the prescription pla
 one-set exercise could never move up otherwise); a day that doesn't count is passed over, so the
 two are the last two that do. A session saved without its count (``None``) keeps the rule above:
 every set the prescription plans, and it always counts.
+
+Stepping down is suggested, never done for the person (ADR-0084): ``step_down`` offers the step
+below when the last two sessions at the step, not counting the first there (its baseline), each
+had most of the sets it planned short of their targets and below the bottom of the range.
 """
 
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from enum import StrEnum
 
 from training_coach.domain.enums import Side
-from training_coach.domain.targets import Prescription, planned_counts
+from training_coach.domain.targets import Pace, Prescription, judged, planned_counts
 
 SESSIONS_REQUIRED = 2
 SETS_TO_COUNT = 2  # a day planning fewer sets of the exercise doesn't count (ADR-0084)
@@ -78,3 +83,69 @@ def combine_sides(sets: Iterable[tuple[int, Side, int]], *, unilateral: bool) ->
 
     last = max(by_set, default=0)
     return [value_of(by_set[n]) if n in by_set else 0 for n in range(1, last + 1)]
+
+
+class StepDown(StrEnum):
+    """Whether to suggest the step below (ADR-0084). The person decides."""
+
+    NONE = "none"
+    SUGGEST = "suggest"  # the step below
+    FIRST_STEP = "first_step"  # the rule is met with no step below: an easier exercise instead
+
+
+def out_of_reach(item: Prescription, given: Sequence[int], done: Sequence[int]) -> bool:
+    """Most of the sets a session planned fell short of their targets and of the bottom of the
+    range. ``given`` and ``done`` hold one value per set planned (``targets.judged``)."""
+    short = sum(1 for g, v in zip(given, done, strict=True) if v < g and v < item.rep_min)
+    return short * 2 > len(done)
+
+
+def judged_sessions(count: int, skipped: Sequence[bool] | None = None) -> list[int]:
+    """The indexes of a newest-first history of ``count`` sessions that the step-down rule
+    judges, newest first: not the oldest (the baseline, ADR-0027) and none ``skipped`` (a
+    strength-block session, or a level chosen for today only)."""
+    if skipped is not None and len(skipped) != count:
+        raise ValueError(f"{len(skipped)} skip flags for {count} sessions")
+    return [i for i in range(count - 1) if skipped is None or not skipped[i]]
+
+
+def step_down(
+    item: Prescription,
+    recent: Sequence[Sequence[int]],
+    *,
+    has_step_below: bool,
+    pace: Pace = Pace.STANDARD,
+    planned: Sequence[int | None] | None = None,
+    skipped: Sequence[bool] | None = None,
+    loaded: bool = False,
+) -> StepDown:
+    """Suggest the step below when the last two sessions judged (``judged_sessions``) both had
+    the bottom of the range out of reach (``out_of_reach``). ``recent`` is every session at the
+    step, newest first, with the weaker side of a one-sided set (``combine_sides``); ``planned``
+    the sets each planned (ADR-0084); ``pace`` gives the targets they were given (ADR-0057). A
+    loaded step never: the weight is what to lower (ADR-0072)."""
+    if loaded:
+        return StepDown.NONE
+    sessions = judged(item, recent, pace, planned)
+    latest = judged_sessions(len(recent), skipped)[:SESSIONS_REQUIRED]
+    if len(latest) < SESSIONS_REQUIRED or not all(out_of_reach(item, *sessions[i]) for i in latest):
+        return StepDown.NONE
+    return StepDown.SUGGEST if has_step_below else StepDown.FIRST_STEP
+
+
+@dataclass(frozen=True)
+class Catalogued:
+    """An exercise of the catalogue, for naming an easier one (ADR-0083)."""
+
+    name: str
+    primes: frozenset[str]  # the muscles it counts fully for
+    level: int | None  # its first step's level, 1-6; None for a step without one
+
+
+EASY_LEVELS = (1, 2)
+
+
+def easier_exercises(primes: frozenset[str], catalogue: Iterable[Catalogued]) -> list[str]:
+    """The catalogue's exercises starting at level 1 or 2 that share a prime mover with
+    ``primes``, in catalogue order: a suggestion at a ladder's first step."""
+    return [c.name for c in catalogue if c.level in EASY_LEVELS and c.primes & primes]

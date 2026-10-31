@@ -51,6 +51,7 @@ const WEEK: WeekReview = {
     },
   ],
   ready: [{ exercise: 'Push-up', slug: 'push-up' }],
+  step_down: [],
   top: [
     {
       exercise: 'Kettlebell swing',

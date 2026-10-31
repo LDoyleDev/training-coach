@@ -189,6 +189,14 @@ def next_open(ladder: Sequence[Sequence[str]], at: int, kit: Sequence[Item] | No
     return next((i for i in range(at + 1, len(ladder)) if not missing(kit, ladder[i])), None)
 
 
+def previous_open(
+    ladder: Sequence[Sequence[str]], at: int, kit: Sequence[Item] | None
+) -> int | None:
+    """The nearest step before ``at`` the kit allows (a step down skips locked ones, ADR-0084),
+    or None at the first step, or when every step below is locked."""
+    return next((i for i in range(at - 1, -1, -1) if not missing(kit, ladder[i])), None)
+
+
 def unlocks_next(
     ladder: Sequence[Sequence[str]], at: int, kit: Sequence[Item] | None
 ) -> list[str] | None:

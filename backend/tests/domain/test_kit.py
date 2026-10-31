@@ -8,6 +8,7 @@ from training_coach.domain.kit import (
     need_label,
     next_open,
     parse_item,
+    previous_open,
     problem,
     problems,
     unlocked,
@@ -75,6 +76,14 @@ def test_move_up_skips_locked_steps() -> None:
     assert next_open(ladder, 0, [BAR]) == 2
     assert next_open(ladder, 2, [BAR]) is None
     assert next_open(ladder, 0, [BAR, KB16]) == 1
+
+
+def test_a_step_down_skips_locked_steps() -> None:
+    ladder = [[], ["kettlebell:16"], ["pull-up bar"], ["kettlebell:16"]]
+    assert previous_open(ladder, 3, [BAR]) == 2
+    assert previous_open(ladder, 2, [BAR]) == 0
+    assert previous_open(ladder, 0, None) is None
+    assert previous_open([["kettlebell:16"], []], 1, []) is None
 
 
 def test_top_for_your_kit_names_what_opens_the_next_step() -> None:

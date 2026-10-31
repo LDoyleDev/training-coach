@@ -44,7 +44,7 @@ from training_coach.domain.rest import AFTER_PAIR_SECONDS, Kind, Rest, rests
 from training_coach.domain.session_times import pace, plausible
 from training_coach.domain.trim import WARM_UP, WarmUp
 from training_coach.domain.work_order import SetRef, work_order
-from training_coach.services import blocks, session_times, user_settings, workout_log
+from training_coach.services import blocks, session_times, user_settings, users, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
 from training_coach.services.seed import bundled_plan
 from training_coach.services.today import ItemPlan, SessionPlan, position, session_plan
@@ -788,6 +788,34 @@ def entries(items: tuple[ItemPlan, ...], sets: Sequence[Done]) -> tuple[Entry, .
     return tuple(entries)
 
 
+def for_today(session: Session, steps: dict[str, int]) -> dict[str, int]:
+    """The levels chosen for today only (ADR-0080): ``steps`` minus those that are the person's
+    level, chosen from now on."""
+    if not steps:
+        return {}
+    query = select(Exercise.slug, Exercise.id).where(Exercise.slug.in_(steps))
+    ids = dict(session.execute(query).all())
+    found = {}
+    for slug, step_id in steps.items():
+        state = users.exercise_state(session, ids[slug]) if slug in ids else None
+        if state is not None and state.ladder_step_id != step_id:
+            found[slug] = step_id
+    return found
+
+
+def _mark_today(session: Session, workout_id: int, steps: dict[str, int]) -> None:
+    """Note in the saved workout's plan the level each exercise was done at for today only
+    (``"today"``: its step id), so the step-down rule passes those sets over (ADR-0084)."""
+    today = for_today(session, steps)
+    if not today:
+        return
+    workout = session.get_one(Workout, workout_id)
+    plan = dict(workout.planned or {})
+    for slug, step_id in today.items():
+        plan[slug] = {**plan.get(slug, {}), "today": step_id}
+    workout.planned = plan  # a new dict, so the JSON column sees the change
+
+
 def _stamp(
     session: Session, workout_id: int, items: tuple[ItemPlan, ...], sets: Sequence[Done]
 ) -> None:
@@ -846,6 +874,7 @@ def save(
         row.saved_workout_id = result.workout_id
         if not result.already_saved:
             _stamp(session, result.workout_id, plan.items, sets)
+            _mark_today(session, result.workout_id, row.steps)
     return result if result is not None else "no sets recorded"
 
 
@@ -890,6 +919,7 @@ def _save_after_run(
             if isinstance(result, workout_log.Saved):
                 row.saved_workout_id = result.workout_id
                 _stamp(session, result.workout_id, items, sets)
+                _mark_today(session, result.workout_id, row.steps)
                 session.flush()
     except IntegrityError:
         session.expire_all()

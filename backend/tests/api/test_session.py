@@ -110,9 +110,9 @@ def test_nothing_to_guide_once_today_is_done(signed_in: TestClient, engine: Engi
     }
 
 
-def _log_yesterday(engine: Engine, done: dict[str, int]) -> None:
-    """Every set of each exercise in ``done`` at that value, logged yesterday."""
-    yesterday = local_date(datetime.now(UTC), Settings().tz) - timedelta(days=1)
+def _log_yesterday(engine: Engine, done: dict[str, int], days_ago: int = 1) -> None:
+    """Every set of each exercise in ``done`` at that value, logged yesterday (or earlier)."""
+    yesterday = local_date(datetime.now(UTC), Settings().tz) - timedelta(days=days_ago)
     with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
         workout = Workout(local_date=yesterday, status=WorkoutStatus.DONE)
         for slug, value in done.items():
@@ -614,6 +614,21 @@ def test_the_saved_screen_says_when_there_is_no_step_to_move_to(
     (earned,) = signed_in.post("/api/session/save", json={}).json()["earned"]
     assert (earned["exercise"], earned["next_step"]) == ("Jump squat", None)
     assert (earned["at_top"], earned["unlock"]) == (True, unlock)
+
+
+def test_the_saved_screen_suggests_a_step_down(signed_in: TestClient, engine: Engine) -> None:
+    """ADR-0084: after the baseline, two sessions with the bottom of 5-8 out of reach."""
+    _put_on_step(engine, "jump-squat", 1)
+    _log_yesterday(engine, {"jump-squat": 2}, days_ago=3)  # the baseline
+    _log_yesterday(engine, {"jump-squat": 2})
+    session = _today_view(signed_in)["session"]
+    sets = [{"item": 0, "set_no": n, "left": 2} for n in (1, 2, 3)]
+    body = {"template_id": session["template_id"], "place": "home", "position": 6, "sets": sets}
+    assert signed_in.put("/api/session/progress", json=body).status_code == 200
+    (earned,) = signed_in.post("/api/session/save", json={}).json()["earned"]
+    assert earned["exercise"] == "Jump squat"
+    assert earned["step_down"]["below"] == "Bodyweight, full rest"
+    assert earned["step_down"]["easier"] == []
 
 
 def test_a_loaded_step_offers_its_weights_and_keeps_each_sets(

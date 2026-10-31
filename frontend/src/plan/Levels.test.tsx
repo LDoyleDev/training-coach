@@ -34,6 +34,7 @@ const make = (over: Partial<Standing> = {}): Standing => ({
   retired: false,
   trend: [],
   unlock: null,
+  step_down: null,
   ...over,
 })
 
@@ -283,6 +284,11 @@ test('every outcome is said in plain words', () => {
   expect(say('strength_block')).toMatch(/waits for the hypertrophy block/)
   expect(say('same_level')).toBe('Pull-up is already on Pause at top.')
   expect(say('level_set', null)).toMatch(/Targets for it start fresh/)
+  expect(say('stepped_down', 'Slow negatives')).toBe(
+    'Pull-up is now on Slow negatives. Targets for Slow negatives start fresh from its own history.',
+  )
+  expect(say('no_step_below')).toMatch(/no step below/)
+  expect(say('stayed_down')).toMatch(/^Staying on Pause at top\. You'll be asked again/)
   expect(wanted('?move=pull-up')).toBe('pull-up')
   expect(wanted('')).toBeNull()
   expect(moveHref('a b')).toBe('/plan?move=a%20b')

@@ -76,6 +76,7 @@ const SAVED: Saved = {
       at_top: false,
       unlock: null,
       load_kg: 22.5,
+      step_down: null,
     },
   ],
   stretching: true,

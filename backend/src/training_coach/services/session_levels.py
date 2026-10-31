@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import Exercise, LadderStep, SetLog
 from training_coach.domain import kit as kit_rules
-from training_coach.services import equipment, guided, progress, users
+from training_coach.services import equipment, guided, progress
 from training_coach.services.progress import Rung
 
 NOT_IN_SESSION = "that exercise isn't in today's session"
@@ -104,16 +104,7 @@ def change(
 
 def today_only(session: Session, steps: dict[str, int]) -> set[str]:
     """The exercises whose step today was chosen for today only: not the person's level."""
-    if not steps:
-        return set()
-    query = select(Exercise.slug, Exercise.id).where(Exercise.slug.in_(steps))
-    ids = dict(session.execute(query).all())
-    found = set()
-    for slug, step_id in steps.items():
-        state = users.exercise_state(session, ids[slug]) if slug in ids else None
-        if state is not None and state.ladder_step_id != step_id:
-            found.add(slug)
-    return found
+    return set(guided.for_today(session, steps))
 
 
 def done_at(session: Session, day: date, workout_id: int) -> list[tuple[str, tuple[str, ...]]]:

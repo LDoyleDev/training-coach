@@ -62,5 +62,11 @@ export function said(m: Moved): string {
       return `${exercise} is now on ${step}. ${confirmText(step ?? 'it')}${m.warning ? ` ${m.warning}` : ''}`
     case 'same_level':
       return `${exercise} is already on ${step}.`
+    case 'stepped_down':
+      return `${exercise} is now on ${step}. ${confirmText(step ?? 'it')}${m.warning ? ` ${m.warning}` : ''}`
+    case 'no_step_below':
+      return `${exercise} is on the first step it can go to: there's no step below.`
+    case 'stayed_down':
+      return `Staying on ${step}. You'll be asked again if the bottom of the range is out of reach in a later session.`
   }
 }
