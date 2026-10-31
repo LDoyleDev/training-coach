@@ -94,13 +94,19 @@ ADR-0046 stores readiness answers on the server (`readiness_answers`) as consent
   header is believed only from `TC_TRUSTED_PROXIES`; a request that didn't come through them
   (direct LAN or Tailscale access, the container's own health check) or a trusted request
   without the header is let through, so a missing Cloudflare setting can never lock the owner
-  out; Cloudflare's rule is the outer gate. The 451 gate is listed in the route test (ADR-0036),
+  out; Cloudflare's rule is the outer gate. A let-through request never counts as seen in
+  Europe: only a listed country read through a trusted proxy refreshes the date, so the 30 days
+  can't be kept alive from anywhere. Using the site through Cloudflare once a month keeps the
+  bot and AI going; a person on LAN or Tailscale alone would lose them after 30 days, which is
+  accepted. A signed-in request with `XX` or `T1` gets the 451 page with the reason ("we can't
+  tell where you are, for example behind Tor or some VPNs"), never a silent failure. The 451 gate is listed in the route test (ADR-0036),
   and the threat model records the header trust and that the exempt MCP and OAuth paths are
   reachable from anywhere, so their own auth carries the whole burden. The implementing PR
   updates `docs/security/threat-model.md` and `mcp-threat-model.md` with the header, the 451
   gate and the new field.
 - **Acceptance items:** `country` and the last-seen date are in the export, erased with the
-  account, and named in the privacy notice.
+  account, and named in the privacy notice; tests that a let-through request doesn't refresh
+  the date and that `XX`/`T1` get the 451 page with its reason.
 
 ## Options considered
 
