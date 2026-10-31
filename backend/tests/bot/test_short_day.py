@@ -1,0 +1,171 @@
+"""Short on time today in the bot (ADR-0082): the work list follows the length chosen in the
+app, and the morning message, sent before, shows the planned length and the offer."""
+
+from unittest.mock import AsyncMock
+
+import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import Session, sessionmaker
+from telegram.ext import Application
+
+from tests.bot.fakes import OWNER, SETTINGS, STRANGER, press, run, texts
+from training_coach.bot.app import Handlers, build_bot
+from training_coach.bot.messages import RAMP, SHORT_ON_TIME, WARM_UP, WORK_DOWN
+from training_coach.db.models import SessionTemplate
+from training_coach.services import guided, users
+
+Sessions = sessionmaker[Session]
+LEGS_PLANNED = "About 49 minutes, warm-up included."  # the bundled home Legs day
+DROPPED_AT_20 = (
+    "Shortened to 20 minutes in the app; dropped: Hamstring curl, Single-leg calf raise, "
+    "Tibialis raise, Pistol squat, Single-leg Romanian deadlift."
+)
+
+
+def _at(sessions: Sessions, slug: str) -> int:
+    with sessions() as session:
+        template = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == slug))
+        tid = template.one().id
+        state = users.plan_state(session)
+        assert state is not None
+        state.next_template_id = tid
+        session.commit()
+    return tid
+
+
+def _choose(sessions: Sessions, handlers: Handlers, minutes: int | None) -> None:
+    """Pick the day's minutes as the app does."""
+    with sessions() as session:
+        plan = guided.today(session, handlers._local_today(), SETTINGS.tz)
+        assert plan is not None
+        kept = guided.kept(session, plan.day)
+        revision = kept.revision if kept is not None else 0
+        assert isinstance(guided.choose_length(session, plan, revision, minutes, ()), int)
+        session.commit()
+
+
+def _keep_first_set(sessions: Sessions, handlers: Handlers) -> None:
+    with sessions() as session:
+        plan = guided.today(session, handlers._local_today(), SETTINGS.tz)
+        assert plan is not None
+        kept = guided.kept(session, plan.day)
+        revision = kept.revision if kept is not None else 0
+        first = plan.order[0]
+        done = guided.Done(first.item, first.set_no, first.target)
+        assert isinstance(guided.keep(session, plan, revision, 1, [], [done]), int)
+        session.commit()
+
+
+def _listed(text: str) -> dict[str, int]:
+    """Sets per exercise in the work list."""
+    sets: dict[str, int] = {}
+    for line in text.splitlines():
+        head = line.split(". ", 1)
+        if len(head) == 2 and head[0].isdigit():
+            name = head[1].split(" (")[0]
+            sets[name] = sets.get(name, 0) + 1
+    return sets
+
+
+async def test_the_morning_shows_the_planned_length_and_offers_a_shorter_one(
+    seeded: Sessions,
+) -> None:
+    _at(seeded, "legs")
+    context = type("Ctx", (), {"bot": AsyncMock()})()
+    await Handlers(SETTINGS, seeded).morning(context)  # type: ignore[arg-type]
+    text = context.bot.send_message.await_args.kwargs["text"]
+    assert f"{LEGS_PLANNED} {SHORT_ON_TIME}" in text.splitlines()
+    assert SHORT_ON_TIME == "Short on time? Pick 40, 30 or 20 minutes in the app before you start."
+    assert WARM_UP in text.splitlines()
+    assert _listed(text)["Single-leg calf raise"] == 4  # the list as planned
+
+
+async def test_today_follows_a_shorter_day_chosen_in_the_app(seeded: Sessions) -> None:
+    _at(seeded, "legs")
+    handlers = Handlers(SETTINGS, seeded)
+    before, _ = handlers._today()
+    _choose(seeded, handlers, 20)
+    text, _ = handlers._today()
+    lines = text.splitlines()
+    assert DROPPED_AT_20 in lines
+    assert SHORT_ON_TIME not in text
+    assert RAMP in lines  # 30 minutes or less: ramp sets, not the 5-minute warm-up
+    assert WARM_UP not in lines
+    assert WORK_DOWN not in lines  # every pair lost a partner: each is done straight
+    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Bulgarian split squat": 2}
+    assert len(_listed(before)) == 8
+
+
+async def test_forty_minutes_keeps_every_exercise_at_two_sets_and_the_warm_up(
+    seeded: Sessions,
+) -> None:
+    _at(seeded, "legs")
+    handlers = Handlers(SETTINGS, seeded)
+    _choose(seeded, handlers, 40)
+    text, _ = handlers._today()
+    lines = text.splitlines()
+    assert "Shortened to 40 minutes in the app." in lines
+    assert WARM_UP in lines
+    assert WORK_DOWN in lines
+    assert set(_listed(text).values()) == {2}
+    assert len(_listed(text)) == 8
+
+
+async def test_as_planned_again_shows_the_whole_list(seeded: Sessions) -> None:
+    _at(seeded, "legs")
+    handlers = Handlers(SETTINGS, seeded)
+    before, _ = handlers._today()
+    _choose(seeded, handlers, 20)
+    _choose(seeded, handlers, None)
+    text, _ = handlers._today()
+    assert text == before
+
+
+async def test_no_offer_once_the_session_has_started(seeded: Sessions) -> None:
+    _at(seeded, "legs")
+    handlers = Handlers(SETTINGS, seeded)
+    _keep_first_set(seeded, handlers)
+    text, _ = handlers._today()
+    assert LEGS_PLANNED in text.splitlines()
+    assert SHORT_ON_TIME not in text
+
+
+async def test_a_conditioning_session_offers_it_without_a_warm_up(seeded: Sessions) -> None:
+    _at(seeded, "moderate-cardio")
+    text, _ = Handlers(SETTINGS, seeded)._today()
+    (line,) = [line for line in text.splitlines() if line.startswith("About ")]
+    assert line.endswith(f" minutes. {SHORT_ON_TIME}")
+    assert "Warm up" not in text
+
+
+async def test_a_recovery_session_is_not_offered_shorter(seeded: Sessions) -> None:
+    _at(seeded, "recovery")
+    text, _ = Handlers(SETTINGS, seeded)._today()
+    assert SHORT_ON_TIME not in text
+    assert "About " not in text
+
+
+@pytest.fixture
+def app(seeded: Sessions) -> Application:  # type: ignore[type-arg]  # see build_bot
+    return build_bot(SETTINGS, seeded)
+
+
+async def test_start_lists_the_shorter_day(
+    app: Application,  # type: ignore[type-arg]
+    seeded: Sessions,
+) -> None:
+    tid = _at(seeded, "legs")
+    _choose(seeded, Handlers(SETTINGS, seeded), 20)
+    (text,) = texts(await run(app, press(f"q:start:{tid}", OWNER)))
+    assert DROPPED_AT_20 in text.splitlines()
+    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Bulgarian split squat": 2}
+    assert "- Tibialis raise:" not in text  # no how-to for a dropped exercise
+
+
+async def test_a_strangers_start_still_gets_nothing(
+    app: Application,  # type: ignore[type-arg]
+    seeded: Sessions,
+) -> None:
+    tid = _at(seeded, "legs")
+    _choose(seeded, Handlers(SETTINGS, seeded), 20)
+    assert await run(app, press(f"q:start:{tid}", STRANGER)) == {}
