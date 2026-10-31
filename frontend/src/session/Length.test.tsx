@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { Guided, Length, TodayView } from '../api'
+import type { CardioOptions, Guided, Length, TodayView } from '../api'
+import { emptyWeek } from '../test/cardioWeek'
 import SessionPage from './SessionPage'
 
 vi.mock('../hiit/sounds', () => ({
@@ -98,12 +99,14 @@ const today = (session: Guided | null, revision = 0): TodayView => ({
 type Server = {
   today?: TodayView[] | 'error' // each GET takes the next; the last repeats
   length?: Response[] // each PUT /length takes the next
+  cardio?: CardioOptions[] // each GET /api/cardio takes the next; the last repeats
 }
 
 /** A fake API; returns the bodies sent, by method and path. */
 function serve(server: Server) {
   const sent: Record<string, unknown[]> = {}
   const days = server.today === 'error' ? [] : [...(server.today ?? [today(SESSION)])]
+  const cardio = [...(server.cardio ?? [])]
   vi.stubGlobal(
     'fetch',
     vi.fn(async (path: string, init?: RequestInit) => {
@@ -115,6 +118,8 @@ function serve(server: Server) {
       }
       if (path === '/api/session/length')
         return server.length?.shift() ?? new Response(null, { status: 500 })
+      if (path === '/api/cardio' && cardio.length)
+        return Response.json(cardio.length > 1 ? cardio.shift() : cardio[0])
       if (path === '/api/session/progress') return Response.json({ revision: 2 })
       if (path === '/api/session/pending') return Response.json([])
       if (path === '/api/settings') return Response.json({ sound: 'ring', stop_signs_seen: true })
@@ -311,4 +316,39 @@ test("today's session failing to load says so", async () => {
     await screen.findByText("Couldn't load today's session. Check your connection."),
   ).toBeInTheDocument()
   expect(screen.queryByText('Short on time today?')).not.toBeInTheDocument()
+})
+
+test('a conditioning day logs its run at the shortened minutes once a length is chosen', async () => {
+  const run = { ...item('zone2', 'Zone 2 run', null, [30]), unit: 'minutes' as const }
+  const conditioning: Guided = {
+    ...SESSION,
+    name: 'Run + core',
+    kind: 'conditioning',
+    warm_up: false,
+    minutes: 45,
+    items: [run, item('plank', 'Plank', null, [30, 30])],
+    order: [{ item: 1, set_no: 1, target: 30, rest_seconds: 60, switch: false }],
+    length: { ...PLANNED, warm_up: 'none' },
+  }
+  const shorter: Guided = {
+    ...conditioning,
+    minutes: 20,
+    items: [{ ...run, targets: [12] }, item('plank', 'Plank', null, [30])],
+    length: { ...PLANNED, minutes: 20, warm_up: 'none' },
+  }
+  const plan = (target: number): CardioOptions => ({
+    planned: { kind: 'zone2', session: 'Run + core', target },
+    activities: ['walk'],
+    week: emptyWeek({}),
+  })
+  serve({
+    today: [today(conditioning, 1)],
+    length: [Response.json(today(shorter, 2))],
+    cardio: [plan(30), plan(12)],
+  })
+  render(<SessionPage />)
+  expect(await screen.findByRole('button', { name: 'Done as planned: 30 min' })).toBeVisible()
+  fireEvent.click(button('20 min'))
+  expect(await screen.findByRole('button', { name: 'Done as planned: 12 min' })).toBeVisible()
+  expect(screen.getByText('Target 12 min')).toBeInTheDocument()
 })

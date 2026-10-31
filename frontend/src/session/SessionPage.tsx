@@ -622,7 +622,13 @@ export default function SessionPage() {
           )}
           {isCardio(session) ? (
             <>
-              <Cardio featured onChange={cardioChange} sound={sound} talkTest={talkTest} />
+              <Cardio
+                featured
+                onChange={cardioChange}
+                sound={sound}
+                talkTest={talkTest}
+                refresh={cardioMinutes(session)}
+              />
               {afterRun(session).length > 0 && (
                 <p className={card}>
                   After your run: {afterRun(session).join(', ')}. Log the run, then this opens.
@@ -1021,6 +1027,12 @@ function isCardio(session: Guided): boolean {
   if (session.items.length === 1) return CARDIO.includes(session.items[0].slug)
   const runs = session.items.filter((item) => CARDIO.includes(item.slug))
   return session.kind === 'conditioning' && !session.after_run && runs.length === 1
+}
+
+/** Today's cardio minutes, shortened on a shorter day (ADR-0082): the one-step log asks for
+ * its plan again when they change. */
+function cardioMinutes(session: Guided): number | undefined {
+  return session.items.find((item) => CARDIO.includes(item.slug))?.targets[0]
 }
 
 /** What a conditioning session has after its cardio, by name, until the cardio is logged. */
