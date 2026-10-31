@@ -84,10 +84,16 @@ def _warm_up(length: Length | None) -> str:
 
 def _shortened(plan: SessionPlan, length: Length | None) -> list[str]:
     """What the app shortened today's session to and what went, once minutes are chosen
-    there (ADR-0082); nothing as planned."""
+    there (ADR-0082); nothing as planned. When even the shortest version is longer than the
+    minutes chosen, it says how long that is."""
     if length is None or length.minutes is None:
         return []
-    line = f"Shortened to {length.minutes} minutes in the app"
+    shortest = length.trimmed.shortest
+    line = (
+        f"Shortened to {length.minutes} minutes in the app"
+        if shortest is None
+        else f"Shortened as far as it goes in the app: about {shortest} minutes"
+    )
     dropped = [plan.items[i].exercise for i in length.trimmed.dropped]
     return [f"{line}; dropped: {', '.join(dropped)}." if dropped else f"{line}."]
 

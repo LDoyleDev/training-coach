@@ -33,14 +33,16 @@ def _at(sessions: Sessions, slug: str) -> int:
     return tid
 
 
-def _choose(sessions: Sessions, handlers: Handlers, minutes: int | None) -> None:
-    """Pick the day's minutes as the app does."""
+def _choose(
+    sessions: Sessions, handlers: Handlers, minutes: int | None, keep: tuple[str, ...] = ()
+) -> None:
+    """Pick the day's minutes, and exercises to Keep, as the app does."""
     with sessions() as session:
         plan = guided.today(session, handlers._local_today(), SETTINGS.tz)
         assert plan is not None
         kept = guided.kept(session, plan.day)
         revision = kept.revision if kept is not None else 0
-        assert isinstance(guided.choose_length(session, plan, revision, minutes, ()), int)
+        assert isinstance(guided.choose_length(session, plan, revision, minutes, keep), int)
         session.commit()
 
 
@@ -109,6 +111,35 @@ async def test_forty_minutes_keeps_every_exercise_at_two_sets_and_the_warm_up(
     assert WORK_DOWN in lines
     assert set(_listed(text).values()) == {2}
     assert len(_listed(text)) == 8
+
+
+async def test_a_day_that_cannot_get_that_short_says_how_short_it_got(seeded: Sessions) -> None:
+    """Five exercises pinned with Keep: 20 minutes is out of reach, so the line gives the
+    shortest the app could make it (``Trimmed.shortest``), not the minutes chosen."""
+    _at(seeded, "legs")
+    handlers = Handlers(SETTINGS, seeded)
+    pinned = ("tibialis-raise", "calf-raise", "hamstring-curl", "pistol-squat", "single-leg-rdl")
+    _choose(seeded, handlers, 20, pinned)
+    with seeded() as session:
+        plan = guided.today(session, handlers._local_today(), SETTINGS.tz)
+        assert plan is not None
+        assert plan.length is not None
+        shortest = plan.length.trimmed.shortest
+    assert shortest is not None
+    assert shortest > 20
+    text, _ = handlers._today()
+    assert (
+        f"Shortened as far as it goes in the app: about {shortest} minutes; dropped: "
+        "Bulgarian split squat, Kettlebell swing, Jump squat."
+    ) in text.splitlines()
+    assert "Shortened to 20 minutes" not in text
+    assert set(_listed(text)) == {
+        "Tibialis raise",
+        "Single-leg calf raise",
+        "Hamstring curl",
+        "Pistol squat",
+        "Single-leg Romanian deadlift",
+    }
 
 
 async def test_as_planned_again_shows_the_whole_list(seeded: Sessions) -> None:
