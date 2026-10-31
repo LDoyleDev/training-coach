@@ -636,6 +636,11 @@ class SessionProgress(Owned, Base):
     # Levels chosen "for today" during the session (ADR-0080), exercise slug -> ladder step id:
     # its sets are saved at that step and the person's level stays as it is.
     steps: Mapped[dict[str, int]] = mapped_column(JSON, default=dict, server_default="{}")
+    # Short on time today (ADR-0082): the day's choice, {"minutes": 30 or null, "keep": [slugs]},
+    # empty before one is made; and what the first kept set fixed for the rest of the session,
+    # {"minutes", "sets": [per item], "durations": [per item], "dropped": [items], "pace"}.
+    length: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    fixed: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
