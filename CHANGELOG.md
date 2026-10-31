@@ -4,6 +4,27 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.11.0](https://github.com/LDoyleDev/training-coach/compare/v1.10.0...v1.11.0) (2026-10-31)
+
+
+### Features
+
+* **api:** answer 451 outside the EU and EEA (ADR-0085 layer 2) ([#513](https://github.com/LDoyleDev/training-coach/issues/513)) ([45d3f57](https://github.com/LDoyleDev/training-coach/commit/45d3f57e0dc3af427cb4db13fdd548567d4e3817))
+* **api:** short on time today: a day's length and the trimmed session ([#510](https://github.com/LDoyleDev/training-coach/issues/510)) ([d452c1d](https://github.com/LDoyleDev/training-coach/commit/d452c1d7ada6c3e08c647701770ececda4fc0021))
+* **bot:** the work list and morning message follow the day's length ([#517](https://github.com/LDoyleDev/training-coach/issues/517)) ([84ff161](https://github.com/LDoyleDev/training-coach/commit/84ff161c518ad58e8977d46bc4e07a4285a60c92))
+* **db:** a level and marks on every ladder step, and failure_ok ([#506](https://github.com/LDoyleDev/training-coach/issues/506)) ([f6392b1](https://github.com/LDoyleDev/training-coach/commit/f6392b1910599f46497d43e459a038bf89c285d8))
+* **db:** record each guided day's plan and judge progress on it ([#509](https://github.com/LDoyleDev/training-coach/issues/509)) ([08e3580](https://github.com/LDoyleDev/training-coach/commit/08e3580cd3a9e09d9f52e6db78c690aeef174f99))
+* **domain:** judge a shorter day on its own planned sets ([#501](https://github.com/LDoyleDev/training-coach/issues/501)) ([5614794](https://github.com/LDoyleDev/training-coach/commit/56147946189c9c28b8f2f548c05e8f2c04e33e89))
+* **domain:** trim a session to fit the minutes ([#502](https://github.com/LDoyleDev/training-coach/issues/502)) ([527bc10](https://github.com/LDoyleDev/training-coach/commit/527bc1080e9cea233f6b9fe6f89382f1fc6922b7))
+* **web:** short on time today: pick 40, 30 or 20 min on Today ([#516](https://github.com/LDoyleDev/training-coach/issues/516)) ([5af6722](https://github.com/LDoyleDev/training-coach/commit/5af6722b06d4e4368b95407f3959c4f0a4995a0a))
+* **web:** stop signs, the talk-test option and a breathing cue ([#505](https://github.com/LDoyleDev/training-coach/issues/505)) ([301273a](https://github.com/LDoyleDev/training-coach/commit/301273a0d7b0e38143eba2aefa6f36424df1c5e9))
+
+
+### Documentation
+
+* **docs:** decide shorter sessions, lower ladders and Europe-only safety ([#495](https://github.com/LDoyleDev/training-coach/issues/495)) ([c80c25f](https://github.com/LDoyleDev/training-coach/commit/c80c25f4e2bbf12bed090dc0ddaf83bed2db19fc)), closes [#494](https://github.com/LDoyleDev/training-coach/issues/494)
+* **docs:** session log for 1.10.0 ([#490](https://github.com/LDoyleDev/training-coach/issues/490)) ([a1dba1b](https://github.com/LDoyleDev/training-coach/commit/a1dba1ba588600071bdc1c7ea46d9b6cb60fe9b3))
+
 ## [1.10.0](https://github.com/LDoyleDev/training-coach/compare/v1.9.0...v1.10.0) (2026-10-30)
 
 

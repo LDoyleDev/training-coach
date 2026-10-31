@@ -451,6 +451,11 @@ class Workout(Owned, Base):
     plan_version_id: Mapped[int | None] = mapped_column(
         ForeignKey("plan_versions.id", ondelete="RESTRICT"), index=True
     )
+    # A guided session's day (ADR-0082, ADR-0084): the minutes chosen ("short on time
+    # today"), empty when done as planned; and what it planned, exercise slug ->
+    # {"sets": N}. Typed logs and workouts saved before have no plan: every set was planned.
+    minutes: Mapped[int | None] = mapped_column(Integer)
+    planned: Mapped[dict[str, dict[str, int]] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     sets: Mapped[list["SetLog"]] = relationship(
@@ -643,6 +648,11 @@ class SessionProgress(Owned, Base):
     # Levels chosen "for today" during the session (ADR-0080), exercise slug -> ladder step id:
     # its sets are saved at that step and the person's level stays as it is.
     steps: Mapped[dict[str, int]] = mapped_column(JSON, default=dict, server_default="{}")
+    # Short on time today (ADR-0082): the day's choice, {"minutes": 30 or null, "keep": [slugs]},
+    # empty before one is made; and what the first kept set fixed for the rest of the session,
+    # {"minutes", "sets": [per item], "durations": [per item], "dropped": [items], "pace"}.
+    length: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    fixed: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

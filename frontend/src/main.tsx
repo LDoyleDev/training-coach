@@ -5,10 +5,14 @@ import Pages from './Pages.tsx'
 import { startPwa } from './pwa'
 import DailyCheckGate from './readiness/DailyCheckGate.tsx'
 import ReadinessGate from './readiness/ReadinessGate.tsx'
+import { watchRegion } from './region.ts'
+import Unavailable from './Unavailable.tsx'
 
 startPwa()
 
-createRoot(document.getElementById('root')!).render(
+const root = createRoot(document.getElementById('root')!)
+watchRegion((reason) => root.render(<Unavailable reason={reason} />))
+root.render(
   <StrictMode>
     <ReadinessGate>
       <DailyCheckGate>

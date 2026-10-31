@@ -62,3 +62,9 @@ def test_a_pair_started_with_its_second_exercise_rests_the_same() -> None:
 
 def test_nothing_to_rest_in_an_empty_session() -> None:
     assert rests([], []) == []
+
+
+def test_a_pair_whose_partner_is_dropped_rests_as_straight_sets() -> None:
+    """A trimmed day's 0-set partner (ADR-0082): no switch, the compound's own rest."""
+    groups = work_order([2, 0, 1], [1, 1, None])
+    assert rests(groups, [SQUAT, CALF, CALF]) == [Rest(90), Rest(90), Rest(0)]

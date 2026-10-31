@@ -13,6 +13,7 @@ from tests.routes import api_routes
 from training_coach.api.app import create_app
 from training_coach.api.auth import COOKIE, owner
 from training_coach.api.mcp import connection
+from training_coach.api.region import exempt
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory
 from training_coach.services import auth
@@ -35,6 +36,17 @@ PUBLIC = {
     "/oauth/token",
     "/api/connect/details",
     "/api/connect/deny",
+}
+# Called by machines from anywhere, so not held to the EU and EEA (ADR-0085): every other
+# route answers 451 to a visitor from elsewhere before its own access check runs.
+ANY_REGION = {
+    "/healthz",
+    "/mcp",
+    "/oauth/register",
+    "/oauth/token",
+    "/.well-known/oauth-protected-resource",
+    "/.well-known/oauth-protected-resource/mcp",
+    "/.well-known/oauth-authorization-server",
 }
 
 
@@ -84,7 +96,8 @@ def test_signing_out_ends_the_session(app_client: TestClient, engine: Engine) ->
 def test_every_route_is_public_or_owner_only(engine: Engine) -> None:
     """A new route must say who may call it (ADR-0036): listed here as public, behind
     ``owner`` (a session cookie), or behind ``connection`` (an AI app's bearer token, ADR-0047
-    C), never both. Pages of the web app (no schema) only serve the static index."""
+    C), never both. Pages of the web app (no schema) only serve the static index. And only the
+    ``ANY_REGION`` routes skip the EU and EEA check (ADR-0085)."""
     app = create_app(Settings(environment="test", database_url=str(engine.url)))
     routes = [(path, route) for path, route in api_routes(app) if route.include_in_schema]
     assert len(routes) > 50  # the routers' routes, not just the app's own
@@ -95,6 +108,7 @@ def test_every_route_is_public_or_owner_only(engine: Engine) -> None:
         assert not (path in PUBLIC and guarded), f"{path} is listed as public"
         assert not (owner in calls and connection in calls), f"{path} takes both"
         assert (connection in calls) == (path == "/mcp"), path
+        assert exempt(path) == (path in ANY_REGION), f"{path}: region exemption changed"
 
 
 def test_the_signin_page_serves_the_web_app(engine: Engine, tmp_path: Path) -> None:
