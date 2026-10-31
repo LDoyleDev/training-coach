@@ -1,6 +1,6 @@
 # ADR-0027: Progressive overload step of about 10% of the range
 
-- Status: Accepted
+- Status: Accepted; sets a shortened day didn't plan are not replayed (ADR-0084)
 - Date: 2026-10-07
 - Deciders: Liam
 - Supersedes: ADR-0016's **Targets** rules (its queue and progression rules still apply)
