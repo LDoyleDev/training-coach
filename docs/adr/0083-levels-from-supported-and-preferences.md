@@ -114,3 +114,24 @@ moved a step yet: `b7e1c3d5f9a2` deleted two unused top steps. A walk-through as
 - **The rule's test** lists the muscles still without a way in: chest, biceps, calves, forearms,
   upper traps and obliques until #508, and the neck, whose low step the revised list dropped.
 - **Balance** is a new quality and pattern (`balance`): counted in seconds, never as sets.
+
+## Addendum (31 Oct 2026): the migration as built (#508)
+
+- **One migration, `5ebed72122f7`,** moves twelve ladders and the Squat; the steps, levels and
+  marks are hard-coded in it and plan.toml matches them (a test holds both). The Squat is the
+  retired `goblet-squat`, un-retired and renamed, with eight sit-to-stand steps below its goblet
+  steps; "Fast up, slow down" is in its cues from "arms crossed" on.
+- **Nothing stored refers to a position** but `ladder_steps.position`: levels, sets, a session in
+  progress, replaced workouts and events name step ids, which the migration keeps. `start` is in
+  plan.toml only; it moves by the same number, so it names the same step and nobody's starting
+  point changes. Placing people lower is setup's job (builder step 10).
+- **Left out, as different movements** (option A puts those in entry exercises, as #519 did with
+  the seated band row): the doorframe rows (a bodyweight two-hand pull, not the one-arm row) and
+  side-lying adduction (closer to the adductor squeeze than the Copenhagen plank). Either can be
+  added later without a migration, as a new exercise or at the top of the adductor squeeze. The
+  hamstrings' low steps are the standing hamstring curl entry (#518), so the towel slide ladder
+  is unchanged. The cardio row's bike or seated stepping is a mode of zone 2's easy walk.
+- **Exercise names stay** ("Single-leg calf raise", "Bulgarian split squat", "One-arm kettlebell
+  row", "Kettlebell curl", "Kettlebell lateral raise") although their new bottom steps aren't
+  that: renaming is the seed's job and needs no migration, so it can follow on its own.
+- **The way-in rule's waiting list is empty;** only the neck has no level 1-2 step.
