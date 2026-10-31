@@ -12,6 +12,7 @@ import { card, primaryInline, secondary } from '../ui'
 type TimeKey = 'morning_time' | 'nudge_time' | 'review_time'
 type Pace = MessageSettings['pace']
 type Places = MessageSettings['places']
+type SessionMinutes = MessageSettings['session_minutes']
 type Note = { at: string; text: string }
 
 const TIMES: { key: TimeKey; label: string }[] = [
@@ -32,6 +33,14 @@ const PLACES: { places: Places; label: string; line: string }[] = [
   { places: 'home', label: 'Home', line: 'With the kit you list under My equipment.' },
   { places: 'gym', label: 'Gym', line: 'A gym has everything.' },
   { places: 'both', label: 'Both', line: 'You pick home or gym on the day.' },
+]
+
+/** Minutes per session (ADR-0082): the same lengths as Short on time today on the session. */
+const LENGTHS: { minutes: SessionMinutes; label: string }[] = [
+  { minutes: null, label: 'As planned' },
+  { minutes: 40, label: '40 min' },
+  { minutes: 30, label: '30 min' },
+  { minutes: 20, label: '20 min' },
 ]
 
 /**
@@ -308,6 +317,36 @@ export default function Settings() {
           </button>
         ))}
         {noteAt('places')}
+      </fieldset>
+
+      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend className="mb-2 font-bold">Time per session</legend>
+        <p className="m-0 text-sm text-[var(--slate)]">
+          Every session runs at this length unless you pick another for the day.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {LENGTHS.map(({ minutes, label }) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={prefs.session_minutes === minutes}
+              className={choice(prefs.session_minutes === minutes)}
+              disabled={busy}
+              onClick={() =>
+                prefs.session_minutes !== minutes &&
+                save(
+                  'minutes',
+                  { session_minutes: minutes },
+                  `Time per session: ${label.toLowerCase()}.`,
+                  "That couldn't be saved.",
+                )
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {noteAt('minutes')}
       </fieldset>
 
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">

@@ -71,6 +71,7 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "default_increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0, "backpack": 1.0},
         "talk_test": False,
         "stop_signs_seen": False,
+        "session_minutes": None,
         "paused": False,
         "timezone": "Europe/Berlin",
     }
@@ -254,5 +255,34 @@ def test_the_seen_flag_is_saved_through_the_api(signed_in: TestClient, engine: E
 def test_signed_out_gets_nothing(client: TestClient) -> None:
     assert client.get("/api/settings").status_code == 401
     assert client.patch("/api/settings", json={"paused": True}).status_code == 401
-    for change in ({"talk_test": True}, {"stop_signs_seen": True}):  # owner-only (spec B7)
+    owner_only = ({"talk_test": True}, {"stop_signs_seen": True}, {"session_minutes": 30})
+    for change in owner_only:  # spec B7, ADR-0082
         assert client.patch("/api/settings", json=change).status_code == 401
+
+
+def test_minutes_per_session_is_set_kept_and_cleared(signed_in: TestClient, engine: Engine) -> None:
+    """ADR-0082: 40, 30 or 20, or null for as planned; a change elsewhere leaves it alone."""
+    view = signed_in.patch("/api/settings", json={"session_minutes": 30}).json()
+    assert view["session_minutes"] == 30
+    assert _stored(engine).session_minutes == 30
+    assert signed_in.patch("/api/settings", json={"paused": False}).json()["session_minutes"] == 30
+    view = signed_in.patch("/api/settings", json={"session_minutes": None}).json()
+    assert view["session_minutes"] is None
+    assert _stored(engine).session_minutes is None
+
+
+@pytest.mark.parametrize("minutes", [25, 0, 60, "30", "half an hour", -20])
+def test_minutes_per_session_other_than_the_options_are_refused(
+    signed_in: TestClient, engine: Engine, minutes: object
+) -> None:
+    assert signed_in.patch("/api/settings", json={"session_minutes": minutes}).status_code == 422
+    assert _stored(engine).session_minutes is None
+
+
+def test_minutes_per_session_are_each_persons_own(engine: Engine) -> None:
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=OTHER))
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        user_settings.update(mine, session_minutes=20)
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as theirs:
+        assert user_settings.load(theirs).session_minutes is None

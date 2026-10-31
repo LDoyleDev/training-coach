@@ -36,6 +36,7 @@ class Prefs:
     increments: Increments = DEFAULTS  # their own weight steps (ADR-0072)
     talk_test: bool = False  # cardio effort by the talk test, not heart-rate zones (ADR-0083)
     stop_signs_seen: bool = False  # shown before their first guided session (spec B7)
+    session_minutes: int | None = None  # every session's length (ADR-0082); None: as planned
 
 
 def _increments(old: Increments, change: Mapping[LoadKit, float]) -> Increments:
@@ -80,6 +81,7 @@ def load(session: Session) -> Prefs:
         ),
         row.talk_test,
         row.stop_signs_seen,
+        row.session_minutes,
     )
 
 
@@ -103,10 +105,14 @@ def update(
     increments: Mapping[LoadKit, float] | None = None,
     talk_test: bool | None = None,
     stop_signs_seen: bool | None = None,
+    session_minutes: int | None = None,
+    clear_session_minutes: bool = False,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
     ``increments``: the kits whose weight step changes, each to a valid step (the caller checks).
+    ``session_minutes``: 40, 30 or 20 (the caller checks); ``clear_session_minutes`` sets it
+    back to as planned.
 
     ``blocks=True`` starts training blocks on ``today`` unless they are already on (so a
     repeated press never restarts them); ``blocks=False`` turns them off."""
@@ -135,6 +141,11 @@ def update(
         increments=_increments(old.increments, increments or {}),
         talk_test=old.talk_test if talk_test is None else talk_test,
         stop_signs_seen=old.stop_signs_seen if stop_signs_seen is None else stop_signs_seen,
+        session_minutes=None
+        if clear_session_minutes
+        else old.session_minutes
+        if session_minutes is None
+        else session_minutes,
     )
     changes: dict[str, str | bool | int | float] = {}
     if morning_time is not None:
@@ -167,6 +178,8 @@ def update(
         changes["talk_test"] = talk_test
     if stop_signs_seen is not None:
         changes["stop_signs_seen"] = stop_signs_seen
+    if session_minutes is not None or clear_session_minutes:
+        changes["session_minutes"] = session_minutes or 0  # 0: as planned
     for kit, kg in (increments or {}).items():
         changes[f"{kit.value}_increment_kg"] = kg
     row = users.settings_row(session)
@@ -192,6 +205,7 @@ def update(
     row.backpack_increment_kg = prefs.increments.backpack
     row.talk_test = prefs.talk_test
     row.stop_signs_seen = prefs.stop_signs_seen
+    row.session_minutes = prefs.session_minutes
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

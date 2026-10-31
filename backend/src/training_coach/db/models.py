@@ -197,6 +197,10 @@ class TemplateItem(Base):
     __table_args__ = (
         UniqueConstraint("template_id", "place", "position"),
         CheckConstraint(_in("place", Place), name="place_valid"),
+        CheckConstraint(
+            "session_minutes IS NULL OR session_minutes IN (40, 30, 20)",
+            name="session_minutes_valid",
+        ),
         CheckConstraint("position >= 0", name="position_non_negative"),
         CheckConstraint("sets >= 1", name="sets_positive"),
         CheckConstraint("rep_min >= 1", name="rep_min_positive"),
@@ -376,6 +380,9 @@ class UserSettings(Owned, Base):
     talk_test: Mapped[bool] = mapped_column(Boolean, server_default=false())
     # The stop signs were shown before their first guided session (spec B7).
     stop_signs_seen: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # Minutes per session (ADR-0082): every trimmable session runs at this length unless the
+    # day picks another; empty means as planned. The same 40, 30 or 20 as Short on time today.
+    session_minutes: Mapped[int | None] = mapped_column(Integer)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
