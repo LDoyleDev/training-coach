@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import Exercise, SessionTemplate, SetLog, Workout
 from training_coach.domain.enums import Place, Side, WorkoutStatus
 from training_coach.domain.trim import WarmUp
-from training_coach.services import guided, user_settings, users, workout_log
+from training_coach.services import cardio, guided, user_settings, users, workout_log
 from training_coach.services.seed import apply_seed, load_plan
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -245,6 +245,33 @@ def test_a_length_that_changed_nothing_saves_as_planned(
     result = guided.save(plan, DAY, DAY, BERLIN)
     assert isinstance(result, workout_log.Saved)
     assert plan.get_one(Workout, result.workout_id).minutes == saved
+
+
+@pytest.mark.parametrize(
+    ("before", "chosen", "saved"),
+    [
+        (None, 20, 20),  # the block after the run is cut to fit
+        (None, 40, None),  # it fits 40 as planned: nothing to record
+        (30, 40, 30),  # the run's own shorter day stays recorded
+        (30, 20, 20),
+    ],
+)
+def test_a_trimmed_block_after_the_run_records_its_minutes_on_the_runs_workout(
+    plan: Session, before: int | None, chosen: int, saved: int | None
+) -> None:
+    """ADR-0066: the block joins the run's workout, so that workout carries the minutes when
+    the block was trimmed, and keeps any it had when the block wasn't."""
+    _at(plan, "moderate-cardio")
+    logged = cardio.log(plan, DAY, BERLIN, "moderate-cardio", 35, None, "b" * 32)
+    assert isinstance(logged, cardio.Logged)
+    run = plan.get_one(Workout, logged.saved.workout_id)
+    run.minutes = before
+    plan.flush()
+    found = _choose(plan, chosen)
+    assert found.after_run
+    guided.keep(plan, found, 2, 1, [], [guided.Done(0, 1, 8)])
+    assert guided.save(plan, DAY, DAY, BERLIN) == workout_log.Saved(run.id, already_saved=False)
+    assert run.minutes == saved
 
 
 def test_a_shortened_cardio_is_saved_as_dropped_not_missed(plan: Session) -> None:

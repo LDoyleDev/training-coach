@@ -872,6 +872,7 @@ def _save_after_run(
                 tz,
                 set_levels(items, sets, row.steps),
                 _planned(row, items),
+                _day_minutes(row, items),
             )
             if isinstance(result, workout_log.Saved):
                 row.saved_workout_id = result.workout_id
