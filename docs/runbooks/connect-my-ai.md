@@ -18,6 +18,8 @@ connection. The design is ADR-0047 C and ADR-0054; the security spec is
      `160.79.104.0/21` on `/mcp`, `/oauth/*` and `/.well-known/*`. Claude's servers can't solve
      a challenge, and a blocked metadata request shows up in Claude as "Couldn't reach the MCP
      server".
+     The EU and EEA rule ([deploy.md](deploy.md#the-eu-and-eea-only-adr-0085)) exempts exactly
+     the paths Claude's servers call; approving the connection needs a visit from Europe.
 4. Check the metadata from outside:
 
    ```sh

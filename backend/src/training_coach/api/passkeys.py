@@ -6,7 +6,6 @@ browser's `navigator.credentials` (via @simplewebauthn/browser).
 """
 
 from datetime import UTC, datetime
-from ipaddress import ip_address, ip_network
 from typing import Any
 
 import structlog
@@ -16,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.alerts import alert, device
 from training_coach.api.auth import COOKIE, Fresh, Owner, set_session_cookie
+from training_coach.api.region import trusted_peer
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import passkeys
@@ -66,24 +66,13 @@ def _options(ceremony: passkeys.Ceremony) -> Response:
     return response
 
 
-def _trusted_peer(request: Request, host: str) -> bool:
-    """Whether the connection comes from the tunnel's side (TC_TRUSTED_PROXIES: loopback and
-    Docker's bridge by default). Anyone else is the client itself."""
-    try:
-        address = ip_address(host)
-    except ValueError:
-        return False
-    settings: Settings = request.app.state.settings
-    return any(address in ip_network(cidr) for cidr in settings.trusted_proxies)
-
-
 def _client(request: Request) -> str:
     """The caller's address. Behind the Cloudflare tunnel, CF-Connecting-IP names the real
     client; it is believed only from a trusted peer, so a caller reaching the app another way
     can't invent a new address per request (review of #123)."""
     peer = request.client.host if request.client is not None else "unknown"
     forwarded = request.headers.get("cf-connecting-ip")
-    if forwarded and _trusted_peer(request, peer):
+    if forwarded and trusted_peer(request, peer):
         return forwarded
     return peer
 
