@@ -36,7 +36,7 @@ const PLACES: { places: Places; label: string; line: string }[] = [
   { places: 'both', label: 'Both', line: 'You pick home or gym on the day.' },
 ]
 
-type AvoidKey = 'avoid_floor' | 'avoid_kneeling' | 'avoid_impact' | 'avoid_hanging'
+type AvoidKey = 'avoid_floor' | 'avoid_kneeling' | 'avoid_impact' | 'avoid_hanging' | 'avoid_knees'
 
 /** What the person would rather avoid (ADR-0083): each locks the ladder steps that need it, as
  * missing kit does. Preferences, not medical: no reason is asked or kept. */
@@ -45,6 +45,7 @@ const AVOID: { key: AvoidKey; label: string }[] = [
   { key: 'avoid_kneeling', label: 'No kneeling' },
   { key: 'avoid_impact', label: 'No jumping or running' },
   { key: 'avoid_hanging', label: 'No hanging' },
+  { key: 'avoid_knees', label: 'Easy on my knees' },
 ]
 
 /** Minutes per session (ADR-0082): the same lengths as Short on time today on the session. */

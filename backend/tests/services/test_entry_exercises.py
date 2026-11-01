@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from tests.services.test_seed import DIP_LEVELS, MINI_PLAN
 from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.locks import AVOIDABLE
 from training_coach.domain.muscles import Kit, Muscle, Pattern, parse_need
 from training_coach.domain.rest import SMALL_SECONDS, Kind, straight
 from training_coach.domain.step_levels import Mark, StepLevel
@@ -116,7 +117,7 @@ UNTIL_508 = {
 NO_WAY_IN_YET = {Muscle.NECK}
 
 
-def _ways_in() -> set[Muscle]:
+def _ways_in(avoided: set[Mark] = OFF_THE_FLOOR) -> set[Muscle]:
     found = set()
     for e in load_plan().exercises:
         if e.retired:
@@ -125,7 +126,7 @@ def _ways_in() -> set[Muscle]:
             kit = {parse_need(need)[0] for need in e.needs.get(step, [])}
             if (
                 e.levels[step] <= StepLevel.STARTING
-                and not set(e.marks.get(step, [])) & OFF_THE_FLOOR
+                and not set(e.marks.get(step, [])) & avoided
                 and kit <= {Kit.BAND}
             ):
                 found |= {m for m, weight in e.muscles.items() if weight == 1}
@@ -134,6 +135,33 @@ def _ways_in() -> set[Muscle]:
 
 def test_every_muscle_has_a_way_in_at_level_1_or_2_standing_or_seated() -> None:
     assert set(Muscle) - _ways_in() == UNTIL_508 | NO_WAY_IN_YET
+
+
+def test_the_ways_in_stay_with_all_five_preferences_on() -> None:
+    """No jumping or running, and Easy on my knees (#540), take no way in away."""
+    assert _ways_in(set(AVOIDABLE)) == _ways_in()
+
+
+# Muscles with no open step at all, at any level or with any kit, once all five preferences are
+# on (ADR-0083, #540): none. Add one here only where the catalogue truly has nothing.
+NONE_OPEN: set[Muscle] = set()
+
+
+def test_every_muscle_keeps_an_open_step_with_all_five_preferences_on() -> None:
+    """Where it is a prime mover, in an exercise in the plan, kit aside (it can be bought, a
+    gym has it): the quads keep the step-up, the leg press, the leg extension and the one-leg
+    sit to a chair; the glutes the bridge at the counter."""
+    every = set(AVOIDABLE)
+    open_for = {
+        m
+        for e in load_plan().exercises
+        if not e.retired
+        for step in e.ladder
+        if not set(e.marks.get(step, [])) & every
+        for m, weight in e.muscles.items()
+        if weight == 1
+    }
+    assert set(Muscle) - open_for == NONE_OPEN
 
 
 def test_balance_counts_seconds_and_marks_every_step_without_a_hold() -> None:

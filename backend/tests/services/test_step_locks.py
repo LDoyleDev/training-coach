@@ -1,4 +1,4 @@
-"""The four preferences lock the steps they mark (ADR-0083) the way missing kit does (ADR-0071):
+"""The preferences lock the steps they mark (ADR-0083) the way missing kit does (ADR-0071):
 Move up skips them, the levels list says why, a level by hand is allowed with a warning, and a
 person already on one stays there."""
 
@@ -33,6 +33,7 @@ NOW = datetime(2026, 10, 25, 9, tzinfo=UTC)
 TOP = [12, 12, 12, 12]  # pull-up in Torso
 KNEELING = "needs kneeling — you've chosen not to kneel"
 HANGING = "needs hanging from a bar — you've chosen not to hang"
+KNEES = "needs deep knee bending — you've chosen to go easy on your knees"
 
 
 @pytest.fixture
@@ -247,3 +248,25 @@ def test_the_real_last_step_is_still_the_top_of_the_ladder(plan: Session) -> Non
     standing = _standing(plan, "hamstring-curl")
     assert not standing.capped
     assert progress_text([standing]).endswith("Top of the ladder")
+
+
+def test_easy_on_my_knees_locks_the_nordics_from_the_plans_own_marks(plan: Session) -> None:
+    """#540: the plan marks both Nordic curls; the towel slides stay open. From the single-leg
+    slide nothing above is open, and a Nordic by hand comes with the warning."""
+    user_settings.update(plan, avoid_knees=True)
+    single = _put(plan, "hamstring-curl", 1)
+    assert [r.avoided for r in _standing(plan, "hamstring-curl").ladder] == [
+        (),
+        (),
+        (KNEES,),
+        (KNEES,),
+    ]
+    (item,) = progress.feedback(plan, _ready(plan, single, template="legs", values=[15] * 3))
+    assert (item.status, item.capped, item.unlock) == (Progress.TOP_OF_LADDER, True, None)
+    move = progress.move_up(plan, single.exercise_id, single.id)
+    assert move is not None
+    assert move.outcome is MoveOutcome.NO_NEXT_STEP
+    nordic = _ladder(plan, "hamstring-curl")[2]
+    chosen = progress.set_level(plan, single.exercise_id, nordic.id)
+    assert chosen is not None
+    assert chosen.warning == "Nordic curl negatives " + KNEES + "."

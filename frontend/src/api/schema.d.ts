@@ -3959,6 +3959,8 @@ export interface components {
             avoid_impact?: boolean | null;
             /** Avoid Kneeling */
             avoid_kneeling?: boolean | null;
+            /** Avoid Knees */
+            avoid_knees?: boolean | null;
             /** Blocks */
             blocks?: boolean | null;
             /** Extra Cardio Min */
@@ -4000,6 +4002,8 @@ export interface components {
             avoid_impact: boolean;
             /** Avoid Kneeling */
             avoid_kneeling: boolean;
+            /** Avoid Knees */
+            avoid_knees: boolean;
             /** Blocks Since */
             blocks_since: string | null;
             default_increments: components["schemas"]["IncrementsView"];
