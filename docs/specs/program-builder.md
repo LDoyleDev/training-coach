@@ -429,7 +429,12 @@ lats; five steps from upright to one arm, levels 2-6) and the **door-frame curl*
 steps, levels 3-5). Hold the frame itself, never the door. Each starts at its level-4 step, where
 someone who does the plan's other pulls begins. Their figures are still to draw (ADR-0063).
 
-### N. The 3- and 4-day starters (proposed 30 Oct 2026)
+### N. The 3- and 4-day starters (proposed 30 Oct 2026, accepted by Liam without the added sets 1 Nov 2026)
+
+**Accepted 1 Nov 2026** with one change: without the six sets a week the proposal added to each
+research table for abs, obliques, rear delts and neck, so the starters keep the research's 81
+and 82 sets. The tables and numbers below are the accepted ones; the last list says what the
+six sets would have given.
 
 Decided 7 accepted the research file's two gym starters (Coverage: 3-day full body, 4-day
 upper/lower; option H's "4-day full body" means this one). This section gives each session a
@@ -438,8 +443,8 @@ home and a gym version, in pairs, from catalogue exercises only, for step 10 to 
 are L's: power or compounds first, then small muscles; pairs with no shared prime mover and at
 most one spine-loading and one grip-heavy exercise; gym compounds at 6-10 or 8-12 and isolation
 at 10-15 or 12-18; lengthened-position picks first; no muscle at home more than 1.5 fractional
-sets below the gym version. Beyond those: all ten main muscles green on two or more days, at most
-6 fractional sets for a muscle in one session, and the own bands of K for the trunk.
+sets below the gym version. Beyond those: all ten main muscles green on two or more days and at
+most 6 fractional sets for a muscle in one session.
 
 **Ranges**, the same wherever an exercise appears. Home, as in the 7-day cycle: Bulgarian split
 squat 8-15 a side (also at the gym, where it is the same ladder), pistol squat 5-10 a side,
@@ -458,8 +463,8 @@ DB curl, cable crunch and Pallof press (a side) 10-15; cable lateral raise and r
 | Session | Home version (sets) | Gym version (sets) | Why |
 | --- | --- | --- | --- |
 | A (Mon) | Bulgarian split squat 3 + calf raise 4; push-up 3 + kettlebell row 4; hamstring curl 3 + overhead triceps extension 3; lateral raise 3 + ab rollout 4; neck flexion 1 + extension 1 (29) | back squat 3 + standing calf raise 4; DB bench press 3 + chest-supported row 4; seated leg curl 3 + overhead cable extension 3; cable lateral raise 3 + cable crunch 4; neck flexion 1 + extension 1 (29) | A squat, then the opposing press and row, then the muscles compounds miss: hamstrings in the stretch, the triceps long head, side delts, calves. The research's A with C's crunch sets moved here |
-| B (Wed) | pistol squat 3 + dip 4; single-leg RDL 4 + kettlebell curl 3; pull-up 4 + reverse Nordic 2; lateral raise 3 + reverse fly 2; tibialis raise 2 + ab rollout 2 (29) | leg press 3 + incline DB press 4; barbell RDL 4 + incline DB curl 3; lat pulldown 4 + leg extension 2; cable lateral raise 3 + reverse pec deck 2; tibialis raise 2 + Pallof press 2 (29) | The hinge day. Each big lift pairs with an upper-body or small exercise, so no pair holds two spine-loading or two grip-heavy exercises. The leg extension and reverse Nordic reach the rectus femoris |
-| C (Fri) | Bulgarian split squat 3 + kettlebell row 3; push-up 3 + hamstring curl 3; overhead triceps extension 2 + calf raise 4; lateral raise 3 + kettlebell curl 2; reverse fly 2 + side plank hip dip 3; neck flexion 1 + extension 1 (30) | Bulgarian split squat 3 + chest-supported row 3; DB bench press 3 + seated leg curl 3; overhead cable extension 2 + seated calf raise 4; cable lateral raise 3 + incline DB curl 2; reverse pec deck 2 + Pallof press 2; neck flexion 1 + extension 1 (29) | The split squat is the week's third squat pattern; the seated calf raise is the bent-knee calf work Decided 3 asks for (home has none) |
+| B (Wed) | pistol squat 3 + dip 4; single-leg RDL 4 + kettlebell curl 3; pull-up 4 + reverse Nordic 2; lateral raise 3 + reverse fly 2; tibialis raise 2 (27) | leg press 3 + incline DB press 4; barbell RDL 4 + incline DB curl 3; lat pulldown 4 + leg extension 2; cable lateral raise 3 + reverse pec deck 2; tibialis raise 2 (27) | The hinge day. Each big lift pairs with an upper-body or small exercise, so no pair holds two spine-loading or two grip-heavy exercises. The leg extension and reverse Nordic reach the rectus femoris |
+| C (Fri) | Bulgarian split squat 3 + kettlebell row 3; push-up 3 + hamstring curl 3; overhead triceps extension 2 + calf raise 4; lateral raise 3 + kettlebell curl 2; neck flexion 1 + extension 1 (25) | Bulgarian split squat 3 + chest-supported row 3; DB bench press 3 + seated leg curl 3; overhead cable extension 2 + seated calf raise 4; cable lateral raise 3 + incline DB curl 2; neck flexion 1 + extension 1 (25) | The split squat is the week's third squat pattern; the seated calf raise is the bent-knee calf work Decided 3 asks for (home has none) |
 
 Weekly sets, A + B + C (gym, then home where it differs; days are sessions with 2 or more):
 
@@ -470,23 +475,23 @@ Weekly sets, A + B + C (gym, then home where it differs; days are sessions with 
 | Hamstrings | 3 + 4 + 3 = 10 | same | green, 3 days |
 | Chest | 3 + 4 + 3 = 10 | same | green, 3 days |
 | Lats | 4 + 4 + 3 = 11 | same | green, 3 days |
-| Upper back | 4 + 3 + 4 = 11 | same | green, 3 days |
+| Upper back | 4 + 3 + 3 = 10 | same | green, 3 days |
 | Triceps | 4.5 + 2 + 3.5 = 10 | same | green, 3 days, long head reached |
 | Biceps | 2 + 5 + 3.5 = 10.5 | same | green, 3 days |
 | Side delts | 3 + 3 + 3 = 9 | same | green (8-20) |
 | Calves | 4 + 0 + 4 = 8 | same | green (8-16), bottom of the band |
-| Rear delts | 2 + 3 + 3.5 = 8.5 | same | green (8-20) |
+| Rear delts | 2 + 3 + 1.5 = 6.5 | same | light green (8-20) |
 | Front delts | 1.5 + 2 + 1.5 = 5 | same | covered (4 or more) |
 | Adductors | 3 + 1.5 + 1.5 = 6 | 1.5 + 1.5 + 1.5 = 4.5 | green (4-10) |
-| Abs | 4 + 1 + 1 = 6 | 4 + 2 + 0.75 = 6.75 | green (6-12) |
-| Obliques | 0 + 2 + 2 = 4 | 1 + 0.5 + 3 = 4.5 | green (4-10) |
+| Abs | 4 + 0 + 0 = 4 | same | light green (6-12) |
+| Obliques | 0 | 1 + 0 + 0 = 1 | **grey** at the gym, **amber** at home (4-10) |
 | Neck | 2 + 0 + 2 = 4 | same | green (3-9) |
 | Tibialis | 2 | same | covered (2-6) |
 | Lower back | 2 (RDL) | 1 (single-leg RDL) | **amber** (4-10) |
 | Forearms | 3.25 | 2.25 | **amber** (4-10) |
 | Hip flexors, upper traps | 0 | 0 | **grey** |
 
-87 sets a week in 21 exercises at the gym, 88 in 19 at home; at most 5 for a muscle in a session
+81 sets a week in 20 exercises at the gym, 81 in 18 at home; at most 5 for a muscle in a session
 (quads, glutes and biceps on B). Spine-loading sets at most 4 a session at the gym and 7 at home
 (B, once the pistol holds a kettlebell); grip-heavy at most 4.
 
@@ -495,10 +500,10 @@ Friday; Wednesday and the weekend rest.
 
 | Session | Home version (sets) | Gym version (sets) | Why |
 | --- | --- | --- | --- |
-| Lower 1 (Mon) | Bulgarian split squat 3 + calf raise 4; single-leg RDL 3 + reverse Nordic 2; hamstring curl 2 + ab rollout 3; tibialis raise 2 + neck flexion 2 (21) | back squat 3 + standing calf raise 4; barbell RDL 3 + leg extension 2; seated leg curl 2 + cable crunch 3; tibialis raise 2 + neck flexion 2 (21) | Squat and hinge, then the rectus femoris and the hamstrings in the stretch. Spine-loading sets 6 |
+| Lower 1 (Mon) | Bulgarian split squat 3 + calf raise 4; single-leg RDL 3 + reverse Nordic 2; hamstring curl 2 + ab rollout 2; tibialis raise 2 + neck flexion 1 (19) | back squat 3 + standing calf raise 4; barbell RDL 3 + leg extension 2; seated leg curl 2 + cable crunch 2; tibialis raise 2 + neck flexion 1 (19) | Squat and hinge, then the rectus femoris and the hamstrings in the stretch. Spine-loading sets 6 |
 | Upper 1 (Tue) | push-up 3 + kettlebell row 3; pull-up 2 + dip 2; overhead triceps extension 3 + kettlebell curl 3; lateral raise 4 + reverse fly 2 (22) | DB bench press 3 + chest-supported row 3; lat pulldown 2 + incline DB press 2; overhead cable extension 3 + incline DB curl 3; cable lateral raise 4 + reverse pec deck 2 (22) | Push with pull and triceps with biceps, the pairing the studies support best (Zhang 2025) |
-| Lower 2 (Thu) | pistol squat 3 + hamstring curl 3; Bulgarian split squat 2 + calf raise 4; single-leg RDL 2 + side plank hip dip 3; neck extension 2 + ab rollout 3 (22) | leg press 3 + seated leg curl 3; Bulgarian split squat 2 + seated calf raise 4; 45° back extension 2 + Pallof press 3; neck extension 2 + cable crunch 3 (22) | The 45° back extension is the second hinge, lighter on the spine than an RDL, and counts fully for the hamstrings. Bent-knee calves at the gym |
-| Upper 2 (Fri) | dip 3 + pull-up 3; kettlebell row 3 + push-up 2; lateral raise 4 + reverse fly 2; overhead triceps extension 2 + kettlebell curl 2; suitcase carry 2 (23) | incline DB press 3 + lat pulldown 3; chest-supported row 3 + DB bench press 2; cable lateral raise 4 + reverse pec deck 2; overhead cable extension 2 + incline DB curl 2; suitcase carry 2 (23) | The research's farmer carry is the suitcase carry's ladder; it moved here from Lower 2, which at home would reach 9 spine-loading sets with it |
+| Lower 2 (Thu) | pistol squat 3 + hamstring curl 3; Bulgarian split squat 2 + calf raise 4; single-leg RDL 2 + side plank hip dip 2; neck extension 1 + ab rollout 2 (19) | leg press 3 + seated leg curl 3; Bulgarian split squat 2 + seated calf raise 4; 45° back extension 2 + Pallof press 2; neck extension 1 + cable crunch 2 (19) | The 45° back extension is the second hinge, lighter on the spine than an RDL, and counts fully for the hamstrings. Bent-knee calves at the gym |
+| Upper 2 (Fri) | dip 3 + pull-up 3; kettlebell row 3 + push-up 2; lateral raise 4 + reverse fly 1; overhead triceps extension 2 + kettlebell curl 2; suitcase carry 2 (22) | incline DB press 3 + lat pulldown 3; chest-supported row 3 + DB bench press 2; cable lateral raise 4 + reverse pec deck 1; overhead cable extension 2 + incline DB curl 2; suitcase carry 2 (22) | The research's farmer carry is the suitcase carry's ladder; it moved here from Lower 2, which at home would reach 9 spine-loading sets with it |
 
 Weekly sets, Lower 1 + Upper 1 + Lower 2 + Upper 2:
 
@@ -509,24 +514,24 @@ Weekly sets, Lower 1 + Upper 1 + Lower 2 + Upper 2:
 | Hamstrings | 5 + 5 = 10 | same | green, 2 days |
 | Chest | 5 + 5 = 10 | same | green, 2 days |
 | Lats | 5 + 6 = 11 | same | green, 2 days |
-| Upper back | 5 + 5.5 = 10.5 | same | green, 2 days |
+| Upper back | 5 + 5 = 10 | same | green, 2 days |
 | Triceps | 5.5 + 4.5 = 10 | same | green, 2 days, long head reached |
 | Biceps | 5.5 + 5 = 10.5 | same | green, 2 days |
 | Side delts | 4 + 4 = 8 | same | green (8-20), bottom of the band |
 | Calves | 4 + 4 = 8 | same | green (8-16), bottom of the band |
-| Rear delts | 4 + 4.25 = 8.25 | same | green (8-20) |
+| Rear delts | 4 + 3.25 = 7.25 | same | light green (8-20) |
 | Front delts | 2.5 + 2.5 = 5 | same | covered |
 | Adductors | 3 + 2.5 = 5.5 | 1.5 + 2.5 = 4 | green (4-10) |
-| Abs | 3 + 4.5 = 7.5 | 3 + 3.75 = 6.75 | green (6-12) |
-| Obliques | 3 + 1 = 4 | 0.75 + 3.75 + 1 = 5.5 | green (4-10) |
-| Neck | 2 + 2 = 4 | same | green (3-9) |
+| Abs | 2 + 3 = 5 | 2 + 2.5 = 4.5 | light green (6-12) |
+| Obliques | 2 + 1 = 3 | 0.5 + 2.5 + 1 = 4 | **amber** at the gym, green at home (4-10) |
+| Neck | 1 + 1 = 2 | same | **amber** (3-9) |
 | Forearms | 4.75 | 4.5 | green (4-10) |
 | Tibialis | 2 | same | covered |
 | Lower back | 1.5 + 1 = 2.5 | 0.75 + 0.5 = 1.25 | **amber** |
 | Upper traps | 2 | same | **amber** (general band) |
 | Hip flexors | 0 | 0 | **grey** |
 
-88 sets a week in 23 exercises at the gym, 88 in 20 at home; at most 6 for a muscle in a session
+82 sets a week in 23 exercises at the gym, 82 in 20 at home; at most 6 for a muscle in a session
 (glutes on Lower 2, lats on Upper 2). Spine-loading sets at most 6 at the gym and 7 at home
 (Lower 2, with both squats loaded); grip-heavy at most 5. No muscle gets 4 or more on two days
 running.
@@ -536,22 +541,26 @@ running.
 
 | Starter | Gym | Home | A week |
 | --- | --- | --- | --- |
-| 3-day | A 45, B 49, C 49 min | A 54, B 53, C 57 min | 143 gym, 164 home |
-| 4-day | 35, 35, 39, 40 min | 42, 37, 46, 42 min | 149 gym, 167 home |
+| 3-day | A 45, B 46, C 42 min | A 54, B 51, C 47 min | 133 gym, 152 home |
+| 4-day | 32, 35, 34, 39 min | 39, 37, 41, 41 min | 140 gym, 158 home |
 
 Home takes longer because split squats, single-leg RDLs, rows and calf raises are done a side at
 a time. The estimator runs high for short sets (research file, Core and hips: Time).
 
 **Beginners** start one set lower per exercise for four weeks (Decided 7; a single set stays
-one): 59-60 sets on the 3-day, 55 on the 4-day, sessions of 23-41 minutes, the main muscles at
+one): 56 sets on the 3-day, 52 on the 4-day, sessions of 22-41 minutes, the main muscles at
 6-8 sets (light green, which still grows muscle; Iversen 2021).
 
 **Where these depart from the evidence, or are a judgment call:**
 
-- **About 87 sets, not Decided 7's 80.** Six sets added to each research table: crunches and
-  Pallof presses so abs and obliques reach K's bands, reverse pec decks so rear delts reach 8
-  (as Liam chose for the 7-day cycle on 25 Oct), and on the 4-day two neck sets (neck was 2,
-  below its 3). Dropping them gives back the research's 81 and 82.
+- **The research's 81 and 82 sets, not the proposal's 87 and 88** (Liam, 1 Nov 2026). The
+  proposal added six sets to each research table: Pallof presses (side plank hip dips and ab
+  rollouts at home) so abs and obliques reached K's bands, reverse pec decks (reverse flies) so
+  rear delts reached 8, as Liam chose for the 7-day cycle on 25 Oct, and on the 4-day a crunch
+  set and two neck sets. Without them abs are light green (4-5 sets against 6), obliques under
+  their 4 except on the 4-day at home (0 and 3 at the gym, 1 and 4 at home), rear delts light
+  green (6.5 and 7.25 against 8) and the 4-day's neck amber (2 against 3). A week is 9-12
+  minutes shorter.
 - **Lower back stays amber, hip flexors grey, upper traps grey or amber.** RDLs count 0.5 for
   the lower back and single-leg RDLs 0.25. Two sets of back extensions (the superman counts 1)
   on C or Lower 2 would make it green at the gym; home needs three. Hip flexors need hanging
@@ -644,7 +653,7 @@ one): 59-60 sets on the 3-day, 55 on the 4-day, sessions of 23-41 minutes, the m
    dropping kept sets. **Built:** the next weight owned at home (ADR-0072) and the body map's
    home or gym view (`?place=`, Home | Gym on Plan for someone at both), which the exercise
    lists follow.
-10. **Setup flow** (H), the 3- and 4-day starters (proposed: N above), and the level questions (G1).
+10. **Setup flow** (H), the 3- and 4-day starters (accepted 1 Nov 2026: N above), and the level questions (G1).
     Proposed 31 Oct 2026: setup also asks the minutes a session has, places people from far below
     today's ladders, and offers starting starters ([any-level-any-time.md](any-level-any-time.md)).
 

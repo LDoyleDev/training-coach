@@ -13,7 +13,7 @@ for Liam's Cloudflare check. The evidence, with every
 source and how far it was read, is in [any-level-research.md](any-level-research.md) (Part 1:
 shorter sessions; Part 2: older, untrained and heavier people; Part 3: placing a person). This
 file builds on the program builder ([program-builder.md](program-builder.md)): its levels (G),
-setup (H) and starters (M) are where most of this lands.
+setup (H) and starters (N) are where most of this lands.
 
 ## Asked for (31 Oct 2026)
 
@@ -332,13 +332,13 @@ Builder H's flow, with what the research adds (Part 3, Implications; Part 2, Scr
 
 ## Starters by level
 
-Builder M's 3- and 4-day starters suit levels 4-6. With B2 and B3 most of their exercises have
+Builder N's 3- and 4-day starters suit levels 4-6. With B2 and B3 most of their exercises have
 steps down to level 2-3; the ones without a low bottom (pistol, jump squat, swing at 8 kg, dips,
 pull-ups, Nordics, reverse Nordic, ab rollout, HIIT) need replacing. Options:
 
 | Option | What | Pros | Cons |
 | --- | --- | --- | --- |
-| S1 **"Starting" versions** (recommended) | A 2-day and a 3-day full-body starter written for levels 1-3: squat, glute bridge or step-up, push-up from the wall up, doorframe row, plank, balance, calf raise, a walk. Written and checked like M | Reviewable, like every starter so far | Two more starters in `plan.toml` |
+| S1 **"Starting" versions** (recommended) | A 2-day and a 3-day full-body starter written for levels 1-3: squat, glute bridge or step-up, push-up from the wall up, doorframe row, plank, balance, calf raise, a walk. Written and checked like N | Reviewable, like every starter so far | Two more starters in `plan.toml` |
 | S2 Swap at run time | Each exercise names its entry exercise; below its bottom level the session uses that one | One starter per day count | Generated sessions are harder to review; the picker (step 7) is where swapping belongs |
 
 ## In the code, in outline
