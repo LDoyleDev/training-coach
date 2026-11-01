@@ -138,6 +138,31 @@ Decided while building, within this ADR:
   upper traps and obliques until #508, and the neck, whose low step the revised list dropped.
 - **Balance** is a new quality and pattern (`balance`): counted in seconds, never as sets.
 
+## Addendum (31 Oct 2026): the migration as built (#508)
+
+- **One migration, `5ebed72122f7`,** moves fifteen ladders and the Squat; the steps, levels and
+  marks are hard-coded in it and plan.toml matches them (a test holds both). The Squat is the
+  retired `goblet-squat`, un-retired and renamed, with eight sit-to-stand steps below its goblet
+  steps; "Fast up, slow down" is in its cues from "arms crossed" on.
+- **Nothing stored refers to a position** but `ladder_steps.position`: levels, sets, a session in
+  progress, replaced workouts and events name step ids, which the migration keeps. `start` is in
+  plan.toml only; it moves by the same number, so it names the same step and nobody's starting
+  point changes. Placing people lower is setup's job (builder step 10).
+- **Left out, as different movements** (option A puts those in entry exercises, as #519 did with
+  the seated band row): the doorframe rows (a bodyweight two-hand pull, not the one-arm row) and
+  side-lying adduction (closer to the adductor squeeze than the Copenhagen plank). Either can be
+  added later without a migration, as a new exercise or at the top of the adductor squeeze. The
+  hamstrings' low steps are the standing hamstring curl entry (#518), so the towel slide ladder
+  is unchanged. The cardio row's bike or seated stepping is a mode of zone 2's easy walk.
+- **Exercise names stay** ("Single-leg calf raise", "Bulgarian split squat", "One-arm kettlebell
+  row", "Kettlebell curl", "Kettlebell lateral raise") although their new bottom steps aren't
+  that: renaming is the seed's job and needs no migration, so it can follow on its own. The
+  same goes for the neck exercises' "(lying ..., head off edge)".
+- **A seated way in for the neck** (Liam, 1 Nov 2026): "Seated, hand resistance, held" (1) below
+  the lying bottom step of neck flexion, extension and side bend: the head pressed gently into
+  the hand and held 5 s, each hold one rep. The way-in rule now holds for every muscle, with no
+  waiting list.
+
 ## Addendum (1 Nov 2026): a fifth preference, "Easy on my knees" (#540)
 
 Liam decided to add the walk-through's fifth preference ("squats to a chair, one low step,

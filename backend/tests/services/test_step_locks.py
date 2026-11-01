@@ -118,9 +118,9 @@ def test_nothing_avoided_locks_nothing(plan: Session) -> None:
 def test_move_up_skips_a_step_the_person_avoids(plan: Session) -> None:
     """Pull-up: Slow negatives, Strict, Pause at top, Vest or backpack. With "No kneeling" and
     Pause at top marked kneeling, Move up from Strict lands on Vest or backpack."""
-    _mark(plan, "pull-up", {2: [Mark.KNEELING]})
+    _mark(plan, "pull-up", {4: [Mark.KNEELING]})
     user_settings.update(plan, avoid_kneeling=True)
-    strict = _put(plan, "pull-up", 1)
+    strict = _put(plan, "pull-up", 3)
     (item,) = progress.feedback(plan, _ready(plan, strict))
     assert (item.status, item.next_step) == (Progress.READY, "Vest or backpack")
     move = progress.move_up(plan, strict.exercise_id, strict.id)
@@ -132,7 +132,7 @@ def test_with_every_harder_step_avoided_move_up_says_none_is_open(plan: Session)
     """Every pull-up step hangs: with "No hanging" nothing above is open, and nothing names the
     preference in ``unlock``, which Telegram and the AI summary say too."""
     user_settings.update(plan, avoid_hanging=True)
-    strict = _put(plan, "pull-up", 1)
+    strict = _put(plan, "pull-up", 3)
     (item,) = progress.feedback(plan, _ready(plan, strict))
     assert (item.status, item.unlock) == (Progress.TOP_OF_LADDER, None)
     move = progress.move_up(plan, strict.exercise_id, strict.id)
@@ -143,9 +143,9 @@ def test_with_every_harder_step_avoided_move_up_says_none_is_open(plan: Session)
 
 def test_what_the_person_avoids_locks_at_the_gym_too(plan: Session) -> None:
     """A gym has every kit (ADR-0071); what the person avoids goes with them."""
-    _mark(plan, "pull-up", {2: [Mark.KNEELING]})
+    _mark(plan, "pull-up", {4: [Mark.KNEELING]})
     user_settings.update(plan, avoid_kneeling=True)
-    strict = _put(plan, "pull-up", 1)
+    strict = _put(plan, "pull-up", 3)
     (item,) = progress.feedback(plan, _ready(plan, strict, place="gym"))
     assert item.next_step == "Vest or backpack"
 
@@ -153,30 +153,30 @@ def test_what_the_person_avoids_locks_at_the_gym_too(plan: Session) -> None:
 def test_the_levels_list_says_why_each_step_is_locked_with_kit_too(plan: Session) -> None:
     """Kit and preferences lock together; the kit named to unlock passes a step the person
     avoids, as no kit opens it."""
-    _mark(plan, "pull-up", {2: [Mark.KNEELING]})
+    _mark(plan, "pull-up", {4: [Mark.KNEELING]})
     user_settings.update(plan, avoid_kneeling=True)
     equipment.save(plan, [Item(Kit.PULL_UP_BAR)], NOW)
-    _put(plan, "pull-up", 1)
+    _put(plan, "pull-up", 3)
     pull_up = _standing(plan, "pull-up")
-    assert [r.avoided for r in pull_up.ladder] == [(), (), (KNEELING,), ()]
-    assert pull_up.ladder[3].missing == ("a weighted vest or backpack of 5 kg",)
+    assert [r.avoided for r in pull_up.ladder] == [(), (), (), (), (KNEELING,), ()]
+    assert pull_up.ladder[5].missing == ("a weighted vest or backpack of 5 kg",)
     assert pull_up.unlock == "a weighted vest or backpack of 5 kg unlocks Vest or backpack"
 
 
 def test_a_step_already_on_stays_and_says_it_is_avoided(plan: Session) -> None:
     """The level never changes by itself: Plan says to pick another step."""
-    strict = _put(plan, "pull-up", 1)
+    strict = _put(plan, "pull-up", 3)
     user_settings.update(plan, avoid_hanging=True)
     assert _on(plan, strict) == strict.id
     pull_up = _standing(plan, "pull-up")
     assert pull_up.step_id == strict.id
-    assert pull_up.ladder[1].avoided == (HANGING,)
+    assert pull_up.ladder[3].avoided == (HANGING,)
 
 
 def test_an_avoided_level_can_be_chosen_by_hand_with_a_warning(plan: Session) -> None:
     user_settings.update(plan, avoid_hanging=True)
-    first = _put(plan, "pull-up", 0)
-    strict = _ladder(plan, "pull-up")[1]
+    first = _put(plan, "pull-up", 2)
+    strict = _ladder(plan, "pull-up")[3]
     move = progress.set_level(plan, first.exercise_id, strict.id)
     assert move is not None
     assert move.outcome is MoveOutcome.LEVEL_SET
@@ -187,9 +187,9 @@ def test_an_avoided_level_can_be_chosen_by_hand_with_a_warning(plan: Session) ->
 def test_a_strength_block_trains_the_next_open_step(plan: Session) -> None:
     """ADR-0028's one step harder skips locked steps, as Move up does: Pause at top marked
     kneeling, avoided, so a strength block on Strict trains Vest or backpack."""
-    _mark(plan, "pull-up", {2: [Mark.KNEELING]})
+    _mark(plan, "pull-up", {4: [Mark.KNEELING]})
     user_settings.update(plan, avoid_kneeling=True)
-    strict = _put(plan, "pull-up", 1)
+    strict = _put(plan, "pull-up", 3)
     step, at_top = blocks.step_for(plan, strict.exercise, True)
     assert (step.name, at_top) == ("Vest or backpack", False)
 
@@ -198,7 +198,7 @@ def test_a_strength_block_with_no_open_step_above_trains_the_current_one(plan: S
     """Every pull-up step hangs: with "No hanging" the block keeps Strict, with the top's tempo
     cue, never a step the person avoids."""
     user_settings.update(plan, avoid_hanging=True)
-    strict = _put(plan, "pull-up", 1)
+    strict = _put(plan, "pull-up", 3)
     assert blocks.step_for(plan, strict.exercise, True) == (strict, True)
     torso = plan.scalars(select(SessionTemplate).where(SessionTemplate.slug == "torso")).one()
     item = next(i for i in torso.items if i.exercise_id == strict.exercise_id)
@@ -212,7 +212,7 @@ def test_a_strength_block_skips_kit_locked_steps_at_home_only(plan: Session) -> 
     """Pause at top is open; with the bar only, Vest or backpack lacks the pack. From Pause at
     top the block stays at home and goes up at the gym, which has everything (ADR-0071)."""
     equipment.save(plan, [Item(Kit.PULL_UP_BAR)], NOW)
-    pause = _put(plan, "pull-up", 2)
+    pause = _put(plan, "pull-up", 4)
     assert blocks.step_for(plan, pause.exercise, True) == (pause, True)
     step, at_top = blocks.step_for(plan, pause.exercise, True, at_gym=True)
     assert (step.name, at_top) == ("Vest or backpack", False)
@@ -222,7 +222,7 @@ def test_with_every_harder_step_locked_every_surface_says_so_without_why(plan: S
     """The saved feedback, Telegram, the review and the AI summary say "no open step above
     this one" (true, and neutral); "top of the ladder" stays for the real last step."""
     user_settings.update(plan, avoid_hanging=True)
-    strict = _put(plan, "pull-up", 1)
+    strict = _put(plan, "pull-up", 3)
     (item,) = progress.feedback(plan, _ready(plan, strict))
     assert (item.status, item.note_top, item.capped) == (Progress.TOP_OF_LADDER, True, True)
     told = feedback_text([item])
@@ -231,7 +231,7 @@ def test_with_every_harder_step_locked_every_surface_says_so_without_why(plan: S
         assert said not in told.lower(), said
     standing = _standing(plan, "pull-up")
     assert standing.capped
-    assert "Pull-up: Strict pull-up (2/4)" in progress_text([standing])
+    assert "Pull-up: Strict pull-up (4/6)" in progress_text([standing])
     assert progress_text([standing]).endswith("No open step above this one")
     text = ai_summary.summary(plan, DAY, ai_summary.Options(weeks=4))
     line = next(x for x in text.splitlines() if x.startswith("- Pull-up:"))

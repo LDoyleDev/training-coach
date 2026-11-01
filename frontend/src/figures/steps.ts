@@ -709,8 +709,34 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
   ...ENTRY_UPPER_STEPS,
 }
 
-/** ``slug``'s figure as it looks at the ladder step ``step``; nothing for a slug without one. */
+/** Steps set up differently from their exercise's figure that aren't drawn yet: the lower steps
+ * ADR-0083 added below today's bottoms (#508). They show no figure rather than the wrong one
+ * (a floor push-up for a push-up against the wall); each comes out of here once it is drawn. */
+export const UNDRAWN: Readonly<Record<string, readonly string[]>> = {
+  'push-up': [
+    'Hands on a wall',
+    'Hands on a counter',
+    'Hands on a table',
+    'Hands on a chair seat against a wall',
+    'On the knees',
+    'Hands on a stair or low step',
+  ],
+  'bulgarian-split-squat': [
+    'Holding a chair, short range',
+    'Holding a chair, full range',
+    'Back foot on a low step',
+  ],
+  'pull-up': ['Feet on a chair', 'Scapular pulls'],
+  'kb-row': ['A bag, about 4 kg'],
+  'kb-curl': ['Water bottles, about 1 kg', 'A bag, 2-4 kg'],
+  'calf-raise': ['Both legs, hands on a wall', 'Both legs, on a step'],
+  'copenhagen-plank': ['Knee on a chair, bottom foot helping'],
+}
+
+/** ``slug``'s figure as it looks at the ladder step ``step``; nothing for a slug without one, or
+ * for a step that isn't drawn yet. */
 export function figureFor(slug: string, step?: string): Figure | undefined {
+  if (step !== undefined && UNDRAWN[slug]?.includes(step)) return undefined
   const figure: Figure | undefined = FIGURES[slug]
   const change = step === undefined ? undefined : STEPS[slug]?.[step]
   return figure && change ? { ...figure, ...change } : figure
