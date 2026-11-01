@@ -56,6 +56,7 @@ from training_coach.domain.muscles import (
     step_stress,
 )
 from training_coach.domain.parser import normalise_name
+from training_coach.domain.step_levels import Mark, StepLevel, first_fall
 from training_coach.domain.stretching import Stretch
 
 log = structlog.get_logger(__name__)
@@ -103,6 +104,15 @@ class ExerciseSeed(_Strict):
     # ladder step -> what carries its weight: the step takes load (ADR-0072); read from the
     # bundled plan like needs
     loads: dict[str, LoadKit] = Field(default_factory=dict)
+    # ladder step -> who it is for, 1-6, and what it asks of the body (ADR-0083); stored on
+    # the step and written on every run, like cues. Every step has a level unless retired.
+    levels: dict[str, StepLevel] = Field(default_factory=dict)
+    marks: dict[str, Annotated[list[Mark], Field(min_length=1)]] = Field(default_factory=dict)
+    # A last set to failure is safe here: isolation and stable exercises (ADR-0084)
+    failure_ok: bool = False
+    # Reps, seconds or minutes a set, low to high, for an exercise no session uses yet (an
+    # entry exercise, ADR-0083): its questions ask for the bottom. A session item sets its own.
+    range: tuple[Annotated[int, Field(ge=1)], Annotated[int, Field(ge=1)]] | None = None
     aliases: list[str] = Field(default_factory=list)
     start: int = Field(ge=0)
     ladder: list[str] = Field(min_length=1)
@@ -125,6 +135,25 @@ class ExerciseSeed(_Strict):
         if missing:
             raise ValueError(f"{self.slug}: renames to {missing}, which is not in its ladder")
         return self
+
+    def _levels_and_marks(self) -> None:
+        for table, named in (("levels", self.levels), ("marks", self.marks)):
+            unknown = sorted(set(named) - set(self.ladder))
+            if unknown:
+                raise ValueError(f"{self.slug}: {table} for {unknown}, which is not in its ladder")
+        missing = [step for step in self.ladder if step not in self.levels]
+        if missing and not self.retired:
+            raise ValueError(f"{self.slug}: no level for {missing}")
+        levelled = [step for step in self.ladder if step in self.levels]
+        fall = first_fall([self.levels[step] for step in levelled])
+        if fall is not None:
+            raise ValueError(
+                f"{self.slug}: {levelled[fall]!r} is a lower level than {levelled[fall - 1]!r}; "
+                "levels never fall going up a ladder"
+            )
+        for step, marks in self.marks.items():
+            if len(set(marks)) != len(marks):
+                raise ValueError(f"{self.slug}, {step!r}: a mark is listed twice")
 
     def step_stress(self, step: str) -> set[Stress]:
         """The shared stress of one of its ladder steps (a squat loads the spine only loaded:
@@ -159,6 +188,13 @@ class ExerciseSeed(_Strict):
             raise ValueError(f"{self.slug}: loads for {unknown}, which is not in its ladder")
         if self.loads and self.kind is not ExerciseKind.REPS:
             raise ValueError(f"{self.slug}: only an exercise counted in reps takes load")
+        if self.failure_ok and self.kind is not ExerciseKind.REPS:
+            raise ValueError(
+                f"{self.slug}: only an exercise counted in reps has a last set to failure"
+            )
+        if self.range is not None and self.range[1] < self.range[0]:
+            raise ValueError(f"{self.slug}: its range runs from high to low")
+        self._levels_and_marks()
         for step, kit in self.needs.items():
             try:
                 for need in kit:
@@ -347,6 +383,10 @@ class PlanSeed(_Strict):
                     "which must be an exercise counted in minutes"
                 )
         retired = {e.slug for e in self.exercises if e.retired}
+        used = {i.exercise for s in self.sessions for i in (*s.items, *s.gym)}
+        ranged = sorted(e.slug for e in self.exercises if e.range is not None and e.slug in used)
+        if ranged:
+            raise ValueError(f"{ranged} have a range, but a session sets theirs")
         for session in self.sessions:
             for item in (*session.items, *session.gym):
                 if item.exercise not in known:
@@ -555,6 +595,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
             exercise.name, exercise.kind = seed.name, seed.kind.value
             exercise.aliases = list(seed.aliases)
             exercise.retired, exercise.per_side = seed.retired, seed.per_side
+            exercise.failure_ok = seed.failure_ok
         else:
             _set(
                 exercise,
@@ -564,16 +605,21 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 aliases=list(seed.aliases),
                 retired=seed.retired,
                 per_side=seed.per_side,
+                failure_ok=seed.failure_ok,
             )
         steps = {step.position: step for step in exercise.ladder}
         for position, name in enumerate(seed.ladder):
             step = steps.get(position)
-            cue = seed.cues.get(name)
+            facts = {
+                "cue": seed.cues.get(name),
+                "level": seed.levels.get(name),
+                "marks": [mark.value for mark in seed.marks.get(name, [])],
+            }
             if step is None:
-                exercise.ladder.append(LadderStep(position=position, name=name, cue=cue))
+                exercise.ladder.append(LadderStep(position=position, name=name, **facts))
                 result.created += 1
             else:
-                _set(step, result, name=name, cue=cue)
+                _set(step, result, name=name, **facts)
     session.flush()
 
     # Each person's own rows: where they are on every ladder (ADR-0026). The seed runs in an

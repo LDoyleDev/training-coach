@@ -94,3 +94,23 @@ moved a step yet: `b7e1c3d5f9a2` deleted two unused top steps. A walk-through as
 - Settings gain the four preferences and the talk-test setting; nothing about a person's health
   is stored.
 - A fifth preference, "Easy on my knees", came out of the walk-through; it is for Liam to decide.
+
+## Addendum (31 Oct 2026): the entry exercises as built (#507)
+
+- **Seventeen entry exercises,** in the catalogue and in no session yet: glute bridge, step-up,
+  plank, knee lift, adductor squeeze, standing hamstring curl, hip hinge, deadlift, seated toe
+  lift, armchair press-up, band pushdown, seated band row, band pull-apart, band pulldown,
+  seated press, balance and interval walk. Two items the spec writes together became one ladder
+  where the movement is the same (seated march and the standing knee lift, the pillow squeeze
+  and band adduction), and two exercises where it isn't (the armchair press-up and the band
+  pushdown; the band pulldown apart from the pull-up ladder, so "No hanging" still progresses).
+- **A range on an exercise no session uses** (`range` in `plan.toml`, not stored): the range a
+  session would give it, whose bottom its "Can you do...?" questions ask for. A session item's
+  range wins; the seed refuses both. Ladders from level 1 counted in reps are 3-10.
+- **Left to the migration (#508):** the squat (the sit-to-stand steps go below the retired
+  `goblet-squat`'s goblet steps, which needs positions to move; a separate `squat` would split
+  its history as option B does), and the low steps that are the same movement as a ladder
+  (bottle and bag curls, the seated bottle lateral raise, the back extension on a bed).
+- **The rule's test** lists the muscles still without a way in: chest, biceps, calves, forearms,
+  upper traps and obliques until #508, and the neck, whose low step the revised list dropped.
+- **Balance** is a new quality and pattern (`balance`): counted in seconds, never as sets.

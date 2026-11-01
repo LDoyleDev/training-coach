@@ -523,3 +523,25 @@ test('from the front, the bottom leg lies under the top one, below the seat', ()
     if (j.legL.end[0] < seat.x1) expect(j.legL.end[1] + 3.8).toBeLessThan(seat.top - 6 + 1)
   }
 })
+
+test('a straight leg swung towards you is drawn shorter, and never longer than it reaches', () => {
+  const stand = { at: [0, 0] as Vec }
+  const pose = (toward: number) => ({
+    hip: [0, 93] as Vec,
+    tilt: 90,
+    armL: stand,
+    armR: stand,
+    legL: { swing: { dir: -80, toward } },
+    legR: { at: [8, 7] as Vec },
+  })
+  const length = BODY.thigh + BODY.shin
+  const drawn = (toward: number) => {
+    const leg = solveFront(pose(toward)).legL
+    return dist(leg.root, leg.end)
+  }
+  expect(drawn(0)).toBeCloseTo(length, 1)
+  expect(drawn(30)).toBeCloseTo(Math.sqrt(length ** 2 - 30 ** 2), 1)
+  const past = solveFront(pose(length + 10)).legL // further than the leg reaches: end on
+  for (const p of [past.mid, past.end, past.tip]) expect(p.every(Number.isFinite)).toBe(true)
+  expect(dist(past.root, past.end)).toBeCloseTo(0, 1)
+})
