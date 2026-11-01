@@ -68,6 +68,11 @@ def test_every_advice_has_a_title_and_text() -> None:
     assert set(TITLES) == set(TEXTS) == set(Advice)
 
 
+def test_the_rest_advice_says_to_rest_with_a_fever() -> None:
+    """A fever or feeling ill means rest, not a walk (PAR-Q+; safety-wording review, Part 5)."""
+    assert "unless you have a fever or feel ill: then rest." in TEXTS[Advice.REST]
+
+
 def test_the_summary_says_the_answers_and_the_advice() -> None:
     assert summary(_a("ok", "some", "normal")) == (
         "Slept OK, a bit sore, normal energy: go lighter today"

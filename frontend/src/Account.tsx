@@ -10,6 +10,7 @@ import CopyForAI from './account/CopyForAI'
 import Settings from './account/Settings'
 import Toast from './components/Toast'
 import { InstallCard } from './pwa/InstallApp'
+import { INTENDED_PURPOSE } from './session/safety'
 import { card, danger, primaryInline, secondary } from './ui'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import {
@@ -258,6 +259,13 @@ export default function Account() {
           <BandImport />
           <HeartRateZones />
           <BodySettings />
+
+          <section aria-labelledby="about" className={card}>
+            <h2 id="about" className="mb-2 text-xl">
+              About Training Coach
+            </h2>
+            <p className="m-0">{INTENDED_PURPOSE}</p>
+          </section>
 
           <section aria-labelledby="erase" className={card}>
             <h2 id="erase" className="mb-2 text-xl">

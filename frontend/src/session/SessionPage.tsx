@@ -76,8 +76,8 @@ import { card, primary, primaryInline, secondary } from '../ui'
 import { moveHref, stepDownText } from '../plan/ladder'
 import { KIT_HREF } from '../account/kit'
 import { NO_OPEN_STEP } from '../plan/ladder'
-import { BREATHING, LAST_SET_LOCKED, lastSetTarget } from './safety'
-import { StopSignsCard, StopSignsTap } from './StopSigns'
+import { BREATHING, LAST_SET_LOCKED, STOP_LINE, lastSetTarget } from './safety'
+import { AllStopSigns, StopSignsCard, StopSignsTap } from './StopSigns'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
 
@@ -1197,9 +1197,10 @@ function Overview({
         <p className={card}>After your run: it's logged, and these sets are saved with it.</p>
       )}
       {warmUp && <p className={card}>{warmUp}</p>}
-      <p className="text-[var(--slate)]">
-        Stop if you feel sharp pain, dizziness or chest tightness.
-      </p>
+      <div>
+        <p className="m-0 text-[var(--slate)]">{STOP_LINE}</p>
+        <AllStopSigns />
+      </div>
       <ul className="flex flex-col gap-2">
         {session.items.map((item, index) => (
           <li key={item.slug} className={card + ' flex flex-col gap-2'}>

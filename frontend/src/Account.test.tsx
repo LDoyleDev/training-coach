@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import Account from './Account'
 import type { SignIns } from './api'
+import { INTENDED_PURPOSE } from './session/safety'
 
 const webauthn = vi.hoisted(() => ({
   browserSupportsWebAuthn: vi.fn(() => true),
@@ -68,6 +69,13 @@ test('lists passkeys and browsers, marking this one', async () => {
   expect(await screen.findByText(/Pixel · added/)).toBeInTheDocument()
   expect(screen.getByText(/This browser/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Sign out Old laptop' })).toBeInTheDocument()
+})
+
+test('About says what the app is for, and that it assesses no one (ADR-0085)', async () => {
+  server(SIGN_INS)
+  render(<Account />)
+  expect(await screen.findByRole('heading', { name: 'About Training Coach' })).toBeVisible()
+  expect(screen.getByText(INTENDED_PURPOSE)).toBeVisible()
 })
 
 test('removing a passkey and signing out a lost browser call the API', async () => {

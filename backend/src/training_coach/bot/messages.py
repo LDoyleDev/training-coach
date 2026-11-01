@@ -74,7 +74,11 @@ def _joined(words: list[str], last: str = "and") -> str:
 WARM_UP = f"Warm up for about {WARM_UP_MINUTES} minutes first."
 RAMP = "Warm up with one or two easy sets of the first exercise."  # 30 minutes or less
 # Shown with every session and test day (legal review): safety is design and warnings.
-STOP = "Stop if you feel sharp pain, dizziness or chest tightness."
+# The web shows the same line (STOP_LINE in frontend/src/session/safety.ts; a test checks).
+STOP = (
+    "Stop if you get chest pain or pressure, feel faint or dizzy, or are unusually out of "
+    "breath. Call 112 if it's severe or doesn't ease with rest."
+)
 BASELINE = (
     "Baseline for {names}: the first session at this step. Aim for the targets and log what "
     "you manage; the next targets grow from it."

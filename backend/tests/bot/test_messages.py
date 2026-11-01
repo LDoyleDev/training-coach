@@ -1,9 +1,12 @@
+import re
 from dataclasses import replace
 from datetime import date
+from pathlib import Path
 
 import pytest
 
 from training_coach.bot.messages import (
+    STOP,
     log_saved_text,
     rest_text,
     session_detail_text,
@@ -67,7 +70,7 @@ def test_today_text_lists_exercises_and_notes() -> None:
     )
     assert today_text(plan) == (
         "Today: Arms\nAccessories\nWarm up for about 5 minutes first.\n"
-        "Stop if you feel sharp pain, dizziness or chest tightness.\n\n"
+        f"{STOP}\n\n"
         "1. Plank (Knees): 8\n\n"
         "This one is optional: resting today is fine.\n\nAlready logged today: Legs (done)"
     )
@@ -162,7 +165,16 @@ def test_every_session_carries_the_stop_reminder_even_without_a_warm_up() -> Non
     plan = SessionPlan(9, "Long zone 2", "Easy", False, items, kind="conditioning")
     text = today_text(Today(plan, ()))
     assert "Warm up" not in text
-    assert "Stop if you feel sharp pain, dizziness or chest tightness." in text
+    assert STOP in text
+
+
+def test_the_stop_reminder_names_112_and_is_the_web_line_word_for_word() -> None:
+    """The bot and the session page say the same thing (safety-wording review, Part 5)."""
+    assert "Call 112" in STOP
+    safety = Path(__file__).resolve().parents[3] / "frontend" / "src" / "session" / "safety.ts"
+    web = re.search(r'export const STOP_LINE =\s*"([^"]*)"', safety.read_text(encoding="utf-8"))
+    assert web is not None
+    assert web.group(1) == STOP
 
 
 def test_the_bot_names_the_place_and_the_no_equipment_steps_away() -> None:
