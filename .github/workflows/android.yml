@@ -57,6 +57,10 @@ jobs:
           grep -q "^package: .* versionCode='$code' " "$RUNNER_TEMP/badging.txt" ||
             { echo "::error::versionCode is not $code (android/VERSION)"; grep '^package:' "$RUNNER_TEMP/badging.txt"; exit 1; }
           echo "APK checked: $(grep '^package:' "$RUNNER_TEMP/badging.txt")"
+          # The SDK platforms on the runner and their revisions: the build compiles against one of them.
+          for p in "$ANDROID_HOME"/platforms/*/source.properties; do
+            echo "$(basename "$(dirname "$p")"): $(grep -h '^Pkg.Revision=' "$p")"
+          done
       - name: Keep the unsigned release APK
         if: github.event_name == 'push'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
