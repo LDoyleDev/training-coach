@@ -41,6 +41,7 @@ class Quality(StrEnum):
     POWER = "power"
     MOBILITY = "mobility"
     CONDITIONING = "conditioning"
+    BALANCE = "balance"  # standing balance, against falls (ADR-0083)
 
 
 class Part(StrEnum):
@@ -69,6 +70,7 @@ class Pattern(StrEnum):
     ISOLATION = "isolation"
     MOBILITY = "mobility"
     CARDIO = "cardio"
+    BALANCE = "balance"
 
 
 class Stress(StrEnum):

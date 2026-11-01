@@ -47,7 +47,14 @@ export interface Kit {
   standing?: boolean
   cables?: readonly Cable3[]
   machine?: Machine3
+  band?: Band3
+  /** A folded pillow squeezed between the knees, as wide as the gap between them. */
+  pillow?: boolean
 }
+
+/** A resistance band held between the two hands ('hands'), or from a fixed point ``from`` (a table
+ * leg) to a loop round the left or right ankle. */
+export type Band3 = { to: 'hands' } | { from: Vec3; to: 'ankleL' | 'ankleR' }
 
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
@@ -283,6 +290,31 @@ function machine(see: Project, camera: Camera, j: ReturnType<typeof solveFront>,
   ]
 }
 
+/** A band between the fists, or from its anchor to a loop round an ankle. */
+function band(see: Project, j: ReturnType<typeof solveFront>, b: Band3): Drawn[] {
+  const grip = (l: FrontLimbJoints): Vec3 => [
+    (l.end[0] + l.tip[0]) / 2,
+    (l.end[1] + l.tip[1]) / 2,
+    l.z[1],
+  ]
+  if (b.to === 'hands') return [capsule(see, grip(j.armL), grip(j.armR), [1.2, 1.2], 'bell')]
+  const leg = b.to === 'ankleL' ? j.legL : j.legR
+  const ankle = at(leg.end, leg.z[1])
+  return [
+    capsule(see, b.from, ankle, [1.2, 1.2], 'bell'),
+    sphere(see, ankle, SIZE.joint.ankle + 1.2, 'bell', 1),
+  ]
+}
+
+/** A folded pillow between the knees: a soft block filling the gap between them. */
+function pillow(see: Project, j: ReturnType<typeof solveFront>): Drawn {
+  const [l, r] = [at(j.legL.mid, j.legL.z[0]), at(j.legR.mid, j.legR.z[0])]
+  const half = Math.max(2, (l[0] - r[0]) / 2 - SIZE.joint.knee)
+  const c: Vec3 = [(l[0] + r[0]) / 2, (l[1] + r[1]) / 2, (l[2] + r[2]) / 2 - 4]
+  const lump = (dx: number, dy: number): [Vec3, number] => [[c[0] + dx, c[1] + dy, c[2]], half]
+  return hull(see, [lump(0, 4), lump(0, -4), lump(0, 8), lump(0, -8)], 'prop')
+}
+
 /** Everything to draw for ``pose`` seen by ``camera``, far to near. */
 export function perspectiveShapes(
   pose: FrontPose,
@@ -319,6 +351,8 @@ export function perspectiveShapes(
     ...(seat ? bench(see, camera, seat) : []),
     ...cables(see, camera, j, kit),
     ...(kit.machine ? machine(see, camera, j, kit.machine) : []),
+    ...(kit.band ? band(see, j, kit.band) : []),
+    ...(kit.pillow ? [pillow(see, j)] : []),
     ...leg(see, j.legL, 'far'),
     ...leg(see, j.legR, 'near'),
     ...arm(see, j.armL, 'far', forearm),

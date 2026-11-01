@@ -121,6 +121,20 @@ PINNED = {
     ("dip", "Dip bars, vest or backpack"): (6, set()),
     ("leg-press", "Machine"): (3, set()),
     ("back-squat", "Barbell"): (4, set()),
+    ("glute-bridge", "Standing, at the counter"): (1, set()),
+    ("glute-bridge", "On the floor"): (2, {"floor"}),
+    ("step-up", "One stair, no hands"): (3, {"balance"}),
+    ("plank", "Hands on a counter"): (1, set()),
+    ("plank", "On the knees"): (3, {"floor", "kneeling"}),
+    ("deadlift", "A bag, from a block"): (2, set()),
+    ("deadlift", "24 kg"): (5, set()),
+    ("armchair-press-up", "Feet helping"): (1, set()),
+    ("band-row", "Light band"): (1, set()),
+    ("band-pulldown", "Light band"): (2, set()),
+    ("seated-press", "8 kg, one arm at a time"): (3, set()),
+    ("balance", "Feet together, holding the counter"): (1, set()),
+    ("balance", "One leg, eyes closed"): (5, {"balance"}),
+    ("interval-walk", "3 min brisk, 3 min easy"): (2, set()),
 }
 
 
@@ -142,11 +156,17 @@ FAILURE_OK = {
     "band-face-pull", "reverse-fly", "reverse-pec-deck", "prone-ytw", "chest-fly",
     "overhead-cable-extension", "wrist-curl", "lat-pulldown", "chest-supported-row",
     "cable-crunch",
+    # the entry exercises (ADR-0083): isolation, seated or held, and a bodyweight bridge
+    "glute-bridge", "knee-lift", "adductor-squeeze", "standing-leg-curl", "toe-lift",
+    "armchair-press-up", "band-pushdown", "band-row", "band-pull-apart", "band-pulldown",
+    "seated-press",
 }  # fmt: skip
 NEVER = {
     "jump-squat", "kb-swing", "pistol-squat", "hamstring-curl", "single-leg-rdl", "barbell-rdl",
     "back-extension", "back-extension-45", "suitcase-carry", "neck-flexion", "neck-extension",
     "neck-lateral", "chin-tuck", "ab-rollout", "copenhagen-plank", "hiit",
+    "deadlift", "hip-hinge", "step-up",  # loaded hinges; a stair is a fall risk
+    "interval-walk",
 }  # fmt: skip
 
 

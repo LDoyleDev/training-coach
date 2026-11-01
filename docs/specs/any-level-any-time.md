@@ -3,9 +3,9 @@
 Status: **decided 31 Oct 2026** (Decided, at the end; ADR-0082 to ADR-0085). Built, by step of
 the Suggested order: 1 (ADRs, #495); 2, "Short on time today" (#501, #502, #509, #510, #516,
 #517); 3, stop signs and the talk test (#505); 4 started: a level, marks and `failure_ok` on
-every step (#506), entry exercises in progress (#507), the ladders' downward migration next
-(#508); 5 started: minutes per session on Account (#524), the map at that length open. The
-Europe gate: layer 2 (#513); layers 3-4 (#514, #515) open. The evidence, with every
+every step (#506), the entry exercises (#507, ADR-0083's addendum), the ladders' downward
+migration next (#508); 5 started: minutes per session on Account (#524), the map at that length
+open. The Europe gate: layer 2 (#513); layers 3-4 (#514, #515) open. The evidence, with every
 source and how far it was read, is in [any-level-research.md](any-level-research.md) (Part 1:
 shorter sessions; Part 2: older, untrained and heavier people; Part 3: placing a person). This
 file builds on the program builder ([program-builder.md](program-builder.md)): its levels (G),
@@ -247,6 +247,10 @@ first, levels in brackets; **bold** is today's bottom step. Level-1 ranges start
 | Carry | Static hold beside the counter, bag 1-3 kg (1); walking along the counter (2); bag 3-5 kg (2); **8 kg** (3) |
 | Balance (entry) | As in B3, every step beside a counter at levels 1-3 |
 | Cardio | Easy walk, can be split into short bouts (1); bike or seated stepping (1-3, knee-friendly); interval walk from 2 rounds (2-3); **brisk walk** (2) |
+
+**Built (#507):** the entry exercises above, in no session yet; the squat and the low steps of
+existing ladders come with the migration (#508). The neck has no level 1-2 step: the draft's
+seated hand-resistance hold (B2) is the candidate.
 
 Neck work stays out of the starting starters. For people 65 and over the walk-through suggests
 a daily 10-minute balance and sit-to-stand "snack" (WHO: 3 days or more; Sherrington 2019: the
