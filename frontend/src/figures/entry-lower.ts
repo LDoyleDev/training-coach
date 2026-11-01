@@ -57,7 +57,7 @@ const holding = (pose: Pose): Pose => ({ ...pose, armN: { dir: -97, reach: 0.995
 /** A plank in one straight line from the balls of the feet at ``ball``, the body ``angle``
  * degrees up from the floor, placed by the hip so it can blend with a pose that isn't straight
  * (knees down, or the feet walked in); the hands at ``hands``, flat. */
-const line = (ball: Vec, angle: number, hands: Vec): Pose => {
+export const line = (ball: Vec, angle: number, hands: Vec): Pose => {
   const arms = {
     armN: { at: hands, angle: 0 },
     armF: { at: [hands[0] + 2.7, hands[1]] as Vec, angle: 0 },
@@ -67,14 +67,16 @@ const line = (ball: Vec, angle: number, hands: Vec): Pose => {
   return { hip: j.hip, lean: 90 - angle, legN: leg, legF: { ...leg }, ...arms }
 }
 
-/** A straight plank at ``angle`` whose shoulders are an arm's length (53 cm) from ``hands``:
- * the balls of the feet go where that puts them. */
+/** Where the balls of the feet go for a straight plank at ``angle`` whose shoulders are an arm's
+ * length (53 cm) from ``hands``. */
 const ARM = 53
-const toHands = (hands: Vec, angle: number): Pose => {
+export const ballFor = (hands: Vec, angle: number): Vec => {
   const s = solve(line([0, 0], angle, hands)).shoulder // from the balls of the feet at 0
   const down = Math.asin((hands[1] - s[1]) / ARM)
-  return line([hands[0] - s[0] - ARM * Math.cos(down), 0], angle, hands)
+  return [hands[0] - s[0] - ARM * Math.cos(down), 0]
 }
+/** That plank, arms straight. */
+const toHands = (hands: Vec, angle: number): Pose => line(ballFor(hands, angle), angle, hands)
 
 /** Hands on something ``top`` cm high at x = 100: the feet walked in, the body at ``walkedIn``
  * degrees, then back until it is one straight slope at ``angle``; lower takes more weight on the
@@ -112,8 +114,8 @@ const kneesDown = (pose: Pose): Pose => {
 
 /** A knee plank: kneeling on a cushion, the hands under the shoulders, from the hips bent to knees
  * to head in one line. */
-const KNEE: Vec = [0.1, 5.4]
-const KNEELING = {
+export const KNEE: Vec = [0.1, 5.4]
+export const KNEELING = {
   legN: { at: [-42.5, 11.6], angle: -100 },
   legF: { at: [-40, 11.6], angle: -100 },
 } as const
