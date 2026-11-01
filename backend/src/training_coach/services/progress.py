@@ -6,9 +6,10 @@ everything again when pressed, so a stale or forged press changes nothing. ``set
 exercise on any step of its own ladder by hand, ready or not (ADR-0075). The caller owns the
 transaction.
 
-Steps lock by kit (ADR-0071): once a person has listed their kit, Move up goes to the next step
-it allows; past the last one the exercise is at the top for their kit, and ``unlock`` names what
-opens the next step. A locked level can still be chosen by hand, with a warning.
+Steps lock by kit (ADR-0071) and by what the person has chosen to avoid (ADR-0083, through
+``step_locks``): Move up goes to the next open step; past the last one the exercise is at the top
+of its open steps, and ``unlock`` names the kit that opens the next, when kit can. A locked level
+can still be chosen by hand, with a warning.
 """
 
 from collections.abc import Sequence
@@ -29,19 +30,22 @@ from training_coach.db.models import (
     TemplateItem,
     Workout,
 )
-from training_coach.domain import kit as kit_rules
+from training_coach.domain import locks
 from training_coach.domain.blocks import BlockKind, history_kind
 from training_coach.domain.enums import ExerciseKind, Place, Places, Side, WorkoutStatus
-from training_coach.domain.kit import Item
 from training_coach.domain.load import top_weight
+from training_coach.domain.locks import Limits
 from training_coach.domain.progression import Progress, assess, combine_sides
 from training_coach.domain.queue import local_date
 from training_coach.domain.records import NewBests, new_bests
 from training_coach.domain.targets import Prescription
-from training_coach.services import blocks, equipment, user_settings, users
+from training_coach.services import blocks, step_locks, user_settings, users
 from training_coach.services.seed import bundled_plan
 
 TOP_NOTED = "progress.top_of_ladder"
+# Said where every harder step is locked, on every surface, without saying why (ADR-0083)
+NO_OPEN_STEP = "no open step above this one"
+NO_LIMITS = Limits()  # nothing listed, nothing avoided: no step locks
 LEVEL_SET = "progress.level_set"
 
 
@@ -60,6 +64,9 @@ class Feedback:
     slug: str = ""  # the exercise's, for a link to its ladder (ADR-0075)
     unlock: str | None = None  # at the top for the kit: what opens the next step (ADR-0071)
     load_kg: float | None = None  # the session's weight: its bests count only that (ADR-0072)
+    # At the top with harder steps above, every one locked (kit, or what the person avoids):
+    # said as "no open step above this one", never why (ADR-0083)
+    capped: bool = False
 
 
 class MoveOutcome(StrEnum):
@@ -78,7 +85,7 @@ class Move:
     outcome: MoveOutcome
     exercise: str
     step: str | None = None  # the step trained from now on, when moved
-    warning: str | None = None  # a level chosen by hand that the kit doesn't allow (ADR-0071)
+    warning: str | None = None  # a locked level chosen by hand, in words (ADR-0071, ADR-0083)
 
 
 def _items(session: Session, exercise_id: int) -> list[TemplateItem]:
@@ -199,30 +206,37 @@ def last_loads(
     return [(n, kg) for w, n, kg in rows if w == last and kg is not None]
 
 
-Kit = Sequence[Item] | None  # None: no kit listed yet, so nothing locks
-
-
 def _at(step: LadderStep) -> tuple[list[LadderStep], int]:
     ladder = step.exercise.ladder
     return ladder, next(i for i, s in enumerate(ladder) if s.id == step.id)
 
 
-def _next_step(step: LadderStep, kit: Kit) -> LadderStep | None:
-    """The next step the kit allows: Move up skips the locked ones (ADR-0071)."""
+def _next_step(step: LadderStep, limits: Limits) -> LadderStep | None:
+    """The next open step: Move up skips the locked ones (ADR-0071, ADR-0083)."""
     ladder, at = _at(step)
-    found = kit_rules.next_open(equipment.ladder_needs(step.exercise), at, kit)
+    found = locks.next_open(step_locks.ladder(step.exercise), at, limits)
     return ladder[found] if found is not None else None
 
 
-def _unlock(step: LadderStep, kit: Kit) -> str | None:
-    """At the top for the kit: "a 16 kg kettlebell unlocks One-arm, 16 kg"; else None."""
+def _unlock(step: LadderStep, limits: Limits) -> str | None:
+    """At the top for the kit: "a 16 kg kettlebell unlocks One-arm, 16 kg"; else None. Never
+    names what the person avoids: this is said on Telegram and to their AI too."""
     ladder, at = _at(step)
-    lacking = kit_rules.unlocks_next(equipment.ladder_needs(step.exercise), at, kit)
-    return f"{' and '.join(lacking)} unlocks {ladder[at + 1].name}" if lacking else None
+    found = locks.unlocks_next(step_locks.ladder(step.exercise), at, limits)
+    if found is None:
+        return None
+    index, lacking = found
+    return f"{' and '.join(lacking)} unlocks {ladder[index].name}"
+
+
+def _below_top(step: LadderStep) -> bool:
+    """Whether harder steps exist above ``step`` on its ladder, open or not."""
+    ladder, at = _at(step)
+    return at < len(ladder) - 1
 
 
 def _status(
-    session: Session, item: TemplateItem | None, step: LadderStep, kit: Kit = None
+    session: Session, item: TemplateItem | None, step: LadderStep, limits: Limits = NO_LIMITS
 ) -> Progress:
     if item is None or blocks.load_kit(step.exercise.slug, step.name) is not None:
         # A loaded step gets harder by weight, suggested on the set screen (ADR-0072).
@@ -232,7 +246,7 @@ def _status(
     done = sessions_at_step(session, step.exercise_id, step.id, item.per_side, block)
     # A shorter day is judged on the sets it planned (ADR-0084).
     planned = planned_sets(session, step.exercise.slug, [w for w, _ in done])
-    upcoming = _next_step(step, kit)
+    upcoming = _next_step(step, limits)
     return assess(_prescription(item), [v for _, v in done], upcoming is not None, planned=planned)
 
 
@@ -301,8 +315,9 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
     for row in sorted(workout.sets, key=lambda s: s.id):
         logged.setdefault((row.exercise_id, row.ladder_step_id), None)
 
-    # Kit locks apply at home only: a gym has everything (ADR-0071).
-    kit = equipment.kit(session) if workout.place == Place.HOME else None
+    # Kit locks apply at home only: a gym has everything (ADR-0071). What the person avoids
+    # applies anywhere (ADR-0083).
+    limits = step_locks.limits(session, at_gym=workout.place != Place.HOME)
     result = []
     for exercise_id, step_id in logged:
         exercise = session.get(Exercise, exercise_id)
@@ -325,8 +340,8 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
         # Progression is about the step being trained now, outside strength blocks; a log at
         # an older step, or a strength-block session, only counts for bests (ADR-0028).
         on_current = state is not None and state.ladder_step_id == step_id and not in_strength
-        status = _status(session, item, step, kit) if on_current else Progress.HOLD
-        upcoming = _next_step(step, kit) if status is Progress.READY else None
+        status = _status(session, item, step, limits) if on_current else Progress.HOLD
+        upcoming = _next_step(step, limits) if status is Progress.READY else None
         note_top = status is Progress.TOP_OF_LADDER and not _top_noted(
             session, exercise_id, step_id
         )
@@ -345,8 +360,9 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
                 next_step=upcoming.name if upcoming is not None else None,
                 note_top=note_top,
                 slug=exercise.slug,
-                unlock=_unlock(step, kit) if status is Progress.TOP_OF_LADDER else None,
+                unlock=_unlock(step, limits) if status is Progress.TOP_OF_LADDER else None,
                 load_kg=weight,
+                capped=status is Progress.TOP_OF_LADDER and _below_top(step),
             )
         )
     return result
@@ -369,12 +385,13 @@ def move_up(
     step = session.get(LadderStep, from_step_id)
     if step is None:  # the composite foreign key keeps it; this narrows the type
         return None
-    kit = equipment.kit(session)
-    upcoming = _next_step(step, kit)
-    if upcoming is None:  # the last step, or the last the kit allows
+    limits = step_locks.limits(session)
+    upcoming = _next_step(step, limits)
+    if upcoming is None:  # the last step, or the last one open
         return Move(MoveOutcome.NO_NEXT_STEP, exercise.name)
     if not any(
-        _status(session, item, step, kit) is Progress.READY for item in _items(session, exercise_id)
+        _status(session, item, step, limits) is Progress.READY
+        for item in _items(session, exercise_id)
     ):
         return Move(MoveOutcome.NOT_READY, exercise.name)
     state.ladder_step_id = upcoming.id
@@ -429,13 +446,6 @@ def stay(session: Session, exercise_id: int, step_id: int) -> Move | None:
     return Move(MoveOutcome.STAYED, exercise.name, step.name)
 
 
-def kit_warning(session: Session, slug: str, step: str) -> str | None:
-    """What a level chosen by hand needs that the kit doesn't have, in words; None when the
-    kit allows it. Chosen anyway: the person decides (ADR-0071)."""
-    lacking = kit_rules.missing(equipment.kit(session), equipment.step_needs(slug).get(step, []))
-    return f"{step} needs {' and '.join(lacking)}, not in your kit." if lacking else None
-
-
 def set_level(session: Session, exercise_id: int, step_id: int) -> Move | None:
     """Put the exercise on ``step_id``, up or down, by hand (ADR-0075). Never needs "ready" and
     is allowed in a strength block: it is the person's choice, not the rule's. Targets then come
@@ -448,8 +458,8 @@ def set_level(session: Session, exercise_id: int, step_id: int) -> Move | None:
         return None
     if state.ladder_step_id == step_id:
         return Move(MoveOutcome.SAME_LEVEL, exercise.name, step.name)
-    # A step the kit doesn't allow is still the person's to choose: say so, don't refuse.
-    warning = kit_warning(session, exercise.slug, step.name)
+    # A locked step is still the person's to choose: say so, don't refuse.
+    warning = step_locks.warning(session, step)
     session.add(
         Event(
             kind=LEVEL_SET,
@@ -483,6 +493,13 @@ class Rung:
     # "Can you do ...?": a yes says the person can start here (G1, ADR-0075); None on the
     # first step, which anyone can start at
     question: str | None = None
+    # What it asks that the person has chosen to avoid, in words: locked too (ADR-0083)
+    avoided: tuple[str, ...] = ()
+
+
+def rung(step: LadderStep, lock: locks.Lock, question: str | None = None) -> Rung:
+    """One step of a ladder, with why it is locked for this person."""
+    return Rung(step.id, step.name, step.cue, lock.missing, question, lock.avoided)
 
 
 def step_questions(slug: str) -> dict[str, str]:
@@ -524,6 +541,12 @@ class Standing:
     # The weight of the session that set ``best_set``, its heaviest set's (ADR-0072): the best
     # counts every weight, so it says which, as the weekly review does. None without one.
     best_kg: float | None = None
+
+    @property
+    def capped(self) -> bool:
+        """At the top with harder steps above, every one locked: "no open step above this
+        one", never why (ADR-0083)."""
+        return self.status is Progress.TOP_OF_LADDER and self.step_number < self.steps
 
 
 TREND_WEEKS = 6  # the Progress graphs' window: long enough to see a change, short enough to feel it
@@ -613,7 +636,7 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
     for exercise_id in session.scalars(select(Exercise.id).order_by(Exercise.id)):
         order.setdefault(exercise_id, None)
 
-    kit = equipment.kit(session)
+    limits = step_locks.limits(session)
     gym = user_settings.load(session).places is not Places.HOME
     result = []
     for exercise_id in order:
@@ -635,8 +658,8 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
             # the person trains and never logged: only at the gym, for someone who trains at
             # home (ADR-0071), or in no session at all yet (ADR-0072).
             continue
-        statuses = {_status(session, item, step, kit) for item in items}
-        needs = equipment.ladder_needs(exercise)
+        statuses = {_status(session, item, step, limits) for item in items}
+        asks = step_locks.ladder(exercise)
         questions = step_questions(exercise.slug)
         status = next(
             (s for s in (Progress.READY, Progress.TOP_OF_LADDER) if s in statuses), Progress.HOLD
@@ -669,16 +692,10 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
                 else (),
                 slug=exercise.slug,
                 ladder=tuple(
-                    Rung(
-                        r.id,
-                        r.name,
-                        r.cue,
-                        tuple(kit_rules.missing(kit, n)),
-                        questions.get(r.name),
-                    )
-                    for r, n in zip(exercise.ladder, needs, strict=True)
+                    rung(r, locks.lock(a, limits), questions.get(r.name))
+                    for r, a in zip(exercise.ladder, asks, strict=True)
                 ),
-                unlock=_unlock(step, kit),
+                unlock=_unlock(step, limits),
                 last_kg=tuple(at_last.get(n) for n in range(1, len(history[0]) + 1))
                 if history
                 else (),
@@ -701,6 +718,7 @@ class Top:
     exercise: str
     slug: str
     unlock: str | None
+    capped: bool = False  # harder steps exist, every one locked: never says why (ADR-0083)
 
 
 def tops(session: Session, standings: list[Standing], since: date, tz: ZoneInfo) -> list[Top]:
@@ -714,7 +732,7 @@ def tops(session: Session, standings: list[Standing], since: date, tz: ZoneInfo)
         if isinstance(payload, dict) and local_date(at, tz) >= since
     }
     return [
-        Top(s.exercise, s.slug, s.unlock)
+        Top(s.exercise, s.slug, s.unlock, s.capped)
         for s in standings
         if s.status is Progress.TOP_OF_LADDER and (s.exercise_id, s.step_id) in noted
     ]

@@ -22,6 +22,10 @@ const PREFS: MessageSettings = {
   default_increments: { barbell: 2.5, dumbbells: 2, machine: 5, backpack: 1 },
   talk_test: false,
   stop_signs_seen: false,
+  avoid_floor: false,
+  avoid_kneeling: false,
+  avoid_impact: false,
+  avoid_hanging: false,
   session_minutes: null,
   paused: false,
   timezone: 'Europe/Berlin',
@@ -112,6 +116,34 @@ test('the talk test is a switch, asked without a reason (ADR-0083)', async () =>
   expect(await screen.findByText('Use the talk test, not heart-rate zones: off')).toBeVisible()
   expect(sent).toEqual([{ talk_test: true }, { talk_test: false }])
   expect(screen.queryByText(/why|reason|condition/i)).not.toBeInTheDocument()
+})
+
+test('the four preferences are switches, asked without a reason (ADR-0083)', async () => {
+  const sent = serve()
+  render(<Settings />)
+  const avoid = (await screen.findByRole('group', {
+    name: "What you'd rather avoid",
+  })) as HTMLElement
+  expect(
+    within(avoid).getByText("You choose what you're ready for. These skip steps that need it."),
+  ).toBeVisible()
+  const floor = within(avoid).getByRole('button', { name: /^Keep me off the floor/ })
+  expect(floor).toHaveAttribute('aria-pressed', 'false')
+  fireEvent.click(floor)
+  expect(await within(avoid).findByText('Keep me off the floor: on.')).toBeVisible()
+  expect(floor).toHaveAttribute('aria-pressed', 'true')
+  for (const name of ['No kneeling', 'No jumping or running', 'No hanging']) {
+    expect(within(avoid).getByRole('button', { name: new RegExp(`^${name}`) })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+  }
+  fireEvent.click(within(avoid).getByRole('button', { name: /^No hanging/ }))
+  expect(await within(avoid).findByText('No hanging: on.')).toBeVisible()
+  fireEvent.click(floor)
+  expect(await within(avoid).findByText('Keep me off the floor: off.')).toBeVisible()
+  expect(sent).toEqual([{ avoid_floor: true }, { avoid_hanging: true }, { avoid_floor: false }])
+  expect(screen.queryByText(/why|reason|condition|balance/i)).not.toBeInTheDocument()
 })
 
 test('the pace is one of three, with a line saying what each means', async () => {

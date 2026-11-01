@@ -12,7 +12,7 @@ from training_coach.domain.progression import Progress
 from training_coach.domain.trim import WARM_UP_MINUTES, WarmUp
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
 from training_coach.services.guided import OPTIONS, Length, work_groups
-from training_coach.services.progress import Feedback, Standing
+from training_coach.services.progress import NO_OPEN_STEP, Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.review import Review
 from training_coach.services.today import Day, ItemPlan, SessionPlan, Today
@@ -333,6 +333,11 @@ def feedback_text(items: list[Feedback]) -> str:
                 f"{item.exercise}: top of the range on the last level your kit allows. "
                 f"{item.unlock[0].upper()}{item.unlock[1:]}."
             )
+        elif item.note_top and item.capped:  # never says why (ADR-0083)
+            lines.append(
+                f"{item.exercise}: top of the range, with {NO_OPEN_STEP}. Keep training at this "
+                "level, or pick another one on the Plan tab."
+            )
         elif item.note_top:
             lines.append(
                 f"{item.exercise}: top of the range on the last level of its ladder. That's the "
@@ -369,7 +374,12 @@ def progress_text(standings: list[Standing]) -> str:
         if s.status is Progress.READY:
             line += ". Ready to move up"
         elif s.status is Progress.TOP_OF_LADDER:
-            line += f". Top for your kit: {s.unlock}" if s.unlock else ". Top of the ladder"
+            if s.unlock:
+                line += f". Top for your kit: {s.unlock}"
+            elif s.capped:  # never says why (ADR-0083)
+                line += f". {NO_OPEN_STEP[0].upper()}{NO_OPEN_STEP[1:]}"
+            else:
+                line += ". Top of the ladder"
         lines.append(line)
     return "\n".join(_fit(lines, []))
 
@@ -428,7 +438,10 @@ def review_text(review: Review) -> str:
     if review.top:  # reached the top this week (ADR-0078), as the web's review says it
         lines += ["", "At the top:"]
         for top in review.top:
-            where = f"top for your kit: {top.unlock}" if top.unlock else "top of the ladder"
+            if top.unlock:
+                where = f"top for your kit: {top.unlock}"
+            else:
+                where = NO_OPEN_STEP if top.capped else "top of the ladder"
             lines.append(f"- {top.exercise}, {where}")
     if review.habits:
         lines += ["", "Habits:"]

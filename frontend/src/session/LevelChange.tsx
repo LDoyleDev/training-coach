@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import type { ItemLevel } from '../api'
-import { confirmText, needs } from '../plan/ladder'
+import { confirmText, lockedText, needs } from '../plan/ladder'
 import { actions, primaryInline, secondary, small } from '../ui'
 import { nearby, type LevelScope } from './levels'
 
 /**
  * The step on the set screen, with "Change level" (ADR-0080): the ladder one level down and up
- * first, every level on request, locked levels said in words (ADR-0071). Picking a level asks
+ * first, every level on request, locked levels said in words (ADR-0071, ADR-0083). Picking a level asks
  * "For today" (this session only) or "From now on" (the person's level, as on the Plan tab).
  * `onPick` answers true once changed, which closes the picker.
  */
@@ -30,7 +30,7 @@ export default function LevelChange({
   const [picked, setPicked] = useState(level.step_id)
   const rungs = all ? level.ladder : nearby(level)
   const chosen = level.ladder.find((r) => r.id === picked)
-  const locked = chosen ? needs(chosen) : null
+  const locked = chosen ? lockedText(chosen.name, chosen) : null
   const changing = chosen !== undefined && picked !== level.step_id
 
   const pick = async (scope: LevelScope) => {
@@ -94,11 +94,7 @@ export default function LevelChange({
           {changing && (
             <>
               <p className="m-0">{confirmText(chosen.name)}</p>
-              {locked && (
-                <p className="m-0">
-                  {chosen.name} {locked}, not in your kit. You can still choose it.
-                </p>
-              )}
+              {locked && <p className="m-0">{locked} You can still choose it.</p>}
               {done > 0 && (
                 <p className="m-0">
                   {done === 1 ? 'The set you’ve done stays' : `The ${done} sets you’ve done stay`}{' '}

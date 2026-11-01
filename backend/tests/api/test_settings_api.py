@@ -13,6 +13,7 @@ from training_coach.db.models import User
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.load import Increments, LoadKit
 from training_coach.domain.queue import local_date
+from training_coach.domain.step_levels import Mark
 from training_coach.services import auth, user_settings
 from training_coach.services.user_settings import Prefs
 from training_coach.services.users import OWNER
@@ -71,6 +72,10 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "default_increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0, "backpack": 1.0},
         "talk_test": False,
         "stop_signs_seen": False,
+        "avoid_floor": False,
+        "avoid_kneeling": False,
+        "avoid_impact": False,
+        "avoid_hanging": False,
         "session_minutes": None,
         "paused": False,
         "timezone": "Europe/Berlin",
@@ -234,6 +239,35 @@ def test_the_talk_test_is_a_switch_asked_without_a_reason(
     assert signed_in.patch("/api/settings", json={"talk_test": False}).json()["talk_test"] is False
 
 
+AVOID = ("avoid_floor", "avoid_kneeling", "avoid_impact", "avoid_hanging")
+
+
+def test_the_four_preferences_are_switches_asked_without_a_reason(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0083: "Keep me off the floor", "No kneeling", "No jumping or running", "No
+    hanging": only each switch is stored, no why, and one changes without touching the rest."""
+    for name in AVOID:
+        view = signed_in.patch("/api/settings", json={name: True}).json()
+        assert view[name] is True
+    stored = _stored(engine)
+    assert (stored.avoid_floor, stored.avoid_kneeling, stored.avoid_impact) == (True,) * 3
+    assert stored.avoid_hanging is True
+    view = signed_in.patch("/api/settings", json={"avoid_kneeling": False}).json()
+    assert [view[name] for name in AVOID] == [True, False, True, True]
+    assert signed_in.patch("/api/settings", json={"avoid_floor": "bad knees"}).status_code == 422
+
+
+def test_a_second_persons_preferences_are_their_own(engine: Engine) -> None:
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=OTHER))
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as theirs:
+        user_settings.update(theirs, avoid_floor=True, avoid_hanging=True)
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as theirs:
+        assert user_settings.load(theirs).avoid == {Mark.FLOOR, Mark.HANGING}
+    assert _stored(engine).avoid == frozenset()  # the owner's are untouched
+
+
 def test_the_stop_signs_are_remembered_as_seen_per_person(engine: Engine) -> None:
     """Spec B7: shown once before the first guided session, kept on the server for each
     person, not in one browser."""
@@ -258,6 +292,8 @@ def test_signed_out_gets_nothing(client: TestClient) -> None:
     owner_only = ({"talk_test": True}, {"stop_signs_seen": True}, {"session_minutes": 30})
     for change in owner_only:  # spec B7, ADR-0082
         assert client.patch("/api/settings", json=change).status_code == 401
+    for name in AVOID:  # owner-only (ADR-0083)
+        assert client.patch("/api/settings", json={name: True}).status_code == 401
 
 
 def test_minutes_per_session_is_set_kept_and_cleared(signed_in: TestClient, engine: Engine) -> None:

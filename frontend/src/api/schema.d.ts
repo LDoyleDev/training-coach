@@ -2237,6 +2237,8 @@ export interface components {
             at_top: boolean;
             /** Best Set */
             best_set: number | null;
+            /** Capped */
+            capped: boolean;
             /** Exercise */
             exercise: string;
             /** Load Kg */
@@ -2883,6 +2885,8 @@ export interface components {
          * @description One step of an exercise's ladder, to change the level on the set screen (ADR-0080).
          */
         LevelView: {
+            /** Avoided */
+            avoided: string[];
             /** Cue */
             cue: string | null;
             /** Id */
@@ -3670,6 +3674,8 @@ export interface components {
         };
         /** RungView */
         RungView: {
+            /** Avoided */
+            avoided: string[];
             /** Cue */
             cue: string | null;
             /** Id */
@@ -3831,6 +3837,14 @@ export interface components {
          * @description Only the fields sent change.
          */
         SettingsChange: {
+            /** Avoid Floor */
+            avoid_floor?: boolean | null;
+            /** Avoid Hanging */
+            avoid_hanging?: boolean | null;
+            /** Avoid Impact */
+            avoid_impact?: boolean | null;
+            /** Avoid Kneeling */
+            avoid_kneeling?: boolean | null;
             /** Blocks */
             blocks?: boolean | null;
             /** Extra Cardio Min */
@@ -3862,6 +3876,14 @@ export interface components {
         };
         /** SettingsView */
         SettingsView: {
+            /** Avoid Floor */
+            avoid_floor: boolean;
+            /** Avoid Hanging */
+            avoid_hanging: boolean;
+            /** Avoid Impact */
+            avoid_impact: boolean;
+            /** Avoid Kneeling */
+            avoid_kneeling: boolean;
             /** Blocks Since */
             blocks_since: string | null;
             default_increments: components["schemas"]["IncrementsView"];
@@ -4142,6 +4164,8 @@ export interface components {
          *     top of the ladder.
          */
         TopView: {
+            /** Capped */
+            capped: boolean;
             /** Exercise */
             exercise: string;
             /** Slug */

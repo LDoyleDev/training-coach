@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import Event, FitnessTestDay, UserSettings, Workout
 from training_coach.domain.enums import Place, Places, Sound
 from training_coach.domain.load import DEFAULTS, INCREMENT, Increments, LoadKit
+from training_coach.domain.step_levels import Mark
 from training_coach.domain.targets import Pace
 from training_coach.services import users
 
@@ -36,6 +37,23 @@ class Prefs:
     increments: Increments = DEFAULTS  # their own weight steps (ADR-0072)
     talk_test: bool = False  # cardio effort by the talk test, not heart-rate zones (ADR-0083)
     stop_signs_seen: bool = False  # shown before their first guided session (spec B7)
+    # What they'd rather avoid (ADR-0083): each locks the steps with that mark. Never asked why.
+    avoid_floor: bool = False  # "Keep me off the floor"
+    avoid_kneeling: bool = False  # "No kneeling"
+    avoid_impact: bool = False  # "No jumping or running"
+    avoid_hanging: bool = False  # "No hanging"
+
+    @property
+    def avoid(self) -> frozenset[Mark]:
+        """The marks whose steps lock for this person."""
+        chosen = {
+            Mark.FLOOR: self.avoid_floor,
+            Mark.KNEELING: self.avoid_kneeling,
+            Mark.IMPACT: self.avoid_impact,
+            Mark.HANGING: self.avoid_hanging,
+        }
+        return frozenset(mark for mark, on in chosen.items() if on)
+
     session_minutes: int | None = None  # every session's length (ADR-0082); None: as planned
 
 
@@ -81,6 +99,10 @@ def load(session: Session) -> Prefs:
         ),
         row.talk_test,
         row.stop_signs_seen,
+        row.avoid_floor,
+        row.avoid_kneeling,
+        row.avoid_impact,
+        row.avoid_hanging,
         row.session_minutes,
     )
 
@@ -105,6 +127,10 @@ def update(
     increments: Mapping[LoadKit, float] | None = None,
     talk_test: bool | None = None,
     stop_signs_seen: bool | None = None,
+    avoid_floor: bool | None = None,
+    avoid_kneeling: bool | None = None,
+    avoid_impact: bool | None = None,
+    avoid_hanging: bool | None = None,
     session_minutes: int | None = None,
     clear_session_minutes: bool = False,
     today: date | None = None,
@@ -141,6 +167,10 @@ def update(
         increments=_increments(old.increments, increments or {}),
         talk_test=old.talk_test if talk_test is None else talk_test,
         stop_signs_seen=old.stop_signs_seen if stop_signs_seen is None else stop_signs_seen,
+        avoid_floor=old.avoid_floor if avoid_floor is None else avoid_floor,
+        avoid_kneeling=old.avoid_kneeling if avoid_kneeling is None else avoid_kneeling,
+        avoid_impact=old.avoid_impact if avoid_impact is None else avoid_impact,
+        avoid_hanging=old.avoid_hanging if avoid_hanging is None else avoid_hanging,
         session_minutes=None
         if clear_session_minutes
         else old.session_minutes
@@ -178,6 +208,13 @@ def update(
         changes["talk_test"] = talk_test
     if stop_signs_seen is not None:
         changes["stop_signs_seen"] = stop_signs_seen
+    avoided = {
+        "avoid_floor": avoid_floor,
+        "avoid_kneeling": avoid_kneeling,
+        "avoid_impact": avoid_impact,
+        "avoid_hanging": avoid_hanging,
+    }
+    changes |= {name: on for name, on in avoided.items() if on is not None}
     if session_minutes is not None or clear_session_minutes:
         changes["session_minutes"] = session_minutes or 0  # 0: as planned
     for kit, kg in (increments or {}).items():
@@ -205,6 +242,10 @@ def update(
     row.backpack_increment_kg = prefs.increments.backpack
     row.talk_test = prefs.talk_test
     row.stop_signs_seen = prefs.stop_signs_seen
+    row.avoid_floor = prefs.avoid_floor
+    row.avoid_kneeling = prefs.avoid_kneeling
+    row.avoid_impact = prefs.avoid_impact
+    row.avoid_hanging = prefs.avoid_hanging
     row.session_minutes = prefs.session_minutes
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))

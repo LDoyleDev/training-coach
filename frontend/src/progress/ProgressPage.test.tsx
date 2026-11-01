@@ -176,8 +176,15 @@ test('the plan is not a tab here any more: it has its own page', async () => {
 
 test('at the top for the kit: says so, what unlocks the next, and links to My equipment', async () => {
   const ladder = [
-    { id: 1, name: 'Two-hand, 8 kg', cue: null, missing: [], question: null },
-    { id: 2, name: 'Two-hand, 16 kg', cue: null, missing: ['a 16 kg kettlebell'], question: null },
+    { id: 1, name: 'Two-hand, 8 kg', cue: null, missing: [], avoided: [], question: null },
+    {
+      id: 2,
+      name: 'Two-hand, 16 kg',
+      cue: null,
+      missing: ['a 16 kg kettlebell'],
+      avoided: [],
+      question: null,
+    },
   ]
   serve([
     make({
