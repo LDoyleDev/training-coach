@@ -34,13 +34,6 @@ jobs:
           gradle-version: "9.7.1"
       - name: Test, lint and build
         run: gradle -p android --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease
-      - name: Temporary, which configuration resolves Kotlin 2.4.0
-        run: |
-          gradle -p android --no-daemon -q --dependency-verification lenient buildEnvironment > "$RUNNER_TEMP/env.txt" || true
-          grep -nE "kotlin-gradle-plugin|compose-compiler-gradle-plugin|com.android.tools.build:gradle:" "$RUNNER_TEMP/env.txt" | head -20
-          gradle -p android --no-daemon -q --dependency-verification lenient :app:dependencies > "$RUNNER_TEMP/deps.txt" || true
-          awk '/^[A-Za-z][A-Za-z0-9]* - |^[A-Za-z][A-Za-z0-9]*$/ {cfg=$0} /kotlin-(compiler-embeddable|build-tools-impl|stdlib):2\.4\.0|-> 2\.4\.0|:2\.4\.0 / {print cfg " :: " $0}' "$RUNNER_TEMP/deps.txt" | sort -u | head -40
-          grep -nE "^(kotlin|compose|lint).*(Classpath|Compiler|Plugin)" "$RUNNER_TEMP/deps.txt" | head -40
       - name: Check what the APK declares
         # The release APK at the path the release job takes it from: package, minSdk, targetSdk and
         # permissions must match android/app/expected-apk.txt, and versionCode must follow
