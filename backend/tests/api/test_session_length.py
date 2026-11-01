@@ -1,7 +1,7 @@
 """PUT /api/session/length (ADR-0082): short on time today, and the Today view's length."""
 
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -10,8 +10,10 @@ from sqlalchemy import Engine, select
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import SessionProgress
+from training_coach.db.models import SessionProgress, Workout
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.enums import Place, WorkoutStatus
+from training_coach.domain.queue import local_date
 from training_coach.services import auth
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
@@ -58,6 +60,7 @@ def test_today_offers_the_lengths_and_says_how_long_as_planned(signed_in: TestCl
         "shortest": None,
         "fixed": False,
         "from_setting": False,
+        "last_set": None,  # locked: nothing logged yet (ADR-0084)
     }
 
 
@@ -141,3 +144,25 @@ def test_today_shows_minutes_per_session_as_chosen_until_the_day_picks(
     length = answer.json()["session"]["length"]
     assert (length["minutes"], length["from_setting"]) == (None, False)
     assert answer.json()["session"]["minutes"] == planned
+
+
+def test_today_offers_the_last_set_option_and_marks_its_sets(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0084: once the person has trained 8 weeks, the length card offers the option and,
+    on, each failure_ok exercise's last set is as many good reps as you can."""
+    today = local_date(datetime.now(UTC), Settings().tz)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        on = today - timedelta(weeks=8)
+        mine.add(Workout(local_date=on, status=WorkoutStatus.DONE, place=Place.HOME))
+    session = signed_in.get("/api/session/today").json()["session"]
+    ok = {e.slug for e in load_plan().exercises if e.failure_ok}
+    allowed = {i["slug"] for i in session["items"] if i["slug"] in ok and i["targets"]}
+    assert allowed  # the first session has some
+    assert session["length"]["last_set"] is False
+    assert not any(i["last_set_amrap"] for i in session["items"])
+
+    assert signed_in.patch("/api/settings", json={"last_set_amrap": True}).is_success
+    session = signed_in.get("/api/session/today").json()["session"]
+    assert session["length"]["last_set"] is True
+    assert {i["slug"] for i in session["items"] if i["last_set_amrap"]} == allowed

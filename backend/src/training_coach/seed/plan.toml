@@ -72,6 +72,10 @@ name = "Rep tops at 18 (Oct 2026, ADR-0078)"
 since = 2026-10-28
 name = "Gym versions (Oct 2026, ADR-0071)"
 
+[[versions]]
+since = 2026-11-01
+name = "Away versions (Nov 2026, ADR-0086)"
+
 # ------------------------------------------------------------------- baseline tests
 # The product spec's performance tests (2-A, ADR-0037), on two days. Retest under the same
 # conditions. A test with results can't leave the plan; its name and cue can change.
@@ -1130,6 +1134,13 @@ ladder = ["Brisk walk / hike", "Easy jog / bike", "Easy jog with weight vest or 
 # A session without one is done the same way at the gym. Loaded exercises climb within their
 # range and then take the next weight (ADR-0072). The choices and reasons are in
 # docs/specs/program-builder.md (Gym versions).
+#
+# `away` is its no-equipment version (ADR-0086), for a hotel room: bodyweight and what any room
+# has (the floor, a chair, a bed, a wall, a door frame, a towel), never bands, bells, bars or a
+# backpack. The same exercises where they have steps that need no kit, so levels and history
+# carry over; away trains the highest step at or below the level that needs none. Every away
+# exercise starts with a kit-free step (the seed holds it). The choices and reasons are in
+# docs/specs/program-builder.md (M. Away versions).
 
 [[sessions]]
 slug = "legs"
@@ -1156,6 +1167,16 @@ gym = [
   { exercise = "seated-leg-curl", sets = 4, rep_min = 8, rep_max = 12, pair = 4 },
   { exercise = "hip-thrust", sets = 3, rep_min = 8, rep_max = 12, pair = 4 },
 ]
+away = [
+  { exercise = "jump-squat", sets = 3, rep_min = 5, rep_max = 8, pair = 1 },
+  { exercise = "tibialis-raise", sets = 3, rep_min = 15, rep_max = 25, pair = 1 },
+  { exercise = "glute-bridge", sets = 3, rep_min = 8, rep_max = 15, pair = 2 },
+  { exercise = "back-extension", sets = 3, rep_min = 10, rep_max = 15, pair = 2 },
+  { exercise = "bulgarian-split-squat", sets = 3, rep_min = 8, rep_max = 15, per_side = true, pair = 3 },
+  { exercise = "hamstring-curl", sets = 3, rep_min = 6, rep_max = 15, pair = 3 },
+  { exercise = "pistol-squat", sets = 3, rep_min = 5, rep_max = 10, per_side = true, pair = 4 },
+  { exercise = "calf-raise", sets = 4, rep_min = 12, rep_max = 20, per_side = true, pair = 4 },
+]
 
 [[sessions]]
 slug = "recovery"
@@ -1172,6 +1193,18 @@ items = [
   { exercise = "neck-lateral", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
   { exercise = "dead-hang", sets = 1, rep_min = 30, rep_max = 60, pair = 3 },
   { exercise = "neck-extension", sets = 1, rep_min = 10, rep_max = 15, pair = 3 },
+  { exercise = "reverse-nordic", sets = 2, rep_min = 5, rep_max = 10, pair = 4 },
+  { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 4 },
+  { exercise = "mobility", sets = 1, rep_min = 10, rep_max = 15 },
+]
+away = [
+  { exercise = "prone-ytw", sets = 2, rep_min = 8, rep_max = 12, pair = 1 },
+  { exercise = "back-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 1 },
+  { exercise = "chin-tuck", sets = 2, rep_min = 8, rep_max = 12, pair = 5 },
+  { exercise = "plank", sets = 2, rep_min = 10, rep_max = 30, pair = 5 },
+  { exercise = "ab-rollout", sets = 3, rep_min = 8, rep_max = 12, pair = 2 },
+  { exercise = "neck-lateral", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
+  { exercise = "neck-extension", sets = 1, rep_min = 10, rep_max = 15 },
   { exercise = "reverse-nordic", sets = 2, rep_min = 5, rep_max = 10, pair = 4 },
   { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 4 },
   { exercise = "mobility", sets = 1, rep_min = 10, rep_max = 15 },
@@ -1206,6 +1239,18 @@ gym = [
   { exercise = "cable-lateral-raise", sets = 3, rep_min = 12, rep_max = 18, pair = 5 },
   { exercise = "incline-db-curl", sets = 2, rep_min = 10, rep_max = 15, pair = 5 },
 ]
+away = [
+  { exercise = "doorway-row", sets = 4, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "diamond-push-up", sets = 4, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "prone-ytw", sets = 3, rep_min = 8, rep_max = 12, pair = 2 },
+  { exercise = "push-up", sets = 4, rep_min = 10, rep_max = 18, pair = 2 },
+  { exercise = "pike-push-up", sets = 3, rep_min = 6, rep_max = 12, pair = 3 },
+  { exercise = "reverse-fly", sets = 3, rep_min = 12, rep_max = 18, pair = 3 },
+  { exercise = "neck-flexion", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
+  { exercise = "neck-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 4 },
+  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 18, pair = 5 },
+  { exercise = "doorway-curl", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 5 },
+]
 
 [[sessions]]
 slug = "moderate-cardio"
@@ -1230,6 +1275,15 @@ gym = [
   { exercise = "reverse-pec-deck", sets = 2, rep_min = 12, rep_max = 18, pair = 3 },
   { exercise = "suitcase-carry", sets = 2, rep_min = 30, rep_max = 45, per_side = true, pair = 3 },
 ]
+away = [
+  { exercise = "moderate-cardio", sets = 1, rep_min = 30, rep_max = 40 },
+  { exercise = "ab-rollout", sets = 3, rep_min = 8, rep_max = 12, pair = 1 },
+  { exercise = "copenhagen-plank", sets = 2, rep_min = 6, rep_max = 12, per_side = true, pair = 1 },
+  { exercise = "back-extension", sets = 2, rep_min = 10, rep_max = 15, pair = 2 },
+  { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
+  { exercise = "prone-ytw", sets = 2, rep_min = 8, rep_max = 12, pair = 3 },
+  { exercise = "plank", sets = 2, rep_min = 10, rep_max = 30, pair = 3 },
+]
 
 [[sessions]]
 slug = "hiit"
@@ -1237,6 +1291,7 @@ type = "conditioning"
 name = "High intensity"
 focus = "Short all-out intervals (bike, hill sprints, swings or burpees)"
 items = [{ exercise = "hiit", sets = 1, rep_min = 8, rep_max = 12 }]
+away = [{ exercise = "hiit", sets = 1, rep_min = 8, rep_max = 12 }]
 
 [[sessions]]
 slug = "arms"
@@ -1263,6 +1318,16 @@ gym = [
   { exercise = "cable-lateral-raise", sets = 4, rep_min = 12, rep_max = 18, pair = 4 },
   { exercise = "seated-calf-raise", sets = 4, rep_min = 10, rep_max = 15, pair = 4 },
 ]
+away = [
+  { exercise = "doorway-row", sets = 3, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "diamond-push-up", sets = 3, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "bulgarian-split-squat", sets = 3, rep_min = 8, rep_max = 15, per_side = true, pair = 2 },
+  { exercise = "pike-push-up", sets = 3, rep_min = 6, rep_max = 12, pair = 2 },
+  { exercise = "hamstring-curl", sets = 3, rep_min = 6, rep_max = 15, pair = 3 },
+  { exercise = "doorway-curl", sets = 4, rep_min = 10, rep_max = 15, per_side = true, pair = 3 },
+  { exercise = "calf-raise", sets = 4, rep_min = 12, rep_max = 20, per_side = true, pair = 4 },
+  { exercise = "lateral-raise", sets = 4, rep_min = 12, rep_max = 18, pair = 4 },
+]
 
 [[sessions]]
 slug = "zone2"
@@ -1270,6 +1335,7 @@ type = "conditioning"
 name = "Long zone 2"
 focus = "60-75 min at conversational pace (30 min minimum)"
 items = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
+away = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
 [exercises.needs]
 "Easy jog with weight vest or backpack" = ["backpack"]
 [exercises.questions]
@@ -1685,7 +1751,6 @@ muscles = { glutes = 1, hamstrings = 0.5 }
 pattern = "hinge"
 aliases = ["bridge", "bridges", "glute bridges", "hip extension", "hip extensions"]
 start = 0
-range = [3, 10]
 ladder = ["Standing, at the counter", "On the floor", "On the floor, 3 s hold at the top", "Shoulders on the sofa (hip thrust)", "Single leg, on the floor", "Single leg, shoulders on the sofa"]
 failure_ok = true
 [exercises.cues]
@@ -1695,11 +1760,11 @@ failure_ok = true
 "Single leg, on the floor" = "One foot down, the other leg straight in line with the thigh; keep the hips level."
 "Single leg, shoulders on the sofa" = "Shoulders on the sofa, one foot down; don't let the hip on the free side drop."
 [exercises.questions]
-"On the floor" = "Can you lie on your back on the floor, do 3 glute bridges and get up again?"
-"On the floor, 3 s hold at the top" = "Can you do 3 glute bridges on the floor, holding each one at the top for three seconds?"
-"Shoulders on the sofa (hip thrust)" = "Can you do 3 hip thrusts with your shoulders on the sofa, hips up level with your knees?"
-"Single leg, on the floor" = "Can you do 3 single-leg glute bridges on each leg, hips level?"
-"Single leg, shoulders on the sofa" = "Can you do 3 single-leg hip thrusts on each leg, shoulders on the sofa?"
+"On the floor" = "Can you lie on your back on the floor, do 8 glute bridges and get up again?"
+"On the floor, 3 s hold at the top" = "Can you do 8 glute bridges on the floor, holding each one at the top for three seconds?"
+"Shoulders on the sofa (hip thrust)" = "Can you do 8 hip thrusts with your shoulders on the sofa, hips up level with your knees?"
+"Single leg, on the floor" = "Can you do 8 single-leg glute bridges on each leg, hips level?"
+"Single leg, shoulders on the sofa" = "Can you do 8 single-leg hip thrusts on each leg, shoulders on the sofa?"
 [exercises.levels]
 "Standing, at the counter" = 1
 "On the floor" = 2
@@ -1759,7 +1824,6 @@ muscles = { abs = 1, obliques = 0.5 }
 pattern = "core"
 aliases = ["planks", "front plank", "incline plank"]
 start = 0
-range = [10, 30]
 ladder = ["Hands on a counter", "Hands on a table", "Hands on a chair seat against a wall", "On the knees", "Full plank", "Full plank, arm reach"]
 [exercises.cues]
 "Hands on a counter" = "Walk your feet back until your body is a straight slope from the counter; steeper is easier."
@@ -2159,6 +2223,64 @@ ladder = ["3 min brisk, 3 min easy", "3 min fast, 3 min easy"]
 [exercises.levels]
 "3 min brisk, 3 min easy" = 2
 "3 min fast, 3 min easy" = 3
+
+# ------------------------------------------------- away, no equipment (ADR-0086)
+# Kit-free pulls for the away versions: a hotel room has no bar, bands or bells, but it has a
+# door frame. Hold the frame itself, never the door: a solid frame with the door wide open, and
+# the knees soft so you can step back under yourself. Each starts at its level-4 step, where a
+# person who does the plan's other pulls can begin; the questions find their own.
+
+[[exercises]]
+slug = "doorway-row"
+name = "Door-frame row"
+summary = "In an open doorway, hold the frame on both sides at chest height (the frame, never the door). Walk your feet in, lean back with straight arms and a straight body, then pull your chest to the frame and lower slowly."
+kind = "reps"
+muscles = { "upper back" = 1, lats = 1, biceps = 0.5, "rear delts" = 0.5 }
+pattern = "horizontal pull"
+stress = ["grip"]
+aliases = ["doorway row", "doorway rows", "door frame row", "door frame rows", "door-frame rows"]
+start = 2
+ladder = ["Upright, a step back", "Leaning back, half a step in", "Leaning back, feet at the frame", "Feet at the frame, 3 s lowering", "One arm, feet at the frame"]
+[exercises.cues]
+"Upright, a step back" = "Feet a step back from the frame, leaning back only a little: the lightest pull."
+"Leaning back, half a step in" = "Feet half a step in from where you stand upright; the further in, the heavier."
+"Leaning back, feet at the frame" = "Toes level with the frame, body straight from heels to head, squeeze your shoulder blades at the top."
+"Feet at the frame, 3 s lowering" = "Pull in, then take three seconds to lean back out."
+"One arm, feet at the frame" = "One hand on the frame at chest height, the other at your side; keep the shoulders level, no twist."
+[exercises.questions]
+"Leaning back, half a step in" = "Can you do 8 rows holding a door frame, leaning back with your feet half a step in?"
+"Leaning back, feet at the frame" = "Can you do 8 rows holding a door frame, toes level with it, body straight?"
+"Feet at the frame, 3 s lowering" = "Can you do 8 rows holding a door frame, toes level with it, taking three seconds to lower?"
+"One arm, feet at the frame" = "Can you do 8 one-arm rows holding a door frame on each arm, toes level with it?"
+[exercises.levels]
+"Upright, a step back" = 2
+"Leaning back, half a step in" = 3
+"Leaning back, feet at the frame" = 4
+"Feet at the frame, 3 s lowering" = 5
+"One arm, feet at the frame" = 6
+
+[[exercises]]
+slug = "doorway-curl"
+name = "Door-frame curl"
+summary = "Stand side-on in an open doorway and hold the frame (never the door) at waist height with one hand, palm up. Walk your feet in and lean away with a straight arm, then curl yourself back to the frame with the biceps, elbow still, and lower slowly. Each arm."
+kind = "reps"
+muscles = { biceps = 1, forearms = 0.25 }
+pattern = "isolation"
+stress = ["grip"]
+aliases = ["doorway curl", "doorway curls", "door frame curl", "door frame curls", "door-frame curls"]
+start = 1
+ladder = ["Leaning back a little", "Leaning back, feet at the frame", "Feet at the frame, 3 s lowering"]
+[exercises.cues]
+"Leaning back a little" = "Feet a step back from the frame, only a slight lean: the elbow stays where it is."
+"Leaning back, feet at the frame" = "Feet level with the frame, body straight; only the forearm moves."
+"Feet at the frame, 3 s lowering" = "Curl in, then take three seconds to lean back out."
+[exercises.questions]
+"Leaning back, feet at the frame" = "Can you do 10 curls on each arm holding a door frame, feet level with it?"
+"Feet at the frame, 3 s lowering" = "Can you do 10 curls on each arm holding a door frame, feet level with it, three seconds down?"
+[exercises.levels]
+"Leaning back a little" = 3
+"Leaning back, feet at the frame" = 4
+"Feet at the frame, 3 s lowering" = 5
 
 # ---------------------------------------------------------- retired (#107, ADR-0034)
 # No longer in any session. Kept so their history stays and old days can still be logged;

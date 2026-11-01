@@ -55,6 +55,7 @@ class Prefs:
         return frozenset(mark for mark, on in chosen.items() if on)
 
     session_minutes: int | None = None  # every session's length (ADR-0082); None: as planned
+    last_set_amrap: bool = False  # last set: as many good reps as you can (ADR-0084)
 
 
 def _increments(old: Increments, change: Mapping[LoadKit, float]) -> Increments:
@@ -104,6 +105,7 @@ def load(session: Session) -> Prefs:
         row.avoid_impact,
         row.avoid_hanging,
         row.session_minutes,
+        row.last_set_amrap,
     )
 
 
@@ -133,6 +135,7 @@ def update(
     avoid_hanging: bool | None = None,
     session_minutes: int | None = None,
     clear_session_minutes: bool = False,
+    last_set_amrap: bool | None = None,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
@@ -176,6 +179,7 @@ def update(
         else old.session_minutes
         if session_minutes is None
         else session_minutes,
+        last_set_amrap=old.last_set_amrap if last_set_amrap is None else last_set_amrap,
     )
     changes: dict[str, str | bool | int | float] = {}
     if morning_time is not None:
@@ -217,6 +221,8 @@ def update(
     changes |= {name: on for name, on in avoided.items() if on is not None}
     if session_minutes is not None or clear_session_minutes:
         changes["session_minutes"] = session_minutes or 0  # 0: as planned
+    if last_set_amrap is not None:
+        changes["last_set_amrap"] = last_set_amrap
     for kit, kg in (increments or {}).items():
         changes[f"{kit.value}_increment_kg"] = kg
     row = users.settings_row(session)
@@ -247,6 +253,7 @@ def update(
     row.avoid_impact = prefs.avoid_impact
     row.avoid_hanging = prefs.avoid_hanging
     row.session_minutes = prefs.session_minutes
+    row.last_set_amrap = prefs.last_set_amrap
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

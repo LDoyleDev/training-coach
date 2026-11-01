@@ -75,7 +75,7 @@ Code). Template: [template.md](template.md).
 | [0068](0068-today-shows-the-days-log.md) | Today shows what a day logged, with earlier days a tap away and their habits | Accepted |
 | [0069](0069-plan-page-and-session-maps.md) | Plan gets its own tab, Tests moves into Body, each session has its own body map | Accepted |
 | [0070](0070-our-own-android-reader.md) | Our own Android reader replaces HC Webhook as the bridge from Health Connect | Accepted |
-| [0071](0071-equipment-and-places.md) | Each person lists their home kit; a gym has everything; steps lock by kit | Accepted |
+| [0071](0071-equipment-and-places.md) | Each person lists their home kit; a gym has everything; steps lock by kit | Accepted; "no away place" amended by 0086 |
 | [0072](0072-load-and-double-progression.md) | Sets record their load; loaded exercises progress by reps, then weight | Accepted |
 | [0073](0073-each-person-owns-their-sessions.md) | Each person owns their sessions; exercises are a shared catalogue | Accepted |
 | [0074](0074-boxing-bell-timer-sound.md) | A boxing-ring bell is everyone's timer sound, for every guided timer | Accepted |
@@ -90,3 +90,4 @@ Code). Template: [template.md](template.md).
 | [0083](0083-levels-from-supported-and-preferences.md) | Every step has a level from "supported" up, with an open top, and four preferences | Accepted |
 | [0084](0084-short-days-last-set-and-stepping-down.md) | Progress on a shorter day, an as-many-as-you-can last set, and stepping down | Accepted |
 | [0085](0085-safety-questions-in-europe-and-europe-only.md) | Safety questions fit for Europe, answered on the device; the app serves the EU and EEA only | Accepted |
+| [0086](0086-away-no-equipment-version.md) | Away, no equipment: a third place with a written version of every session | Accepted |
