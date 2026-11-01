@@ -19,7 +19,7 @@ from training_coach.services import (
     users,
     workout_log,
 )
-from training_coach.services.seed import apply_seed
+from training_coach.services.seed import ItemSeed, apply_seed
 
 BERLIN = ZoneInfo("Europe/Berlin")
 DAY = date(2026, 11, 2)
@@ -165,7 +165,7 @@ def test_a_strength_block_checks_the_step_a_strength_session_would_train(
     ).one()
     harder, _ = blocks.step_for(seeded, exercise, strength=True)
     assert harder.name == "Goblet hold, 8 kg"
-    assert blocks.kit_free(exercise, harder).name == "Bodyweight, back foot on chair"
+    assert blocks.kit_free(seeded, exercise, harder).name == "Bodyweight, back foot on chair"
 
 
 def test_the_sets_are_saved_away_at_the_step_done_and_the_level_stays(session: Session) -> None:
@@ -211,7 +211,7 @@ def test_a_level_picked_for_today_away_is_done_as_picked_and_kit_shows_locked(
         seeded, away, 1, "bulgarian-split-squat", goblet.id, session_levels.Scope.TODAY
     )
     assert isinstance(changed, session_levels.Changed)
-    assert changed.warning == "Goblet hold, 8 kg needs an 8 kg kettlebell."
+    assert changed.warning == "Goblet hold, 8 kg needs an 8 kg kettlebell, not in your kit."
     picked = guided.today(seeded, DAY, BERLIN)
     assert picked is not None
     item = _item(picked, "bulgarian-split-squat")
@@ -238,3 +238,16 @@ def test_short_on_time_trims_the_away_version_as_any_day(session: Session) -> No
     assert short.length is not None
     assert short.length.minutes == minutes
     assert short.minutes <= minutes < away.minutes  # ramp sets in place of the warm-up
+
+
+def test_away_also_passes_over_a_step_the_person_avoids(session: Session) -> None:
+    """ADR-0083's preferences lock steps away too: "Keep me off the floor" at a full plank
+    trains the highest step below it that needs no kit and no floor."""
+    plank = (ItemSeed(exercise="plank", sets=2, rep_min=10, rep_max=30),)
+    apply_seed(session, factories.plan_with_away(items=plank))
+    session.flush()
+    _at(session, "plank", "Full plank")
+    user_settings.update(session, avoid_floor=True)
+    away = _away(session)
+    item = _item(away, "plank")
+    assert (item.step, item.no_kit) == ("Hands on a chair seat against a wall", True)

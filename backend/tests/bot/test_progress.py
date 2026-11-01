@@ -348,9 +348,15 @@ def _standing(**changes: object) -> Standing:
 
 def test_progress_text_units_and_limits() -> None:
     assert progress_text([]) == "No exercises in the plan yet."
-    text = progress_text([_standing(), _standing(status=Progress.TOP_OF_LADDER)])
+    top = _standing(status=Progress.TOP_OF_LADDER, step_number=3)  # really the last step
+    text = progress_text([_standing(), top])
     assert "- Plank: Front plank (1/3), last 45s / 40s, best 60s" in text
     assert text.endswith("Top of the ladder")
+    # Harder steps above, every one locked: true, and never why (ADR-0083).
+    capped = progress_text([_standing(status=Progress.TOP_OF_LADDER)])
+    assert capped.endswith(
+        "Front plank (1/3), last 45s / 40s, best 60s. No open step above this one"
+    )
     kit = progress_text([_standing(status=Progress.TOP_OF_LADDER, unlock="a mat unlocks X")])
     assert kit.endswith("Top for your kit: a mat unlocks X")  # names what opens it (ADR-0078)
     long = progress_text([_standing(exercise="X" * 120, step="Y" * 120)] * 40)

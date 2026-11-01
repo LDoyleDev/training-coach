@@ -56,6 +56,7 @@ const WEEK: WeekReview = {
       exercise: 'Kettlebell swing',
       slug: 'kb-swing',
       unlock: 'a 16 kg kettlebell unlocks Two-hand, 16 kg',
+      capped: true,
     },
   ],
   strength_block: false,
