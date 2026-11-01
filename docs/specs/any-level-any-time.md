@@ -2,7 +2,7 @@
 
 Status: **decided 31 Oct 2026** (Decided, at the end; ADR-0082 to ADR-0086). Built, by step of
 the Suggested order: 1 (ADRs, #495); 2, "Short on time today" (#501, #502, #509, #510, #516,
-#517); 3, stop signs and the talk test (#505); 4: a level, marks and `failure_ok` on every step
+#517); 3, stop signs and the talk test (#505; checked against European sources, #556); 4: a level, marks and `failure_ok` on every step
 (#506), the entry exercises (#518-#520, #523), the four preferences and "Easy on my knees"
 locking steps (#531, #541), the ladders' downward migration built and dry-run (#534, released
 alone); 5: minutes per session (#529), the map at that length open; 6: the step-down suggestion
