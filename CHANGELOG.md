@@ -4,6 +4,21 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.15.0](https://github.com/LDoyleDev/training-coach/compare/v1.14.0...v1.15.0) (2026-11-01)
+
+
+### Features
+
+* **bot:** a test day's warm-up line says 10 minutes, sessions keep 5 ([#555](https://github.com/LDoyleDev/training-coach/issues/555)) ([05d5f00](https://github.com/LDoyleDev/training-coach/commit/05d5f008b3efeec38db5a818faa9066a60f2facb))
+* **web:** stop signs with 112 and a time limit, checked for Europe ([#556](https://github.com/LDoyleDev/training-coach/issues/556)) ([33380b9](https://github.com/LDoyleDev/training-coach/commit/33380b99cae85457f38bb2e31c200fc01f16fd9a))
+
+
+### Documentation
+
+* **docs:** home and gym versions of the 3- and 4-day starters, accepted ([#484](https://github.com/LDoyleDev/training-coach/issues/484)) ([82241ee](https://github.com/LDoyleDev/training-coach/commit/82241ee0d8d79def4662da184c0ceb6081f2ca3d))
+* **docs:** session log for 1.14.0 ([#551](https://github.com/LDoyleDev/training-coach/issues/551)) ([318d40e](https://github.com/LDoyleDev/training-coach/commit/318d40e0ee1cdba1184926b6bb57a6dc009684ad))
+* **docs:** the plan import ships with builder step 5 (Liam, 1 Nov) ([#557](https://github.com/LDoyleDev/training-coach/issues/557)) ([81b02e6](https://github.com/LDoyleDev/training-coach/commit/81b02e6f2626e1710895fe9060e7dca820061729))
+
 ## [1.14.0](https://github.com/LDoyleDev/training-coach/compare/v1.13.0...v1.14.0) (2026-11-01)
 
 
