@@ -713,7 +713,7 @@ def test_each_question_asks_for_the_bottom_of_its_exercises_range() -> None:
     uses gives its own range (ADR-0083)."""
     plan = load_plan()
     bottoms = {e.slug: e.range[0] for e in plan.exercises if e.range is not None}
-    bottoms |= {i.exercise: i.rep_min for s in plan.sessions for i in (*s.items, *s.gym)}
+    bottoms |= {i.exercise: i.rep_min for s in plan.sessions for i in s.versions}
     wrong = {
         (e.slug, step): question
         for e in plan.exercises
@@ -1148,3 +1148,77 @@ def test_an_away_version_names_known_exercises_in_pairs() -> None:
         load_plan(_upper_away('{ exercise = "squat", sets = 3, rep_min = 5, rep_max = 8 }'))
     with pytest.raises(ValidationError, match="pair 1 must be two neighbouring items"):
         load_plan(_upper_away(f"{PULL}, pair = 1 }}"))
+
+
+# What an away version can't train without kit (ADR-0086): set out in the PR for Liam's review.
+# No kit-free carry, hang or hanging raise, no bodyweight single-leg deadlift step, and one
+# door-frame pull where home has two.
+AWAY_SHORT = {
+    "legs": {"hamstrings"},
+    "recovery": {"forearms", "hip flexors", "upper traps"},
+    "torso": {"lats"},
+    "moderate-cardio": {"forearms", "upper traps"},
+}
+
+
+def test_every_session_has_an_away_version() -> None:
+    assert all(s.away for s in load_plan().sessions)
+
+
+def test_every_step_an_away_version_trains_needs_no_kit() -> None:
+    """Away trains the highest step at or below the level that needs no kit, so every away
+    exercise starts with one (the seed holds it); and none is gym work, nor needs a band."""
+    plan = load_plan()
+    exercises = {e.slug: e for e in plan.exercises}
+    gym_only = {i.exercise for s in plan.sessions for i in s.gym} - {
+        i.exercise for s in plan.sessions for i in s.items
+    }
+    for session in plan.sessions:
+        for item in session.away:
+            exercise = exercises[item.exercise]
+            first = exercise.ladder[0]
+            assert not exercise.needs.get(first), item
+            assert first not in exercise.loads, item
+            assert item.exercise not in gym_only, item
+
+
+def test_an_away_version_keeps_its_sessions_sets_and_muscles() -> None:
+    """About the same sets as at home, and no muscle more than a set and a half short, except
+    where nothing kit-free trains it (``AWAY_SHORT``)."""
+    plan = load_plan()
+    exercises = {e.slug: e.muscles for e in plan.exercises}
+    short: dict[str, set[str]] = {}
+    for session in plan.sessions:
+        assert abs(sum(i.sets for i in session.away) - sum(i.sets for i in session.items)) <= 1
+        home = dict(weekly_sets((exercises[i.exercise], i.sets) for i in session.items))
+        away = dict(weekly_sets((exercises[i.exercise], i.sets) for i in session.away))
+        missing = {str(m) for m in home if away.get(m, 0) < home[m] - 1.5}
+        if missing:
+            short[session.slug] = missing
+    assert short == AWAY_SHORT
+
+
+def test_an_away_version_pairs_by_the_home_rules() -> None:
+    plan = load_plan()
+    exercises = {e.slug: e for e in plan.exercises}
+    for session in plan.sessions:
+        for a, b in zip(session.away, session.away[1:], strict=False):
+            if a.pair is None or a.pair != b.pair:
+                continue
+            first, second = exercises[a.exercise], exercises[b.exercise]
+            for stress in ("spine", "grip"):
+                assert not (stress in first.stress and stress in second.stress), (a, b)
+            primes = {m for m, w in first.muscles.items() if w == 1}
+            shared = primes & {m for m, w in second.muscles.items() if w == 1}
+            assert not shared or {a.exercise, b.exercise} <= {"neck-flexion", "neck-extension"}
+
+
+def test_the_door_frame_pulls_are_kit_free_ladders_from_level_2() -> None:
+    exercises = {e.slug: e for e in load_plan().exercises}
+    for slug in ("doorway-row", "doorway-curl"):
+        found = exercises[slug]
+        assert found.summary
+        assert (found.needs, found.loads, found.marks) == ({}, {}, {})
+        assert set(found.cues) == set(found.ladder)
+        assert set(found.questions) == set(found.ladder[1:])
+        assert found.levels[found.ladder[found.start]] == 4  # where the plan's other pulls start
