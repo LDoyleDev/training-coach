@@ -347,7 +347,8 @@ between its own sets. To decide:
    two grip-heavy exercises, at most one spine-loading exercise per pair.
 4. **Warm-up** 10 or 5 minutes (5 saves 15 minutes a week; a choice, not a finding).
    **Decided 30 Oct 2026** (ADR-0065 addendum): 5 minutes, in the guided session, its time
-   estimate and the warm-up line before a resistance session.
+   estimate and the warm-up line before a resistance session; test days 10 (Liam, 1 Nov 2026),
+   because their tests are maximum efforts (`TEST_DAY_WARM_UP_MINUTES`).
 5. **Drop sets and rest-pause:** an optional set type for isolation exercises, counted at
    matched volume, later. They save little inside pairs.
 6. **Kit order** for the equipment step: 16 kg kettlebell, then a weighted vest; each saves
