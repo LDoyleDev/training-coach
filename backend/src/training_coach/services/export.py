@@ -43,10 +43,12 @@ from training_coach.db.models import (
     SessionTemplate,
     SetLog,
     SleepSession,
+    User,
     UserSettings,
     WebSession,
     Workout,
 )
+from training_coach.db.session import bound_user
 
 # Per-person tables, by the name they get in data.json.
 TABLES: dict[str, type] = {
@@ -120,11 +122,24 @@ def _reference(session: Session) -> dict[str, Any]:
     }
 
 
+def _account(session: Session) -> dict[str, Any]:
+    """What the users row holds about them (ADR-0085); the Telegram id is in their own chat."""
+    user = session.get(User, bound_user(session))
+    if user is None:
+        return {}
+    return {
+        "country": user.country,
+        "last_seen_in_europe": _value(user.last_seen_in_europe),
+        "created_at": _value(user.created_at),
+    }
+
+
 def archive(session: Session, now: datetime) -> bytes:
     """The zip for the user ``session`` is bound to. Built in memory: a few MB for one
     person (photos are about 300 KB each, a few a month), well within the Pi's memory."""
     data = {
         "exported_at": now.isoformat(),
+        "account": _account(session),
         "tables": {name: _rows(session, model) for name, model in TABLES.items()},
         "reference": _reference(session),
     }

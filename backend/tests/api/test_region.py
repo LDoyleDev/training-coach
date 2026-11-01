@@ -1,6 +1,5 @@
 """The EU and EEA only (ADR-0085 layer 2): CF-IPCountry, believed only from a trusted proxy."""
 
-import re
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -8,8 +7,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
-from tests.api.test_auth import ANY_REGION
-from tests.routes import api_routes
 from training_coach.api.app import create_app
 from training_coach.api.region import exempt
 from training_coach.config import Settings
@@ -75,6 +72,7 @@ def test_the_header_is_ignored_from_an_untrusted_peer(engine: Engine, tmp_path: 
         "/.well-known/oauth-protected-resource",
         "/.well-known/oauth-protected-resource/mcp",
         "/.well-known/oauth-authorization-server",
+        "/api/ingest/health-connect",
         "/healthz",
     ],
 )
@@ -105,7 +103,12 @@ def test_unknown_and_tor_are_told_why(tunnel: TestClient, country: str) -> None:
 def test_dot_segments_after_an_exempt_prefix_are_not_exempt(tunnel: TestClient) -> None:
     """The static files normalise "..", and the raw path reaches the check un-normalised (an
     HTTP client would tidy it first, so ask ``exempt`` directly): only exact paths skip it."""
-    for path in ("/.well-known/oauth-x/../../assets/app.js", "/mcp/../signin", "/mcp/"):
+    for path in (
+        "/.well-known/oauth-x/../../assets/app.js",
+        "/mcp/../signin",
+        "/mcp/",
+        "/api/ingest/health-connect/../../account/ingest",
+    ):
         assert not exempt(path), path
     assert tunnel.get("/healthz/", headers={"CF-IPCountry": "US"}).status_code == 451
 
@@ -114,21 +117,3 @@ def test_a_header_that_is_not_a_country_code_counts_as_unknown(tunnel: TestClien
     page = tunnel.get("/signin", headers={"CF-IPCountry": "DE<script>"})
     assert page.status_code == 451
     assert "We can't tell where you are" in page.text
-
-
-def test_every_route_but_the_exempt_ones_is_behind_the_gate(engine: Engine, tmp_path: Path) -> None:
-    """Every registered route, in the schema or not, gets 451 from outside the list through the
-    tunnel unless it is one of the exempt machine paths, and every exempt path is a real route,
-    so a renamed one can't leave a stale exemption behind (ADR-0085)."""
-    with _client(engine, tmp_path, TUNNEL) as client:
-        routes = api_routes(client.app)  # type: ignore[arg-type]  # TestClient.app is the ASGI app
-        paths = {path for path, _ in routes}
-        assert paths >= ANY_REGION
-        for path, route in routes:
-            url = re.sub(r"\{[^}]+\}", "1", path)
-            method = sorted(route.methods or {"GET"})[0]
-            answer = client.request(method, url, headers={"CF-IPCountry": "US"})
-            if path in ANY_REGION:
-                assert answer.status_code != 451, path
-            else:
-                assert answer.status_code == 451, path

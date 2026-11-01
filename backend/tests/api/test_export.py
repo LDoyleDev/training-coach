@@ -56,7 +56,8 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
     signed_in.put("/api/body", json={"values": {"bodyweight": 83.4}})
     signed_in.put(f"/api/photos/{today}/front", content=CLEAN, headers=JPEG)
     with session_scope(make_session_factory(engine)) as shared:
-        shared.add(User(id=2))
+        shared.add(User(id=2, country="FR"))
+        shared.get_one(User, OWNER).country = "IE"
     with session_scope(make_session_factory(engine, user_id=2)) as theirs:
         theirs.add(Measurement(local_date=date(2026, 10, 1), kind="waist", tenths=999))
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
@@ -74,6 +75,8 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
     zipped = _unzip(answer.content)
     data = json.loads(zipped.read("data.json"))
     tables = data["tables"]
+    assert data["account"]["country"] == "IE"  # mine, not theirs (ADR-0085)
+    assert datetime.fromisoformat(data["account"]["last_seen_in_europe"]).tzinfo is not None
     assert [m["tenths"] for m in tables["measurements"]] == [834]  # mine only
     assert tables["settings"][0]["talk_test"] is True
     assert tables["signed_in_browsers"][0]["label"]

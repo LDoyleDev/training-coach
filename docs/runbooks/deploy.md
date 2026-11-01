@@ -56,22 +56,25 @@ ask on the Pi, without it.
 ## The EU and EEA only (ADR-0085)
 
 The app serves the 27 EU countries, Iceland, Liechtenstein and Norway, and the EU territories
-with their own codes (37 codes in all, `domain/region.py`). Two layers sit in front of a visitor:
+with their own codes (37 codes in all, `domain/region.py`). Two layers sit in front of a
+visitor, and a third keeps the bot and a connected AI to people who visit from Europe:
 
 1. **Cloudflare (apply by hand, not done yet).** One WAF custom rule (Security, WAF, Custom
    rules; Free allows 5), action **Block**. **Untested on the Free plan:** check that the
-   editor accepts `in` with a set of paths and `starts_with` before relying on it. The
-   machine paths stay open because Claude's servers call them from the US (ADR-0054); the
-   consent page (`/oauth/authorize`, `/connect`) does not, so connecting an AI needs a visit
-   from Europe.
+   editor accepts `in` with a set of paths before relying on it. The machine paths stay open
+   because Claude's servers call them from the US (ADR-0054), and the band reader's import
+   (`/api/ingest/health-connect`) because the person's phone keeps sending while they travel
+   (its secret guards it, ADR-0055; decided 1 Nov 2026). The consent page
+   (`/oauth/authorize`, `/connect`) does not, so connecting an AI needs a visit from Europe.
+   Every path is exact, as in the app.
 
    ```
    (not ip.src.country in {"AT" "BE" "BG" "HR" "CY" "CZ" "DK" "EE" "FI" "FR" "DE" "GR" "HU"
     "IE" "IT" "LV" "LT" "LU" "MT" "NL" "PL" "PT" "RO" "SK" "SI" "ES" "SE" "IS" "LI" "NO"
     "AX" "GF" "GP" "MQ" "RE" "YT" "MF"}
     and not http.request.uri.path in {"/mcp" "/oauth/token" "/oauth/register" "/healthz"
-      "/.well-known/oauth-protected-resource" "/.well-known/oauth-authorization-server"}
-    and not starts_with(http.request.uri.path, "/.well-known/oauth-protected-resource/"))
+      "/api/ingest/health-connect" "/.well-known/oauth-protected-resource"
+      "/.well-known/oauth-protected-resource/mcp" "/.well-known/oauth-authorization-server"})
    ```
 
    Never `ip.src.continent eq "EU"` (Europe the continent, not the Union), and not
@@ -85,6 +88,10 @@ with their own codes (37 codes in all, `domain/region.py`). Two layers sit in fr
    Managed Transform). From outside Europe, or a VPN exit there,
    `curl -si https://coach.vybe-dev.com/signin | head -1` should say 451 (403 once the WAF rule
    is on, which answers first).
+3. **The bot and a connected AI** pause 30 days after the person's last signed-in visit to the
+   website from a listed country, and start again with the next one. A visit without the
+   header doesn't count, so if the header stops arriving, the bot pauses 30 days later: the
+   threat model has the details.
 
 ## Install on the phone (D3)
 

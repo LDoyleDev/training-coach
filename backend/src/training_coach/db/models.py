@@ -243,6 +243,11 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     telegram_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    # The country of residence they gave, from the EU and EEA list (ADR-0085); None until asked.
+    country: Mapped[str | None] = mapped_column(String(2))
+    # Their last signed-in web visit from a listed country: the bot and MCP serve them for 30
+    # days after it (domain.region). A new person starts now, from the visit that made them.
+    last_seen_in_europe: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
 class Owned:

@@ -7,7 +7,14 @@ import pytest
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.error import Forbidden, NetworkError, RetryAfter, TimedOut
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    MessageHandler,
+    TypeHandler,
+    filters,
+)
 from telegram.warnings import PTBDeprecationWarning
 
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, command, run, texts
@@ -65,7 +72,8 @@ def test_every_command_is_restricted_to_owner(application: Application) -> None:
     # test_stretching.py, test_undo.py, test_daily_check.py, test_band.py and
     # test_proposals.py prove strangers are ignored by behaviour instead.
     others = [type(h) for h in handlers if not isinstance(h, CommandHandler)]
-    assert others == [CallbackQueryHandler] * 10 + [MessageHandler] * 2
+    # The pause outside Europe (ADR-0085) sees every update first: test_away.py.
+    assert others == [TypeHandler] + [CallbackQueryHandler] * 10 + [MessageHandler] * 2
 
 
 async def _replies(application: Application, text: str, sender: int) -> list[str]:  # type: ignore[type-arg]

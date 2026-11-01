@@ -7072,6 +7072,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Unavailable For Legal Reasons */
+            451: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     authorize_oauth_authorize_get: {

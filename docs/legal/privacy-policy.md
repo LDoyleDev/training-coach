@@ -11,7 +11,9 @@ exercise your rights go to that address.
 ## What Training Coach stores, and why
 
 Training Coach is a training app: it plans your sessions, keeps what you did and shows your
-progress. To do that it stores:
+progress. It is for people living in the EU or EEA only (the 27 EU countries, Iceland,
+Liechtenstein and Norway), and the website isn't available from anywhere else. To do that it
+stores:
 
 | Data | Why | Legal basis |
 | --- | --- | --- |
@@ -24,6 +26,7 @@ progress. To do that it stores:
 | If you turn on AI comments with your own Groq key: the weekly AI comment, kept 7 days. It can mention measurements or readiness answers only if you let the comment see them | Showing the comment under that week's review on the website as well as on Telegram | Contract (Art. 6(1)(b)); for health data in it, the consent you gave for that data (Art. 9(2)(a)) |
 | Passkeys (the public half only), signed-in browsers (a label and when last seen), sign-in links (stored only as a hash) | Signing you in securely, letting you sign out lost devices | Contract (Art. 6(1)(b)); security (Art. 6(1)(f)) |
 | A short record of account events (signed in, passkey added, data downloaded or erased) | Security, and showing you what happened | Legitimate interest in keeping your account safe (Art. 6(1)(f)) |
+| The country you live in (from the EU and EEA list), and the date and time you last used the website, signed in, from a country on that list. Your IP address isn't kept for this: Cloudflare tells the website the country of each visit, and only "last seen in Europe" is stored, at most once an hour | The service is offered in the EU and EEA only. The Telegram bot and a connected AI app can't see where you are, so they pause 30 days after your last visit to the website from there, and start again with your next one | Contract (Art. 6(1)(b)); legitimate interest in offering the service only where it is built to meet the law (Art. 6(1)(f)) [lawyer: basis] |
 | For 5 minutes, a hash of your IP address when you start a passkey sign-in | Stopping floods of sign-in attempts | Legitimate interest (Art. 6(1)(f)) |
 
 Progress photos are stripped of their metadata (location, camera, time) before they're stored.

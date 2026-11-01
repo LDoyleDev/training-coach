@@ -25,8 +25,10 @@ log = structlog.get_logger(__name__)
 
 HEADER = "cf-ipcountry"
 UNAVAILABLE = "Not available in your region"
-# Called by machines, not browsers: an AI app's servers, and the Pi's own checks. Exact paths
-# only: a prefix would let "/.well-known/oauth-x/../../assets/" reach the static files.
+# Called by machines, not browsers: an AI app's servers, the band reader on the person's phone
+# (its own secret guards it, ADR-0055; owner's decision, 1 Nov 2026) and the Pi's own checks.
+# Exact paths only: a prefix would let "/.well-known/oauth-x/../../assets/" reach the static
+# files.
 EXEMPT = frozenset(
     {
         "/mcp",
@@ -35,6 +37,7 @@ EXEMPT = frozenset(
         "/.well-known/oauth-protected-resource",
         "/.well-known/oauth-protected-resource/mcp",
         "/.well-known/oauth-authorization-server",
+        "/api/ingest/health-connect",
         "/healthz",
     }
 )

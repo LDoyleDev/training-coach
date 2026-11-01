@@ -40,7 +40,9 @@ ERASE = {"confirm": "erase"}
 def signed_in(engine: Engine) -> Iterator[TestClient]:
     with session_scope(make_session_factory(engine)) as shared:
         apply_seed(shared, load_plan())
-        shared.get_one(User, OWNER).telegram_user_id = TELEGRAM
+        owner = shared.get_one(User, OWNER)
+        owner.telegram_user_id, owner.country = TELEGRAM, "DE"
+        owner.last_seen_in_europe = datetime(2026, 1, 1, tzinfo=UTC)
     with make_session_factory(engine, user_id=OWNER)() as bound:
         token = auth.create_link(bound, datetime.now(UTC))
         bound.commit()
@@ -84,7 +86,11 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
         assert _count(engine, model, OWNER) == 0, model.__name__
     assert _count(engine, Measurement, 2) == 1  # someone else's
     with session_scope(make_session_factory(engine)) as shared:
-        assert shared.get_one(User, OWNER).telegram_user_id == TELEGRAM  # the bot still knows me
+        me = shared.get_one(User, OWNER)
+        assert me.telegram_user_id == TELEGRAM  # the bot still knows me
+        assert me.country is None  # asked again (ADR-0085)
+        # Kept: an erase without a country mustn't restart the bot and MCP's 30 days.
+        assert me.last_seen_in_europe == datetime(2026, 1, 1, tzinfo=UTC)
     # A fresh start: the plan's first session and default settings, so everything still works.
     assert _count(engine, PlanState, OWNER) == 1
     assert _count(engine, UserSettings, OWNER) == 1
