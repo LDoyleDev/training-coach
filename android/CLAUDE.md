@@ -25,8 +25,11 @@ app/src/test/               JVM unit tests for the pure parts
 
 - There are no Android tools on the desktop: CI (`.github/workflows/android.yml`) runs
   `gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
-  :app:assembleRelease` with Gradle 8.14.4 and JDK 17. There's no Gradle wrapper; the workflow
+  :app:assembleRelease` with Gradle 9.7.1 and JDK 17. There's no Gradle wrapper; the workflow
   pins the version.
+- Kotlin is AGP's built-in Kotlin (no `org.jetbrains.kotlin.android` plugin). Its version is the
+  `kotlin-gradle-plugin` classpath line in `build.gradle.kts` and must match the Compose compiler
+  plugin's. `minSdk` and `targetSdk` stay explicit: AGP 9 defaults an unset targetSdk to compileSdk.
 - Dependency verification: `gradle/verification-metadata.xml` holds a sha256 for every plugin
   and library the build resolves, and the build fails on any artifact without a matching one.
   Never write or edit a checksum by hand. When dependencies or plugins change (Dependabot's
