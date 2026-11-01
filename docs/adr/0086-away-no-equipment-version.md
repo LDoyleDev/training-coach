@@ -76,4 +76,7 @@ Sessions are still one shared plan until builder step 5 (ADR-0073), so a third v
 - The guided view lists the places on offer (`places`) and marks each item trained at a
   no-equipment step (`no_kit`); the bot's texts gain the place line.
 - The away versions and their reasons are in `docs/specs/program-builder.md` (M), for Liam's
-  review; the new door-frame row and curl need their figures (ADR-0063).
+  review; the new door-frame row and curl need their figures (ADR-0063). (Drawn, #545:
+  `frontend/src/figures/away.ts`. The row is seen from the side, the frame's upright in front
+  of you, heels put and the body straight as you lean back and pull in; the curl leans sideways
+  away from the frame beside you, so it is seen from the front only, in the doorway.)

@@ -4,6 +4,7 @@
  * plan.toml writes it; each entry says what changes over the exercise's figure. Every other step
  * shows the figure as it is.
  */
+import { AWAY_STEPS } from './away'
 import { BODY, solve, type Pose, type Vec } from './body'
 import { ENTRY_LOWER_STEPS } from './entry-lower'
 import { ENTRY_UPPER_STEPS } from './entry-upper'
@@ -706,6 +707,7 @@ const DRAWN: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
       end: hugged(FIGURES['hip-hinge'].end),
     },
   },
+  ...AWAY_STEPS,
   ...ENTRY_LOWER_STEPS,
   ...ENTRY_UPPER_STEPS,
 }
