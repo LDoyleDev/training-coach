@@ -68,7 +68,8 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
     today = local_date(datetime.now(UTC), Settings().tz).isoformat()
     assert signed_in.put("/api/body", json={"values": {"bodyweight": 83.4}}).is_success
     assert signed_in.put(f"/api/photos/{today}/front", content=CLEAN, headers=JPEG).is_success
-    assert signed_in.patch("/api/settings", json={"avoid_floor": True}).is_success  # ADR-0083
+    preferences = {"avoid_floor": True, "avoid_knees": True}  # ADR-0083, #540
+    assert signed_in.patch("/api/settings", json=preferences).is_success
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         mine.add(Passkey(credential_id="cred", public_key=b"key", sign_count=0, name="Pixel"))
         user_settings.update(mine, last_set_amrap=True)  # a setting of mine (ADR-0084)
