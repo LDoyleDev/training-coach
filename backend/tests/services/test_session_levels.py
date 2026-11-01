@@ -13,7 +13,15 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import Event, Exercise, LadderStep, SessionProgress, Workout
 from training_coach.domain.kit import parse_item
 from training_coach.domain.load import LoadKit
-from training_coach.services import blocks, equipment, guided, progress, users, workout_log
+from training_coach.services import (
+    blocks,
+    equipment,
+    guided,
+    progress,
+    user_settings,
+    users,
+    workout_log,
+)
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.session_levels import (
     NOT_IN_SESSION,
@@ -169,6 +177,20 @@ def test_a_locked_level_is_chosen_with_a_warning(seeded: Session) -> None:
     assert changed.warning == "Holding 8 kg needs an 8 kg kettlebell, not in your kit."
     rungs = ladders(seeded, [JUMP, "tibialis-raise"])[JUMP]
     assert [r.missing for r in rungs] == [(), (), ("an 8 kg kettlebell",)]
+
+
+def test_an_avoided_level_shows_why_and_is_chosen_with_a_warning(seeded: Session) -> None:
+    """ADR-0083: every jump squat step is marked impact. With "No jumping or running" each
+    shows why it is locked; picked anyway, the warning says it, with the kit it lacks too."""
+    *_, held = _steps(seeded)
+    user_settings.update(seeded, avoid_impact=True)
+    equipment.save(seeded, [], datetime.now(UTC))
+    impact = "needs jumping or running — you've chosen not to jump or run"
+    rungs = ladders(seeded, [JUMP])[JUMP]
+    assert [r.avoided for r in rungs] == [(impact,)] * 3
+    changed = change(seeded, _plan(seeded), 0, JUMP, held.id, Scope.TODAY)
+    assert isinstance(changed, Changed)
+    assert changed.warning == (f"Holding 8 kg needs an 8 kg kettlebell, not in your kit; {impact}.")
 
 
 def test_only_exercises_with_more_than_one_step_have_a_ladder(seeded: Session) -> None:

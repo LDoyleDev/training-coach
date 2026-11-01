@@ -11,9 +11,9 @@ vi.mock('../hiit/sounds', () => ({
 }))
 
 const LADDER = [
-  { id: 20, name: 'Two-hand, 8 kg', cue: null, missing: [] },
-  { id: 21, name: 'One-arm, 8 kg', cue: null, missing: [] },
-  { id: 22, name: 'Two-hand, 16 kg', cue: null, missing: [] },
+  { id: 20, name: 'Two-hand, 8 kg', cue: null, missing: [], avoided: [] },
+  { id: 21, name: 'One-arm, 8 kg', cue: null, missing: [], avoided: [] },
+  { id: 22, name: 'Two-hand, 16 kg', cue: null, missing: [], avoided: [] },
 ]
 
 const SWING: GuidedItem = {

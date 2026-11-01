@@ -153,6 +153,7 @@ def test_the_standing_carries_what_the_plan_page_needs(
         "name": "Slow negatives",
         "cue": None,
         "missing": [],  # no kit listed yet: nothing is locked (ADR-0071)
+        "avoided": [],  # nothing avoided yet (ADR-0083)
         "question": None,  # anyone can start at the first step
     }
     # Each later step asks whether the person can already do it (G1, ADR-0075)
