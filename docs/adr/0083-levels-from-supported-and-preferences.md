@@ -94,6 +94,7 @@ moved a step yet: `b7e1c3d5f9a2` deleted two unused top steps. A walk-through as
 - Settings gain the four preferences and the talk-test setting; nothing about a person's health
   is stored.
 - A fifth preference, "Easy on my knees", came out of the walk-through; it is for Liam to decide.
+  (Decided 1 Nov 2026: added; see the addendum below.)
 
 ## Built (the four preferences, #526, 31 Oct 2026)
 
@@ -136,3 +137,32 @@ Decided while building, within this ADR:
 - **The rule's test** lists the muscles still without a way in: chest, biceps, calves, forearms,
   upper traps and obliques until #508, and the neck, whose low step the revised list dropped.
 - **Balance** is a new quality and pattern (`balance`): counted in seconds, never as sets.
+
+## Addendum (1 Nov 2026): a fifth preference, "Easy on my knees" (#540)
+
+Liam decided to add the walk-through's fifth preference ("squats to a chair, one low step,
+progress by tempo or a backpack rather than depth, and a bike for cardio"). It is built exactly
+as the four are (the "Built" section above): a mark `knees`, a setting `avoid_knees`, off for
+everyone, the fifth switch in Account's "What you'd rather avoid" with the same one line and no
+question; the reason reads "needs deep knee bending — you've chosen to go easy on your knees".
+Like the others it locks through `step_locks`, goes to the gym, is in the export and erased with
+the account, and is never shown on Telegram or over MCP.
+
+- **What `knees` means:** deep knee bending, every way the step can be done (as `impact` is
+  read): a loaded or full-depth squat, one leg below chair height, a full-range split squat or
+  lunge, a Nordic or reverse Nordic. Marked: every jump squat step, every Bulgarian split squat
+  step (all are full range), the pistol's lower box, full pistol and 8 kg, both Nordic curls on
+  the hamstring curl, every reverse Nordic, the barbell back squat, and the retired goblet squat
+  and reverse lunge (for their history, and the Squat that comes back from the goblet squat).
+- **Left open, so a way in remains:** the one-leg sit to a chair (chair height), every step-up
+  (a low step or one stair; there is no high step), glute bridges, the hinges and swings, the
+  towel-slide curls, the leg press and leg extension (the seat and stop set the depth, and they
+  progress by load), and all cardio: a bike or a walk is among the ways of every cardio step, and
+  a jog is already `impact`. No jog or HIIT step is marked `knees`, since knee load isn't the
+  point of any of them.
+- **A test holds the way in:** with all five preferences on, every muscle on the body map keeps
+  an open step where it is a prime mover (none is left without one), and ADR-0083's level 1-2
+  ways in are unchanged.
+- **Left for #508 (PR #534):** its new steps need their marks once it lands: on the Bulgarian
+  split squat "Holding a chair, full range" and "Back foot on a low step", and on the Squat "A
+  lower seat, arms crossed" (if lower than a chair) and "Full depth".

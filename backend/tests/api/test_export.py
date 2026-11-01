@@ -66,6 +66,7 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
 
     signed_in.patch("/api/settings", json={"talk_test": True})  # a preference (ADR-0083)
     signed_in.patch("/api/settings", json={"avoid_kneeling": True})  # and another
+    signed_in.patch("/api/settings", json={"avoid_knees": True})  # the fifth (#540)
     signed_in.patch("/api/settings", json={"session_minutes": 30})  # ADR-0082
     answer = signed_in.get("/api/account/export")
     assert answer.status_code == 200
@@ -80,6 +81,7 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
     assert tables["settings"][0]["talk_test"] is True
     assert tables["settings"][0]["avoid_kneeling"] is True
     assert tables["settings"][0]["avoid_floor"] is False
+    assert tables["settings"][0]["avoid_knees"] is True
     assert tables["settings"][0]["session_minutes"] == 30
     assert tables["settings"][0]["last_set_amrap"] is False  # the last-set option (ADR-0084)
     assert tables["signed_in_browsers"][0]["label"]

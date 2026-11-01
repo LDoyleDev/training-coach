@@ -24,9 +24,10 @@ FLOOR = "needs the floor — you've chosen to keep off it"
 OFF_THE_FLOOR = Limits(avoid=frozenset({Mark.FLOOR}))
 
 
-def test_four_marks_can_be_avoided_and_balance_is_not_one() -> None:
-    """ADR-0083: four preferences; balance marks a fall risk and has no switch."""
-    assert AVOIDABLE == (Mark.FLOOR, Mark.KNEELING, Mark.IMPACT, Mark.HANGING)
+def test_five_marks_can_be_avoided_and_balance_is_not_one() -> None:
+    """ADR-0083: five preferences, "Easy on my knees" the fifth (#540); balance marks a fall
+    risk and has no switch."""
+    assert AVOIDABLE == (Mark.FLOOR, Mark.KNEELING, Mark.IMPACT, Mark.HANGING, Mark.KNEES)
 
 
 def test_nothing_listed_and_nothing_avoided_locks_nothing() -> None:
@@ -51,6 +52,7 @@ def test_every_avoidable_mark_has_its_reason() -> None:
         "needs kneeling — you've chosen not to kneel",
         "needs jumping or running — you've chosen not to jump or run",
         "needs hanging from a bar — you've chosen not to hang",
+        "needs deep knee bending — you've chosen to go easy on your knees",
     )
 
 
