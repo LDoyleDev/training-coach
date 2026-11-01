@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, Exercise, LadderStep, SetLog, Workout
-from training_coach.domain.enums import WorkoutStatus
+from training_coach.domain.enums import Place, WorkoutStatus
 from training_coach.domain.progression import returning
 from training_coach.services import blocks, guided, progress, step_locks, users
 from training_coach.services.session_levels import Changed, Scope, change
@@ -67,7 +67,7 @@ def offered(session: Session, plan: guided.Guided, kept: guided.Kept | None) -> 
         return []
     chosen = dict(kept.steps) if kept is not None else {}
     answered = _answered(session)
-    limits = step_locks.limits(session)
+    limits = step_locks.limits(session, at_gym=plan.place == Place.GYM)  # a gym has all kit
     found: dict[str, Returning] = {}
     for item in plan.items:
         if item.slug in found or item.slug in chosen:
