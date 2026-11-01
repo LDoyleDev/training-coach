@@ -38,7 +38,7 @@ someone's level, a session in progress, a replaced workout or an event. Once any
 new step, restore the pre-deploy backup instead (docs/runbooks/deploy.md, Rollback).
 
 Revision ID: 5ebed72122f7
-Revises: d4f9b2a6e8c1
+Revises: e5a7c9d1f3b4
 Create Date: 2026-10-31 14:00:00.000000
 
 """
@@ -52,7 +52,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "5ebed72122f7"
-down_revision: str | Sequence[str] | None = "d4f9b2a6e8c1"
+down_revision: str | Sequence[str] | None = "e5a7c9d1f3b4"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

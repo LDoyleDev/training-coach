@@ -3,7 +3,18 @@ import { fetchProgress, moveOnLadder, SignedOutError, type LadderMove, type Stan
 import { lastAndBest } from '../progress/logic'
 import { actions, card, primaryInline, secondary } from '../ui'
 import { KIT_HREF } from '../account/kit'
-import { WAITS, confirmText, needs, nextRung, said, topLabel, wanted } from './ladder'
+import {
+  AVOIDED_NOW,
+  WAITS,
+  avoidedNow,
+  confirmText,
+  lockedText,
+  needs,
+  nextRung,
+  said,
+  topLabel,
+  wanted,
+} from './ladder'
 
 type Loaded =
   | { status: 'loading' }
@@ -106,7 +117,10 @@ function List({
 }) {
   const [all, setAll] = useState(false)
   const ready = standings.filter((s) => s.status === 'ready').length
-  const shown = standings.filter((s) => all || s.status === 'ready' || s.slug === open)
+  // A step the person now avoids is shown too, so they see it and can pick another.
+  const shown = standings.filter(
+    (s) => all || s.status === 'ready' || avoidedNow(s) || s.slug === open,
+  )
   return (
     <>
       <p className="m-0 font-bold">
@@ -181,7 +195,7 @@ function Panel({
 
   const pickedRung = s.ladder.find((r) => r.id === picked)
   const pickedName = pickedRung?.name ?? s.step
-  const pickedNeeds = pickedRung ? needs(pickedRung) : null
+  const pickedLocked = pickedRung ? lockedText(pickedName, pickedRung) : null
   return (
     <li id={`move-${s.slug}`} className={card + ' flex scroll-mt-4 flex-col gap-3'}>
       <button
@@ -198,6 +212,7 @@ function Panel({
           </span>
           {ready && <span className="text-[var(--bell-ink)]">Ready to move up</span>}
           {topLabel(s) && <span>{topLabel(s)}</span>}
+          {avoidedNow(s) && <span className="text-[var(--bell-ink)]">{AVOIDED_NOW}</span>}
         </span>
         <span aria-hidden="true" className="shrink-0 text-2xl">
           {open ? '−' : '+'}
@@ -243,6 +258,8 @@ function Panel({
                 My equipment
               </a>
             </p>
+          ) : s.ladder[s.ladder.length - 1]?.id !== s.step_id ? (
+            <p className="m-0">No step above this one is open to you: each says why above.</p>
           ) : (
             <p className="m-0">This is the last step on the ladder.</p>
           )}
@@ -303,10 +320,8 @@ function Panel({
                 </label>
               ))}
               {picked !== s.step_id && <p className="m-0">{confirmText(pickedName)}</p>}
-              {picked !== s.step_id && pickedNeeds && (
-                <p className="m-0">
-                  {pickedName} {pickedNeeds}, not in your kit. You can still choose it.
-                </p>
+              {picked !== s.step_id && pickedLocked && (
+                <p className="m-0">{pickedLocked} You can still choose it.</p>
               )}
               <div className={actions}>
                 <button

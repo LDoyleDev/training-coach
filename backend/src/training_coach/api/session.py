@@ -153,6 +153,7 @@ class LevelView(BaseModel):
     name: str
     cue: str | None
     missing: list[str]  # the kit it needs that isn't listed: locked, still choosable (ADR-0071)
+    avoided: list[str]  # what it asks that the person avoids, in words: locked too (ADR-0083)
 
 
 class ItemLevelView(BaseModel):
@@ -205,7 +206,8 @@ class LengthView(BaseModel):
     drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
     ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
-    kept, so the length no longer changes."""
+    kept, so the length no longer changes. ``from_setting``: the day has no choice, so
+    ``minutes`` is the person's minutes per session; As planned stays selectable for the day."""
 
     minutes: int | None
     options: list[int]
@@ -215,6 +217,7 @@ class LengthView(BaseModel):
     warm_up: Literal["none", "full", "ramp"]
     shortest: int | None
     fixed: bool
+    from_setting: bool
 
 
 def length_view(plan: guided.Guided) -> LengthView | None:
@@ -231,6 +234,7 @@ def length_view(plan: guided.Guided) -> LengthView | None:
         warm_up=trimmed.warm_up.value,
         shortest=trimmed.shortest,
         fixed=found.fixed,
+        from_setting=found.from_setting,
     )
 
 
@@ -337,6 +341,9 @@ class EarnedView(BaseModel):
     # what opens the next one when the kit is what's missing (ADR-0071).
     at_top: bool
     unlock: str | None
+    # At the top with harder steps above, every one locked: "no open step above this one",
+    # never why (ADR-0083)
+    capped: bool
     load_kg: float | None  # the session's weight, which its bests were counted at (ADR-0072)
 
 
@@ -477,7 +484,13 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                         step_id=i.step_id,
                         for_today=i.slug in today_only,
                         ladder=[
-                            LevelView(id=r.id, name=r.name, cue=r.cue, missing=list(r.missing))
+                            LevelView(
+                                id=r.id,
+                                name=r.name,
+                                cue=r.cue,
+                                missing=list(r.missing),
+                                avoided=list(r.avoided),
+                            )
                             for r in ladders[i.slug]
                         ],
                     )
@@ -629,6 +642,7 @@ def save(body: SaveBody, request: Request, user: Owner) -> SavedView:
                     slug=e.slug,
                     at_top=e.note_top,
                     unlock=e.unlock if e.note_top else None,
+                    capped=e.capped and e.note_top,
                     load_kg=e.load_kg,
                 )
                 for e in earned

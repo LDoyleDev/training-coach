@@ -293,7 +293,7 @@ def test_home_and_the_review_name_the_top_for_the_kit(plan: Session) -> None:
     equipment.save(plan, [KB8], NOW)
     _top_noted(plan, "kb-swing", 1)
     swing = progress.Top(
-        "Kettlebell swing", "kb-swing", "a 16 kg kettlebell unlocks Two-hand, 16 kg"
+        "Kettlebell swing", "kb-swing", "a 16 kg kettlebell unlocks Two-hand, 16 kg", capped=True
     )
     assert home.home(plan, date(2026, 10, 25), BERLIN).progress.top == [swing]
     assert home.home(plan, date(2026, 10, 25), BERLIN).progress.ready == []

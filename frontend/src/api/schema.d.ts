@@ -2237,6 +2237,8 @@ export interface components {
             at_top: boolean;
             /** Best Set */
             best_set: number | null;
+            /** Capped */
+            capped: boolean;
             /** Exercise */
             exercise: string;
             /** Load Kg */
@@ -2815,13 +2817,16 @@ export interface components {
          *     drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
          *     ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
          *     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
-         *     kept, so the length no longer changes.
+         *     kept, so the length no longer changes. ``from_setting``: the day has no choice, so
+         *     ``minutes`` is the person's minutes per session; As planned stays selectable for the day.
          */
         LengthView: {
             /** Dropped */
             dropped: string[];
             /** Fixed */
             fixed: boolean;
+            /** From Setting */
+            from_setting: boolean;
             /** Keep */
             keep: string[];
             /** Minutes */
@@ -2880,6 +2885,8 @@ export interface components {
          * @description One step of an exercise's ladder, to change the level on the set screen (ADR-0080).
          */
         LevelView: {
+            /** Avoided */
+            avoided: string[];
             /** Cue */
             cue: string | null;
             /** Id */
@@ -3667,6 +3674,8 @@ export interface components {
         };
         /** RungView */
         RungView: {
+            /** Avoided */
+            avoided: string[];
             /** Cue */
             cue: string | null;
             /** Id */
@@ -3828,6 +3837,14 @@ export interface components {
          * @description Only the fields sent change.
          */
         SettingsChange: {
+            /** Avoid Floor */
+            avoid_floor?: boolean | null;
+            /** Avoid Hanging */
+            avoid_hanging?: boolean | null;
+            /** Avoid Impact */
+            avoid_impact?: boolean | null;
+            /** Avoid Kneeling */
+            avoid_kneeling?: boolean | null;
             /** Blocks */
             blocks?: boolean | null;
             /** Extra Cardio Min */
@@ -3849,6 +3866,8 @@ export interface components {
             protein_g?: number | null;
             /** Review Time */
             review_time?: string | null;
+            /** Session Minutes */
+            session_minutes?: (40 | 30 | 20) | null;
             sound?: components["schemas"]["Sound"] | null;
             /** Stop Signs Seen */
             stop_signs_seen?: boolean | null;
@@ -3857,6 +3876,14 @@ export interface components {
         };
         /** SettingsView */
         SettingsView: {
+            /** Avoid Floor */
+            avoid_floor: boolean;
+            /** Avoid Hanging */
+            avoid_hanging: boolean;
+            /** Avoid Impact */
+            avoid_impact: boolean;
+            /** Avoid Kneeling */
+            avoid_kneeling: boolean;
             /** Blocks Since */
             blocks_since: string | null;
             default_increments: components["schemas"]["IncrementsView"];
@@ -3879,6 +3906,8 @@ export interface components {
             protein_g: number | null;
             /** Review Time */
             review_time: string;
+            /** Session Minutes */
+            session_minutes: (40 | 30 | 20) | null;
             sound: components["schemas"]["Sound"];
             /** Stop Signs Seen */
             stop_signs_seen: boolean;
@@ -4135,6 +4164,8 @@ export interface components {
          *     top of the ladder.
          */
         TopView: {
+            /** Capped */
+            capped: boolean;
             /** Exercise */
             exercise: string;
             /** Slug */

@@ -145,6 +145,7 @@ def test_the_standing_carries_what_the_plan_page_needs(
         "name": "Feet on a chair",
         "cue": "A sturdy chair under the bar; feet on it, legs help only as much as you need.",
         "missing": [],  # no kit listed yet: nothing is locked (ADR-0071)
+        "avoided": [],  # nothing avoided yet (ADR-0083)
         "question": None,  # anyone can start at the first step
     }
     # Each later step asks whether the person can already do it (G1, ADR-0075)
