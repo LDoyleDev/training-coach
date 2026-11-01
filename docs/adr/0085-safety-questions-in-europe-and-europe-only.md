@@ -77,8 +77,9 @@ ADR-0046 stores readiness answers on the server (`readiness_answers`) as consent
   each needs its own representative and rules. Enforced in four layers:
   1. **Cloudflare:** one free WAF custom rule blocks other countries, except the machine-called
      MCP and OAuth paths (`/mcp`, `/oauth/token`, `/oauth/register`,
-     `/.well-known/oauth-*`). Claude calls those from the US (ADR-0054). Liam applies it; the
-     rule is in the research.
+     `/.well-known/oauth-*`), the band reader's import (`/api/ingest/health-connect`, decided
+     1 Nov 2026) and `/healthz`, each an exact path. Claude calls the MCP and OAuth paths from
+     the US (ADR-0054). Liam applies it; the rule is in `docs/runbooks/deploy.md`.
   2. **The app:** it reads `CF-IPCountry`, trusted only from `TC_TRUSTED_PROXIES` like
      `CF-Connecting-IP`, and answers browser routes from elsewhere with its own 451 page,
      "Not available in your region".
@@ -119,6 +120,20 @@ ADR-0046 stores readiness answers on the server (`readiness_answers`) as consent
 | Embed PAR-Q+ | Recognised | Needs written permission, maybe a fee; not a European standard |
 | Europe as the continent (Cloudflare `EU`) | One condition | Takes in countries outside EU law |
 | EU and EEA plus the UK and Switzerland | Wider | Two more legal regimes |
+
+## Owner's decisions, 1 Nov 2026
+
+Liam confirmed or settled four points after the first build (#513, #514, #515):
+
+1. **The EU and EEA**, as listed above, confirmed: not the UK or Switzerland for now.
+2. **30 days** after the last visit from Europe, confirmed for the bot and the MCP endpoint.
+3. **The bot's check is its first handler**, which sees every update before the `owner_only`
+   handlers, not a part of that filter: button presses can't take the filter, and a filter
+   can't send the one-line reply. Accepted.
+4. **The band reader's import is exempt from the region check** (`/api/ingest/health-connect`,
+   exactly that path, in the app and in the Cloudflare rule), like `/mcp`: the ingest secret,
+   body cap and per-address limit carry its security (ADR-0055), and band data keeps arriving
+   while the person travels.
 
 ## Consequences
 

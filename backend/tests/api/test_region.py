@@ -72,6 +72,7 @@ def test_the_header_is_ignored_from_an_untrusted_peer(engine: Engine, tmp_path: 
         "/.well-known/oauth-protected-resource",
         "/.well-known/oauth-protected-resource/mcp",
         "/.well-known/oauth-authorization-server",
+        "/api/ingest/health-connect",
         "/healthz",
     ],
 )
@@ -102,7 +103,12 @@ def test_unknown_and_tor_are_told_why(tunnel: TestClient, country: str) -> None:
 def test_dot_segments_after_an_exempt_prefix_are_not_exempt(tunnel: TestClient) -> None:
     """The static files normalise "..", and the raw path reaches the check un-normalised (an
     HTTP client would tidy it first, so ask ``exempt`` directly): only exact paths skip it."""
-    for path in ("/.well-known/oauth-x/../../assets/app.js", "/mcp/../signin", "/mcp/"):
+    for path in (
+        "/.well-known/oauth-x/../../assets/app.js",
+        "/mcp/../signin",
+        "/mcp/",
+        "/api/ingest/health-connect/../../account/ingest",
+    ):
         assert not exempt(path), path
     assert tunnel.get("/healthz/", headers={"CF-IPCountry": "US"}).status_code == 451
 
