@@ -347,7 +347,8 @@ between its own sets. To decide:
    two grip-heavy exercises, at most one spine-loading exercise per pair.
 4. **Warm-up** 10 or 5 minutes (5 saves 15 minutes a week; a choice, not a finding).
    **Decided 30 Oct 2026** (ADR-0065 addendum): 5 minutes, in the guided session, its time
-   estimate and the warm-up line before a resistance session.
+   estimate and the warm-up line before a resistance session; test days 10 (Liam, 1 Nov 2026),
+   because their tests are maximum efforts (`TEST_DAY_WARM_UP_MINUTES`).
 5. **Drop sets and rest-pause:** an optional set type for isolation exercises, counted at
    matched volume, later. They save little inside pairs.
 6. **Kit order** for the equipment step: 16 kg kettlebell, then a weighted vest; each saves
@@ -631,10 +632,11 @@ one): 56 sets on the 3-day, 52 on the 4-day, sessions of 22-41 minutes, the main
    [kit-ladder-proposal.md](kit-ladder-proposal.md)), with step cues and band strengths. Still
    to come: figures for the new set-ups (the proposal's Figures section).
 5. **Plans per person** (A2): the migration copies the plan to every user; the seed keeps the
-   catalogue and starters; the canary test (multi-user L2) covers the plan routes. What reads
-   the plan today and a draft migration: [plans-per-person.md](plans-per-person.md).
-6. **Edit the plan:** set level (done, ADR-0075), swap, sets and range; Save makes a version. Import from
-   `plan.toml` the same way.
+   catalogue and starters; the canary test (multi-user L2) covers the plan routes. The import
+   from `plan.toml` ships with it (Liam, 1 Nov 2026), so the owner can always change their plan.
+   What reads the plan today, a draft migration and the open points:
+   [plans-per-person.md](plans-per-person.md).
+6. **Edit the plan:** set level (done, ADR-0075), swap, sets and range; Save makes a version.
 7. **The picker and an interactive map:** add and remove exercises; add a session.
 8. **Load:** the 29 gym exercises in the catalogue, `load_kg`, carry-over with − and +, double
    progression. **Built** (ADR-0072, Built): `set_logs.load_kg`, the weight on the set screen
