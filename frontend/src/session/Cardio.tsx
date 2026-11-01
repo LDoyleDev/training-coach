@@ -95,18 +95,21 @@ export type CardioChange = 'saved' | 'closed' | 'undone'
  * planned session is this cardio: it then stands in for the session's Start button. The saved
  * screen offers Undo (C3). A save rings the end of the session in the person's timer sound,
  * unless the HIIT timer rang it at its end. With ``talkTest`` (ADR-0083) effort shows as the
- * talk test, not heart-rate zones; what is logged stays the same.
+ * talk test, not heart-rate zones; what is logged stays the same. A new ``refresh`` asks for
+ * today's plan again: a shorter day (ADR-0082) changes the cardio's minutes.
  */
 export default function Cardio({
   featured,
   onChange,
   sound = DEFAULT_SOUND,
   talkTest = false,
+  refresh,
 }: {
   featured: boolean
   onChange?: (change: CardioChange) => void
   sound?: Sound
   talkTest?: boolean
+  refresh?: number
 }) {
   const [options, setOptions] = useState<CardioOptions | null>(null)
   const [fetched, setFetched] = useState(false)
@@ -137,7 +140,7 @@ export default function Cardio({
       .catch(() => {}) // the buttons still work without today's plan
       .finally(() => setFetched(true))
     return () => abort.abort()
-  }, [loads])
+  }, [loads, refresh])
 
   const planned = options?.planned ?? null
   const activities = options?.activities ?? (Object.keys(ACTIVITY) as CardioActivity[])

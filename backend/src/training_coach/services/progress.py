@@ -151,6 +151,20 @@ def sessions_at_step(
     ]
 
 
+def planned_sets(session: Session, slug: str, workout_ids: Sequence[int]) -> list[int | None]:
+    """The sets each workout planned of the exercise ``slug``, in the order given (ADR-0084):
+    None for a workout without a plan (a typed log, or saved before plans were kept) or whose
+    plan doesn't name the exercise, which planned every set."""
+    query = select(Workout.id, Workout.planned).where(Workout.id.in_(workout_ids))
+    found = dict(session.execute(query).all())
+    counts: list[int | None] = []
+    for workout_id in workout_ids:
+        entry = (found.get(workout_id) or {}).get(slug)
+        sets = entry.get("sets") if isinstance(entry, dict) else None
+        counts.append(sets if isinstance(sets, int) and sets >= 0 else None)
+    return counts
+
+
 def _in_block[*Ts](query: Select[*Ts], block: BlockKind | None) -> Select[*Ts]:
     """``query`` kept to one block's workouts (ADR-0028): ``STRENGTH`` only strength-block
     workouts, ``HYPERTROPHY`` everything else, None both."""
@@ -215,11 +229,11 @@ def _status(
         return Progress.HOLD
     # Readiness is judged on the hypertrophy prescription and its history (ADR-0028).
     block = history_kind(ExerciseKind(item.exercise.kind), BlockKind.HYPERTROPHY)
-    recent = [
-        v for _, v in sessions_at_step(session, step.exercise_id, step.id, item.per_side, block)
-    ]
+    done = sessions_at_step(session, step.exercise_id, step.id, item.per_side, block)
+    # A shorter day is judged on the sets it planned (ADR-0084).
+    planned = planned_sets(session, step.exercise.slug, [w for w, _ in done])
     upcoming = _next_step(step, kit)
-    return assess(_prescription(item), recent, has_next_step=upcoming is not None)
+    return assess(_prescription(item), [v for _, v in done], upcoming is not None, planned=planned)
 
 
 def _top_noted(session: Session, exercise_id: int, step_id: int) -> bool:

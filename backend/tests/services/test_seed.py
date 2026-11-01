@@ -1,3 +1,4 @@
+import json
 import re
 from collections.abc import Callable
 from datetime import date
@@ -38,6 +39,7 @@ kind = "reps"
 muscles = { lats = 1, biceps = 0.5 }
 pattern = "vertical pull"
 start = 1
+levels = { Negatives = 4, Strict = 4, Weighted = 6 }
 ladder = ["Negatives", "Strict", "Weighted"]
 
 [[exercises]]
@@ -47,6 +49,7 @@ kind = "reps"
 muscles = { chest = 1 }
 pattern = "vertical push"
 start = 0
+levels = { "Feet down" = 4, "Feet up" = 5 }
 ladder = ["Feet down", "Feet up"]
 
 [[sessions]]
@@ -62,6 +65,15 @@ focus = "Accessories"
 is_rest_optional = true
 items = [{ exercise = "dip", sets = 3, rep_min = 8, rep_max = 15 }]
 """
+
+
+PULL_UP_LEVELS = "levels = { Negatives = 4, Strict = 4, Weighted = 6 }"
+DIP_LEVELS = 'levels = { "Feet down" = 4, "Feet up" = 5 }'
+
+
+def _levels(ladder: str) -> str:
+    """Level 4 for every step of a ladder written as a TOML list (ADR-0083)."""
+    return "levels = { " + ", ".join(f'"{step}" = 4' for step in json.loads(ladder)) + " }"
 
 
 def _count(session: Session, model: type) -> int:
@@ -187,6 +199,7 @@ def test_reseed_applies_edits_and_additions(session: Session) -> None:
     session.commit()
     edited = (
         MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet down", "Feet up", "Weighted dip"]')
+        .replace('"Feet up" = 5 }', '"Feet up" = 5, "Weighted dip" = 6 }')
         .replace("sets = 4, rep_min = 5", "sets = 5, rep_min = 5")
         .replace('name = "Dip"', 'name = "Dip (chairs)"')
     )
@@ -295,8 +308,10 @@ def test_item_removed_from_session_is_deleted(session: Session) -> None:
 def test_shortening_a_ladder_is_rejected_before_any_write(session: Session) -> None:
     apply_seed(session, load_plan(MINI_PLAN))
     session.commit()
-    shorter = MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet down"]').replace(
-        'name = "Pull-up"', 'name = "Pull-up renamed"'
+    shorter = (
+        MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet down"]')
+        .replace(DIP_LEVELS, 'levels = { "Feet down" = 4 }')
+        .replace('name = "Pull-up"', 'name = "Pull-up renamed"')
     )
 
     with pytest.raises(SeedError, match="'dip' has 2 ladder steps"):
@@ -362,7 +377,7 @@ def test_training_plan_spec_volume_table_matches_plan() -> None:
 
 INSERTED = MINI_PLAN.replace(
     '["Negatives", "Strict", "Weighted"]', '["Negatives", "Assisted", "Strict", "Weighted"]'
-)
+).replace(PULL_UP_LEVELS, _levels('["Negatives", "Assisted", "Strict", "Weighted"]'))
 
 
 def _step_names(session: Session, slug: str) -> list[str]:
@@ -383,7 +398,9 @@ def test_inserting_a_step_mid_ladder_is_rejected_before_any_write(session: Sessi
 def test_renaming_a_step_in_use_needs_a_rename_entry(session: Session) -> None:
     apply_seed(session, load_plan(MINI_PLAN))
     session.commit()
-    typo_fix = MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet flat", "Feet up"]')
+    typo_fix = MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet flat", "Feet up"]').replace(
+        'levels = { "Feet down"', 'levels = { "Feet flat"'
+    )
     with pytest.raises(SeedError, match="renames"):
         apply_seed(session, load_plan(typo_fix))
     session.rollback()
@@ -412,7 +429,9 @@ def test_a_step_with_logged_sets_is_protected(session: Session) -> None:
     workout.sets = [SetLog(exercise_id=pull_up.id, ladder_step_id=weighted.id, set_no=1, value=5)]
     session.add(workout)
     session.commit()
-    vest = MINI_PLAN.replace('"Strict", "Weighted"]', '"Strict", "Weighted vest"]')
+    vest = MINI_PLAN.replace('"Strict", "Weighted"]', '"Strict", "Weighted vest"]').replace(
+        "Weighted = 6", '"Weighted vest" = 6'
+    )
     with pytest.raises(SeedError, match="'Weighted'"):
         apply_seed(session, load_plan(vest))
 
@@ -420,8 +439,9 @@ def test_a_step_with_logged_sets_is_protected(session: Session) -> None:
 def test_unused_steps_can_change_and_appending_stays_allowed(session: Session) -> None:
     apply_seed(session, load_plan(MINI_PLAN))
     session.commit()
-    edited = MINI_PLAN.replace(
-        '["Negatives", "Strict", "Weighted"]', '["Slow negatives", "Strict", "Weighted", "Archer"]'
+    ladder = '["Slow negatives", "Strict", "Weighted", "Archer"]'
+    edited = MINI_PLAN.replace('["Negatives", "Strict", "Weighted"]', ladder).replace(
+        PULL_UP_LEVELS, _levels(ladder)
     )
     apply_seed(session, load_plan(edited))
     session.commit()
@@ -490,7 +510,7 @@ def test_moving_names_between_steps_is_rejected(
     session.commit()
     edited = MINI_PLAN.replace(
         'ladder = ["Negatives", "Strict", "Weighted"]', f"{renames}ladder = {ladder}"
-    )
+    ).replace(PULL_UP_LEVELS, _levels(ladder))
     with pytest.raises(SeedError, match="already the name of step"):
         apply_seed(session, load_plan(edited))
     session.rollback()
@@ -689,9 +709,11 @@ def test_every_ladder_asks_can_you_do_it_of_each_step_after_the_first() -> None:
 
 def test_each_question_asks_for_the_bottom_of_its_exercises_range() -> None:
     """A yes means the first target at that step, the bottom of the range (ADR-0027), is within
-    reach. HIIT's steps name their rounds, so its questions use those."""
+    reach. HIIT's steps name their rounds, so its questions use those. An exercise no session
+    uses gives its own range (ADR-0083)."""
     plan = load_plan()
-    bottoms = {i.exercise: i.rep_min for s in plan.sessions for i in (*s.items, *s.gym)}
+    bottoms = {e.slug: e.range[0] for e in plan.exercises if e.range is not None}
+    bottoms |= {i.exercise: i.rep_min for s in plan.sessions for i in (*s.items, *s.gym)}
     wrong = {
         (e.slug, step): question
         for e in plan.exercises
@@ -908,6 +930,7 @@ kind = "duration_min"
 qualities = ["conditioning"]
 pattern = "cardio"
 start = 0
+levels = { Easy = 2 }
 ladder = ["Easy"]
 """
     return MINI_PLAN + walk + FLOW.replace("EXERCISE", exercise).replace("SECONDS", str(seconds))

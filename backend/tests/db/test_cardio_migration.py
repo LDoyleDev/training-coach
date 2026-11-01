@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, insert, select
+from sqlalchemy import create_engine, insert, select, text
 
 from tests.db.test_migrations import BACKEND
-from training_coach.db.models import Exercise, ImportedWorkout, LadderStep, SetLog, Workout
+from training_coach.db.models import ImportedWorkout, SetLog, Workout
 from training_coach.db.session import make_session_factory
 from training_coach.domain.enums import ExerciseKind, Side, WorkoutStatus
 from training_coach.services.users import OWNER
@@ -34,15 +34,24 @@ def test_only_a_walk_the_old_rule_logged_gets_its_full_minutes(
     engine = create_engine(url)
     with make_session_factory(engine, user_id=OWNER)() as session:
         steps = {}
-        for slug, kind in (
-            ("zone2", ExerciseKind.DURATION_MIN),
-            ("moderate-cardio", ExerciseKind.DURATION_MIN),
-        ):
-            row = Exercise(slug=slug, name=slug, kind=kind)
-            row.ladder = [LadderStep(position=0, name="Walk")]
-            session.add(row)
-            session.flush()
-            steps[slug] = (row.id, row.ladder[0].id)
+        # Plain SQL, not the ORM: the schema at BEFORE has none of the columns added since,
+        # such as the steps' levels (ADR-0083).
+        for slug in ("zone2", "moderate-cardio"):
+            exercise_id = session.execute(
+                text(
+                    "INSERT INTO exercises (slug, name, kind, aliases)"
+                    " VALUES (:slug, :slug, :kind, '[]') RETURNING id"
+                ),
+                {"slug": slug, "kind": ExerciseKind.DURATION_MIN.value},
+            ).scalar_one()
+            step_id = session.execute(
+                text(
+                    "INSERT INTO ladder_steps (exercise_id, position, name)"
+                    " VALUES (:exercise, 0, 'Walk') RETURNING id"
+                ),
+                {"exercise": exercise_id},
+            ).scalar_one()
+            steps[slug] = (exercise_id, step_id)
 
         def counted(day: int, slug: str, logged: int, zones: tuple[int, ...]) -> int:
             on = MONDAY - timedelta(days=day)

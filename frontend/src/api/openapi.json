@@ -1523,6 +1523,16 @@
             "title": "Kind",
             "type": "string"
           },
+          "length": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LengthView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "minutes": {
             "title": "Minutes",
             "type": "integer"
@@ -2848,6 +2858,140 @@
           "top"
         ],
         "title": "LadderView",
+        "type": "object"
+      },
+      "LengthBody": {
+        "description": "Short on time today (ADR-0082): as planned (empty) or 40, 30 or 20 minutes, never\ndropping the exercises pinned with ``keep`` (slugs).",
+        "properties": {
+          "first": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 10,
+            "title": "First",
+            "type": "array"
+          },
+          "keep": {
+            "items": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Keep",
+            "type": "array"
+          },
+          "minutes": {
+            "anyOf": [
+              {
+                "enum": [
+                  40,
+                  30,
+                  20
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutes"
+          },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          },
+          "revision": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "place"
+        ],
+        "title": "LengthBody",
+        "type": "object"
+      },
+      "LengthView": {
+        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes.",
+        "properties": {
+          "dropped": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dropped",
+            "type": "array"
+          },
+          "fixed": {
+            "title": "Fixed",
+            "type": "boolean"
+          },
+          "keep": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Keep",
+            "type": "array"
+          },
+          "minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutes"
+          },
+          "options": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "planned_minutes": {
+            "title": "Planned Minutes",
+            "type": "integer"
+          },
+          "shortest": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shortest"
+          },
+          "warm_up": {
+            "enum": [
+              "none",
+              "full",
+              "ramp"
+            ],
+            "title": "Warm Up",
+            "type": "string"
+          }
+        },
+        "required": [
+          "minutes",
+          "options",
+          "keep",
+          "planned_minutes",
+          "dropped",
+          "warm_up",
+          "shortest",
+          "fixed"
+        ],
+        "title": "LengthView",
         "type": "object"
       },
       "LevelBody": {
@@ -9776,6 +9920,48 @@
         "summary": "Get Review",
         "tags": [
           "review"
+        ]
+      }
+    },
+    "/api/session/length": {
+      "put": {
+        "description": "Run today's session shorter, or as planned again (ADR-0082): the session at that\nlength. 409 when the session changed, another device moved on since ``revision``\n(reload), or a set is kept already (the length is fixed then); 422 for a session that\nalways runs as planned, or a Keep for an exercise it doesn't have.",
+        "operationId": "choose_length_api_session_length_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LengthBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Choose Length",
+        "tags": [
+          "session"
         ]
       }
     },

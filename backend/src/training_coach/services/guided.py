@@ -8,6 +8,11 @@ today, or held for tomorrow (Rest today or Push), there is none. Sets come in wo
 The exception is a conditioning session with more than its cardio (ADR-0066): once the cardio is
 logged, however it was logged, the rest of that session stays open until the day ends, and its
 sets are added to the day's workout.
+
+Short on time today (ADR-0082): a strength or conditioning session runs at the minutes chosen
+for the day, trimmed by ``domain.trim``. Items are never removed, so every set keeps its index:
+a dropped item has no targets left. The set counts, the minutes and the person's pace are fixed
+in the day's progress when its first set is kept, so nothing moves under the indexes after.
 """
 
 import secrets
@@ -29,20 +34,36 @@ from training_coach.db.models import (
     SetLog,
     Workout,
 )
+from training_coach.domain import trim as trimming
 from training_coach.domain.blocks import Block
 from training_coach.domain.enums import ExerciseKind, Place, Side, WorkoutStatus
 from training_coach.domain.load import MAX_KG, valid_kg
+from training_coach.domain.muscles import Pattern
 from training_coach.domain.parser import LIMITS, Entry
 from training_coach.domain.rest import AFTER_PAIR_SECONDS, Kind, Rest, rests
-from training_coach.domain.session_times import plausible
+from training_coach.domain.session_times import pace, plausible
+from training_coach.domain.trim import WARM_UP, WarmUp
 from training_coach.domain.work_order import SetRef, work_order
-from training_coach.services import blocks, user_settings, workout_log
+from training_coach.services import blocks, session_times, user_settings, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
 from training_coach.services.seed import bundled_plan
 from training_coach.services.today import ItemPlan, SessionPlan, position, session_plan
 
-WARM_UP_MINUTES = 5  # program-builder.md J.4 (ADR-0065 addendum)
 SET_SECONDS = 45  # a rough working set, for the time estimate only
+OPTIONS = (40, 30, 20)  # Short on time today (ADR-0082): the minutes offered besides as planned
+TRIMMED = ("strength", "conditioning")  # recovery sessions run as planned (ADR-0082)
+
+
+@dataclass(frozen=True)
+class Length:
+    """How long today's session runs (ADR-0082): the day's choice and what it does."""
+
+    minutes: int | None  # chosen for the day; None: as planned
+    keep: tuple[str, ...]  # exercise slugs pinned with Keep: never dropped
+    planned: int  # about how long as planned, warm-up included
+    trimmed: trimming.Trimmed  # each item's sets (0: dropped), the warm-up, the estimate
+    pace: float  # the person's time on this session over its plain estimate; 1.0 unknown
+    fixed: bool = False  # a set is kept: the length no longer changes
 
 
 @dataclass(frozen=True)
@@ -70,6 +91,7 @@ class Guided:
     after_run: bool = False  # what's left of a conditioning session once its cardio is logged
     place: Place = Place.HOME  # where it is done: its home or gym version (ADR-0071)
     switch: bool = False  # Today offers Home | Gym
+    length: Length | None = None  # short on time today (ADR-0082); None: never trimmed
 
 
 def _kinds(items: tuple[ItemPlan, ...]) -> list[Kind | None]:
@@ -106,6 +128,11 @@ def _ordered(items: tuple[ItemPlan, ...], groups: list[list[SetRef]]) -> tuple[G
 
 def _minutes(items: tuple[ItemPlan, ...], order: tuple[GuidedSet, ...], warm_up: bool) -> int:
     """About how long: each set's work and the rest after it, by the rules the session runs."""
+    return round(_seconds(items, order) / 60) + (WARM_UP[WarmUp.FULL] if warm_up else 0)
+
+
+def _seconds(items: tuple[ItemPlan, ...], order: tuple[GuidedSet, ...]) -> int:
+    """Each set's work and the rest after it, warm-up not included."""
     seconds = 0
     for done in order:
         item = items[done.item]
@@ -117,7 +144,162 @@ def _minutes(items: tuple[ItemPlan, ...], order: tuple[GuidedSet, ...], warm_up:
         else:
             seconds += SET_SECONDS * sides
         seconds += done.rest.seconds
-    return round(seconds / 60) + (WARM_UP_MINUTES if warm_up else 0)
+    return seconds
+
+
+# ---------------------------------------------------------------- short on time (ADR-0082)
+
+
+def _cut(
+    items: tuple[ItemPlan, ...], sets: Sequence[int], durations: Sequence[int | None]
+) -> tuple[ItemPlan, ...]:
+    """``items`` with each one's first ``sets`` targets (none: dropped) and a duration item's
+    minutes at most its ``durations``. Nothing is removed, so indexes stay."""
+    out = []
+    for item, count, minutes in zip(items, sets, durations, strict=True):
+        targets = item.targets[:count]
+        if minutes is not None:
+            targets = tuple(min(target, minutes) for target in targets)
+        if targets == item.targets:
+            out.append(item)
+            continue
+        load = replace(item.load, kg=item.load.kg[:count]) if item.load is not None else None
+        out.append(replace(item, targets=targets, load=load))
+    return tuple(out)
+
+
+def _shapes(items: tuple[ItemPlan, ...], keep: Collection[str]) -> tuple[trimming.Item, ...]:
+    """What the trim needs about each item, from the catalogue as the rests read it: an
+    exercise it doesn't know is small work. Cardio counted in minutes can shorten."""
+    shapes = []
+    for item, kind in zip(items, _kinds(items), strict=True):
+        pattern = kind.pattern if kind is not None else Pattern.ISOLATION
+        timed = item.kind is ExerciseKind.DURATION_MIN and pattern is Pattern.CARDIO
+        shapes.append(
+            trimming.Item(
+                sets=len(item.targets),
+                pattern=pattern,
+                primes=kind.primes if kind is not None else frozenset(),
+                minutes=max(item.targets) if timed and item.targets else None,
+                keep=item.slug in keep,
+            )
+        )
+    return tuple(shapes)
+
+
+def _estimator(items: tuple[ItemPlan, ...], first: Collection[int], at: float) -> trimming.Estimate:
+    """Minutes of work for given set counts and durations, warm-up not included: the real
+    order and rests over the cut items, at the person's pace ``at``."""
+
+    def estimate(sets: tuple[int, ...], durations: tuple[int | None, ...]) -> float:
+        cut = _cut(items, sets, durations)
+        return _seconds(cut, _ordered(cut, work_groups(cut, first))) / 60 * at
+
+    return estimate
+
+
+@dataclass(frozen=True)
+class _Fixed:
+    """The length kept when the first set was (ADR-0082)."""
+
+    minutes: int | None
+    sets: tuple[int, ...]
+    durations: tuple[int | None, ...]
+    dropped: tuple[int, ...]
+    pace: float
+    ramp: bool = False  # ramp sets replaced the warm-up
+
+
+def _fixed(row: SessionProgress | None, count: int) -> _Fixed | None:
+    """The length fixed in ``row`` for a session of ``count`` items; None before the first set,
+    or when the plan has changed shape since (it is worked out afresh then)."""
+    found = row.fixed if row is not None else None
+    if not isinstance(found, dict) or len(found.get("sets", ())) != count:
+        return None
+    return _Fixed(
+        minutes=found.get("minutes"),
+        sets=tuple(found["sets"]),
+        durations=tuple(found["durations"]),
+        dropped=tuple(found["dropped"]),
+        pace=float(found["pace"]),
+        ramp=found.get("warm_up") == WarmUp.RAMP.value,
+    )
+
+
+def _choice(
+    row: SessionProgress | None, default: int | None = None
+) -> tuple[int | None, tuple[str, ...]]:
+    """The day's minutes and Keep pins as chosen in ``row``; with no choice made yet,
+    ``default`` minutes (as planned until minutes per session is a setting, ADR-0082)."""
+    found = row.length if row is not None else None
+    if not isinstance(found, dict):
+        return default, ()
+    minutes = found.get("minutes")
+    keep = tuple(slug for slug in found.get("keep", ()) if isinstance(slug, str))
+    return (minutes if minutes in OPTIONS else None), keep
+
+
+def _pace(
+    session: Session,
+    plan: SessionPlan,
+    shapes: tuple[trimming.Item, ...],
+    plain: trimming.Estimate,
+    after_run: bool,
+) -> float:
+    """The person's pace on this session at its place (ADR-0082): their usual time done as
+    planned over its plain estimate. The block after a run has no usual of its own."""
+    if after_run:
+        return 1.0
+    totals = session_times.planned_totals(session, plan.template_id, plan.place)
+    sets = tuple(s.sets for s in shapes)
+    return pace(totals, plain(sets, tuple(s.minutes for s in shapes)))
+
+
+def _length(
+    session: Session,
+    plan: SessionPlan,
+    items: tuple[ItemPlan, ...],
+    first: Collection[int],
+    row: SessionProgress | None,
+    after_run: bool,
+) -> Length | None:
+    """Today's length for ``plan`` (ADR-0082): None for a session that isn't trimmed. A
+    strength block's prescription is in ``items`` already, so the trim comes after it."""
+    if plan.kind not in TRIMMED:
+        return None
+    minutes, keep = _choice(row)
+    shapes = _shapes(items, keep)
+    fixed = _fixed(row, len(items))
+    if fixed is not None:
+        at = fixed.pace
+    else:
+        at = _pace(session, plan, shapes, _estimator(items, first, 1.0), after_run)
+    estimate = _estimator(items, first, at)
+    has_warm_up = plan.kind == "strength"
+    planned = trimming.trim(shapes, None, estimate, has_warm_up=has_warm_up)
+    if fixed is None:
+        trimmed = trimming.trim(shapes, minutes, estimate, has_warm_up=has_warm_up)
+    else:
+        minutes = fixed.minutes
+        how = trimming.warm_up(shapes, fixed.sets, minutes) if has_warm_up else WarmUp.NONE
+        total = round(estimate(fixed.sets, fixed.durations)) + WARM_UP[how]
+        fits = minutes is None or total <= minutes
+        trimmed = trimming.Trimmed(fixed.sets, fixed.durations, fixed.dropped, how, total, fits)
+    started = row is not None and (row.fixed is not None or bool(row.sets))
+    return Length(minutes, keep, planned.minutes, trimmed, at, started)
+
+
+def _fix(length: Length) -> dict[str, Any]:
+    """``length`` as kept in ``session_progress.fixed`` when the first set is (ADR-0082)."""
+    trimmed = length.trimmed
+    return {
+        "minutes": length.minutes,
+        "sets": list(trimmed.sets),
+        "durations": list(trimmed.durations),
+        "dropped": list(trimmed.dropped),
+        "pace": length.pace,
+        "warm_up": trimmed.warm_up.value,
+    }
 
 
 def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ()) -> Guided | None:
@@ -131,7 +313,20 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
     block = blocks.current(session, on, tz)
     plan = session_plan(session, template.id, block, chosen(session, on, template.id, False))
     assert plan is not None  # noqa: S101 - target() returned this template a moment ago
-    return _guided(on, plan, plan.items, block, first, after_run=False)
+    return _guided(session, on, plan, plan.items, block, first, after_run=False)
+
+
+def at_length(session: Session, on: date, plan: SessionPlan) -> tuple[SessionPlan, Length | None]:
+    """``plan`` as it runs on ``on`` (ADR-0082), for the bot's work list: its items cut to the
+    day's length once minutes are chosen for it in the app (a dropped item keeps its place
+    with no targets), and that length. None for a session that isn't trimmed (recovery)."""
+    row = _row(session, on)
+    mine = row if _mine(row, plan, after_run=False) else None
+    length = _length(session, plan, plan.items, (), mine, after_run=False)
+    if length is None:
+        return plan, None
+    items = _cut(plan.items, length.trimmed.sets, length.trimmed.durations)
+    return replace(plan, items=items), length
 
 
 def chosen(session: Session, on: date, template_id: int, after_run: bool) -> dict[str, int]:
@@ -143,7 +338,17 @@ def chosen(session: Session, on: date, template_id: int, after_run: bool) -> dic
     return dict(row.steps)
 
 
+def _mine(row: SessionProgress | None, plan: SessionPlan, after_run: bool) -> bool:
+    """Whether ``row`` is the progress of the session shown: its session, version and part."""
+    return row is not None and (row.template_id, row.place, row.after_run) == (
+        plan.template_id,
+        plan.place,
+        after_run,
+    )
+
+
 def _guided(
+    session: Session,
     on: date,
     plan: SessionPlan,
     items: tuple[ItemPlan, ...],
@@ -152,9 +357,18 @@ def _guided(
     *,
     after_run: bool,
 ) -> Guided:
+    row = _row(session, on)
+    mine = row if _mine(row, plan, after_run) else None
+    length = _length(session, plan, items, first, mine, after_run)
+    if length is not None:
+        items = _cut(items, length.trimmed.sets, length.trimmed.durations)
     groups = work_groups(items, first)
     order = _ordered(items, groups)
-    warm_up = plan.kind == "strength"
+    if length is not None:
+        warm_up, minutes = length.trimmed.warm_up is WarmUp.FULL, length.trimmed.minutes
+    else:
+        warm_up = plan.kind == "strength"
+        minutes = _minutes(items, order, warm_up)
     return Guided(
         day=on,
         template_id=plan.template_id,
@@ -164,13 +378,14 @@ def _guided(
         slug=plan.slug,
         warm_up=warm_up,
         block=block,
-        minutes=_minutes(items, order, warm_up),
+        minutes=minutes,
         rest_seconds=AFTER_PAIR_SECONDS,
         items=items,
         order=order,
         after_run=after_run,
         place=plan.place,
         switch=plan.switch,
+        length=length,
     )
 
 
@@ -219,7 +434,7 @@ def _after_run(session: Session, on: date, tz: ZoneInfo, first: Collection[int])
     if plan is None:
         return None
     items = _left(session, workout, plan.items)
-    return _guided(on, plan, items, block, first, after_run=True) if items else None
+    return _guided(session, on, plan, items, block, first, after_run=True) if items else None
 
 
 def held_today(session: Session, on: date) -> bool:
@@ -413,6 +628,7 @@ def _problem(
 
 
 STALE = "this session changed on another device; reload it"
+SAVED = "this session is saved already"
 
 
 def keep(
@@ -449,7 +665,7 @@ def keep(
         session.flush()
         row = None
     if row is not None and row.saved_workout_id is not None:
-        return "this session is saved already"
+        return SAVED
     if row is not None and (row.template_id != plan.template_id or row.place != plan.place):
         if revision != 0:  # this browser still shows the old session: nothing is deleted
             return STALE
@@ -478,6 +694,8 @@ def keep(
             row.first = sorted(set(first))
             at = now or datetime.now(UTC)
             row.sets = [_stored(_timed(done, at)) for done in sets]
+            if row.sets and row.fixed is None and plan.length is not None:
+                row.fixed = _fix(plan.length)  # fixed from the first set kept (ADR-0082)
             session.flush()
     except IntegrityError:
         return STALE
@@ -510,6 +728,37 @@ def set_levels(
             if step is not None:
                 found.append((slug, number, step))
     return tuple(found)
+
+
+def _planned(row: SessionProgress, items: tuple[ItemPlan, ...]) -> tuple[tuple[str, int], ...]:
+    """What the session planned, for the saved workout (ADR-0084): each item's sets as fixed
+    for the day, else all of them. A cardio item run shorter planned none: its target was
+    dropped, not missed (ADR-0082), so it neither counts as a miss nor toward moving up."""
+    fixed = _fixed(row, len(items))
+    if fixed is None:
+        return tuple((item.slug, len(item.targets)) for item in items)
+    return tuple(
+        (item.slug, 0 if minutes is not None and minutes < max(item.targets, default=0) else n)
+        for item, n, minutes in zip(items, fixed.sets, fixed.durations, strict=True)
+    )
+
+
+def _day_minutes(row: SessionProgress, items: tuple[ItemPlan, ...]) -> int | None:
+    """The minutes chosen for the day, as fixed with the first set; None as planned, and None
+    when the minutes changed nothing (no set cut, no cardio shortened, nothing dropped, the
+    warm-up kept): that day is the session as planned and counts toward "usually"."""
+    fixed = _fixed(row, len(items))
+    if fixed is None:
+        return None
+    unchanged = (
+        not fixed.dropped
+        and not fixed.ramp
+        and all(
+            n == len(item.targets) and (minutes is None or minutes >= max(item.targets, default=0))
+            for item, n, minutes in zip(items, fixed.sets, fixed.durations, strict=True)
+        )
+    )
+    return None if unchanged else fixed.minutes
 
 
 def _numbered(sets: Sequence[Done]) -> Iterator[tuple[int, list[tuple[int, Done]]]]:
@@ -589,6 +838,8 @@ def save(
         backdated=day < today,
         place=plan.place,
         steps=set_levels(plan.items, sets, row.steps),
+        planned=_planned(row, plan.items),
+        minutes=_day_minutes(row, plan.items),
     )
     result = workout_log.save(session, draft, tz, answer)
     if isinstance(result, workout_log.Saved):
@@ -633,6 +884,8 @@ def _save_after_run(
                 strength,
                 tz,
                 set_levels(items, sets, row.steps),
+                _planned(row, items),
+                _day_minutes(row, items),
             )
             if isinstance(result, workout_log.Saved):
                 row.saved_workout_id = result.workout_id
@@ -642,6 +895,48 @@ def _save_after_run(
         session.expire_all()
         return workout_log.Saved(workout.id, already_saved=True)
     return result
+
+
+NOT_TRIMMED = "this session runs as planned"
+NOT_IN_SESSION = "that exercise isn't in today's session"
+STARTED = "this session has started: its length stays as it is"
+
+
+def choose_length(
+    session: Session, plan: Guided, revision: int, minutes: int | None, pinned: Sequence[str]
+) -> int | str:
+    """Run today's session at ``minutes`` (None: as planned), never dropping the exercises
+    ``pinned`` with Keep (ADR-0082): the new revision, or a problem. ``STALE`` when another
+    device moved on since ``revision``; ``STARTED`` once a set is kept, as the length is fixed
+    from then on. Nothing changes on a problem."""
+    if plan.length is None:
+        return NOT_TRIMMED
+    if minutes is not None and minutes not in OPTIONS:
+        return f"choose {', '.join(map(str, OPTIONS))} minutes, or as planned"
+    if not set(pinned) <= {item.slug for item in plan.items}:
+        return NOT_IN_SESSION
+    row = _row(session, plan.day)
+    mine = (plan.template_id, plan.place, plan.after_run)
+    if row is not None and (row.template_id, row.place, row.after_run) == mine:
+        if row.saved_workout_id is not None:
+            return SAVED
+        if row.revision != revision:
+            return STALE
+        if row.sets or row.fixed is not None:
+            return STARTED
+    else:
+        # Nothing kept for this session, or a row left from another session or the other
+        # place's version: start its progress as the first set would (``keep`` resets a row
+        # that isn't today's), so the choice lives where a reload or another device sees it.
+        started = keep(session, plan, revision, 0, [], [])
+        if isinstance(started, str):
+            return started
+        row = _row(session, plan.day)
+        assert row is not None  # noqa: S101 - started above
+    row.length = {"minutes": minutes, "keep": sorted(set(pinned))}
+    row.revision += 1
+    session.flush()
+    return row.revision
 
 
 def switch(session: Session, plan: Guided, place: Place, confirm: bool) -> int | None:

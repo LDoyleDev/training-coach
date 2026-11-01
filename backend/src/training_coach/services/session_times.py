@@ -1,7 +1,8 @@
 """How long guided sessions take (ADR-0061): one workout's time, and each session's usual time.
 
 Read from the set times a guided session puts on its sets; a workout logged any other way has
-none and is left out.
+none and is left out. A day run shorter (``workouts.minutes``, ADR-0082) has its own time but
+doesn't count toward a session's usual, last or fastest: those are the session as planned.
 """
 
 from dataclasses import dataclass
@@ -11,7 +12,10 @@ from sqlalchemy import ColumnElement, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import SessionTemplate, SetLog, Workout
+from training_coach.domain.enums import Place
 from training_coach.domain.session_times import SetTime, Timing, minutes, timing, usual
+
+AS_PLANNED = Workout.minutes.is_(None)  # not run shorter for the day (ADR-0082)
 
 
 @dataclass(frozen=True)
@@ -71,15 +75,23 @@ def of_workout(session: Session, workout_id: int) -> Timing | None:
 
 def usual_minutes(session: Session, template_id: int) -> int | None:
     """How long this session usually takes, in minutes; None before its first timed one."""
-    totals = [t.timing.total for t in _timed(session, Workout.template_id == template_id)]
-    found = usual(totals)
-    return minutes(found) if found is not None else None
+    found = _timed(session, Workout.template_id == template_id, AS_PLANNED)
+    totals = [t.timing.total for t in found]
+    typical = usual(totals)
+    return minutes(typical) if typical is not None else None
+
+
+def planned_totals(session: Session, template_id: int, place: Place) -> list[timedelta]:
+    """The timed totals of this session done as planned at ``place``, oldest first: what the
+    person's pace on it is read from (ADR-0082)."""
+    found = _timed(session, Workout.template_id == template_id, Workout.place == place, AS_PLANNED)
+    return [t.timing.total for t in found]
 
 
 def by_session(session: Session) -> list[SessionTimes]:
     """Each session with timed workouts, in plan order: its usual, last and fastest time."""
     totals: dict[int, list[timedelta]] = {}
-    for timed in _timed(session, Workout.template_id.is_not(None)):
+    for timed in _timed(session, Workout.template_id.is_not(None), AS_PLANNED):
         assert timed.template_id is not None  # noqa: S101 - filtered above
         totals.setdefault(timed.template_id, []).append(timed.timing.total)
     templates = session.scalars(

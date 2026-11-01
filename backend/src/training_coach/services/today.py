@@ -39,7 +39,7 @@ from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
 from training_coach.services import blocks, equipment, retests, user_settings, users
 from training_coach.services.blocks import load_kit
-from training_coach.services.progress import last_loads, sessions_at_step
+from training_coach.services.progress import last_loads, planned_sets, sessions_at_step
 from training_coach.services.seed import bundled_plan
 
 
@@ -165,12 +165,12 @@ def _item_plan(
     # A loaded step's targets come from the sessions at the weight it last used: a heavier
     # weight starts from its own baseline, as a new ladder step does (ADR-0072).
     weight = top_weight(last)
-    history = [
-        v
-        for _, v in sessions_at_step(
-            session, item.exercise_id, plan.step.id, item.per_side, plan.history, weight
-        )
-    ]
+    done = sessions_at_step(
+        session, item.exercise_id, plan.step.id, item.per_side, plan.history, weight
+    )
+    history = [v for _, v in done]
+    # Sets a shorter day didn't plan are neither missed nor replayed (ADR-0084).
+    planned = planned_sets(session, item.exercise.slug, [w for w, _ in done])
     load = None
     if kit is not None:
         owned = owned_weights(kit, home_kit, increments)
@@ -185,7 +185,7 @@ def _item_plan(
         summary=summary(item.exercise.slug),
         slug=item.exercise.slug,
         per_side=item.per_side,
-        targets=targets(plan.prescription, history, pace),
+        targets=targets(plan.prescription, history, pace, planned),
         pair=item.pair,
         baseline=not history,
         muscles=found.muscles,

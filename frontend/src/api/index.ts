@@ -267,6 +267,27 @@ export async function choosePlace(
   return (await res.json()) as TodayView
 }
 
+export type Length = Schemas['LengthView']
+export type LengthBody = Schemas['LengthBody']
+
+/** Short on time today (ADR-0082): today's session at 40, 30 or 20 minutes, or as planned
+ * (``minutes`` null), never dropping the exercises in ``keep``. 'stale': the session changed,
+ * moved on elsewhere or has started (reload); a string: why it was refused. */
+export async function chooseLength(body: LengthBody): Promise<TodayView | 'stale' | string> {
+  const res = signedIn(
+    await fetch('/api/session/length', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) return 'stale'
+  if (res.status === 422) return "That length can't be used for this session."
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as TodayView
+}
+
 /** Keep where the person is. 'stale': another device moved on (reload). */
 export async function keepProgress(body: KeepBody): Promise<number | 'stale'> {
   const res = signedIn(
