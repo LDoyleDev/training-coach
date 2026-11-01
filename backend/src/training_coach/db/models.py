@@ -387,6 +387,7 @@ class UserSettings(Owned, Base):
     avoid_kneeling: Mapped[bool] = mapped_column(Boolean, server_default=false())
     avoid_impact: Mapped[bool] = mapped_column(Boolean, server_default=false())
     avoid_hanging: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    avoid_knees: Mapped[bool] = mapped_column(Boolean, server_default=false())  # #540
     # Minutes per session (ADR-0082): every trimmable session runs at this length unless the
     # day picks another; empty means as planned. The same 40, 30 or 20 as Short on time today.
     session_minutes: Mapped[int | None] = mapped_column(Integer)

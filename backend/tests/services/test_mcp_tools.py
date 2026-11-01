@@ -68,11 +68,16 @@ def test_no_read_tool_shows_the_talk_test_setting(session: Session) -> None:
 
 
 def test_no_read_tool_shows_what_the_person_avoids(session: Session) -> None:
-    """ADR-0083: the four preferences stay between the person and the app, even where they lock
+    """ADR-0083: the five preferences stay between the person and the app, even where they lock
     a step the AI reads about (every pull-up step hangs)."""
     apply_seed(session, load_plan())
     user_settings.update(
-        session, avoid_floor=True, avoid_kneeling=True, avoid_impact=True, avoid_hanging=True
+        session,
+        avoid_floor=True,
+        avoid_kneeling=True,
+        avoid_impact=True,
+        avoid_hanging=True,
+        avoid_knees=True,
     )
     session.flush()
     scopes = frozenset(s.value for s in Scope)
@@ -81,5 +86,6 @@ def test_no_read_tool_shows_what_the_person_avoids(session: Session) -> None:
         if tool.name in (mcp_tools.PROPOSE, "get_guide"):
             continue
         text = mcp_tools.run(session, tool, arguments.get(tool.name, {}), scopes, TODAY).lower()
-        for said in ("chosen", "avoid", "keep me off", "no kneeling", "no jumping", "no hanging"):
+        for said in (*("chosen", "avoid", "keep me off", "no kneeling", "no jumping"),
+                     *("no hanging", "easy on", "go easy", "knee bending")):  # fmt: skip
             assert said not in text, (tool.name, said)

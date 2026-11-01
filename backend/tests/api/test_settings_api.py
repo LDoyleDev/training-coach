@@ -76,6 +76,7 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "avoid_kneeling": False,
         "avoid_impact": False,
         "avoid_hanging": False,
+        "avoid_knees": False,
         "session_minutes": None,
         "paused": False,
         "timezone": "Europe/Berlin",
@@ -239,22 +240,24 @@ def test_the_talk_test_is_a_switch_asked_without_a_reason(
     assert signed_in.patch("/api/settings", json={"talk_test": False}).json()["talk_test"] is False
 
 
-AVOID = ("avoid_floor", "avoid_kneeling", "avoid_impact", "avoid_hanging")
+AVOID = ("avoid_floor", "avoid_kneeling", "avoid_impact", "avoid_hanging", "avoid_knees")
 
 
-def test_the_four_preferences_are_switches_asked_without_a_reason(
+def test_the_five_preferences_are_switches_asked_without_a_reason(
     signed_in: TestClient, engine: Engine
 ) -> None:
     """ADR-0083: "Keep me off the floor", "No kneeling", "No jumping or running", "No
-    hanging": only each switch is stored, no why, and one changes without touching the rest."""
+    hanging", "Easy on my knees" (#540): only each switch is stored, no why, and one changes
+    without touching the rest."""
     for name in AVOID:
         view = signed_in.patch("/api/settings", json={name: True}).json()
         assert view[name] is True
     stored = _stored(engine)
     assert (stored.avoid_floor, stored.avoid_kneeling, stored.avoid_impact) == (True,) * 3
-    assert stored.avoid_hanging is True
+    assert (stored.avoid_hanging, stored.avoid_knees) == (True, True)
+    assert stored.avoid == {Mark.FLOOR, Mark.KNEELING, Mark.IMPACT, Mark.HANGING, Mark.KNEES}
     view = signed_in.patch("/api/settings", json={"avoid_kneeling": False}).json()
-    assert [view[name] for name in AVOID] == [True, False, True, True]
+    assert [view[name] for name in AVOID] == [True, False, True, True, True]
     assert signed_in.patch("/api/settings", json={"avoid_floor": "bad knees"}).status_code == 422
 
 

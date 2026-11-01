@@ -26,6 +26,7 @@ const PREFS: MessageSettings = {
   avoid_kneeling: false,
   avoid_impact: false,
   avoid_hanging: false,
+  avoid_knees: false,
   session_minutes: null,
   paused: false,
   timezone: 'Europe/Berlin',
@@ -118,7 +119,7 @@ test('the talk test is a switch, asked without a reason (ADR-0083)', async () =>
   expect(screen.queryByText(/why|reason|condition/i)).not.toBeInTheDocument()
 })
 
-test('the four preferences are switches, asked without a reason (ADR-0083)', async () => {
+test('the five preferences are switches, asked without a reason (ADR-0083)', async () => {
   const sent = serve()
   render(<Settings />)
   const avoid = (await screen.findByRole('group', {
@@ -132,7 +133,7 @@ test('the four preferences are switches, asked without a reason (ADR-0083)', asy
   fireEvent.click(floor)
   expect(await within(avoid).findByText('Keep me off the floor: on.')).toBeVisible()
   expect(floor).toHaveAttribute('aria-pressed', 'true')
-  for (const name of ['No kneeling', 'No jumping or running', 'No hanging']) {
+  for (const name of ['No kneeling', 'No jumping or running', 'No hanging', 'Easy on my knees']) {
     expect(within(avoid).getByRole('button', { name: new RegExp(`^${name}`) })).toHaveAttribute(
       'aria-pressed',
       'false',
@@ -140,9 +141,16 @@ test('the four preferences are switches, asked without a reason (ADR-0083)', asy
   }
   fireEvent.click(within(avoid).getByRole('button', { name: /^No hanging/ }))
   expect(await within(avoid).findByText('No hanging: on.')).toBeVisible()
+  fireEvent.click(within(avoid).getByRole('button', { name: /^Easy on my knees/ }))
+  expect(await within(avoid).findByText('Easy on my knees: on.')).toBeVisible()
   fireEvent.click(floor)
   expect(await within(avoid).findByText('Keep me off the floor: off.')).toBeVisible()
-  expect(sent).toEqual([{ avoid_floor: true }, { avoid_hanging: true }, { avoid_floor: false }])
+  expect(sent).toEqual([
+    { avoid_floor: true },
+    { avoid_hanging: true },
+    { avoid_knees: true },
+    { avoid_floor: false },
+  ])
   expect(screen.queryByText(/why|reason|condition|balance/i)).not.toBeInTheDocument()
 })
 

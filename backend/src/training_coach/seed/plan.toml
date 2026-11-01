@@ -36,8 +36,10 @@
 # levels never fall going up a ladder. `[exercises.marks]` lists, for the steps that have any,
 # what a step asks of the body: "floor" (lying on it, or getting down to it), "kneeling" (weight
 # on a knee), "impact" (jumps or running, every way the step can be done), "hanging" (from a
-# bar), "balance" (on one leg, or balance work without a hold). The seed writes both on every
-# run, like cues. `failure_ok = true`: a last set to failure is safe on this exercise: isolation
+# bar), "balance" (on one leg, or balance work without a hold), "knees" (deep knee bending,
+# every way the step can be done: a loaded or full-depth squat, one leg below chair height, a
+# full-range split squat or lunge, a Nordic; not a squat to a chair, a low step or a bike). The
+# seed writes both on every run, like cues. `failure_ok = true`: a last set to failure is safe on this exercise: isolation
 # and stable ones, plus push-ups and pull-ups, which ADR-0084 names (stopping at the first rep that
 # isn't full); never jumps, swings, pistols, Nordics, loaded hinges, carries, neck work, ab
 # rollouts or Copenhagen planks. `range = [low, high]` (reps, seconds or minutes a set) is for an
@@ -194,9 +196,9 @@ ladder = ["Bodyweight, full rest", "Pause at bottom, then jump", "Holding 8 kg"]
 "Pause at bottom, then jump" = 5
 "Holding 8 kg" = 6
 [exercises.marks]
-"Bodyweight, full rest" = ["impact"]
-"Pause at bottom, then jump" = ["impact"]
-"Holding 8 kg" = ["impact"]
+"Bodyweight, full rest" = ["impact", "knees"]
+"Pause at bottom, then jump" = ["impact", "knees"]
+"Holding 8 kg" = ["impact", "knees"]
 
 [[exercises]]
 slug = "kb-swing"
@@ -268,12 +270,12 @@ renames = { "Heavier kettlebell" = "Goblet hold, 16 kg" }
 "Goblet hold 16 kg, 3 s lowering" = 6
 "Suitcase hold, 16 kg + 8 kg" = 6
 [exercises.marks]
-"Bodyweight, back foot on chair" = ["balance"]
-"Goblet hold, 8 kg" = ["balance"]
-"Goblet hold, 3 s lowering" = ["balance"]
-"Goblet hold, 16 kg" = ["balance"]
-"Goblet hold 16 kg, 3 s lowering" = ["balance"]
-"Suitcase hold, 16 kg + 8 kg" = ["balance"]
+"Bodyweight, back foot on chair" = ["balance", "knees"]
+"Goblet hold, 8 kg" = ["balance", "knees"]
+"Goblet hold, 3 s lowering" = ["balance", "knees"]
+"Goblet hold, 16 kg" = ["balance", "knees"]
+"Goblet hold 16 kg, 3 s lowering" = ["balance", "knees"]
+"Suitcase hold, 16 kg + 8 kg" = ["balance", "knees"]
 
 [[exercises]]
 slug = "pistol-squat"
@@ -299,9 +301,9 @@ ladder = ["Sit to chair on one leg", "Lower box", "Full pistol", "Holding 8 kg"]
 "Holding 8 kg" = 6
 [exercises.marks]
 "Sit to chair on one leg" = ["balance"]
-"Lower box" = ["balance"]
-"Full pistol" = ["balance"]
-"Holding 8 kg" = ["balance"]
+"Lower box" = ["balance", "knees"]
+"Full pistol" = ["balance", "knees"]
+"Holding 8 kg" = ["balance", "knees"]
 
 [[exercises]]
 slug = "single-leg-rdl"
@@ -360,8 +362,8 @@ ladder = ["Towel slide, both legs", "Towel slide, single leg", "Nordic curl nega
 [exercises.marks]
 "Towel slide, both legs" = ["floor"]
 "Towel slide, single leg" = ["floor"]
-"Nordic curl negatives" = ["floor", "kneeling"]
-"Full Nordic curl" = ["floor", "kneeling"]
+"Nordic curl negatives" = ["floor", "kneeling", "knees"]
+"Full Nordic curl" = ["floor", "kneeling", "knees"]
 
 [[exercises]]
 slug = "calf-raise"
@@ -1062,10 +1064,10 @@ ladder = ["Lean back about 30 degrees", "Lean deeper, 3 s lowering", "To the flo
 "To the floor, hands push you back" = 6
 "To the floor and back, no hands" = 6
 [exercises.marks]
-"Lean back about 30 degrees" = ["floor", "kneeling"]
-"Lean deeper, 3 s lowering" = ["floor", "kneeling"]
-"To the floor, hands push you back" = ["floor", "kneeling"]
-"To the floor and back, no hands" = ["floor", "kneeling"]
+"Lean back about 30 degrees" = ["floor", "kneeling", "knees"]
+"Lean deeper, 3 s lowering" = ["floor", "kneeling", "knees"]
+"To the floor, hands push you back" = ["floor", "kneeling", "knees"]
+"To the floor and back, no hands" = ["floor", "kneeling", "knees"]
 
 # ------------------------------------------------------------- conditioning
 
@@ -1303,6 +1305,8 @@ ladder = ["Barbell"]
 "Barbell" = "Brace before each rep; the bar stays over the middle of your feet."
 [exercises.levels]
 "Barbell" = 4
+[exercises.marks]
+"Barbell" = ["knees"]
 
 [[exercises]]
 slug = "leg-press"
@@ -2184,6 +2188,10 @@ retired = true
 "8 kg, 3 s lowering" = 4
 "1.5-rep squats, 8 kg" = 5
 "Heavier kettlebell" = 5
+[exercises.marks]
+"8 kg, 3 s lowering" = ["knees"]
+"1.5-rep squats, 8 kg" = ["knees"]
+"Heavier kettlebell" = ["knees"]
 
 [[exercises]]
 slug = "reverse-lunge"
@@ -2202,9 +2210,9 @@ per_side = true
 "Holding 8 kg" = 4
 "Deficit, holding 8 kg" = 5
 [exercises.marks]
-"Bodyweight" = ["balance"]
-"Holding 8 kg" = ["balance"]
-"Deficit, holding 8 kg" = ["balance"]
+"Bodyweight" = ["balance", "knees"]
+"Holding 8 kg" = ["balance", "knees"]
+"Deficit, holding 8 kg" = ["balance", "knees"]
 
 # ---------------------------------------------------------------- stretches (#98, ADR-0032)
 # Offered after a resistance session (10, 20 or 30 min). Static holds of about 30 s at a gentle
