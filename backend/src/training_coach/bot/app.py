@@ -391,7 +391,8 @@ class Handlers:
             return
         if press.action == "start":
             with session_scope(self.sessions) as session:
-                plan = session_plan(session, tid, blocks.current(session, on, self.settings.tz))
+                block = blocks.current(session, on, self.settings.tz)
+                plan = session_plan(session, tid, block, on=on)
                 shown = guided.at_length(session, on, plan) if plan is not None else None
             await query.answer()
             await reply(STALE if shown is None else session_detail_text(*shown))

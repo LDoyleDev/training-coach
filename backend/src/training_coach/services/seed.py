@@ -63,6 +63,8 @@ log = structlog.get_logger(__name__)
 
 SLUG = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 _PARK_OFFSET = 10_000
+# Loads only a gym carries: an exercise taking one isn't done away (ADR-0086).
+GYM_LOADS = frozenset({LoadKit.BARBELL, LoadKit.DUMBBELLS, LoadKit.MACHINE})
 
 
 class SeedError(RuntimeError):
@@ -229,11 +231,18 @@ class SessionSeed(_Strict):
     items: list[ItemSeed] = Field(min_length=1)
     # The gym version (ADR-0071); empty: done the same way at the gym.
     gym: list[ItemSeed] = Field(default_factory=list)
+    # The away version, with no equipment (ADR-0086); empty: Today doesn't offer Away.
+    away: list[ItemSeed] = Field(default_factory=list)
+
+    @property
+    def versions(self) -> tuple[ItemSeed, ...]:
+        """Every item of every version."""
+        return (*self.items, *self.gym, *self.away)
 
     @model_validator(mode="after")
     def _pairs(self) -> Self:
         """Each pair number marks exactly two items, next to each other, in each version."""
-        for version in (self.items, self.gym):
+        for version in (self.items, self.gym, self.away):
             numbers = [item.pair for item in version]
             for number in {n for n in numbers if n is not None}:
                 where = [i for i, n in enumerate(numbers) if n == number]
@@ -383,12 +392,12 @@ class PlanSeed(_Strict):
                     "which must be an exercise counted in minutes"
                 )
         retired = {e.slug for e in self.exercises if e.retired}
-        used = {i.exercise for s in self.sessions for i in (*s.items, *s.gym)}
+        used = {i.exercise for s in self.sessions for i in s.versions}
         ranged = sorted(e.slug for e in self.exercises if e.range is not None and e.slug in used)
         if ranged:
             raise ValueError(f"{ranged} have a range, but a session sets theirs")
         for session in self.sessions:
-            for item in (*session.items, *session.gym):
+            for item in session.versions:
                 if item.exercise not in known:
                     raise ValueError(f"session {session.slug}: unknown exercise {item.exercise}")
                 if item.exercise in retired:
@@ -396,7 +405,25 @@ class PlanSeed(_Strict):
                         f"session {session.slug} uses {item.exercise}, which is retired; "
                         "un-retire it or take it out of the session"
                     )
+        self._away_needs_no_kit()
         return self
+
+    def _away_needs_no_kit(self) -> None:
+        """An away version (ADR-0086) is done with no equipment: each exercise's first step
+        needs no kit and takes no load, so there is always a step to train, and none of its
+        steps takes a gym load (the gym catalogue's barbell, dumbbells and machines)."""
+        exercises = {e.slug: e for e in self.exercises}
+        for session in self.sessions:
+            for item in session.away:
+                exercise = exercises[item.exercise]
+                first = exercise.ladder[0]
+                if exercise.needs.get(first) or first in exercise.loads:
+                    raise ValueError(
+                        f"session {session.slug}: away, {item.exercise}'s first step "
+                        f"{first!r} needs kit"
+                    )
+                if set(exercise.loads.values()) & GYM_LOADS:
+                    raise ValueError(f"session {session.slug}: away, {item.exercise} is gym work")
 
 
 def load_plan(text: str | None = None) -> PlanSeed:
@@ -675,6 +702,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
             )
         _version(template.items, seed_session.items, exercises, result)
         _version(template.gym_items, seed_session.gym, exercises, result)
+        _version(template.away_items, seed_session.away, exercises, result)
     session.flush()
 
     _apply_versions(session, plan, result)

@@ -22,6 +22,7 @@ const item = (slug: string, name: string, pair: number | null, targets: number[]
   pair,
   targets,
   baseline: false,
+  no_kit: false,
   muscles: [],
   parts: [],
   last_set_amrap: false,

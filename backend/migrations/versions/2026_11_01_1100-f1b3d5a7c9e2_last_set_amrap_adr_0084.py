@@ -4,8 +4,8 @@ One switch, off for everyone: no last set runs as many good reps as you can unti
 turns it on. No data changes. Downgrading drops the column, and with it what each person set.
 
 Revision ID: f1b3d5a7c9e2
-Revises: e5a7c9d1f3b4
-Create Date: 2026-10-31 15:00:00.000000
+Revises: a7c2e9f4b1d3
+Create Date: 2026-11-01 11:00:00.000000
 
 """
 
@@ -16,7 +16,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "f1b3d5a7c9e2"
-down_revision: str | Sequence[str] | None = "e5a7c9d1f3b4"
+down_revision: str | Sequence[str] | None = "a7c2e9f4b1d3"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

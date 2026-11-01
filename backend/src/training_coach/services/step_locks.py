@@ -12,9 +12,10 @@ from training_coach.domain.step_levels import Mark
 from training_coach.services import equipment, user_settings
 
 
-def limits(session: Session, *, at_gym: bool = False) -> Limits:
-    """This person's limits. A gym has every kit (ADR-0071); what they avoid goes with them."""
-    kit = None if at_gym else equipment.kit(session)
+def limits(session: Session, *, at_gym: bool = False, away: bool = False) -> Limits:
+    """This person's limits. A gym has every kit (ADR-0071), away none (ADR-0086); what they
+    avoid goes with them."""
+    kit = None if at_gym else [] if away else equipment.kit(session)
     return Limits(kit, user_settings.load(session).avoid)
 
 
@@ -28,12 +29,13 @@ def ladder(exercise: Exercise) -> list[Asks]:
     return [Asks(n, _marks(r)) for r, n in zip(exercise.ladder, needs, strict=True)]
 
 
-def step_lock(session: Session, step: LadderStep) -> Lock:
-    """Why one step is locked for this person, at home; open when nothing locks it."""
+def step_lock(session: Session, step: LadderStep, *, away: bool = False) -> Lock:
+    """Why one step is locked for this person, at home (or away, with no kit: ADR-0086); open
+    when nothing locks it."""
     needs = equipment.step_needs(step.exercise.slug).get(step.name, [])
-    return locks.lock(Asks(needs, _marks(step)), limits(session))
+    return locks.lock(Asks(needs, _marks(step)), limits(session, away=away))
 
 
-def warning(session: Session, step: LadderStep) -> str | None:
+def warning(session: Session, step: LadderStep, *, away: bool = False) -> str | None:
     """A locked step chosen by hand, in words; None when it is open."""
-    return locks.warning(step.name, step_lock(session, step))
+    return locks.warning(step.name, step_lock(session, step, away=away))

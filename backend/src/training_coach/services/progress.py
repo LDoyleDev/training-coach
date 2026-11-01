@@ -330,9 +330,10 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
     for row in sorted(workout.sets, key=lambda s: s.id):
         logged.setdefault((row.exercise_id, row.ladder_step_id), None)
 
-    # Kit locks apply at home only: a gym has everything (ADR-0071). What the person avoids
-    # applies anywhere (ADR-0083).
-    limits = step_locks.limits(session, at_gym=workout.place != Place.HOME)
+    # Kit locks apply except at a gym, which has everything (ADR-0071): after an away day a
+    # Move up is still a lasting change at home (ADR-0086). What the person avoids applies
+    # anywhere (ADR-0083).
+    limits = step_locks.limits(session, at_gym=workout.place == Place.GYM)
     result = []
     for exercise_id, step_id in logged:
         exercise = session.get(Exercise, exercise_id)
@@ -667,7 +668,8 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
         block = history_kind(ExerciseKind(exercise.kind), BlockKind.HYPERTROPHY)
         done = sessions_at_step(session, exercise_id, step.id, per_side, block)
         history = [v for _, v in done]
-        trained = [i for i in items if gym or i.place == Place.HOME]
+        # An away version is a day's exception (ADR-0086): its exercises show once logged.
+        trained = [i for i in items if i.place == Place.HOME or (gym and i.place == Place.GYM)]
         if (exercise.retired or not trained) and not history:
             # Nothing to show for an exercise no longer trained (#107), or one in no session
             # the person trains and never logged: only at the gym, for someone who trains at
