@@ -248,7 +248,9 @@ export default function Settings() {
       </p>
       <p className="m-0 text-sm text-[var(--slate)]">
         Cardio effort then shows as how well you can talk: easy, you can sing; moderate, full
-        sentences; hard, only a few words. Your logs and totals stay the same.
+        sentences; hard, only a few words. Your logs and totals stay the same. Heart rate can be a
+        poor guide for some people, for example with some heart medicines or heart rhythms. The talk
+        test works for everyone.
       </p>
       {toggle('talk', prefs.talk_test, ['Use the talk test', 'Use heart-rate zones'], {
         talk_test: !prefs.talk_test,

@@ -45,6 +45,15 @@ function within(question: string, value: 'Yes' | 'No'): HTMLElement {
   return radio.querySelector('input') as HTMLElement
 }
 
+test('the intro suggests a doctor and leaves the choice to you, with no clearance', async () => {
+  serve(DUE)
+  render(<ReadinessPage />)
+  expect(await screen.findByText(/A "yes" never stops you/)).toHaveTextContent(
+    'we suggest talking to a doctor first. You decide.',
+  )
+  expect(screen.queryByText(/hard efforts are fine|doctor should say/)).not.toBeInTheDocument()
+})
+
 test('saving needs every question answered, then says what the answers mean', async () => {
   const sent = serve(DUE, 'see_doctor')
   render(<ReadinessPage />)

@@ -130,3 +130,32 @@ ADR-0046 stores readiness answers on the server (`readiness_answers`) as consent
   signals, as Cloudflare advises for compliance uses.
 - **Travel:** a member outside Europe loses the website. The bot and their AI keep working for
   30 days after the last visit from Europe.
+
+## Addendum (2026-11-01): the safety wording checked against European sources
+
+`any-level-research.md` Part 5 checks every live safety line against European and public-health
+sources (ESC 2020, the UK 2022 consensus, PAR-Q+ 2025, EuropeActive, the Irish Heart Foundation,
+the Herzstiftung, NHS) and lists what the clinician and the lawyer must still check. It confirms
+this decision's approach. EuropeActive's standards name no questionnaire, and "cleared" is
+PAR-Q+'s own word, one more reason to keep our own questions and never call them PAR-Q.
+
+Live now, in `frontend/src/session/safety.ts` unless named:
+
+- **Stop signs:** chest pain on its own, with "Call 112 straight away if it's severe, or if it
+  hasn't gone after 5 minutes of rest. Don't drive yourself."; faint, dizzy, breathless, racing
+  heart or sight; sharp joint or muscle pain; dark urine, "Get medical help the same day"; a
+  fever or feeling ill; pregnancy signs, shown to everyone. A "what's normal" line before them
+  and "You know your body best: if something feels wrong, stop." after.
+- **One reminder line**, the same on the session page, the tests page and the bot, naming 112,
+  with "All stop signs" on the web.
+- **Talk test:** "Moderate: … but not sing"; a neutral line in the explainer that heart rate can
+  mislead with some heart medicines or rhythms, with no question attached.
+- **No "safe":** the last set is "On exercises suited to it".
+- **No clearance:** the ADR-0046 readiness page intro says "we suggest talking to a doctor first.
+  You decide."
+- **The intended-purpose statement** on Account, About.
+- **The daily check's rest advice** says to rest, not walk, with a fever or feeling ill.
+
+The gate intro, the three notes, the lines shown with every note, the hard-day line, the Q8
+clarifier and the AI prompt and guide lines are written in Part 5 for this ADR's on-device build,
+and change only with it.

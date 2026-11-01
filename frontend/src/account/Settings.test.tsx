@@ -120,6 +120,8 @@ test('the talk test is a switch, asked without a reason (ADR-0083)', async () =>
   expect(await screen.findByText('Use the talk test, not heart-rate zones: off')).toBeVisible()
   expect(sent).toEqual([{ talk_test: true }, { talk_test: false }])
   expect(screen.queryByText(/why|reason|condition/i)).not.toBeInTheDocument()
+  // One neutral line says when heart rate misleads, with no question attached (ESC 2020).
+  expect(screen.getByText(/some heart medicines or heart rhythms/)).toBeVisible()
 })
 
 test('the five preferences are switches, asked without a reason (ADR-0083)', async () => {
@@ -162,7 +164,7 @@ test('the last set of as many good reps as you can is a switch, off by default (
   render(<Settings />)
   expect(await screen.findByText('Last set: as many good reps as you can. Off.')).toBeVisible()
   expect(
-    screen.getByText("On exercises where it's safe. Stop at the first rep that isn't clean."),
+    screen.getByText("On exercises suited to it. Stop at the first rep that isn't clean."),
   ).toBeVisible()
   fireEvent.click(button('Turn the last set on'))
   expect(await screen.findByText('Last set: as many good reps as you can. On.')).toBeVisible()
