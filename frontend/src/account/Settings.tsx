@@ -8,6 +8,7 @@ import {
 } from '../api'
 import { type Sound, playChange, unlockAudio } from '../hiit/sounds'
 import { card, primaryInline, secondary } from '../ui'
+import { LAST_SET, LAST_SET_LINE, LAST_SET_LOCKED } from '../session/safety'
 
 type TimeKey = 'morning_time' | 'nudge_time' | 'review_time'
 type Pace = MessageSettings['pace']
@@ -280,6 +281,32 @@ export default function Settings() {
         ))}
         {noteAt('avoid')}
       </fieldset>
+      <p className="m-0">
+        {LAST_SET}. {prefs.last_set_amrap ? 'On' : 'Off'}.
+      </p>
+      <p className="m-0 text-sm text-[var(--slate)]">{LAST_SET_LINE}</p>
+      {prefs.last_set_locked && !prefs.last_set_amrap ? (
+        <p className="m-0 font-bold">{LAST_SET_LOCKED}</p>
+      ) : (
+        <div className={row}>
+          <button
+            type="button"
+            className={secondary}
+            disabled={busy}
+            onClick={() =>
+              save(
+                'last-set',
+                { last_set_amrap: !prefs.last_set_amrap },
+                'Saved.',
+                `${LAST_SET_LOCKED}.`,
+              )
+            }
+          >
+            {prefs.last_set_amrap ? 'Turn the last set off' : 'Turn the last set on'}
+          </button>
+          {noteAt('last-set')}
+        </div>
+      )}
 
       <form className={row} onSubmit={saveProtein}>
         <label htmlFor="protein" className="basis-full font-bold">

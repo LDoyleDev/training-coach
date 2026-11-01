@@ -2413,6 +2413,11 @@
               }
             ]
           },
+          "last_set_amrap": {
+            "default": false,
+            "title": "Last Set Amrap",
+            "type": "boolean"
+          },
           "level": {
             "anyOf": [
               {
@@ -2935,7 +2940,7 @@
         "type": "object"
       },
       "LengthView": {
-        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.",
+        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.\n``last_set``: the person's last-set option (ADR-0084), offered here with a shorter day;\nempty when it isn't offered: locked while they are new, or no exercise today it applies to.",
         "properties": {
           "dropped": {
             "items": {
@@ -2958,6 +2963,17 @@
             },
             "title": "Keep",
             "type": "array"
+          },
+          "last_set": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Set"
           },
           "minutes": {
             "anyOf": [
@@ -5984,6 +6000,17 @@
               }
             ]
           },
+          "last_set_amrap": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Set Amrap"
+          },
           "morning_time": {
             "anyOf": [
               {
@@ -6169,6 +6196,14 @@
           "increments": {
             "$ref": "#/components/schemas/IncrementsView"
           },
+          "last_set_amrap": {
+            "title": "Last Set Amrap",
+            "type": "boolean"
+          },
+          "last_set_locked": {
+            "title": "Last Set Locked",
+            "type": "boolean"
+          },
           "morning_time": {
             "title": "Morning Time",
             "type": "string"
@@ -6260,6 +6295,8 @@
           "avoid_hanging",
           "avoid_knees",
           "session_minutes",
+          "last_set_amrap",
+          "last_set_locked",
           "paused",
           "timezone"
         ],

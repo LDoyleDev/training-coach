@@ -973,7 +973,8 @@ export async function fetchSettings(signal?: AbortSignal): Promise<MessageSettin
   return (await res.json()) as MessageSettings
 }
 
-/** Change only what's given. 'invalid': the server refused a value (as the bot would). */
+/** Change only what's given. 'invalid': the server refused a value (as the bot would), or a
+ * change it doesn't allow yet (409: the last set while locked, ADR-0084). */
 export async function saveSettings(change: SettingsChange): Promise<MessageSettings | 'invalid'> {
   const res = signedIn(
     await fetch('/api/settings', {
@@ -983,7 +984,7 @@ export async function saveSettings(change: SettingsChange): Promise<MessageSetti
       body: JSON.stringify(change),
     }),
   )
-  if (res.status === 422) return 'invalid'
+  if (res.status === 422 || res.status === 409) return 'invalid'
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as MessageSettings
 }

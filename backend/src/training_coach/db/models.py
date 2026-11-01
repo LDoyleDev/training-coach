@@ -412,6 +412,8 @@ class UserSettings(Owned, Base):
     # Minutes per session (ADR-0082): every trimmable session runs at this length unless the
     # day picks another; empty means as planned. The same 40, 30 or 20 as Short on time today.
     session_minutes: Mapped[int | None] = mapped_column(Integer)
+    # Last set: as many good reps as you can, where it's safe (ADR-0084). Off unless turned on.
+    last_set_amrap: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

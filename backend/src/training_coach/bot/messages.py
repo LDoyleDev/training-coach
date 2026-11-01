@@ -38,6 +38,8 @@ PLACE_LINES = {
     Place.AWAY: "Away, no equipment: its no-equipment version.",
 }
 NO_KIT = "No-equipment step today for {names}: your level stays as it is."
+# A last set of as many good reps as you can (ADR-0084); brackets read back as a note.
+AS_MANY = " (last set: as many as you can)"
 
 
 def work_list(items: tuple[ItemPlan, ...]) -> list[str]:
@@ -54,7 +56,8 @@ def work_list(items: tuple[ItemPlan, ...]) -> list[str]:
             number += 1
             target = f"{item.targets[set_no - 1]}{UNIT[item.kind]}"
             side = " per side" if item.per_side else ""
-            lines.append(f"{number}. {item.exercise} ({item.step}): {target}{side}")
+            amrap = AS_MANY if item.last_set_amrap and set_no == len(item.targets) else ""
+            lines.append(f"{number}. {item.exercise} ({item.step}): {target}{side}{amrap}")
     return lines
 
 

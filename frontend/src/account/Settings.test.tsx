@@ -28,11 +28,13 @@ const PREFS: MessageSettings = {
   avoid_hanging: false,
   avoid_knees: false,
   session_minutes: null,
+  last_set_amrap: false,
+  last_set_locked: false,
   paused: false,
   timezone: 'Europe/Berlin',
 }
 
-type Patch = 'ok' | 'invalid' | 'fail' | 'signed-out'
+type Patch = 'ok' | 'invalid' | 'locked' | 'fail' | 'signed-out'
 
 /** A fake API: GET answers ``prefs``; PATCH merges what was sent, or refuses. */
 function serve(prefs: MessageSettings | 'error' = PREFS, patch: Patch = 'ok') {
@@ -45,6 +47,7 @@ function serve(prefs: MessageSettings | 'error' = PREFS, patch: Patch = 'ok') {
         const change = JSON.parse(String(init.body)) as Record<string, unknown>
         sent.push(change)
         if (patch === 'invalid') return new Response(null, { status: 422 })
+        if (patch === 'locked') return new Response(null, { status: 409 })
         if (patch === 'fail') return new Response(null, { status: 500 })
         if (patch === 'signed-out') return new Response(null, { status: 401 })
         const { blocks, protein_g, ...rest } = change
@@ -152,6 +155,34 @@ test('the five preferences are switches, asked without a reason (ADR-0083)', asy
     { avoid_floor: false },
   ])
   expect(screen.queryByText(/why|reason|condition|balance/i)).not.toBeInTheDocument()
+})
+
+test('the last set of as many good reps as you can is a switch, off by default (ADR-0084)', async () => {
+  const sent = serve()
+  render(<Settings />)
+  expect(await screen.findByText('Last set: as many good reps as you can. Off.')).toBeVisible()
+  expect(
+    screen.getByText("On exercises where it's safe. Stop at the first rep that isn't clean."),
+  ).toBeVisible()
+  fireEvent.click(button('Turn the last set on'))
+  expect(await screen.findByText('Last set: as many good reps as you can. On.')).toBeVisible()
+  fireEvent.click(button('Turn the last set off'))
+  expect(await screen.findByText('Last set: as many good reps as you can. Off.')).toBeVisible()
+  expect(sent).toEqual([{ last_set_amrap: true }, { last_set_amrap: false }])
+})
+
+test('the last set is locked for the first 8 weeks', async () => {
+  serve({ ...PREFS, last_set_locked: true })
+  render(<Settings />)
+  expect(await screen.findByText('Available after your first 8 weeks')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Turn the last set on' })).not.toBeInTheDocument()
+})
+
+test('a refused last set says when it opens', async () => {
+  serve(PREFS, 'locked')
+  render(<Settings />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Turn the last set on' }))
+  expect(await screen.findByText('Available after your first 8 weeks.')).toBeVisible()
 })
 
 test('the pace is one of three, with a line saying what each means', async () => {

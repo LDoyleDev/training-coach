@@ -40,7 +40,12 @@ from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
 from training_coach.services import blocks, equipment, retests, user_settings, users
 from training_coach.services.blocks import load_kit
-from training_coach.services.progress import last_loads, planned_sets, sessions_at_step
+from training_coach.services.progress import (
+    failure_sets,
+    last_loads,
+    planned_sets,
+    sessions_at_step,
+)
 from training_coach.services.seed import bundled_plan
 
 
@@ -67,6 +72,10 @@ class ItemPlan:
     step_id: int = 0  # the ladder step trained, for changing it in the session (ADR-0080)
     # Away, below the person's level: their step needs kit, so today's needs none (ADR-0086).
     no_kit: bool = False
+    # The catalogue allows a last set of as many good reps as you can (ADR-0084), and the day
+    # has one: the last of ``targets`` is its floor.
+    failure_ok: bool = False
+    last_set_amrap: bool = False
 
 
 @dataclass(frozen=True)
@@ -184,7 +193,10 @@ def _item_plan(
     )
     history = [v for _, v in done]
     # Sets a shorter day didn't plan are neither missed nor replayed (ADR-0084).
-    planned = planned_sets(session, item.exercise.slug, [w for w, _ in done])
+    ids = [w for w, _ in done]
+    planned = planned_sets(session, item.exercise.slug, ids)
+    # A last set of as many as you can counts as its target met for its next one (ADR-0084).
+    failure = failure_sets(session, item.exercise.slug, ids)
     load = None
     if kit is not None:
         owned = owned_weights(kit, home_kit, increments)
@@ -199,7 +211,7 @@ def _item_plan(
         summary=summary(item.exercise.slug),
         slug=item.exercise.slug,
         per_side=item.per_side,
-        targets=targets(plan.prescription, history, pace, planned),
+        targets=targets(plan.prescription, history, pace, planned, failure),
         pair=item.pair,
         baseline=not history,
         muscles=found.muscles,
@@ -207,6 +219,7 @@ def _item_plan(
         load=load,
         step_id=plan.step.id,
         no_kit=plan.no_kit,
+        failure_ok=item.exercise.failure_ok,
     )
 
 
