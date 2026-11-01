@@ -248,13 +248,14 @@ first, levels in brackets; **bold** is today's bottom step. Level-1 ranges start
 | Cardio | Easy walk, can be split into short bouts (1); bike or seated stepping (1-3, knee-friendly); interval walk from 2 rounds (2-3); **brisk walk** (2) |
 
 **Built (#507):** the entry exercises above, in no session yet; the squat and the low steps of
-existing ladders come with the migration (#508). The neck has no level 1-2 step: the draft's
-seated hand-resistance hold (B2) is the candidate.
+existing ladders come with the migration (#508). The neck had no level 1-2 step: the draft's
+seated hand-resistance hold (B2) was the candidate, and #508 adds it (Liam, 1 Nov 2026).
 
-**Built (#508):** migration `5ebed72122f7` puts the lower steps below twelve ladders (push-up,
+**Built (#508):** migration `5ebed72122f7` puts the lower steps below fifteen ladders (push-up,
 side plank hip dip, kettlebell row, pull-up, calf raise, suitcase carry, curl, lateral raise,
-split squat, Copenhagen plank, back extension, zone 2) and brings back the Squat; ADR-0083's
-second addendum lists what was left out and why.
+split squat, Copenhagen plank, back extension, zone 2, and a seated hand-resistance hold below
+neck flexion, extension and side bend) and brings back the Squat; ADR-0083's second addendum
+lists what was left out and why.
 
 Neck work stays out of the starting starters. For people 65 and over the walk-through suggests
 a daily 10-minute balance and sit-to-stand "snack" (WHO: 3 days or more; Sherrington 2019: the

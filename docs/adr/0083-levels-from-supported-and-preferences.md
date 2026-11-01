@@ -117,7 +117,7 @@ moved a step yet: `b7e1c3d5f9a2` deleted two unused top steps. A walk-through as
 
 ## Addendum (31 Oct 2026): the migration as built (#508)
 
-- **One migration, `5ebed72122f7`,** moves twelve ladders and the Squat; the steps, levels and
+- **One migration, `5ebed72122f7`,** moves fifteen ladders and the Squat; the steps, levels and
   marks are hard-coded in it and plan.toml matches them (a test holds both). The Squat is the
   retired `goblet-squat`, un-retired and renamed, with eight sit-to-stand steps below its goblet
   steps; "Fast up, slow down" is in its cues from "arms crossed" on.
@@ -133,5 +133,9 @@ moved a step yet: `b7e1c3d5f9a2` deleted two unused top steps. A walk-through as
   is unchanged. The cardio row's bike or seated stepping is a mode of zone 2's easy walk.
 - **Exercise names stay** ("Single-leg calf raise", "Bulgarian split squat", "One-arm kettlebell
   row", "Kettlebell curl", "Kettlebell lateral raise") although their new bottom steps aren't
-  that: renaming is the seed's job and needs no migration, so it can follow on its own.
-- **The way-in rule's waiting list is empty;** only the neck has no level 1-2 step.
+  that: renaming is the seed's job and needs no migration, so it can follow on its own. The
+  same goes for the neck exercises' "(lying ..., head off edge)".
+- **A seated way in for the neck** (Liam, 1 Nov 2026): "Seated, hand resistance, held" (1) below
+  the lying bottom step of neck flexion, extension and side bend: the head pressed gently into
+  the hand and held 5 s, each hold one rep. The way-in rule now holds for every muscle, with no
+  waiting list.
