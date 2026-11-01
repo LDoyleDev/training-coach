@@ -89,7 +89,7 @@ def test_sessions_in_the_period_with_their_sets(plan: Session) -> None:
     _log(plan, "dips 10 9", TODAY - timedelta(weeks=6))  # outside 4 weeks
     recent = _section(summary(plan, TODAY, Options(weeks=4)), "## Sessions")
     assert f"- {TODAY.isoformat()}" in recent
-    assert "Bulgarian split squat" in recent
+    assert "Split squat (Bodyweight, back foot on chair)" in recent
     assert "left 8 / 8; right 8 / 8" in recent  # split squat 8 8: each set both sides
     assert "Dip" not in recent
     assert "10 / 9" in _section(summary(plan, TODAY, Options(weeks=None)), "## Sessions")

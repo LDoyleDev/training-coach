@@ -75,7 +75,7 @@ def test_a_shorter_day_names_what_it_drops_and_a_reload_keeps_it(signed_in: Test
         "ramp",
     )
     assert length["dropped"] == [
-        "Single-leg calf raise",
+        "Calf raise",
         "Tibialis raise",
         "Single-leg Romanian deadlift",  # with the hamstring curl kept, it covers the hamstrings
         "Pistol squat",
