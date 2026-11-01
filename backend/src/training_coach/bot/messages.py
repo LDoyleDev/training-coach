@@ -9,7 +9,7 @@ from training_coach.domain.habits import WEEK_DAYS
 from training_coach.domain.load import kg_text, weights_text
 from training_coach.domain.parser import sets_text
 from training_coach.domain.progression import Progress
-from training_coach.domain.trim import WARM_UP_MINUTES, WarmUp
+from training_coach.domain.trim import TEST_DAY_WARM_UP_MINUTES, WARM_UP_MINUTES, WarmUp
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
 from training_coach.services.guided import OPTIONS, Length, work_groups
 from training_coach.services.progress import NO_OPEN_STEP, Down, Feedback, Standing
@@ -72,6 +72,8 @@ def _joined(words: list[str], last: str = "and") -> str:
 
 
 WARM_UP = f"Warm up for about {WARM_UP_MINUTES} minutes first."
+# A test day's maximum efforts get the longer warm-up (J.4, Liam, 1 Nov 2026).
+TEST_DAY_WARM_UP = f"Warm up for about {TEST_DAY_WARM_UP_MINUTES} minutes first."
 RAMP = "Warm up with one or two easy sets of the first exercise."  # 30 minutes or less
 # Shown with every session and test day (legal review): safety is design and warnings.
 STOP = "Stop if you feel sharp pain, dizziness or chest tightness."
@@ -181,7 +183,7 @@ def test_day_text(today: Today, where: str) -> str:
     lines = [
         f"Today: {test.name}",
         ", ".join(test.tests) + ".",
-        WARM_UP,
+        TEST_DAY_WARM_UP,
         STOP,
         "Do them in order and rest as long as you need between them.",
         f"Enter the results in the app: {where}",

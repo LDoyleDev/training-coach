@@ -3,6 +3,7 @@ from datetime import date
 
 import pytest
 
+from training_coach.bot import messages
 from training_coach.bot.messages import (
     log_saved_text,
     rest_text,
@@ -13,6 +14,7 @@ from training_coach.bot.messages import (
 )
 from training_coach.domain.blocks import Block, BlockKind
 from training_coach.domain.enums import ExerciseKind, Place
+from training_coach.services import retests
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.today import Day, ItemPlan, SessionPlan, Today
 
@@ -58,6 +60,17 @@ def test_work_list_alternates_pairs_with_a_gap_between_groups() -> None:
         "6. Hang (Knees): 30s",
         "7. Hang (Knees): 40s",
     ]
+
+
+def test_a_test_day_warms_up_for_10_minutes_and_a_session_for_5() -> None:
+    """Test days are maximum efforts: 10 minutes; every other day keeps 5 (J.4, 1 Nov 2026)."""
+    session = SessionPlan(7, "Arms", "Accessories", False, (_item(ExerciseKind.REPS, (8,)),))
+    test = retests.TestDayDue(1, "Retest, day 1", ("Push-ups", "Plank"))
+    text = messages.test_day_text(Today(session, (), test_day=test), "the Tests tab")
+    lines = text.splitlines()
+    assert "Warm up for about 10 minutes first." in lines
+    assert "Warm up for about 5 minutes first." not in lines
+    assert "Warm up for about 5 minutes first." in today_text(Today(session, ())).splitlines()
 
 
 def test_today_text_lists_exercises_and_notes() -> None:
