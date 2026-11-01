@@ -191,3 +191,19 @@ the account, and is never shown on Telegram or over MCP.
 - **Left for #508 (PR #534):** its new steps need their marks once it lands: on the Bulgarian
   split squat "Holding a chair, full range" and "Back foot on a low step", and on the Squat "A
   lower seat, arms crossed" (if lower than a chair) and "Full depth".
+
+## Addendum (1 Nov 2026): follow-ups to the lower ladders (#545)
+
+- **Knees marks on #534's steps:** the Split squat's "Holding a chair, full range" and "Back
+  foot on a low step" (full range, the back knee just off the floor), and the Squat's "Full
+  depth" (no chair), with its goblet steps already marked. Its chair-height steps stay open,
+  "A lower seat, arms crossed" too: both feet, sitting down to a sofa or low stool, not one leg
+  below chair height. The seed writes marks on every run, so the migration's own marks are only
+  where these steps began.
+- **Names that fit the new bottoms:** "Split squat", "Calf raise", "One-arm row", "Curl",
+  "Lateral raise", "Neck flexion", "Neck extension" and "Neck side bend". Slugs stay; each old
+  name is an alias, so typed and spoken logs and lines copied from old messages still parse.
+  The neck's lying step names its position in a cue now that the exercise's name doesn't.
+- **The Squat's "Heavier kettlebell" keeps its name,** with a cue naming the 16 kg bell:
+  `5ebed72122f7`'s downgrade checks the ladder it left by name, so renaming the step in the seed
+  would make it refuse on every seeded database. A later migration can rename it.
