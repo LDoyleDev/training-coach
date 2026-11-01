@@ -502,14 +502,20 @@ def test_the_talk_test_setting_is_never_shown_in_telegram() -> None:
 
 
 def test_what_the_person_avoids_is_never_shown_in_telegram(session: Session) -> None:
-    """ADR-0083: the four preferences are on the web's Account page only. /settings never shows
+    """ADR-0083: the five preferences are on the web's Account page only. /settings never shows
     them, and /progress says no reason when they lock every step above (all pull-ups hang)."""
-    every = Prefs(avoid_floor=True, avoid_kneeling=True, avoid_impact=True, avoid_hanging=True)
+    every = Prefs(
+        avoid_floor=True,
+        avoid_kneeling=True,
+        avoid_impact=True,
+        avoid_hanging=True,
+        avoid_knees=True,
+    )
     keyboard = settings_ui.keyboard(every)
     shown = " ".join(
         [settings_ui.text(every), *(b.text for row in keyboard.inline_keyboard for b in row)]
     ).lower()
-    for said in ("avoid", "floor", "kneel", "jump", "running", "hang"):
+    for said in ("avoid", "floor", "kneel", "knee", "jump", "running", "hang", "easy"):
         assert said not in shown, said
     apply_seed(session, load_plan())
     user_settings.update(session, avoid_hanging=True)

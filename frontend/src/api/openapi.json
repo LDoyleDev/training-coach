@@ -5944,6 +5944,17 @@
             ],
             "title": "Avoid Kneeling"
           },
+          "avoid_knees": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avoid Knees"
+          },
           "blocks": {
             "anyOf": [
               {
@@ -6156,6 +6167,10 @@
             "title": "Avoid Kneeling",
             "type": "boolean"
           },
+          "avoid_knees": {
+            "title": "Avoid Knees",
+            "type": "boolean"
+          },
           "blocks_since": {
             "anyOf": [
               {
@@ -6278,6 +6293,7 @@
           "avoid_kneeling",
           "avoid_impact",
           "avoid_hanging",
+          "avoid_knees",
           "session_minutes",
           "last_set_amrap",
           "last_set_locked",

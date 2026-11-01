@@ -42,6 +42,7 @@ class Prefs:
     avoid_kneeling: bool = False  # "No kneeling"
     avoid_impact: bool = False  # "No jumping or running"
     avoid_hanging: bool = False  # "No hanging"
+    avoid_knees: bool = False  # "Easy on my knees" (#540)
 
     @property
     def avoid(self) -> frozenset[Mark]:
@@ -51,6 +52,7 @@ class Prefs:
             Mark.KNEELING: self.avoid_kneeling,
             Mark.IMPACT: self.avoid_impact,
             Mark.HANGING: self.avoid_hanging,
+            Mark.KNEES: self.avoid_knees,
         }
         return frozenset(mark for mark, on in chosen.items() if on)
 
@@ -104,6 +106,7 @@ def load(session: Session) -> Prefs:
         row.avoid_kneeling,
         row.avoid_impact,
         row.avoid_hanging,
+        row.avoid_knees,
         row.session_minutes,
         row.last_set_amrap,
     )
@@ -133,6 +136,7 @@ def update(
     avoid_kneeling: bool | None = None,
     avoid_impact: bool | None = None,
     avoid_hanging: bool | None = None,
+    avoid_knees: bool | None = None,
     session_minutes: int | None = None,
     clear_session_minutes: bool = False,
     last_set_amrap: bool | None = None,
@@ -174,6 +178,7 @@ def update(
         avoid_kneeling=old.avoid_kneeling if avoid_kneeling is None else avoid_kneeling,
         avoid_impact=old.avoid_impact if avoid_impact is None else avoid_impact,
         avoid_hanging=old.avoid_hanging if avoid_hanging is None else avoid_hanging,
+        avoid_knees=old.avoid_knees if avoid_knees is None else avoid_knees,
         session_minutes=None
         if clear_session_minutes
         else old.session_minutes
@@ -217,6 +222,7 @@ def update(
         "avoid_kneeling": avoid_kneeling,
         "avoid_impact": avoid_impact,
         "avoid_hanging": avoid_hanging,
+        "avoid_knees": avoid_knees,
     }
     changes |= {name: on for name, on in avoided.items() if on is not None}
     if session_minutes is not None or clear_session_minutes:
@@ -252,6 +258,7 @@ def update(
     row.avoid_kneeling = prefs.avoid_kneeling
     row.avoid_impact = prefs.avoid_impact
     row.avoid_hanging = prefs.avoid_hanging
+    row.avoid_knees = prefs.avoid_knees
     row.session_minutes = prefs.session_minutes
     row.last_set_amrap = prefs.last_set_amrap
     if prefs != old:  # a repeated press changes nothing and logs nothing
