@@ -75,5 +75,5 @@ Sessions are still one shared plan until builder step 5 (ADR-0073), so a third v
   version and `done_at` to home for a session without one, as for the gym.
 - The guided view lists the places on offer (`places`) and marks each item trained at a
   no-equipment step (`no_kit`); the bot's texts gain the place line.
-- The away versions and their reasons are in the PR that adds them, for Liam's review; new
-  entry exercises need their figures before they're offered (ADR-0063).
+- The away versions and their reasons are in `docs/specs/program-builder.md` (M), for Liam's
+  review; the new door-frame row and curl need their figures (ADR-0063).
