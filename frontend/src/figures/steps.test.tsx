@@ -128,6 +128,15 @@ const SAME: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   },
   'adductor-squeeze': { 'Seated pillow squeeze, 5 s hold': 'the figure' },
   'standing-leg-curl': { 'At the counter': 'the figure' },
+  // The away versions' door-frame pulls (away.ts).
+  'doorway-row': {
+    'Leaning back, feet at the frame': 'the figure',
+    'Feet at the frame, 3 s lowering': 'the tempo',
+  },
+  'doorway-curl': {
+    'Leaning back, feet at the frame': 'the figure',
+    'Feet at the frame, 3 s lowering': 'the tempo',
+  },
 }
 
 test('every step of an exercise with a figure is drawn, listed as showing it, or not drawn yet', () => {
