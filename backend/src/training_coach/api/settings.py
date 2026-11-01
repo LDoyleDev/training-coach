@@ -4,7 +4,7 @@ bot's jobs straight away, as a /settings button does."""
 
 from collections.abc import Callable
 from datetime import UTC, datetime, time
-from typing import Annotated
+from typing import Annotated, Literal
 
 import structlog
 from fastapi import APIRouter, Request
@@ -97,6 +97,8 @@ class SettingsView(BaseModel):
     default_increments: IncrementsView
     talk_test: bool  # cardio effort by the talk test, not heart-rate zones (ADR-0083)
     stop_signs_seen: bool  # shown before their first guided session (spec B7)
+    # Every session's length unless the day picks another (ADR-0082); empty: as planned.
+    session_minutes: Literal[40, 30, 20] | None
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -118,6 +120,8 @@ class SettingsChange(BaseModel):
     increments: IncrementsChange | None = None
     talk_test: bool | None = None
     stop_signs_seen: bool | None = None
+    # Sent as null: back to as planned (only the fields sent change).
+    session_minutes: Literal[40, 30, 20] | None = None
     paused: bool | None = None
 
 
@@ -158,6 +162,7 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
         default_increments=_steps(DEFAULTS),
         talk_test=prefs.talk_test,
         stop_signs_seen=prefs.stop_signs_seen,
+        session_minutes=prefs.session_minutes,
         paused=prefs.paused,
         timezone=settings.timezone,
     )
@@ -192,6 +197,9 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             increments=_changed(body.increments),
             talk_test=body.talk_test,
             stop_signs_seen=body.stop_signs_seen,
+            session_minutes=body.session_minutes,
+            clear_session_minutes="session_minutes" in body.model_fields_set
+            and body.session_minutes is None,
             today=local_date(datetime.now(UTC), settings.tz),
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)

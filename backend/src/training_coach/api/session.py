@@ -205,7 +205,8 @@ class LengthView(BaseModel):
     drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
     ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
-    kept, so the length no longer changes."""
+    kept, so the length no longer changes. ``from_setting``: the day has no choice, so
+    ``minutes`` is the person's minutes per session; As planned stays selectable for the day."""
 
     minutes: int | None
     options: list[int]
@@ -215,6 +216,7 @@ class LengthView(BaseModel):
     warm_up: Literal["none", "full", "ramp"]
     shortest: int | None
     fixed: bool
+    from_setting: bool
 
 
 def length_view(plan: guided.Guided) -> LengthView | None:
@@ -231,6 +233,7 @@ def length_view(plan: guided.Guided) -> LengthView | None:
         warm_up=trimmed.warm_up.value,
         shortest=trimmed.shortest,
         fixed=found.fixed,
+        from_setting=found.from_setting,
     )
 
 
