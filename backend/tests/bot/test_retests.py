@@ -56,6 +56,7 @@ async def test_a_test_day_morning_names_the_tests_and_where_to_enter_them(
     assert "Enter the results in the app: https://coach.example.com/body?tab=tests" in text
     assert "The plan waits:" in text
     assert "Short on time?" not in text  # a test day isn't shortened (ADR-0082)
+    assert "Warm up for about 10 minutes first." in text  # maximum efforts (J.4, 1 Nov 2026)
     button, *_check, link = _buttons(kwargs)  # the daily check's rows between (ADR-0053)
     assert button[0].startswith("Train ")
     assert button[0].endswith(" instead")
