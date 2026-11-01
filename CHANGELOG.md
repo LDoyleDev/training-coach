@@ -4,6 +4,13 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.15.1](https://github.com/LDoyleDev/training-coach/compare/v1.15.0...v1.15.1) (2026-11-01)
+
+
+### Documentation
+
+* **docs:** session log for 1.15.0 and reader 0.0.8 ([#559](https://github.com/LDoyleDev/training-coach/issues/559)) ([83db79b](https://github.com/LDoyleDev/training-coach/commit/83db79b66b01391ba41bd2ff292907bed5ac09bb))
+
 ## [1.15.0](https://github.com/LDoyleDev/training-coach/compare/v1.14.0...v1.15.0) (2026-11-01)
 
 
