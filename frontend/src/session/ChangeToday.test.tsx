@@ -17,6 +17,7 @@ const LEGS: Guided = {
   after_run: false,
   place: 'home',
   place_choice: false,
+  ease_back: [],
   items: [
     {
       slug: 'jump-squat',
@@ -29,8 +30,10 @@ const LEGS: Guided = {
       pair: null,
       targets: [6],
       baseline: false,
+      no_kit: false,
       muscles: [],
       parts: [],
+      last_set_amrap: false,
     },
   ],
   order: [{ item: 0, set_no: 1, target: 6, rest_seconds: 0, switch: false }],

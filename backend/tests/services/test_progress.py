@@ -284,7 +284,9 @@ def test_overview_lists_every_exercise_in_plan_order(plan: Session) -> None:
     # in the gym versions (ADR-0071), only once they have history (#107).
     assert len(standings) == len(at_home)
     user_settings.update(plan, places=Places.BOTH)
-    assert len(overview(plan)) == len(set(plan.scalars(select(TemplateItem.exercise_id))))
+    # Ones only in the away versions (ADR-0086) show once they have history, wherever you train.
+    trained = select(TemplateItem.exercise_id).where(TemplateItem.place != "away")
+    assert len(overview(plan)) == len(set(plan.scalars(trained)))
     names = [s.exercise for s in standings]
     assert names.index("Pull-up") < names.index("Dip (chairs)")  # Torso lists pull-ups first
     pull = standings[names.index("Pull-up")]

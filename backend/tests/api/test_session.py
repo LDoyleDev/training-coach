@@ -110,9 +110,9 @@ def test_nothing_to_guide_once_today_is_done(signed_in: TestClient, engine: Engi
     }
 
 
-def _log_yesterday(engine: Engine, done: dict[str, int]) -> None:
-    """Every set of each exercise in ``done`` at that value, logged yesterday."""
-    yesterday = local_date(datetime.now(UTC), Settings().tz) - timedelta(days=1)
+def _log_yesterday(engine: Engine, done: dict[str, int], days_ago: int = 1) -> None:
+    """Every set of each exercise in ``done`` at that value, logged yesterday (or earlier)."""
+    yesterday = local_date(datetime.now(UTC), Settings().tz) - timedelta(days=days_ago)
     with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
         workout = Workout(local_date=yesterday, status=WorkoutStatus.DONE)
         for slug, value in done.items():
@@ -340,6 +340,8 @@ def test_progress_and_saving_need_a_signed_in_browser(engine: Engine) -> None:
         assert stranger.put("/api/session/progress", json=body).status_code == 401
         assert stranger.post("/api/session/save", json={}).status_code == 401
         assert stranger.get("/api/session/pending").status_code == 401
+        ease = {"template_id": 1, "ease": True}
+        assert stranger.put("/api/session/ease-back", json=ease).status_code == 401
 
 
 def test_a_swap_kept_for_another_session_does_not_apply(
@@ -622,6 +624,40 @@ def test_the_saved_screen_says_when_there_is_no_step_to_move_to(
     assert earned["capped"] is (position < 2)
 
 
+def test_ease_back_in_after_three_weeks_away(signed_in: TestClient, engine: Engine) -> None:
+    """ADR-0084: one prompt for the return, one step down for today only, asked once."""
+    _put_on_step(engine, "jump-squat", 1)
+    _log_yesterday(engine, {"jump-squat": 6}, days_ago=25)
+    session = _today_view(signed_in)["session"]
+    assert session["ease_back"] == [{"exercise": "Jump squat", "step": "Bodyweight, full rest"}]
+    body = {"template_id": session["template_id"], "revision": 0, "ease": True}
+    eased = signed_in.put("/api/session/ease-back", json=body)
+    assert eased.status_code == 200
+    after = eased.json()
+    jump = after["session"]["items"][0]
+    assert (jump["step"], jump["level"]["for_today"]) == ("Bodyweight, full rest", True)
+    assert after["session"]["ease_back"] == []
+    again = signed_in.put("/api/session/ease-back", json=body)
+    assert again.status_code == 422  # asked once: nothing left to ease back into
+    other = {**body, "template_id": session["template_id"] + 99}
+    assert signed_in.put("/api/session/ease-back", json=other).status_code == 409
+
+
+def test_the_saved_screen_suggests_a_step_down(signed_in: TestClient, engine: Engine) -> None:
+    """ADR-0084: after the baseline, two sessions with the bottom of 5-8 out of reach."""
+    _put_on_step(engine, "jump-squat", 1)
+    _log_yesterday(engine, {"jump-squat": 2}, days_ago=3)  # the baseline
+    _log_yesterday(engine, {"jump-squat": 2})
+    session = _today_view(signed_in)["session"]
+    sets = [{"item": 0, "set_no": n, "left": 2} for n in (1, 2, 3)]
+    body = {"template_id": session["template_id"], "place": "home", "position": 6, "sets": sets}
+    assert signed_in.put("/api/session/progress", json=body).status_code == 200
+    (earned,) = signed_in.post("/api/session/save", json={}).json()["earned"]
+    assert earned["exercise"] == "Jump squat"
+    assert earned["step_down"]["below"] == "Bodyweight, full rest"
+    assert earned["step_down"]["easier"] == []
+
+
 def test_a_loaded_step_offers_its_weights_and_keeps_each_sets(
     signed_in: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -655,14 +691,18 @@ def test_a_loaded_step_offers_its_weights_and_keeps_each_sets(
 
 
 def test_home_or_gym_is_the_persons_switch(signed_in: TestClient) -> None:
-    """No switch until they train at both; then Gym shows the gym version, and a browser still
-    showing home is told the session changed."""
+    """No Gym until they train at both (only Away, ADR-0086); then Gym shows the gym version, and
+    a browser still showing home is told the session changed."""
     today = signed_in.get("/api/session/today").json()["session"]
-    assert (today["place"], today["place_choice"]) == ("home", False)
+    assert (today["place"], today["places"]) == ("home", ["home", "away"])
     refused = signed_in.put("/api/session/place", json={"place": "gym"})
-    assert (refused.status_code, refused.json()["detail"]) == (409, "today's session has one place")
+    assert (refused.status_code, refused.json()["detail"]) == (
+        409,
+        "today's session isn't done there",
+    )
     assert signed_in.patch("/api/settings", json={"places": "both"}).status_code == 200
-    assert signed_in.get("/api/session/today").json()["session"]["place_choice"] is True
+    both = signed_in.get("/api/session/today").json()["session"]
+    assert (both["place_choice"], both["places"]) == (True, ["home", "gym", "away"])
     switched = signed_in.put("/api/session/place", json={"place": "gym"})
     assert switched.status_code == 200
     gym = switched.json()["session"]
@@ -691,3 +731,83 @@ def test_switching_with_sets_kept_asks_before_dropping_them(signed_in: TestClien
     confirmed = signed_in.put("/api/session/place", json={"place": "gym", "confirm": True})
     assert confirmed.status_code == 200
     assert (confirmed.json()["session"]["place"], confirmed.json()["progress"]) == ("gym", None)
+
+
+# ------------------------------------------------------------ away, no equipment (ADR-0086)
+
+
+@pytest.fixture
+def signed_in_away(engine: Engine) -> Iterator[TestClient]:
+    """Signed in, with an away version of Legs, today's session."""
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, factories.plan_with_away())
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        token = auth.create_link(bound, datetime.now(UTC))
+        bound.commit()
+    settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+    with TestClient(create_app(settings), base_url=ORIGIN) as client:
+        assert client.post("/api/auth/redeem", json={"token": token}).status_code == 204
+        yield client
+
+
+def test_away_is_on_the_switch_for_someone_at_home_and_is_for_the_day(
+    signed_in_away: TestClient,
+) -> None:
+    today = signed_in_away.get("/api/session/today").json()["session"]
+    assert (today["place"], today["places"], today["place_choice"]) == (
+        "home",
+        ["home", "away"],
+        True,
+    )
+    refused = signed_in_away.put("/api/session/place", json={"place": "gym"})
+    assert (refused.status_code, refused.json()["detail"]) == (
+        409,
+        "today's session isn't done there",
+    )
+    switched = signed_in_away.put("/api/session/place", json={"place": "away"})
+    assert switched.status_code == 200
+    away = switched.json()
+    assert away["session"]["place"] == "away"
+    assert [i["slug"] for i in away["session"]["items"]] == [
+        i.exercise for i in factories.AWAY_LEGS
+    ]
+    revision = away["progress"]["revision"]
+    kept = {
+        "template_id": away["session"]["template_id"],
+        "place": "away",
+        "position": 1,
+        "revision": revision,
+        "sets": [{"item": 0, "set_no": 1, "left": 6}],
+    }
+    assert signed_in_away.put("/api/session/progress", json=kept).status_code == 200
+    settings = signed_in_away.get("/api/settings").json()
+    assert settings["places"] == "home"  # an away day changes no setting
+
+
+def test_away_a_step_that_needs_kit_says_it_is_the_no_equipment_step_today(
+    signed_in_away: TestClient, engine: Engine
+) -> None:
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        split = bound.scalars(
+            select(Exercise).where(Exercise.slug == "bulgarian-split-squat")
+        ).one()
+        state = users.exercise_state(bound, split.id)
+        assert state is not None
+        state.ladder_step_id = next(s.id for s in split.ladder if s.name == "Goblet hold, 8 kg")
+        bound.commit()
+    away = signed_in_away.put("/api/session/place", json={"place": "away"}).json()["session"]
+    item = next(i for i in away["items"] if i["slug"] == "bulgarian-split-squat")
+    assert (item["step"], item["no_kit"]) == ("Bodyweight, back foot on chair", True)
+    locked = {r["name"]: r["missing"] for r in item["level"]["ladder"]}
+    assert locked["Goblet hold, 8 kg"] == ["an 8 kg kettlebell"]
+    tibialis = next(i for i in away["items"] if i["slug"] == "tibialis-raise")
+    assert tibialis["no_kit"] is False
+
+
+def test_only_the_owner_can_choose_away(signed_in_away: TestClient, engine: Engine) -> None:
+    settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+    with TestClient(create_app(settings), base_url=ORIGIN) as stranger:
+        answer = stranger.put("/api/session/place", json={"place": "away"})
+        assert answer.status_code == 401
+    today = signed_in_away.get("/api/session/today").json()["session"]
+    assert today["place"] == "home"

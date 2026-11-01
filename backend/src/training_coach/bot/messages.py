@@ -3,7 +3,7 @@
 from datetime import date
 
 from training_coach.domain.blocks import WEEKS
-from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.habits import WEEK_DAYS
 from training_coach.domain.load import kg_text, weights_text
@@ -12,7 +12,7 @@ from training_coach.domain.progression import Progress
 from training_coach.domain.trim import WARM_UP_MINUTES, WarmUp
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
 from training_coach.services.guided import OPTIONS, Length, work_groups
-from training_coach.services.progress import NO_OPEN_STEP, Feedback, Standing
+from training_coach.services.progress import NO_OPEN_STEP, Down, Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.review import Review
 from training_coach.services.today import Day, ItemPlan, SessionPlan, Today
@@ -32,6 +32,14 @@ STALE = "That message is out of date. Send /today for the current session."
 UNIT = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: "s", ExerciseKind.DURATION_MIN: " min"}
 WORK_DOWN = "Work down the list, alternating the two exercises of each pair."
 FILL_IN = "Copy the list, put in what you did and send it back to log it."
+# Where the day's version is done (ADR-0071, ADR-0086); home is the plan as it stands.
+PLACE_LINES = {
+    Place.GYM: "At the gym: its gym version.",
+    Place.AWAY: "Away, no equipment: its no-equipment version.",
+}
+NO_KIT = "No-equipment step today for {names}: your level stays as it is."
+# A last set of as many good reps as you can (ADR-0084); brackets read back as a note.
+AS_MANY = " (last set: as many as you can)"
 
 
 def work_list(items: tuple[ItemPlan, ...]) -> list[str]:
@@ -48,7 +56,8 @@ def work_list(items: tuple[ItemPlan, ...]) -> list[str]:
             number += 1
             target = f"{item.targets[set_no - 1]}{UNIT[item.kind]}"
             side = " per side" if item.per_side else ""
-            lines.append(f"{number}. {item.exercise} ({item.step}): {target}{side}")
+            amrap = AS_MANY if item.last_set_amrap and set_no == len(item.targets) else ""
+            lines.append(f"{number}. {item.exercise} ({item.step}): {target}{side}{amrap}")
     return lines
 
 
@@ -118,6 +127,16 @@ def _length(plan: SessionPlan, length: Length | None) -> list[str]:
     return [about if length.fixed else f"{about} {SHORT_ON_TIME}"]
 
 
+def _place(plan: SessionPlan) -> list[str]:
+    """The place the day's version is done at, and the exercises trained below the person's
+    level for want of kit (ADR-0086). Nothing at home."""
+    lines = [PLACE_LINES[plan.place]] if plan.place in PLACE_LINES else []
+    names = [item.exercise for item in plan.items if item.no_kit and item.targets]
+    if names:
+        lines.append(NO_KIT.format(names=_joined(names)))
+    return lines
+
+
 def _baseline(items: tuple[ItemPlan, ...]) -> list[str]:
     """A line naming the exercises whose targets this session sets (ADR-0034)."""
     names = [item.exercise for item in items if item.baseline and item.targets]
@@ -130,7 +149,7 @@ def today_text(today: Today, length: Length | None = None) -> str:
     """The morning message and /today. ``length`` is the day's (ADR-0082), with
     ``today.session`` already cut to it: a dropped exercise has no targets."""
     session = today.session
-    lines = [f"Today: {session.name}", session.focus]
+    lines = [f"Today: {session.name}", session.focus, *_place(session)]
     if today.block is not None:
         lines.append(f"Week {today.block.week} of {WEEKS}, {today.block.kind} block.")
     lines += _length(session, length)
@@ -183,7 +202,7 @@ def week_text(days: list[Day]) -> str:
 def session_detail_text(plan: SessionPlan, length: Length | None = None) -> str:
     """Everything needed to train: the cues, then every set in the order it's done (#97).
     ``length`` as in ``today_text``: on a shortened day, what went."""
-    lines = [f"{plan.name}: {plan.focus}"]
+    lines = [f"{plan.name}: {plan.focus}", *_place(plan)]
     lines += _shortened(plan, length)
     cues = [
         f"- {item.exercise}: {' '.join(part for part in (item.summary, item.cue) if part)}"
@@ -343,7 +362,19 @@ def feedback_text(items: list[Feedback]) -> str:
                 f"{item.exercise}: top of the range on the last level of its ladder. That's the "
                 "top for now: keep training at this level, or pick another one on the Plan tab."
             )
+        if item.down is not None:
+            lines.append(f"{item.exercise}: {step_down_text(item.down)}")
     return "\n".join(lines)
+
+
+def step_down_text(down: Down) -> str:
+    """The step-down suggestion in plain words (ADR-0084): observational, the person decides."""
+    if down.below is not None:
+        return f"the bottom of the range was out of reach twice. Try the step below, {down.below}?"
+    text = "the bottom of the range was out of reach twice, on the first step of its ladder."
+    if down.easier:
+        text += f" An easier exercise for the same muscles might suit: {' or '.join(down.easier)}."
+    return text
 
 
 PROGRESS_EMPTY = "No exercises in the plan yet."
@@ -380,6 +411,8 @@ def progress_text(standings: list[Standing]) -> str:
                 line += f". {NO_OPEN_STEP[0].upper()}{NO_OPEN_STEP[1:]}"
             else:
                 line += ". Top of the ladder"
+        if s.down is not None:
+            line += ". The bottom of the range was out of reach twice"
         lines.append(line)
     return "\n".join(_fit(lines, []))
 
@@ -435,6 +468,13 @@ def review_text(review: Review) -> str:
         lines += ["", f"Ready to move up when the hypertrophy block starts: {names}."]
     elif review.ready:
         lines += ["", f"Ready to move up: {names}. See /progress."]
+    if review.step_down:  # ADR-0084: a suggestion, the person decides
+        names = ", ".join(r.exercise for r in review.step_down)
+        lines += [
+            "",
+            f"The bottom of the range was out of reach twice: {names}. Try the step below? "
+            "See /progress.",
+        ]
     if review.top:  # reached the top this week (ADR-0078), as the web's review says it
         lines += ["", "At the top:"]
         for top in review.top:

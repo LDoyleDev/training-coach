@@ -316,3 +316,86 @@ def test_invalid_planned_counts(
 def test_invalid_prescription(sets: int, rep_min: int, rep_max: int) -> None:
     with pytest.raises(ValueError, match="invalid prescription"):
         Prescription(sets=sets, rep_min=rep_min, rep_max=rep_max)
+
+
+# Last set: as many good reps as you can (ADR-0084). Newest first, with the set number each
+# session ran to failure (None: none, or saved before the mark). PULL_UPS: 4 sets of 5-12.
+@pytest.mark.parametrize(
+    ("history", "failure", "expected"),
+    [
+        # 8/7/6/5 aimed 9/8/7/6. Set 4 ran to 15: it counts as its 6 met, so it aims 7, not 12.
+        pytest.param([[9, 8, 7, 15], [8, 7, 6, 5]], [4, None], (10, 9, 8, 7), id="big-reps"),
+        # Below its floor of 6: a miss, held as any set's would be.
+        pytest.param([[9, 8, 7, 4], [8, 7, 6, 5]], [4, None], (10, 9, 8, 6), id="missed-floor"),
+        # A miss of the floor after an earlier one eases, as usual.
+        pytest.param(
+            [[10, 9, 8, 4], [9, 8, 7, 4], [8, 7, 6, 5]],
+            [4, 4, None],
+            (11, 10, 9, 5),
+            id="missed-floor-twice-eases",
+        ),
+        # The first session at the step: set 4's target was the bottom (5), so it aims 6.
+        pytest.param([[8, 7, 6, 15]], [4], (9, 8, 7, 6), id="baseline"),
+        pytest.param([[8, 7, 6, 3]], [4], (9, 8, 7, 4), id="baseline-below-floor"),
+        # Two days of failure sets in a row each count as met: 6, 7, then 8.
+        pytest.param(
+            [[10, 9, 8, 14], [9, 8, 7, 15], [8, 7, 6, 5]],
+            [4, 4, None],
+            (11, 10, 9, 8),
+            id="two-in-a-row",
+        ),
+        # A mark past what the day logged changes nothing: set 4 starts from the weakest.
+        pytest.param([[9, 8], [8, 7, 6, 5]], [4, None], (10, 9, 9, 9), id="mark-past-logged"),
+    ],
+)
+def test_a_failure_set_counts_as_its_target_met(
+    history: list[list[int]], failure: list[int | None], expected: tuple[int, ...]
+) -> None:
+    assert targets(PULL_UPS, history, failure_sets=failure) == expected
+
+
+@pytest.mark.parametrize(
+    "history",
+    [
+        pytest.param([[9, 8, 7, 15], [8, 7, 6, 5]], id="big-reps"),
+        pytest.param([[9, 8, 7, 4], [8, 7, 6, 5]], id="missed-floor"),
+        pytest.param([[8, 7, 6, 15]], id="baseline"),
+    ],
+)
+def test_rows_without_the_mark_keep_their_targets(history: list[list[int]]) -> None:
+    before = targets(PULL_UPS, history)
+    assert targets(PULL_UPS, history, failure_sets=None) == before
+    assert targets(PULL_UPS, history, failure_sets=[None] * len(history)) == before
+
+
+def test_a_failure_set_on_a_shorter_day() -> None:
+    # A 2-set day ran set 2 to 20: it aimed 8, so 9; sets 3 and 4 come back from it.
+    history = [[9, 20], [8, 7, 6, 5]]
+    assert targets(PULL_UPS, history, planned=[2, None], failure_sets=[2, None]) == (10, 9, 9, 9)
+
+
+def test_a_failure_set_at_the_top_stays_capped() -> None:
+    # 13/13/13 aimed 15/15/15; set 3 ran to 20 and counts as 15 met: capped at 15.
+    assert targets(DIPS, [[15, 15, 20], [13, 13, 13]], failure_sets=[3, None]) == (15, 15, 15)
+
+
+def test_a_failure_set_on_a_shorter_day_at_a_fast_pace() -> None:
+    # 8/7/6/5 aimed 10/9/8/7 at fast; a 3-set day ran set 3 to 14: met, so 10.
+    assert targets(PULL_UPS, [[10, 9, 14], [8, 7, 6, 5]], Pace.FAST, [3, None], [3, None]) == (
+        12,
+        11,
+        10,
+        10,
+    )
+
+
+@pytest.mark.parametrize(
+    ("failure", "message"),
+    [
+        pytest.param([], "0 failure sets for 1 sessions", id="length"),
+        pytest.param([0], "start at 1", id="zero"),
+    ],
+)
+def test_invalid_failure_sets(failure: list[int | None], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        targets(PULL_UPS, [[8, 7, 6, 5]], failure_sets=failure)

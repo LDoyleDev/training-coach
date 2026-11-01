@@ -1,6 +1,7 @@
 """Each exercise's standing for the web Progress page, as /progress in the bot, how long each
 session takes (ADR-0061), and moving along a ladder from the Plan page: Move up, Not yet, and
-choosing a level by hand (ADR-0075). Owner-only."""
+choosing a level by hand (ADR-0075), and the step down suggested when the bottom of the range is
+out of reach (ADR-0084). Owner-only."""
 
 from datetime import UTC, date, datetime
 from typing import Literal
@@ -10,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.auth import Owner
-from training_coach.api.session import UNITS
+from training_coach.api.session import UNITS, StepDownView, step_down_view
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
@@ -83,6 +84,7 @@ class StandingView(BaseModel):
     # On the last step the kit allows: "a 16 kg kettlebell unlocks One-arm, 16 kg". Shown as
     # "top for your kit" in place of "top of the ladder" (ADR-0071).
     unlock: str | None
+    step_down: StepDownView | None  # the step below, suggested (ADR-0084)
 
 
 class StandingsView(BaseModel):
@@ -136,6 +138,7 @@ def standings(request: Request, user: Owner) -> StandingsView:
                     for p in s.trend
                 ],
                 unlock=s.unlock,
+                step_down=step_down_view(s.down),
             )
             for s in found
         ],
@@ -174,7 +177,8 @@ class StepBody(BaseModel):
 
 
 class MovedView(BaseModel):
-    """What a press did. Anything but ``moved``, ``stayed`` or ``level_set`` changed nothing."""
+    """What a press did. Only ``moved``, ``level_set`` and ``stepped_down`` change the step;
+    ``stayed`` and ``stayed_down`` record a Not yet."""
 
     outcome: Literal[
         "moved",
@@ -185,6 +189,9 @@ class MovedView(BaseModel):
         "stayed",
         "level_set",
         "same_level",
+        "stepped_down",
+        "no_step_below",
+        "stayed_down",
     ]
     exercise: str
     step: str | None  # the step trained from now on, when it changed or stayed
@@ -237,3 +244,19 @@ def set_level(slug: str, body: StepBody, request: Request, user: Owner) -> Moved
     """Choose any step of the exercise's own ladder, up or down; never needs "ready"."""
     with session_scope(_bound(request, user)) as session:
         return _moved(progress.set_level(session, _exercise(session, slug), body.step_id))
+
+
+@router.post("/{slug}/step-down", response_model=MovedView)
+def step_down(slug: str, body: MoveUpBody, request: Request, user: Owner) -> MovedView:
+    """Step down, from the suggestion (ADR-0084): the step below ``from_step_id``, as a level
+    chosen by hand. A stale page (the exercise moved since) changes nothing."""
+    with session_scope(_bound(request, user)) as session:
+        return _moved(progress.step_down(session, _exercise(session, slug), body.from_step_id))
+
+
+@router.post("/{slug}/not-yet-down", response_model=MovedView)
+def not_yet_down(slug: str, body: StepBody, request: Request, user: Owner) -> MovedView:
+    """Not yet to a step down: stay; suggested again only after a new session that meets the
+    rule (ADR-0084)."""
+    with session_scope(_bound(request, user)) as session:
+        return _moved(progress.not_yet_down(session, _exercise(session, slug), body.step_id))

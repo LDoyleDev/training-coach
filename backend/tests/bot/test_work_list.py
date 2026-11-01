@@ -1,5 +1,6 @@
 """The work-order list (#97) reads back as a log: copy it, put in what you did, send it."""
 
+from dataclasses import replace
 from datetime import date
 from zoneinfo import ZoneInfo
 
@@ -12,7 +13,7 @@ from training_coach.db.models import SessionTemplate
 from training_coach.domain.enums import Side
 from training_coach.services import workout_log
 from training_coach.services.seed import apply_seed, load_plan
-from training_coach.services.today import session_plan
+from training_coach.services.today import ItemPlan, session_plan
 
 BERLIN = ZoneInfo("Europe/Berlin")
 NL = chr(10)
@@ -81,3 +82,33 @@ def test_start_says_how_to_do_each_exercise(session: Session) -> None:
     text = session_detail_text(plan)
     assert "How to do them:" in text
     assert "- Jump squat: Squat to about parallel" in text
+
+
+def _marked(session: Session) -> tuple[ItemPlan, ...]:
+    """Legs with the last-set option on (ADR-0084): tibialis and calf raises are marked."""
+    plan = session_plan(session, _legs(session))
+    assert plan is not None
+    return tuple(
+        replace(item, last_set_amrap=True)
+        if item.slug in ("tibialis-raise", "calf-raise")
+        else item
+        for item in plan.items
+    )
+
+
+def test_the_last_set_of_as_many_as_you_can_is_marked(session: Session) -> None:
+    lines = work_list(_marked(session))
+    marked = [line for line in lines if line.endswith(" (last set: as many as you can)")]
+    # The third of three tibialis raises and the fourth of four calf raises, nothing else.
+    assert [line.split(". ", 1)[0] for line in marked] == ["6", "13"]
+    assert marked[0].startswith("6. Tibialis raise (")
+    assert marked[0].endswith("): 15 (last set: as many as you can)")
+    assert marked[1].endswith("): 12 per side (last set: as many as you can)")
+
+
+def test_the_marked_list_still_reads_back_as_a_log(session: Session) -> None:
+    items = _marked(session)
+    draft = workout_log.draft(session, NL.join(work_list(items)), date(2026, 10, 8), BERLIN)
+    assert draft.problems == ()
+    tibialis = next(e for e in draft.entries if e.slug == "tibialis-raise")
+    assert [value for _, _, value in tibialis.sets] == [15, 15, 15]

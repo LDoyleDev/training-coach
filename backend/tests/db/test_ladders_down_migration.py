@@ -22,7 +22,7 @@ from training_coach.config import get_settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services.seed import PlanSeed, apply_seed, load_plan
 
-BEFORE = "e5a7c9d1f3b4"
+BEFORE = "1e0c139151a7"
 REVISION = "5ebed72122f7"
 
 

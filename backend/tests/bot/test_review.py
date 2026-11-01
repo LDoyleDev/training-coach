@@ -145,3 +145,12 @@ def test_zone_2_against_the_target() -> None:
     assert "Zone 2: 190 of 180-200 min · Moderate: 0 min" in reached
     none = review_text(_review(zone2_target=(180, 200)))
     assert "Zone 2: 0 of 180-200 min (180 short)" in none
+
+
+def test_a_step_down_suggested_is_one_line() -> None:
+    """ADR-0084: observational; the person decides on /progress or the Plan tab."""
+    text = review_text(_review(step_down=[Ready("Pull-up", "pull-up"), Ready("Dip", "dip")]))
+    assert text.endswith(
+        "The bottom of the range was out of reach twice: Pull-up, Dip. Try the step below? "
+        "See /progress."
+    )

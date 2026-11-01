@@ -2,9 +2,9 @@
 
 A step locks when it needs kit the person hasn't listed (ADR-0071), or asks something of the
 body they've chosen to avoid: one of its marks under "Keep me off the floor", "No kneeling", "No
-jumping or running" or "No hanging" (ADR-0083). Either way it locks the same way: Move up skips
-it to the next open step, it shows locked with the reason in words, and it can still be chosen
-by hand, with a warning. The person decides; nothing asks why.
+jumping or running", "No hanging" or "Easy on my knees" (ADR-0083). Either way it locks the
+same way: Move up skips it to the next open step, it shows locked with the reason in words, and
+it can still be chosen by hand, with a warning. The person decides; nothing asks why.
 """
 
 from collections.abc import Sequence
@@ -16,7 +16,7 @@ from training_coach.domain.step_levels import Mark
 
 # The marks a person can choose to avoid, in the order Account shows them. Balance marks a fall
 # risk and has no switch: its cue names something to hold.
-AVOIDABLE = (Mark.FLOOR, Mark.KNEELING, Mark.IMPACT, Mark.HANGING)
+AVOIDABLE = (Mark.FLOOR, Mark.KNEELING, Mark.IMPACT, Mark.HANGING, Mark.KNEES)
 
 # What a step with the mark needs, then the person's choice, in words.
 AVOIDED = {
@@ -24,6 +24,7 @@ AVOIDED = {
     Mark.KNEELING: "needs kneeling — you've chosen not to kneel",
     Mark.IMPACT: "needs jumping or running — you've chosen not to jump or run",
     Mark.HANGING: "needs hanging from a bar — you've chosen not to hang",
+    Mark.KNEES: "needs deep knee bending — you've chosen to go easy on your knees",
 }
 
 
@@ -79,6 +80,12 @@ def next_open(ladder: Sequence[Asks], at: int, limits: Limits) -> int | None:
     """The first step after ``at`` that isn't locked (Move up skips locked ones), or None.
     ``ladder`` is what each step asks, easiest first."""
     return next((i for i in range(at + 1, len(ladder)) if lock(ladder[i], limits).open), None)
+
+
+def previous_open(ladder: Sequence[Asks], at: int, limits: Limits) -> int | None:
+    """The nearest step before ``at`` that isn't locked (a step down skips locked ones,
+    ADR-0084), or None at the first step, or when every step below is locked."""
+    return next((i for i in range(at - 1, -1, -1) if lock(ladder[i], limits).open), None)
 
 
 def unlocks_next(ladder: Sequence[Asks], at: int, limits: Limits) -> tuple[int, list[str]] | None:

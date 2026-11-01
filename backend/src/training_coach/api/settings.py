@@ -7,7 +7,7 @@ from datetime import UTC, datetime, time
 from typing import Annotated, Literal
 
 import structlog
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import AfterValidator, BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -21,7 +21,7 @@ from training_coach.domain.habits import PROTEIN_GRAMS
 from training_coach.domain.load import DEFAULTS, INCREMENT_KG, Increments, LoadKit, valid_increment
 from training_coach.domain.queue import local_date
 from training_coach.domain.targets import Pace
-from training_coach.services import user_settings
+from training_coach.services import last_set, user_settings
 from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
@@ -103,8 +103,13 @@ class SettingsView(BaseModel):
     avoid_kneeling: bool  # "No kneeling"
     avoid_impact: bool  # "No jumping or running"
     avoid_hanging: bool  # "No hanging"
+    avoid_knees: bool  # "Easy on my knees" (#540)
     # Every session's length unless the day picks another (ADR-0082); empty: as planned.
     session_minutes: Literal[40, 30, 20] | None
+    # Last set: as many good reps as you can, where it's safe (ADR-0084); locked while the
+    # person is new ("Available after your first 8 weeks"), when it can't be turned on.
+    last_set_amrap: bool
+    last_set_locked: bool
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -130,8 +135,10 @@ class SettingsChange(BaseModel):
     avoid_kneeling: bool | None = None
     avoid_impact: bool | None = None
     avoid_hanging: bool | None = None
+    avoid_knees: bool | None = None
     # Sent as null: back to as planned (only the fields sent change).
     session_minutes: Literal[40, 30, 20] | None = None
+    last_set_amrap: bool | None = None  # true is refused with 409 while locked
     paused: bool | None = None
 
 
@@ -154,7 +161,7 @@ def _time(text: str | None) -> time | None:
     return None if text is None else time.fromisoformat(text)
 
 
-def _view(prefs: Prefs, settings: Settings) -> SettingsView:
+def _view(prefs: Prefs, settings: Settings, locked: bool) -> SettingsView:
     started = prefs.blocks_started_on
     return SettingsView(
         morning_time=f"{prefs.morning_time:%H:%M}",
@@ -176,7 +183,10 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
         avoid_kneeling=prefs.avoid_kneeling,
         avoid_impact=prefs.avoid_impact,
         avoid_hanging=prefs.avoid_hanging,
+        avoid_knees=prefs.avoid_knees,
         session_minutes=prefs.session_minutes,
+        last_set_amrap=prefs.last_set_amrap,
+        last_set_locked=locked,
         paused=prefs.paused,
         timezone=settings.timezone,
     )
@@ -184,15 +194,21 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
 
 @router.get("", response_model=SettingsView)
 def get_settings(request: Request, user: Owner) -> SettingsView:
+    settings: Settings = request.app.state.settings
     with session_scope(_bound(request, user)) as session:
         prefs = user_settings.load(session)
-    return _view(prefs, request.app.state.settings)
+        locked = not last_set.available(session, local_date(datetime.now(UTC), settings.tz))
+    return _view(prefs, settings, locked)
 
 
 @router.patch("", response_model=SettingsView)
 def patch_settings(body: SettingsChange, request: Request, user: Owner) -> SettingsView:
     settings: Settings = request.app.state.settings
+    today = local_date(datetime.now(UTC), settings.tz)
     with session_scope(_bound(request, user)) as session:
+        locked = not last_set.available(session, today)
+        if body.last_set_amrap and locked:  # nothing else changes either
+            raise HTTPException(status.HTTP_409_CONFLICT, last_set.LOCKED)
         prefs = user_settings.update(
             session,
             morning_time=_time(body.morning_time),
@@ -215,14 +231,16 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             avoid_kneeling=body.avoid_kneeling,
             avoid_impact=body.avoid_impact,
             avoid_hanging=body.avoid_hanging,
+            avoid_knees=body.avoid_knees,
             session_minutes=body.session_minutes,
             clear_session_minutes="session_minutes" in body.model_fields_set
             and body.session_minutes is None,
-            today=local_date(datetime.now(UTC), settings.tz),
+            last_set_amrap=body.last_set_amrap,
+            today=today,
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)
     reschedule: Reschedule | None = getattr(request.app.state, "reschedule", None)
     if moved and reschedule is not None:
         reschedule(user, prefs)
     log.info("api.settings_changed", what=sorted(body.model_dump(exclude_none=True)))
-    return _view(prefs, settings)
+    return _view(prefs, settings, locked)

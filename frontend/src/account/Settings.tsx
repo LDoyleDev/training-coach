@@ -8,6 +8,7 @@ import {
 } from '../api'
 import { type Sound, playChange, unlockAudio } from '../hiit/sounds'
 import { card, primaryInline, secondary } from '../ui'
+import { LAST_SET, LAST_SET_LINE, LAST_SET_LOCKED } from '../session/safety'
 
 type TimeKey = 'morning_time' | 'nudge_time' | 'review_time'
 type Pace = MessageSettings['pace']
@@ -35,7 +36,7 @@ const PLACES: { places: Places; label: string; line: string }[] = [
   { places: 'both', label: 'Both', line: 'You pick home or gym on the day.' },
 ]
 
-type AvoidKey = 'avoid_floor' | 'avoid_kneeling' | 'avoid_impact' | 'avoid_hanging'
+type AvoidKey = 'avoid_floor' | 'avoid_kneeling' | 'avoid_impact' | 'avoid_hanging' | 'avoid_knees'
 
 /** What the person would rather avoid (ADR-0083): each locks the ladder steps that need it, as
  * missing kit does. Preferences, not medical: no reason is asked or kept. */
@@ -44,6 +45,7 @@ const AVOID: { key: AvoidKey; label: string }[] = [
   { key: 'avoid_kneeling', label: 'No kneeling' },
   { key: 'avoid_impact', label: 'No jumping or running' },
   { key: 'avoid_hanging', label: 'No hanging' },
+  { key: 'avoid_knees', label: 'Easy on my knees' },
 ]
 
 /** Minutes per session (ADR-0082): the same lengths as Short on time today on the session. */
@@ -279,6 +281,32 @@ export default function Settings() {
         ))}
         {noteAt('avoid')}
       </fieldset>
+      <p className="m-0">
+        {LAST_SET}. {prefs.last_set_amrap ? 'On' : 'Off'}.
+      </p>
+      <p className="m-0 text-sm text-[var(--slate)]">{LAST_SET_LINE}</p>
+      {prefs.last_set_locked && !prefs.last_set_amrap ? (
+        <p className="m-0 font-bold">{LAST_SET_LOCKED}</p>
+      ) : (
+        <div className={row}>
+          <button
+            type="button"
+            className={secondary}
+            disabled={busy}
+            onClick={() =>
+              save(
+                'last-set',
+                { last_set_amrap: !prefs.last_set_amrap },
+                'Saved.',
+                `${LAST_SET_LOCKED}.`,
+              )
+            }
+          >
+            {prefs.last_set_amrap ? 'Turn the last set off' : 'Turn the last set on'}
+          </button>
+          {noteAt('last-set')}
+        </div>
+      )}
 
       <form className={row} onSubmit={saveProtein}>
         <label htmlFor="protein" className="basis-full font-bold">

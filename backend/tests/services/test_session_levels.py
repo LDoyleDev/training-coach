@@ -89,6 +89,9 @@ def test_for_today_saves_the_sets_at_the_chosen_step_and_leaves_the_level(
     assert _saved_steps(seeded) == [(1, pause.id), (2, pause.id)]
     workout = seeded.scalars(select(Workout)).one()
     assert done_at(seeded, DAY, workout.id) == [("Jump squat", (pause.name,))]
+    # Marked for the step-down rule, which passes a level chosen for today over (ADR-0084).
+    assert workout.planned is not None
+    assert workout.planned[JUMP]["today"] == pause.id
     assert _level(seeded) == bottom.id
     assert not seeded.scalars(select(Event).where(Event.kind == progress.LEVEL_SET)).all()
 
@@ -136,6 +139,8 @@ def test_from_now_on_sets_the_level_as_the_plan_tab_does(seeded: Session) -> Non
     assert _saved_steps(seeded) == [(1, bottom.id), (2, pause.id)]
     workout = seeded.scalars(select(Workout)).one()
     assert done_at(seeded, DAY, workout.id) == [("Jump squat", (bottom.name, pause.name))]
+    assert workout.planned is not None
+    assert "today" not in workout.planned[JUMP]  # the level, not a level for today
 
 
 def test_nothing_changed_says_nothing_on_the_saved_screen(seeded: Session) -> None:

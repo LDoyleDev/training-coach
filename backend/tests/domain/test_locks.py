@@ -8,6 +8,7 @@ from training_coach.domain.locks import (
     Lock,
     lock,
     next_open,
+    previous_open,
     unlocks_next,
     warning,
 )
@@ -23,9 +24,10 @@ FLOOR = "needs the floor — you've chosen to keep off it"
 OFF_THE_FLOOR = Limits(avoid=frozenset({Mark.FLOOR}))
 
 
-def test_four_marks_can_be_avoided_and_balance_is_not_one() -> None:
-    """ADR-0083: four preferences; balance marks a fall risk and has no switch."""
-    assert AVOIDABLE == (Mark.FLOOR, Mark.KNEELING, Mark.IMPACT, Mark.HANGING)
+def test_five_marks_can_be_avoided_and_balance_is_not_one() -> None:
+    """ADR-0083: five preferences, "Easy on my knees" the fifth (#540); balance marks a fall
+    risk and has no switch."""
+    assert AVOIDABLE == (Mark.FLOOR, Mark.KNEELING, Mark.IMPACT, Mark.HANGING, Mark.KNEES)
 
 
 def test_nothing_listed_and_nothing_avoided_locks_nothing() -> None:
@@ -50,6 +52,7 @@ def test_every_avoidable_mark_has_its_reason() -> None:
         "needs kneeling — you've chosen not to kneel",
         "needs jumping or running — you've chosen not to jump or run",
         "needs hanging from a bar — you've chosen not to hang",
+        "needs deep knee bending — you've chosen to go easy on your knees",
     )
 
 
@@ -79,6 +82,15 @@ def test_move_up_skips_locked_steps() -> None:
     assert next_open(ladder, 0, Limits(kit=[BAR])) == 2
     assert next_open(ladder, 2, Limits(kit=[BAR])) is None
     assert next_open(ladder, 0, Limits(kit=[BAR, KB16])) == 1
+
+
+def test_a_step_down_skips_locked_steps() -> None:
+    ladder = [Asks(), Asks(["kettlebell:16"]), Asks(["pull-up bar"]), Asks(["kettlebell:16"])]
+    assert previous_open(ladder, 3, Limits(kit=[BAR])) == 2
+    assert previous_open(ladder, 2, Limits(kit=[BAR])) == 0
+    assert previous_open(ladder, 0, Limits()) is None
+    floor = [Asks(marks=[Mark.FLOOR]), Asks()]
+    assert previous_open(floor, 1, OFF_THE_FLOOR) is None
 
 
 def test_move_up_skips_a_marked_step_and_a_kit_locked_one() -> None:

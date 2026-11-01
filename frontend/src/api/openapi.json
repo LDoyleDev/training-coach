@@ -1183,6 +1183,16 @@
             "title": "Slug",
             "type": "string"
           },
+          "step_down": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StepDownView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "total": {
             "anyOf": [
               {
@@ -1225,9 +1235,62 @@
           "at_top",
           "unlock",
           "capped",
-          "load_kg"
+          "load_kg",
+          "step_down"
         ],
         "title": "EarnedView",
+        "type": "object"
+      },
+      "EaseBackBody": {
+        "description": "The answer to \"Ease back in: one step down today\" (ADR-0084).",
+        "properties": {
+          "ease": {
+            "title": "Ease",
+            "type": "boolean"
+          },
+          "first": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 10,
+            "title": "First",
+            "type": "array"
+          },
+          "revision": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "ease"
+        ],
+        "title": "EaseBackBody",
+        "type": "object"
+      },
+      "EaseBackView": {
+        "description": "An exercise back after three weeks or more away, and the step below its level that\n\"Ease back in: one step down today\" would do it at, for today only (ADR-0084).",
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exercise",
+          "step"
+        ],
+        "title": "EaseBackView",
         "type": "object"
       },
       "Energy": {
@@ -1508,6 +1571,13 @@
             "title": "Day",
             "type": "string"
           },
+          "ease_back": {
+            "items": {
+              "$ref": "#/components/schemas/EaseBackView"
+            },
+            "title": "Ease Back",
+            "type": "array"
+          },
           "focus": {
             "title": "Focus",
             "type": "string"
@@ -1562,6 +1632,13 @@
             "title": "Place Choice",
             "type": "boolean"
           },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          },
           "rest_seconds": {
             "title": "Rest Seconds",
             "type": "integer"
@@ -1597,7 +1674,8 @@
           "minutes",
           "rest_seconds",
           "items",
-          "order"
+          "order",
+          "ease_back"
         ],
         "title": "GuidedView",
         "type": "object"
@@ -2406,6 +2484,11 @@
               }
             ]
           },
+          "last_set_amrap": {
+            "default": false,
+            "title": "Last Set Amrap",
+            "type": "boolean"
+          },
           "level": {
             "anyOf": [
               {
@@ -2436,6 +2519,11 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "no_kit": {
+            "default": false,
+            "title": "No Kit",
+            "type": "boolean"
           },
           "pair": {
             "anyOf": [
@@ -2923,7 +3011,7 @@
         "type": "object"
       },
       "LengthView": {
-        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.",
+        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.\n``last_set``: the person's last-set option (ADR-0084), offered here with a shorter day;\nempty when it isn't offered: locked while they are new, or no exercise today it applies to.",
         "properties": {
           "dropped": {
             "items": {
@@ -2946,6 +3034,17 @@
             },
             "title": "Keep",
             "type": "array"
+          },
+          "last_set": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Set"
           },
           "minutes": {
             "anyOf": [
@@ -3940,7 +4039,7 @@
         "type": "object"
       },
       "MovedView": {
-        "description": "What a press did. Anything but ``moved``, ``stayed`` or ``level_set`` changed nothing.",
+        "description": "What a press did. Only ``moved``, ``level_set`` and ``stepped_down`` change the step;\n``stayed`` and ``stayed_down`` record a Not yet.",
         "properties": {
           "exercise": {
             "title": "Exercise",
@@ -3955,7 +4054,10 @@
               "strength_block",
               "stayed",
               "level_set",
-              "same_level"
+              "same_level",
+              "stepped_down",
+              "no_step_below",
+              "stayed_down"
             ],
             "title": "Outcome",
             "type": "string"
@@ -4465,10 +4567,11 @@
         "type": "object"
       },
       "Place": {
-        "description": "Where a workout is done (ADR-0071): at home, with the person's own kit, or at a gym,\nwhich has everything. A session can hold a version for each.",
+        "description": "Where a workout is done (ADR-0071): at home, with the person's own kit, at a gym, which\nhas everything, or away with no equipment (ADR-0086). A session can hold a version for each.",
         "enum": [
           "home",
-          "gym"
+          "gym",
+          "away"
         ],
         "title": "Place",
         "type": "string"
@@ -5303,6 +5406,13 @@
             "title": "Start",
             "type": "string"
           },
+          "step_down": {
+            "items": {
+              "$ref": "#/components/schemas/ReadyView"
+            },
+            "title": "Step Down",
+            "type": "array"
+          },
           "strength_block": {
             "title": "Strength Block",
             "type": "boolean"
@@ -5357,6 +5467,7 @@
           "bests",
           "ready",
           "top",
+          "step_down",
           "strength_block",
           "habits",
           "ai_comments",
@@ -5915,6 +6026,17 @@
             ],
             "title": "Avoid Kneeling"
           },
+          "avoid_knees": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avoid Knees"
+          },
           "blocks": {
             "anyOf": [
               {
@@ -5959,6 +6081,17 @@
                 "type": "null"
               }
             ]
+          },
+          "last_set_amrap": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Set Amrap"
           },
           "morning_time": {
             "anyOf": [
@@ -6116,6 +6249,10 @@
             "title": "Avoid Kneeling",
             "type": "boolean"
           },
+          "avoid_knees": {
+            "title": "Avoid Knees",
+            "type": "boolean"
+          },
           "blocks_since": {
             "anyOf": [
               {
@@ -6140,6 +6277,14 @@
           },
           "increments": {
             "$ref": "#/components/schemas/IncrementsView"
+          },
+          "last_set_amrap": {
+            "title": "Last Set Amrap",
+            "type": "boolean"
+          },
+          "last_set_locked": {
+            "title": "Last Set Locked",
+            "type": "boolean"
           },
           "morning_time": {
             "title": "Morning Time",
@@ -6230,7 +6375,10 @@
           "avoid_kneeling",
           "avoid_impact",
           "avoid_hanging",
+          "avoid_knees",
           "session_minutes",
+          "last_set_amrap",
+          "last_set_locked",
           "paused",
           "timezone"
         ],
@@ -6397,6 +6545,16 @@
             "title": "Step",
             "type": "string"
           },
+          "step_down": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StepDownView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "step_id": {
             "title": "Step Id",
             "type": "integer"
@@ -6453,7 +6611,8 @@
           "status",
           "retired",
           "trend",
-          "unlock"
+          "unlock",
+          "step_down"
         ],
         "title": "StandingView",
         "type": "object"
@@ -6501,6 +6660,40 @@
           "step_id"
         ],
         "title": "StepBody",
+        "type": "object"
+      },
+      "StepDownView": {
+        "description": "The bottom of the range out of reach twice (ADR-0084): a suggestion, nothing changes\nwithout a tap. ``below`` is the step to suggest; None at a ladder's first step (or with\nevery step below locked by the kit), when ``easier`` names the catalogue's level 1-2\nexercises for the same muscles, if any.",
+        "properties": {
+          "below": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Below"
+          },
+          "easier": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Easier",
+            "type": "array"
+          },
+          "step_id": {
+            "title": "Step Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step_id",
+          "below",
+          "easier"
+        ],
+        "title": "StepDownView",
         "type": "object"
       },
       "StretchBody": {
@@ -9724,6 +9917,112 @@
         ]
       }
     },
+    "/api/progress/{slug}/not-yet-down": {
+      "post": {
+        "description": "Not yet to a step down: stay; suggested again only after a new session that meets the\nrule (ADR-0084).",
+        "operationId": "not_yet_down_api_progress__slug__not_yet_down_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Not Yet Down",
+        "tags": [
+          "progress"
+        ]
+      }
+    },
+    "/api/progress/{slug}/step-down": {
+      "post": {
+        "description": "Step down, from the suggestion (ADR-0084): the step below ``from_step_id``, as a level\nchosen by hand. A stale page (the exercise moved since) changes nothing.",
+        "operationId": "step_down_api_progress__slug__step_down_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveUpBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Step Down",
+        "tags": [
+          "progress"
+        ]
+      }
+    },
     "/api/proposals": {
       "get": {
         "operationId": "waiting_api_proposals_get",
@@ -9947,6 +10246,48 @@
         ]
       }
     },
+    "/api/session/ease-back": {
+      "put": {
+        "description": "Ease back in after a break, or not: one step down for today only on each exercise\noffered, levels unchanged; either answer is asked once per return. 409 when the session\nchanged or another device moved on (reload); 422 when there is nothing to ease back into.",
+        "operationId": "ease_back_in_api_session_ease_back_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EaseBackBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ease Back In",
+        "tags": [
+          "session"
+        ]
+      }
+    },
     "/api/session/length": {
       "put": {
         "description": "Run today's session shorter, or as planned again (ADR-0082): the session at that\nlength. 409 when the session changed, another device moved on since ``revision``\n(reload), or a set is kept already (the length is fixed then); 422 for a session that\nalways runs as planned, or a Keep for an exercise it doesn't have.",
@@ -10059,7 +10400,7 @@
     },
     "/api/session/place": {
       "put": {
-        "description": "Do today's session at home or at the gym (ADR-0071): the person's switch, never the\napp's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when\nsets are kept for the version shown (ask, then confirm), or with a ``detail`` message when\ntoday has no choice to make.",
+        "description": "Do today's session at home, at the gym or away with no equipment (ADR-0071, ADR-0086):\nthe person's switch, never the app's. 409 with ``kept_sets`` at the top of the body (a\nPlaceAsk, as the API types say) when sets are kept for the version shown (ask, then\nconfirm), or with a ``detail`` message when today has no choice to make or not that one.",
         "operationId": "choose_place_api_session_place_put",
         "requestBody": {
           "content": {
