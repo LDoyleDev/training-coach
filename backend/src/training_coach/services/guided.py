@@ -10,7 +10,8 @@ logged, however it was logged, the rest of that session stays open until the day
 sets are added to the day's workout.
 
 Short on time today (ADR-0082): a strength or conditioning session runs at the minutes chosen
-for the day, trimmed by ``domain.trim``. Items are never removed, so every set keeps its index:
+for the day, or with no choice for the day at the person's minutes per session, trimmed by
+``domain.trim``. Items are never removed, so every set keeps its index:
 a dropped item has no targets left. The set counts, the minutes and the person's pace are fixed
 in the day's progress when its first set is kept, so nothing moves under the indexes after.
 """
@@ -64,6 +65,7 @@ class Length:
     trimmed: trimming.Trimmed  # each item's sets (0: dropped), the warm-up, the estimate
     pace: float  # the person's time on this session over its plain estimate; 1.0 unknown
     fixed: bool = False  # a set is kept: the length no longer changes
+    from_setting: bool = False  # no choice for the day: ``minutes`` is minutes per session
 
 
 @dataclass(frozen=True)
@@ -230,7 +232,8 @@ def _choice(
     row: SessionProgress | None, default: int | None = None
 ) -> tuple[int | None, tuple[str, ...]]:
     """The day's minutes and Keep pins as chosen in ``row``; with no choice made yet,
-    ``default`` minutes (as planned until minutes per session is a setting, ADR-0082)."""
+    ``default`` minutes: the person's minutes per session (ADR-0082). Choosing As planned for
+    the day is a choice too (``{"minutes": None}``), so it overrides the setting."""
     found = row.length if row is not None else None
     if not isinstance(found, dict):
         return default, ()
@@ -267,7 +270,9 @@ def _length(
     strength block's prescription is in ``items`` already, so the trim comes after it."""
     if plan.kind not in TRIMMED:
         return None
-    minutes, keep = _choice(row)
+    setting = user_settings.load(session).session_minutes
+    minutes, keep = _choice(row, setting)
+    chose = row is not None and isinstance(row.length, dict)  # As planned included
     shapes = _shapes(items, keep)
     fixed = _fixed(row, len(items))
     if fixed is not None:
@@ -286,7 +291,9 @@ def _length(
         fits = minutes is None or total <= minutes
         trimmed = trimming.Trimmed(fixed.sets, fixed.durations, fixed.dropped, how, total, fits)
     started = row is not None and (row.fixed is not None or bool(row.sets))
-    return Length(minutes, keep, planned.minutes, trimmed, at, started)
+    # From the setting while no day's choice was made and the setting hasn't moved since.
+    from_setting = not chose and setting is not None and minutes == setting
+    return Length(minutes, keep, planned.minutes, trimmed, at, started, from_setting)
 
 
 def _fix(length: Length) -> dict[str, Any]:

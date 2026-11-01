@@ -183,30 +183,6 @@ def missing(kit: Sequence[Item] | None, needs: Iterable[str]) -> list[str]:
     ]
 
 
-def next_open(ladder: Sequence[Sequence[str]], at: int, kit: Sequence[Item] | None) -> int | None:
-    """The first step after ``at`` the kit allows (Move up skips locked ones), or None.
-    ``ladder`` is each step's needs, easiest first."""
-    return next((i for i in range(at + 1, len(ladder)) if not missing(kit, ladder[i])), None)
-
-
-def previous_open(
-    ladder: Sequence[Sequence[str]], at: int, kit: Sequence[Item] | None
-) -> int | None:
-    """The nearest step before ``at`` the kit allows (a step down skips locked ones, ADR-0084),
-    or None at the first step, or when every step below is locked."""
-    return next((i for i in range(at - 1, -1, -1) if not missing(kit, ladder[i])), None)
-
-
-def unlocks_next(
-    ladder: Sequence[Sequence[str]], at: int, kit: Sequence[Item] | None
-) -> list[str] | None:
-    """At the top for this kit (harder steps exist, none of them open): what the very next step
-    needs that the kit lacks. None when a harder open step exists or the ladder ends here."""
-    if at + 1 >= len(ladder) or next_open(ladder, at, kit) is not None:
-        return None
-    return missing(kit, ladder[at + 1])
-
-
 def unlocked(
     ladders: Mapping[str, Sequence[tuple[str, Sequence[str]]]],
     kit: Sequence[Item] | None,

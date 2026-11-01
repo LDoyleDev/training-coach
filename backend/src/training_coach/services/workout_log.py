@@ -383,7 +383,8 @@ def _file(
         workout.block = BlockKind.HYPERTROPHY
     for entry in confirmed.entries:
         exercise = exercises[entry.slug]
-        step_id = blocks.step_for(session, exercise, strength)[0].id
+        at_gym = workout.place != Place.HOME  # the home kit locks nothing there (ADR-0071)
+        step_id = blocks.step_for(session, exercise, strength, at_gym=at_gym)[0].id
         done_at = {n: step for slug, n, step in confirmed.steps if slug == entry.slug}
         if done_at:  # only steps of the exercise's own ladder
             own = {s.id for s in exercise.ladder}

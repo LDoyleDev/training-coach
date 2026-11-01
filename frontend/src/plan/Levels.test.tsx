@@ -2,19 +2,20 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Moved, Standing } from '../api'
 import Levels from './Levels'
-import { moveHref, nextRung, said, stepDownText, wanted } from './ladder'
+import { moveHref, nextRung, said, stepDownText, topLabel, wanted } from './ladder'
 
 const LADDER = [
-  { id: 1, name: 'Slow negatives', cue: null, missing: [], question: null },
-  { id: 2, name: 'Strict pull-up', cue: null, missing: [], question: null },
+  { id: 1, name: 'Slow negatives', cue: null, missing: [], avoided: [], question: null },
+  { id: 2, name: 'Strict pull-up', cue: null, missing: [], avoided: [], question: null },
   {
     id: 3,
     name: 'Pause at top',
     cue: 'Hold two seconds with your chin over the bar',
     missing: [],
+    avoided: [],
     question: null,
   },
-  { id: 4, name: 'Weighted backpack', cue: null, missing: [], question: null },
+  { id: 4, name: 'Weighted backpack', cue: null, missing: [], avoided: [], question: null },
 ]
 
 const make = (over: Partial<Standing> = {}): Standing => ({
@@ -280,7 +281,9 @@ test('every outcome is said in plain words', () => {
     said({ outcome, exercise: 'Pull-up', step, warning: null })
   expect(say('already_moved')).toMatch(/already moved on/)
   expect(say('not_ready')).toBe("Pull-up doesn't meet the rule any more. Keep going.")
-  expect(say('no_next_step')).toBe('Pull-up is on the last step in your plan.')
+  expect(say('no_next_step')).toBe(
+    'Pull-up is on the last step in your plan, or the last one open to you.',
+  )
   expect(say('strength_block')).toMatch(/waits for the hypertrophy block/)
   expect(say('same_level')).toBe('Pull-up is already on Pause at top.')
   expect(say('level_set', null)).toMatch(/Targets for it start fresh/)
@@ -297,10 +300,24 @@ test('every outcome is said in plain words', () => {
 })
 
 const LOCKED = [
-  { id: 1, name: 'Two-hand, 8 kg', cue: null, missing: [], question: null },
-  { id: 2, name: 'One-arm, 8 kg', cue: null, missing: [], question: null },
-  { id: 3, name: 'Two-hand, 16 kg', cue: null, missing: ['a 16 kg kettlebell'], question: null },
-  { id: 4, name: 'One-arm, 16 kg', cue: null, missing: ['a 16 kg kettlebell'], question: null },
+  { id: 1, name: 'Two-hand, 8 kg', cue: null, missing: [], avoided: [], question: null },
+  { id: 2, name: 'One-arm, 8 kg', cue: null, missing: [], avoided: [], question: null },
+  {
+    id: 3,
+    name: 'Two-hand, 16 kg',
+    cue: null,
+    missing: ['a 16 kg kettlebell'],
+    avoided: [],
+    question: null,
+  },
+  {
+    id: 4,
+    name: 'One-arm, 16 kg',
+    cue: null,
+    missing: ['a 16 kg kettlebell'],
+    avoided: [],
+    question: null,
+  },
 ]
 
 const swing = (over: Partial<Standing> = {}) =>
@@ -340,7 +357,7 @@ test('Move up goes past a locked step to the next one the kit allows', async () 
   const ladder = [
     LOCKED[0],
     LOCKED[2],
-    { id: 5, name: 'Two-hand, 12 kg', cue: null, missing: [], question: null },
+    { id: 5, name: 'Two-hand, 12 kg', cue: null, missing: [], avoided: [], question: null },
   ]
   serve([
     {
@@ -390,6 +407,70 @@ test('no kit listed: says nothing is locked and links to My equipment', async ()
     'href',
     '/account#my-equipment',
   )
+})
+
+const HANG = "needs hanging from a bar — you've chosen not to hang"
+const FLOOR = "needs the floor — you've chosen to keep off it"
+
+test('a step the person avoids is locked with the reason, and Move up skips it', async () => {
+  const ladder = [
+    LADDER[0],
+    LADDER[1],
+    { ...LADDER[2], avoided: [HANG] },
+    { ...LADDER[3], missing: ['a pull-up bar'], avoided: [FLOOR] },
+    { id: 5, name: 'One-arm negatives', cue: null, missing: [], avoided: [], question: null },
+  ]
+  serve([{ standings: [make({ ladder, steps: 5 })], kit_listed: true }])
+  render(<Levels />)
+  await open(/Pull-up/)
+  const steps = screen.getAllByRole('listitem').filter((li) => li.closest('ol'))
+  expect(steps.map((li) => li.textContent)).toEqual([
+    'Slow negatives',
+    'Strict pull-up (now)',
+    `Pause at top · Locked: ${HANG}`,
+    `Weighted backpack · Locked: needs a pull-up bar; ${FLOOR}`,
+    'One-arm negatives',
+  ])
+  expect(screen.getByRole('button', { name: 'Move up to One-arm negatives' })).toBeInTheDocument()
+  expect(screen.queryByText(/You've chosen to avoid this/)).not.toBeInTheDocument()
+})
+
+test('a step someone is on and now avoids says so, and their level stays', async () => {
+  const ladder = LADDER.map((r) => ({ ...r, avoided: [HANG] }))
+  const calls = serve([{ standings: [make({ ladder, status: 'top_of_ladder' })] }])
+  render(<Levels />)
+  // Shown without "Show all", like a ready one, so it isn't missed.
+  const panel = await screen.findByRole('button', { name: /Pull-up/, expanded: false })
+  expect(panel).toHaveTextContent("You've chosen to avoid this; pick another step.")
+  expect(panel).toHaveTextContent('Top of your open steps')
+  expect(panel).not.toHaveTextContent('Top of the ladder')
+  fireEvent.click(panel)
+  expect(
+    screen.getByText('No step above this one is open to you: each says why above.'),
+  ).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Move up/ })).not.toBeInTheDocument()
+  expect(calls).toEqual([]) // nothing moved by itself
+})
+
+test('choosing an avoided level by hand is allowed, with the reason', async () => {
+  const ladder = [LADDER[0], LADDER[1], { ...LADDER[2], avoided: [HANG] }, LADDER[3]]
+  serve([{ standings: [make({ ladder, status: 'hold' })] }])
+  render(<Levels />)
+  await showAll()
+  await open(/Pull-up/)
+  fireEvent.click(screen.getByRole('button', { name: 'Change level' }))
+  const choose = screen.getByRole('group', { name: 'Choose a level for Pull-up' })
+  fireEvent.click(within(choose).getByRole('radio', { name: /Pause at top/ }))
+  expect(
+    within(choose).getByText(`Pause at top ${HANG}. You can still choose it.`),
+  ).toBeInTheDocument()
+  expect(within(choose).getByRole('button', { name: 'Set level to Pause at top' })).toBeEnabled()
+})
+
+test('the top of the ladder is said only when there is no step above', () => {
+  expect(topLabel(make({ status: 'top_of_ladder', step_id: 4 }))).toBe('Top of the ladder')
+  expect(topLabel(make({ status: 'top_of_ladder', step_id: 99 }))).toBe('Top of the ladder')
+  expect(topLabel(make({ status: 'hold' }))).toBeNull()
 })
 
 const LOW = { step_id: 2, below: 'Slow negatives', easier: [] }

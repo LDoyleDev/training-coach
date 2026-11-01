@@ -111,7 +111,7 @@ def reply(outcome: progress.Move | None) -> str:
     if outcome.outcome is MoveOutcome.ALREADY_MOVED:
         return f"{name} has already moved on since that message."
     if outcome.outcome is MoveOutcome.NO_NEXT_STEP:
-        return f"{name} is on the last step in your plan, or the last one your kit allows."
+        return f"{name} is on the last step in your plan, or the last one open to you."
     if outcome.outcome is MoveOutcome.STRENGTH_BLOCK:
         return STRENGTH_BLOCK_WAIT.format(exercise=name)
     if outcome.outcome is MoveOutcome.STEPPED_DOWN:

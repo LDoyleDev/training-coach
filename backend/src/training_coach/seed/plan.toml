@@ -2094,6 +2094,72 @@ failure_ok = true
 "Large water bottles" = 2
 "8 kg, one arm at a time" = 3
 
+[[exercises]]
+slug = "balance"
+name = "Balance"
+summary = "Stand tall beside a kitchen counter, eyes on a point ahead, and hold the position for the time. Move on when you can hold it for 10 seconds without touching the counter."
+kind = "seconds"
+qualities = ["balance"]
+pattern = "balance"
+aliases = ["balancing", "balance hold", "one leg stand", "single leg stand", "heel to toe"]
+start = 0
+range = [3, 10]
+ladder = ["Feet together, holding the counter", "Feet together, hands over the counter", "Half heel-to-toe, beside the counter", "Heel-to-toe, beside the counter", "One leg, a fingertip on the counter", "One leg, beside the counter", "One leg, turning your head", "One leg, eyes closed"]
+[exercises.cues]
+"Feet together, holding the counter" = "Feet side by side and touching, both hands resting on the counter."
+"Feet together, hands over the counter" = "Hands just above the counter, ready to hold it."
+"Half heel-to-toe, beside the counter" = "The heel of one foot beside the big toe of the other, a hand ready over the counter. Swap feet each set."
+"Heel-to-toe, beside the counter" = "One foot right in front of the other, heel touching toes, a hand ready over the counter. Swap feet each set."
+"One leg, a fingertip on the counter" = "Lift one foot a little off the floor; one fingertip on the counter. Each leg."
+"One leg, beside the counter" = "Lift one foot; hands ready over the counter, not touching it. Each leg."
+"One leg, turning your head" = "Slowly look left and right as you stand on one leg, beside the counter. Each leg."
+"One leg, eyes closed" = "In a corner or by the counter, so a hand can reach out at once. Each leg."
+[exercises.questions]
+"Feet together, hands over the counter" = "Can you stand with your feet together for 3 seconds, hands just above the counter?"
+"Half heel-to-toe, beside the counter" = "Can you stand half heel-to-toe for 3 seconds without holding the counter?"
+"Heel-to-toe, beside the counter" = "Can you stand heel-to-toe for 3 seconds without holding the counter?"
+"One leg, a fingertip on the counter" = "Can you stand on each leg for 3 seconds with a fingertip on the counter?"
+"One leg, beside the counter" = "Can you stand on each leg for 3 seconds without touching the counter?"
+"One leg, turning your head" = "Can you stand on each leg for 3 seconds while slowly turning your head?"
+"One leg, eyes closed" = "Can you stand on each leg for 3 seconds with your eyes closed?"
+[exercises.levels]
+"Feet together, holding the counter" = 1
+"Feet together, hands over the counter" = 1
+"Half heel-to-toe, beside the counter" = 2
+"Heel-to-toe, beside the counter" = 2
+"One leg, a fingertip on the counter" = 3
+"One leg, beside the counter" = 3
+"One leg, turning your head" = 4
+"One leg, eyes closed" = 5
+[exercises.marks]
+"Feet together, hands over the counter" = ["balance"]
+"Half heel-to-toe, beside the counter" = ["balance"]
+"Heel-to-toe, beside the counter" = ["balance"]
+"One leg, a fingertip on the counter" = ["balance"]
+"One leg, beside the counter" = ["balance"]
+"One leg, turning your head" = ["balance"]
+"One leg, eyes closed" = ["balance"]
+
+[[exercises]]
+slug = "interval-walk"
+name = "Interval walk"
+summary = "Rounds of 3 minutes walking fast and 3 minutes easy. Fast: you can still talk, but only in short phrases. Easy: you can talk in full sentences. Count the rounds you walk."
+kind = "reps"
+qualities = ["conditioning"]
+pattern = "cardio"
+aliases = ["interval walking", "walking intervals", "japanese walking"]
+start = 0
+range = [2, 5]
+ladder = ["3 min brisk, 3 min easy", "3 min fast, 3 min easy"]
+[exercises.cues]
+"3 min brisk, 3 min easy" = "Brisk: a bit out of breath, still talking in sentences."
+"3 min fast, 3 min easy" = "Fast: only short phrases. Uphill or into the wind counts."
+[exercises.questions]
+"3 min fast, 3 min easy" = "Can you walk 2 rounds of 3 minutes fast and 3 minutes easy?"
+[exercises.levels]
+"3 min brisk, 3 min easy" = 2
+"3 min fast, 3 min easy" = 3
+
 # ---------------------------------------------------------- retired (#107, ADR-0034)
 # No longer in any session. Kept so their history stays and old days can still be logged;
 # never deleted. "squat"/"squats" were aliases of the goblet squat in the first plan; they are

@@ -352,9 +352,15 @@ def _standing(**changes: object) -> Standing:
 
 def test_progress_text_units_and_limits() -> None:
     assert progress_text([]) == "No exercises in the plan yet."
-    text = progress_text([_standing(), _standing(status=Progress.TOP_OF_LADDER)])
+    top = _standing(status=Progress.TOP_OF_LADDER, step_number=3)  # really the last step
+    text = progress_text([_standing(), top])
     assert "- Plank: Front plank (1/3), last 45s / 40s, best 60s" in text
     assert text.endswith("Top of the ladder")
+    # Harder steps above, every one locked: true, and never why (ADR-0083).
+    capped = progress_text([_standing(status=Progress.TOP_OF_LADDER)])
+    assert capped.endswith(
+        "Front plank (1/3), last 45s / 40s, best 60s. No open step above this one"
+    )
     kit = progress_text([_standing(status=Progress.TOP_OF_LADDER, unlock="a mat unlocks X")])
     assert kit.endswith("Top for your kit: a mat unlocks X")  # names what opens it (ADR-0078)
     long = progress_text([_standing(exercise="X" * 120, step="Y" * 120)] * 40)
@@ -459,12 +465,9 @@ async def test_a_save_out_of_reach_twice_suggests_a_step_down(
 async def test_step_down_and_not_yet_answer_the_suggestion(
     application: App, seeded: Sessions
 ) -> None:
+    for days_ago in (5, 3, 1):
+        _top_session(seeded, days_ago=days_ago, value=2)
     exercise_id, step_id = _pull_up(seeded)
-    stay = await run(application, press(f"p:nd:{exercise_id}:{step_id}", OWNER))
-    assert texts(stay) == [
-        "Staying on Pull-up (Strict pull-up). I'll ask again if the bottom of the range is out "
-        "of reach in a later session."
-    ]
     calls = await run(application, press(f"p:dn:{exercise_id}:{step_id}", OWNER))
     assert texts(calls) == [
         "Stepped down: Pull-up is now Slow negatives. Targets for it start fresh from its own "
@@ -473,11 +476,32 @@ async def test_step_down_and_not_yet_answer_the_suggestion(
     assert _step_name(seeded) == "Slow negatives"
     again = await run(application, press(f"p:dn:{exercise_id}:{step_id}", OWNER))
     assert texts(again) == ["Pull-up has already moved on since that message."]
-    _, below = _pull_up(seeded)
-    first = await run(application, press(f"p:dn:{exercise_id}:{below}", OWNER))
-    assert texts(first) == ["Pull-up has no step below Slow negatives."]
     gone = await run(application, press("p:dn:999:999", OWNER))
     assert texts(gone) == ["That exercise isn't in the plan any more."]
+
+
+async def test_not_yet_then_an_old_step_down_press_changes_nothing(
+    application: App, seeded: Sessions
+) -> None:
+    """Checked again on press, as Move up is: a Not yet removes the suggestion."""
+    for days_ago in (5, 3, 1):
+        _top_session(seeded, days_ago=days_ago, value=2)
+    exercise_id, step_id = _pull_up(seeded)
+    stay = await run(application, press(f"p:nd:{exercise_id}:{step_id}", OWNER))
+    assert texts(stay) == [
+        "Staying on Pull-up (Strict pull-up). I'll ask again if the bottom of the range is out "
+        "of reach in a later session."
+    ]
+    stale = await run(application, press(f"p:dn:{exercise_id}:{step_id}", OWNER))
+    assert texts(stale) == ["Pull-up doesn't meet the rule any more. Keep going."]
+    assert _step_name(seeded) == "Strict pull-up"
+
+
+def test_no_step_below_is_said_plainly() -> None:
+    no_step = progress_service.Move(
+        progress_service.MoveOutcome.NO_STEP_BELOW, "Push-up", "Standard"
+    )
+    assert progress_ui.reply(no_step) == "Push-up has no step below Standard."
 
 
 async def test_progress_offers_a_step_down_even_in_a_strength_block(

@@ -1,10 +1,10 @@
 import type { Top } from '../api'
 import { KIT_HREF } from '../account/kit'
-import { moveHref } from './ladder'
+import { NO_OPEN_STEP, moveHref } from './ladder'
 
 /** Exercises that met the ready rule with no level to move to, in the saved screen's words
  * (ADR-0078): the top of the ladder, or the last level the kit allows with what opens the next
- * one and a link to My equipment (ADR-0071). Said in the week it was first met; nothing moves.
+ * one and a link to My equipment (ADR-0071), or with no open step above (ADR-0083). Said in the week it was first met; nothing moves.
  * Each name links to its ladder on the Plan page (ADR-0075). */
 export function TopList({ top }: { top: Top[] }) {
   return (
@@ -22,6 +22,8 @@ export function TopList({ top }: { top: Top[] }) {
                 My equipment
               </a>
             </>
+          ) : t.capped ? (
+            `: top of the range, with ${NO_OPEN_STEP}.`
           ) : (
             ': top of the range on the last level of its ladder.'
           )}

@@ -1,6 +1,7 @@
 """Short on time today in the bot (ADR-0082): the work list follows the length chosen in the
 app, and the morning message, sent before, shows the planned length and the offer."""
 
+from dataclasses import replace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -10,9 +11,17 @@ from telegram.ext import Application
 
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, press, run, texts
 from training_coach.bot.app import Handlers, build_bot
-from training_coach.bot.messages import RAMP, SHORT_ON_TIME, WARM_UP, WORK_DOWN
+from training_coach.bot.messages import (
+    ANOTHER_LENGTH,
+    RAMP,
+    SHORT_ON_TIME,
+    WARM_UP,
+    WORK_DOWN,
+    session_detail_text,
+)
 from training_coach.db.models import SessionTemplate
-from training_coach.services import guided, users
+from training_coach.services import guided, user_settings, users
+from training_coach.services.today import session_plan
 
 Sessions = sessionmaker[Session]
 LEGS_PLANNED = "About 49 minutes, warm-up included."  # the bundled home Legs day
@@ -200,3 +209,95 @@ async def test_a_strangers_start_still_gets_nothing(
     tid = _at(seeded, "legs")
     _choose(seeded, Handlers(SETTINGS, seeded), 20)
     assert await run(app, press(f"q:start:{tid}", STRANGER)) == {}
+
+
+# ---------------------------------------------------------------- minutes per session (T2)
+
+
+def _setting(sessions: Sessions, minutes: int) -> None:
+    with sessions() as session:
+        user_settings.update(session, session_minutes=minutes)
+        session.commit()
+
+
+def _minutes_today(sessions: Sessions, handlers: Handlers) -> int:
+    with sessions() as session:
+        plan = guided.today(session, handlers._local_today(), SETTINGS.tz)
+        assert plan is not None
+        return plan.minutes
+
+
+async def test_the_morning_follows_minutes_per_session(seeded: Sessions) -> None:
+    _at(seeded, "legs")
+    _setting(seeded, 30)
+    handlers = Handlers(SETTINGS, seeded)
+    context = type("Ctx", (), {"bot": AsyncMock()})()
+    await handlers.morning(context)  # type: ignore[arg-type]
+    text = context.bot.send_message.await_args.kwargs["text"]
+    lines = text.splitlines()
+    about = _minutes_today(seeded, handlers)
+    assert f"About {about} minutes at your 30-minute setting. {ANOTHER_LENGTH}" in lines
+    assert ANOTHER_LENGTH == "Pick another length for today in the app before you start."
+    assert RAMP in lines
+    assert SHORT_ON_TIME not in text
+    assert set(_listed(text).values()) == {2}
+
+
+async def test_the_work_list_names_what_the_setting_drops(seeded: Sessions) -> None:
+    _at(seeded, "legs")
+    _setting(seeded, 20)
+    handlers = Handlers(SETTINGS, seeded)
+    text, _ = handlers._today()
+    about = _minutes_today(seeded, handlers)
+    assert (
+        f"About {about} minutes at your 20-minute setting; dropped: Hamstring curl, "
+        "Single-leg calf raise, Tibialis raise, Pistol squat, Single-leg Romanian deadlift. "
+        f"{ANOTHER_LENGTH}"
+    ) in text.splitlines()
+    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Bulgarian split squat": 2}
+
+
+async def test_a_days_as_planned_overrides_the_setting(seeded: Sessions) -> None:
+    _at(seeded, "legs")
+    handlers = Handlers(SETTINGS, seeded)
+    planned, _ = handlers._today()
+    _setting(seeded, 20)
+    _choose(seeded, handlers, None)
+    text, _ = handlers._today()
+    assert text == planned
+
+
+async def test_no_other_length_is_offered_once_the_session_has_started(seeded: Sessions) -> None:
+    _at(seeded, "legs")
+    _setting(seeded, 30)
+    handlers = Handlers(SETTINGS, seeded)
+    _keep_first_set(seeded, handlers)
+    text, _ = handlers._today()
+    about = _minutes_today(seeded, handlers)
+    assert f"About {about} minutes at your 30-minute setting." in text.splitlines()
+    assert ANOTHER_LENGTH not in text
+
+
+async def test_start_lists_the_session_at_the_setting(
+    app: Application,  # type: ignore[type-arg]
+    seeded: Sessions,
+) -> None:
+    tid = _at(seeded, "legs")
+    _setting(seeded, 20)
+    (text,) = texts(await run(app, press(f"q:start:{tid}", OWNER)))
+    assert "at your 20-minute setting; dropped: Hamstring curl" in text
+    assert ANOTHER_LENGTH not in text  # the offer is the morning's and /today's
+    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Bulgarian split squat": 2}
+
+
+def test_a_setting_out_of_reach_says_the_shortest_it_gets(seeded: Sessions) -> None:
+    tid = _at(seeded, "legs")
+    _setting(seeded, 20)
+    with seeded() as session:
+        shown = session_plan(session, tid, None)
+        assert shown is not None
+        cut, length = guided.at_length(session, Handlers(SETTINGS, seeded)._local_today(), shown)
+    assert length is not None
+    out_of_reach = replace(length, trimmed=replace(length.trimmed, minutes=23, fits=False))
+    text = session_detail_text(cut, out_of_reach)
+    assert "About 23 minutes, the shortest it gets, at your 20-minute setting; dropped: " in text

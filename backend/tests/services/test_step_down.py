@@ -6,6 +6,7 @@ Pull-ups in Torso are 4 sets of 5-12, a step of 1; the plan starts on "Strict pu
 from datetime import date, timedelta
 
 import pytest
+from sqlalchemy import event as sa_event
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -205,3 +206,43 @@ def test_not_yet_after_a_move_changes_nothing(plan: Session) -> None:
     assert moved == progress.Move(MoveOutcome.ALREADY_MOVED, "Pull-up")
     assert not_yet_down(plan, 999_999, step.id) is None
     assert not plan.scalars(select(Event).where(Event.kind == NOT_YET_DOWN)).all()
+
+
+def test_a_stale_step_down_changes_nothing(plan: Session) -> None:
+    """Checked again now, as Move up is: once a Not yet (or a newer session) has removed the
+    suggestion, an old page or message can't lower the level."""
+    step = _step(plan, "pull-up")
+    _out_of_reach(plan)
+    assert not_yet_down(plan, step.exercise_id, step.id) is not None
+    stale = step_down(plan, step.exercise_id, step.id)
+    assert stale == progress.Move(MoveOutcome.NOT_READY, "Pull-up")
+    assert _step(plan, "pull-up").id == step.id
+    _log(plan, "pull-up", [12, 12, 12, 12], 6)  # a good session: the rule no longer stands
+    assert step_down(plan, step.exercise_id, step.id) == stale
+    assert not plan.scalars(select(Event).where(Event.kind == progress.LEVEL_SET)).all()
+
+
+def test_dismissals_are_read_once_per_overview_and_feedback(plan: Session) -> None:
+    """The Not yet events are read once for every exercise judged, not once per exercise."""
+    pull_up, push_up = _step(plan, "pull-up"), _step(plan, "push-up")
+    newest = _out_of_reach(plan)
+    _out_of_reach(plan, "push-up")
+    not_yet_down(plan, pull_up.exercise_id, pull_up.id)
+    assert progress.dismissals(plan) == {(pull_up.exercise_id, pull_up.id, newest)}
+    reads: list[str] = []
+
+    def record(*args: object) -> None:
+        if progress.NOT_YET_DOWN in str(args[3]):  # the statement's parameters
+            reads.append(str(args[2]))
+
+    engine = plan.get_bind()
+    sa_event.listen(engine, "before_cursor_execute", record)
+    try:
+        found = {s.slug: s.down for s in overview(plan)}
+        in_overview = len(reads)
+        feedback(plan, _log(plan, "push-up", LOW, 6))
+    finally:
+        sa_event.remove(engine, "before_cursor_execute", record)
+    assert found["pull-up"] is None  # dismissed
+    assert found["push-up"] == Down(push_up.id, None, progress.easier("push-up"))
+    assert (in_overview, len(reads)) == (1, 2)  # two exercises judged, one read each call
