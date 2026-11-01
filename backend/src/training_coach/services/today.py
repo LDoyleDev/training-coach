@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, selectinload
 from training_coach.db.models import (
     FitnessTestDay,
     LadderStep,
+    SessionProgress,
     SessionTemplate,
     TemplateItem,
     Workout,
@@ -33,7 +34,7 @@ from training_coach.domain.load import (
     top_weight,
 )
 from training_coach.domain.muscles import Muscle, Part, ranked
-from training_coach.domain.places import can_switch, day_place
+from training_coach.domain.places import choices, day_place
 from training_coach.domain.queue import ADVANCING, Position, advance
 from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
@@ -64,6 +65,8 @@ class ItemPlan:
     # A loaded step (ADR-0072): its kit, increment and each set's starting weight.
     load: Load | None = None
     step_id: int = 0  # the ladder step trained, for changing it in the session (ADR-0080)
+    # Away, below the person's level: their step needs kit, so today's needs none (ADR-0086).
+    no_kit: bool = False
 
 
 @dataclass(frozen=True)
@@ -81,9 +84,15 @@ class SessionPlan:
     items: tuple[ItemPlan, ...]
     kind: str = "strength"  # strength | conditioning | recovery (plan.toml)
     slug: str = ""  # the session template's, e.g. "hiit"
-    # Where it is done, and so which version (ADR-0071); ``switch``: Today offers Home | Gym.
+    # Where it is done, and so which version (ADR-0071); ``places``: what Today's switch offers
+    # (Home | Gym, and Away with an away version, ADR-0086), one place when there is no choice.
     place: Place = Place.HOME
-    switch: bool = False
+    places: tuple[Place, ...] = (Place.HOME,)
+
+    @property
+    def switch(self) -> bool:
+        """Today shows the switch: there is a place to choose."""
+        return len(self.places) > 1
 
 
 @dataclass(frozen=True)
@@ -148,12 +157,14 @@ def _item_plan(
     increments: Increments = DEFAULTS,
     home_kit: Sequence[Item] | None = None,
     at_gym: bool = False,
+    away: bool = False,
 ) -> ItemPlan:
     """One exercise: its step, cue and targets, under the strength prescription if it applies
     (ADR-0028), with targets from the matching block's history (ADR-0027) at the person's
     ``pace`` (ADR-0057). ``chosen``: a step of its ladder picked for today (ADR-0080). A loaded
     step moves by the person's own ``increments``, or on a home day through the weights in
-    ``home_kit`` (ADR-0072)."""
+    ``home_kit`` (ADR-0072). ``away``: steps that need kit give way to ones that don't
+    (ADR-0086)."""
     step = session.get(LadderStep, chosen) if chosen is not None else None
     plan = blocks.assign(
         session,
@@ -161,6 +172,7 @@ def _item_plan(
         strength,
         step if step is not None and step.exercise_id == item.exercise_id else None,
         at_gym=at_gym,
+        away=away,
     )
     kit = load_kit(item.exercise.slug, plan.step.name)
     last = last_loads(session, item.exercise_id, plan.step.id, plan.history) if kit else []
@@ -194,7 +206,15 @@ def _item_plan(
         parts=found.parts,
         load=load,
         step_id=plan.step.id,
+        no_kit=plan.no_kit,
     )
+
+
+def away_on(session: Session, on: date) -> bool:
+    """Whether ``on`` was chosen as an away day on Today's switch (ADR-0086): kept on that day's
+    guided-session progress, never as the place Today starts at."""
+    place = session.scalar(select(SessionProgress.place).where(SessionProgress.local_date == on))
+    return place == Place.AWAY
 
 
 def session_plan(
@@ -203,24 +223,33 @@ def session_plan(
     block: Block | None = None,
     steps: Mapping[str, int] | None = None,
     place: Place | None = None,
+    *,
+    on: date | None = None,
 ) -> SessionPlan | None:
     """One session of the plan with today's ladder steps and targets, in ``block``: its
     version for ``place``, by default the day's (ADR-0071), so the bot's messages, a typed
-    log and the guided session all see the same exercises. ``steps`` holds levels chosen for
-    today in the guided session, by exercise slug (ADR-0080)."""
+    log and the guided session all see the same exercises. ``on``: the day it is for, away
+    when that day was chosen as away (ADR-0086). ``steps`` holds levels chosen for today in the
+    guided session, by exercise slug (ADR-0080)."""
     template = session.scalar(
         select(SessionTemplate)
         .where(SessionTemplate.id == template_id)
         .options(
             selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise),
             selectinload(SessionTemplate.gym_items).selectinload(TemplateItem.exercise),
+            selectinload(SessionTemplate.away_items).selectinload(TemplateItem.exercise),
         )
     )
     if template is None:
         return None
     prefs = user_settings.load(session)
     pace = prefs.pace
-    at = place if place is not None else day_place(prefs.places, prefs.place)
+    if place is not None:
+        at = place
+    elif on is not None and away_on(session, on):
+        at = Place.AWAY
+    else:
+        at = day_place(prefs.places, prefs.place)
     done_at = template.done_at(at)  # the version's place, not only the one asked for
     # At home, a loaded kit the person lists goes up by the weights they own (ADR-0072).
     home_kit = equipment.kit(session) if done_at is Place.HOME else None
@@ -238,14 +267,15 @@ def session_plan(
                 (steps or {}).get(item.exercise.slug),
                 prefs.increments,
                 home_kit,
-                done_at is not Place.HOME,
+                done_at is Place.GYM,
+                done_at is Place.AWAY,
             )
             for item in template.version(at)
         ),
         kind=template.kind,
         slug=template.slug,
         place=done_at,
-        switch=can_switch(prefs.places, bool(template.gym_items)),
+        places=choices(prefs.places, bool(template.gym_items), bool(template.away_items)),
     )
 
 
@@ -254,7 +284,7 @@ def today(session: Session, on: date, tz: ZoneInfo | None = None) -> Today | Non
     ``tz``, also the training block ``on`` falls in."""
     current = position(session)
     block = blocks.current(session, on, tz) if tz is not None else None
-    plan = session_plan(session, current.pointer, block) if current is not None else None
+    plan = session_plan(session, current.pointer, block, on=on) if current is not None else None
     if plan is None:
         return None
     names = {t.id: t.name for t in _order(session)}

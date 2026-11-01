@@ -691,3 +691,83 @@ def test_switching_with_sets_kept_asks_before_dropping_them(signed_in: TestClien
     confirmed = signed_in.put("/api/session/place", json={"place": "gym", "confirm": True})
     assert confirmed.status_code == 200
     assert (confirmed.json()["session"]["place"], confirmed.json()["progress"]) == ("gym", None)
+
+
+# ------------------------------------------------------------ away, no equipment (ADR-0086)
+
+
+@pytest.fixture
+def signed_in_away(engine: Engine) -> Iterator[TestClient]:
+    """Signed in, with an away version of Legs, today's session."""
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, factories.plan_with_away())
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        token = auth.create_link(bound, datetime.now(UTC))
+        bound.commit()
+    settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+    with TestClient(create_app(settings), base_url=ORIGIN) as client:
+        assert client.post("/api/auth/redeem", json={"token": token}).status_code == 204
+        yield client
+
+
+def test_away_is_on_the_switch_for_someone_at_home_and_is_for_the_day(
+    signed_in_away: TestClient,
+) -> None:
+    today = signed_in_away.get("/api/session/today").json()["session"]
+    assert (today["place"], today["places"], today["place_choice"]) == (
+        "home",
+        ["home", "away"],
+        True,
+    )
+    refused = signed_in_away.put("/api/session/place", json={"place": "gym"})
+    assert (refused.status_code, refused.json()["detail"]) == (
+        409,
+        "today's session isn't done there",
+    )
+    switched = signed_in_away.put("/api/session/place", json={"place": "away"})
+    assert switched.status_code == 200
+    away = switched.json()
+    assert away["session"]["place"] == "away"
+    assert [i["slug"] for i in away["session"]["items"]] == [
+        i.exercise for i in factories.AWAY_LEGS
+    ]
+    revision = away["progress"]["revision"]
+    kept = {
+        "template_id": away["session"]["template_id"],
+        "place": "away",
+        "position": 1,
+        "revision": revision,
+        "sets": [{"item": 0, "set_no": 1, "left": 6}],
+    }
+    assert signed_in_away.put("/api/session/progress", json=kept).status_code == 200
+    settings = signed_in_away.get("/api/settings").json()
+    assert settings["places"] == "home"  # an away day changes no setting
+
+
+def test_away_a_step_that_needs_kit_says_it_is_the_no_equipment_step_today(
+    signed_in_away: TestClient, engine: Engine
+) -> None:
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        split = bound.scalars(
+            select(Exercise).where(Exercise.slug == "bulgarian-split-squat")
+        ).one()
+        state = users.exercise_state(bound, split.id)
+        assert state is not None
+        state.ladder_step_id = next(s.id for s in split.ladder if s.name == "Goblet hold, 8 kg")
+        bound.commit()
+    away = signed_in_away.put("/api/session/place", json={"place": "away"}).json()["session"]
+    item = next(i for i in away["items"] if i["slug"] == "bulgarian-split-squat")
+    assert (item["step"], item["no_kit"]) == ("Bodyweight, back foot on chair", True)
+    locked = {r["name"]: r["missing"] for r in item["level"]["ladder"]}
+    assert locked["Goblet hold, 8 kg"] == ["an 8 kg kettlebell"]
+    tibialis = next(i for i in away["items"] if i["slug"] == "tibialis-raise")
+    assert tibialis["no_kit"] is False
+
+
+def test_only_the_owner_can_choose_away(signed_in_away: TestClient, engine: Engine) -> None:
+    settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+    with TestClient(create_app(settings), base_url=ORIGIN) as stranger:
+        answer = stranger.put("/api/session/place", json={"place": "away"})
+        assert answer.status_code == 401
+    today = signed_in_away.get("/api/session/today").json()["session"]
+    assert today["place"] == "home"

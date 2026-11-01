@@ -25,7 +25,7 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.domain.enums import ExerciseKind, WorkoutStatus
+from training_coach.domain.enums import ExerciseKind, Place, WorkoutStatus
 from training_coach.domain.load import LoadKit
 from training_coach.domain.volume import weekly_sets
 from training_coach.services import users
@@ -1095,3 +1095,56 @@ def test_a_gym_version_names_known_exercises_in_pairs() -> None:
         load_plan(_upper_gym('{ exercise = "squat", sets = 3, rep_min = 5, rep_max = 8 }'))
     with pytest.raises(ValidationError, match="pair 1 must be two neighbouring items"):
         load_plan(_upper_gym(f"{PULL}, pair = 1 }}"))
+
+
+# ------------------------------------------------------------- away versions (ADR-0086)
+
+
+def _upper_away(away: str, facts: str = "") -> str:
+    """The mini plan with an away version of its upper session, and ``facts`` on the pull-up."""
+    plan = _upper_items(f"{PULL} }}]\naway = [{away}")
+    return plan.replace(
+        'ladder = ["Negatives", "Strict", "Weighted"]',
+        f'ladder = ["Negatives", "Strict", "Weighted"]\n{facts}',
+        1,
+    )
+
+
+def test_an_away_version_is_stored_with_its_place_and_goes_like_the_others(
+    session: Session,
+) -> None:
+    apply_seed(session, load_plan(_upper_away(f"{PULL}, pair = 1 }}, {DIP}, pair = 1 }}")))
+    session.flush()
+    upper = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "upper")).one()
+    assert [(i.place, i.position) for i in upper.away_items] == [("away", 0), ("away", 1)]
+    assert [i.place for i in upper.items] == ["home"]
+    assert upper.version(Place.AWAY) == upper.away_items
+    assert upper.done_at(Place.AWAY) is Place.AWAY
+    result = apply_seed(session, load_plan(_upper_items(f"{PULL} }}")))
+    session.flush()
+    session.expire_all()
+    assert result.deleted == 2
+    assert upper.away_items == []
+    assert upper.version(Place.AWAY) == upper.items  # no away version: done as at home
+    assert upper.done_at(Place.AWAY) is Place.HOME
+
+
+def test_an_away_version_needs_a_first_step_without_kit() -> None:
+    with pytest.raises(ValidationError, match="away, pull-up's first step 'Negatives' needs kit"):
+        load_plan(_upper_away(f"{PULL} }}", '[exercises.needs]\nNegatives = ["pull-up bar"]'))
+    with pytest.raises(ValidationError, match="away, pull-up's first step 'Negatives' needs kit"):
+        load_plan(_upper_away(f"{PULL} }}", '[exercises.loads]\nNegatives = "backpack"'))
+    # A step higher up may need kit: away trains the highest one below it that doesn't
+    load_plan(_upper_away(f"{PULL} }}", '[exercises.needs]\nWeighted = ["backpack:5"]'))
+
+
+def test_an_away_version_has_no_gym_work() -> None:
+    with pytest.raises(ValidationError, match="away, pull-up is gym work"):
+        load_plan(_upper_away(f"{PULL} }}", '[exercises.loads]\nWeighted = "machine"'))
+
+
+def test_an_away_version_names_known_exercises_in_pairs() -> None:
+    with pytest.raises(ValidationError, match="unknown exercise squat"):
+        load_plan(_upper_away('{ exercise = "squat", sets = 3, rep_min = 5, rep_max = 8 }'))
+    with pytest.raises(ValidationError, match="pair 1 must be two neighbouring items"):
+        load_plan(_upper_away(f"{PULL}, pair = 1 }}"))

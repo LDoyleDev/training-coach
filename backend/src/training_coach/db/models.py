@@ -168,7 +168,7 @@ class SessionTemplate(Base):
         back_populates="template",
         order_by="TemplateItem.position",
         cascade="all, delete-orphan",
-        overlaps="gym_items",
+        overlaps="gym_items,away_items",
     )
     # The gym version, empty when the session is done the same way at both (ADR-0071).
     gym_items: Mapped[list["TemplateItem"]] = relationship(
@@ -176,18 +176,31 @@ class SessionTemplate(Base):
         "TemplateItem.place == 'gym')",
         order_by="TemplateItem.position",
         cascade="all, delete-orphan",
-        overlaps="items,template",
+        overlaps="items,template,away_items",
+    )
+    # The away version, with no equipment (ADR-0086); empty: no away version to offer.
+    away_items: Mapped[list["TemplateItem"]] = relationship(
+        primaryjoin="and_(SessionTemplate.id == TemplateItem.template_id, "
+        "TemplateItem.place == 'away')",
+        order_by="TemplateItem.position",
+        cascade="all, delete-orphan",
+        overlaps="items,template,gym_items",
     )
 
+    def _other(self, place: Place) -> list["TemplateItem"]:
+        if place is Place.GYM:
+            return self.gym_items
+        return self.away_items if place is Place.AWAY else []
+
     def version(self, place: Place) -> list["TemplateItem"]:
-        """The items done at ``place``: the gym version at the gym when there is one, else the
-        home version (ADR-0071)."""
-        return self.gym_items if place is Place.GYM and self.gym_items else self.items
+        """The items done at ``place``: its gym or away version when there is one, else the
+        home version (ADR-0071, ADR-0086)."""
+        return self._other(place) or self.items
 
     def done_at(self, place: Place) -> Place:
-        """Where ``version(place)`` is done: the gym only when there is a gym version, so a
-        gym-only person's session without one is recorded at home, with home kit (ADR-0071)."""
-        return Place.GYM if place is Place.GYM and self.gym_items else Place.HOME
+        """Where ``version(place)`` is done: the gym or away only when there is that version, so
+        a gym-only person's session without one is recorded at home, with home kit (ADR-0071)."""
+        return place if self._other(place) else Place.HOME
 
 
 class TemplateItem(Base):
@@ -216,7 +229,9 @@ class TemplateItem(Base):
     # Which version of the session it belongs to (ADR-0071); positions count within a version.
     place: Mapped[str] = mapped_column(String(8), server_default=Place.HOME.value)
 
-    template: Mapped[SessionTemplate] = relationship(back_populates="items", overlaps="gym_items")
+    template: Mapped[SessionTemplate] = relationship(
+        back_populates="items", overlaps="gym_items,away_items"
+    )
     exercise: Mapped[Exercise] = relationship()
 
 
@@ -229,6 +244,11 @@ def _home_item(_template: SessionTemplate, item: TemplateItem, _initiator: objec
 def _gym_item(_template: SessionTemplate, item: TemplateItem, _initiator: object) -> None:
     """An item added to the gym version is a gym item, whatever it was built with."""
     item.place = Place.GYM
+
+
+@event.listens_for(SessionTemplate.away_items, "append")
+def _away_item(_template: SessionTemplate, item: TemplateItem, _initiator: object) -> None:
+    item.place = Place.AWAY
 
 
 # ----------------------------------------------------------------------- people
@@ -322,7 +342,8 @@ class UserSettings(Owned, Base):
             name="session_minutes_valid",
         ),
         CheckConstraint(_in("places", Places), name="places_valid"),
-        CheckConstraint(_in("place", Place), name="place_valid"),
+        # The place Today starts at is never away: an away day is an exception (ADR-0086).
+        CheckConstraint("place IN ('home', 'gym')", name="place_valid"),
         *(
             CheckConstraint(
                 f"{kit}_increment_kg IS NULL OR {kit}_increment_kg BETWEEN 0.25 AND 20",
