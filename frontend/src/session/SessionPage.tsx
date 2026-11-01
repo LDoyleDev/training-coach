@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   changeLevel,
   chooseLength,
+  easeBackIn,
   fetchPending,
   fetchSettings,
   fetchToday,
@@ -62,6 +63,7 @@ import Proposals from './Proposals'
 import LogDay from './LogDay'
 import LevelChange from './LevelChange'
 import LengthChoice, { KeepToggle } from './Length'
+import EaseBack from './EaseBack'
 import { levelNote, type LevelScope } from './levels'
 import ClashQuestion from './ClashQuestion'
 import { ExerciseFigures } from '../bodymap/BodyMap'
@@ -475,6 +477,30 @@ export default function SessionPage() {
     }
   }
 
+  /** Ease back in after a break (ADR-0084): one step down today for each exercise offered, or
+   * not today; asked once per return. A 409 reloads the session, as a length change does. */
+  const answerEaseBack = async (ease: boolean) => {
+    setSignedOut(false) // a retry after signing in again
+    setBusy(true)
+    try {
+      const result = await easeBackIn({ template_id: session.template_id, revision, first, ease })
+      if (result === 'stale')
+        return stale("Today's session moved on elsewhere, so nothing changed. Here it is now.")
+      if (typeof result === 'string') return setNote(result)
+      changed(
+        result,
+        ease
+          ? 'One step down today. Your levels stay as they are.'
+          : 'Not today: today is at your usual levels.',
+      )
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't answer. Check your connection and try again.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
   /** Last set: as many good reps as you can (ADR-0084), offered with a shorter day: the same
    * setting as on Account, then today's session again with it. */
   const pickLastSet = async (on: boolean) => {
@@ -630,6 +656,9 @@ export default function SessionPage() {
               onChanged={(today, text) => changed(today, text)}
               onStale={stale}
             />
+          )}
+          {session.ease_back.length > 0 && (
+            <EaseBack ease={session.ease_back} busy={busy} onAnswer={answerEaseBack} />
           )}
           {session.length && (
             <LengthChoice

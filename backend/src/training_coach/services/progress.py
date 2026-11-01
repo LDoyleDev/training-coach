@@ -284,7 +284,7 @@ def _below_top(step: LadderStep) -> bool:
     return at < len(ladder) - 1
 
 
-def _step_below(step: LadderStep, limits: Limits) -> LadderStep | None:
+def step_below(step: LadderStep, limits: Limits) -> LadderStep | None:
     """The nearest open step below: a step down skips the locked ones (ADR-0084)."""
     ladder, at = _at(step)
     found = locks.previous_open(step_locks.ladder(step.exercise), at, limits)
@@ -319,7 +319,7 @@ def _down_rule(
     found = step_down_rule(
         _prescription(item),
         [v for _, v in done],
-        has_step_below=_step_below(step, limits) is not None,
+        has_step_below=step_below(step, limits) is not None,
         pace=pace,
         planned=planned_sets(session, step.exercise.slug, ids),
         skipped=skipped,
@@ -378,7 +378,7 @@ def down(
         found, latest = _down_rule(session, item, step, limits, pace)
         if found is StepDown.NONE or (step.exercise_id, step.id, latest) in dismissed:
             continue
-        below = _step_below(step, limits)
+        below = step_below(step, limits)
         if below is not None:
             return Down(step.id, below.name)
         return Down(step.id, None, easier(step.exercise.slug))
@@ -664,7 +664,7 @@ def step_down(session: Session, exercise_id: int, from_step_id: int) -> Move | N
     suggested = down(session, _items(session, exercise_id), step, limits)
     if suggested is None:
         return Move(MoveOutcome.NOT_READY, exercise.name)
-    below = _step_below(step, limits)
+    below = step_below(step, limits)
     if below is None:
         return Move(MoveOutcome.NO_STEP_BELOW, exercise.name, step.name)
     moved = set_level(session, exercise_id, below.id)

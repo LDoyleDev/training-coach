@@ -24,6 +24,7 @@ from training_coach.domain.session_times import Timing, minutes
 from training_coach.domain.stretching import HOLD_SECONDS, POSITION_SECONDS, RELEASE_SECONDS
 from training_coach.services import (
     daily_check,
+    ease_back,
     guided,
     mobility_flow,
     queue_actions,
@@ -248,6 +249,14 @@ def length_view(plan: guided.Guided) -> LengthView | None:
     )
 
 
+class EaseBackView(BaseModel):
+    """An exercise back after three weeks or more away, and the step below its level that
+    "Ease back in: one step down today" would do it at, for today only (ADR-0084)."""
+
+    exercise: str
+    step: str
+
+
 class GuidedView(BaseModel):
     day: str  # ISO date, local
     template_id: int
@@ -271,6 +280,9 @@ class GuidedView(BaseModel):
     place_choice: bool = False
     # Short on time today (ADR-0082); empty for a session that always runs as planned.
     length: LengthView | None = None
+    # Ease back in after a break (ADR-0084): one prompt for these, before the session starts;
+    # empty when there's nothing to offer or it was answered for this return.
+    ease_back: list[EaseBackView]
 
 
 class DoneView(BaseModel):
@@ -548,6 +560,10 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
             places=list(plan.places),
             place_choice=plan.switch,
             length=length_view(plan),
+            ease_back=[
+                EaseBackView(exercise=r.exercise, step=r.step)
+                for r in ease_back.offered(session, plan, kept)
+            ],
         ),
     )
 
@@ -640,6 +656,35 @@ def choose_length(body: LengthBody, request: Request, user: Owner) -> TodayView:
             return today_view(session, on, settings)
         # Raised inside the scope, so it rolls back: a refused choice writes nothing.
         if result in (guided.STALE, guided.STARTED, guided.SAVED):
+            raise HTTPException(status.HTTP_409_CONFLICT, result)
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result)
+
+
+class EaseBackBody(BaseModel):
+    """The answer to "Ease back in: one step down today" (ADR-0084)."""
+
+    template_id: int  # the session the browser shows: a different one now is a conflict
+    revision: int = Field(default=0, ge=0)  # the kept revision this browser saw; 0: none
+    first: list[int] = Field(default_factory=list, max_length=10)
+    ease: bool  # true: one step down today for each exercise offered; false: not today
+
+
+@router.put("/ease-back", response_model=TodayView)
+def ease_back_in(body: EaseBackBody, request: Request, user: Owner) -> TodayView:
+    """Ease back in after a break, or not: one step down for today only on each exercise
+    offered, levels unchanged; either answer is asked once per return. 409 when the session
+    changed or another device moved on (reload); 422 when there is nothing to ease back into."""
+    settings, on = _settings_and_day(request)
+    with session_scope(_bound(request, user)) as session:
+        plan = guided.today(session, on, settings.tz, set(body.first))
+        if plan is None or plan.template_id != body.template_id:
+            raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
+        kept = guided.kept(session, on)
+        result = ease_back.answer(session, plan, kept, body.revision, body.ease)
+        if isinstance(result, int):
+            return today_view(session, on, settings)
+        # Raised inside the scope, so it rolls back: a refused answer writes nothing.
+        if result == guided.STALE:
             raise HTTPException(status.HTTP_409_CONFLICT, result)
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result)
 

@@ -340,6 +340,8 @@ def test_progress_and_saving_need_a_signed_in_browser(engine: Engine) -> None:
         assert stranger.put("/api/session/progress", json=body).status_code == 401
         assert stranger.post("/api/session/save", json={}).status_code == 401
         assert stranger.get("/api/session/pending").status_code == 401
+        ease = {"template_id": 1, "ease": True}
+        assert stranger.put("/api/session/ease-back", json=ease).status_code == 401
 
 
 def test_a_swap_kept_for_another_session_does_not_apply(
@@ -620,6 +622,25 @@ def test_the_saved_screen_says_when_there_is_no_step_to_move_to(
     assert (earned["exercise"], earned["next_step"]) == ("Jump squat", None)
     assert (earned["at_top"], earned["unlock"]) == (True, unlock)
     assert earned["capped"] is (position < 2)
+
+
+def test_ease_back_in_after_three_weeks_away(signed_in: TestClient, engine: Engine) -> None:
+    """ADR-0084: one prompt for the return, one step down for today only, asked once."""
+    _put_on_step(engine, "jump-squat", 1)
+    _log_yesterday(engine, {"jump-squat": 6}, days_ago=25)
+    session = _today_view(signed_in)["session"]
+    assert session["ease_back"] == [{"exercise": "Jump squat", "step": "Bodyweight, full rest"}]
+    body = {"template_id": session["template_id"], "revision": 0, "ease": True}
+    eased = signed_in.put("/api/session/ease-back", json=body)
+    assert eased.status_code == 200
+    after = eased.json()
+    jump = after["session"]["items"][0]
+    assert (jump["step"], jump["level"]["for_today"]) == ("Bodyweight, full rest", True)
+    assert after["session"]["ease_back"] == []
+    again = signed_in.put("/api/session/ease-back", json=body)
+    assert again.status_code == 422  # asked once: nothing left to ease back into
+    other = {**body, "template_id": session["template_id"] + 99}
+    assert signed_in.put("/api/session/ease-back", json=other).status_code == 409
 
 
 def test_the_saved_screen_suggests_a_step_down(signed_in: TestClient, engine: Engine) -> None:

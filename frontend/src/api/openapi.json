@@ -1241,6 +1241,58 @@
         "title": "EarnedView",
         "type": "object"
       },
+      "EaseBackBody": {
+        "description": "The answer to \"Ease back in: one step down today\" (ADR-0084).",
+        "properties": {
+          "ease": {
+            "title": "Ease",
+            "type": "boolean"
+          },
+          "first": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 10,
+            "title": "First",
+            "type": "array"
+          },
+          "revision": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "ease"
+        ],
+        "title": "EaseBackBody",
+        "type": "object"
+      },
+      "EaseBackView": {
+        "description": "An exercise back after three weeks or more away, and the step below its level that\n\"Ease back in: one step down today\" would do it at, for today only (ADR-0084).",
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exercise",
+          "step"
+        ],
+        "title": "EaseBackView",
+        "type": "object"
+      },
       "Energy": {
         "enum": [
           "high",
@@ -1519,6 +1571,13 @@
             "title": "Day",
             "type": "string"
           },
+          "ease_back": {
+            "items": {
+              "$ref": "#/components/schemas/EaseBackView"
+            },
+            "title": "Ease Back",
+            "type": "array"
+          },
           "focus": {
             "title": "Focus",
             "type": "string"
@@ -1615,7 +1674,8 @@
           "minutes",
           "rest_seconds",
           "items",
-          "order"
+          "order",
+          "ease_back"
         ],
         "title": "GuidedView",
         "type": "object"
@@ -10183,6 +10243,48 @@
         "summary": "Get Review",
         "tags": [
           "review"
+        ]
+      }
+    },
+    "/api/session/ease-back": {
+      "put": {
+        "description": "Ease back in after a break, or not: one step down for today only on each exercise\noffered, levels unchanged; either answer is asked once per return. 409 when the session\nchanged or another device moved on (reload); 422 when there is nothing to ease back into.",
+        "operationId": "ease_back_in_api_session_ease_back_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EaseBackBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ease Back In",
+        "tags": [
+          "session"
         ]
       }
     },

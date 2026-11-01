@@ -98,6 +98,15 @@ for people starting low (ADR-0083).
   or a newer session has removed the suggestion, changes nothing.
   **Not yet** records `progress.not_yet_down` with the newest session the rule judged; the
   suggestion stays hidden until a newer session meets the rule again. No migration: events.
+- **Ease back in** lives on the session overview, before the first set: when any exercise in
+  today's guided session was last done 21 days ago or more (`progression.returning`; never done
+  is a start, not a return), has an open step below its level and isn't on a loaded step, one
+  card says "Ease back in: one step down today" and lists them with the step for today. "One
+  step down today" applies ADR-0080's For today to each (`session_levels.change`), levels
+  unchanged; "Not today" leaves the session as planned. Either answer records
+  `progress.ease_back` with each exercise's last day, so it is asked once per return, and a later
+  break asks again. Not offered for the block after a run, nor in Telegram (ADR-0080 keeps level
+  changes in the guided session).
 
 ## Addendum: the last set as built (#535)
 

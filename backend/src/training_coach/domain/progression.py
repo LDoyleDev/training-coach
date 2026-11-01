@@ -14,10 +14,13 @@ every set the prescription plans, and it always counts.
 Stepping down is suggested, never done for the person (ADR-0084): ``step_down`` offers the step
 below when the last two sessions at the step, not counting the first there (its baseline), each
 had most of the sets it planned short of their targets and below the bottom of the range.
+After three weeks or more without an exercise, ``returning`` says to offer one step down for the
+day of the return.
 """
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from datetime import date
 from enum import StrEnum
 
 from training_coach.domain.enums import Side
@@ -151,3 +154,12 @@ def easier_exercises(primes: frozenset[str], catalogue: Iterable[Catalogued]) ->
     """The catalogue's exercises starting at level 1 or 2 that share a prime mover with
     ``primes``, in catalogue order: a suggestion at a ladder's first step."""
     return [c.name for c in catalogue if c.level in EASY_LEVELS and c.primes & primes]
+
+
+RETURN_DAYS = 21  # three weeks or more away: ease back in, one step down today (ADR-0084)
+
+
+def returning(last_done: date | None, today: date) -> bool:
+    """``RETURN_DAYS`` or more since the exercise was last done. Never done is a start, not a
+    return."""
+    return last_done is not None and (today - last_done).days >= RETURN_DAYS
