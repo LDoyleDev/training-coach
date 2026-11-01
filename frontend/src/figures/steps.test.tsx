@@ -128,6 +128,15 @@ const SAME: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   },
   'adductor-squeeze': { 'Seated pillow squeeze, 5 s hold': 'the figure' },
   'standing-leg-curl': { 'At the counter': 'the figure' },
+  // The away versions' door-frame pulls (away.ts).
+  'doorway-row': {
+    'Leaning back, feet at the frame': 'the figure',
+    'Feet at the frame, 3 s lowering': 'the tempo',
+  },
+  'doorway-curl': {
+    'Leaning back, feet at the frame': 'the figure',
+    'Feet at the frame, 3 s lowering': 'the tempo',
+  },
 }
 
 test('every step of an exercise with a figure is drawn, listed as showing it, or not drawn yet', () => {
@@ -149,8 +158,9 @@ test('every step of an exercise with a figure is drawn, listed as showing it, or
     for (const step of steps) expect(ladder(slug), slug).toContain(step)
 })
 
-test('a step not drawn yet shows no figure rather than the wrong one (#508)', () => {
-  expect(figureFor('push-up', 'Hands on a wall')).toBeUndefined()
+test('every lower step is drawn: none is left without its figure (#545)', () => {
+  expect(UNDRAWN).toEqual({})
+  expect(figureFor('push-up', 'Hands on a wall')!.props!.wall).toBeDefined()
   expect(figureFor('push-up', 'Standard')).toBe(FIGURES['push-up'])
   expect(figureFor('push-up')).toBe(FIGURES['push-up'])
 })

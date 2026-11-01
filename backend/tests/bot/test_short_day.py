@@ -26,7 +26,7 @@ from training_coach.services.today import session_plan
 Sessions = sessionmaker[Session]
 LEGS_PLANNED = "About 49 minutes, warm-up included."  # the bundled home Legs day
 DROPPED_AT_20 = (
-    "Shortened to 20 minutes in the app; dropped: Hamstring curl, Single-leg calf raise, "
+    "Shortened to 20 minutes in the app; dropped: Hamstring curl, Calf raise, "
     "Tibialis raise, Pistol squat, Single-leg Romanian deadlift."
 )
 
@@ -88,7 +88,7 @@ async def test_the_morning_shows_the_planned_length_and_offers_a_shorter_one(
     assert f"{LEGS_PLANNED} {SHORT_ON_TIME}" in text.splitlines()
     assert SHORT_ON_TIME == "Short on time? Pick 40, 30 or 20 minutes in the app before you start."
     assert WARM_UP in text.splitlines()
-    assert _listed(text)["Single-leg calf raise"] == 4  # the list as planned
+    assert _listed(text)["Calf raise"] == 4  # the list as planned
 
 
 async def test_today_follows_a_shorter_day_chosen_in_the_app(seeded: Sessions) -> None:
@@ -103,7 +103,7 @@ async def test_today_follows_a_shorter_day_chosen_in_the_app(seeded: Sessions) -
     assert RAMP in lines  # 30 minutes or less: ramp sets, not the 5-minute warm-up
     assert WARM_UP not in lines
     assert WORK_DOWN not in lines  # every pair lost a partner: each is done straight
-    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Bulgarian split squat": 2}
+    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Split squat": 2}
     assert len(_listed(before)) == 8
 
 
@@ -139,12 +139,12 @@ async def test_a_day_that_cannot_get_that_short_says_how_short_it_got(seeded: Se
     text, _ = handlers._today()
     assert (
         f"Shortened as far as it goes in the app: about {shortest} minutes; dropped: "
-        "Bulgarian split squat, Kettlebell swing, Jump squat."
+        "Split squat, Kettlebell swing, Jump squat."
     ) in text.splitlines()
     assert "Shortened to 20 minutes" not in text
     assert set(_listed(text)) == {
         "Tibialis raise",
-        "Single-leg calf raise",
+        "Calf raise",
         "Hamstring curl",
         "Pistol squat",
         "Single-leg Romanian deadlift",
@@ -198,7 +198,7 @@ async def test_start_lists_the_shorter_day(
     _choose(seeded, Handlers(SETTINGS, seeded), 20)
     (text,) = texts(await run(app, press(f"q:start:{tid}", OWNER)))
     assert DROPPED_AT_20 in text.splitlines()
-    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Bulgarian split squat": 2}
+    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Split squat": 2}
     assert "- Tibialis raise:" not in text  # no how-to for a dropped exercise
 
 
@@ -251,10 +251,10 @@ async def test_the_work_list_names_what_the_setting_drops(seeded: Sessions) -> N
     about = _minutes_today(seeded, handlers)
     assert (
         f"About {about} minutes at your 20-minute setting; dropped: Hamstring curl, "
-        "Single-leg calf raise, Tibialis raise, Pistol squat, Single-leg Romanian deadlift. "
+        "Calf raise, Tibialis raise, Pistol squat, Single-leg Romanian deadlift. "
         f"{ANOTHER_LENGTH}"
     ) in text.splitlines()
-    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Bulgarian split squat": 2}
+    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Split squat": 2}
 
 
 async def test_a_days_as_planned_overrides_the_setting(seeded: Sessions) -> None:
@@ -287,7 +287,7 @@ async def test_start_lists_the_session_at_the_setting(
     (text,) = texts(await run(app, press(f"q:start:{tid}", OWNER)))
     assert "at your 20-minute setting; dropped: Hamstring curl" in text
     assert ANOTHER_LENGTH not in text  # the offer is the morning's and /today's
-    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Bulgarian split squat": 2}
+    assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Split squat": 2}
 
 
 def test_a_setting_out_of_reach_says_the_shortest_it_gets(seeded: Sessions) -> None:

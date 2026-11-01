@@ -4,9 +4,11 @@
  * plan.toml writes it; each entry says what changes over the exercise's figure. Every other step
  * shows the figure as it is.
  */
+import { AWAY_STEPS } from './away'
 import { BODY, solve, type Pose, type Vec } from './body'
 import { ENTRY_LOWER_STEPS } from './entry-lower'
 import { ENTRY_UPPER_STEPS } from './entry-upper'
+import { LADDER_DOWN_STEPS } from './ladder-down'
 import { FIGURES, type Figure } from './poses'
 
 type Change = Partial<Figure>
@@ -433,7 +435,7 @@ const hugged = (pose: Pose): Pose => ({
   armF: { at: [20, 20.5], from: 'waist' },
 })
 
-export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
+const DRAWN: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
   'pull-up': LOADED(VEST, FIGURES['pull-up']),
   'chin-up': LOADED(VEST, FIGURES['chin-up']),
   dip: {
@@ -705,33 +707,23 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
       end: hugged(FIGURES['hip-hinge'].end),
     },
   },
+  ...AWAY_STEPS,
   ...ENTRY_LOWER_STEPS,
   ...ENTRY_UPPER_STEPS,
 }
 
-/** Steps set up differently from their exercise's figure that aren't drawn yet: the lower steps
- * ADR-0083 added below today's bottoms (#508). They show no figure rather than the wrong one
- * (a floor push-up for a push-up against the wall); each comes out of here once it is drawn. */
-export const UNDRAWN: Readonly<Record<string, readonly string[]>> = {
-  'push-up': [
-    'Hands on a wall',
-    'Hands on a counter',
-    'Hands on a table',
-    'Hands on a chair seat against a wall',
-    'On the knees',
-    'Hands on a stair or low step',
-  ],
-  'bulgarian-split-squat': [
-    'Holding a chair, short range',
-    'Holding a chair, full range',
-    'Back foot on a low step',
-  ],
-  'pull-up': ['Feet on a chair', 'Scapular pulls'],
-  'kb-row': ['A bag, about 4 kg'],
-  'kb-curl': ['Water bottles, about 1 kg', 'A bag, 2-4 kg'],
-  'calf-raise': ['Both legs, hands on a wall', 'Both legs, on a step'],
-  'copenhagen-plank': ['Knee on a chair, bottom foot helping'],
+/** Every step drawn: the lower steps (ladder-down.ts) join their exercise's other steps. */
+export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
+  ...DRAWN,
+  ...Object.fromEntries(
+    Object.entries(LADDER_DOWN_STEPS).map(([slug, steps]) => [slug, { ...DRAWN[slug], ...steps }]),
+  ),
 }
+
+/** Steps set up differently from their exercise's figure that aren't drawn yet: they show no
+ * figure rather than the wrong one (a floor push-up for a push-up against the wall), and each comes
+ * out of here once it is drawn. Empty since #545 drew ADR-0083's lower steps (ladder-down.ts). */
+export const UNDRAWN: Readonly<Record<string, readonly string[]>> = {}
 
 /** ``slug``'s figure as it looks at the ladder step ``step``; nothing for a slug without one, or
  * for a step that isn't drawn yet. */
