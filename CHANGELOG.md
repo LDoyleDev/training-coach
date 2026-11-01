@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.13.0](https://github.com/LDoyleDev/training-coach/compare/v1.12.0...v1.13.0) (2026-11-01)
+
+
+### Features
+
+* **db:** extend fifteen ladders downward and bring back the Squat (ADR-0083) ([#534](https://github.com/LDoyleDev/training-coach/issues/534)) ([910f2b0](https://github.com/LDoyleDev/training-coach/commit/910f2b0907c74fed1e91df9a18c3aa195289e70d))
+
+
+### Documentation
+
+* **docs:** session log for 1.12.0 ([#542](https://github.com/LDoyleDev/training-coach/issues/542)) ([3011439](https://github.com/LDoyleDev/training-coach/commit/30114395f65dbef693ed65f2e84abbda0e321efc))
+
 ## [1.12.0](https://github.com/LDoyleDev/training-coach/compare/v1.11.0...v1.12.0) (2026-11-01)
 
 

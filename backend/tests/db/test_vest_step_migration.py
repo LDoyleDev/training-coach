@@ -114,7 +114,8 @@ def test_the_two_steps_go_and_the_seed_renames_the_five_kg_step(cfg: Config, old
             )
         )
     command.upgrade(cfg, "head")
-    assert _ladder(old, "pull-up") == OLD["pull-up"][:4]
+    # 5ebed72122f7 (ADR-0083) then adds two steps below the pull-up's, the ids kept
+    assert _ladder(old, "pull-up") == ["Feet on a chair", "Scapular pulls", *OLD["pull-up"][:4]]
     assert _ladder(old, "chin-up") == OLD["chin-up"][:3]
     with old.begin() as db:
         loads = db.execute(text("SELECT ladder_step_id, load_kg FROM set_logs ORDER BY id"))

@@ -27,6 +27,7 @@ from training_coach.db.models import (
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import ExerciseKind, Place, WorkoutStatus
 from training_coach.domain.load import LoadKit
+from training_coach.domain.parser import Known, parse_log
 from training_coach.domain.volume import weekly_sets
 from training_coach.services import users
 from training_coach.services.seed import PlanSeed, SeedError, apply_seed, load_plan
@@ -738,7 +739,7 @@ def test_the_seed_marks_retired_exercises(session: Session) -> None:
     apply_seed(session, load_plan())
     session.flush()
     retired = session.scalars(select(Exercise.slug).where(Exercise.retired.is_(True))).all()
-    assert sorted(retired) == ["goblet-squat", "reverse-lunge"]
+    assert sorted(retired) == ["reverse-lunge"]  # the goblet squat is back as the Squat
     lunge = session.scalars(select(Exercise).where(Exercise.slug == "reverse-lunge")).one()
     assert lunge.per_side
 
@@ -973,7 +974,7 @@ def test_split_squats_load_the_spine_only_with_a_kettlebell() -> None:
     """program-builder.md, Decided 3: loaded squats count; bodyweight and jump squats don't."""
     exercises = {e.slug: e for e in load_plan().exercises}
     split = exercises["bulgarian-split-squat"]
-    assert [bool(split.step_stress(s)) for s in split.ladder] == [False, *[True] * 5]
+    assert [bool(split.step_stress(s)) for s in split.ladder] == [*[False] * 4, *[True] * 5]
     jump = exercises["jump-squat"]
     assert not any(jump.step_stress(s) for s in jump.ladder)
     assert all(exercises["kb-swing"].step_stress(s) for s in exercises["kb-swing"].ladder)
@@ -1222,3 +1223,28 @@ def test_the_door_frame_pulls_are_kit_free_ladders_from_level_2() -> None:
         assert set(found.cues) == set(found.ladder)
         assert set(found.questions) == set(found.ladder[1:])
         assert found.levels[found.ladder[found.start]] == 4  # where the plan's other pulls start
+
+
+# Names that no longer fit their ladders' new bottom steps (ADR-0083, #545): renamed, the slug
+# kept, and the old name an alias, so a typed or spoken log, or a line copied from an old bot
+# message, still lands on the same exercise.
+RENAMED = {
+    "bulgarian-split-squat": ("Bulgarian split squat", "Split squat"),
+    "calf-raise": ("Single-leg calf raise", "Calf raise"),
+    "kb-row": ("One-arm kettlebell row", "One-arm row"),
+    "kb-curl": ("Kettlebell curl", "Curl"),
+    "lateral-raise": ("Kettlebell lateral raise", "Lateral raise"),
+    "neck-flexion": ("Neck flexion (lying on back, head off edge)", "Neck flexion"),
+    "neck-extension": ("Neck extension (lying face down, head off edge)", "Neck extension"),
+    "neck-lateral": ("Neck side bend (lying on side, head off edge)", "Neck side bend"),
+}
+
+
+def test_a_renamed_exercise_keeps_its_old_name_for_logs() -> None:
+    plan = {e.slug: e for e in load_plan().exercises}
+    known = [Known(e.slug, (e.name, *e.aliases), e.kind, False) for e in plan.values()]
+    for slug, (old, new) in RENAMED.items():
+        assert (plan[slug].name, old in plan[slug].aliases) == (new, True), slug
+        for line in (f"{old} 10 10", f"{new} 10 10", f"- {old}: 10, 10"):
+            result = parse_log(line, known)
+            assert [e.slug for e in result.entries] == [slug], (line, result.problems)

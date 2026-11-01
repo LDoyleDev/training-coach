@@ -154,7 +154,9 @@ def test_a_loaded_step_lowers_the_weight_instead(plan: Session) -> None:
 
 
 def test_at_the_first_step_it_names_easier_exercises(plan: Session) -> None:
-    step = _step(plan, "push-up")
+    push_up = _exercise(plan, "push-up")
+    step = push_up.ladder[0]  # the wall push-up since the ladders went down (ADR-0083)
+    assert progress.set_level(plan, push_up.id, step.id) is not None
     assert step.position == 0
     _out_of_reach(plan, "push-up")
     found = _standing(plan, "push-up").down
@@ -244,5 +246,5 @@ def test_dismissals_are_read_once_per_overview_and_feedback(plan: Session) -> No
     finally:
         sa_event.remove(engine, "before_cursor_execute", record)
     assert found["pull-up"] is None  # dismissed
-    assert found["push-up"] == Down(push_up.id, None, progress.easier("push-up"))
+    assert found["push-up"] == Down(push_up.id, "Hands on a stair or low step")
     assert (in_overview, len(reads)) == (1, 2)  # two exercises judged, one read each call

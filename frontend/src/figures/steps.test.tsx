@@ -7,7 +7,7 @@ import { layDown, perspectiveShapes } from './perspective'
 import Figure from './Figure'
 import { FIGURES } from './poses'
 import { SOFA, shapes, type Props, type Shape } from './shapes'
-import { STEPS, figureFor } from './steps'
+import { STEPS, UNDRAWN, figureFor } from './steps'
 
 const ALONG = [0, 0.25, 0.5, 0.75, 1]
 
@@ -128,9 +128,18 @@ const SAME: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   },
   'adductor-squeeze': { 'Seated pillow squeeze, 5 s hold': 'the figure' },
   'standing-leg-curl': { 'At the counter': 'the figure' },
+  // The away versions' door-frame pulls (away.ts).
+  'doorway-row': {
+    'Leaning back, feet at the frame': 'the figure',
+    'Feet at the frame, 3 s lowering': 'the tempo',
+  },
+  'doorway-curl': {
+    'Leaning back, feet at the frame': 'the figure',
+    'Feet at the frame, 3 s lowering': 'the tempo',
+  },
 }
 
-test('every step of an exercise with a figure is drawn, or listed as showing it as it is', () => {
+test('every step of an exercise with a figure is drawn, listed as showing it, or not drawn yet', () => {
   const unmet: string[] = []
   for (const slug of Object.keys(FIGURES)) {
     const steps = ladder(slug)
@@ -138,12 +147,22 @@ test('every step of an exercise with a figure is drawn, or listed as showing it 
     for (const step of steps) {
       const drawn = step in (STEPS[slug] ?? {})
       const same = step in (SAME[slug] ?? {})
-      if (drawn === same) unmet.push(`${slug} / ${step}`)
+      const undrawn = UNDRAWN[slug]?.includes(step) ?? false
+      if (Number(drawn) + Number(same) + Number(undrawn) !== 1) unmet.push(`${slug} / ${step}`)
     }
   }
   expect(unmet, 'draw these in steps.ts, or say in SAME why the figure fits').toEqual([])
   for (const [slug, why] of Object.entries(SAME))
     for (const step of Object.keys(why)) expect(ladder(slug), slug).toContain(step)
+  for (const [slug, steps] of Object.entries(UNDRAWN))
+    for (const step of steps) expect(ladder(slug), slug).toContain(step)
+})
+
+test('every lower step is drawn: none is left without its figure (#545)', () => {
+  expect(UNDRAWN).toEqual({})
+  expect(figureFor('push-up', 'Hands on a wall')!.props!.wall).toBeDefined()
+  expect(figureFor('push-up', 'Standard')).toBe(FIGURES['push-up'])
+  expect(figureFor('push-up')).toBe(FIGURES['push-up'])
 })
 
 /** Every exercise's figure at every step that changes it. */

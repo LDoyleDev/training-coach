@@ -2,7 +2,9 @@
 # Order of [[sessions]] is the queue order (ADR-0006). Ladders run easiest -> hardest;
 # `start` is the ladder position (0-based) to begin at. Add new steps at the end of a ladder:
 # steps are matched by position, and a step with history can only change name through
-# `renames = { "old" = "new" }` on its exercise (the seed refuses anything else).
+# `renames = { "old" = "new" }` on its exercise (the seed refuses anything else). A step below
+# or between existing ones needs a migration that moves the ladder up first, as
+# 5ebed72122f7 did for ADR-0083's lower steps (and moves `start` here by the same number).
 #
 # Structure follows Huberman's Foundational Fitness Protocol (Huberman Lab ep. 94, with
 # Andy Galpin; see docs/specs/training-plan.md): 3 resistance days (legs; torso + neck;
@@ -240,15 +242,15 @@ renames = { "Heavier kettlebell" = "Two-hand, 16 kg" }
 
 [[exercises]]
 slug = "bulgarian-split-squat"
-name = "Bulgarian split squat"
+name = "Split squat"
 summary = "Back foot on a chair, front foot far enough forward that the knee stays over the foot. Lower until the back knee nearly touches the floor, then drive up through the front heel."
 kind = "reps"
 muscles = { quads = 1, glutes = 1, adductors = 0.5 }
 pattern = "lunge"
 stress = ["spine"]
-aliases = ["split squat", "bulgarian", "bss"]
-start = 0
-ladder = ["Bodyweight, back foot on chair", "Goblet hold, 8 kg", "Goblet hold, 3 s lowering", "Goblet hold, 16 kg", "Goblet hold 16 kg, 3 s lowering", "Suitcase hold, 16 kg + 8 kg"]
+aliases = ["Bulgarian split squat", "bulgarian", "bss"]
+start = 3
+ladder = ["Holding a chair, short range", "Holding a chair, full range", "Back foot on a low step", "Bodyweight, back foot on chair", "Goblet hold, 8 kg", "Goblet hold, 3 s lowering", "Goblet hold, 16 kg", "Goblet hold 16 kg, 3 s lowering", "Suitcase hold, 16 kg + 8 kg"]
 renames = { "Heavier kettlebell" = "Goblet hold, 16 kg" }
 [exercises.needs]
 "Goblet hold, 8 kg" = ["kettlebell:8"]
@@ -257,16 +259,25 @@ renames = { "Heavier kettlebell" = "Goblet hold, 16 kg" }
 "Goblet hold 16 kg, 3 s lowering" = ["kettlebell:16"]
 "Suitcase hold, 16 kg + 8 kg" = ["kettlebell:8", "kettlebell:16"]
 [exercises.cues]
+"Holding a chair, short range" = "Both feet on the floor, one a long step behind; a hand on a chair back; bend both knees a little way."
+"Holding a chair, full range" = "As before, hand on the chair; lower until the back knee is just off the floor."
+"Back foot on a low step" = "Back foot on the bottom stair, a hand on the rail or a counter if you need it."
 "Goblet hold, 16 kg" = "Bell at the chest, elbows in; lower straight down."
 "Goblet hold 16 kg, 3 s lowering" = "Three seconds down, drive up."
 "Suitcase hold, 16 kg + 8 kg" = "A bell in each hand, heavier on the side of the front leg; swap each set."
 [exercises.questions]
+"Holding a chair, full range" = "Can you do 8 split squats on each leg holding a chair, back knee just off the floor?"
+"Back foot on a low step" = "Can you do 8 split squats on each leg with your back foot on a low step?"
+"Bodyweight, back foot on chair" = "Can you do 8 split squats on each leg with your back foot on a chair?"
 "Goblet hold, 8 kg" = "Can you do 8 split squats on each leg holding 8 kg at your chest?"
 "Goblet hold, 3 s lowering" = "Can you do 8 split squats on each leg holding 8 kg, three seconds down?"
 "Goblet hold, 16 kg" = "Can you do 8 split squats on each leg holding 16 kg at your chest?"
 "Goblet hold 16 kg, 3 s lowering" = "Can you do 8 split squats on each leg holding 16 kg, three seconds down?"
 "Suitcase hold, 16 kg + 8 kg" = "Can you do 8 split squats on each leg with 16 kg in one hand and 8 kg in the other?"
 [exercises.levels]
+"Holding a chair, short range" = 2
+"Holding a chair, full range" = 3
+"Back foot on a low step" = 3
 "Bodyweight, back foot on chair" = 4
 "Goblet hold, 8 kg" = 5
 "Goblet hold, 3 s lowering" = 5
@@ -274,6 +285,8 @@ renames = { "Heavier kettlebell" = "Goblet hold, 16 kg" }
 "Goblet hold 16 kg, 3 s lowering" = 6
 "Suitcase hold, 16 kg + 8 kg" = 6
 [exercises.marks]
+"Holding a chair, full range" = ["knees"]
+"Back foot on a low step" = ["balance", "knees"]
 "Bodyweight, back foot on chair" = ["balance", "knees"]
 "Goblet hold, 8 kg" = ["balance", "knees"]
 "Goblet hold, 3 s lowering" = ["balance", "knees"]
@@ -371,22 +384,29 @@ ladder = ["Towel slide, both legs", "Towel slide, single leg", "Nordic curl nega
 
 [[exercises]]
 slug = "calf-raise"
-name = "Single-leg calf raise"
+name = "Calf raise"
 summary = "Ball of one foot on a step, heel hanging. Rise as high as you can, pause, then lower below the step."
 kind = "reps"
 muscles = { calves = 1 }
 pattern = "isolation"
-aliases = ["calf raise", "calves", "calf raises"]
-start = 0
-ladder = ["Bodyweight on a step", "Holding 8 kg", "8 kg, 2 s pause at top"]
+aliases = ["Single-leg calf raise", "calves", "calf raises"]
+start = 2
+ladder = ["Both legs, hands on a wall", "Both legs, on a step", "Bodyweight on a step", "Holding 8 kg", "8 kg, 2 s pause at top"]
 failure_ok = true
 [exercises.needs]
 "Holding 8 kg" = ["kettlebell:8"]
 "8 kg, 2 s pause at top" = ["kettlebell:8"]
+[exercises.cues]
+"Both legs, hands on a wall" = "On the flat floor, hands on a wall; rise onto your toes, pause, lower slowly."
+"Both legs, on a step" = "Both feet on the bottom stair, a hand on the rail; heels down below the step and up."
 [exercises.questions]
+"Both legs, on a step" = "Can you do 12 calf raises on both legs on a step, heels below it?"
+"Bodyweight on a step" = "Can you do 12 single-leg calf raises on a step, each leg?"
 "Holding 8 kg" = "Can you do 12 single-leg calf raises on a step holding 8 kg, each leg?"
 "8 kg, 2 s pause at top" = "Can you do 12 single-leg calf raises holding 8 kg, two seconds at the top, each leg?"
 [exercises.levels]
+"Both legs, hands on a wall" = 1
+"Both legs, on a step" = 2
 "Bodyweight on a step" = 3
 "Holding 8 kg" = 4
 "8 kg, 2 s pause at top" = 5
@@ -406,29 +426,39 @@ muscles = { lats = 1, biceps = 0.5, "upper back" = 0.5, "rear delts" = 0.25, for
 pattern = "vertical pull"
 stress = ["grip"]
 aliases = ["pullups", "pull ups", "pull-ups"]
-start = 1
-ladder = ["Slow negatives", "Strict pull-up", "Pause at top", "Vest or backpack"]
+start = 3
+ladder = ["Feet on a chair", "Scapular pulls", "Slow negatives", "Strict pull-up", "Pause at top", "Vest or backpack"]
 failure_ok = true
 renames = { "Weighted backpack" = "Vest or backpack", "Vest or backpack, 5 kg" = "Vest or backpack" }
 [exercises.needs]
+"Feet on a chair" = ["pull-up bar"]
+"Scapular pulls" = ["pull-up bar"]
 "Slow negatives" = ["pull-up bar"]
 "Strict pull-up" = ["pull-up bar"]
 "Pause at top" = ["pull-up bar"]
 "Vest or backpack" = ["pull-up bar", "backpack:5"]
 [exercises.cues]
+"Feet on a chair" = "A sturdy chair under the bar; feet on it, legs help only as much as you need."
+"Scapular pulls" = "Hang with straight arms; pull the shoulders down and back to rise a little, then relax slowly."
 "Vest or backpack" = "Pack it tight and high so it doesn't swing; add weight only when every set of 5-12 is clean."
 [exercises.loads]
 "Vest or backpack" = "backpack"
 [exercises.questions]
+"Scapular pulls" = "Can you do 5 scapular pulls, hanging from the bar with straight arms?"
+"Slow negatives" = "Can you lower yourself from the bar slowly 5 times, taking about three seconds?"
 "Strict pull-up" = "Can you do 5 strict pull-ups, from a full hang to your chin over the bar?"
 "Pause at top" = "Can you do 5 pull-ups, holding your chin over the bar for a second each time?"
 "Vest or backpack" = "Can you do 5 pull-ups wearing a vest or backpack with 5 kg in it?"
 [exercises.levels]
+"Feet on a chair" = 3
+"Scapular pulls" = 3
 "Slow negatives" = 4
 "Strict pull-up" = 5
 "Pause at top" = 6
 "Vest or backpack" = 6
 [exercises.marks]
+"Feet on a chair" = ["hanging"]
+"Scapular pulls" = ["hanging"]
 "Slow negatives" = ["hanging"]
 "Strict pull-up" = ["hanging"]
 "Pause at top" = ["hanging"]
@@ -473,14 +503,14 @@ renames = { "Weighted backpack" = "Feet off floor, 5 kg vest or backpack" }
 
 [[exercises]]
 slug = "kb-row"
-name = "One-arm kettlebell row"
-summary = "One hand and knee on a bench or bed, back flat. Pull the kettlebell to your hip, pause, and lower with control."
+name = "One-arm row"
+summary = "One hand and knee on a bench or bed, back flat. Pull the weight to your hip, pause, and lower with control."
 kind = "reps"
 muscles = { "upper back" = 1, lats = 1, biceps = 0.5, "rear delts" = 0.5 }
 pattern = "horizontal pull"
-aliases = ["row", "rows", "kb row"]
-start = 0
-ladder = ["8 kg", "8 kg, 3 s lowering", "16 kg", "16 kg, 3 s lowering", "16 kg, pause at top"]
+aliases = ["One-arm kettlebell row", "row", "rows", "kb row"]
+start = 1
+ladder = ["A bag, about 4 kg", "8 kg", "8 kg, 3 s lowering", "16 kg", "16 kg, 3 s lowering", "16 kg, pause at top"]
 renames = { "Heavier kettlebell" = "16 kg" }
 [exercises.needs]
 "8 kg" = ["kettlebell:8"]
@@ -489,15 +519,18 @@ renames = { "Heavier kettlebell" = "16 kg" }
 "16 kg, 3 s lowering" = ["kettlebell:16"]
 "16 kg, pause at top" = ["kettlebell:16"]
 [exercises.cues]
+"A bag, about 4 kg" = "A shopping bag with about 4 kg in it (two large water bottles); hold it by the handles."
 "16 kg" = "Hand and knee on the stools; check they're stable before loading."
 "16 kg, 3 s lowering" = "Pull to the hip, three seconds down."
 "16 kg, pause at top" = "Hold one second with the elbow past the ribs."
 [exercises.questions]
+"8 kg" = "Can you do 10 rows with 8 kg on each arm?"
 "8 kg, 3 s lowering" = "Can you do 10 rows with 8 kg on each arm, three seconds down?"
 "16 kg" = "Can you do 10 rows with 16 kg on each arm?"
 "16 kg, 3 s lowering" = "Can you do 10 rows with 16 kg on each arm, three seconds down?"
 "16 kg, pause at top" = "Can you do 10 rows with 16 kg on each arm, holding a second at the top?"
 [exercises.levels]
+"A bag, about 4 kg" = 2
 "8 kg" = 4
 "8 kg, 3 s lowering" = 5
 "16 kg" = 5
@@ -512,19 +545,39 @@ kind = "reps"
 muscles = { chest = 1, triceps = 0.5, "front delts" = 0.5 }
 pattern = "horizontal push"
 aliases = ["pushups", "push ups", "push-ups", "press ups"]
-start = 0
-ladder = ["Standard", "Feet elevated", "Deficit", "Archer"]
+start = 6
+ladder = ["Hands on a wall", "Hands on a counter", "Hands on a table", "Hands on a chair seat against a wall", "On the knees", "Hands on a stair or low step", "Standard", "Feet elevated", "Deficit", "Archer"]
 failure_ok = true
+[exercises.cues]
+"Hands on a wall" = "Hands on the wall at shoulder height, feet a step back; chest to the wall and push away."
+"Hands on a counter" = "Hands on the edge of a kitchen counter, body straight from head to heels."
+"Hands on a table" = "A sturdy table that can't slide; walk your feet back until your body is straight."
+"Hands on a chair seat against a wall" = "Chair back against the wall so it can't move; hands on the front of the seat."
+"On the knees" = "A folded towel under the knees; hips in line with your shoulders and knees."
+"Hands on a stair or low step" = "Hands on the first stair or a low step, body straight; chest to the edge."
 [exercises.questions]
+"Hands on a counter" = "Can you do 10 push-ups with your hands on a kitchen counter?"
+"Hands on a table" = "Can you do 10 push-ups with your hands on a table?"
+"Hands on a chair seat against a wall" = "Can you do 10 push-ups with your hands on a chair seat, the chair against a wall?"
+"On the knees" = "Can you do 10 push-ups from your knees on the floor?"
+"Hands on a stair or low step" = "Can you do 10 push-ups with your hands on a stair or low step?"
+"Standard" = "Can you do 10 push-ups from the floor, body straight?"
 "Feet elevated" = "Can you do 10 good push-ups with your feet on a chair?"
 "Deficit" = "Can you do 10 deficit push-ups, hands raised so your chest goes below them?"
 "Archer" = "Can you do 10 archer push-ups, alternating sides?"
 [exercises.levels]
+"Hands on a wall" = 1
+"Hands on a counter" = 1
+"Hands on a table" = 2
+"Hands on a chair seat against a wall" = 2
+"On the knees" = 3
+"Hands on a stair or low step" = 3
 "Standard" = 4
 "Feet elevated" = 5
 "Deficit" = 5
 "Archer" = 6
 [exercises.marks]
+"On the knees" = ["floor", "kneeling"]
 "Standard" = ["floor"]
 "Feet elevated" = ["floor"]
 "Deficit" = ["floor"]
@@ -615,53 +668,73 @@ muscles = { forearms = 1, "upper traps" = 1, obliques = 0.5 }
 pattern = "carry"
 stress = ["grip", "spine"]
 aliases = ["carry", "carries", "suitcase carry", "farmer carry", "farmers walk"]
-start = 0
-ladder = ["8 kg", "16 kg", "Farmer carry, 16 kg + 8 kg, swap hands each set"]
+start = 3
+ladder = ["A bag, 1-3 kg, standing at the counter", "A bag, 1-3 kg, walking along the counter", "A bag, 3-5 kg", "8 kg", "16 kg", "Farmer carry, 16 kg + 8 kg, swap hands each set"]
 [exercises.needs]
 "8 kg" = ["kettlebell:8"]
 "16 kg" = ["kettlebell:16"]
 "Farmer carry, 16 kg + 8 kg, swap hands each set" = ["kettlebell:8", "kettlebell:16"]
+[exercises.cues]
+"A bag, 1-3 kg, standing at the counter" = "Stand tall beside the counter, the bag at your side, the other hand near the counter; don't lean."
+"A bag, 1-3 kg, walking along the counter" = "Walk slowly along the counter, the free hand close to it; stand tall, no leaning."
+"A bag, 3-5 kg" = "A shopping bag with 3-5 kg in it; walk slowly, standing tall."
 [exercises.questions]
+"A bag, 1-3 kg, walking along the counter" = "Can you walk along the counter for 30 seconds with a 1-3 kg bag in one hand, each side?"
+"A bag, 3-5 kg" = "Can you walk for 30 seconds with a 3-5 kg bag in one hand, each side?"
+"8 kg" = "Can you carry 8 kg in one hand for 30 seconds, each side, standing tall?"
 "16 kg" = "Can you carry 16 kg in one hand for 30 seconds, each side, standing tall?"
 "Farmer carry, 16 kg + 8 kg, swap hands each set" = "Can you carry 16 kg in one hand and 8 kg in the other for 30 seconds?"
 [exercises.levels]
+"A bag, 1-3 kg, standing at the counter" = 1
+"A bag, 1-3 kg, walking along the counter" = 2
+"A bag, 3-5 kg" = 2
 "8 kg" = 3
 "16 kg" = 4
 "Farmer carry, 16 kg + 8 kg, swap hands each set" = 5
 
 [[exercises]]
 slug = "neck-flexion"
-name = "Neck flexion (lying on back, head off edge)"
+name = "Neck flexion"
 summary = "Lie on your back with your head off the edge of a bed or bench. Tuck your chin and lift your head slowly, then lower just as slowly. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
 muscles = { neck = 1 }
 pattern = "isolation"
-aliases = ["neck flexion", "neck curl", "neck curls", "neck front"]
-start = 0
-ladder = ["Bodyweight, slow", "Hand resistance on forehead", "Folded towel + light plate/bottle on forehead"]
+aliases = ["Neck flexion (lying on back, head off edge)", "neck curl", "neck curls", "neck front"]
+start = 1
+ladder = ["Seated, hand resistance, held", "Bodyweight, slow", "Hand resistance on forehead", "Folded towel + light plate/bottle on forehead"]
+[exercises.cues]
+"Seated, hand resistance, held" = "Sit tall, palm on your forehead; push your head gently into your hand without moving, hold 5 s. Each hold is one rep."
+"Bodyweight, slow" = "Lie on your back, head off the edge of a bed or bench; tuck your chin and lift your head slowly."
 [exercises.questions]
+"Bodyweight, slow" = "Can you do 10 slow, pain-free neck lifts lying on your back, head off the edge?"
 "Hand resistance on forehead" = "Can you do 10 slow, pain-free neck lifts with your hand pressing lightly on your forehead?"
 "Folded towel + light plate/bottle on forehead" = "Can you do 10 slow, pain-free neck lifts with a light weight on a towel on your forehead?"
 [exercises.levels]
+"Seated, hand resistance, held" = 1
 "Bodyweight, slow" = 3
 "Hand resistance on forehead" = 4
 "Folded towel + light plate/bottle on forehead" = 5
 
 [[exercises]]
 slug = "neck-extension"
-name = "Neck extension (lying face down, head off edge)"
+name = "Neck extension"
 summary = "Lie face down with your head off the edge. Lift your head to neutral and a little beyond, slowly, then lower. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
 muscles = { neck = 1 }
 qualities = ["posture"]
 pattern = "isolation"
-aliases = ["neck extension", "neck back", "neck extensions"]
-start = 0
-ladder = ["Bodyweight, slow", "Hand resistance on back of head", "Towel-wrapped light weight on back of head"]
+aliases = ["Neck extension (lying face down, head off edge)", "neck back", "neck extensions"]
+start = 1
+ladder = ["Seated, hand resistance, held", "Bodyweight, slow", "Hand resistance on back of head", "Towel-wrapped light weight on back of head"]
+[exercises.cues]
+"Seated, hand resistance, held" = "Sit tall, hands behind your head; push your head gently back into them without moving, hold 5 s. Each hold is one rep."
+"Bodyweight, slow" = "Lie face down, head off the edge of a bed or bench; lift your head to neutral and a little beyond, slowly."
 [exercises.questions]
+"Bodyweight, slow" = "Can you do 10 slow, pain-free neck lifts lying face down, head off the edge?"
 "Hand resistance on back of head" = "Can you do 10 slow, pain-free neck lifts with your hand pressing lightly on the back of your head?"
 "Towel-wrapped light weight on back of head" = "Can you do 10 slow, pain-free neck lifts with a towel-wrapped light weight on the back of your head?"
 [exercises.levels]
+"Seated, hand resistance, held" = 1
 "Bodyweight, slow" = 3
 "Hand resistance on back of head" = 4
 "Towel-wrapped light weight on back of head" = 5
@@ -757,14 +830,14 @@ renames = { "Heavier kettlebell" = "8 kg, 1.5 reps" }
 
 [[exercises]]
 slug = "kb-curl"
-name = "Kettlebell curl"
-summary = "Stand tall, elbows pinned to your sides. Curl the kettlebell up, squeeze, then lower over about two seconds."
+name = "Curl"
+summary = "Stand tall, elbows pinned to your sides. Curl the weight up, squeeze, then lower over about two seconds."
 kind = "reps"
 muscles = { biceps = 1, forearms = 0.25 }
 pattern = "isolation"
-aliases = ["curls", "curl", "bicep curls"]
-start = 0
-ladder = ["8 kg", "8 kg, slow tempo", "8 kg, 3 s lowering, pause at top", "16 kg, hammer grip", "16 kg, slow tempo"]
+aliases = ["Kettlebell curl", "curls", "bicep curls"]
+start = 2
+ladder = ["Water bottles, about 1 kg", "A bag, 2-4 kg", "8 kg", "8 kg, slow tempo", "8 kg, 3 s lowering, pause at top", "16 kg, hammer grip", "16 kg, slow tempo"]
 failure_ok = true
 renames = { "Heavier kettlebell" = "8 kg, 3 s lowering, pause at top" }
 [exercises.needs]
@@ -774,15 +847,21 @@ renames = { "Heavier kettlebell" = "8 kg, 3 s lowering, pause at top" }
 "16 kg, hammer grip" = ["kettlebell:16"]
 "16 kg, slow tempo" = ["kettlebell:16"]
 [exercises.cues]
+"Water bottles, about 1 kg" = "A full 1-litre bottle in each hand; sitting or standing, elbows at your sides."
+"A bag, 2-4 kg" = "A shopping bag by its handles, one arm at a time; elbow pinned to your side."
 "8 kg, 3 s lowering, pause at top" = "Squeeze for one second at the top, then take three seconds down."
 "16 kg, hammer grip" = "Hold the handle upright; elbows stay pinned to your sides."
 "16 kg, slow tempo" = "Two seconds up, three down; no swinging."
 [exercises.questions]
+"A bag, 2-4 kg" = "Can you do 12 curls with a 2-4 kg bag, each arm?"
+"8 kg" = "Can you do 12 curls with 8 kg?"
 "8 kg, slow tempo" = "Can you do 12 curls with 8 kg, two seconds up and three down?"
 "8 kg, 3 s lowering, pause at top" = "Can you do 12 curls with 8 kg, a one-second squeeze at the top and three seconds down?"
 "16 kg, hammer grip" = "Can you do 12 hammer curls with 16 kg, no swinging?"
 "16 kg, slow tempo" = "Can you do 12 hammer curls with 16 kg, two seconds up and three down?"
 [exercises.levels]
+"Water bottles, about 1 kg" = 1
+"A bag, 2-4 kg" = 2
 "8 kg" = 3
 "8 kg, slow tempo" = 4
 "8 kg, 3 s lowering, pause at top" = 5
@@ -791,35 +870,44 @@ renames = { "Heavier kettlebell" = "8 kg, 3 s lowering, pause at top" }
 
 [[exercises]]
 slug = "lateral-raise"
-name = "Kettlebell lateral raise"
+name = "Lateral raise"
 summary = "Slight bend in the elbows. Raise the weight out to the side to shoulder height, leading with the elbow, then lower slowly."
 kind = "reps"
 muscles = { "side delts" = 1 }
 pattern = "isolation"
-aliases = ["lateral raises", "laterals", "side raises"]
-start = 0
-ladder = ["8 kg or water bottles", "Lean-away single-arm"]
+aliases = ["Kettlebell lateral raise", "lateral raises", "laterals", "side raises"]
+start = 1
+ladder = ["Seated, water bottles", "8 kg or water bottles", "Lean-away single-arm"]
 failure_ok = true
+[exercises.cues]
+"Seated, water bottles" = "Sit tall on a chair without arms, a small bottle in each hand; raise to shoulder height, lower slowly."
 [exercises.questions]
+"8 kg or water bottles" = "Can you do 12 lateral raises standing, with water bottles or 8 kg?"
 "Lean-away single-arm" = "Can you do 12 single-arm lateral raises, leaning away from a post you hold?"
 [exercises.levels]
+"Seated, water bottles" = 1
 "8 kg or water bottles" = 2
 "Lean-away single-arm" = 4
 
 [[exercises]]
 slug = "neck-lateral"
-name = "Neck side bend (lying on side, head off edge)"
+name = "Neck side bend"
 summary = "Lie on your side with your head off the edge. Lift your ear towards your shoulder slowly, then lower; do both sides. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
 muscles = { neck = 1 }
 pattern = "isolation"
-aliases = ["neck side", "neck lateral", "side neck"]
-start = 0
-ladder = ["Bodyweight, slow", "Hand resistance on side of head", "Towel-wrapped light weight"]
+aliases = ["Neck side bend (lying on side, head off edge)", "neck side", "neck lateral", "side neck"]
+start = 1
+ladder = ["Seated, hand resistance, held", "Bodyweight, slow", "Hand resistance on side of head", "Towel-wrapped light weight"]
+[exercises.cues]
+"Seated, hand resistance, held" = "Sit tall, palm on the side of your head above the ear; push gently into it without moving, hold 5 s. Each side."
+"Bodyweight, slow" = "Lie on your side, head off the edge of a bed or bench; lift your ear towards your shoulder slowly. Each side."
 [exercises.questions]
+"Bodyweight, slow" = "Can you do 10 slow, pain-free side neck lifts on each side, lying on your side, head off the edge?"
 "Hand resistance on side of head" = "Can you do 10 slow, pain-free side neck lifts on each side with your hand pressing lightly?"
 "Towel-wrapped light weight" = "Can you do 10 slow, pain-free side neck lifts on each side with a towel-wrapped light weight?"
 [exercises.levels]
+"Seated, hand resistance, held" = 1
 "Bodyweight, slow" = 3
 "Hand resistance on side of head" = 4
 "Towel-wrapped light weight" = 5
@@ -914,14 +1002,18 @@ qualities = ["posture"]
 pattern = "hinge"
 stress = ["spine"]
 aliases = ["superman", "supermans", "back extension", "back extensions"]
-start = 0
-ladder = ["Floor superman", "Hips on bed edge, feet anchored", "Holding 8 kg at chest"]
+start = 1
+ladder = ["Lying on a bed", "Floor superman", "Hips on bed edge, feet anchored", "Holding 8 kg at chest"]
 [exercises.needs]
 "Holding 8 kg at chest" = ["kettlebell:8"]
+[exercises.cues]
+"Lying on a bed" = "Face down on a firm bed, arms by your sides; lift your chest a little and lower slowly."
 [exercises.questions]
+"Floor superman" = "Can you do 10 supermans lying face down on the floor?"
 "Hips on bed edge, feet anchored" = "Can you do 10 back extensions with your hips on the edge of a bed, feet anchored?"
 "Holding 8 kg at chest" = "Can you do 10 back extensions over a bed edge holding 8 kg at your chest?"
 [exercises.levels]
+"Lying on a bed" = 2
 "Floor superman" = 4
 "Hips on bed edge, feet anchored" = 5
 "Holding 8 kg at chest" = 6
@@ -1003,18 +1095,23 @@ kind = "reps"
 muscles = { adductors = 1, obliques = 0.5 }
 pattern = "core"
 aliases = ["copenhagen", "copenhagens", "copenhagen planks", "adductor plank"]
-start = 0
-ladder = ["Knee on a chair", "Knee on a chair, 3 s lowering", "Ankle on a chair", "Ankle on a chair, 3 s lowering"]
+start = 1
+ladder = ["Knee on a chair, bottom foot helping", "Knee on a chair", "Knee on a chair, 3 s lowering", "Ankle on a chair", "Ankle on a chair, 3 s lowering"]
+[exercises.cues]
+"Knee on a chair, bottom foot helping" = "Top knee on the chair seat, bottom foot on the floor under it; push through both to lift the hips."
 [exercises.questions]
+"Knee on a chair" = "Can you do 6 Copenhagen planks on each side, knee on a chair, bottom leg off the floor?"
 "Knee on a chair, 3 s lowering" = "Can you do 6 Copenhagen planks on each side, knee on a chair, three seconds down?"
 "Ankle on a chair" = "Can you do 6 Copenhagen planks on each side with your ankle on the chair?"
 "Ankle on a chair, 3 s lowering" = "Can you do 6 Copenhagen planks on each side, ankle on the chair, three seconds down?"
 [exercises.levels]
+"Knee on a chair, bottom foot helping" = 3
 "Knee on a chair" = 4
 "Knee on a chair, 3 s lowering" = 5
 "Ankle on a chair" = 5
 "Ankle on a chair, 3 s lowering" = 6
 [exercises.marks]
+"Knee on a chair, bottom foot helping" = ["floor"]
 "Knee on a chair" = ["floor"]
 "Knee on a chair, 3 s lowering" = ["floor"]
 "Ankle on a chair" = ["floor"]
@@ -1028,15 +1125,22 @@ kind = "reps"
 muscles = { obliques = 1, abs = 0.25 }
 pattern = "core"
 aliases = ["hip dips", "side plank dips", "side plank", "side planks"]
-start = 0
-ladder = ["On the knees", "Straight legs", "Top leg raised", "Holding 8 kg on the hip"]
+start = 2
+ladder = ["Side lean on a wall", "Forearm on a counter", "On the knees", "Straight legs", "Top leg raised", "Holding 8 kg on the hip"]
 [exercises.needs]
 "Holding 8 kg on the hip" = ["kettlebell:8"]
+[exercises.cues]
+"Side lean on a wall" = "Side on to a wall, forearm on it at shoulder height, feet a step out; dip the hip towards the wall and lift it away."
+"Forearm on a counter" = "Forearm on the kitchen counter, feet stepped out, body straight; dip the hip and lift it."
 [exercises.questions]
+"Forearm on a counter" = "Can you do 10 hip dips on each side, forearm on a kitchen counter?"
+"On the knees" = "Can you do 10 side plank hip dips on each side on your knees, forearm on the floor?"
 "Straight legs" = "Can you do 10 side plank hip dips on each side with straight legs?"
 "Top leg raised" = "Can you do 10 side plank hip dips on each side with your top leg raised?"
 "Holding 8 kg on the hip" = "Can you do 10 side plank hip dips on each side holding 8 kg on your hip?"
 [exercises.levels]
+"Side lean on a wall" = 1
+"Forearm on a counter" = 2
 "On the knees" = 3
 "Straight legs" = 4
 "Top leg raised" = 5
@@ -1116,9 +1220,12 @@ kind = "duration_min"
 qualities = ["conditioning"]
 pattern = "cardio"
 aliases = ["zone 2", "walk", "easy run", "bike", "cycle", "cycling", "cycled", "hike", "long run"]
-start = 0
-ladder = ["Brisk walk / hike", "Easy jog / bike", "Easy jog with weight vest or backpack"]
+start = 1
+ladder = ["Easy walk, short bouts are fine", "Brisk walk / hike", "Easy jog / bike", "Easy jog with weight vest or backpack"]
+[exercises.cues]
+"Easy walk, short bouts are fine" = "At an easy pace; three 10-minute walks in a day count the same as one of 30."
 [exercises.levels]
+"Easy walk, short bouts are fine" = 1
 "Brisk walk / hike" = 2
 "Easy jog / bike" = 4
 "Easy jog with weight vest or backpack" = 6
@@ -1341,6 +1448,7 @@ away = [{ exercise = "zone2", sets = 1, rep_min = 45, rep_max = 75 }]
 [exercises.needs]
 "Easy jog with weight vest or backpack" = ["backpack"]
 [exercises.questions]
+"Brisk walk / hike" = "Can you walk briskly for 45 minutes without stopping?"
 "Easy jog / bike" = "Can you jog or cycle easily for 45 minutes, still able to talk?"
 "Easy jog with weight vest or backpack" = "Can you jog easily for 45 minutes wearing a weighted vest or backpack, still able to talk?"
 
@@ -2293,27 +2401,63 @@ ladder = ["Leaning back a little", "Leaning back, feet at the frame", "Feet at t
 
 [[exercises]]
 slug = "goblet-squat"
-name = "Goblet squat"
+name = "Squat"
+summary = "Feet hip-width, chest up. Sit back and down to a chair and stand up again; the higher steps go below the chair, then hold a kettlebell at your chest."
 kind = "reps"
 muscles = { quads = 1, glutes = 1, adductors = 1 }
 pattern = "squat"
 stress = ["spine"]
-aliases = ["goblet", "goblet squats"]
-start = 0
-ladder = ["8 kg, 3 s lowering", "1.5-rep squats, 8 kg", "Heavier kettlebell"]
-retired = true
+aliases = ["squats", "goblet", "goblet squat", "goblet squats", "sit to stand", "sit to stands"]
+start = 8
+range = [3, 10]
+ladder = ["Raised seat, hands push off", "Sit to stand, hands push off", "Sit to stand, hands on thighs", "Sit to stand, arms crossed", "A lower seat, arms crossed", "To a chair, touch and go", "To a chair, holding a backpack", "Full depth", "8 kg, 3 s lowering", "1.5-rep squats, 8 kg", "Heavier kettlebell"]
 [exercises.needs]
 "8 kg, 3 s lowering" = ["kettlebell:8"]
 "1.5-rep squats, 8 kg" = ["kettlebell:8"]
 "Heavier kettlebell" = ["kettlebell:16"]
+[exercises.cues]
+"Raised seat, hands push off" = "A cushion on a sturdy chair; hands on the seat or the armrests push you up. Sit down slowly."
+"Sit to stand, hands push off" = "A sturdy chair without the cushion, its back to a wall; push off with your hands."
+"Sit to stand, hands on thighs" = "Hands on your thighs, lean forward, nose over toes, and stand."
+"Sit to stand, arms crossed" = "Arms crossed on your chest. Fast up, slow down."
+"A lower seat, arms crossed" = "A lower seat, such as a sofa or a low stool. Fast up, slow down."
+"To a chair, touch and go" = "Lower until you just touch the seat, don't sit, and stand. Fast up, slow down."
+"To a chair, holding a backpack" = "A backpack with a few books, hugged to your chest; touch the seat and stand. Fast up, slow down."
+"Full depth" = "No chair: as deep as your back stays flat, heels down. Fast up, slow down."
+"8 kg, 3 s lowering" = "Kettlebell held by the horns at your chest; three seconds down."
+"Heavier kettlebell" = "A 16 kg kettlebell held by the horns at your chest."
+[exercises.questions]
+"Sit to stand, hands push off" = "Can you stand up from a chair 3 times, pushing off with your hands?"
+"Sit to stand, hands on thighs" = "Can you stand up from a chair 3 times with your hands on your thighs?"
+"Sit to stand, arms crossed" = "Can you stand up from a chair 3 times with your arms crossed?"
+"A lower seat, arms crossed" = "Can you stand up from a sofa or low stool 3 times with your arms crossed?"
+"To a chair, touch and go" = "Can you squat down to touch a chair 3 times without sitting?"
+"To a chair, holding a backpack" = "Can you squat down to touch a chair 3 times holding a loaded backpack?"
+"Full depth" = "Can you do 3 full squats without a chair, heels down?"
+"8 kg, 3 s lowering" = "Can you do 3 squats holding 8 kg at your chest, three seconds down?"
+"1.5-rep squats, 8 kg" = "Can you do 3 one-and-a-half squats holding 8 kg at your chest?"
+"Heavier kettlebell" = "Can you do 3 squats holding 16 kg at your chest?"
 [exercises.levels]
+"Raised seat, hands push off" = 1
+"Sit to stand, hands push off" = 1
+"Sit to stand, hands on thighs" = 1
+"Sit to stand, arms crossed" = 2
+"A lower seat, arms crossed" = 2
+"To a chair, touch and go" = 3
+"To a chair, holding a backpack" = 3
+"Full depth" = 4
 "8 kg, 3 s lowering" = 4
 "1.5-rep squats, 8 kg" = 5
 "Heavier kettlebell" = 5
 [exercises.marks]
+"Full depth" = ["knees"]
 "8 kg, 3 s lowering" = ["knees"]
 "1.5-rep squats, 8 kg" = ["knees"]
 "Heavier kettlebell" = ["knees"]
+
+# ---------------------------------------------------------- retired (#107, ADR-0034)
+# No longer in any session. Kept so their history stays and old days can still be logged;
+# never deleted. The goblet squat was retired here until it came back as the Squat (ADR-0083).
 
 [[exercises]]
 slug = "reverse-lunge"

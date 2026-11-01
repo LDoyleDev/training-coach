@@ -3,6 +3,7 @@
  * what is around it (ADR-0063). Pose keys are in body.ts: hip, lean (trunk forward of vertical),
  * spine (+ rounds), neck (+ tucks), and a target for each hand and foot (N near, F far side).
  */
+import { AWAY } from './away'
 import type { Motion, Vec } from './body'
 import { ENTRY_LOWER } from './entry-lower'
 import type { FrontPose } from './front'
@@ -712,4 +713,5 @@ export const FIGURES: Readonly<Record<string, Figure>> = {
   ...GYM,
   ...ENTRY_LOWER,
   ...ENTRY_UPPER,
+  ...AWAY,
 }

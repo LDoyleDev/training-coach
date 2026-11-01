@@ -150,14 +150,14 @@ def test_the_standing_carries_what_the_plan_page_needs(
     assert [r["id"] for r in pull_up["ladder"]] == expected["ladder"]
     assert pull_up["ladder"][0] == {
         "id": expected["ladder"][0],
-        "name": "Slow negatives",
-        "cue": None,
+        "name": "Feet on a chair",
+        "cue": "A sturdy chair under the bar; feet on it, legs help only as much as you need.",
         "missing": [],  # no kit listed yet: nothing is locked (ADR-0071)
         "avoided": [],  # nothing avoided yet (ADR-0083)
         "question": None,  # anyone can start at the first step
     }
     # Each later step asks whether the person can already do it (G1, ADR-0075)
-    assert pull_up["ladder"][1]["question"] == (
+    assert pull_up["ladder"][3]["question"] == (
         "Can you do 5 strict pull-ups, from a full hang to your chin over the bar?"
     )
     assert found["kit_listed"] is False
@@ -210,12 +210,12 @@ def test_move_up_when_ready_and_a_second_press_changes_nothing(
     }
     again = signed_in.post("/api/progress/pull-up/move-up", json=body).json()
     assert again["outcome"] == "already_moved"
-    assert _pull_up(engine)["step_id"] == start["ladder"][2]
+    assert _pull_up(engine)["step_id"] == start["ladder"][4]
     assert _events(engine, "progress.moved_up") == [
         {
             "exercise_id": start["id"],
             "from_step_id": start["step_id"],
-            "to_step_id": start["ladder"][2],
+            "to_step_id": start["ladder"][4],
         }
     ]
 
@@ -279,7 +279,7 @@ def test_a_level_can_be_chosen_down_and_up(signed_in: TestClient, engine: Engine
     assert down == {
         "outcome": "level_set",
         "exercise": "Pull-up",
-        "step": "Slow negatives",
+        "step": "Feet on a chair",
         "warning": None,
     }
     up = signed_in.post(url, json={"step_id": top}).json()
@@ -333,7 +333,7 @@ def test_a_step_down_is_suggested_and_taken_by_hand(signed_in: TestClient, engin
         {
             "exercise_id": start["id"],
             "from_step_id": start["step_id"],
-            "to_step_id": start["ladder"][0],
+            "to_step_id": start["ladder"][start["ladder"].index(start["step_id"]) - 1],
         }
     ]
 
