@@ -4,7 +4,9 @@
  * A CLINICIAN MUST CHECK THIS WORDING BEFORE ANYONE BUT THE OWNER USES THE APP (ADR-0085,
  * Consequences). It is general public-health text, the same for everyone: it names no
  * condition, never says "cleared", "safe for you" or "risk score", and stores nothing about
- * anyone's health. Sources: docs/specs/any-level-research.md Part 2, "Stop signs" and "Cardio",
+ * anyone's health. One deliberate exception: the pregnancy stop signs (ESC 2020, Class I A),
+ * shown to everyone and keyed to no answer, so they stay general advice (research Part 5, A6;
+ * the clinician checks them). Sources: docs/specs/any-level-research.md Part 2, "Stop signs" and "Cardio",
  * and Part 5 (the European wording review, 1 Nov 2026).
  */
 import type { CardioKind } from '../api'
