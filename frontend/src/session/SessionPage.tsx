@@ -74,7 +74,7 @@ import { card, primary, primaryInline, secondary } from '../ui'
 import { moveHref, stepDownText } from '../plan/ladder'
 import { KIT_HREF } from '../account/kit'
 import { NO_OPEN_STEP } from '../plan/ladder'
-import { BREATHING } from './safety'
+import { BREATHING, LAST_SET_LOCKED, lastSetTarget } from './safety'
 import { StopSignsCard, StopSignsTap } from './StopSigns'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
@@ -364,6 +364,8 @@ export default function SessionPage() {
   const timesSoFar = stage === 'check' ? times(session, values) : null
   const step = screen.order[Math.min(position, total - 1)]
   const item = screen.items[step.item]
+  // Last set: as many good reps as you can (ADR-0084): its target is the floor.
+  const asMany = item.last_set_amrap && step.set_no === item.targets.length
   const kg = loadFor(screen, values, step.item, step.set_no)
   const base = valueFor(values, step.item, step.set_no, step.target)
   const value = kg === undefined ? base : { ...base, load_kg: kg }
@@ -468,6 +470,23 @@ export default function SessionPage() {
     } catch (error) {
       if (error instanceof SignedOutError) setSignedOut(true)
       else setNote("Couldn't change the length. Check your connection and try again.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Last set: as many good reps as you can (ADR-0084), offered with a shorter day: the same
+   * setting as on Account, then today's session again with it. */
+  const pickLastSet = async (on: boolean) => {
+    setSignedOut(false)
+    setBusy(true)
+    try {
+      const result = await saveSettings({ last_set_amrap: on })
+      if (result === 'invalid') return setNote(`${LAST_SET_LOCKED}.`)
+      stale(on ? 'Saved: last set, as many good reps as you can.' : 'Saved: last sets as usual.')
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't change that. Check your connection and try again.")
     } finally {
       setBusy(false)
     }
@@ -620,6 +639,7 @@ export default function SessionPage() {
               onChoose={(minutes) =>
                 pickLength(minutes, session.length?.keep ?? [], lengthText(session.name, minutes))
               }
+              onLastSet={pickLastSet}
             />
           )}
           {isCardio(session) ? (
@@ -708,6 +728,7 @@ export default function SessionPage() {
                 name={item.name}
                 step={item.step}
                 level={item.level}
+                noKit={item.no_kit}
                 done={
                   session.order.filter(
                     (s) => s.item === step.item && values[key(s.item, s.set_no)]?.confirmed,
@@ -752,11 +773,23 @@ export default function SessionPage() {
                 <span className="text-lg font-bold">
                   Set {step.set_no} of {item.targets.length}
                 </span>
-                <span className="text-[var(--slate)]">
-                  Target {unitText(item, step.target)}
-                  {item.per_side ? ' each side' : ''}
-                </span>
+                {!asMany && (
+                  <span className="text-[var(--slate)]">
+                    Target {unitText(item, step.target)}
+                    {item.per_side ? ' each side' : ''}
+                  </span>
+                )}
               </div>
+              {asMany && (
+                <div>
+                  <p className="m-0 font-bold">
+                    {lastSetTarget(
+                      unitText(item, step.target) + (item.per_side ? ' each side' : ''),
+                    )}
+                  </p>
+                  <p className="m-0 text-[var(--slate)]">Stop at the first rep that isn't clean.</p>
+                </div>
+              )}
               {item.unit === 'seconds' && (
                 <div className={card + ' flex flex-col items-center gap-2'}>
                   <span aria-live="polite" className="text-6xl font-extrabold">

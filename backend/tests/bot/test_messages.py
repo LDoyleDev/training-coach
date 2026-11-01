@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -11,7 +12,7 @@ from training_coach.bot.messages import (
     work_list,
 )
 from training_coach.domain.blocks import Block, BlockKind
-from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.today import Day, ItemPlan, SessionPlan, Today
 
@@ -162,3 +163,24 @@ def test_every_session_carries_the_stop_reminder_even_without_a_warm_up() -> Non
     text = today_text(Today(plan, ()))
     assert "Warm up" not in text
     assert "Stop if you feel sharp pain, dizziness or chest tightness." in text
+
+
+def test_the_bot_names_the_place_and_the_no_equipment_steps_away() -> None:
+    """ADR-0086: an away day says so, and which exercises are below the level for want of kit;
+    a home day reads as it always did."""
+    split = replace(_item(ExerciseKind.REPS, (8,), name="Split squat"), no_kit=True)
+    tibialis = _item(ExerciseKind.REPS, (15,), name="Tibialis raise")
+    plan = SessionPlan(1, "Legs", "Strength", False, (split, tibialis), place=Place.AWAY)
+    text = today_text(Today(plan, ()))
+    assert text.splitlines()[:4] == [
+        "Today: Legs",
+        "Strength",
+        "Away, no equipment: its no-equipment version.",
+        "No-equipment step today for Split squat: your level stays as it is.",
+    ]
+    detail = session_detail_text(plan).splitlines()
+    assert detail[1] == "Away, no equipment: its no-equipment version."
+    at_the_gym = replace(plan, place=Place.GYM, items=(tibialis,))
+    assert today_text(Today(at_the_gym, ())).splitlines()[2] == "At the gym: its gym version."
+    at_home = replace(plan, place=Place.HOME, items=(tibialis,))
+    assert today_text(Today(at_home, ())).splitlines()[2].startswith("Warm up")

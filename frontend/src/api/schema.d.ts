@@ -1454,10 +1454,10 @@ export interface paths {
         get?: never;
         /**
          * Choose Place
-         * @description Do today's session at home or at the gym (ADR-0071): the person's switch, never the
-         *     app's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when
-         *     sets are kept for the version shown (ask, then confirm), or with a ``detail`` message when
-         *     today has no choice to make.
+         * @description Do today's session at home, at the gym or away with no equipment (ADR-0071, ADR-0086):
+         *     the person's switch, never the app's. 409 with ``kept_sets`` at the top of the body (a
+         *     PlaceAsk, as the API types say) when sets are kept for the version shown (ask, then
+         *     confirm), or with a ``detail`` message when today has no choice to make or not that one.
          */
         put: operations["choose_place_api_session_place_put"];
         post?: never;
@@ -2433,6 +2433,8 @@ export interface components {
              * @default false
              */
             place_choice: boolean;
+            /** Places */
+            places?: components["schemas"]["Place"][];
             /** Rest Seconds */
             rest_seconds: number;
             /** Template Id */
@@ -2682,12 +2684,22 @@ export interface components {
             /** Cue */
             cue: string | null;
             flow?: components["schemas"]["FlowView"] | null;
+            /**
+             * Last Set Amrap
+             * @default false
+             */
+            last_set_amrap: boolean;
             level?: components["schemas"]["ItemLevelView"] | null;
             load?: components["schemas"]["LoadView"] | null;
             /** Muscles */
             muscles: components["schemas"]["ItemMuscleView"][];
             /** Name */
             name: string;
+            /**
+             * No Kit
+             * @default false
+             */
+            no_kit: boolean;
             /** Pair */
             pair: number | null;
             /** Parts */
@@ -2862,6 +2874,8 @@ export interface components {
          *     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
          *     kept, so the length no longer changes. ``from_setting``: the day has no choice, so
          *     ``minutes`` is the person's minutes per session; As planned stays selectable for the day.
+         *     ``last_set``: the person's last-set option (ADR-0084), offered here with a shorter day;
+         *     empty when it isn't offered: locked while they are new, or no exercise today it applies to.
          */
         LengthView: {
             /** Dropped */
@@ -2872,6 +2886,8 @@ export interface components {
             from_setting: boolean;
             /** Keep */
             keep: string[];
+            /** Last Set */
+            last_set?: boolean | null;
             /** Minutes */
             minutes: number | null;
             /** Options */
@@ -3372,11 +3388,11 @@ export interface components {
         };
         /**
          * Place
-         * @description Where a workout is done (ADR-0071): at home, with the person's own kit, or at a gym,
-         *     which has everything. A session can hold a version for each.
+         * @description Where a workout is done (ADR-0071): at home, with the person's own kit, at a gym, which
+         *     has everything, or away with no equipment (ADR-0086). A session can hold a version for each.
          * @enum {string}
          */
-        Place: "home" | "gym";
+        Place: "home" | "gym" | "away";
         /**
          * PlaceAsk
          * @description The answer to a switch with sets kept: ask first, then send it again with confirm.
@@ -3898,6 +3914,8 @@ export interface components {
             /** Habits Enabled */
             habits_enabled?: boolean | null;
             increments?: components["schemas"]["IncrementsChange"] | null;
+            /** Last Set Amrap */
+            last_set_amrap?: boolean | null;
             /** Morning Time */
             morning_time?: string | null;
             /** Nudge Time */
@@ -3938,6 +3956,10 @@ export interface components {
             /** Habits Enabled */
             habits_enabled: boolean;
             increments: components["schemas"]["IncrementsView"];
+            /** Last Set Amrap */
+            last_set_amrap: boolean;
+            /** Last Set Locked */
+            last_set_locked: boolean;
             /** Morning Time */
             morning_time: string;
             /** Nudge Time */

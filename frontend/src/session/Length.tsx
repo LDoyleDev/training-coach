@@ -1,6 +1,7 @@
 import type { Guided, GuidedItem, Length } from '../api'
 import type { Minutes } from './logic'
 import { card, small } from '../ui'
+import { LAST_SET, LAST_SET_LINE } from './safety'
 
 const option = (on: boolean) =>
   'min-h-11 rounded-xl border-2 px-3 font-bold disabled:opacity-60 ' +
@@ -20,14 +21,18 @@ export default function LengthChoice({
   length,
   busy,
   onChoose,
+  onLastSet,
 }: {
   session: Guided
   length: Length
   busy: boolean
   onChoose: (minutes: Minutes) => void
+  onLastSet: (on: boolean) => void
 }) {
   const chosen = length.minutes
   const mine = length.from_setting ? ' (your time per session)' : ''
+  // Offered with a shorter day (ADR-0084): not while locked, nor with nothing it applies to.
+  const lastSet = length.last_set ?? null
   const choices: Minutes[] = [null, ...(length.options as NonNullable<Minutes>[])]
   return (
     <section aria-labelledby="length" className={card + ' flex flex-col gap-3'}>
@@ -63,6 +68,20 @@ export default function LengthChoice({
                 : `About ${session.minutes} min at this length, warm-up included. As planned: about ${length.planned_minutes} min.`}
           </p>
         </>
+      )}
+      {!length.fixed && chosen !== null && lastSet !== null && (
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            aria-pressed={lastSet}
+            className={option(lastSet)}
+            disabled={busy}
+            onClick={() => onLastSet(!lastSet)}
+          >
+            {lastSet ? `✓ ${LAST_SET}` : LAST_SET}
+          </button>
+          <p className="m-0 text-sm text-[var(--slate)]">{LAST_SET_LINE}</p>
+        </div>
       )}
       {length.shortest !== null && (
         <p className="m-0 font-bold">
