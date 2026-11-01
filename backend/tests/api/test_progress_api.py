@@ -60,7 +60,7 @@ def test_progress_needs_a_signed_in_browser(engine: Engine) -> None:
         assert stranger.get("/api/progress/times").status_code == 401
 
 
-MOVES = ("move-up", "not-yet", "level")
+MOVES = ("move-up", "not-yet", "level", "step-down", "not-yet-down")
 
 
 def _pull_up(engine: Engine) -> dict[str, Any]:
@@ -78,9 +78,14 @@ def _pull_up(engine: Engine) -> dict[str, Any]:
 
 def _ready(engine: Engine) -> None:
     """Two sessions at the top of Pull-up's range: ready to move up."""
+    _sessions(engine, 12, (3, 1))
+
+
+def _sessions(engine: Engine, value: int, days: tuple[int, ...]) -> None:
+    """Pull-up sessions at its current step, ``value`` on each of 4 sets, ``days`` ago."""
     pull_up = _pull_up(engine)
     with make_session_factory(engine, user_id=OWNER)() as bound:
-        for days_ago in (3, 1):
+        for days_ago in days:
             workout = Workout(
                 local_date=datetime.now(UTC).date() - timedelta(days=days_ago),
                 template_id=None,
@@ -92,7 +97,7 @@ def _ready(engine: Engine) -> None:
                     ladder_step_id=pull_up["step_id"],
                     set_no=n,
                     side=Side.BOTH,
-                    value=12,
+                    value=value,
                 )
                 for n in range(1, 5)
             ]
@@ -122,6 +127,8 @@ def test_a_stranger_cannot_move_anything(engine: Engine) -> None:
         {"from_step_id": before["step_id"]},
         {"step_id": before["step_id"]},
         {"step_id": before["ladder"][0]},
+        {"from_step_id": before["step_id"]},
+        {"step_id": before["step_id"]},
     )
     settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
     with TestClient(create_app(settings), base_url=ORIGIN) as stranger:
@@ -129,6 +136,7 @@ def test_a_stranger_cannot_move_anything(engine: Engine) -> None:
             assert stranger.post(f"/api/progress/pull-up/{move}", json=body).status_code == 401
     assert _pull_up(engine)["step_id"] == before["step_id"]
     assert _events(engine, "progress.level_set") == []
+    assert _events(engine, "progress.not_yet_down") == []
 
 
 def test_the_standing_carries_what_the_plan_page_needs(
@@ -142,10 +150,16 @@ def test_the_standing_carries_what_the_plan_page_needs(
     assert [r["id"] for r in pull_up["ladder"]] == expected["ladder"]
     assert pull_up["ladder"][0] == {
         "id": expected["ladder"][0],
-        "name": "Slow negatives",
-        "cue": None,
+        "name": "Feet on a chair",
+        "cue": "A sturdy chair under the bar; feet on it, legs help only as much as you need.",
         "missing": [],  # no kit listed yet: nothing is locked (ADR-0071)
+        "avoided": [],  # nothing avoided yet (ADR-0083)
+        "question": None,  # anyone can start at the first step
     }
+    # Each later step asks whether the person can already do it (G1, ADR-0075)
+    assert pull_up["ladder"][3]["question"] == (
+        "Can you do 5 strict pull-ups, from a full hang to your chin over the bar?"
+    )
     assert found["kit_listed"] is False
     assert pull_up["unlock"] is None
 
@@ -196,12 +210,12 @@ def test_move_up_when_ready_and_a_second_press_changes_nothing(
     }
     again = signed_in.post("/api/progress/pull-up/move-up", json=body).json()
     assert again["outcome"] == "already_moved"
-    assert _pull_up(engine)["step_id"] == start["ladder"][2]
+    assert _pull_up(engine)["step_id"] == start["ladder"][4]
     assert _events(engine, "progress.moved_up") == [
         {
             "exercise_id": start["id"],
             "from_step_id": start["step_id"],
-            "to_step_id": start["ladder"][2],
+            "to_step_id": start["ladder"][4],
         }
     ]
 
@@ -265,7 +279,7 @@ def test_a_level_can_be_chosen_down_and_up(signed_in: TestClient, engine: Engine
     assert down == {
         "outcome": "level_set",
         "exercise": "Pull-up",
-        "step": "Slow negatives",
+        "step": "Feet on a chair",
         "warning": None,
     }
     up = signed_in.post(url, json={"step_id": top}).json()
@@ -289,3 +303,51 @@ def test_a_step_of_another_exercise_is_refused(signed_in: TestClient, engine: En
         assert refused.status_code == 422, move
     assert _pull_up(engine)["step_id"] == start["step_id"]
     assert _events(engine, "progress.level_set") == []
+
+
+def test_a_step_down_is_suggested_and_taken_by_hand(signed_in: TestClient, engine: Engine) -> None:
+    """ADR-0084: the bottom of the range out of reach twice after the baseline."""
+    start = _pull_up(engine)
+    _sessions(engine, 2, (5, 3, 1))
+    pull_up = next(
+        s for s in signed_in.get("/api/progress").json()["standings"] if s["slug"] == "pull-up"
+    )
+    assert pull_up["step_down"] == {
+        "step_id": start["step_id"],
+        "below": "Slow negatives",
+        "easier": [],
+    }
+    jump = signed_in.get("/api/progress").json()["standings"][0]
+    assert jump["step_down"] is None
+    url = "/api/progress/pull-up/step-down"
+    moved = signed_in.post(url, json={"from_step_id": start["step_id"]}).json()
+    assert moved == {
+        "outcome": "stepped_down",
+        "exercise": "Pull-up",
+        "step": "Slow negatives",
+        "warning": None,
+    }
+    again = signed_in.post(url, json={"from_step_id": start["step_id"]}).json()
+    assert again["outcome"] == "already_moved"
+    assert _events(engine, "progress.level_set") == [
+        {
+            "exercise_id": start["id"],
+            "from_step_id": start["step_id"],
+            "to_step_id": start["ladder"][start["ladder"].index(start["step_id"]) - 1],
+        }
+    ]
+
+
+def test_not_yet_to_a_step_down_hides_it(signed_in: TestClient, engine: Engine) -> None:
+    start = _pull_up(engine)
+    _sessions(engine, 2, (5, 3, 1))
+    url = "/api/progress/pull-up/not-yet-down"
+    stayed = signed_in.post(url, json={"step_id": start["step_id"]}).json()
+    assert stayed["outcome"] == "stayed_down"
+    standings = signed_in.get("/api/progress").json()["standings"]
+    assert next(s for s in standings if s["slug"] == "pull-up")["step_down"] is None
+    assert _pull_up(engine)["step_id"] == start["step_id"]
+    refused = signed_in.post(url, json={"step_id": 999_999})
+    assert refused.status_code == 422
+    missing = signed_in.post("/api/progress/nope/step-down", json={"from_step_id": 1})
+    assert missing.status_code == 404

@@ -52,6 +52,15 @@ def test_today_is_the_queued_session_in_work_order(session: Session) -> None:
     assert 40 <= plan.minutes <= 90  # warm-up plus 25 sets, some per side
 
 
+def test_a_strength_session_counts_a_five_minute_warm_up(session: Session) -> None:
+    """The warm-up is 5 minutes, not 10 (program-builder.md J.4, ADR-0065 addendum)."""
+    plan = guided.today(_seeded(session), DAY, BERLIN)
+    assert plan is not None
+    assert plan.warm_up is True
+    without = guided._minutes(plan.items, plan.order, warm_up=False)  # the sets alone
+    assert plan.minutes - without == 5
+
+
 def test_a_pair_switches_inside_and_rests_after_the_round(session: Session) -> None:
     """Jump squat + tibialis raise share no prime mover: 15 s to move, 60 s after (ADR-0065)."""
     plan = guided.today(_seeded(session), DAY, BERLIN)
@@ -356,6 +365,27 @@ def test_saving_puts_each_sets_times_on_its_rows(session: Session) -> None:
     assert sorted(sides) == [("left", one_sided, end), ("right", one_sided, end)]
 
 
+def test_saving_records_what_the_session_planned(session: Session) -> None:
+    """ADR-0084: every exercise's planned sets, done or not, and no minutes as planned."""
+    seeded = _seeded(session)
+    plan = _plan(seeded)
+    guided.keep(seeded, plan, 0, 1, [], [guided.Done(0, 1, 5)])
+    saved = guided.save(seeded, DAY, DAY, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = seeded.get_one(Workout, saved.workout_id)
+    assert workout.minutes is None
+    assert workout.planned == {i.slug: {"sets": len(i.targets)} for i in plan.items}
+
+
+def test_a_typed_log_records_no_plan(session: Session) -> None:
+    seeded = _seeded(session)
+    draft = workout_log.draft(seeded, "jump squat 8 8 8", DAY, BERLIN)
+    saved = workout_log.save(seeded, draft, BERLIN)
+    assert isinstance(saved, workout_log.Saved)
+    workout = seeded.get_one(Workout, saved.workout_id)
+    assert (workout.minutes, workout.planned) == (None, None)
+
+
 def test_sets_without_times_save_without_them(session: Session) -> None:
     seeded = _seeded(session)
     guided.keep(seeded, _plan(seeded), 0, 1, [], [guided.Done(0, 1, 5)], now=NOW)
@@ -615,33 +645,37 @@ def _at_both(session: Session, place: Place = Place.HOME) -> Session:
     return seeded
 
 
-def test_someone_at_home_only_gets_the_home_version_and_no_switch(session: Session) -> None:
+def test_someone_at_home_only_gets_the_home_version_and_only_away_to_switch_to(
+    session: Session,
+) -> None:
     plan = guided.today(_seeded(session), DAY, BERLIN)
     assert plan is not None
-    assert (plan.place, plan.switch) == (Place.HOME, False)
+    assert (plan.place, plan.places) == (Place.HOME, (Place.HOME, Place.AWAY))  # ADR-0086
     assert "back-squat" not in {i.slug for i in plan.items}
 
 
 def test_at_both_the_last_place_chosen_gives_its_version_and_a_switch(session: Session) -> None:
     plan = guided.today(_at_both(session, Place.GYM), DAY, BERLIN)
     assert plan is not None
-    assert (plan.place, plan.switch) == (Place.GYM, True)
+    assert (plan.place, plan.places) == (Place.GYM, (Place.HOME, Place.GYM, Place.AWAY))
     squat = next(i for i in plan.items if i.slug == "back-squat")
     assert squat.load is not None
     assert squat.load.kit is LoadKit.BARBELL
     assert [plan.items[s.item].slug for s in plan.order[:2]] == ["jump-squat", "tibialis-raise"]
 
 
-def test_someone_at_the_gym_only_gets_the_gym_version_without_a_switch(session: Session) -> None:
+def test_someone_at_the_gym_only_gets_the_gym_version_and_only_away_to_switch_to(
+    session: Session,
+) -> None:
     seeded = _seeded(session)
     user_settings.update(seeded, places=Places.GYM)
     plan = guided.today(seeded, DAY, BERLIN)
     assert plan is not None
-    assert (plan.place, plan.switch) == (Place.GYM, False)
+    assert (plan.place, plan.places) == (Place.GYM, (Place.GYM, Place.AWAY))
     assert "seated-leg-curl" in {i.slug for i in plan.items}
 
 
-def test_a_session_with_one_version_has_no_switch(session: Session) -> None:
+def test_a_session_without_a_gym_version_has_no_gym_on_the_switch(session: Session) -> None:
     seeded = _at_both(session, Place.GYM)
     state = users.plan_state(seeded)
     assert state is not None
@@ -651,7 +685,8 @@ def test_a_session_with_one_version_has_no_switch(session: Session) -> None:
     plan = guided.today(seeded, DAY, BERLIN)
     assert plan is not None
     assert plan.slug == "recovery"
-    assert (plan.place, plan.switch) == (Place.HOME, False)  # its one version is the home one
+    # Its one version but away is the home one (ADR-0086)
+    assert (plan.place, plan.places) == (Place.HOME, (Place.HOME, Place.AWAY))
     assert "prone-ytw" in {i.slug for i in plan.items}
 
 
@@ -749,7 +784,11 @@ def test_at_the_gym_only_a_session_without_a_gym_version_is_saved_at_home(
     equipment.save(seeded, [Item(Kit.KETTLEBELL, kg=8)], datetime(2026, 10, 1, 9, tzinfo=UTC))
     plan = guided.today(seeded, DAY, BERLIN)
     assert plan is not None
-    assert (plan.slug, plan.place, plan.switch) == ("recovery", Place.HOME, False)
+    assert (plan.slug, plan.place, plan.places) == (
+        "recovery",
+        Place.HOME,
+        (Place.HOME, Place.AWAY),
+    )
     carry = next(n for n, i in enumerate(plan.items) if i.slug == "suitcase-carry")
     exercise = seeded.scalars(select(Exercise).where(Exercise.slug == "suitcase-carry")).one()
     state = users.exercise_state(seeded, exercise.id)

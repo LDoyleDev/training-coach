@@ -7,7 +7,7 @@ import { layDown, perspectiveShapes } from './perspective'
 import Figure from './Figure'
 import { FIGURES } from './poses'
 import { SOFA, shapes, type Props, type Shape } from './shapes'
-import { STEPS, figureFor } from './steps'
+import { STEPS, UNDRAWN, figureFor } from './steps'
 
 const ALONG = [0, 0.25, 0.5, 0.75, 1]
 
@@ -75,9 +75,71 @@ const SAME: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   'reverse-nordic': { 'Lean back about 30 degrees': 'the figure' },
   // The gym figures (#397): the plate is drawn there.
   'back-extension-45': { Bodyweight: 'the figure' },
+  // The entry exercises (ADR-0083) that share a flow movement's figure.
+  'glute-bridge': {
+    'On the floor': 'the figure',
+    'On the floor, 3 s hold at the top': 'a pause',
+  },
+  // The entry exercises (ADR-0083) for the lower body, the core, balance and walking
+  // (entry-lower.ts).
+  'step-up': { 'One stair, no hands': 'the figure' },
+  plank: { 'Full plank': 'the figure' },
+  'knee-lift': {
+    'Standing, at the counter': 'the figure',
+    'Standing, at the counter, 2 s hold': 'a pause',
+  },
+  deadlift: { '8 kg': 'the figure', '16 kg': 'a heavier bell', '24 kg': 'a heavier bell' },
+  'toe-lift': { 'Both feet': 'the figure', 'Both feet, 3 s hold at the top': 'a pause' },
+  balance: { 'Feet together, holding the counter': 'the figure' },
+  'interval-walk': {
+    '3 min brisk, 3 min easy': 'the figure',
+    '3 min fast, 3 min easy': 'a faster pace',
+  },
+  // The entry exercises for the upper body and bands, and the adductor and hamstring moves
+  // (entry-upper.ts).
+  'armchair-press-up': {
+    'Feet helping': 'the figure',
+    'Arms only, feet resting': 'the same picture: the feet stay down, only taking no weight',
+    'Arms only, 2 s hold at the top': 'the same picture and a pause',
+  },
+  'band-pushdown': {
+    'Light band': 'the figure, a band in the hands',
+    'Medium band': 'a stronger band',
+    'Heavy band': 'a stronger band, a step further from the door',
+  },
+  'band-row': {
+    'Light band': 'the figure, a band in the hands',
+    'Medium band': 'a stronger band',
+    'Heavy band': 'a stronger band, the chair further back',
+  },
+  'band-pull-apart': {
+    'Light band': 'the figure, a band between the hands',
+    'Medium band': 'a stronger band',
+    'Heavy band': 'a stronger band',
+  },
+  'band-pulldown': {
+    'Light band': 'the figure, a band in the hands',
+    'Medium band': 'a stronger band',
+    'Heavy band': 'a stronger band, the chair further back',
+  },
+  'seated-press': {
+    'Small water bottles': 'the figure, a bottle in each hand',
+    'Large water bottles': 'bigger bottles',
+  },
+  'adductor-squeeze': { 'Seated pillow squeeze, 5 s hold': 'the figure' },
+  'standing-leg-curl': { 'At the counter': 'the figure' },
+  // The away versions' door-frame pulls (away.ts).
+  'doorway-row': {
+    'Leaning back, feet at the frame': 'the figure',
+    'Feet at the frame, 3 s lowering': 'the tempo',
+  },
+  'doorway-curl': {
+    'Leaning back, feet at the frame': 'the figure',
+    'Feet at the frame, 3 s lowering': 'the tempo',
+  },
 }
 
-test('every step of an exercise with a figure is drawn, or listed as showing it as it is', () => {
+test('every step of an exercise with a figure is drawn, listed as showing it, or not drawn yet', () => {
   const unmet: string[] = []
   for (const slug of Object.keys(FIGURES)) {
     const steps = ladder(slug)
@@ -85,12 +147,22 @@ test('every step of an exercise with a figure is drawn, or listed as showing it 
     for (const step of steps) {
       const drawn = step in (STEPS[slug] ?? {})
       const same = step in (SAME[slug] ?? {})
-      if (drawn === same) unmet.push(`${slug} / ${step}`)
+      const undrawn = UNDRAWN[slug]?.includes(step) ?? false
+      if (Number(drawn) + Number(same) + Number(undrawn) !== 1) unmet.push(`${slug} / ${step}`)
     }
   }
   expect(unmet, 'draw these in steps.ts, or say in SAME why the figure fits').toEqual([])
   for (const [slug, why] of Object.entries(SAME))
     for (const step of Object.keys(why)) expect(ladder(slug), slug).toContain(step)
+  for (const [slug, steps] of Object.entries(UNDRAWN))
+    for (const step of steps) expect(ladder(slug), slug).toContain(step)
+})
+
+test('every lower step is drawn: none is left without its figure (#545)', () => {
+  expect(UNDRAWN).toEqual({})
+  expect(figureFor('push-up', 'Hands on a wall')!.props!.wall).toBeDefined()
+  expect(figureFor('push-up', 'Standard')).toBe(FIGURES['push-up'])
+  expect(figureFor('push-up')).toBe(FIGURES['push-up'])
 })
 
 /** Every exercise's figure at every step that changes it. */
@@ -605,4 +677,32 @@ test('an archer push-up is seen from in front of the head: one arm bends, the ot
   expect(low.j.hip[0], 'over the bent arm').toBeLessThan(top.j.hip[0] - 10)
   const drawn = perspectiveShapes(front.end, front.camera, undefined, front)
   expect(JSON.stringify(drawn)).not.toMatch(/NaN|null/)
+})
+
+test('the bridge at the counter keeps both hands on it and the standing foot down', () => {
+  const figure = figureFor('glute-bridge', 'Standing, at the counter')!
+  for (const t of ALONG) {
+    const j = solve(blend(figure.start, figure.end, t))
+    expect(Math.abs(j.armN.wrist[1] - 92)).toBeLessThan(1) // on the counter's top
+    expect(j.legF.ankle).toEqual(solve(figure.start).legF.ankle)
+  }
+  const back = solve(figure.end).legN
+  expect(back.ankle[0], 'the working leg goes back').toBeLessThan(-25)
+  expect(dist(back.hip, back.ankle), 'straight').toBeGreaterThan(BODY.thigh + BODY.shin - 1)
+})
+
+test('a bag hugged in the hinge is held at the hands, and a hip thrust lifts off the sofa', () => {
+  const figure = figureFor('hip-hinge', 'Holding a bag at the chest')!
+  for (const t of [0, 1]) {
+    const pose = blend(figure.start, figure.end, t)
+    const bag = shapes(pose, figure.props, figure.order).filter(
+      (s) => s.kind === 'path' && s.tone === 'bell',
+    )
+    expect(bag).toHaveLength(1)
+  }
+  const thrust = figureFor('glute-bridge', 'Shoulders on the sofa (hip thrust)')!
+  expect(solve(thrust.end).hip[1] - solve(thrust.start).hip[1]).toBeGreaterThan(20)
+  expect(figureFor('glute-bridge', 'Single leg, on the floor')!.start.legF.at![1]).toBeGreaterThan(
+    50,
+  )
 })

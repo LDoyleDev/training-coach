@@ -85,6 +85,8 @@ class Exercise(Base):
     retired: Mapped[bool] = mapped_column(Boolean, server_default=false())
     # One side at a time when no session says (a retired exercise's logs).
     per_side: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # A last set to failure is safe on it (ADR-0084); the seed sets it from plan.toml.
+    failure_ok: Mapped[bool] = mapped_column(Boolean, server_default=false())
 
     ladder: Mapped[list["LadderStep"]] = relationship(
         back_populates="exercise",
@@ -102,6 +104,7 @@ class LadderStep(Base):
         # Target for composite FKs that guarantee a step belongs to the referenced exercise.
         UniqueConstraint("exercise_id", "id"),
         CheckConstraint("position >= 0", name="position_non_negative"),
+        CheckConstraint("level IS NULL OR level BETWEEN 1 AND 6", name="level_range"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -109,6 +112,10 @@ class LadderStep(Base):
     position: Mapped[int] = mapped_column(Integer)
     name: Mapped[str] = mapped_column(String(120))
     cue: Mapped[str | None] = mapped_column(Text)
+    # Who the step is for, 1-6, and what it asks of the body: domain.step_levels (ADR-0083).
+    # The seed writes both from plan.toml on every run; empty only before it first runs.
+    level: Mapped[int | None] = mapped_column(Integer)
+    marks: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
 
     exercise: Mapped[Exercise] = relationship(back_populates="ladder")
 
@@ -161,7 +168,7 @@ class SessionTemplate(Base):
         back_populates="template",
         order_by="TemplateItem.position",
         cascade="all, delete-orphan",
-        overlaps="gym_items",
+        overlaps="gym_items,away_items",
     )
     # The gym version, empty when the session is done the same way at both (ADR-0071).
     gym_items: Mapped[list["TemplateItem"]] = relationship(
@@ -169,18 +176,31 @@ class SessionTemplate(Base):
         "TemplateItem.place == 'gym')",
         order_by="TemplateItem.position",
         cascade="all, delete-orphan",
-        overlaps="items,template",
+        overlaps="items,template,away_items",
+    )
+    # The away version, with no equipment (ADR-0086); empty: no away version to offer.
+    away_items: Mapped[list["TemplateItem"]] = relationship(
+        primaryjoin="and_(SessionTemplate.id == TemplateItem.template_id, "
+        "TemplateItem.place == 'away')",
+        order_by="TemplateItem.position",
+        cascade="all, delete-orphan",
+        overlaps="items,template,gym_items",
     )
 
+    def _other(self, place: Place) -> list["TemplateItem"]:
+        if place is Place.GYM:
+            return self.gym_items
+        return self.away_items if place is Place.AWAY else []
+
     def version(self, place: Place) -> list["TemplateItem"]:
-        """The items done at ``place``: the gym version at the gym when there is one, else the
-        home version (ADR-0071)."""
-        return self.gym_items if place is Place.GYM and self.gym_items else self.items
+        """The items done at ``place``: its gym or away version when there is one, else the
+        home version (ADR-0071, ADR-0086)."""
+        return self._other(place) or self.items
 
     def done_at(self, place: Place) -> Place:
-        """Where ``version(place)`` is done: the gym only when there is a gym version, so a
-        gym-only person's session without one is recorded at home, with home kit (ADR-0071)."""
-        return Place.GYM if place is Place.GYM and self.gym_items else Place.HOME
+        """Where ``version(place)`` is done: the gym or away only when there is that version, so
+        a gym-only person's session without one is recorded at home, with home kit (ADR-0071)."""
+        return place if self._other(place) else Place.HOME
 
 
 class TemplateItem(Base):
@@ -209,7 +229,9 @@ class TemplateItem(Base):
     # Which version of the session it belongs to (ADR-0071); positions count within a version.
     place: Mapped[str] = mapped_column(String(8), server_default=Place.HOME.value)
 
-    template: Mapped[SessionTemplate] = relationship(back_populates="items", overlaps="gym_items")
+    template: Mapped[SessionTemplate] = relationship(
+        back_populates="items", overlaps="gym_items,away_items"
+    )
     exercise: Mapped[Exercise] = relationship()
 
 
@@ -222,6 +244,11 @@ def _home_item(_template: SessionTemplate, item: TemplateItem, _initiator: objec
 def _gym_item(_template: SessionTemplate, item: TemplateItem, _initiator: object) -> None:
     """An item added to the gym version is a gym item, whatever it was built with."""
     item.place = Place.GYM
+
+
+@event.listens_for(SessionTemplate.away_items, "append")
+def _away_item(_template: SessionTemplate, item: TemplateItem, _initiator: object) -> None:
+    item.place = Place.AWAY
 
 
 # ----------------------------------------------------------------------- people
@@ -310,8 +337,13 @@ class UserSettings(Owned, Base):
         CheckConstraint("thigh_offset_cm BETWEEN 5 AND 30", name="thigh_offset_cm_range"),
         CheckConstraint(_in("body_fat_estimate", BodyFatEstimate), name="body_fat_estimate_valid"),
         CheckConstraint("extra_cardio_min BETWEEN 0 AND 600", name="extra_cardio_min_range"),
+        CheckConstraint(
+            "session_minutes IS NULL OR session_minutes IN (40, 30, 20)",
+            name="session_minutes_valid",
+        ),
         CheckConstraint(_in("places", Places), name="places_valid"),
-        CheckConstraint(_in("place", Place), name="place_valid"),
+        # The place Today starts at is never away: an away day is an exception (ADR-0086).
+        CheckConstraint("place IN ('home', 'gym')", name="place_valid"),
         *(
             CheckConstraint(
                 f"{kit}_increment_kg IS NULL OR {kit}_increment_kg BETWEEN 0.25 AND 20",
@@ -364,6 +396,24 @@ class UserSettings(Owned, Base):
     dumbbells_increment_kg: Mapped[float | None] = mapped_column(Float)
     machine_increment_kg: Mapped[float | None] = mapped_column(Float)
     backpack_increment_kg: Mapped[float | None] = mapped_column(Float)
+    # Cardio effort told by the talk test, not heart-rate zones (ADR-0083): a preference, asked
+    # without a reason; nothing about why is stored.
+    talk_test: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # The stop signs were shown before their first guided session (spec B7).
+    stop_signs_seen: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # What the person would rather avoid (ADR-0083): each locks the ladder steps with that mark,
+    # as missing kit does (ADR-0071). Preferences, asked without a reason; nothing about why is
+    # stored, and neither Telegram nor the MCP read tools show them.
+    avoid_floor: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    avoid_kneeling: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    avoid_impact: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    avoid_hanging: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    avoid_knees: Mapped[bool] = mapped_column(Boolean, server_default=false())  # #540
+    # Minutes per session (ADR-0082): every trimmable session runs at this length unless the
+    # day picks another; empty means as planned. The same 40, 30 or 20 as Short on time today.
+    session_minutes: Mapped[int | None] = mapped_column(Integer)
+    # Last set: as many good reps as you can, where it's safe (ADR-0084). Off unless turned on.
+    last_set_amrap: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
@@ -439,6 +489,11 @@ class Workout(Owned, Base):
     plan_version_id: Mapped[int | None] = mapped_column(
         ForeignKey("plan_versions.id", ondelete="RESTRICT"), index=True
     )
+    # A guided session's day (ADR-0082, ADR-0084): the minutes chosen ("short on time
+    # today"), empty when done as planned; and what it planned, exercise slug ->
+    # {"sets": N}. Typed logs and workouts saved before have no plan: every set was planned.
+    minutes: Mapped[int | None] = mapped_column(Integer)
+    planned: Mapped[dict[str, dict[str, int]] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     sets: Mapped[list["SetLog"]] = relationship(
@@ -631,6 +686,11 @@ class SessionProgress(Owned, Base):
     # Levels chosen "for today" during the session (ADR-0080), exercise slug -> ladder step id:
     # its sets are saved at that step and the person's level stays as it is.
     steps: Mapped[dict[str, int]] = mapped_column(JSON, default=dict, server_default="{}")
+    # Short on time today (ADR-0082): the day's choice, {"minutes": 30 or null, "keep": [slugs]},
+    # empty before one is made; and what the first kept set fixed for the rest of the session,
+    # {"minutes", "sets": [per item], "durations": [per item], "dropped": [items], "pace"}.
+    length: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    fixed: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

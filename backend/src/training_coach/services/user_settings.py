@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import Event, FitnessTestDay, UserSettings, Workout
 from training_coach.domain.enums import Place, Places, Sound
 from training_coach.domain.load import DEFAULTS, INCREMENT, Increments, LoadKit
+from training_coach.domain.step_levels import Mark
 from training_coach.domain.targets import Pace
 from training_coach.services import users
 
@@ -34,6 +35,29 @@ class Prefs:
     places: Places = Places.HOME  # where the person trains: home, gym or both (ADR-0071)
     place: Place = Place.HOME  # at both: the last place chosen on Today's switch (Decided 4)
     increments: Increments = DEFAULTS  # their own weight steps (ADR-0072)
+    talk_test: bool = False  # cardio effort by the talk test, not heart-rate zones (ADR-0083)
+    stop_signs_seen: bool = False  # shown before their first guided session (spec B7)
+    # What they'd rather avoid (ADR-0083): each locks the steps with that mark. Never asked why.
+    avoid_floor: bool = False  # "Keep me off the floor"
+    avoid_kneeling: bool = False  # "No kneeling"
+    avoid_impact: bool = False  # "No jumping or running"
+    avoid_hanging: bool = False  # "No hanging"
+    avoid_knees: bool = False  # "Easy on my knees" (#540)
+
+    @property
+    def avoid(self) -> frozenset[Mark]:
+        """The marks whose steps lock for this person."""
+        chosen = {
+            Mark.FLOOR: self.avoid_floor,
+            Mark.KNEELING: self.avoid_kneeling,
+            Mark.IMPACT: self.avoid_impact,
+            Mark.HANGING: self.avoid_hanging,
+            Mark.KNEES: self.avoid_knees,
+        }
+        return frozenset(mark for mark, on in chosen.items() if on)
+
+    session_minutes: int | None = None  # every session's length (ADR-0082); None: as planned
+    last_set_amrap: bool = False  # last set: as many good reps as you can (ADR-0084)
 
 
 def _increments(old: Increments, change: Mapping[LoadKit, float]) -> Increments:
@@ -76,6 +100,15 @@ def load(session: Session) -> Prefs:
             row.machine_increment_kg,
             row.backpack_increment_kg,
         ),
+        row.talk_test,
+        row.stop_signs_seen,
+        row.avoid_floor,
+        row.avoid_kneeling,
+        row.avoid_impact,
+        row.avoid_hanging,
+        row.avoid_knees,
+        row.session_minutes,
+        row.last_set_amrap,
     )
 
 
@@ -97,10 +130,22 @@ def update(
     places: Places | None = None,
     place: Place | None = None,
     increments: Mapping[LoadKit, float] | None = None,
+    talk_test: bool | None = None,
+    stop_signs_seen: bool | None = None,
+    avoid_floor: bool | None = None,
+    avoid_kneeling: bool | None = None,
+    avoid_impact: bool | None = None,
+    avoid_hanging: bool | None = None,
+    avoid_knees: bool | None = None,
+    session_minutes: int | None = None,
+    clear_session_minutes: bool = False,
+    last_set_amrap: bool | None = None,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
     ``increments``: the kits whose weight step changes, each to a valid step (the caller checks).
+    ``session_minutes``: 40, 30 or 20 (the caller checks); ``clear_session_minutes`` sets it
+    back to as planned.
 
     ``blocks=True`` starts training blocks on ``today`` unless they are already on (so a
     repeated press never restarts them); ``blocks=False`` turns them off."""
@@ -127,6 +172,19 @@ def update(
         places=old.places if places is None else places,
         place=old.place if place is None else place,
         increments=_increments(old.increments, increments or {}),
+        talk_test=old.talk_test if talk_test is None else talk_test,
+        stop_signs_seen=old.stop_signs_seen if stop_signs_seen is None else stop_signs_seen,
+        avoid_floor=old.avoid_floor if avoid_floor is None else avoid_floor,
+        avoid_kneeling=old.avoid_kneeling if avoid_kneeling is None else avoid_kneeling,
+        avoid_impact=old.avoid_impact if avoid_impact is None else avoid_impact,
+        avoid_hanging=old.avoid_hanging if avoid_hanging is None else avoid_hanging,
+        avoid_knees=old.avoid_knees if avoid_knees is None else avoid_knees,
+        session_minutes=None
+        if clear_session_minutes
+        else old.session_minutes
+        if session_minutes is None
+        else session_minutes,
+        last_set_amrap=old.last_set_amrap if last_set_amrap is None else last_set_amrap,
     )
     changes: dict[str, str | bool | int | float] = {}
     if morning_time is not None:
@@ -155,6 +213,22 @@ def update(
         changes["places"] = places.value
     if place is not None:
         changes["place"] = place.value
+    if talk_test is not None:
+        changes["talk_test"] = talk_test
+    if stop_signs_seen is not None:
+        changes["stop_signs_seen"] = stop_signs_seen
+    avoided = {
+        "avoid_floor": avoid_floor,
+        "avoid_kneeling": avoid_kneeling,
+        "avoid_impact": avoid_impact,
+        "avoid_hanging": avoid_hanging,
+        "avoid_knees": avoid_knees,
+    }
+    changes |= {name: on for name, on in avoided.items() if on is not None}
+    if session_minutes is not None or clear_session_minutes:
+        changes["session_minutes"] = session_minutes or 0  # 0: as planned
+    if last_set_amrap is not None:
+        changes["last_set_amrap"] = last_set_amrap
     for kit, kg in (increments or {}).items():
         changes[f"{kit.value}_increment_kg"] = kg
     row = users.settings_row(session)
@@ -178,6 +252,15 @@ def update(
     row.dumbbells_increment_kg = prefs.increments.dumbbells
     row.machine_increment_kg = prefs.increments.machine
     row.backpack_increment_kg = prefs.increments.backpack
+    row.talk_test = prefs.talk_test
+    row.stop_signs_seen = prefs.stop_signs_seen
+    row.avoid_floor = prefs.avoid_floor
+    row.avoid_kneeling = prefs.avoid_kneeling
+    row.avoid_impact = prefs.avoid_impact
+    row.avoid_hanging = prefs.avoid_hanging
+    row.avoid_knees = prefs.avoid_knees
+    row.session_minutes = prefs.session_minutes
+    row.last_set_amrap = prefs.last_set_amrap
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

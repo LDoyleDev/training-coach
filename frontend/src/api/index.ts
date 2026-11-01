@@ -267,6 +267,47 @@ export async function choosePlace(
   return (await res.json()) as TodayView
 }
 
+export type Length = Schemas['LengthView']
+export type LengthBody = Schemas['LengthBody']
+
+/** Short on time today (ADR-0082): today's session at 40, 30 or 20 minutes, or as planned
+ * (``minutes`` null), never dropping the exercises in ``keep``. 'stale': the session changed,
+ * moved on elsewhere or has started (reload); a string: why it was refused. */
+export async function chooseLength(body: LengthBody): Promise<TodayView | 'stale' | string> {
+  const res = signedIn(
+    await fetch('/api/session/length', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) return 'stale'
+  if (res.status === 422) return "That length can't be used for this session."
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as TodayView
+}
+
+export type EaseBackBody = Schemas['EaseBackBody']
+
+/** Ease back in after three weeks or more away (ADR-0084): one step down for today only on
+ * each exercise offered, or not today. 'stale': the session changed or moved on elsewhere; a
+ * string: why it was refused. */
+export async function easeBackIn(body: EaseBackBody): Promise<TodayView | 'stale' | string> {
+  const res = signedIn(
+    await fetch('/api/session/ease-back', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) return 'stale'
+  if (res.status === 422) return 'Nothing to ease back into now.'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as TodayView
+}
+
 /** Keep where the person is. 'stale': another device moved on (reload). */
 export async function keepProgress(body: KeepBody): Promise<number | 'stale'> {
   const res = signedIn(
@@ -793,16 +834,18 @@ export async function fetchProgress(signal?: AbortSignal): Promise<StandingsList
 
 export type Rung = Schemas['RungView']
 export type Moved = Schemas['MovedView']
-export type LadderMove = 'move-up' | 'not-yet' | 'level'
+export type LadderMove = 'move-up' | 'not-yet' | 'level' | 'step-down' | 'not-yet-down'
 
-/** Move up, Not yet, or choose a level by hand, from the Plan page (ADR-0075). The server checks
+/** Move up, Not yet, or choose a level by hand, from the Plan page (ADR-0075), and Step down or
+ * Not yet to a step down suggested (ADR-0084). The server checks
  * again, so a stale page changes nothing and says why. A string: why it was refused. */
 export async function moveOnLadder(
   slug: string,
   move: LadderMove,
   stepId: number,
 ): Promise<Moved | string> {
-  const body = move === 'move-up' ? { from_step_id: stepId } : { step_id: stepId }
+  const from = move === 'move-up' || move === 'step-down'
+  const body = from ? { from_step_id: stepId } : { step_id: stepId }
   const res = await post(`/api/progress/${encodeURIComponent(slug)}/${move}`, body)
   if (res.status === 404 || res.status === 422) return "That step isn't on this exercise's ladder."
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
@@ -952,7 +995,8 @@ export async function fetchSettings(signal?: AbortSignal): Promise<MessageSettin
   return (await res.json()) as MessageSettings
 }
 
-/** Change only what's given. 'invalid': the server refused a value (as the bot would). */
+/** Change only what's given. 'invalid': the server refused a value (as the bot would), or a
+ * change it doesn't allow yet (409: the last set while locked, ADR-0084). */
 export async function saveSettings(change: SettingsChange): Promise<MessageSettings | 'invalid'> {
   const res = signedIn(
     await fetch('/api/settings', {
@@ -962,7 +1006,7 @@ export async function saveSettings(change: SettingsChange): Promise<MessageSetti
       body: JSON.stringify(change),
     }),
   )
-  if (res.status === 422) return 'invalid'
+  if (res.status === 422 || res.status === 409) return 'invalid'
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as MessageSettings
 }

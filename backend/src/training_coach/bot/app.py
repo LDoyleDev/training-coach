@@ -8,6 +8,7 @@ so ``Handlers.button`` checks the sender itself before doing anything.
 import asyncio
 import warnings
 from collections.abc import Callable, Coroutine, Sequence
+from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -71,6 +72,7 @@ from training_coach.services import (
     blocks,
     daily_check,
     day_clash,
+    guided,
     habits,
     health_summary,
     passkeys,
@@ -212,16 +214,20 @@ class Handlers:
         """Today's message, with the Start / Rest today / Swap buttons when there is a plan
         and "Open in app" under them (C1): the session, or the Tests page on a test day."""
         url = self.settings.public_url
+        on = self._local_today()
         with session_scope(self.sessions) as session:
-            plan = todays_session(session, self._local_today(), self.settings.tz)
+            plan = todays_session(session, on, self.settings.tz)
             if plan is None:
                 return NO_PLAN, None
             if plan.test_day is not None:
                 instead = buttons.instead(plan.session.template_id, plan.session.name)
                 text = test_day_text(plan, tests_where(url))
                 return text, links.with_open(instead, url, links.TESTS)
+            # The day's length chosen in the app, if any (ADR-0082).
+            shown, length = guided.at_length(session, on, plan.session)
             markup = buttons.morning(plan.session.template_id)
-            return today_text(plan), links.with_open(markup, url, links.SESSION)
+            text = today_text(replace(plan, session=shown), length)
+            return text, links.with_open(markup, url, links.SESSION)
 
     async def help(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_message is not None:
@@ -385,9 +391,11 @@ class Handlers:
             return
         if press.action == "start":
             with session_scope(self.sessions) as session:
-                plan = session_plan(session, tid, blocks.current(session, on, self.settings.tz))
+                block = blocks.current(session, on, self.settings.tz)
+                plan = session_plan(session, tid, block, on=on)
+                shown = guided.at_length(session, on, plan) if plan is not None else None
             await query.answer()
-            await reply(STALE if plan is None else session_detail_text(plan))
+            await reply(STALE if shown is None else session_detail_text(*shown))
             return
 
         # Actions that change the queue: one transaction, then retire the old buttons.

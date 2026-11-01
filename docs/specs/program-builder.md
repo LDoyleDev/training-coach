@@ -305,7 +305,8 @@ home stays a ladder step, because 8 to 16 kg is a different exercise, not a smal
 G1 for everything, G2 as a suggestion where a test exists, G3 always available. A level can be
 set by hand on the Plan tab too (down as well as up; it records an event, like Move up does).
 **Set by hand: done** (ADR-0075): the Plan page's ladder panels, with Move up and Not yet, and
-every "Ready to move up" links there. G1 and G2 are still to come.
+every "Ready to move up" links there. G1's questions are in the seed (ADR-0075) and the flow that
+asks them comes with step 10; G2 is still to come.
 
 ### H. Setting up, for a new person (and the owner, again)
 
@@ -313,7 +314,7 @@ A short flow, one question per screen, every step skippable:
 
 1. Where do you train? Home, gym, or both.
 2. What's at home? The kit list (C).
-3. How many days a week? A starter for it: 3-day full body or 4-day upper/lower (M), or the 7-day cycle
+3. How many days a week? A starter for it: 3-day full body or 4-day upper/lower (N), or the 7-day cycle
    (Decided 7).
 4. Your levels (G).
 5. The body map for the result; Save. Then the Plan tab for anything else.
@@ -345,6 +346,8 @@ between its own sets. To decide:
 3. **Pairing rules for the editor (step 6):** no shared prime mover without the longer rest, not
    two grip-heavy exercises, at most one spine-loading exercise per pair.
 4. **Warm-up** 10 or 5 minutes (5 saves 15 minutes a week; a choice, not a finding).
+   **Decided 30 Oct 2026** (ADR-0065 addendum): 5 minutes, in the guided session, its time
+   estimate and the warm-up line before a resistance session.
 5. **Drop sets and rest-pause:** an optional set type for isolation exercises, counted at
    matched volume, later. They save little inside pairs.
 6. **Kit order** for the equipment step: 16 kg kettlebell, then a weighted vest; each saves
@@ -400,7 +403,33 @@ Copenhagen plank, carries, chin-ups and diamond push-ups.
 Three gym catalogue exercises are in no session yet: the hammer curl, wrist curls and the cable
 fly. They can be logged by text or voice and are there for the editor (steps 6 and 7).
 
-### M. The 3- and 4-day starters (proposed 30 Oct 2026)
+### M. Away versions of the sessions (proposed 1 Nov 2026, for Liam's review; ADR-0086)
+
+Every session gets an away version (`away = [...]` in `plan.toml`), for a hotel room: bodyweight
+and what any room has (the floor, a chair, a bed, a wall, a door frame, a towel), never bands,
+bells, bars or a backpack. The rules follow L's: the session's focus, order and pairing rules
+(J3), the same number of sets give or take one, and no muscle more than 1.5 fractional sets
+below the home version except where nothing kit-free trains it (a test names those). The same
+exercise wherever it has steps that need no kit, so levels and history carry over: away, each
+trains the highest step at or below the person's level that needs none, for that day only.
+Household things (water bottles, a towel-wrapped bottle) count as no kit, as in the catalogue.
+
+| Session | Away version (sets) | Why |
+| --- | --- | --- |
+| Legs | jump squat 3 + tibialis raise 3; **glute bridge** 3 × 8-15 + **back extension** 3 × 10-15; Bulgarian split squat 3 + hamstring curl 3; pistol squat 3 + calf raise 4 (25) | The swing and the single-leg RDL need a bell: the bridge and the back extension (hips on the bed's edge) take the hinge. Quads, adductors, calves and tibialis as at home; glutes 12 (10.5); hamstrings 4.5 (7.5), the one gap |
+| Recovery + posture | Y-T-W 2 + back extension 2; chin tuck 2 + **plank** 2 × 10-30 s; **ab rollout** (towel) 3 + neck side bend 2; neck extension 1; reverse Nordic 2 + side plank 2; mobility (19) | No carry, dead hang or hanging raise without kit: the plank for the carry, the towel rollout for the hanging raise, the hang dropped. Forearms, upper traps and hip flexors go for the day |
+| Torso + neck | **door-frame row** 4 × 8-15 + **diamond push-up** 4 × 8-15; **Y-T-W** 3 × 8-12 + push-up 4; pike push-up 3 + reverse fly 3 (bottles); neck flexion 2 + extension 2; lateral raise 3 (bottles) + **door-frame curl** 2 × 10-15 (30) | The door frame is the only pull: rows for the pull-ups, Y-T-W for the bell row, curls for the bell curl. Chest, triceps, front and side delts, neck as at home; lats 4 (7), biceps 4 (5.5). Dips left out: a hotel desk chair may roll |
+| Cardio + core | the same cardio (a run outside, stairs, or burpees); ab rollout 3 + Copenhagen plank 2; back extension 2 + side plank 2; **Y-T-W** 2 + **plank** 2 × 10-30 s (14) | The band face pull and the carry need kit: Y-T-W and a plank. Forearms and upper traps go for the day |
+| High intensity | the same intervals (burpees, high knees, stairs) | Nothing in it needs kit |
+| Arms + legs | **door-frame row** 3 + diamond push-up 3; Bulgarian split squat 3 + **pike push-up** 3 × 6-12; hamstring curl 3 + **door-frame curl** 4 × 10-15; calf raise 4 + lateral raise 4 (bottles) (27) | Rows for the chin-ups, the door-frame curl for the bell curl, the pike push-up for the overhead extension. Biceps, lats, calves and legs as at home; triceps 3 (4.5) |
+| Long zone 2 | the same: a brisk walk or an easy jog | The vest jog needs kit, so it trains the easy jog |
+
+Two new entry exercises, kit-free pulls on a door frame: the **door-frame row** (upper back,
+lats; five steps from upright to one arm, levels 2-6) and the **door-frame curl** (biceps; three
+steps, levels 3-5). Hold the frame itself, never the door. Each starts at its level-4 step, where
+someone who does the plan's other pulls begins. Their figures are still to draw (ADR-0063).
+
+### N. The 3- and 4-day starters (proposed 30 Oct 2026)
 
 Decided 7 accepted the research file's two gym starters (Coverage: 3-day full body, 4-day
 upper/lower; option H's "4-day full body" means this one). This section gives each session a
@@ -593,7 +622,8 @@ one): 59-60 sets on the 3-day, 55 on the 4-day, sessions of 23-41 minutes, the m
    [kit-ladder-proposal.md](kit-ladder-proposal.md)), with step cues and band strengths. Still
    to come: figures for the new set-ups (the proposal's Figures section).
 5. **Plans per person** (A2): the migration copies the plan to every user; the seed keeps the
-   catalogue and starters; the canary test (multi-user L2) covers the plan routes.
+   catalogue and starters; the canary test (multi-user L2) covers the plan routes. What reads
+   the plan today and a draft migration: [plans-per-person.md](plans-per-person.md).
 6. **Edit the plan:** set level (done, ADR-0075), swap, sets and range; Save makes a version. Import from
    `plan.toml` the same way.
 7. **The picker and an interactive map:** add and remove exercises; add a session.
@@ -614,7 +644,9 @@ one): 59-60 sets on the 3-day, 55 on the 4-day, sessions of 23-41 minutes, the m
    dropping kept sets. **Built:** the next weight owned at home (ADR-0072) and the body map's
    home or gym view (`?place=`, Home | Gym on Plan for someone at both), which the exercise
    lists follow.
-10. **Setup flow** (H), the 3- and 4-day starters (proposed: M above), and the level questions (G1).
+10. **Setup flow** (H), the 3- and 4-day starters (proposed: N above), and the level questions (G1).
+    Proposed 31 Oct 2026: setup also asks the minutes a session has, places people from far below
+    today's ladders, and offers starting starters ([any-level-any-time.md](any-level-any-time.md)).
 
 Pictures arrive alongside, as poses are drawn: the set screen first, then the picker. Steps 2-4, 8 and 9
 help the owner straight away with no change to how plans are stored; step 5 is the point of no

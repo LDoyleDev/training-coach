@@ -117,13 +117,15 @@ def test_the_top_for_the_kit_and_of_the_ladder_are_named() -> None:
             top=[
                 Top("Kettlebell swing", "kb-swing", "a 16 kg kettlebell unlocks Two-hand, 16 kg"),
                 Top("Push-up", "push-up", None),
+                Top("Pull-up", "pull-up", None, capped=True),  # never says why (ADR-0083)
             ]
         )
     )
     assert text.endswith(
         "At the top:\n"
         "- Kettlebell swing, top for your kit: a 16 kg kettlebell unlocks Two-hand, 16 kg\n"
-        "- Push-up, top of the ladder"
+        "- Push-up, top of the ladder\n"
+        "- Pull-up, no open step above this one"
     )
     assert "At the top" not in review_text(_review())
 
@@ -143,3 +145,12 @@ def test_zone_2_against_the_target() -> None:
     assert "Zone 2: 190 of 180-200 min · Moderate: 0 min" in reached
     none = review_text(_review(zone2_target=(180, 200)))
     assert "Zone 2: 0 of 180-200 min (180 short)" in none
+
+
+def test_a_step_down_suggested_is_one_line() -> None:
+    """ADR-0084: observational; the person decides on /progress or the Plan tab."""
+    text = review_text(_review(step_down=[Ready("Pull-up", "pull-up"), Ready("Dip", "dip")]))
+    assert text.endswith(
+        "The bottom of the range was out of reach twice: Pull-up, Dip. Try the step below? "
+        "See /progress."
+    )

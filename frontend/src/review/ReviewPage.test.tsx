@@ -51,11 +51,13 @@ const WEEK: WeekReview = {
     },
   ],
   ready: [{ exercise: 'Push-up', slug: 'push-up' }],
+  step_down: [],
   top: [
     {
       exercise: 'Kettlebell swing',
       slug: 'kb-swing',
       unlock: 'a 16 kg kettlebell unlocks Two-hand, 16 kg',
+      capped: true,
     },
   ],
   strength_block: false,
@@ -182,6 +184,19 @@ test('ready to move up waits for the hypertrophy block', async () => {
   expect(screen.getByRole('link', { name: 'Push-up' })).toHaveAttribute(
     'href',
     '/plan?move=push-up',
+  )
+})
+
+test('a step down to consider links to its ladder (ADR-0084)', async () => {
+  serve({ ...WEEK, step_down: [{ exercise: 'Pull-up', slug: 'pull-up' }] })
+  render(<ReviewPage />)
+  const out = (await screen.findByRole('heading', { name: 'Out of reach' })).closest('section')
+  expect(out).toHaveTextContent(
+    'The bottom of the range was out of reach twice. Try the step below?',
+  )
+  expect(screen.getByRole('link', { name: 'Pull-up' })).toHaveAttribute(
+    'href',
+    '/plan?move=pull-up',
   )
 })
 

@@ -3,8 +3,25 @@ import { choosePlace, type Guided, type Place, SignedOutError, type TodayView } 
 import SignedOutNotice from '../components/SignedOutNotice'
 import { actions, card, primaryInline, secondary } from '../ui'
 
-const NAMES: Record<Place, string> = { home: 'Home', gym: 'Gym' }
-const AT: Record<Place, string> = { home: 'at home', gym: 'at the gym' }
+const NAMES: Record<Place, string> = { home: 'Home', gym: 'Gym', away: 'Away' }
+const AT: Record<Place, string> = {
+  home: 'at home',
+  gym: 'at the gym',
+  away: 'away, with no equipment',
+}
+const VERSION: Record<Place, string> = {
+  home: 'home version',
+  gym: 'gym version',
+  away: 'no-equipment version',
+}
+const SAYS: Record<Place, string> = {
+  home: 'The home version, with your own kit.',
+  gym: 'The gym version, with weights that carry over from last time.',
+  away:
+    'Away, no equipment: bodyweight, a chair, a bed, a wall, a towel. A step that needs kit is ' +
+    'done at the highest one below it that doesn’t, for today only; your levels stay.',
+}
+const COLUMNS: Record<number, string> = { 2: 'grid-cols-2', 3: 'grid-cols-3' }
 
 const option = (on: boolean) =>
   'min-h-11 w-full rounded-xl border-2 px-4 font-bold disabled:opacity-60 ' +
@@ -13,10 +30,12 @@ const option = (on: boolean) =>
     : 'border-[var(--ink)] text-[var(--ink)]')
 
 /**
- * Today's Home | Gym switch (ADR-0071): shown when the session has a gym version and the
- * person trains at both. It starts at the last place chosen; a tap changes the day's exercises
- * before anything is kept. With sets kept it asks first, as a clash does (ADR-0060): switching
- * drops them. The app never switches by itself.
+ * Today's Home | Gym | Away switch (ADR-0071, ADR-0086): Home | Gym when the session has a gym
+ * version and the person trains at both, and Away, with no equipment, when it has an away
+ * version, for anyone; the server says which (`places`). It starts at the last place chosen
+ * (Away is for the day only); a tap changes the day's exercises before anything is kept. With
+ * sets kept it asks first, as a clash does (ADR-0060): switching drops them. The app never
+ * switches by itself.
  */
 export default function PlaceSwitch({
   session,
@@ -31,6 +50,8 @@ export default function PlaceSwitch({
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const [signedOut, setSignedOut] = useState(false)
+  // The server always lists them; the API types make a field with a default optional.
+  const places = session.places ?? (['home', 'gym'] as const)
 
   const choose = async (place: Place, confirm = false) => {
     if (place === session.place && !confirm) return
@@ -42,7 +63,7 @@ export default function PlaceSwitch({
       if (result === 'stale') return onStale()
       if ('ask' in result) return setAsking({ place, sets: result.ask })
       setAsking(null)
-      onChanged(result, `${session.name} ${AT[place]}: its ${NAMES[place].toLowerCase()} version.`)
+      onChanged(result, `${session.name} ${AT[place]}: its ${VERSION[place]}.`)
     } catch (error) {
       if (error instanceof SignedOutError) setSignedOut(true)
       else setProblem("That didn't work. Check your connection and try again.")
@@ -56,8 +77,12 @@ export default function PlaceSwitch({
       <h2 id="place" className="m-0 text-lg font-bold">
         Where are you training today?
       </h2>
-      <div role="group" aria-labelledby="place" className="grid grid-cols-2 gap-2">
-        {(['home', 'gym'] as const).map((place) => (
+      <div
+        role="group"
+        aria-labelledby="place"
+        className={`grid ${COLUMNS[places.length] ?? 'grid-cols-2'} gap-2`}
+      >
+        {places.map((place) => (
           <button
             key={place}
             type="button"
@@ -71,18 +96,13 @@ export default function PlaceSwitch({
           </button>
         ))}
       </div>
-      <p className="m-0 text-sm text-[var(--slate)]">
-        {session.place === 'gym'
-          ? 'The gym version, with weights that carry over from last time.'
-          : 'The home version, with your own kit.'}
-      </p>
+      <p className="m-0 text-sm text-[var(--slate)]">{SAYS[session.place]}</p>
       {asking && (
         <div role="alertdialog" aria-labelledby="place-ask" className="flex flex-col gap-2">
           <p id="place-ask" className="m-0 font-bold">
             You've kept {asking.sets} {asking.sets === 1 ? 'set' : 'sets'} of the{' '}
-            {NAMES[session.place].toLowerCase()} version. Switch to the{' '}
-            {NAMES[asking.place].toLowerCase()} version? {asking.sets === 1 ? 'It is' : 'They are'}{' '}
-            dropped; nothing saved changes.
+            {VERSION[session.place]}. Switch to the {VERSION[asking.place]}?{' '}
+            {asking.sets === 1 ? 'It is' : 'They are'} dropped; nothing saved changes.
           </p>
           <div className={actions}>
             <button

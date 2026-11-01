@@ -1,6 +1,6 @@
 [project]
 name = "training-coach"
-version = "1.9.0"
+version = "1.14.0"
 description = "Self-hosted training coach: Telegram bot, logging and dashboard API"
 authors = [{ name = "Liam Doyle" }]
 requires-python = ">=3.12"
@@ -102,6 +102,7 @@ allow_indirect_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"  # pytest-asyncio 1.4.1 warns when unset
 filterwarnings = [
     "error",
     "ignore:Using `httpx` with `starlette.testclient`",

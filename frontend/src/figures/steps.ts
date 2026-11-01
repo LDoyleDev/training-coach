@@ -4,7 +4,11 @@
  * plan.toml writes it; each entry says what changes over the exercise's figure. Every other step
  * shows the figure as it is.
  */
+import { AWAY_STEPS } from './away'
 import { BODY, solve, type Pose, type Vec } from './body'
+import { ENTRY_LOWER_STEPS } from './entry-lower'
+import { ENTRY_UPPER_STEPS } from './entry-upper'
+import { LADDER_DOWN_STEPS } from './ladder-down'
 import { FIGURES, type Figure } from './poses'
 
 type Change = Partial<Figure>
@@ -327,7 +331,111 @@ const BARS: Change = {
   },
 }
 
-export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
+/** A kitchen counter in front of you, its edge at ``x``, 90 cm high (ADR-0083's entry steps). */
+const counter = (x: number) => ({ wall: { x0: x, x1: x + 30, top: 90 } })
+
+/** Glute bridge, standing at the counter: both hands on it, one straight leg taken back from the
+ * hip and squeezed, the other leg standing (the off-floor first step, ADR-0083). */
+const STANDING_BRIDGE: Change = {
+  frames: [
+    'Hands on the counter, standing on both feet',
+    'One straight leg taken back, glute squeezed',
+  ],
+  view: [-58, 74, -3, 182],
+  props: counter(40),
+  order: ['armF', 'legF', 'torso', 'head', 'legN', 'armN'],
+  tempo: [1300, 1000, 1300, 500],
+  ease: 'sine',
+  start: {
+    hip: [0, 92.5],
+    lean: 12,
+    legN: { at: [1, 7] },
+    legF: { at: [3, 7] },
+    armN: { at: [41, 92] },
+    armF: { at: [43, 92] },
+  },
+  end: {
+    hip: [0, 92.5],
+    lean: 16,
+    legN: { at: [-30.2, 11], angle: -20 },
+    legF: { at: [3, 7] },
+    armN: { at: [41, 92] },
+    armF: { at: [43, 92] },
+  },
+}
+
+/** A hip thrust with the shoulders on the sofa's front edge, hands on the hips. */
+const SOFA_THRUST: Change = {
+  frames: ['Upper back on the sofa, hips low', 'Hips up: knees to shoulders in one line'],
+  view: [-124, 68, -3, 100],
+  props: { sofa: { x0: -120, x1: -38 } },
+  order: ['armF', 'legF', 'torso', 'head', 'legN', 'armN'],
+  tempo: [1200, 1000, 1400, 500],
+  start: {
+    hip: [-6, 26],
+    lean: -58,
+    neck: 10,
+    legN: { at: [40, 7] },
+    legF: { at: [43, 7] },
+    armN: { at: [13, -16], from: 'waist' },
+    armF: { at: [14, -16], from: 'waist' },
+  },
+  end: {
+    hip: [-4, 54],
+    lean: -91,
+    neck: 22,
+    legN: { at: [40, 7] },
+    legF: { at: [43, 7] },
+    armN: { at: [13, -16], from: 'waist' },
+    armF: { at: [14, -16], from: 'waist' },
+  },
+}
+
+/** The same bridge on one leg: the far leg held up straight, in line with the near thigh. */
+const oneLeg = (change: Change, frames: Figure['frames'], up: number): Change => ({
+  ...change,
+  frames,
+  view: [change.view![0], change.view![1] + 20, -3, change.view![3] + up],
+  start: raised(change.start!, 38),
+  end: raised(change.end!, 30),
+})
+
+/** A hip hinge with the hands on the counter's edge: from a slight bend, hips back until arms and
+ * back make one line. */
+const COUNTER_HINGE: Change = {
+  frames: [
+    'Hands on the counter, a slight bend at the hips',
+    'Hips back: arms and back in one line',
+  ],
+  view: [-60, 96, -3, 182],
+  props: counter(62),
+  start: {
+    hip: [-10, 90],
+    lean: 40,
+    legN: { at: [0, 7] },
+    legF: { at: [3, 7] },
+    armN: { at: [64, 92] },
+    armF: { at: [66, 92] },
+  },
+  end: {
+    hip: [-35, 88],
+    lean: 82,
+    neck: -6,
+    legN: { at: [0, 7] },
+    legF: { at: [3, 7] },
+    armN: { at: [64, 92] },
+    armF: { at: [66, 92] },
+  },
+}
+
+/** A bag hugged to the chest through the hinge, the hands on the trunk so they ride with it. */
+const hugged = (pose: Pose): Pose => ({
+  ...pose,
+  armN: { at: [19, 20], from: 'waist' },
+  armF: { at: [20, 20.5], from: 'waist' },
+})
+
+const DRAWN: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
   'pull-up': LOADED(VEST, FIGURES['pull-up']),
   'chin-up': LOADED(VEST, FIGURES['chin-up']),
   dip: {
@@ -567,10 +675,60 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
       end: fist(FIGURES['kb-curl'].end),
     },
   },
+  'glute-bridge': {
+    'Standing, at the counter': STANDING_BRIDGE,
+    'Shoulders on the sofa (hip thrust)': SOFA_THRUST,
+    'Single leg, on the floor': oneLeg(
+      {
+        view: FIGURES['glute-bridge'].view,
+        start: FIGURES['glute-bridge'].start,
+        end: FIGURES['glute-bridge'].end,
+      },
+      ['On your back, one foot down, the other leg up straight', 'Hips up on one leg, hips level'],
+      36,
+    ),
+    'Single leg, shoulders on the sofa': oneLeg(
+      SOFA_THRUST,
+      ['Upper back on the sofa, one foot down, the other leg up', 'Hips up on one leg, hips level'],
+      30,
+    ),
+  },
+  'hip-hinge': {
+    'Hands on the counter': COUNTER_HINGE,
+    'Hips back to a wall': {
+      frames: ['Back to a wall, hands on hips, knees soft', 'Hips pushed back to touch the wall'],
+      props: { wall: { x0: -36, x1: -28, top: 200 } },
+    },
+    'Holding a bag at the chest': {
+      frames: ['Standing, a bag hugged to your chest', 'Hips back, back flat, the bag held close'],
+      props: { bag: 'chest' },
+      order: ['armF', 'legF', 'torso', 'head', 'legN', 'bell', 'armN'],
+      start: hugged(FIGURES['hip-hinge'].start),
+      end: hugged(FIGURES['hip-hinge'].end),
+    },
+  },
+  ...AWAY_STEPS,
+  ...ENTRY_LOWER_STEPS,
+  ...ENTRY_UPPER_STEPS,
 }
 
-/** ``slug``'s figure as it looks at the ladder step ``step``; nothing for a slug without one. */
+/** Every step drawn: the lower steps (ladder-down.ts) join their exercise's other steps. */
+export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
+  ...DRAWN,
+  ...Object.fromEntries(
+    Object.entries(LADDER_DOWN_STEPS).map(([slug, steps]) => [slug, { ...DRAWN[slug], ...steps }]),
+  ),
+}
+
+/** Steps set up differently from their exercise's figure that aren't drawn yet: they show no
+ * figure rather than the wrong one (a floor push-up for a push-up against the wall), and each comes
+ * out of here once it is drawn. Empty since #545 drew ADR-0083's lower steps (ladder-down.ts). */
+export const UNDRAWN: Readonly<Record<string, readonly string[]>> = {}
+
+/** ``slug``'s figure as it looks at the ladder step ``step``; nothing for a slug without one, or
+ * for a step that isn't drawn yet. */
 export function figureFor(slug: string, step?: string): Figure | undefined {
+  if (step !== undefined && UNDRAWN[slug]?.includes(step)) return undefined
   const figure: Figure | undefined = FIGURES[slug]
   const change = step === undefined ? undefined : STEPS[slug]?.[step]
   return figure && change ? { ...figure, ...change } : figure

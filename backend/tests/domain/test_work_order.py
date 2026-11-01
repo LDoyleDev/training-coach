@@ -81,3 +81,11 @@ def test_past_the_most_pairs_the_plans_order_is_kept() -> None:
     pairs = [n for n in range(1, 12) for _ in range(2)]
     order = work_order(sets, pairs)
     assert [group[0] for group in order] == [(i, 1) for i in range(0, 22, 2)]  # not searched
+
+
+def test_an_item_with_no_sets_has_none_in_the_order() -> None:
+    """A trimmed day drops an exercise by giving it 0 sets (ADR-0082): its pair partner is
+    done straight, and the exercises after it keep their indexes."""
+    assert work_order([2, 0, 2], [1, 1, None]) == [[(0, 1), (0, 2)], [(2, 1), (2, 2)]]
+    assert work_order([0, 2], [1, 1], first={1}) == [[(1, 1), (1, 2)]]
+    assert work_order([0, 0, 1], [1, 1, None]) == [[(2, 1)]]
