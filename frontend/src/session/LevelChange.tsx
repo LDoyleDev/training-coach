@@ -8,12 +8,14 @@ import { nearby, type LevelScope } from './levels'
  * The step on the set screen, with "Change level" (ADR-0080): the ladder one level down and up
  * first, every level on request, locked levels said in words (ADR-0071). Picking a level asks
  * "For today" (this session only) or "From now on" (the person's level, as on the Plan tab).
- * `onPick` answers true once changed, which closes the picker.
+ * `onPick` answers true once changed, which closes the picker. `noKit`: away, today's step is
+ * below the person's level because theirs needs kit (ADR-0086); their level stays.
  */
 export default function LevelChange({
   name,
   step,
   level,
+  noKit = false,
   done,
   busy,
   onPick,
@@ -21,6 +23,7 @@ export default function LevelChange({
   name: string
   step: string // today's, as the set screen shows it
   level: ItemLevel
+  noKit?: boolean
   done: number // sets of this exercise confirmed so far
   busy: boolean
   onPick: (stepId: number, stepName: string, scope: LevelScope) => Promise<boolean>
@@ -42,7 +45,11 @@ export default function LevelChange({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <p className="m-0 text-[var(--slate)]">
           {step}
-          {level.for_today && <span className="font-bold"> · for today only</span>}
+          {noKit ? (
+            <span className="font-bold"> · No-equipment step today</span>
+          ) : (
+            level.for_today && <span className="font-bold"> · for today only</span>
+          )}
         </p>
         {!open && (
           <button

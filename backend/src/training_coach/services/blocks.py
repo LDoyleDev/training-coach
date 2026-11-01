@@ -21,6 +21,7 @@ from training_coach.domain.blocks import (
 )
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.load import LoadKit
+from training_coach.domain.places import no_kit_step
 from training_coach.domain.retests import block_start
 from training_coach.domain.targets import Prescription
 from training_coach.services import users
@@ -78,6 +79,25 @@ def _load_kits() -> dict[tuple[str, str], LoadKit]:
     return {(e.slug, step): kit for e in bundled_plan().exercises for step, kit in e.loads.items()}
 
 
+def needs_kit(slug: str, step: str) -> bool:
+    """Whether this step of this exercise needs kit or takes a load, from the bundled plan: not
+    a step to do away, with no equipment (ADR-0086)."""
+    return bool(_needs().get((slug, step))) or load_kit(slug, step) is not None
+
+
+@lru_cache(maxsize=1)
+def _needs() -> dict[tuple[str, str], list[str]]:
+    return {(e.slug, step): kit for e in bundled_plan().exercises for step, kit in e.needs.items()}
+
+
+def kit_free(exercise: Exercise, step: LadderStep) -> LadderStep:
+    """The step done away (ADR-0086): ``step`` when it needs no kit, else the highest step below
+    it that needs none (the kit-lock rule with an empty kit, ADR-0071); ``step`` when none does."""
+    ladder = sorted(exercise.ladder, key=lambda s: s.position)
+    at = next(i for i, s in enumerate(ladder) if s.id == step.id)
+    return ladder[no_kit_step([not needs_kit(exercise.slug, s.name) for s in ladder], at)]
+
+
 def _current_step(session: Session, exercise: Exercise) -> LadderStep:
     state = users.exercise_state(session, exercise.id)
     step = session.get(LadderStep, state.ladder_step_id) if state is not None else None
@@ -111,23 +131,38 @@ class Assignment:
     cue: str | None
     prescription: Prescription
     history: BlockKind | None  # which block's sessions its targets come from
+    # Away, the step was lowered to one that needs no kit, for today only (ADR-0086).
+    no_kit: bool = False
 
 
 def assign(
-    session: Session, item: TemplateItem, strength: bool, chosen: LadderStep | None = None
+    session: Session,
+    item: TemplateItem,
+    strength: bool,
+    chosen: LadderStep | None = None,
+    *,
+    away: bool = False,
 ) -> Assignment:
     """``chosen``: a level picked for today in the session (ADR-0080), trained as it is: no
-    step harder in a strength block, as the person picked the step they do."""
+    step harder in a strength block, as the person picked the step they do. ``away``: with no
+    equipment, a step that needs kit gives way to the highest one below it that needs none
+    (ADR-0086); the person's level stays."""
     kind = ExerciseKind(item.exercise.kind)
     step, at_top = (
         (chosen, False) if chosen is not None else step_for(session, item.exercise, strength)
     )
+    no_kit = False
+    if away and chosen is None:
+        lowered = kit_free(item.exercise, step)
+        if lowered.id != step.id:
+            step, at_top, no_kit = lowered, False, True
     if not strength or kind is not ExerciseKind.REPS:
         return Assignment(
             step=step,
             cue=step.cue,
             prescription=Prescription(item.sets, item.rep_min, item.rep_max, kind),
             history=history_kind(kind, BlockKind.HYPERTROPHY),
+            no_kit=no_kit,
         )
     low, high = STRENGTH_REPS
     cue = step.cue
@@ -138,4 +173,5 @@ def assign(
         cue=cue,
         prescription=Prescription(strength_sets(item.sets), low, high, kind),
         history=BlockKind.STRENGTH,
+        no_kit=no_kit,
     )

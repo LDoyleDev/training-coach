@@ -180,6 +180,8 @@ class ItemView(BaseModel):
     flow: FlowView | None = None  # guided one movement at a time (ADR-0062)
     load: LoadView | None = None  # a loaded step: the set screen records a weight (ADR-0072)
     level: ItemLevelView | None = None  # empty for an exercise with one step: none to change
+    # Away, below the person's level: their step needs kit, so today's needs none (ADR-0086).
+    no_kit: bool = False
 
 
 def muscle_views(item: ItemPlan) -> list[ItemMuscleView]:
@@ -250,8 +252,10 @@ class GuidedView(BaseModel):
     # What's left of a conditioning session once its cardio is logged (ADR-0066): offered
     # "after your run", saved into that day's workout.
     after_run: bool = False
-    # Where it is done, and so which version (ADR-0071); ``place_choice``: show Home | Gym.
+    # Where it is done, and so which version (ADR-0071); ``places``: what the switch offers
+    # (Home | Gym, and Away with no equipment, ADR-0086); ``place_choice``: show the switch.
     place: Place = Place.HOME
+    places: list[Place] = Field(default_factory=lambda: [Place.HOME])
     place_choice: bool = False
     # Short on time today (ADR-0082); empty for a session that always runs as planned.
     length: LengthView | None = None
@@ -419,7 +423,9 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
     daily = daily_summary(answers) if answers is not None else None
     if plan is None:
         return TodayView(session=None, test_day=test_day, readiness_note=caution, daily_check=daily)
-    ladders = session_levels.ladders(session, (i.slug for i in plan.items))
+    ladders = session_levels.ladders(
+        session, (i.slug for i in plan.items), away=plan.place is Place.AWAY
+    )
     today_only = session_levels.today_only(session, dict(kept.steps) if kept is not None else {})
     queue = position(session)
     planned = None
@@ -483,6 +489,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                     )
                     if i.slug in ladders
                     else None,
+                    no_kit=i.no_kit,
                 )
                 for i in plan.items
             ],
@@ -498,6 +505,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
             ],
             after_run=plan.after_run,
             place=plan.place,
+            places=list(plan.places),
             place_choice=plan.switch,
             length=length_view(plan),
         ),
@@ -545,15 +553,17 @@ class PlaceAsk(BaseModel):
     responses={status.HTTP_409_CONFLICT: {"model": PlaceAsk}},
 )
 def choose_place(body: PlaceBody, request: Request, user: Owner) -> TodayView | JSONResponse:
-    """Do today's session at home or at the gym (ADR-0071): the person's switch, never the
-    app's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when
-    sets are kept for the version shown (ask, then confirm), or with a ``detail`` message when
-    today has no choice to make."""
+    """Do today's session at home, at the gym or away with no equipment (ADR-0071, ADR-0086):
+    the person's switch, never the app's. 409 with ``kept_sets`` at the top of the body (a
+    PlaceAsk, as the API types say) when sets are kept for the version shown (ask, then
+    confirm), or with a ``detail`` message when today has no choice to make or not that one."""
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         plan = guided.today(session, on, settings.tz)
         if plan is None or not plan.switch:
             raise HTTPException(status.HTTP_409_CONFLICT, "today's session has one place")
+        if body.place not in plan.places:
+            raise HTTPException(status.HTTP_409_CONFLICT, "today's session isn't done there")
         kept = guided.switch(session, plan, body.place, body.confirm)
         if kept is not None:
             return JSONResponse(

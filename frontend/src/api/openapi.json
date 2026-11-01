@@ -1557,6 +1557,13 @@
             "title": "Place Choice",
             "type": "boolean"
           },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          },
           "rest_seconds": {
             "title": "Rest Seconds",
             "type": "integer"
@@ -2431,6 +2438,11 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "no_kit": {
+            "default": false,
+            "title": "No Kit",
+            "type": "boolean"
           },
           "pair": {
             "anyOf": [
@@ -4447,10 +4459,11 @@
         "type": "object"
       },
       "Place": {
-        "description": "Where a workout is done (ADR-0071): at home, with the person's own kit, or at a gym,\nwhich has everything. A session can hold a version for each.",
+        "description": "Where a workout is done (ADR-0071): at home, with the person's own kit, at a gym, which\nhas everything, or away with no equipment (ADR-0086). A session can hold a version for each.",
         "enum": [
           "home",
-          "gym"
+          "gym",
+          "away"
         ],
         "title": "Place",
         "type": "string"
@@ -9931,7 +9944,7 @@
     },
     "/api/session/place": {
       "put": {
-        "description": "Do today's session at home or at the gym (ADR-0071): the person's switch, never the\napp's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when\nsets are kept for the version shown (ask, then confirm), or with a ``detail`` message when\ntoday has no choice to make.",
+        "description": "Do today's session at home, at the gym or away with no equipment (ADR-0071, ADR-0086):\nthe person's switch, never the app's. 409 with ``kept_sets`` at the top of the body (a\nPlaceAsk, as the API types say) when sets are kept for the version shown (ask, then\nconfirm), or with a ``detail`` message when today has no choice to make or not that one.",
         "operationId": "choose_place_api_session_place_put",
         "requestBody": {
           "content": {

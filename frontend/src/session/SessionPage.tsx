@@ -706,6 +706,7 @@ export default function SessionPage() {
                 name={item.name}
                 step={item.step}
                 level={item.level}
+                noKit={item.no_kit}
                 done={
                   session.order.filter(
                     (s) => s.item === step.item && values[key(s.item, s.set_no)]?.confirmed,

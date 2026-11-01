@@ -89,9 +89,14 @@ class Guided:
     order: tuple[GuidedSet, ...]
     slug: str = ""  # the session template's
     after_run: bool = False  # what's left of a conditioning session once its cardio is logged
-    place: Place = Place.HOME  # where it is done: its home or gym version (ADR-0071)
-    switch: bool = False  # Today offers Home | Gym
+    place: Place = Place.HOME  # where it is done: its home, gym or away version (ADR-0071)
+    places: tuple[Place, ...] = (Place.HOME,)  # what Today's switch offers (ADR-0086)
     length: Length | None = None  # short on time today (ADR-0082); None: never trimmed
+
+    @property
+    def switch(self) -> bool:
+        """Today shows the switch: there is a place to choose."""
+        return len(self.places) > 1
 
 
 def _kinds(items: tuple[ItemPlan, ...]) -> list[Kind | None]:
@@ -311,7 +316,7 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
     if held_today(session, on):
         return None
     block = blocks.current(session, on, tz)
-    plan = session_plan(session, template.id, block, chosen(session, on, template.id, False))
+    plan = session_plan(session, template.id, block, chosen(session, on, template.id, False), on=on)
     assert plan is not None  # noqa: S101 - target() returned this template a moment ago
     return _guided(session, on, plan, plan.items, block, first, after_run=False)
 
@@ -384,7 +389,7 @@ def _guided(
         order=order,
         after_run=after_run,
         place=plan.place,
-        switch=plan.switch,
+        places=plan.places,
         length=length,
     )
 
@@ -429,7 +434,7 @@ def _after_run(session: Session, on: date, tz: ZoneInfo, first: Collection[int])
         return None
     block = blocks.current(session, on, tz)
     plan = session_plan(
-        session, workout.template_id, block, chosen(session, on, workout.template_id, True)
+        session, workout.template_id, block, chosen(session, on, workout.template_id, True), on=on
     )
     if plan is None:
         return None
@@ -943,15 +948,34 @@ def switch(session: Session, plan: Guided, place: Place, confirm: bool) -> int |
     """Do ``plan``'s session at ``place`` (ADR-0071): its other version from now on, and the
     place Today starts at next time (Decided 4). Sets kept for the version shown are dropped
     with it, so with any kept the answer is their number and nothing changes until the person
-    confirms (ADR-0060's ask first); None once switched. The caller checks ``plan.switch``."""
+    confirms (ADR-0060's ask first); None once switched. The caller checks ``plan.places``.
+
+    Away is the day's only (ADR-0086): kept on the day's progress, never as the place Today
+    starts at, so tomorrow starts where it would have."""
     if place is plan.place:
         return None
     row = _row(session, plan.day)
-    if row is not None and row.saved_workout_id is None:
-        if row.sets and not confirm:
+    if row is not None and (row.saved_workout_id is None or row.after_run != plan.after_run):
+        if row.sets and row.saved_workout_id is None and not confirm:
             return len(row.sets)
-        session.delete(row)  # its sets and swapped pairs belong to the other version
+        # Its sets and swapped pairs belong to the other version; a saved run's progress gives
+        # way to the block after it, as keep() does (ADR-0066).
+        session.delete(row)
         session.flush()
+        row = None
+    if place is Place.AWAY:
+        if row is None:
+            session.add(
+                SessionProgress(
+                    local_date=plan.day,
+                    template_id=plan.template_id,
+                    token=secrets.token_hex(16),
+                    after_run=plan.after_run,
+                    place=Place.AWAY,
+                )
+            )
+            session.flush()
+        return None
     user_settings.update(session, place=place)
     return None
 

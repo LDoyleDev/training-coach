@@ -88,3 +88,20 @@ test('a level chosen for today only says so; a short ladder has no "all levels"'
   click('Change level')
   expect(screen.queryByRole('button', { name: /All levels/ })).not.toBeInTheDocument()
 })
+
+test('away, a step lowered for want of kit says so instead of for today only', () => {
+  const onPick = vi.fn(async () => true)
+  render(
+    <LevelChange
+      name="Kettlebell swing"
+      step="One-arm, 8 kg"
+      level={{ ...LEVEL, for_today: true }}
+      noKit
+      done={0}
+      busy={false}
+      onPick={onPick}
+    />,
+  )
+  expect(screen.getByText('· No-equipment step today')).toBeInTheDocument()
+  expect(screen.queryByText(/for today only/)).not.toBeInTheDocument()
+})

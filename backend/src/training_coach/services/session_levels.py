@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import Exercise, LadderStep, SetLog
 from training_coach.domain import kit as kit_rules
+from training_coach.domain.enums import Place
 from training_coach.services import equipment, guided, progress, users
 from training_coach.services.progress import Rung
 
@@ -35,10 +36,13 @@ class Changed:
     warning: str | None  # the chosen step needs kit that isn't listed: chosen anyway
 
 
-def ladders(session: Session, slugs: Iterable[str]) -> dict[str, tuple[Rung, ...]]:
+def ladders(
+    session: Session, slugs: Iterable[str], *, away: bool = False
+) -> dict[str, tuple[Rung, ...]]:
     """Each exercise's ladder, easiest first, with the kit each step lacks (ADR-0071), for the
-    exercises that have more than one step: the others have no level to change."""
-    kit = equipment.kit(session)
+    exercises that have more than one step: the others have no level to change. ``away``: with
+    no equipment, every step that needs kit lacks it (ADR-0086)."""
+    kit = [] if away else equipment.kit(session)
     found = session.scalars(
         select(Exercise).where(Exercise.slug.in_(set(slugs))).options(selectinload(Exercise.ladder))
     )
@@ -89,7 +93,10 @@ def change(
         {**s, "step_id": shown[s["item"]]} if s["item"] in shown and not s.get("step_id") else s
         for s in row.sets
     ]
-    if scope is Scope.TODAY:
+    if scope is Scope.TODAY and plan.place is Place.AWAY:  # no equipment today (ADR-0086)
+        lacking = kit_rules.missing([], equipment.step_needs(slug).get(step.name, []))
+        warning = f"{step.name} needs {' and '.join(lacking)}." if lacking else None
+    elif scope is Scope.TODAY:
         warning = progress.kit_warning(session, slug, step.name)
     else:
         moved = progress.set_level(session, exercise.id, step.id)
