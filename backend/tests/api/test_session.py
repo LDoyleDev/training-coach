@@ -655,14 +655,18 @@ def test_a_loaded_step_offers_its_weights_and_keeps_each_sets(
 
 
 def test_home_or_gym_is_the_persons_switch(signed_in: TestClient) -> None:
-    """No switch until they train at both; then Gym shows the gym version, and a browser still
-    showing home is told the session changed."""
+    """No Gym until they train at both (only Away, ADR-0086); then Gym shows the gym version, and
+    a browser still showing home is told the session changed."""
     today = signed_in.get("/api/session/today").json()["session"]
-    assert (today["place"], today["place_choice"]) == ("home", False)
+    assert (today["place"], today["places"]) == ("home", ["home", "away"])
     refused = signed_in.put("/api/session/place", json={"place": "gym"})
-    assert (refused.status_code, refused.json()["detail"]) == (409, "today's session has one place")
+    assert (refused.status_code, refused.json()["detail"]) == (
+        409,
+        "today's session isn't done there",
+    )
     assert signed_in.patch("/api/settings", json={"places": "both"}).status_code == 200
-    assert signed_in.get("/api/session/today").json()["session"]["place_choice"] is True
+    both = signed_in.get("/api/session/today").json()["session"]
+    assert (both["place_choice"], both["places"]) == (True, ["home", "gym", "away"])
     switched = signed_in.put("/api/session/place", json={"place": "gym"})
     assert switched.status_code == 200
     gym = switched.json()["session"]
