@@ -37,8 +37,10 @@ const SESSION: Guided = {
       pair: 1,
       targets: [6, 6],
       baseline: true,
+      no_kit: false,
       muscles: [],
       parts: [],
+      last_set_amrap: false,
     },
     {
       slug: 'calf-raise',
@@ -51,8 +53,10 @@ const SESSION: Guided = {
       pair: 1,
       targets: [15],
       baseline: false,
+      no_kit: false,
       muscles: [],
       parts: [],
+      last_set_amrap: false,
     },
   ],
   order: [
@@ -205,6 +209,27 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
     sets: [{ item: 0, set_no: 1, left: 7, right: null }],
   })
   expect(kept[2]).toMatchObject({ revision: 1, position: 3 })
+})
+
+test('a last set of as many good reps as you can shows its target as the floor (ADR-0084)', async () => {
+  const marked = { ...SESSION.items[0], last_set_amrap: true }
+  serve({ today: { session: { ...SESSION, items: [marked, SESSION.items[1]] }, progress: null } })
+  render(<SessionPage />)
+  // Not the last set of the jump squat: the usual target.
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(await screen.findByText('Set 1 of 2')).toBeInTheDocument()
+  expect(screen.getByText('Target 6')).toBeInTheDocument()
+  expect(screen.queryByText(/as many good reps/)).not.toBeInTheDocument()
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  click('Confirm set') // the calf raise isn't marked
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  expect(await screen.findByText('Set 2 of 2')).toBeInTheDocument()
+  expect(
+    screen.getByText('Last set: at least 6, then as many good reps as you can'),
+  ).toBeInTheDocument()
+  expect(screen.getByText("Stop at the first rep that isn't clean.")).toBeInTheDocument()
+  expect(screen.queryByText('Target 6')).not.toBeInTheDocument()
 })
 
 test('the stop signs show once before the first session, remembered on the server', async () => {
@@ -1059,8 +1084,10 @@ test('the mobility item plays its flow and logs the minutes moved as its set', a
         pair: null,
         targets: [10],
         baseline: false,
+        no_kit: false,
         muscles: [],
         parts: [],
+        last_set_amrap: false,
         flow: { seconds: 120, safety: 'If something hurts, stop.', moves: [move, move] },
       },
     ],

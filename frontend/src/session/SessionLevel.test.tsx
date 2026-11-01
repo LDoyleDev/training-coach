@@ -27,8 +27,10 @@ const SWING: GuidedItem = {
   pair: null,
   targets: [20, 20],
   baseline: false,
+  no_kit: false,
   muscles: [],
   parts: [],
+  last_set_amrap: false,
   level: { step_id: 20, for_today: false, ladder: LADDER },
 }
 
@@ -61,6 +63,7 @@ const SIXTEEN: GuidedItem = {
   step: 'Two-hand, 16 kg',
   targets: [15, 15],
   baseline: true,
+  no_kit: false,
   level: { step_id: 22, for_today: true, ladder: LADDER },
 }
 

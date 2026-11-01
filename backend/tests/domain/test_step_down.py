@@ -147,6 +147,19 @@ def test_easier_exercises_share_a_prime_mover_and_start_low() -> None:
     assert easier_exercises(frozenset(), catalogue) == []
 
 
+def test_a_last_set_to_failure_is_read_as_the_targets_read_it() -> None:
+    """At or above its target it counts as met (ADR-0084); below the range and short, it isn't."""
+    recent = [[5, 5, 5], [5, 5, 5], LOW]
+    assert step_down(PUSH_UPS, recent, has_step_below=True, failure_sets=[3, 3, None]) is (
+        StepDown.SUGGEST
+    )
+    met = [[5, 5, 25], [5, 5, 25], LOW]  # two of three still short: most
+    found = step_down(PUSH_UPS, met, has_step_below=True, failure_sets=[3, 3, None])
+    assert found is StepDown.SUGGEST
+    one = [[5, 25, 25], [5, 25, 25], LOW]
+    assert step_down(PUSH_UPS, one, has_step_below=True, failure_sets=[3, 3, None]) is StepDown.NONE
+
+
 @pytest.mark.parametrize(
     ("last_done", "expected"),
     [

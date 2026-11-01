@@ -43,7 +43,7 @@ def test_every_exercise_that_asks_can_you_do_it_has_a_range() -> None:
     """Its questions ask for the bottom of the range: a session's, or its own when no session
     uses it. A one-step gym exercise no session uses asks nothing."""
     plan = load_plan()
-    used = {i.exercise for s in plan.sessions for i in (*s.items, *s.gym)}
+    used = {i.exercise for s in plan.sessions for i in s.versions}
     unranged = [
         e.slug for e in plan.exercises if e.questions and e.slug not in used and e.range is None
     ]
@@ -51,7 +51,8 @@ def test_every_exercise_that_asks_can_you_do_it_has_a_range() -> None:
 
 
 def test_the_entry_exercises_are_in_the_catalogue_and_in_no_session_yet() -> None:
-    """Sessions are shared until builder step 5 (ADR-0073); a starter will use them."""
+    """Sessions are shared until builder step 5 (ADR-0073); a starter will use them. The away
+    versions (ADR-0086) use two, the glute bridge and the plank, kit-free and for a day."""
     plan = load_plan()
     used = {i.exercise for s in plan.sessions for i in (*s.items, *s.gym)}
     entries = {e.slug: e for e in plan.exercises if e.slug in ENTRY}

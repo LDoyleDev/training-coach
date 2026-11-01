@@ -192,18 +192,33 @@ def sessions_at_step(
     ]
 
 
+def _plan_values(
+    session: Session, slug: str, workout_ids: Sequence[int], key: str, least: int
+) -> list[int | None]:
+    """``key`` of each workout's plan of the exercise ``slug``, in the order given (ADR-0084):
+    None for a workout without a plan, whose plan doesn't name the exercise or has no such
+    value (at least ``least``)."""
+    query = select(Workout.id, Workout.planned).where(Workout.id.in_(workout_ids))
+    found = dict(session.execute(query).all())
+    values: list[int | None] = []
+    for workout_id in workout_ids:
+        entry = (found.get(workout_id) or {}).get(slug)
+        value = entry.get(key) if isinstance(entry, dict) else None
+        values.append(value if isinstance(value, int) and value >= least else None)
+    return values
+
+
 def planned_sets(session: Session, slug: str, workout_ids: Sequence[int]) -> list[int | None]:
     """The sets each workout planned of the exercise ``slug``, in the order given (ADR-0084):
     None for a workout without a plan (a typed log, or saved before plans were kept) or whose
     plan doesn't name the exercise, which planned every set."""
-    query = select(Workout.id, Workout.planned).where(Workout.id.in_(workout_ids))
-    found = dict(session.execute(query).all())
-    counts: list[int | None] = []
-    for workout_id in workout_ids:
-        entry = (found.get(workout_id) or {}).get(slug)
-        sets = entry.get("sets") if isinstance(entry, dict) else None
-        counts.append(sets if isinstance(sets, int) and sets >= 0 else None)
-    return counts
+    return _plan_values(session, slug, workout_ids, "sets", 0)
+
+
+def failure_sets(session: Session, slug: str, workout_ids: Sequence[int]) -> list[int | None]:
+    """The set each workout ran to as many good reps as it could of the exercise ``slug``, in
+    the order given (ADR-0084): None for a workout without one."""
+    return _plan_values(session, slug, workout_ids, "failure_set", 1)
 
 
 def _in_block[*Ts](query: Select[*Ts], block: BlockKind | None) -> Select[*Ts]:
@@ -308,6 +323,7 @@ def _down_rule(
         pace=pace,
         planned=planned_sets(session, step.exercise.slug, ids),
         skipped=skipped,
+        failure_sets=failure_sets(session, step.exercise.slug, ids),
     )
     latest = judged_sessions(len(ids), skipped)
     return found, ids[latest[0]] if latest else None
@@ -449,9 +465,10 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
     for row in sorted(workout.sets, key=lambda s: s.id):
         logged.setdefault((row.exercise_id, row.ladder_step_id), None)
 
-    # Kit locks apply at home only: a gym has everything (ADR-0071). What the person avoids
-    # applies anywhere (ADR-0083).
-    limits = step_locks.limits(session, at_gym=workout.place != Place.HOME)
+    # Kit locks apply except at a gym, which has everything (ADR-0071): after an away day a
+    # Move up is still a lasting change at home (ADR-0086). What the person avoids applies
+    # anywhere (ADR-0083).
+    limits = step_locks.limits(session, at_gym=workout.place == Place.GYM)
     dismissed = dismissals(session)
     result = []
     for exercise_id, step_id in logged:
@@ -858,7 +875,8 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
         block = history_kind(ExerciseKind(exercise.kind), BlockKind.HYPERTROPHY)
         done = sessions_at_step(session, exercise_id, step.id, per_side, block)
         history = [v for _, v in done]
-        trained = [i for i in items if gym or i.place == Place.HOME]
+        # An away version is a day's exception (ADR-0086): its exercises show once logged.
+        trained = [i for i in items if i.place == Place.HOME or (gym and i.place == Place.GYM)]
         if (exercise.retired or not trained) and not history:
             # Nothing to show for an exercise no longer trained (#107), or one in no session
             # the person trains and never logged: only at the gym, for someone who trains at

@@ -1632,6 +1632,13 @@
             "title": "Place Choice",
             "type": "boolean"
           },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          },
           "rest_seconds": {
             "title": "Rest Seconds",
             "type": "integer"
@@ -2477,6 +2484,11 @@
               }
             ]
           },
+          "last_set_amrap": {
+            "default": false,
+            "title": "Last Set Amrap",
+            "type": "boolean"
+          },
           "level": {
             "anyOf": [
               {
@@ -2507,6 +2519,11 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "no_kit": {
+            "default": false,
+            "title": "No Kit",
+            "type": "boolean"
           },
           "pair": {
             "anyOf": [
@@ -2994,7 +3011,7 @@
         "type": "object"
       },
       "LengthView": {
-        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.",
+        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.\n``last_set``: the person's last-set option (ADR-0084), offered here with a shorter day;\nempty when it isn't offered: locked while they are new, or no exercise today it applies to.",
         "properties": {
           "dropped": {
             "items": {
@@ -3017,6 +3034,17 @@
             },
             "title": "Keep",
             "type": "array"
+          },
+          "last_set": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Set"
           },
           "minutes": {
             "anyOf": [
@@ -4539,10 +4567,11 @@
         "type": "object"
       },
       "Place": {
-        "description": "Where a workout is done (ADR-0071): at home, with the person's own kit, or at a gym,\nwhich has everything. A session can hold a version for each.",
+        "description": "Where a workout is done (ADR-0071): at home, with the person's own kit, at a gym, which\nhas everything, or away with no equipment (ADR-0086). A session can hold a version for each.",
         "enum": [
           "home",
-          "gym"
+          "gym",
+          "away"
         ],
         "title": "Place",
         "type": "string"
@@ -6042,6 +6071,17 @@
               }
             ]
           },
+          "last_set_amrap": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Set Amrap"
+          },
           "morning_time": {
             "anyOf": [
               {
@@ -6223,6 +6263,14 @@
           "increments": {
             "$ref": "#/components/schemas/IncrementsView"
           },
+          "last_set_amrap": {
+            "title": "Last Set Amrap",
+            "type": "boolean"
+          },
+          "last_set_locked": {
+            "title": "Last Set Locked",
+            "type": "boolean"
+          },
           "morning_time": {
             "title": "Morning Time",
             "type": "string"
@@ -6313,6 +6361,8 @@
           "avoid_impact",
           "avoid_hanging",
           "session_minutes",
+          "last_set_amrap",
+          "last_set_locked",
           "paused",
           "timezone"
         ],
@@ -10334,7 +10384,7 @@
     },
     "/api/session/place": {
       "put": {
-        "description": "Do today's session at home or at the gym (ADR-0071): the person's switch, never the\napp's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when\nsets are kept for the version shown (ask, then confirm), or with a ``detail`` message when\ntoday has no choice to make.",
+        "description": "Do today's session at home, at the gym or away with no equipment (ADR-0071, ADR-0086):\nthe person's switch, never the app's. 409 with ``kept_sets`` at the top of the body (a\nPlaceAsk, as the API types say) when sets are kept for the version shown (ask, then\nconfirm), or with a ``detail`` message when today has no choice to make or not that one.",
         "operationId": "choose_place_api_session_place_put",
         "requestBody": {
           "content": {
