@@ -251,15 +251,16 @@ def test_the_steps_move_up_keeping_their_ids_and_everything_that_points_at_them(
 
 
 def test_the_plan_has_the_steps_the_migration_writes() -> None:
-    """The seed matches by position, so plan.toml's ladder is the new steps, then the old."""
+    """The seed matches by position, so plan.toml's ladder is the new steps, then the old. The
+    seed writes marks on every run, so plan.toml may add to the migration's (knees, #545)."""
     plan = {e.slug: e for e in load_plan().exercises}
     previous = {e.slug: e for e in _previous().exercises}
     for slug, (old, new) in LADDERS.items():
         seed = plan[slug]
         assert seed.ladder == [s.name for s in new] + list(old), slug
-        assert [(seed.levels[s.name], tuple(seed.marks.get(s.name, []))) for s in new] == [
-            (s.level, s.marks) for s in new
-        ], slug
+        assert [seed.levels[s.name] for s in new] == [s.level for s in new], slug
+        for step in new:
+            assert set(step.marks) <= set(seed.marks.get(step.name, [])), (slug, step.name)
         # start names the same step as before (ADR-0083: the migration moves start)
         assert seed.ladder[seed.start] == previous[slug].ladder[previous[slug].start], slug
     assert (plan[MIGRATION.SQUAT].name, plan[MIGRATION.SQUAT].retired) == ("Squat", False)
