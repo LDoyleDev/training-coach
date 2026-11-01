@@ -230,6 +230,17 @@ test('with nothing to go on, nothing is suggested', async () => {
   expect(screen.queryByText(/suggested/)).not.toBeInTheDocument()
 })
 
+test('with the talk test on, the choice is by the talk test (ADR-0083)', async () => {
+  const plain = { ...RUN, suggested: null, suggestion: null } // the server suggests nothing
+  serve({ 'GET /api/proposals': [{ status: 200, body: [plain] }] })
+  render(<Proposals onSaved={vi.fn()} talkTest />)
+  expect(await screen.findByRole('button', { name: 'Full sentences' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'A few words' })).toBeInTheDocument()
+  expect(screen.getByText(/How hard, by the talk test/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Pick how hard it was to save' })).toBeDisabled()
+  expect(screen.queryByText(/zone/i)).not.toBeInTheDocument()
+})
+
 test('a run from a screenshot shows what it read and asks how it felt before Save', async () => {
   const saved = vi.fn()
   const asked = serve({

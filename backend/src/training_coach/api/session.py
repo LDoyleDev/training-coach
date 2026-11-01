@@ -1,7 +1,7 @@
 """Today's guided session for the web app (D1, #117). Owner-only."""
 
 from datetime import UTC, date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -14,6 +14,7 @@ from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.daily_check import summary as daily_summary
 from training_coach.domain.enums import ExerciseKind, Place
+from training_coach.domain.last_set import applies
 from training_coach.domain.load import MAX_KG, Load
 from training_coach.domain.mobility_flow import Flow
 from training_coach.domain.queue import local_date
@@ -23,6 +24,7 @@ from training_coach.domain.session_times import Timing, minutes
 from training_coach.domain.stretching import HOLD_SECONDS, POSITION_SECONDS, RELEASE_SECONDS
 from training_coach.services import (
     daily_check,
+    ease_back,
     guided,
     mobility_flow,
     queue_actions,
@@ -153,6 +155,7 @@ class LevelView(BaseModel):
     name: str
     cue: str | None
     missing: list[str]  # the kit it needs that isn't listed: locked, still choosable (ADR-0071)
+    avoided: list[str]  # what it asks that the person avoids, in words: locked too (ADR-0083)
 
 
 class ItemLevelView(BaseModel):
@@ -180,6 +183,10 @@ class ItemView(BaseModel):
     flow: FlowView | None = None  # guided one movement at a time (ADR-0062)
     load: LoadView | None = None  # a loaded step: the set screen records a weight (ADR-0072)
     level: ItemLevelView | None = None  # empty for an exercise with one step: none to change
+    # Away, below the person's level: their step needs kit, so today's needs none (ADR-0086).
+    no_kit: bool = False
+    # Its last set today is as many good reps as you can, its target the floor (ADR-0084).
+    last_set_amrap: bool = False
 
 
 def muscle_views(item: ItemPlan) -> list[ItemMuscleView]:
@@ -199,6 +206,57 @@ class BlockView(BaseModel):
     week: int
 
 
+class LengthView(BaseModel):
+    """Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on
+    offer, the exercises pinned with Keep, about how long as planned, what the chosen length
+    drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
+    ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
+    chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
+    kept, so the length no longer changes. ``from_setting``: the day has no choice, so
+    ``minutes`` is the person's minutes per session; As planned stays selectable for the day.
+    ``last_set``: the person's last-set option (ADR-0084), offered here with a shorter day;
+    empty when it isn't offered: locked while they are new, or no exercise today it applies to."""
+
+    minutes: int | None
+    options: list[int]
+    keep: list[str]
+    planned_minutes: int
+    dropped: list[str]
+    warm_up: Literal["none", "full", "ramp"]
+    shortest: int | None
+    fixed: bool
+    from_setting: bool
+    last_set: bool | None = None
+
+
+def length_view(plan: guided.Guided) -> LengthView | None:
+    found = plan.length
+    if found is None:
+        return None
+    trimmed = found.trimmed
+    offered = any(i.targets and applies(i.kind, i.failure_ok) for i in plan.items)
+    return LengthView(
+        minutes=found.minutes,
+        options=list(guided.OPTIONS),
+        keep=list(found.keep),
+        planned_minutes=found.planned,
+        dropped=[plan.items[i].exercise for i in trimmed.dropped],
+        warm_up=trimmed.warm_up.value,
+        shortest=trimmed.shortest,
+        fixed=found.fixed,
+        from_setting=found.from_setting,
+        last_set=found.last_set if offered else None,
+    )
+
+
+class EaseBackView(BaseModel):
+    """An exercise back after three weeks or more away, and the step below its level that
+    "Ease back in: one step down today" would do it at, for today only (ADR-0084)."""
+
+    exercise: str
+    step: str
+
+
 class GuidedView(BaseModel):
     day: str  # ISO date, local
     template_id: int
@@ -207,7 +265,7 @@ class GuidedView(BaseModel):
     kind: Literal["strength", "conditioning", "recovery"]
     warm_up: bool
     block: BlockView | None
-    minutes: int  # the plan's estimate
+    minutes: int  # the estimate at today's length, warm-up included
     usual_minutes: int | None = None  # how long this session usually takes (ADR-0061)
     rest_seconds: int  # the rest after a pair, for pages from before ADR-0065
     items: list[ItemView]
@@ -215,9 +273,16 @@ class GuidedView(BaseModel):
     # What's left of a conditioning session once its cardio is logged (ADR-0066): offered
     # "after your run", saved into that day's workout.
     after_run: bool = False
-    # Where it is done, and so which version (ADR-0071); ``place_choice``: show Home | Gym.
+    # Where it is done, and so which version (ADR-0071); ``places``: what the switch offers
+    # (Home | Gym, and Away with no equipment, ADR-0086); ``place_choice``: show the switch.
     place: Place = Place.HOME
+    places: list[Place] = Field(default_factory=lambda: [Place.HOME])
     place_choice: bool = False
+    # Short on time today (ADR-0082); empty for a session that always runs as planned.
+    length: LengthView | None = None
+    # Ease back in after a break (ADR-0084): one prompt for these, before the session starts;
+    # empty when there's nothing to offer or it was answered for this return.
+    ease_back: list[EaseBackView]
 
 
 class DoneView(BaseModel):
@@ -289,6 +354,23 @@ class SaveBody(ClashReply):
     day: date | None = None  # empty: today; an earlier day saves one left unsaved
 
 
+class StepDownView(BaseModel):
+    """The bottom of the range out of reach twice (ADR-0084): a suggestion, nothing changes
+    without a tap. ``below`` is the step to suggest; None at a ladder's first step (or with
+    every step below locked by the kit), when ``easier`` names the catalogue's level 1-2
+    exercises for the same muscles, if any."""
+
+    step_id: int  # the step judged, sent back by Step down and Not yet
+    below: str | None
+    easier: list[str]
+
+
+def step_down_view(found: feedback.Down | None) -> StepDownView | None:
+    if found is None:
+        return None
+    return StepDownView(step_id=found.step_id, below=found.below, easier=list(found.easier))
+
+
 class EarnedView(BaseModel):
     exercise: str
     unit: Literal["reps", "seconds", "minutes"]
@@ -300,7 +382,11 @@ class EarnedView(BaseModel):
     # what opens the next one when the kit is what's missing (ADR-0071).
     at_top: bool
     unlock: str | None
+    # At the top with harder steps above, every one locked: "no open step above this one",
+    # never why (ADR-0083)
+    capped: bool
     load_kg: float | None  # the session's weight, which its bests were counted at (ADR-0072)
+    step_down: StepDownView | None  # the bottom of the range out of reach twice (ADR-0084)
 
 
 class TimingView(BaseModel):
@@ -382,7 +468,9 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
     daily = daily_summary(answers) if answers is not None else None
     if plan is None:
         return TodayView(session=None, test_day=test_day, readiness_note=caution, daily_check=daily)
-    ladders = session_levels.ladders(session, (i.slug for i in plan.items))
+    ladders = session_levels.ladders(
+        session, (i.slug for i in plan.items), away=plan.place is Place.AWAY
+    )
     today_only = session_levels.today_only(session, dict(kept.steps) if kept is not None else {})
     queue = position(session)
     planned = None
@@ -440,12 +528,20 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
                         step_id=i.step_id,
                         for_today=i.slug in today_only,
                         ladder=[
-                            LevelView(id=r.id, name=r.name, cue=r.cue, missing=list(r.missing))
+                            LevelView(
+                                id=r.id,
+                                name=r.name,
+                                cue=r.cue,
+                                missing=list(r.missing),
+                                avoided=list(r.avoided),
+                            )
                             for r in ladders[i.slug]
                         ],
                     )
                     if i.slug in ladders
                     else None,
+                    no_kit=i.no_kit,
+                    last_set_amrap=i.last_set_amrap,
                 )
                 for i in plan.items
             ],
@@ -461,7 +557,13 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
             ],
             after_run=plan.after_run,
             place=plan.place,
+            places=list(plan.places),
             place_choice=plan.switch,
+            length=length_view(plan),
+            ease_back=[
+                EaseBackView(exercise=r.exercise, step=r.step)
+                for r in ease_back.offered(session, plan, kept)
+            ],
         ),
     )
 
@@ -507,21 +609,84 @@ class PlaceAsk(BaseModel):
     responses={status.HTTP_409_CONFLICT: {"model": PlaceAsk}},
 )
 def choose_place(body: PlaceBody, request: Request, user: Owner) -> TodayView | JSONResponse:
-    """Do today's session at home or at the gym (ADR-0071): the person's switch, never the
-    app's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when
-    sets are kept for the version shown (ask, then confirm), or with a ``detail`` message when
-    today has no choice to make."""
+    """Do today's session at home, at the gym or away with no equipment (ADR-0071, ADR-0086):
+    the person's switch, never the app's. 409 with ``kept_sets`` at the top of the body (a
+    PlaceAsk, as the API types say) when sets are kept for the version shown (ask, then
+    confirm), or with a ``detail`` message when today has no choice to make or not that one."""
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         plan = guided.today(session, on, settings.tz)
         if plan is None or not plan.switch:
             raise HTTPException(status.HTTP_409_CONFLICT, "today's session has one place")
+        if body.place not in plan.places:
+            raise HTTPException(status.HTTP_409_CONFLICT, "today's session isn't done there")
         kept = guided.switch(session, plan, body.place, body.confirm)
         if kept is not None:
             return JSONResponse(
                 status_code=status.HTTP_409_CONFLICT, content=PlaceAsk(kept_sets=kept).model_dump()
             )
         return today_view(session, on, settings)
+
+
+class LengthBody(BaseModel):
+    """Short on time today (ADR-0082): as planned (empty) or 40, 30 or 20 minutes, never
+    dropping the exercises pinned with ``keep`` (slugs)."""
+
+    template_id: int  # the session the browser shows: a different one now is a conflict
+    place: Place  # the version it shows (ADR-0071): another one now is too
+    revision: int = Field(default=0, ge=0)  # the kept revision this browser saw; 0: none
+    first: list[int] = Field(default_factory=list, max_length=10)
+    minutes: Literal[40, 30, 20] | None = None
+    keep: list[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=30)
+
+
+@router.put("/length", response_model=TodayView)
+def choose_length(body: LengthBody, request: Request, user: Owner) -> TodayView:
+    """Run today's session shorter, or as planned again (ADR-0082): the session at that
+    length. 409 when the session changed, another device moved on since ``revision``
+    (reload), or a set is kept already (the length is fixed then); 422 for a session that
+    always runs as planned, or a Keep for an exercise it doesn't have."""
+    settings, on = _settings_and_day(request)
+    with session_scope(_bound(request, user)) as session:
+        plan = guided.today(session, on, settings.tz, set(body.first))
+        if plan is None or plan.template_id != body.template_id or body.place is not plan.place:
+            raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
+        result = guided.choose_length(session, plan, body.revision, body.minutes, body.keep)
+        if isinstance(result, int):
+            return today_view(session, on, settings)
+        # Raised inside the scope, so it rolls back: a refused choice writes nothing.
+        if result in (guided.STALE, guided.STARTED, guided.SAVED):
+            raise HTTPException(status.HTTP_409_CONFLICT, result)
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result)
+
+
+class EaseBackBody(BaseModel):
+    """The answer to "Ease back in: one step down today" (ADR-0084)."""
+
+    template_id: int  # the session the browser shows: a different one now is a conflict
+    revision: int = Field(default=0, ge=0)  # the kept revision this browser saw; 0: none
+    first: list[int] = Field(default_factory=list, max_length=10)
+    ease: bool  # true: one step down today for each exercise offered; false: not today
+
+
+@router.put("/ease-back", response_model=TodayView)
+def ease_back_in(body: EaseBackBody, request: Request, user: Owner) -> TodayView:
+    """Ease back in after a break, or not: one step down for today only on each exercise
+    offered, levels unchanged; either answer is asked once per return. 409 when the session
+    changed or another device moved on (reload); 422 when there is nothing to ease back into."""
+    settings, on = _settings_and_day(request)
+    with session_scope(_bound(request, user)) as session:
+        plan = guided.today(session, on, settings.tz, set(body.first))
+        if plan is None or plan.template_id != body.template_id:
+            raise HTTPException(status.HTTP_409_CONFLICT, "today's session has changed")
+        kept = guided.kept(session, on)
+        result = ease_back.answer(session, plan, kept, body.revision, body.ease)
+        if isinstance(result, int):
+            return today_view(session, on, settings)
+        # Raised inside the scope, so it rolls back: a refused answer writes nothing.
+        if result == guided.STALE:
+            raise HTTPException(status.HTTP_409_CONFLICT, result)
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result)
 
 
 @router.post("/save", response_model=SavedView, responses=CLASH)
@@ -559,10 +724,12 @@ def save(body: SaveBody, request: Request, user: Owner) -> SavedView:
                     slug=e.slug,
                     at_top=e.note_top,
                     unlock=e.unlock if e.note_top else None,
+                    capped=e.capped and e.note_top,
                     load_kg=e.load_kg,
+                    step_down=step_down_view(e.down),
                 )
                 for e in earned
-                if e.bests or e.next_step or e.note_top
+                if e.bests or e.next_step or e.note_top or e.down
             ],
             stretching=day == today and stretching.offered(session, result.workout_id),
             timing=timing_view(session_times.of_workout(session, result.workout_id)),

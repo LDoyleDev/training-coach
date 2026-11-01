@@ -20,7 +20,7 @@ Code). Template: [template.md](template.md).
 | [0013](0013-uv-for-python-dependencies.md) | uv and pyproject.toml for Python dependencies | Accepted |
 | [0014](0014-multiple-workouts-per-day.md) | Several workouts per day | Accepted |
 | [0015](0015-seed-failure-does-not-block-startup.md) | A failed plan seed does not block startup | Accepted |
-| [0016](0016-queue-and-target-rules.md) | Queue edge cases and target rules | Accepted (targets superseded by 0027) |
+| [0016](0016-queue-and-target-rules.md) | Queue edge cases and target rules | Accepted (targets superseded by 0027; shortened days, 0084) |
 | [0017](0017-plan-follows-huberman-protocol.md) | The training plan follows Huberman's Foundational Fitness Protocol | Accepted |
 | [0018](0018-develop-in-wsl2-on-windows.md) | Develop in WSL 2 on the Windows desktop | Accepted |
 | [0019](0019-public-plan-endpoint.md) | The bundled training plan is public at GET /api/plan | Superseded by 0041 |
@@ -31,8 +31,8 @@ Code). Template: [template.md](template.md).
 | [0024](0024-backups-run-in-the-app-not-the-bot.md) | Backups run in the app, not the bot, and only a complete copy counts | Accepted |
 | [0025](0025-personal-bests-and-progress-prompts.md) | Personal bests and the "ready to progress" prompt | Accepted |
 | [0026](0026-multi-user-direction.md) | Built for one, designed for many | Accepted |
-| [0027](0027-progressive-overload-step.md) | Progressive overload step of about 10% of the range | Accepted |
-| [0028](0028-training-blocks.md) | Optional 4-week strength and hypertrophy blocks | Accepted |
+| [0027](0027-progressive-overload-step.md) | Progressive overload step of about 10% of the range | Accepted (shortened days, 0084) |
+| [0028](0028-training-blocks.md) | Optional 4-week strength and hypertrophy blocks | Accepted (warm-up, 0065 and 0082) |
 | [0029](0029-sessions-bound-to-a-user.md) | Per-person data is scoped by binding the session to a user | Accepted |
 | [0030](0030-deploy-releases-from-a-timer.md) | The Pi deploys new releases itself, from a timer | Accepted |
 | [0031](0031-exercise-pairs-and-work-order.md) | Resistance sessions are done in fixed pairs, listed set by set | Accepted |
@@ -50,7 +50,7 @@ Code). Template: [template.md](template.md).
 | [0043](0043-deploy-only-releases-github-signed.md) | The Pi deploys only releases GitHub signed | Accepted |
 | [0044](0044-erase-all-my-data.md) | Erasing all my data: delete the person, cascade, start fresh | Accepted |
 | [0045](0045-uptime-by-heartbeat.md) | Uptime monitoring by a heartbeat to Healthchecks.io | Accepted |
-| [0046](0046-readiness-questions.md) | Readiness questions that advise, not block | Accepted |
+| [0046](0046-readiness-questions.md) | Readiness questions that advise, not block | Accepted; stored answers superseded by 0085 |
 | [0047](0047-bring-your-own-ai.md) | Bring your own AI | Accepted |
 | [0048](0048-undo-the-last-change.md) | Undo the last change to the plan | Accepted |
 | [0049](0049-confirm-with-fingerprint.md) | Confirm it's you with your fingerprint, without signing out | Accepted |
@@ -75,7 +75,7 @@ Code). Template: [template.md](template.md).
 | [0068](0068-today-shows-the-days-log.md) | Today shows what a day logged, with earlier days a tap away and their habits | Accepted |
 | [0069](0069-plan-page-and-session-maps.md) | Plan gets its own tab, Tests moves into Body, each session has its own body map | Accepted |
 | [0070](0070-our-own-android-reader.md) | Our own Android reader replaces HC Webhook as the bridge from Health Connect | Accepted |
-| [0071](0071-equipment-and-places.md) | Each person lists their home kit; a gym has everything; steps lock by kit | Accepted |
+| [0071](0071-equipment-and-places.md) | Each person lists their home kit; a gym has everything; steps lock by kit | Accepted; "no away place" amended by 0086 |
 | [0072](0072-load-and-double-progression.md) | Sets record their load; loaded exercises progress by reps, then weight | Accepted |
 | [0073](0073-each-person-owns-their-sessions.md) | Each person owns their sessions; exercises are a shared catalogue | Accepted |
 | [0074](0074-boxing-bell-timer-sound.md) | A boxing-ring bell is everyone's timer sound, for every guided timer | Accepted |
@@ -86,3 +86,8 @@ Code). Template: [template.md](template.md).
 | [0079](0079-cardio-total-zones-and-targets.md) | All cardio counts, split by heart-rate zone, against targets from the plan | Accepted |
 | [0080](0080-change-level-during-a-session.md) | Change an exercise's level during a session, for today or from now on | Accepted |
 | [0081](0081-sqlite-savepoints-open-the-transaction.md) | A SQLite savepoint opens the transaction first, so releasing it doesn't commit | Accepted |
+| [0082](0082-shorter-sessions-time-budget.md) | Shorter sessions: short on time today, and minutes per session | Accepted |
+| [0083](0083-levels-from-supported-and-preferences.md) | Every step has a level from "supported" up, with an open top, and four preferences | Accepted |
+| [0084](0084-short-days-last-set-and-stepping-down.md) | Progress on a shorter day, an as-many-as-you-can last set, and stepping down | Accepted |
+| [0085](0085-safety-questions-in-europe-and-europe-only.md) | Safety questions fit for Europe, answered on the device; the app serves the EU and EEA only | Accepted |
+| [0086](0086-away-no-equipment-version.md) | Away, no equipment: a third place with a written version of every session | Accepted |

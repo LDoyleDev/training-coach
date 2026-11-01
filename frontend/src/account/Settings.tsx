@@ -8,10 +8,12 @@ import {
 } from '../api'
 import { type Sound, playChange, unlockAudio } from '../hiit/sounds'
 import { card, primaryInline, secondary } from '../ui'
+import { LAST_SET, LAST_SET_LINE, LAST_SET_LOCKED } from '../session/safety'
 
 type TimeKey = 'morning_time' | 'nudge_time' | 'review_time'
 type Pace = MessageSettings['pace']
 type Places = MessageSettings['places']
+type SessionMinutes = MessageSettings['session_minutes']
 type Note = { at: string; text: string }
 
 const TIMES: { key: TimeKey; label: string }[] = [
@@ -32,6 +34,26 @@ const PLACES: { places: Places; label: string; line: string }[] = [
   { places: 'home', label: 'Home', line: 'With the kit you list under My equipment.' },
   { places: 'gym', label: 'Gym', line: 'A gym has everything.' },
   { places: 'both', label: 'Both', line: 'You pick home or gym on the day.' },
+]
+
+type AvoidKey = 'avoid_floor' | 'avoid_kneeling' | 'avoid_impact' | 'avoid_hanging' | 'avoid_knees'
+
+/** What the person would rather avoid (ADR-0083): each locks the ladder steps that need it, as
+ * missing kit does. Preferences, not medical: no reason is asked or kept. */
+const AVOID: { key: AvoidKey; label: string }[] = [
+  { key: 'avoid_floor', label: 'Keep me off the floor' },
+  { key: 'avoid_kneeling', label: 'No kneeling' },
+  { key: 'avoid_impact', label: 'No jumping or running' },
+  { key: 'avoid_hanging', label: 'No hanging' },
+  { key: 'avoid_knees', label: 'Easy on my knees' },
+]
+
+/** Minutes per session (ADR-0082): the same lengths as Short on time today on the session. */
+const LENGTHS: { minutes: SessionMinutes; label: string }[] = [
+  { minutes: null, label: 'As planned' },
+  { minutes: 40, label: '40 min' },
+  { minutes: 30, label: '30 min' },
+  { minutes: 20, label: '20 min' },
 ]
 
 /**
@@ -221,6 +243,71 @@ export default function Settings() {
         habits_enabled: !prefs.habits_enabled,
       })}
 
+      <p className="m-0">
+        Use the talk test, not heart-rate zones: {prefs.talk_test ? 'on' : 'off'}
+      </p>
+      <p className="m-0 text-sm text-[var(--slate)]">
+        Cardio effort then shows as how well you can talk: easy, you can sing; moderate, full
+        sentences; hard, only a few words. Your logs and totals stay the same.
+      </p>
+      {toggle('talk', prefs.talk_test, ['Use the talk test', 'Use heart-rate zones'], {
+        talk_test: !prefs.talk_test,
+      })}
+
+      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend className="mb-2 font-bold">What you'd rather avoid</legend>
+        <p className="m-0 text-sm text-[var(--slate)]">
+          You choose what you're ready for. These skip steps that need it.
+        </p>
+        {AVOID.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={prefs[key]}
+            className={choice(prefs[key])}
+            disabled={busy}
+            onClick={() =>
+              save(
+                'avoid',
+                { [key]: !prefs[key] },
+                `${label}: ${prefs[key] ? 'off' : 'on'}.`,
+                "That couldn't be saved.",
+              )
+            }
+          >
+            {label}
+            <span className="block font-normal">{prefs[key] ? 'On' : 'Off'}</span>
+          </button>
+        ))}
+        {noteAt('avoid')}
+      </fieldset>
+      <p className="m-0">
+        {LAST_SET}. {prefs.last_set_amrap ? 'On' : 'Off'}.
+      </p>
+      <p className="m-0 text-sm text-[var(--slate)]">{LAST_SET_LINE}</p>
+      {prefs.last_set_locked && !prefs.last_set_amrap ? (
+        <p className="m-0 font-bold">{LAST_SET_LOCKED}</p>
+      ) : (
+        <div className={row}>
+          <button
+            type="button"
+            className={secondary}
+            disabled={busy}
+            onClick={() =>
+              save(
+                'last-set',
+                { last_set_amrap: !prefs.last_set_amrap },
+                'Saved.',
+                `${LAST_SET_LOCKED}.`,
+              )
+            }
+          >
+            {prefs.last_set_amrap ? 'Turn the last set off' : 'Turn the last set on'}
+          </button>
+          {noteAt('last-set')}
+        </div>
+      )}
+
       <form className={row} onSubmit={saveProtein}>
         <label htmlFor="protein" className="basis-full font-bold">
           Protein target, grams a day (1.6-2.2 g per kg of bodyweight)
@@ -297,6 +384,36 @@ export default function Settings() {
           </button>
         ))}
         {noteAt('places')}
+      </fieldset>
+
+      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend className="mb-2 font-bold">Time per session</legend>
+        <p className="m-0 text-sm text-[var(--slate)]">
+          Every session runs at this length unless you pick another for the day.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {LENGTHS.map(({ minutes, label }) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={prefs.session_minutes === minutes}
+              className={choice(prefs.session_minutes === minutes)}
+              disabled={busy}
+              onClick={() =>
+                prefs.session_minutes !== minutes &&
+                save(
+                  'minutes',
+                  { session_minutes: minutes },
+                  `Time per session: ${label.toLowerCase()}.`,
+                  "That couldn't be saved.",
+                )
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {noteAt('minutes')}
       </fieldset>
 
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">

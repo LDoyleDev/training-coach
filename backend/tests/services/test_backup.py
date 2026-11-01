@@ -136,7 +136,7 @@ def test_a_failed_integrity_check_is_an_error(
 
         def execute(self, sql: str) -> sqlite3.Cursor:
             if sql == "PRAGMA integrity_check":
-                return real(":memory:").execute("SELECT 'row 3 missing from index'")
+                return self.conn.execute("SELECT 'row 3 missing from index'")
             return self.conn.execute(sql)
 
         def backup(self, target: object) -> None:

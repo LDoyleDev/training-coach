@@ -6,7 +6,6 @@ import pytest
 import respx
 from cryptography.fernet import Fernet
 from pydantic import SecretStr
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
@@ -24,13 +23,14 @@ from tests.bot.fakes import (
 from training_coach.bot import habits as habits_ui
 from training_coach.bot import settings as settings_ui
 from training_coach.bot.app import MORNING_JOB, NUDGE_JOB, REVIEW_JOB, Handlers
-from training_coach.bot.messages import NUDGE, SOMETHING_WENT_WRONG
+from training_coach.bot.messages import NUDGE, SOMETHING_WENT_WRONG, progress_text
 from training_coach.db.models import Workout
-from training_coach.db.session import make_session_factory, session_scope
+from training_coach.db.session import session_scope
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.targets import Pace
-from training_coach.services import ai_comment, ai_key, user_settings
+from training_coach.services import ai_comment, ai_key, progress, user_settings
 from training_coach.services.secret_box import SecretBox
+from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.user_settings import Prefs
 
 App = Application  # type: ignore[type-arg]  # see build_bot
@@ -394,8 +394,7 @@ async def test_the_review_is_skipped_while_paused(seeded: Sessions) -> None:
     context.bot.send_message.assert_not_awaited()
 
 
-async def test_the_review_survives_a_database_error() -> None:
-    broken = make_session_factory(create_engine("sqlite://"), user_id=1)
+async def test_the_review_survives_a_database_error(broken: sessionmaker[Session]) -> None:
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
     await Handlers(SETTINGS, broken).weekly_review(context)  # type: ignore[arg-type]  # fake
     context.bot.send_message.assert_not_awaited()
@@ -493,3 +492,36 @@ async def test_a_failing_comment_send_never_fails_the_review(
     context = SimpleNamespace(bot=SimpleNamespace(send_message=send))
     await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
     assert send.await_count == 2
+
+
+def test_the_talk_test_setting_is_never_shown_in_telegram() -> None:
+    """ADR-0083 review: the preference is on the web's Account page only."""
+    shown = settings_ui.text(user_settings.Prefs(talk_test=True)).lower()
+    assert "talk" not in shown
+    assert "heart" not in shown
+
+
+def test_what_the_person_avoids_is_never_shown_in_telegram(session: Session) -> None:
+    """ADR-0083: the five preferences are on the web's Account page only. /settings never shows
+    them, and /progress says no reason when they lock every step above (all pull-ups hang)."""
+    every = Prefs(
+        avoid_floor=True,
+        avoid_kneeling=True,
+        avoid_impact=True,
+        avoid_hanging=True,
+        avoid_knees=True,
+    )
+    keyboard = settings_ui.keyboard(every)
+    shown = " ".join(
+        [settings_ui.text(every), *(b.text for row in keyboard.inline_keyboard for b in row)]
+    ).lower()
+    for said in ("avoid", "floor", "kneel", "knee", "jump", "running", "hang", "easy"):
+        assert said not in shown, said
+    apply_seed(session, load_plan())
+    user_settings.update(session, avoid_hanging=True)
+    session.flush()
+    standings = progress.overview(session)
+    assert any(r.avoided for s in standings for r in s.ladder)  # the lock is there...
+    told = progress_text(standings).lower()
+    assert "chosen" not in told  # ...and Telegram doesn't say why
+    assert "avoid" not in told

@@ -61,6 +61,7 @@ def _log(
     template: str | None = "torso",
     sides: tuple[Side, ...] = (Side.BOTH,),
     step: LadderStep | None = None,
+    planned: dict[str, dict[str, int]] | None = None,
 ) -> int:
     exercise = _exercise(session, slug)
     at = step or _step(session, slug)
@@ -68,6 +69,7 @@ def _log(
         local_date=DAY + timedelta(days=days),
         template_id=_template(session, template) if template else None,
         status=WorkoutStatus.DONE,
+        planned=planned,
     )
     workout.sets = [
         SetLog(exercise_id=exercise.id, ladder_step_id=at.id, set_no=n, side=side, value=v)
@@ -121,6 +123,28 @@ def test_an_extra_session_is_judged_by_the_plan(plan: Session) -> None:
     assert item.status is Progress.READY
 
 
+def test_a_shorter_day_at_the_top_of_its_two_sets_counts_toward_ready(plan: Session) -> None:
+    """ADR-0084: a day that planned two of pull-up's four sets is judged on those two."""
+    _log(plan, "pull-up", [12, 12], 0, planned={"pull-up": {"sets": 2}})
+    (item,) = feedback(plan, _log(plan, "pull-up", TOP, 2))
+    assert item.status is Progress.READY
+
+
+def test_an_old_two_set_row_without_a_plan_still_holds(plan: Session) -> None:
+    """A workout saved without its plan planned every set: two sets of four is a miss."""
+    _log(plan, "pull-up", [12, 12], 0)
+    (item,) = feedback(plan, _log(plan, "pull-up", TOP, 2))
+    assert item.status is Progress.HOLD
+
+
+def test_planned_sets_read_each_workouts_plan_in_the_order_given(plan: Session) -> None:
+    short = _log(plan, "pull-up", [12], 0, planned={"pull-up": {"sets": 2}})
+    other = _log(plan, "pull-up", [12], 1, planned={"push-up": {"sets": 3}})
+    old = _log(plan, "pull-up", [12], 2)
+    found = progress.planned_sets(plan, "pull-up", [old, short, other])
+    assert found == [None, 2, None]  # no plan, and a plan not naming it: every set planned
+
+
 def test_one_side_short_holds_unilateral_work(plan: Session) -> None:
     """kb-row is per side: the weaker side counts (ADR-0016)."""
     both = (Side.LEFT, Side.RIGHT)
@@ -148,15 +172,21 @@ def test_a_log_at_an_older_step_counts_for_bests_only(plan: Session) -> None:
     assert item.status is Progress.HOLD
 
 
-def test_the_top_of_the_ladder_is_said_once(plan: Session) -> None:
-    exercise = _exercise(plan, "pull-up")
-    last = max(exercise.ladder, key=lambda s: s.position)
-    state = users.exercise_state(plan, exercise.id)
+PUSH_TOP = [18, 18, 18, 18]  # push-up in Torso: 4 sets of 10-18; its top step takes no load
+
+
+def _on_top(session: Session, slug: str) -> None:
+    exercise = _exercise(session, slug)
+    state = users.exercise_state(session, exercise.id)
     assert state is not None
-    state.ladder_step_id = last.id
-    _log(plan, "pull-up", TOP, 0)
-    (first,) = feedback(plan, _log(plan, "pull-up", TOP, 2))
-    (again,) = feedback(plan, _log(plan, "pull-up", TOP, 4))
+    state.ladder_step_id = max(exercise.ladder, key=lambda s: s.position).id
+
+
+def test_the_top_of_the_ladder_is_said_once(plan: Session) -> None:
+    _on_top(plan, "push-up")
+    _log(plan, "push-up", PUSH_TOP, 0)
+    (first,) = feedback(plan, _log(plan, "push-up", PUSH_TOP, 2))
+    (again,) = feedback(plan, _log(plan, "push-up", PUSH_TOP, 4))
     assert first.status is again.status is Progress.TOP_OF_LADDER
     assert (first.note_top, again.note_top) == (True, False)
 
@@ -254,11 +284,14 @@ def test_overview_lists_every_exercise_in_plan_order(plan: Session) -> None:
     # in the gym versions (ADR-0071), only once they have history (#107).
     assert len(standings) == len(at_home)
     user_settings.update(plan, places=Places.BOTH)
-    assert len(overview(plan)) == len(set(plan.scalars(select(TemplateItem.exercise_id))))
+    # Ones only in the away versions (ADR-0086) show once they have history, wherever you train.
+    trained = select(TemplateItem.exercise_id).where(TemplateItem.place != "away")
+    assert len(overview(plan)) == len(set(plan.scalars(trained)))
     names = [s.exercise for s in standings]
     assert names.index("Pull-up") < names.index("Dip (chairs)")  # Torso lists pull-ups first
     pull = standings[names.index("Pull-up")]
-    assert (pull.step, pull.step_number, pull.steps) == ("Strict pull-up", 2, 6)
+    # Two steps below the negatives since ADR-0083: the same step, numbered two higher
+    assert (pull.step, pull.step_number, pull.steps) == ("Strict pull-up", 4, 6)
     assert (pull.last, pull.best_set, pull.status) == ((), None, Progress.HOLD)
 
 
@@ -355,31 +388,40 @@ def test_an_exercise_without_weights_names_none(plan: Session) -> None:
 
 
 def test_overview_reports_the_top_of_the_ladder(plan: Session) -> None:
-    exercise = _exercise(plan, "pull-up")
-    last = max(exercise.ladder, key=lambda s: s.position)
-    state = users.exercise_state(plan, exercise.id)
-    assert state is not None
-    state.ladder_step_id = last.id
+    _on_top(plan, "push-up")
+    _log(plan, "push-up", PUSH_TOP, 0)
+    _log(plan, "push-up", PUSH_TOP, 2)
+    by_name = {s.exercise: s for s in overview(plan)}
+    assert by_name["Push-up"].status is Progress.TOP_OF_LADDER
+
+
+def test_the_vest_step_at_the_top_is_never_the_top_of_the_ladder(plan: Session) -> None:
+    """ADR-0072 (29 Oct 2026): the pull-up's last step takes load, so it gets harder by weight."""
+    _on_top(plan, "pull-up")
     _log(plan, "pull-up", TOP, 0)
     _log(plan, "pull-up", TOP, 2)
     by_name = {s.exercise: s for s in overview(plan)}
-    assert by_name["Pull-up"].status is Progress.TOP_OF_LADDER
+    assert (by_name["Pull-up"].step, by_name["Pull-up"].status) == (
+        "Vest or backpack",
+        Progress.HOLD,
+    )
 
 
 # ------------------------------------------------------------------ retired exercises (#107)
 
 
 def test_a_retired_exercise_shows_its_history_but_is_never_ready(plan: Session) -> None:
-    for days in (0, 2):  # the top of the old 12-20 range twice: ready, were it still planned
-        _log(plan, "goblet-squat", [20, 20, 20], days, template="legs")
+    sides = (Side.LEFT, Side.RIGHT)
+    for days in (0, 2):  # the top of any range twice: ready, were it still planned
+        _log(plan, "reverse-lunge", [20, 20, 20], days, template="legs", sides=sides)
     by_name = {s.exercise: s for s in overview(plan)}
-    goblet = by_name["Goblet squat"]
-    assert (goblet.retired, goblet.status, goblet.last) == (True, Progress.HOLD, (20, 20, 20))
-    assert "Reverse lunge" not in by_name  # retired with no history: nothing to show
-    workout_id = _log(plan, "goblet-squat", [20, 20, 20], 4, template="legs")
+    lunge = by_name["Reverse lunge"]
+    assert (lunge.retired, lunge.status, lunge.last) == (True, Progress.HOLD, (20, 20, 20))
+    assert "Squat" not in by_name  # in no session and no history: nothing to show
+    workout_id = _log(plan, "reverse-lunge", [20, 20, 20], 4, template="legs", sides=sides)
     (said,) = feedback(plan, workout_id)
     assert said.status is Progress.HOLD
-    step = _step(plan, "goblet-squat")
+    step = _step(plan, "reverse-lunge")
     move = move_up(plan, step.exercise_id, step.id)
     assert move is not None
     assert move.outcome is MoveOutcome.NOT_READY
@@ -447,7 +489,7 @@ def test_not_yet_from_a_stale_page_changes_nothing(plan: Session) -> None:
 def test_overview_carries_the_slug_and_the_whole_ladder(plan: Session) -> None:
     pull_up = next(s for s in overview(plan) if s.exercise == "Pull-up")
     assert pull_up.slug == "pull-up"
-    assert [r.name for r in pull_up.ladder][:2] == ["Slow negatives", "Strict pull-up"]
+    assert [r.name for r in pull_up.ladder][2:4] == ["Slow negatives", "Strict pull-up"]
     assert len(pull_up.ladder) == pull_up.steps
     assert progress.exercise_id_for(plan, "pull-up") == pull_up.exercise_id
     assert progress.exercise_id_for(plan, "no-such") is None

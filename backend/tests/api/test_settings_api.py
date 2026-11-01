@@ -1,7 +1,7 @@
 """/api/settings (ux-flow-plan C6): the bot's /settings on the web, same rules, owner-only."""
 
 from collections.abc import Iterator
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,10 +9,12 @@ from sqlalchemy import Engine
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import User
+from training_coach.db.models import User, Workout
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.enums import Place, WorkoutStatus
 from training_coach.domain.load import Increments, LoadKit
 from training_coach.domain.queue import local_date
+from training_coach.domain.step_levels import Mark
 from training_coach.services import auth, user_settings
 from training_coach.services.user_settings import Prefs
 from training_coach.services.users import OWNER
@@ -69,6 +71,16 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "places": "home",
         "increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0, "backpack": 1.0},
         "default_increments": {"barbell": 2.5, "dumbbells": 2.0, "machine": 5.0, "backpack": 1.0},
+        "talk_test": False,
+        "stop_signs_seen": False,
+        "avoid_floor": False,
+        "avoid_kneeling": False,
+        "avoid_impact": False,
+        "avoid_hanging": False,
+        "avoid_knees": False,
+        "session_minutes": None,
+        "last_set_amrap": False,
+        "last_set_locked": True,  # nothing logged yet (ADR-0084)
         "paused": False,
         "timezone": "Europe/Berlin",
     }
@@ -221,6 +233,147 @@ def test_a_second_persons_weight_steps_are_their_own(engine: Engine) -> None:
     assert _stored(engine).increments == Increments()  # the owner's are untouched
 
 
+def test_the_talk_test_is_a_switch_asked_without_a_reason(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0083: a preference, not medical: only the switch is stored, no why."""
+    assert signed_in.patch("/api/settings", json={"talk_test": True}).json()["talk_test"] is True
+    assert _stored(engine).talk_test is True
+    assert signed_in.patch("/api/settings", json={"talk_test": "yes, AF"}).status_code == 422
+    assert signed_in.patch("/api/settings", json={"talk_test": False}).json()["talk_test"] is False
+
+
+AVOID = ("avoid_floor", "avoid_kneeling", "avoid_impact", "avoid_hanging", "avoid_knees")
+
+
+def test_the_five_preferences_are_switches_asked_without_a_reason(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0083: "Keep me off the floor", "No kneeling", "No jumping or running", "No
+    hanging", "Easy on my knees" (#540): only each switch is stored, no why, and one changes
+    without touching the rest."""
+    for name in AVOID:
+        view = signed_in.patch("/api/settings", json={name: True}).json()
+        assert view[name] is True
+    stored = _stored(engine)
+    assert (stored.avoid_floor, stored.avoid_kneeling, stored.avoid_impact) == (True,) * 3
+    assert (stored.avoid_hanging, stored.avoid_knees) == (True, True)
+    assert stored.avoid == {Mark.FLOOR, Mark.KNEELING, Mark.IMPACT, Mark.HANGING, Mark.KNEES}
+    view = signed_in.patch("/api/settings", json={"avoid_kneeling": False}).json()
+    assert [view[name] for name in AVOID] == [True, False, True, True, True]
+    assert signed_in.patch("/api/settings", json={"avoid_floor": "bad knees"}).status_code == 422
+
+
+def test_a_second_persons_preferences_are_their_own(engine: Engine) -> None:
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=OTHER))
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as theirs:
+        user_settings.update(theirs, avoid_floor=True, avoid_hanging=True)
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as theirs:
+        assert user_settings.load(theirs).avoid == {Mark.FLOOR, Mark.HANGING}
+    assert _stored(engine).avoid == frozenset()  # the owner's are untouched
+
+
+def test_the_stop_signs_are_remembered_as_seen_per_person(engine: Engine) -> None:
+    """Spec B7: shown once before the first guided session, kept on the server for each
+    person, not in one browser."""
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=OTHER))
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        assert user_settings.update(mine, stop_signs_seen=True).stop_signs_seen is True
+    assert _stored(engine).stop_signs_seen is True
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as theirs:
+        assert user_settings.load(theirs).stop_signs_seen is False
+
+
+def test_the_seen_flag_is_saved_through_the_api(signed_in: TestClient, engine: Engine) -> None:
+    view = signed_in.patch("/api/settings", json={"stop_signs_seen": True}).json()
+    assert view["stop_signs_seen"] is True
+    assert signed_in.get("/api/settings").json()["stop_signs_seen"] is True
+
+
 def test_signed_out_gets_nothing(client: TestClient) -> None:
     assert client.get("/api/settings").status_code == 401
     assert client.patch("/api/settings", json={"paused": True}).status_code == 401
+    owner_only = (
+        {"talk_test": True},
+        {"stop_signs_seen": True},
+        {"session_minutes": 30},
+        {"last_set_amrap": False},
+    )
+    for change in owner_only:  # spec B7, ADR-0082, ADR-0084
+        assert client.patch("/api/settings", json=change).status_code == 401
+    for name in AVOID:  # owner-only (ADR-0083)
+        assert client.patch("/api/settings", json={name: True}).status_code == 401
+
+
+def test_minutes_per_session_is_set_kept_and_cleared(signed_in: TestClient, engine: Engine) -> None:
+    """ADR-0082: 40, 30 or 20, or null for as planned; a change elsewhere leaves it alone."""
+    view = signed_in.patch("/api/settings", json={"session_minutes": 30}).json()
+    assert view["session_minutes"] == 30
+    assert _stored(engine).session_minutes == 30
+    assert signed_in.patch("/api/settings", json={"paused": False}).json()["session_minutes"] == 30
+    view = signed_in.patch("/api/settings", json={"session_minutes": None}).json()
+    assert view["session_minutes"] is None
+    assert _stored(engine).session_minutes is None
+
+
+@pytest.mark.parametrize("minutes", [25, 0, 60, "30", "half an hour", -20])
+def test_minutes_per_session_other_than_the_options_are_refused(
+    signed_in: TestClient, engine: Engine, minutes: object
+) -> None:
+    assert signed_in.patch("/api/settings", json={"session_minutes": minutes}).status_code == 422
+    assert _stored(engine).session_minutes is None
+
+
+def test_minutes_per_session_are_each_persons_own(engine: Engine) -> None:
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=OTHER))
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        user_settings.update(mine, session_minutes=20)
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as theirs:
+        assert user_settings.load(theirs).session_minutes is None
+
+
+def _trained_since(engine: Engine, user: int, weeks: int) -> None:
+    """A first workout ``weeks`` ago for ``user``."""
+    with session_scope(make_session_factory(engine, user_id=user)) as theirs:
+        on = _today() - timedelta(weeks=weeks)
+        theirs.add(Workout(local_date=on, status=WorkoutStatus.DONE, place=Place.HOME))
+
+
+def test_the_last_set_option_is_locked_for_the_first_8_weeks(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0084: locked while the person is new; turning it on is refused and changes
+    nothing else sent with it. Turning it off is always fine."""
+    _trained_since(engine, OWNER, 7)
+    answer = signed_in.patch("/api/settings", json={"last_set_amrap": True, "paused": True})
+    assert answer.status_code == 409
+    assert answer.json()["detail"] == "Available after your first 8 weeks"
+    assert (_stored(engine).last_set_amrap, _stored(engine).paused) == (False, False)
+    view = signed_in.patch("/api/settings", json={"last_set_amrap": False}).json()
+    assert (view["last_set_amrap"], view["last_set_locked"]) == (False, True)
+
+
+def test_the_last_set_option_turns_on_after_8_weeks(signed_in: TestClient, engine: Engine) -> None:
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=OTHER))
+    _trained_since(engine, OWNER, 8)
+    assert signed_in.get("/api/settings").json()["last_set_locked"] is False
+    view = signed_in.patch("/api/settings", json={"last_set_amrap": True}).json()
+    assert (view["last_set_amrap"], view["last_set_locked"]) == (True, False)
+    assert _stored(engine).last_set_amrap is True
+    with session_scope(make_session_factory(engine, user_id=OTHER)) as theirs:
+        assert user_settings.load(theirs).last_set_amrap is False  # per person
+    assert signed_in.patch("/api/settings", json={"last_set_amrap": "lots"}).status_code == 422
+    view = signed_in.patch("/api/settings", json={"last_set_amrap": False}).json()
+    assert view["last_set_amrap"] is False
+
+
+def test_another_persons_workouts_do_not_unlock_it(signed_in: TestClient, engine: Engine) -> None:
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=OTHER))
+    _trained_since(engine, OTHER, 20)
+    assert signed_in.get("/api/settings").json()["last_set_locked"] is True
+    assert signed_in.patch("/api/settings", json={"last_set_amrap": True}).status_code == 409

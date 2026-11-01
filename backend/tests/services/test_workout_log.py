@@ -454,7 +454,7 @@ def test_an_old_days_retired_exercise_can_be_logged(session: Session) -> None:
     goblet = session.scalars(select(Exercise.id).where(Exercise.slug == "goblet-squat")).one()
     logged = session.scalars(select(SetLog.value).where(SetLog.exercise_id == goblet)).all()
     assert logged == [16, 16, 16]
-    assert "Goblet squat" in workout_log.exercise_names(session)  # the voice vocabulary
+    assert "Squat" in workout_log.exercise_names(session)  # its name since ADR-0083
 
 
 def test_cycling_is_logged_as_zone_2(session: Session) -> None:

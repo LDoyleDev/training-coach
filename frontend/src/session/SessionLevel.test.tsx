@@ -11,9 +11,9 @@ vi.mock('../hiit/sounds', () => ({
 }))
 
 const LADDER = [
-  { id: 20, name: 'Two-hand, 8 kg', cue: null, missing: [] },
-  { id: 21, name: 'One-arm, 8 kg', cue: null, missing: [] },
-  { id: 22, name: 'Two-hand, 16 kg', cue: null, missing: [] },
+  { id: 20, name: 'Two-hand, 8 kg', cue: null, missing: [], avoided: [] },
+  { id: 21, name: 'One-arm, 8 kg', cue: null, missing: [], avoided: [] },
+  { id: 22, name: 'Two-hand, 16 kg', cue: null, missing: [], avoided: [] },
 ]
 
 const SWING: GuidedItem = {
@@ -27,8 +27,10 @@ const SWING: GuidedItem = {
   pair: null,
   targets: [20, 20],
   baseline: false,
+  no_kit: false,
   muscles: [],
   parts: [],
+  last_set_amrap: false,
   level: { step_id: 20, for_today: false, ladder: LADDER },
 }
 
@@ -45,6 +47,7 @@ const session = (item: GuidedItem): Guided => ({
   after_run: false,
   place: 'home',
   place_choice: false,
+  ease_back: [],
   items: [item],
   order: item.targets.map((target, i) => ({
     item: 0,
@@ -60,6 +63,7 @@ const SIXTEEN: GuidedItem = {
   step: 'Two-hand, 16 kg',
   targets: [15, 15],
   baseline: true,
+  no_kit: false,
   level: { step_id: 22, for_today: true, ladder: LADDER },
 }
 
@@ -96,6 +100,7 @@ function serve(server: Server = {}) {
       if (path === '/api/session/progress') return Response.json({ revision: 3 })
       if (path === '/api/session/pending') return Response.json([])
       if (path === '/api/session/save') return Response.json(server.save)
+      if (path === '/api/settings') return Response.json({ sound: 'ring', stop_signs_seen: true })
       return new Response(null, { status: 404 })
     }),
   )

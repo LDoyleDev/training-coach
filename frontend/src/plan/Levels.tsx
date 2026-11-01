@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchProgress, moveOnLadder, SignedOutError, type LadderMove, type Standing } from '../api'
-import { amount } from '../progress/logic'
+import { lastAndBest } from '../progress/logic'
 import { actions, card, primaryInline, secondary } from '../ui'
 import { KIT_HREF } from '../account/kit'
-import { WAITS, confirmText, needs, nextRung, said, topLabel, wanted } from './ladder'
+import {
+  AVOIDED_NOW,
+  WAITS,
+  avoidedNow,
+  confirmText,
+  lockedText,
+  needs,
+  nextRung,
+  said,
+  stepDownText,
+  topLabel,
+  wanted,
+} from './ladder'
 
 type Loaded =
   | { status: 'loading' }
@@ -12,7 +24,9 @@ type Loaded =
   | { status: 'ready'; standings: Standing[]; strength: boolean; kitListed: boolean }
 
 /** Your level on each exercise's ladder (ADR-0075): Move up / Not yet when ready, as the bot's
- * prompt, and Change level to choose any step, up or down. `?move=<slug>` opens that one. */
+ * prompt, Step down / Not yet when the bottom of the range was out of reach twice (ADR-0084), and
+ * Change level to choose any step, up or down. `?move=<slug>` opens that one. Each
+ * step shows its "Can you do ...?" question as a hint (G1); nothing sets a level from it. */
 export default function Levels() {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
   const [open, setOpen] = useState<string | null>(() => wanted(window.location.search))
@@ -89,7 +103,8 @@ export default function Levels() {
   )
 }
 
-/** The ready ones (and the one open), then every exercise on request: the plan has dozens. */
+/** The ready ones, those with a step down suggested (and the one open), then every exercise on
+ * request: the plan has dozens. */
 function List({
   standings,
   strength,
@@ -105,7 +120,11 @@ function List({
 }) {
   const [all, setAll] = useState(false)
   const ready = standings.filter((s) => s.status === 'ready').length
-  const shown = standings.filter((s) => all || s.status === 'ready' || s.slug === open)
+  const down = standings.filter((s) => s.step_down).length
+  // A step the person now avoids is shown too, so they see it and can pick another.
+  const shown = standings.filter(
+    (s) => all || s.status === 'ready' || s.step_down || avoidedNow(s) || s.slug === open,
+  )
   return (
     <>
       <p className="m-0 font-bold">
@@ -113,6 +132,11 @@ function List({
           ? 'Nothing is ready to move up right now.'
           : `${ready} ready to move up${strength ? ' when the hypertrophy block starts' : ''}.`}
       </p>
+      {down > 0 && (
+        <p className="m-0 font-bold">
+          {down === 1 ? '1 exercise' : `${down} exercises`} with a step down to consider.
+        </p>
+      )}
       {shown.length > 0 && (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {shown.map((s) => (
@@ -133,7 +157,7 @@ function List({
         aria-expanded={all}
         onClick={() => setAll((cur) => !cur)}
       >
-        {all ? 'Show only the ones ready' : `Show all exercises (${standings.length})`}
+        {all ? 'Show only the ones to look at' : `Show all exercises (${standings.length})`}
       </button>
     </>
   )
@@ -180,7 +204,7 @@ function Panel({
 
   const pickedRung = s.ladder.find((r) => r.id === picked)
   const pickedName = pickedRung?.name ?? s.step
-  const pickedNeeds = pickedRung ? needs(pickedRung) : null
+  const pickedLocked = pickedRung ? lockedText(pickedName, pickedRung) : null
   return (
     <li id={`move-${s.slug}`} className={card + ' flex scroll-mt-4 flex-col gap-3'}>
       <button
@@ -196,7 +220,9 @@ function Panel({
             Step {s.step_number} of {s.steps}: {s.step}
           </span>
           {ready && <span className="text-[var(--bell-ink)]">Ready to move up</span>}
+          {s.step_down && <span>Bottom of the range out of reach</span>}
           {topLabel(s) && <span>{topLabel(s)}</span>}
+          {avoidedNow(s) && <span className="text-[var(--bell-ink)]">{AVOIDED_NOW}</span>}
         </span>
         <span aria-hidden="true" className="shrink-0 text-2xl">
           {open ? '−' : '+'}
@@ -220,16 +246,16 @@ function Panel({
                   {locked && (
                     <span className="font-normal text-[var(--slate)]"> · Locked: {locked}</span>
                   )}
+                  {r.question && (
+                    <span className="flex text-sm font-normal text-[var(--slate)]">
+                      Ready for this if yes: {r.question}
+                    </span>
+                  )}
                 </li>
               )
             })}
           </ol>
-          <p className="m-0">
-            {s.last.length > 0
-              ? `Last ${s.last.map((v) => amount(s, v)).join(' · ')}`
-              : 'Not logged at this step yet'}
-            {s.best_set !== null && ` · best ${amount(s, s.best_set)}`}
-          </p>
+          <p className="m-0">{lastAndBest(s)}</p>
           {upcoming ? (
             <p className="m-0">
               Next: <span className="font-bold">{upcoming.name}</span>
@@ -242,6 +268,8 @@ function Panel({
                 My equipment
               </a>
             </p>
+          ) : s.ladder[s.ladder.length - 1]?.id !== s.step_id ? (
+            <p className="m-0">No step above this one is open to you: each says why above.</p>
           ) : (
             <p className="m-0">This is the last step on the ladder.</p>
           )}
@@ -265,6 +293,32 @@ function Panel({
               >
                 Not yet
               </button>
+            </div>
+          )}
+
+          {s.step_down && (
+            <div className="flex flex-col gap-2">
+              <p className="m-0">{stepDownText(s.step_down)}</p>
+              <div className={actions}>
+                {s.step_down.below && (
+                  <button
+                    type="button"
+                    className={primaryInline}
+                    disabled={busy}
+                    onClick={() => void press('step-down', s.step_id)}
+                  >
+                    Step down to {s.step_down.below}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={secondary}
+                  disabled={busy}
+                  onClick={() => void press('not-yet-down', s.step_id)}
+                >
+                  Not yet
+                </button>
+              </div>
             </div>
           )}
 
@@ -302,10 +356,8 @@ function Panel({
                 </label>
               ))}
               {picked !== s.step_id && <p className="m-0">{confirmText(pickedName)}</p>}
-              {picked !== s.step_id && pickedNeeds && (
-                <p className="m-0">
-                  {pickedName} {pickedNeeds}, not in your kit. You can still choose it.
-                </p>
+              {picked !== s.step_id && pickedLocked && (
+                <p className="m-0">{pickedLocked} You can still choose it.</p>
               )}
               <div className={actions}>
                 <button

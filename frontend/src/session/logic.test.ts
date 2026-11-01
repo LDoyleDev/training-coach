@@ -31,8 +31,10 @@ const item = (over: Partial<GuidedItem>): GuidedItem => ({
   pair: null,
   targets: [5],
   baseline: false,
+  no_kit: false,
   muscles: [],
   parts: [],
+  last_set_amrap: false,
   ...over,
 })
 

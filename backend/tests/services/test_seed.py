@@ -1,3 +1,4 @@
+import json
 import re
 from collections.abc import Callable
 from datetime import date
@@ -24,8 +25,9 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.domain.enums import ExerciseKind, WorkoutStatus
+from training_coach.domain.enums import ExerciseKind, Place, WorkoutStatus
 from training_coach.domain.load import LoadKit
+from training_coach.domain.parser import Known, parse_log
 from training_coach.domain.volume import weekly_sets
 from training_coach.services import users
 from training_coach.services.seed import PlanSeed, SeedError, apply_seed, load_plan
@@ -38,6 +40,7 @@ kind = "reps"
 muscles = { lats = 1, biceps = 0.5 }
 pattern = "vertical pull"
 start = 1
+levels = { Negatives = 4, Strict = 4, Weighted = 6 }
 ladder = ["Negatives", "Strict", "Weighted"]
 
 [[exercises]]
@@ -47,6 +50,7 @@ kind = "reps"
 muscles = { chest = 1 }
 pattern = "vertical push"
 start = 0
+levels = { "Feet down" = 4, "Feet up" = 5 }
 ladder = ["Feet down", "Feet up"]
 
 [[sessions]]
@@ -62,6 +66,15 @@ focus = "Accessories"
 is_rest_optional = true
 items = [{ exercise = "dip", sets = 3, rep_min = 8, rep_max = 15 }]
 """
+
+
+PULL_UP_LEVELS = "levels = { Negatives = 4, Strict = 4, Weighted = 6 }"
+DIP_LEVELS = 'levels = { "Feet down" = 4, "Feet up" = 5 }'
+
+
+def _levels(ladder: str) -> str:
+    """Level 4 for every step of a ladder written as a TOML list (ADR-0083)."""
+    return "levels = { " + ", ".join(f'"{step}" = 4' for step in json.loads(ladder)) + " }"
 
 
 def _count(session: Session, model: type) -> int:
@@ -187,6 +200,7 @@ def test_reseed_applies_edits_and_additions(session: Session) -> None:
     session.commit()
     edited = (
         MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet down", "Feet up", "Weighted dip"]')
+        .replace('"Feet up" = 5 }', '"Feet up" = 5, "Weighted dip" = 6 }')
         .replace("sets = 4, rep_min = 5", "sets = 5, rep_min = 5")
         .replace('name = "Dip"', 'name = "Dip (chairs)"')
     )
@@ -295,8 +309,10 @@ def test_item_removed_from_session_is_deleted(session: Session) -> None:
 def test_shortening_a_ladder_is_rejected_before_any_write(session: Session) -> None:
     apply_seed(session, load_plan(MINI_PLAN))
     session.commit()
-    shorter = MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet down"]').replace(
-        'name = "Pull-up"', 'name = "Pull-up renamed"'
+    shorter = (
+        MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet down"]')
+        .replace(DIP_LEVELS, 'levels = { "Feet down" = 4 }')
+        .replace('name = "Pull-up"', 'name = "Pull-up renamed"')
     )
 
     with pytest.raises(SeedError, match="'dip' has 2 ladder steps"):
@@ -362,7 +378,7 @@ def test_training_plan_spec_volume_table_matches_plan() -> None:
 
 INSERTED = MINI_PLAN.replace(
     '["Negatives", "Strict", "Weighted"]', '["Negatives", "Assisted", "Strict", "Weighted"]'
-)
+).replace(PULL_UP_LEVELS, _levels('["Negatives", "Assisted", "Strict", "Weighted"]'))
 
 
 def _step_names(session: Session, slug: str) -> list[str]:
@@ -383,7 +399,9 @@ def test_inserting_a_step_mid_ladder_is_rejected_before_any_write(session: Sessi
 def test_renaming_a_step_in_use_needs_a_rename_entry(session: Session) -> None:
     apply_seed(session, load_plan(MINI_PLAN))
     session.commit()
-    typo_fix = MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet flat", "Feet up"]')
+    typo_fix = MINI_PLAN.replace('"Feet down", "Feet up"]', '"Feet flat", "Feet up"]').replace(
+        'levels = { "Feet down"', 'levels = { "Feet flat"'
+    )
     with pytest.raises(SeedError, match="renames"):
         apply_seed(session, load_plan(typo_fix))
     session.rollback()
@@ -412,7 +430,9 @@ def test_a_step_with_logged_sets_is_protected(session: Session) -> None:
     workout.sets = [SetLog(exercise_id=pull_up.id, ladder_step_id=weighted.id, set_no=1, value=5)]
     session.add(workout)
     session.commit()
-    vest = MINI_PLAN.replace('"Strict", "Weighted"]', '"Strict", "Weighted vest"]')
+    vest = MINI_PLAN.replace('"Strict", "Weighted"]', '"Strict", "Weighted vest"]').replace(
+        "Weighted = 6", '"Weighted vest" = 6'
+    )
     with pytest.raises(SeedError, match="'Weighted'"):
         apply_seed(session, load_plan(vest))
 
@@ -420,8 +440,9 @@ def test_a_step_with_logged_sets_is_protected(session: Session) -> None:
 def test_unused_steps_can_change_and_appending_stays_allowed(session: Session) -> None:
     apply_seed(session, load_plan(MINI_PLAN))
     session.commit()
-    edited = MINI_PLAN.replace(
-        '["Negatives", "Strict", "Weighted"]', '["Slow negatives", "Strict", "Weighted", "Archer"]'
+    ladder = '["Slow negatives", "Strict", "Weighted", "Archer"]'
+    edited = MINI_PLAN.replace('["Negatives", "Strict", "Weighted"]', ladder).replace(
+        PULL_UP_LEVELS, _levels(ladder)
     )
     apply_seed(session, load_plan(edited))
     session.commit()
@@ -490,7 +511,7 @@ def test_moving_names_between_steps_is_rejected(
     session.commit()
     edited = MINI_PLAN.replace(
         'ladder = ["Negatives", "Strict", "Weighted"]', f"{renames}ladder = {ladder}"
-    )
+    ).replace(PULL_UP_LEVELS, _levels(ladder))
     with pytest.raises(SeedError, match="already the name of step"):
         apply_seed(session, load_plan(edited))
     session.rollback()
@@ -645,6 +666,9 @@ DIP_FACTS = 'muscles = { chest = 1 }\npattern = "vertical push"'
         (DIP_FACTS + '\nparts = ["triceps long head"]', "reaches the triceps long head"),
         (DIP_FACTS + '\nneeds = { "Rings" = ["rings"] }', "needs for \\['Rings'\\]"),
         (DIP_FACTS + '\nneeds = { "Feet up" = ["kettlebell"] }', "'Feet up'.*say the weight in kg"),
+        (DIP_FACTS + '\nquestions = { "Rings" = "Can you?" }', "questions for \\['Rings'\\]"),
+        (DIP_FACTS + '\nquestions = { "Feet down" = "Can you?" }', "first step needs no question"),
+        (DIP_FACTS + '\nquestions = { "Feet up" = "Can you" }', "questions.Feet up"),
     ],
 )
 def test_catalogue_facts_are_checked(facts: str, error: str) -> None:
@@ -671,6 +695,38 @@ def test_bundled_catalogue_needs_name_real_steps_and_kit() -> None:
     assert all("pull-up bar" in pull_up.needs[step] for step in pull_up.ladder)
 
 
+def test_every_ladder_asks_can_you_do_it_of_each_step_after_the_first() -> None:
+    """The level questions (builder G1, ADR-0075): setup walks them from the bottom, so a step
+    without one would end the walk there. Retired exercises are never set up."""
+    plan = load_plan()
+    missing = {
+        e.slug: [step for step in e.ladder[1:] if step not in e.questions]
+        for e in plan.exercises
+        if not e.retired and len(e.ladder) > 1
+    }
+    assert {slug: steps for slug, steps in missing.items() if steps} == {}
+    assert all(q.startswith("Can you ") for e in plan.exercises for q in e.questions.values())
+
+
+def test_each_question_asks_for_the_bottom_of_its_exercises_range() -> None:
+    """A yes means the first target at that step, the bottom of the range (ADR-0027), is within
+    reach. HIIT's steps name their rounds, so its questions use those. An exercise no session
+    uses gives its own range (ADR-0083)."""
+    plan = load_plan()
+    bottoms = {e.slug: e.range[0] for e in plan.exercises if e.range is not None}
+    bottoms |= {i.exercise: i.rep_min for s in plan.sessions for i in s.versions}
+    wrong = {
+        (e.slug, step): question
+        for e in plan.exercises
+        if e.slug != "hiit"
+        for step, question in e.questions.items()
+        if str(bottoms[e.slug]) not in re.findall(r"\d+", question)
+    }
+    assert wrong == {}
+    hiit = next(e for e in plan.exercises if e.slug == "hiit")
+    assert all(step.split()[0] in q for step, q in hiit.questions.items())
+
+
 def test_a_retired_exercise_cannot_be_in_a_session() -> None:
     retired = MINI_PLAN.replace(
         'ladder = ["Feet down", "Feet up"]', 'ladder = ["Feet down", "Feet up"]\nretired = true'
@@ -683,7 +739,7 @@ def test_the_seed_marks_retired_exercises(session: Session) -> None:
     apply_seed(session, load_plan())
     session.flush()
     retired = session.scalars(select(Exercise.slug).where(Exercise.retired.is_(True))).all()
-    assert sorted(retired) == ["goblet-squat", "reverse-lunge"]
+    assert sorted(retired) == ["reverse-lunge"]  # the goblet squat is back as the Squat
     lunge = session.scalars(select(Exercise).where(Exercise.slug == "reverse-lunge")).one()
     assert lunge.per_side
 
@@ -875,6 +931,7 @@ kind = "duration_min"
 qualities = ["conditioning"]
 pattern = "cardio"
 start = 0
+levels = { Easy = 2 }
 ladder = ["Easy"]
 """
     return MINI_PLAN + walk + FLOW.replace("EXERCISE", exercise).replace("SECONDS", str(seconds))
@@ -917,7 +974,7 @@ def test_split_squats_load_the_spine_only_with_a_kettlebell() -> None:
     """program-builder.md, Decided 3: loaded squats count; bodyweight and jump squats don't."""
     exercises = {e.slug: e for e in load_plan().exercises}
     split = exercises["bulgarian-split-squat"]
-    assert [bool(split.step_stress(s)) for s in split.ladder] == [False, *[True] * 5]
+    assert [bool(split.step_stress(s)) for s in split.ladder] == [*[False] * 4, *[True] * 5]
     jump = exercises["jump-squat"]
     assert not any(jump.step_stress(s) for s in jump.ladder)
     assert all(exercises["kb-swing"].step_stress(s) for s in exercises["kb-swing"].ladder)
@@ -947,6 +1004,18 @@ def test_the_dips_top_step_adds_weight_in_a_vest_or_backpack() -> None:
     assert dip.ladder[-2:] == ["Dip bars, bodyweight, full range", "Dip bars, vest or backpack"]
     assert dip.loads == {"Dip bars, vest or backpack": LoadKit.BACKPACK}
     assert dip.needs["Dip bars, vest or backpack"] == ["dip bars", "backpack:5"]
+
+
+def test_pull_ups_and_chin_ups_end_in_one_vest_step_that_takes_load() -> None:
+    """ADR-0072 (29 Oct 2026): one "Vest or backpack" step in place of 5, 10 and 15 kg; the
+    5 kg step is renamed in place, so anyone on it stays on it."""
+    exercises = {e.slug: e for e in load_plan().exercises}
+    for slug in ("pull-up", "chin-up"):
+        bars = exercises[slug]
+        assert bars.ladder[-1] == "Vest or backpack"
+        assert bars.loads == {"Vest or backpack": LoadKit.BACKPACK}
+        assert bars.needs["Vest or backpack"] == ["pull-up bar", "backpack:5"]
+        assert bars.renames["Vest or backpack, 5 kg"] == "Vest or backpack"
 
 
 # ------------------------------------------------------------- gym versions (ADR-0071)
@@ -1027,3 +1096,155 @@ def test_a_gym_version_names_known_exercises_in_pairs() -> None:
         load_plan(_upper_gym('{ exercise = "squat", sets = 3, rep_min = 5, rep_max = 8 }'))
     with pytest.raises(ValidationError, match="pair 1 must be two neighbouring items"):
         load_plan(_upper_gym(f"{PULL}, pair = 1 }}"))
+
+
+# ------------------------------------------------------------- away versions (ADR-0086)
+
+
+def _upper_away(away: str, facts: str = "") -> str:
+    """The mini plan with an away version of its upper session, and ``facts`` on the pull-up."""
+    plan = _upper_items(f"{PULL} }}]\naway = [{away}")
+    return plan.replace(
+        'ladder = ["Negatives", "Strict", "Weighted"]',
+        f'ladder = ["Negatives", "Strict", "Weighted"]\n{facts}',
+        1,
+    )
+
+
+def test_an_away_version_is_stored_with_its_place_and_goes_like_the_others(
+    session: Session,
+) -> None:
+    apply_seed(session, load_plan(_upper_away(f"{PULL}, pair = 1 }}, {DIP}, pair = 1 }}")))
+    session.flush()
+    upper = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "upper")).one()
+    assert [(i.place, i.position) for i in upper.away_items] == [("away", 0), ("away", 1)]
+    assert [i.place for i in upper.items] == ["home"]
+    assert upper.version(Place.AWAY) == upper.away_items
+    assert upper.done_at(Place.AWAY) is Place.AWAY
+    result = apply_seed(session, load_plan(_upper_items(f"{PULL} }}")))
+    session.flush()
+    session.expire_all()
+    assert result.deleted == 2
+    assert upper.away_items == []
+    assert upper.version(Place.AWAY) == upper.items  # no away version: done as at home
+    assert upper.done_at(Place.AWAY) is Place.HOME
+
+
+def test_an_away_version_needs_a_first_step_without_kit() -> None:
+    with pytest.raises(ValidationError, match="away, pull-up's first step 'Negatives' needs kit"):
+        load_plan(_upper_away(f"{PULL} }}", '[exercises.needs]\nNegatives = ["pull-up bar"]'))
+    with pytest.raises(ValidationError, match="away, pull-up's first step 'Negatives' needs kit"):
+        load_plan(_upper_away(f"{PULL} }}", '[exercises.loads]\nNegatives = "backpack"'))
+    # A step higher up may need kit: away trains the highest one below it that doesn't
+    load_plan(_upper_away(f"{PULL} }}", '[exercises.needs]\nWeighted = ["backpack:5"]'))
+
+
+def test_an_away_version_has_no_gym_work() -> None:
+    with pytest.raises(ValidationError, match="away, pull-up is gym work"):
+        load_plan(_upper_away(f"{PULL} }}", '[exercises.loads]\nWeighted = "machine"'))
+
+
+def test_an_away_version_names_known_exercises_in_pairs() -> None:
+    with pytest.raises(ValidationError, match="unknown exercise squat"):
+        load_plan(_upper_away('{ exercise = "squat", sets = 3, rep_min = 5, rep_max = 8 }'))
+    with pytest.raises(ValidationError, match="pair 1 must be two neighbouring items"):
+        load_plan(_upper_away(f"{PULL}, pair = 1 }}"))
+
+
+# What an away version can't train without kit (ADR-0086): set out in the PR for Liam's review.
+# No kit-free carry, hang or hanging raise, no bodyweight single-leg deadlift step, and one
+# door-frame pull where home has two.
+AWAY_SHORT = {
+    "legs": {"hamstrings"},
+    "recovery": {"forearms", "hip flexors", "upper traps"},
+    "torso": {"lats"},
+    "moderate-cardio": {"forearms", "upper traps"},
+}
+
+
+def test_every_session_has_an_away_version() -> None:
+    assert all(s.away for s in load_plan().sessions)
+
+
+def test_every_step_an_away_version_trains_needs_no_kit() -> None:
+    """Away trains the highest step at or below the level that needs no kit, so every away
+    exercise starts with one (the seed holds it); and none is gym work, nor needs a band."""
+    plan = load_plan()
+    exercises = {e.slug: e for e in plan.exercises}
+    gym_only = {i.exercise for s in plan.sessions for i in s.gym} - {
+        i.exercise for s in plan.sessions for i in s.items
+    }
+    for session in plan.sessions:
+        for item in session.away:
+            exercise = exercises[item.exercise]
+            first = exercise.ladder[0]
+            assert not exercise.needs.get(first), item
+            assert first not in exercise.loads, item
+            assert item.exercise not in gym_only, item
+
+
+def test_an_away_version_keeps_its_sessions_sets_and_muscles() -> None:
+    """About the same sets as at home, and no muscle more than a set and a half short, except
+    where nothing kit-free trains it (``AWAY_SHORT``)."""
+    plan = load_plan()
+    exercises = {e.slug: e.muscles for e in plan.exercises}
+    short: dict[str, set[str]] = {}
+    for session in plan.sessions:
+        assert abs(sum(i.sets for i in session.away) - sum(i.sets for i in session.items)) <= 1
+        home = dict(weekly_sets((exercises[i.exercise], i.sets) for i in session.items))
+        away = dict(weekly_sets((exercises[i.exercise], i.sets) for i in session.away))
+        missing = {str(m) for m in home if away.get(m, 0) < home[m] - 1.5}
+        if missing:
+            short[session.slug] = missing
+    assert short == AWAY_SHORT
+
+
+def test_an_away_version_pairs_by_the_home_rules() -> None:
+    plan = load_plan()
+    exercises = {e.slug: e for e in plan.exercises}
+    for session in plan.sessions:
+        for a, b in zip(session.away, session.away[1:], strict=False):
+            if a.pair is None or a.pair != b.pair:
+                continue
+            first, second = exercises[a.exercise], exercises[b.exercise]
+            for stress in ("spine", "grip"):
+                assert not (stress in first.stress and stress in second.stress), (a, b)
+            primes = {m for m, w in first.muscles.items() if w == 1}
+            shared = primes & {m for m, w in second.muscles.items() if w == 1}
+            assert not shared or {a.exercise, b.exercise} <= {"neck-flexion", "neck-extension"}
+
+
+def test_the_door_frame_pulls_are_kit_free_ladders_from_level_2() -> None:
+    exercises = {e.slug: e for e in load_plan().exercises}
+    for slug in ("doorway-row", "doorway-curl"):
+        found = exercises[slug]
+        assert found.summary
+        assert (found.needs, found.loads, found.marks) == ({}, {}, {})
+        assert set(found.cues) == set(found.ladder)
+        assert set(found.questions) == set(found.ladder[1:])
+        assert found.levels[found.ladder[found.start]] == 4  # where the plan's other pulls start
+
+
+# Names that no longer fit their ladders' new bottom steps (ADR-0083, #545): renamed, the slug
+# kept, and the old name an alias, so a typed or spoken log, or a line copied from an old bot
+# message, still lands on the same exercise.
+RENAMED = {
+    "bulgarian-split-squat": ("Bulgarian split squat", "Split squat"),
+    "calf-raise": ("Single-leg calf raise", "Calf raise"),
+    "kb-row": ("One-arm kettlebell row", "One-arm row"),
+    "kb-curl": ("Kettlebell curl", "Curl"),
+    "lateral-raise": ("Kettlebell lateral raise", "Lateral raise"),
+    "neck-flexion": ("Neck flexion (lying on back, head off edge)", "Neck flexion"),
+    "neck-extension": ("Neck extension (lying face down, head off edge)", "Neck extension"),
+    "neck-lateral": ("Neck side bend (lying on side, head off edge)", "Neck side bend"),
+}
+
+
+def test_a_renamed_exercise_keeps_its_old_name_for_logs() -> None:
+    plan = {e.slug: e for e in load_plan().exercises}
+    known = [Known(e.slug, (e.name, *e.aliases), e.kind, False) for e in plan.values()]
+    for slug, (old, new) in RENAMED.items():
+        assert (plan[slug].name, old in plan[slug].aliases) == (new, True), slug
+        for line in (f"{old} 10 10", f"{new} 10 10", f"- {old}: 10, 10"):
+            result = parse_log(line, known)
+            assert [e.slug for e in result.entries] == [slug], (line, result.problems)

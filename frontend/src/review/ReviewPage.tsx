@@ -161,6 +161,21 @@ export default function ReviewPage() {
         </Section>
       )}
 
+      {r.step_down.length > 0 && (
+        <Section title="Out of reach">
+          <p className="m-0">The bottom of the range was out of reach twice. Try the step below?</p>
+          <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+            {r.step_down.map((x) => (
+              <li key={x.slug}>
+                <a href={moveHref(x.slug)} className={moveButton}>
+                  {x.exercise}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
       {r.top.length > 0 && (
         <Section title="At the top">
           <TopList top={r.top} />

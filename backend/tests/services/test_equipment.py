@@ -126,7 +126,7 @@ def test_what_a_16_kg_kettlebell_unlocks(plan: Session) -> None:
     found = {(u.slug, u.step) for u in equipment.unlocks(plan, KB16)}
     assert ("kb-swing", "Two-hand, 16 kg") in found
     assert ("suitcase-carry", "Farmer carry, 16 kg + 8 kg, swap hands each set") in found
-    assert ("goblet-squat", "Heavier kettlebell") not in found  # retired
+    assert ("goblet-squat", "Heavier kettlebell") in found  # the Squat, back (ADR-0083)
     assert all(step != "Two-hand, 8 kg" for _, step in found)  # already open
 
 
@@ -189,14 +189,14 @@ def test_adding_the_kettlebell_opens_the_next_step(plan: Session) -> None:
 
 
 def test_move_up_goes_to_the_next_step_the_kit_allows(plan: Session) -> None:
-    """Suitcase carry: 8 kg, 16 kg, then 16 + 8 kg. With only the 16 kg bell, both 8 kg steps
-    are locked: from the first, Move up goes to 16 kg, which is then the top for the kit."""
+    """Suitcase carry: bags, 8 kg, 16 kg, then 16 + 8 kg. With only the 16 kg bell, both 8 kg
+    steps are locked: from the first, Move up goes to 16 kg, which is then the top for the kit."""
     equipment.save(plan, [KB16], NOW)
     carry = _standing(plan, "suitcase-carry")
     lacks_8 = ("an 8 kg kettlebell",)
-    assert [r.missing for r in carry.ladder] == [lacks_8, (), lacks_8]
+    assert [r.missing for r in carry.ladder] == [(), (), (), lacks_8, (), lacks_8]
     assert carry.unlock is None  # a harder step is open
-    first = _put(plan, "suitcase-carry", 0)
+    first = _put(plan, "suitcase-carry", 3)  # 8 kg, above the bags
     _ready(plan, first, "recovery", [45, 45], (Side.LEFT, Side.RIGHT))
     move = progress.move_up(plan, first.exercise_id, first.id)
     assert move is not None
@@ -222,18 +222,19 @@ def test_move_up_skips_a_locked_step_to_the_next_open_one(
         monkeypatch,
         "pull-up",
         {"Slow negatives": bar, "Strict pull-up": bar, "Pause at top": ["rings"]}
-        | {"Vest or backpack, 5 kg": bar},
+        | {"Vest or backpack": bar},
     )
     equipment.save(plan, [Item(Kit.PULL_UP_BAR)], NOW)
-    strict = _put(plan, "pull-up", 1)
+    strict = _put(plan, "pull-up", 3)
     _ready(plan, strict, "torso", [12, 12, 12, 12])
     move = progress.move_up(plan, strict.exercise_id, strict.id)
     assert move is not None
-    assert (move.outcome, move.step) == (MoveOutcome.MOVED, "Vest or backpack, 5 kg")
+    assert (move.outcome, move.step) == (MoveOutcome.MOVED, "Vest or backpack")
 
-    vest = ("Vest or backpack, 5 kg", "Vest or backpack, 10 kg", "Vest or backpack, 15 kg")
-    _needs(monkeypatch, "pull-up", {name: ["rings"] for name in ("Pause at top", *vest)})
-    _put(plan, "pull-up", 1)
+    _needs(
+        monkeypatch, "pull-up", {name: ["rings"] for name in ("Pause at top", "Vest or backpack")}
+    )
+    _put(plan, "pull-up", 3)
     blocked = progress.move_up(plan, strict.exercise_id, strict.id)
     assert blocked is not None
     assert blocked.outcome is MoveOutcome.NO_NEXT_STEP
@@ -292,7 +293,7 @@ def test_home_and_the_review_name_the_top_for_the_kit(plan: Session) -> None:
     equipment.save(plan, [KB8], NOW)
     _top_noted(plan, "kb-swing", 1)
     swing = progress.Top(
-        "Kettlebell swing", "kb-swing", "a 16 kg kettlebell unlocks Two-hand, 16 kg"
+        "Kettlebell swing", "kb-swing", "a 16 kg kettlebell unlocks Two-hand, 16 kg", capped=True
     )
     assert home.home(plan, date(2026, 10, 25), BERLIN).progress.top == [swing]
     assert home.home(plan, date(2026, 10, 25), BERLIN).progress.ready == []

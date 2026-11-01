@@ -1,6 +1,7 @@
 # ADR-0075: Move up, Not yet and any level by hand, on the web
 
-- Status: Accepted; a level can also be changed during a session, for today or from now on (ADR-0080)
+- Status: Accepted; a level can also be changed during a session, for today or from now on
+  (ADR-0080); each step's "Can you do ...?" question (addendum, 2026-10-30)
 - Date: 2026-10-25
 - Deciders: Liam
 
@@ -63,3 +64,29 @@ also be set by hand.
   questions (G1) and the suggestions from tests (G2) are still to come.
 - When plans become per person (ADR-0073) the routes stay as they are: the step is already per
   person (`exercise_state`).
+
+## Addendum (2026-10-30): the "Can you do ...?" questions (builder G1)
+
+Liam (30 Oct 2026) asked for the level questions before plans per person: the setup flow
+(builder step 10) will ask them, and they help when setting a level by hand here.
+
+- **One question per step after the first**, in `plan.toml` under `[exercises.questions]`,
+  keyed by the step a yes opens: "Can you do 5 strict pull-ups, from a full hang to your chin
+  over the bar?" sits on Strict pull-up. The first step has none: anyone can start there. Every
+  ladder with more than one step has them, timed and cardio ones too; the one-step gym
+  exercises need none, and retired exercises aren't asked about. Setup will walk them from the
+  bottom: yes moves on, no stops at the step before.
+- **The threshold is the bottom of the step's range**, in one set, in good form (each side when
+  one-sided): the first target a step with no history gets (ADR-0027), so a yes means that
+  target is within reach. The top of the range was the other choice, matching the ready rule
+  (ADR-0016, ADR-0078), but it asks someone to prove the step below again when what they want
+  to know is whether they can do this one. HIIT's steps name their rounds, so its questions use
+  those. A test holds every question to its exercise's range.
+- **Wording:** "Can you do 8 ...?" (or carry, hang, lower ...) with the number in it, and the
+  step's kit and tempo in plain words rather than its ladder name; at most 160 characters. The
+  seed refuses a question for a step not in the ladder, or for the first step.
+- **Read from the bundled plan**, like the kit a step needs: nothing logged refers to a
+  question, so no migration.
+- **They suggest, the person decides.** The Plan page's ladder panel shows each step's
+  question under its name ("Ready for this if yes: ..."), in `GET /api/progress`'s ladder;
+  nothing sets a level from an answer.
