@@ -46,11 +46,12 @@ jobs:
           "$tools/aapt2" dump permissions "$apk" > "$RUNNER_TEMP/permissions.txt"
           {
             sed -nE "s/^package: name='([^']*)'.*/package: \1/p" "$RUNNER_TEMP/badging.txt"
-            sed -nE "s/^sdkVersion:'([^']*)'.*/minSdk: \1/p" "$RUNNER_TEMP/badging.txt"
-            sed -nE "s/^targetSdkVersion:'([^']*)'.*/targetSdk: \1/p" "$RUNNER_TEMP/badging.txt"
+            sed -nE "s/^(minSdkVersion|sdkVersion): ?'([^']*)'.*/minSdk: \2/p" "$RUNNER_TEMP/badging.txt"
+            sed -nE "s/^targetSdkVersion: ?'([^']*)'.*/targetSdk: \1/p" "$RUNNER_TEMP/badging.txt"
             grep -E '^(uses-permission|permission):' "$RUNNER_TEMP/permissions.txt" | LC_ALL=C sort
           } > "$RUNNER_TEMP/apk.txt"
-          grep -v '^#' android/app/expected-apk.txt | diff -u - "$RUNNER_TEMP/apk.txt"
+          grep -v '^#' android/app/expected-apk.txt | diff -u - "$RUNNER_TEMP/apk.txt" ||
+            { grep -iE '^(package|[a-z]*sdk[a-z]*):' "$RUNNER_TEMP/badging.txt"; exit 1; }
           IFS=. read -r major minor patch < <(tr -d '[:space:]' < android/VERSION)
           code=$((10#$major * 10000 + 10#$minor * 100 + 10#$patch))
           grep -q "^package: .* versionCode='$code' " "$RUNNER_TEMP/badging.txt" ||
