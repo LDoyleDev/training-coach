@@ -9,6 +9,7 @@ Rules for `android/`, the band reader (ADR-0070, `docs/specs/android-reader.md`)
 VERSION                     the app's one version; a release is made on main when it moves
 build.gradle.kts            plugin versions; app/build.gradle.kts has the dependencies
 gradle/verification-metadata.xml   their checksums, written in CI (see Building)
+app/expected-apk.txt        what the release APK declares (package, SDKs, permissions); CI checks it
 app/src/main/java/.../      Payload.kt, Delivery.kt, Reads.kt, Runs.kt and Week.kt (pure:
                             what a sync sends, whether it all arrived, how many reads it may
                             make, what a background run may do and leaves behind, the 7-day
@@ -38,6 +39,11 @@ app/src/test/               JVM unit tests for the pure parts
      differ. A new checksum for a version already listed means stop and find out why.
   4. Commit it to the branch as `android/gradle/verification-metadata.xml`.
   The checksums are Linux-only for native tools such as aapt2, as CI is the only place that builds.
+- What the APK declares: after the build, `android.yml` reads the unsigned release APK with
+  `aapt2` and compares package, minSdk, targetSdk and every permission (merged ones included)
+  with `app/expected-apk.txt`, and versionCode with `VERSION`, on pull requests too. A toolchain
+  or library update that changes any of them fails there; change the file only on purpose, with
+  the reason in the PR.
 - A release: bump `VERSION` in a PR. After merge, the build job makes an unsigned APK (no
   secrets), then the workflow waits for Liam's approval of the `android-release` environment,
   signs it with apksigner only (no Gradle there), checks its signer against
