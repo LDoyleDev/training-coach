@@ -5,6 +5,7 @@ import BandImport from './account/BandImport'
 import BodySettings from './account/BodySettings'
 import HeartRateZones from './account/HeartRateZones'
 import MyEquipment from './account/MyEquipment'
+import Residence from './account/Residence'
 import WeightSteps from './account/WeightSteps'
 import CopyForAI from './account/CopyForAI'
 import Settings from './account/Settings'
@@ -161,6 +162,8 @@ export default function Account() {
           <Toast text={note} onClose={() => setNote(null)} />
 
           <Settings />
+
+          <Residence />
 
           <MyEquipment />
 

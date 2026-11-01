@@ -76,3 +76,17 @@ def bot_served(session: Session, now: datetime) -> bool:
     """``served_remotely`` for the person a session is bound to (the bot's sessions)."""
     user = bound_user(session)
     return user is not None and served_remotely(session, user, now)
+
+
+def country(session: Session, user_id: int) -> str | None:
+    user = session.get(User, user_id)
+    return user.country if user is not None else None
+
+
+def set_country(session: Session, user_id: int, code: str) -> bool:
+    """Record the country of residence; False (nothing kept) if it isn't on the list."""
+    user = session.get(User, user_id)
+    if user is None or not region.listed(code):
+        return False
+    user.country = code.strip().upper()
+    return True
