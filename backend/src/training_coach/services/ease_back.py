@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import Event, Exercise, LadderStep, SetLog, Workout
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.progression import returning
-from training_coach.services import blocks, equipment, guided, progress, users
+from training_coach.services import blocks, guided, progress, step_locks, users
 from training_coach.services.session_levels import Changed, Scope, change
 
 ANSWERED = "progress.ease_back"
@@ -56,9 +56,10 @@ def _answered(session: Session) -> set[tuple[int, str]]:
 
 def offered(session: Session, plan: guided.Guided, kept: guided.Kept | None) -> list[Returning]:
     """The exercises of ``plan`` to ease back into: back after ``RETURN_DAYS`` or more, with an
-    open step below their level, not on a loaded step (the weight is what to lower, ADR-0072)
-    and not asked about for this return. Only before the session starts, and never for the block
-    after a run. Empty when there is nothing to offer."""
+    open step below their level (kit and avoided marks lock steps, ADR-0083), not on a loaded
+    step (the weight is what to lower, ADR-0072) and not asked about for this return. Only
+    before the session starts, and never for the block after a run. Empty when there is nothing
+    to offer."""
     mine = (plan.template_id, plan.after_run, plan.place)
     if kept is not None and (kept.template_id, kept.after_run, kept.place) != mine:
         kept = None  # kept for a session that isn't today's
@@ -66,7 +67,7 @@ def offered(session: Session, plan: guided.Guided, kept: guided.Kept | None) -> 
         return []
     chosen = dict(kept.steps) if kept is not None else {}
     answered = _answered(session)
-    kit = equipment.kit(session)
+    limits = step_locks.limits(session)
     found: dict[str, Returning] = {}
     for item in plan.items:
         if item.slug in found or item.slug in chosen:
@@ -76,7 +77,7 @@ def offered(session: Session, plan: guided.Guided, kept: guided.Kept | None) -> 
         step = session.get(LadderStep, state.ladder_step_id) if state is not None else None
         if step is None or blocks.load_kit(exercise.slug, step.name) is not None:
             continue
-        below = progress.step_below(step, kit)
+        below = progress.step_below(step, limits)
         last = _last_done(session, exercise.id)
         if below is None or last is None or not returning(last, plan.day):
             continue

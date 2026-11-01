@@ -87,11 +87,14 @@ for people starting low (ADR-0083).
   level chosen "For today". The guided save marks those in the workout's plan map
   (`workouts.planned[slug]["today"]`, the step id), the room ADR-0084 left for a later key, so
   no migration. Workouts saved before this have no mark.
-- **The step below** is the nearest one the kit allows (Move up skips locked steps too). With
-  none, at a ladder's first step or with every step below locked, it says so and names the
-  catalogue's exercises whose first step is level 1 or 2 and that share a prime mover (weight
-  1), if any. The "lower range" alternative is left out for now.
-- **Step down** is a by-hand change (`progress.set_level`, `progress.level_set` logged).
+- **The step below** is the nearest open one (Move up skips locked steps too: kit, and the
+  marks a person avoids, ADR-0083). With none, at a ladder's first step or with every step
+  below locked, it says so and names the catalogue's exercises whose first step is level 1 or 2
+  and that share a prime mover (weight 1), if any. The "lower range" alternative is left out
+  for now.
+- **Step down** is a by-hand change (`progress.set_level`, `progress.level_set` logged),
+  checked again when pressed as Move up is: a press after the exercise moved, or once a Not yet
+  or a newer session has removed the suggestion, changes nothing.
   **Not yet** records `progress.not_yet_down` with the newest session the rule judged; the
   suggestion stays hidden until a newer session meets the rule again. No migration: events.
 - **Ease back in** lives on the session overview, before the first set: when any exercise in

@@ -6,26 +6,20 @@ from training_coach.domain.kit import (
     label,
     missing,
     need_label,
-    next_open,
     parse_item,
-    previous_open,
     problem,
     problems,
     unlocked,
-    unlocks_next,
 )
 from training_coach.domain.muscles import Kit
 
 KB8 = Item(Kit.KETTLEBELL, kg=8)
 KB16 = Item(Kit.KETTLEBELL, kg=16)
 BAR = Item(Kit.PULL_UP_BAR)
-# The swing ladder as it is today: two 8 kg steps, then one for a 16 kg bell.
-SWINGS = [["kettlebell:8"], ["kettlebell:8"], ["kettlebell:16"]]
 
 
 def test_an_unlisted_kit_locks_nothing() -> None:
     assert missing(None, ["kettlebell:16", "pull-up bar"]) == []
-    assert next_open(SWINGS, 1, None) == 2
 
 
 def test_a_kettlebell_must_be_that_exact_weight() -> None:
@@ -69,28 +63,6 @@ def test_a_band_step_takes_that_strength_or_a_stronger_one() -> None:
     assert missing([medium], ["band:medium"]) == []
     assert missing([medium], ["band:heavy"]) == ["a heavy band"]
     assert missing([Item(Kit.MAT)], ["band:light"]) == ["a light band"]
-
-
-def test_move_up_skips_locked_steps() -> None:
-    ladder = [[], ["kettlebell:16"], ["pull-up bar"], ["kettlebell:16"]]
-    assert next_open(ladder, 0, [BAR]) == 2
-    assert next_open(ladder, 2, [BAR]) is None
-    assert next_open(ladder, 0, [BAR, KB16]) == 1
-
-
-def test_a_step_down_skips_locked_steps() -> None:
-    ladder = [[], ["kettlebell:16"], ["pull-up bar"], ["kettlebell:16"]]
-    assert previous_open(ladder, 3, [BAR]) == 2
-    assert previous_open(ladder, 2, [BAR]) == 0
-    assert previous_open(ladder, 0, None) is None
-    assert previous_open([["kettlebell:16"], []], 1, []) is None
-
-
-def test_top_for_your_kit_names_what_opens_the_next_step() -> None:
-    assert unlocks_next(SWINGS, 1, [KB8]) == ["a 16 kg kettlebell"]
-    assert unlocks_next(SWINGS, 0, [KB8]) is None  # a harder open step remains
-    assert unlocks_next(SWINGS, 2, [KB8]) is None  # the real top
-    assert unlocks_next(SWINGS, 1, None) is None  # no kit listed: nothing locks
 
 
 def test_what_an_item_would_unlock() -> None:

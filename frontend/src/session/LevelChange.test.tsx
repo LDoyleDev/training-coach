@@ -7,10 +7,10 @@ const LEVEL: ItemLevel = {
   step_id: 11,
   for_today: false,
   ladder: [
-    { id: 10, name: 'Two-hand, 8 kg', cue: null, missing: [] },
-    { id: 11, name: 'One-arm, 8 kg', cue: 'Square shoulders.', missing: [] },
-    { id: 12, name: 'Two-hand, 16 kg', cue: null, missing: ['a 16 kg kettlebell'] },
-    { id: 13, name: 'One-arm, 16 kg', cue: null, missing: ['a 16 kg kettlebell'] },
+    { id: 10, name: 'Two-hand, 8 kg', cue: null, missing: [], avoided: [] },
+    { id: 11, name: 'One-arm, 8 kg', cue: 'Square shoulders.', missing: [], avoided: [] },
+    { id: 12, name: 'Two-hand, 16 kg', cue: null, missing: ['a 16 kg kettlebell'], avoided: [] },
+    { id: 13, name: 'One-arm, 16 kg', cue: null, missing: ['a 16 kg kettlebell'], avoided: [] },
   ],
 }
 
@@ -87,4 +87,16 @@ test('a level chosen for today only says so; a short ladder has no "all levels"'
   expect(screen.getByText('· for today only', { exact: false })).toBeInTheDocument()
   click('Change level')
   expect(screen.queryByRole('button', { name: /All levels/ })).not.toBeInTheDocument()
+})
+
+test('a level the person avoids is locked with the reason, and can still be picked', async () => {
+  const impact = "needs jumping or running — you've chosen not to jump or run"
+  const ladder = LEVEL.ladder.map((r) => (r.id === 10 ? { ...r, avoided: [impact] } : r))
+  const onPick = shown({ ...LEVEL, ladder })
+  click('Change level')
+  const avoided = screen.getByRole('radio', { name: `Two-hand, 8 kg · Locked: ${impact}` })
+  fireEvent.click(avoided)
+  expect(screen.getByText(`Two-hand, 8 kg ${impact}. You can still choose it.`)).toBeVisible()
+  click('From now on')
+  expect(onPick).toHaveBeenCalledWith(10, 'Two-hand, 8 kg', 'from_now_on')
 })

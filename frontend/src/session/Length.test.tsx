@@ -35,6 +35,7 @@ const PLANNED: Length = {
   warm_up: 'full',
   shortest: null,
   fixed: false,
+  from_setting: false,
 }
 
 const SESSION: Guided = {
@@ -352,4 +353,39 @@ test('a conditioning day logs its run at the shortened minutes once a length is 
   fireEvent.click(button('20 min'))
   expect(await screen.findByRole('button', { name: 'Done as planned: 12 min' })).toBeVisible()
   expect(screen.getByText('Target 12 min')).toBeInTheDocument()
+})
+
+test('time per session shows as chosen, from the setting, with As planned still a choice', async () => {
+  const mine = { ...SHORT, length: { ...SHORT.length!, from_setting: true } }
+  const sent = serve({ today: [today(mine, 4)], length: [Response.json(today(SESSION, 5))] })
+  render(<SessionPage />)
+  expect(await screen.findByRole('button', { name: '20 min' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  expect(
+    screen.getByText(
+      '20 min is your time per session, set on Account: about 18 min, warm-up included. As planned today: about 49 min.',
+    ),
+  ).toBeInTheDocument()
+  expect(screen.getByText('Dropped today: Plank, Calf raise.')).toBeInTheDocument()
+  expect(screen.getByText('About 18 min')).toBeInTheDocument() // not "usually": a shorter day
+  fireEvent.click(button('As planned'))
+  expect(
+    await screen.findByText('About 49 min as planned. For today only; the plan stays the same.'),
+  ).toBeInTheDocument()
+  expect(sent['PUT /api/session/length']).toEqual([
+    { template_id: 3, place: 'home', revision: 4, first: [], minutes: null, keep: [] },
+  ])
+})
+
+test('a started session at the time per session says so', async () => {
+  const started = { ...SHORT, length: { ...SHORT.length!, fixed: true, from_setting: true } }
+  serve({ today: [today(started, 3)] })
+  render(<SessionPage />)
+  expect(
+    await screen.findByText(
+      /20 min today \(your time per session\), about 18 min\. It stays like this now a set is kept\./,
+    ),
+  ).toBeInTheDocument()
 })

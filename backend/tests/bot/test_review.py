@@ -117,13 +117,15 @@ def test_the_top_for_the_kit_and_of_the_ladder_are_named() -> None:
             top=[
                 Top("Kettlebell swing", "kb-swing", "a 16 kg kettlebell unlocks Two-hand, 16 kg"),
                 Top("Push-up", "push-up", None),
+                Top("Pull-up", "pull-up", None, capped=True),  # never says why (ADR-0083)
             ]
         )
     )
     assert text.endswith(
         "At the top:\n"
         "- Kettlebell swing, top for your kit: a 16 kg kettlebell unlocks Two-hand, 16 kg\n"
-        "- Push-up, top of the ladder"
+        "- Push-up, top of the ladder\n"
+        "- Pull-up, no open step above this one"
     )
     assert "At the top" not in review_text(_review())
 

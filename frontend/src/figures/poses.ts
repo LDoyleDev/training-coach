@@ -4,7 +4,9 @@
  * spine (+ rounds), neck (+ tucks), and a target for each hand and foot (N near, F far side).
  */
 import type { Motion, Vec } from './body'
+import { ENTRY_LOWER } from './entry-lower'
 import type { FrontPose } from './front'
+import { ENTRY_UPPER } from './entry-upper'
 import { GYM } from './gym'
 import type { Bench3, Camera, Kit } from './perspective'
 import type { Part, Props } from './shapes'
@@ -708,4 +710,6 @@ export const FIGURES: Readonly<Record<string, Figure>> = {
     },
   },
   ...GYM,
+  ...ENTRY_LOWER,
+  ...ENTRY_UPPER,
 }

@@ -34,6 +34,10 @@ export interface Limb {
   /** The elbow or knee as an offset from the shoulder or hip, in place of working it out: the
    * limb can then look shorter, as one turning towards you does. */
   mid?: Vec
+  /** With ``mid``, the forearm's or shin's direction from the elbow or knee, in place of ``at``:
+   * a hinge that keeps its length and its elbow or knee put as it turns, blending by angle (a
+   * pushdown, a standing hamstring curl). */
+  turn?: number
   /** Which side of the line the elbow or knee goes: +1 counter-clockwise, -1 clockwise. Legs
    * default to +1 (knees forward), arms to -1 (elbows back). */
   bend?: number
@@ -207,6 +211,10 @@ export function solve(input: Pose): Joints {
     else if (limb.at && limb.from === 'head') target = inFrame(head.c, topDir, limb.at)
     else if (limb.at) target = limb.at
     else target = along(root, limb.dir ?? -90, (limb.reach ?? 1) * (a + b))
+    if (limb.mid && limb.turn !== undefined) {
+      const mid = plus(root, limb.mid)
+      return { mid, end: along(mid, limb.turn, b) }
+    }
     if (!limb.mid) return twoBone(root, target, a, b, limb.bend ?? fallback)
     return { mid: plus(root, limb.mid), end: target } // drawn as given, foreshortened
   }

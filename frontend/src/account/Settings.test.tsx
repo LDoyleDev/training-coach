@@ -22,6 +22,11 @@ const PREFS: MessageSettings = {
   default_increments: { barbell: 2.5, dumbbells: 2, machine: 5, backpack: 1 },
   talk_test: false,
   stop_signs_seen: false,
+  avoid_floor: false,
+  avoid_kneeling: false,
+  avoid_impact: false,
+  avoid_hanging: false,
+  session_minutes: null,
   paused: false,
   timezone: 'Europe/Berlin',
 }
@@ -111,6 +116,34 @@ test('the talk test is a switch, asked without a reason (ADR-0083)', async () =>
   expect(await screen.findByText('Use the talk test, not heart-rate zones: off')).toBeVisible()
   expect(sent).toEqual([{ talk_test: true }, { talk_test: false }])
   expect(screen.queryByText(/why|reason|condition/i)).not.toBeInTheDocument()
+})
+
+test('the four preferences are switches, asked without a reason (ADR-0083)', async () => {
+  const sent = serve()
+  render(<Settings />)
+  const avoid = (await screen.findByRole('group', {
+    name: "What you'd rather avoid",
+  })) as HTMLElement
+  expect(
+    within(avoid).getByText("You choose what you're ready for. These skip steps that need it."),
+  ).toBeVisible()
+  const floor = within(avoid).getByRole('button', { name: /^Keep me off the floor/ })
+  expect(floor).toHaveAttribute('aria-pressed', 'false')
+  fireEvent.click(floor)
+  expect(await within(avoid).findByText('Keep me off the floor: on.')).toBeVisible()
+  expect(floor).toHaveAttribute('aria-pressed', 'true')
+  for (const name of ['No kneeling', 'No jumping or running', 'No hanging']) {
+    expect(within(avoid).getByRole('button', { name: new RegExp(`^${name}`) })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+  }
+  fireEvent.click(within(avoid).getByRole('button', { name: /^No hanging/ }))
+  expect(await within(avoid).findByText('No hanging: on.')).toBeVisible()
+  fireEvent.click(floor)
+  expect(await within(avoid).findByText('Keep me off the floor: off.')).toBeVisible()
+  expect(sent).toEqual([{ avoid_floor: true }, { avoid_hanging: true }, { avoid_floor: false }])
+  expect(screen.queryByText(/why|reason|condition|balance/i)).not.toBeInTheDocument()
 })
 
 test('the pace is one of three, with a line saying what each means', async () => {
@@ -220,4 +253,41 @@ test('the timer sound is one of six, the boxing bell first, played when tapped, 
   await screen.findByText('Timer sound: no sound.')
   expect(sent).toEqual([{ sound: 'wood' }, { sound: 'none' }]) // the default was never re-sent
   vi.useRealTimers()
+})
+
+test('time per session: as planned until one is picked, then saved and shown', async () => {
+  const sent = serve()
+  render(<Settings />)
+  const group = (await screen.findByRole('group', { name: 'Time per session' })) as HTMLElement
+  expect(
+    within(group).getByText(
+      'Every session runs at this length unless you pick another for the day.',
+    ),
+  ).toBeInTheDocument()
+  expect(within(group).getByRole('button', { name: 'As planned' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  fireEvent.click(within(group).getByRole('button', { name: '30 min' }))
+  expect(await within(group).findByText('Time per session: 30 min.')).toBeInTheDocument()
+  expect(sent).toEqual([{ session_minutes: 30 }])
+  expect(within(group).getByRole('button', { name: '30 min' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  fireEvent.click(within(group).getByRole('button', { name: '30 min' })) // already set
+  expect(sent).toHaveLength(1)
+})
+
+test('time per session goes back to as planned with null', async () => {
+  const sent = serve({ ...PREFS, session_minutes: 20 })
+  render(<Settings />)
+  const group = (await screen.findByRole('group', { name: 'Time per session' })) as HTMLElement
+  expect(within(group).getByRole('button', { name: '20 min' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  fireEvent.click(within(group).getByRole('button', { name: 'As planned' }))
+  expect(await within(group).findByText('Time per session: as planned.')).toBeInTheDocument()
+  expect(sent).toEqual([{ session_minutes: null }])
 })
