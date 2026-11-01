@@ -74,6 +74,8 @@ SHORT_ON_TIME = (
     f"Short on time? Pick {_joined([str(m) for m in OPTIONS], 'or')} minutes in the app "
     "before you start."
 )
+# At the person's minutes per session, before the day picks a length (ADR-0082).
+ANOTHER_LENGTH = "Pick another length for today in the app before you start."
 
 
 def _warm_up(length: Length | None) -> str:
@@ -84,26 +86,32 @@ def _warm_up(length: Length | None) -> str:
 
 def _shortened(plan: SessionPlan, length: Length | None) -> list[str]:
     """What the app shortened today's session to and what went, once minutes are chosen
-    there (ADR-0082); nothing as planned. When even the shortest version is longer than the
-    minutes chosen, it says how long that is."""
+    there or come from the person's minutes per session (ADR-0082); nothing as planned. When
+    even the shortest version is longer than the minutes chosen, it says how long that is."""
     if length is None or length.minutes is None:
         return []
     shortest = length.trimmed.shortest
-    line = (
-        f"Shortened to {length.minutes} minutes in the app"
-        if shortest is None
-        else f"Shortened as far as it goes in the app: about {shortest} minutes"
-    )
+    if length.from_setting:
+        about = f"About {length.trimmed.minutes} minutes"
+        if shortest is not None:
+            about += ", the shortest it gets,"
+        line = f"{about} at your {length.minutes}-minute setting"
+    elif shortest is None:
+        line = f"Shortened to {length.minutes} minutes in the app"
+    else:
+        line = f"Shortened as far as it goes in the app: about {shortest} minutes"
     dropped = [plan.items[i].exercise for i in length.trimmed.dropped]
     return [f"{line}; dropped: {', '.join(dropped)}." if dropped else f"{line}."]
 
 
 def _length(plan: SessionPlan, length: Length | None) -> list[str]:
-    """How long today's session runs (ADR-0082): shortened in the app, or about how long as
-    planned and, before it starts, that it can be shortened. Nothing for a session that isn't
-    trimmed (recovery)."""
+    """How long today's session runs (ADR-0082): shortened in the app or by the person's
+    minutes per session, or about how long as planned; before it starts, that another length
+    can be picked. Nothing for a session that isn't trimmed (recovery)."""
     if length is None or length.minutes is not None:
-        return _shortened(plan, length)
+        lines = _shortened(plan, length)
+        offer = length is not None and length.from_setting and not length.fixed
+        return [f"{lines[0]} {ANOTHER_LENGTH}"] if offer else lines
     about = f"About {length.planned} minutes" + (
         ", warm-up included." if plan.kind == "strength" else "."
     )

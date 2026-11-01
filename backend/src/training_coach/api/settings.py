@@ -4,7 +4,7 @@ bot's jobs straight away, as a /settings button does."""
 
 from collections.abc import Callable
 from datetime import UTC, datetime, time
-from typing import Annotated
+from typing import Annotated, Literal
 
 import structlog
 from fastapi import APIRouter, Request
@@ -103,6 +103,8 @@ class SettingsView(BaseModel):
     avoid_kneeling: bool  # "No kneeling"
     avoid_impact: bool  # "No jumping or running"
     avoid_hanging: bool  # "No hanging"
+    # Every session's length unless the day picks another (ADR-0082); empty: as planned.
+    session_minutes: Literal[40, 30, 20] | None
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -128,6 +130,8 @@ class SettingsChange(BaseModel):
     avoid_kneeling: bool | None = None
     avoid_impact: bool | None = None
     avoid_hanging: bool | None = None
+    # Sent as null: back to as planned (only the fields sent change).
+    session_minutes: Literal[40, 30, 20] | None = None
     paused: bool | None = None
 
 
@@ -172,6 +176,7 @@ def _view(prefs: Prefs, settings: Settings) -> SettingsView:
         avoid_kneeling=prefs.avoid_kneeling,
         avoid_impact=prefs.avoid_impact,
         avoid_hanging=prefs.avoid_hanging,
+        session_minutes=prefs.session_minutes,
         paused=prefs.paused,
         timezone=settings.timezone,
     )
@@ -210,6 +215,9 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             avoid_kneeling=body.avoid_kneeling,
             avoid_impact=body.avoid_impact,
             avoid_hanging=body.avoid_hanging,
+            session_minutes=body.session_minutes,
+            clear_session_minutes="session_minutes" in body.model_fields_set
+            and body.session_minutes is None,
             today=local_date(datetime.now(UTC), settings.tz),
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)

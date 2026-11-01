@@ -26,6 +26,7 @@ const PREFS: MessageSettings = {
   avoid_kneeling: false,
   avoid_impact: false,
   avoid_hanging: false,
+  session_minutes: null,
   paused: false,
   timezone: 'Europe/Berlin',
 }
@@ -252,4 +253,41 @@ test('the timer sound is one of six, the boxing bell first, played when tapped, 
   await screen.findByText('Timer sound: no sound.')
   expect(sent).toEqual([{ sound: 'wood' }, { sound: 'none' }]) // the default was never re-sent
   vi.useRealTimers()
+})
+
+test('time per session: as planned until one is picked, then saved and shown', async () => {
+  const sent = serve()
+  render(<Settings />)
+  const group = (await screen.findByRole('group', { name: 'Time per session' })) as HTMLElement
+  expect(
+    within(group).getByText(
+      'Every session runs at this length unless you pick another for the day.',
+    ),
+  ).toBeInTheDocument()
+  expect(within(group).getByRole('button', { name: 'As planned' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  fireEvent.click(within(group).getByRole('button', { name: '30 min' }))
+  expect(await within(group).findByText('Time per session: 30 min.')).toBeInTheDocument()
+  expect(sent).toEqual([{ session_minutes: 30 }])
+  expect(within(group).getByRole('button', { name: '30 min' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  fireEvent.click(within(group).getByRole('button', { name: '30 min' })) // already set
+  expect(sent).toHaveLength(1)
+})
+
+test('time per session goes back to as planned with null', async () => {
+  const sent = serve({ ...PREFS, session_minutes: 20 })
+  render(<Settings />)
+  const group = (await screen.findByRole('group', { name: 'Time per session' })) as HTMLElement
+  expect(within(group).getByRole('button', { name: '20 min' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  fireEvent.click(within(group).getByRole('button', { name: 'As planned' }))
+  expect(await within(group).findByText('Time per session: as planned.')).toBeInTheDocument()
+  expect(sent).toEqual([{ session_minutes: null }])
 })

@@ -54,6 +54,8 @@ class Prefs:
         }
         return frozenset(mark for mark, on in chosen.items() if on)
 
+    session_minutes: int | None = None  # every session's length (ADR-0082); None: as planned
+
 
 def _increments(old: Increments, change: Mapping[LoadKit, float]) -> Increments:
     """``old`` with ``change`` applied; a step set back to the default is kept as no step of
@@ -101,6 +103,7 @@ def load(session: Session) -> Prefs:
         row.avoid_kneeling,
         row.avoid_impact,
         row.avoid_hanging,
+        row.session_minutes,
     )
 
 
@@ -128,10 +131,14 @@ def update(
     avoid_kneeling: bool | None = None,
     avoid_impact: bool | None = None,
     avoid_hanging: bool | None = None,
+    session_minutes: int | None = None,
+    clear_session_minutes: bool = False,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
     ``increments``: the kits whose weight step changes, each to a valid step (the caller checks).
+    ``session_minutes``: 40, 30 or 20 (the caller checks); ``clear_session_minutes`` sets it
+    back to as planned.
 
     ``blocks=True`` starts training blocks on ``today`` unless they are already on (so a
     repeated press never restarts them); ``blocks=False`` turns them off."""
@@ -164,6 +171,11 @@ def update(
         avoid_kneeling=old.avoid_kneeling if avoid_kneeling is None else avoid_kneeling,
         avoid_impact=old.avoid_impact if avoid_impact is None else avoid_impact,
         avoid_hanging=old.avoid_hanging if avoid_hanging is None else avoid_hanging,
+        session_minutes=None
+        if clear_session_minutes
+        else old.session_minutes
+        if session_minutes is None
+        else session_minutes,
     )
     changes: dict[str, str | bool | int | float] = {}
     if morning_time is not None:
@@ -203,6 +215,8 @@ def update(
         "avoid_hanging": avoid_hanging,
     }
     changes |= {name: on for name, on in avoided.items() if on is not None}
+    if session_minutes is not None or clear_session_minutes:
+        changes["session_minutes"] = session_minutes or 0  # 0: as planned
     for kit, kg in (increments or {}).items():
         changes[f"{kit.value}_increment_kg"] = kg
     row = users.settings_row(session)
@@ -232,6 +246,7 @@ def update(
     row.avoid_kneeling = prefs.avoid_kneeling
     row.avoid_impact = prefs.avoid_impact
     row.avoid_hanging = prefs.avoid_hanging
+    row.session_minutes = prefs.session_minutes
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

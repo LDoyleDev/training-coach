@@ -2923,7 +2923,7 @@
         "type": "object"
       },
       "LengthView": {
-        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes.",
+        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.",
         "properties": {
           "dropped": {
             "items": {
@@ -2934,6 +2934,10 @@
           },
           "fixed": {
             "title": "Fixed",
+            "type": "boolean"
+          },
+          "from_setting": {
+            "title": "From Setting",
             "type": "boolean"
           },
           "keep": {
@@ -2994,7 +2998,8 @@
           "dropped",
           "warm_up",
           "shortest",
-          "fixed"
+          "fixed",
+          "from_setting"
         ],
         "title": "LengthView",
         "type": "object"
@@ -6041,6 +6046,22 @@
             ],
             "title": "Review Time"
           },
+          "session_minutes": {
+            "anyOf": [
+              {
+                "enum": [
+                  40,
+                  30,
+                  20
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Minutes"
+          },
           "sound": {
             "anyOf": [
               {
@@ -6157,6 +6178,22 @@
             "title": "Review Time",
             "type": "string"
           },
+          "session_minutes": {
+            "anyOf": [
+              {
+                "enum": [
+                  40,
+                  30,
+                  20
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Minutes"
+          },
           "sound": {
             "$ref": "#/components/schemas/Sound"
           },
@@ -6193,6 +6230,7 @@
           "avoid_kneeling",
           "avoid_impact",
           "avoid_hanging",
+          "session_minutes",
           "paused",
           "timezone"
         ],
