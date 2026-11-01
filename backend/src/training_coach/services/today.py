@@ -156,6 +156,7 @@ def _item_plan(
     chosen: int | None = None,
     increments: Increments = DEFAULTS,
     home_kit: Sequence[Item] | None = None,
+    at_gym: bool = False,
     away: bool = False,
 ) -> ItemPlan:
     """One exercise: its step, cue and targets, under the strength prescription if it applies
@@ -170,6 +171,7 @@ def _item_plan(
         item,
         strength,
         step if step is not None and step.exercise_id == item.exercise_id else None,
+        at_gym=at_gym,
         away=away,
     )
     kit = load_kit(item.exercise.slug, plan.step.name)
@@ -265,6 +267,7 @@ def session_plan(
                 (steps or {}).get(item.exercise.slug),
                 prefs.increments,
                 home_kit,
+                done_at is Place.GYM,
                 done_at is Place.AWAY,
             )
             for item in template.version(at)

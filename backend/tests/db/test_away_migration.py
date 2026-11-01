@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 
 from tests.db.test_migrations import BACKEND
 
-BEFORE = "d4f9b2a6e8c1"  # the revision before away
+BEFORE = "e5a7c9d1f3b4"  # the revision before away
 ITEM = (
     "INSERT INTO template_items (template_id, position, exercise_id, sets, rep_min, rep_max,"
     " place) VALUES (1, 0, 1, 3, 8, 12, '{place}')"

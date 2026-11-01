@@ -77,6 +77,7 @@ const SAVED: Saved = {
       next_step: null,
       at_top: false,
       unlock: null,
+      capped: false,
       load_kg: 22.5,
     },
   ],
@@ -964,29 +965,35 @@ test('an untimed save says nothing about time', async () => {
 test.each([
   [
     'an 8 kg kettlebell unlocks Holding 8 kg',
+    true,
     /top of the range on the last level your kit allows\. An 8 kg kettlebell unlocks Holding 8 kg\./,
   ],
-  [null, /top of the range on the last level of its ladder\./],
-])('the rule met with no level to move to says so (unlock %s)', async (unlock, text) => {
-  const progress: Kept = {
-    template_id: 3,
-    position: 3,
-    first: [],
-    sets: [],
-    saved: false,
-    revision: 1,
-  }
-  const earned = { ...SAVED.earned[0], best_set: null, total: null, at_top: true, unlock }
-  serve({ today: { session: SESSION, progress }, save: { ...SAVED, earned: [earned] } })
-  render(<SessionPage />)
-  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
-  click('Save session')
-  expect(await screen.findByText(text)).toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: /ready to move up/ })).not.toBeInTheDocument()
-  const kit = screen.queryByRole('link', { name: 'My equipment' })
-  expect(kit === null).toBe(unlock === null)
-  if (kit) expect(kit).toHaveAttribute('href', '/account#my-equipment')
-})
+  [null, false, /top of the range on the last level of its ladder\./],
+  // Harder steps above, every one locked otherwise: true, and never why (ADR-0083).
+  [null, true, /top of the range, with no open step above this one\./],
+])(
+  'the rule met with no level to move to says so (unlock %s, capped %s)',
+  async (unlock, capped, text) => {
+    const progress: Kept = {
+      template_id: 3,
+      position: 3,
+      first: [],
+      sets: [],
+      saved: false,
+      revision: 1,
+    }
+    const earned = { ...SAVED.earned[0], best_set: null, total: null, at_top: true, unlock, capped }
+    serve({ today: { session: SESSION, progress }, save: { ...SAVED, earned: [earned] } })
+    render(<SessionPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+    click('Save session')
+    expect(await screen.findByText(text)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /ready to move up/ })).not.toBeInTheDocument()
+    const kit = screen.queryByRole('link', { name: 'My equipment' })
+    expect(kit === null).toBe(unlock === null)
+    if (kit) expect(kit).toHaveAttribute('href', '/account#my-equipment')
+  },
+)
 
 test('the mobility item plays its flow and logs the minutes moved as its set', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true })

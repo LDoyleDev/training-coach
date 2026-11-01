@@ -8,7 +8,7 @@ Downgrade drops the away versions (plan data the seed writes; nothing refers to 
 refuses while any workout or guided-session progress was away: those are a person's records.
 
 Revision ID: a7c2e9f4b1d3
-Revises: d4f9b2a6e8c1
+Revises: e5a7c9d1f3b4
 Create Date: 2026-11-01 10:00:00.000000
 
 """
@@ -20,7 +20,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "a7c2e9f4b1d3"
-down_revision: str | Sequence[str] | None = "d4f9b2a6e8c1"
+down_revision: str | Sequence[str] | None = "e5a7c9d1f3b4"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

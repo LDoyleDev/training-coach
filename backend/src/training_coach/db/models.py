@@ -337,6 +337,10 @@ class UserSettings(Owned, Base):
         CheckConstraint("thigh_offset_cm BETWEEN 5 AND 30", name="thigh_offset_cm_range"),
         CheckConstraint(_in("body_fat_estimate", BodyFatEstimate), name="body_fat_estimate_valid"),
         CheckConstraint("extra_cardio_min BETWEEN 0 AND 600", name="extra_cardio_min_range"),
+        CheckConstraint(
+            "session_minutes IS NULL OR session_minutes IN (40, 30, 20)",
+            name="session_minutes_valid",
+        ),
         CheckConstraint(_in("places", Places), name="places_valid"),
         # The place Today starts at is never away: an away day is an exception (ADR-0086).
         CheckConstraint("place IN ('home', 'gym')", name="place_valid"),
@@ -397,6 +401,16 @@ class UserSettings(Owned, Base):
     talk_test: Mapped[bool] = mapped_column(Boolean, server_default=false())
     # The stop signs were shown before their first guided session (spec B7).
     stop_signs_seen: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # What the person would rather avoid (ADR-0083): each locks the ladder steps with that mark,
+    # as missing kit does (ADR-0071). Preferences, asked without a reason; nothing about why is
+    # stored, and neither Telegram nor the MCP read tools show them.
+    avoid_floor: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    avoid_kneeling: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    avoid_impact: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    avoid_hanging: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # Minutes per session (ADR-0082): every trimmable session runs at this length unless the
+    # day picks another; empty means as planned. The same 40, 30 or 20 as Short on time today.
+    session_minutes: Mapped[int | None] = mapped_column(Integer)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

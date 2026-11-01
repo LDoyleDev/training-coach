@@ -383,9 +383,11 @@ def _file(
         workout.block = BlockKind.HYPERTROPHY
     for entry in confirmed.entries:
         exercise = exercises[entry.slug]
-        step = blocks.step_for(session, exercise, strength)[0]
-        if workout.place == Place.AWAY:  # no equipment: a step that needs none (ADR-0086)
-            step = blocks.kit_free(exercise, step)
+        # The home kit locks nothing at a gym (ADR-0071); away, no kit at all (ADR-0086).
+        at_gym, away = workout.place == Place.GYM, workout.place == Place.AWAY
+        step = blocks.step_for(session, exercise, strength, at_gym=at_gym, away=away)[0]
+        if away:  # a step that needs none, for the day
+            step = blocks.kit_free(session, exercise, step)
         step_id = step.id
         done_at = {n: step for slug, n, step in confirmed.steps if slug == entry.slug}
         if done_at:  # only steps of the exercise's own ladder

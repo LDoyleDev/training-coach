@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import type { ItemLevel } from '../api'
 import { levelNote, nearby } from './levels'
 
-const rung = (id: number) => ({ id, name: `Step ${id}`, cue: null, missing: [] })
+const rung = (id: number) => ({ id, name: `Step ${id}`, cue: null, missing: [], avoided: [] })
 const ladder = [1, 2, 3, 4, 5].map(rung)
 const at = (step_id: number): ItemLevel => ({ step_id, for_today: false, ladder })
 
