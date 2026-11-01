@@ -1019,6 +1019,32 @@ test.each([
   },
 )
 
+test('the saved screen suggests a step down and links to the ladder (ADR-0084)', async () => {
+  const progress: Kept = {
+    template_id: 3,
+    position: 3,
+    first: [],
+    sets: [],
+    saved: false,
+    revision: 1,
+  }
+  const down = { step_id: 2, below: 'Bodyweight, full rest', easier: [] }
+  const earned = { ...SAVED.earned[0], best_set: null, total: null, step_down: down }
+  serve({ today: { session: SESSION, progress }, save: { ...SAVED, earned: [earned] } })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  click('Save session')
+  expect(
+    await screen.findByText(
+      /The bottom of the range was out of reach twice\. Try the step below\?/,
+    ),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Choose on the Plan tab' })).toHaveAttribute(
+    'href',
+    '/plan?move=jump-squat',
+  )
+})
+
 test('the mobility item plays its flow and logs the minutes moved as its set', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true })
   vi.setSystemTime(new Date('2026-10-20T16:00:00Z'))

@@ -63,6 +63,20 @@ export function topLabel(s: Standing): string | null {
 /** Said where every harder step is locked, as the server says it on every surface (ADR-0083). */
 export const NO_OPEN_STEP = 'no open step above this one'
 
+type StepDown = NonNullable<Standing['step_down']>
+
+/** The step-down suggestion in plain words (ADR-0084): what happened, then a question. At a
+ * ladder's first step there is nothing below, so it names easier exercises if there are any. */
+export function stepDownText(d: StepDown): string {
+  const seen = 'The bottom of the range was out of reach twice.'
+  if (d.below) return `${seen} Try the step below?`
+  const easier =
+    d.easier.length > 0
+      ? ` An easier exercise for the same muscles might suit: ${d.easier.join(' or ')}.`
+      : ''
+  return `${seen} This is the first step of its ladder, so there's no step below.${easier}`
+}
+
 export const WAITS =
   'Moving up waits for the hypertrophy block: this is a strength block. ' +
   'You can still choose a level by hand.'

@@ -71,6 +71,7 @@ import { duration, soFar, times, type SetTime } from './times'
 import useWakeLock from './useWakeLock'
 import { DEFAULT_SOUND, type Sound, playChange, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import { card, primary, primaryInline, secondary } from '../ui'
+import { moveHref, stepDownText } from '../plan/ladder'
 import { KIT_HREF } from '../account/kit'
 import { NO_OPEN_STEP } from '../plan/ladder'
 import { BREATHING, LAST_SET_LOCKED, lastSetTarget } from './safety'
@@ -985,6 +986,15 @@ export default function SessionPage() {
                     </>
                   )}
                   {e.at_top && <TopNote unlock={e.unlock} capped={e.capped} />}
+                  {e.step_down && (
+                    <>
+                      {' '}
+                      · {stepDownText(e.step_down)}{' '}
+                      <a href={moveHref(e.slug)} className="font-bold underline">
+                        Choose on the Plan tab
+                      </a>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

@@ -12,7 +12,7 @@ from training_coach.domain.progression import Progress
 from training_coach.domain.trim import WARM_UP_MINUTES, WarmUp
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
 from training_coach.services.guided import OPTIONS, Length, work_groups
-from training_coach.services.progress import NO_OPEN_STEP, Feedback, Standing
+from training_coach.services.progress import NO_OPEN_STEP, Down, Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.review import Review
 from training_coach.services.today import Day, ItemPlan, SessionPlan, Today
@@ -362,7 +362,19 @@ def feedback_text(items: list[Feedback]) -> str:
                 f"{item.exercise}: top of the range on the last level of its ladder. That's the "
                 "top for now: keep training at this level, or pick another one on the Plan tab."
             )
+        if item.down is not None:
+            lines.append(f"{item.exercise}: {step_down_text(item.down)}")
     return "\n".join(lines)
+
+
+def step_down_text(down: Down) -> str:
+    """The step-down suggestion in plain words (ADR-0084): observational, the person decides."""
+    if down.below is not None:
+        return f"the bottom of the range was out of reach twice. Try the step below, {down.below}?"
+    text = "the bottom of the range was out of reach twice, on the first step of its ladder."
+    if down.easier:
+        text += f" An easier exercise for the same muscles might suit: {' or '.join(down.easier)}."
+    return text
 
 
 PROGRESS_EMPTY = "No exercises in the plan yet."
@@ -399,6 +411,8 @@ def progress_text(standings: list[Standing]) -> str:
                 line += f". {NO_OPEN_STEP[0].upper()}{NO_OPEN_STEP[1:]}"
             else:
                 line += ". Top of the ladder"
+        if s.down is not None:
+            line += ". The bottom of the range was out of reach twice"
         lines.append(line)
     return "\n".join(_fit(lines, []))
 
@@ -454,6 +468,13 @@ def review_text(review: Review) -> str:
         lines += ["", f"Ready to move up when the hypertrophy block starts: {names}."]
     elif review.ready:
         lines += ["", f"Ready to move up: {names}. See /progress."]
+    if review.step_down:  # ADR-0084: a suggestion, the person decides
+        names = ", ".join(r.exercise for r in review.step_down)
+        lines += [
+            "",
+            f"The bottom of the range was out of reach twice: {names}. Try the step below? "
+            "See /progress.",
+        ]
     if review.top:  # reached the top this week (ADR-0078), as the web's review says it
         lines += ["", "At the top:"]
         for top in review.top:
