@@ -104,9 +104,6 @@ def test_a_step_named_for_a_band_needs_that_band(strength: str) -> None:
 # mover, done standing or seated, with at most a chair, a wall, a counter, a table, a door frame,
 # a band, bottles or a bag. Household things need no kit, so a band is the only kit allowed.
 OFF_THE_FLOOR = {Mark.FLOOR, Mark.KNEELING, Mark.HANGING}
-# No step planned: the spec's revised list keeps neck work lying down at level 3; the draft's
-# seated hand-resistance hold (B2) would pass. Liam's call.
-NO_WAY_IN_YET = {Muscle.NECK}
 
 
 def _ways_in() -> set[Muscle]:
@@ -128,8 +125,9 @@ def _ways_in() -> set[Muscle]:
 def test_every_muscle_has_a_way_in_at_level_1_or_2_standing_or_seated() -> None:
     """Since #508 (5ebed72122f7) the extended ladders give the rest theirs: the push-up from a
     wall (chest), the bottle curl (biceps), calf raises holding a wall (calves), the bag held
-    beside the counter (forearms, upper traps) and the side lean on a wall (obliques)."""
-    assert set(Muscle) - _ways_in() == NO_WAY_IN_YET
+    beside the counter (forearms, upper traps), the side lean on a wall (obliques) and the seated
+    hand-resistance hold (neck, Liam's call of 1 Nov 2026)."""
+    assert set(Muscle) - _ways_in() == set()
 
 
 def test_balance_counts_seconds_and_marks_every_step_without_a_hold() -> None:

@@ -147,6 +147,8 @@ PINNED = {
     ("goblet-squat", "Raised seat, hands push off"): (1, set()),
     ("goblet-squat", "Full depth"): (4, set()),
     ("zone2", "Easy walk, short bouts are fine"): (1, set()),
+    ("neck-flexion", "Seated, hand resistance, held"): (1, set()),
+    ("neck-lateral", "Seated, hand resistance, held"): (1, set()),
 }
 
 

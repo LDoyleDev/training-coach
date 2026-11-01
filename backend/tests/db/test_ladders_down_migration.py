@@ -1,4 +1,4 @@
-"""Ladders down (ADR-0083, #508): migration 5ebed72122f7 puts easier steps below twelve ladders
+"""Ladders down (ADR-0083, #508): migration 5ebed72122f7 puts easier steps below fifteen ladders
 and brings the goblet squat back as the Squat. Every step keeps its id, so levels, logged sets,
 a session in progress, a replaced workout and events still point at the same step; it stops
 before any write when the live ladders aren't as expected, and going back refuses once anything

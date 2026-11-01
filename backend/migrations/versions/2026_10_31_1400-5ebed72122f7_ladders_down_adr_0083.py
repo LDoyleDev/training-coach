@@ -1,4 +1,4 @@
-"""ladders down (ADR-0083): easier steps below the bottom of twelve ladders, the squat back
+"""ladders down (ADR-0083): easier steps below the bottom of fifteen ladders, the squat back
 
 ADR-0083 extends a ladder downward where the easier step is the same movement, so a person's
 progress and history stay on one exercise. The seed matches steps by position and only appends,
@@ -163,6 +163,27 @@ LADDERS: dict[str, tuple[tuple[str, ...], tuple[New, ...]]] = {
     "zone2": (
         ("Brisk walk / hike", "Easy jog / bike", "Easy jog with weight vest or backpack"),
         (New("Easy walk, short bouts are fine", 1),),
+    ),
+    # A seated way in for the neck (Liam, 1 Nov 2026): the head pressed into the hand and held.
+    "neck-flexion": (
+        (
+            "Bodyweight, slow",
+            "Hand resistance on forehead",
+            "Folded towel + light plate/bottle on forehead",
+        ),
+        (New("Seated, hand resistance, held", 1),),
+    ),
+    "neck-extension": (
+        (
+            "Bodyweight, slow",
+            "Hand resistance on back of head",
+            "Towel-wrapped light weight on back of head",
+        ),
+        (New("Seated, hand resistance, held", 1),),
+    ),
+    "neck-lateral": (
+        ("Bodyweight, slow", "Hand resistance on side of head", "Towel-wrapped light weight"),
+        (New("Seated, hand resistance, held", 1),),
     ),
 }
 # The pull-up's top step as b7e1c3d5f9a2 leaves it, before the seed renames it in place: a

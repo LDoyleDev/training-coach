@@ -693,12 +693,16 @@ kind = "reps"
 muscles = { neck = 1 }
 pattern = "isolation"
 aliases = ["neck flexion", "neck curl", "neck curls", "neck front"]
-start = 0
-ladder = ["Bodyweight, slow", "Hand resistance on forehead", "Folded towel + light plate/bottle on forehead"]
+start = 1
+ladder = ["Seated, hand resistance, held", "Bodyweight, slow", "Hand resistance on forehead", "Folded towel + light plate/bottle on forehead"]
+[exercises.cues]
+"Seated, hand resistance, held" = "Sit tall, palm on your forehead; push your head gently into your hand without moving, hold 5 s. Each hold is one rep."
 [exercises.questions]
+"Bodyweight, slow" = "Can you do 10 slow, pain-free neck lifts lying on your back, head off the edge?"
 "Hand resistance on forehead" = "Can you do 10 slow, pain-free neck lifts with your hand pressing lightly on your forehead?"
 "Folded towel + light plate/bottle on forehead" = "Can you do 10 slow, pain-free neck lifts with a light weight on a towel on your forehead?"
 [exercises.levels]
+"Seated, hand resistance, held" = 1
 "Bodyweight, slow" = 3
 "Hand resistance on forehead" = 4
 "Folded towel + light plate/bottle on forehead" = 5
@@ -712,12 +716,16 @@ muscles = { neck = 1 }
 qualities = ["posture"]
 pattern = "isolation"
 aliases = ["neck extension", "neck back", "neck extensions"]
-start = 0
-ladder = ["Bodyweight, slow", "Hand resistance on back of head", "Towel-wrapped light weight on back of head"]
+start = 1
+ladder = ["Seated, hand resistance, held", "Bodyweight, slow", "Hand resistance on back of head", "Towel-wrapped light weight on back of head"]
+[exercises.cues]
+"Seated, hand resistance, held" = "Sit tall, hands behind your head; push your head gently back into them without moving, hold 5 s. Each hold is one rep."
 [exercises.questions]
+"Bodyweight, slow" = "Can you do 10 slow, pain-free neck lifts lying face down, head off the edge?"
 "Hand resistance on back of head" = "Can you do 10 slow, pain-free neck lifts with your hand pressing lightly on the back of your head?"
 "Towel-wrapped light weight on back of head" = "Can you do 10 slow, pain-free neck lifts with a towel-wrapped light weight on the back of your head?"
 [exercises.levels]
+"Seated, hand resistance, held" = 1
 "Bodyweight, slow" = 3
 "Hand resistance on back of head" = 4
 "Towel-wrapped light weight on back of head" = 5
@@ -880,12 +888,16 @@ kind = "reps"
 muscles = { neck = 1 }
 pattern = "isolation"
 aliases = ["neck side", "neck lateral", "side neck"]
-start = 0
-ladder = ["Bodyweight, slow", "Hand resistance on side of head", "Towel-wrapped light weight"]
+start = 1
+ladder = ["Seated, hand resistance, held", "Bodyweight, slow", "Hand resistance on side of head", "Towel-wrapped light weight"]
+[exercises.cues]
+"Seated, hand resistance, held" = "Sit tall, palm on the side of your head above the ear; push gently into it without moving, hold 5 s. Each side."
 [exercises.questions]
+"Bodyweight, slow" = "Can you do 10 slow, pain-free side neck lifts on each side, lying on your side, head off the edge?"
 "Hand resistance on side of head" = "Can you do 10 slow, pain-free side neck lifts on each side with your hand pressing lightly?"
 "Towel-wrapped light weight" = "Can you do 10 slow, pain-free side neck lifts on each side with a towel-wrapped light weight?"
 [exercises.levels]
+"Seated, hand resistance, held" = 1
 "Bodyweight, slow" = 3
 "Hand resistance on side of head" = 4
 "Towel-wrapped light weight" = 5
