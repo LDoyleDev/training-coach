@@ -29,6 +29,7 @@ const LEGS: Guided = {
       pair: null,
       targets: [6],
       baseline: false,
+      no_kit: false,
       muscles: [],
       parts: [],
     },

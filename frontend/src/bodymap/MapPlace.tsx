@@ -1,6 +1,6 @@
 import type { Place } from '../api'
 
-const NAMES: Record<Place, string> = { home: 'Home', gym: 'Gym' }
+const NAMES: Record<'home' | 'gym', string> = { home: 'Home', gym: 'Gym' }
 
 const option = (on: boolean) =>
   'min-h-11 w-full rounded-xl border-2 px-4 font-bold ' +

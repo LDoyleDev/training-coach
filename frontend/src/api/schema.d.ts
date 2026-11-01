@@ -1412,10 +1412,10 @@ export interface paths {
         get?: never;
         /**
          * Choose Place
-         * @description Do today's session at home or at the gym (ADR-0071): the person's switch, never the
-         *     app's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when
-         *     sets are kept for the version shown (ask, then confirm), or with a ``detail`` message when
-         *     today has no choice to make.
+         * @description Do today's session at home, at the gym or away with no equipment (ADR-0071, ADR-0086):
+         *     the person's switch, never the app's. 409 with ``kept_sets`` at the top of the body (a
+         *     PlaceAsk, as the API types say) when sets are kept for the version shown (ask, then
+         *     confirm), or with a ``detail`` message when today has no choice to make or not that one.
          */
         put: operations["choose_place_api_session_place_put"];
         post?: never;
@@ -2390,6 +2390,8 @@ export interface components {
              * @default false
              */
             place_choice: boolean;
+            /** Places */
+            places?: components["schemas"]["Place"][];
             /** Rest Seconds */
             rest_seconds: number;
             /** Template Id */
@@ -2645,6 +2647,11 @@ export interface components {
             muscles: components["schemas"]["ItemMuscleView"][];
             /** Name */
             name: string;
+            /**
+             * No Kit
+             * @default false
+             */
+            no_kit: boolean;
             /** Pair */
             pair: number | null;
             /** Parts */
@@ -3328,11 +3335,11 @@ export interface components {
         };
         /**
          * Place
-         * @description Where a workout is done (ADR-0071): at home, with the person's own kit, or at a gym,
-         *     which has everything. A session can hold a version for each.
+         * @description Where a workout is done (ADR-0071): at home, with the person's own kit, at a gym, which
+         *     has everything, or away with no equipment (ADR-0086). A session can hold a version for each.
          * @enum {string}
          */
-        Place: "home" | "gym";
+        Place: "home" | "gym" | "away";
         /**
          * PlaceAsk
          * @description The answer to a switch with sets kept: ask first, then send it again with confirm.

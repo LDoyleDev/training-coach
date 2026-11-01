@@ -3,7 +3,7 @@
 from datetime import date
 
 from training_coach.domain.blocks import WEEKS
-from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.habits import LABELS as HABIT_LABELS
 from training_coach.domain.habits import WEEK_DAYS
 from training_coach.domain.load import kg_text, weights_text
@@ -32,6 +32,12 @@ STALE = "That message is out of date. Send /today for the current session."
 UNIT = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: "s", ExerciseKind.DURATION_MIN: " min"}
 WORK_DOWN = "Work down the list, alternating the two exercises of each pair."
 FILL_IN = "Copy the list, put in what you did and send it back to log it."
+# Where the day's version is done (ADR-0071, ADR-0086); home is the plan as it stands.
+PLACE_LINES = {
+    Place.GYM: "At the gym: its gym version.",
+    Place.AWAY: "Away, no equipment: its no-equipment version.",
+}
+NO_KIT = "No-equipment step today for {names}: your level stays as it is."
 
 
 def work_list(items: tuple[ItemPlan, ...]) -> list[str]:
@@ -118,6 +124,16 @@ def _length(plan: SessionPlan, length: Length | None) -> list[str]:
     return [about if length.fixed else f"{about} {SHORT_ON_TIME}"]
 
 
+def _place(plan: SessionPlan) -> list[str]:
+    """The place the day's version is done at, and the exercises trained below the person's
+    level for want of kit (ADR-0086). Nothing at home."""
+    lines = [PLACE_LINES[plan.place]] if plan.place in PLACE_LINES else []
+    names = [item.exercise for item in plan.items if item.no_kit and item.targets]
+    if names:
+        lines.append(NO_KIT.format(names=_joined(names)))
+    return lines
+
+
 def _baseline(items: tuple[ItemPlan, ...]) -> list[str]:
     """A line naming the exercises whose targets this session sets (ADR-0034)."""
     names = [item.exercise for item in items if item.baseline and item.targets]
@@ -130,7 +146,7 @@ def today_text(today: Today, length: Length | None = None) -> str:
     """The morning message and /today. ``length`` is the day's (ADR-0082), with
     ``today.session`` already cut to it: a dropped exercise has no targets."""
     session = today.session
-    lines = [f"Today: {session.name}", session.focus]
+    lines = [f"Today: {session.name}", session.focus, *_place(session)]
     if today.block is not None:
         lines.append(f"Week {today.block.week} of {WEEKS}, {today.block.kind} block.")
     lines += _length(session, length)
@@ -183,7 +199,7 @@ def week_text(days: list[Day]) -> str:
 def session_detail_text(plan: SessionPlan, length: Length | None = None) -> str:
     """Everything needed to train: the cues, then every set in the order it's done (#97).
     ``length`` as in ``today_text``: on a shortened day, what went."""
-    lines = [f"{plan.name}: {plan.focus}"]
+    lines = [f"{plan.name}: {plan.focus}", *_place(plan)]
     lines += _shortened(plan, length)
     cues = [
         f"- {item.exercise}: {' '.join(part for part in (item.summary, item.cue) if part)}"

@@ -43,7 +43,7 @@ from training_coach.services import blocks, day_clash, undo, user_settings, user
 from training_coach.services.blocks import load_kit, loadable
 from training_coach.services.day_clash import Clash, Refused, Resolution, Resolved
 from training_coach.services.groq import Rewrite
-from training_coach.services.today import position
+from training_coach.services.today import away_on, position
 
 EXTRA = "Extra session"
 REST_WORD = re.compile(r"\brest\b", re.IGNORECASE)
@@ -383,8 +383,12 @@ def _file(
         workout.block = BlockKind.HYPERTROPHY
     for entry in confirmed.entries:
         exercise = exercises[entry.slug]
-        at_gym = workout.place != Place.HOME  # the home kit locks nothing there (ADR-0071)
-        step_id = blocks.step_for(session, exercise, strength, at_gym=at_gym)[0].id
+        # The home kit locks nothing at a gym (ADR-0071); away, no kit at all (ADR-0086).
+        at_gym, away = workout.place == Place.GYM, workout.place == Place.AWAY
+        step = blocks.step_for(session, exercise, strength, at_gym=at_gym, away=away)[0]
+        if away:  # a step that needs none, for the day
+            step = blocks.kit_free(session, exercise, step)
+        step_id = step.id
         done_at = {n: step for slug, n, step in confirmed.steps if slug == entry.slug}
         if done_at:  # only steps of the exercise's own ladder
             own = {s.id for s in exercise.ladder}
@@ -480,10 +484,13 @@ def _commit(
 
 
 def _place(session: Session, confirmed: Draft) -> Place:
-    """Where a log was done: the draft's place, else the day's (ADR-0071), and for a planned
-    session the place of the version done there: home when it has no gym version."""
+    """Where a log was done: the draft's place, else the day's (ADR-0071; away when the day was
+    chosen as away, ADR-0086), and for a planned session the place of the version done there:
+    home when it has no version for that place."""
     if confirmed.place is not None:
         at = confirmed.place
+    elif away_on(session, confirmed.on):
+        at = Place.AWAY
     else:
         prefs = user_settings.load(session)
         at = day_place(prefs.places, prefs.place)

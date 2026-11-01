@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import Exercise, LadderStep, SetLog
 from training_coach.domain import locks
+from training_coach.domain.enums import Place
 from training_coach.services import guided, progress, step_locks, users
 from training_coach.services.progress import Rung
 
@@ -35,10 +36,13 @@ class Changed:
     warning: str | None  # the chosen step is locked (kit, or what they avoid): chosen anyway
 
 
-def ladders(session: Session, slugs: Iterable[str]) -> dict[str, tuple[Rung, ...]]:
+def ladders(
+    session: Session, slugs: Iterable[str], *, away: bool = False
+) -> dict[str, tuple[Rung, ...]]:
     """Each exercise's ladder, easiest first, with why each step is locked (ADR-0071, ADR-0083),
-    for the exercises that have more than one step: the others have no level to change."""
-    limits = step_locks.limits(session)
+    for the exercises that have more than one step: the others have no level to change.
+    ``away``: with no equipment, every step that needs kit lacks it (ADR-0086)."""
+    limits = step_locks.limits(session, away=away)
     found = session.scalars(
         select(Exercise).where(Exercise.slug.in_(set(slugs))).options(selectinload(Exercise.ladder))
     )
@@ -90,7 +94,7 @@ def change(
         for s in row.sets
     ]
     if scope is Scope.TODAY:
-        warning = step_locks.warning(session, step)
+        warning = step_locks.warning(session, step, away=plan.place is Place.AWAY)
     else:
         moved = progress.set_level(session, exercise.id, step.id)
         warning = moved.warning if moved is not None else None
