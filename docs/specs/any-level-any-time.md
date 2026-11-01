@@ -320,11 +320,10 @@ Builder H's flow, with what the research adds (Part 3, Implications; Part 2, Scr
 
 ### B7. Stop signs and heart rate
 
-- **Stop signs,** before the first session and one tap away in the guided session: chest, jaw or
-  arm pain or pressure, dizziness or fainting, unusual breathlessness, or palpitations with any
-  of these mean stop and get help (call 112 if it doesn't settle); sharp joint pain means stop
-  and try an easier step; very dark urine after a hard session means see a doctor (Part 2,
-  Stop signs; the wording needs checking by a clinician).
+- **Stop signs,** before the first session and one tap away in the guided session, with one
+  reminder line on every session and test day. The wording lives in
+  `frontend/src/session/safety.ts`; its sources are research Part 2 (Stop signs) and Part 5 (the
+  European wording review, 1 Nov 2026). It needs checking by a clinician.
 - **"Use the talk test, not heart-rate zones"** (decided, ADR-0083 and ADR-0085: named neutrally
   and asked without a reason; it suits people whose heart rate is slowed by medicine or paced,
   which the app doesn't ask about): the cardio zones then show the talk test instead (ICFSR
