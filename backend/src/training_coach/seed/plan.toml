@@ -242,13 +242,13 @@ renames = { "Heavier kettlebell" = "Two-hand, 16 kg" }
 
 [[exercises]]
 slug = "bulgarian-split-squat"
-name = "Bulgarian split squat"
+name = "Split squat"
 summary = "Back foot on a chair, front foot far enough forward that the knee stays over the foot. Lower until the back knee nearly touches the floor, then drive up through the front heel."
 kind = "reps"
 muscles = { quads = 1, glutes = 1, adductors = 0.5 }
 pattern = "lunge"
 stress = ["spine"]
-aliases = ["split squat", "bulgarian", "bss"]
+aliases = ["Bulgarian split squat", "bulgarian", "bss"]
 start = 3
 ladder = ["Holding a chair, short range", "Holding a chair, full range", "Back foot on a low step", "Bodyweight, back foot on chair", "Goblet hold, 8 kg", "Goblet hold, 3 s lowering", "Goblet hold, 16 kg", "Goblet hold 16 kg, 3 s lowering", "Suitcase hold, 16 kg + 8 kg"]
 renames = { "Heavier kettlebell" = "Goblet hold, 16 kg" }
@@ -285,7 +285,8 @@ renames = { "Heavier kettlebell" = "Goblet hold, 16 kg" }
 "Goblet hold 16 kg, 3 s lowering" = 6
 "Suitcase hold, 16 kg + 8 kg" = 6
 [exercises.marks]
-"Back foot on a low step" = ["balance"]
+"Holding a chair, full range" = ["knees"]
+"Back foot on a low step" = ["balance", "knees"]
 "Bodyweight, back foot on chair" = ["balance", "knees"]
 "Goblet hold, 8 kg" = ["balance", "knees"]
 "Goblet hold, 3 s lowering" = ["balance", "knees"]
@@ -383,12 +384,12 @@ ladder = ["Towel slide, both legs", "Towel slide, single leg", "Nordic curl nega
 
 [[exercises]]
 slug = "calf-raise"
-name = "Single-leg calf raise"
+name = "Calf raise"
 summary = "Ball of one foot on a step, heel hanging. Rise as high as you can, pause, then lower below the step."
 kind = "reps"
 muscles = { calves = 1 }
 pattern = "isolation"
-aliases = ["calf raise", "calves", "calf raises"]
+aliases = ["Single-leg calf raise", "calves", "calf raises"]
 start = 2
 ladder = ["Both legs, hands on a wall", "Both legs, on a step", "Bodyweight on a step", "Holding 8 kg", "8 kg, 2 s pause at top"]
 failure_ok = true
@@ -502,12 +503,12 @@ renames = { "Weighted backpack" = "Feet off floor, 5 kg vest or backpack" }
 
 [[exercises]]
 slug = "kb-row"
-name = "One-arm kettlebell row"
-summary = "One hand and knee on a bench or bed, back flat. Pull the kettlebell to your hip, pause, and lower with control."
+name = "One-arm row"
+summary = "One hand and knee on a bench or bed, back flat. Pull the weight to your hip, pause, and lower with control."
 kind = "reps"
 muscles = { "upper back" = 1, lats = 1, biceps = 0.5, "rear delts" = 0.5 }
 pattern = "horizontal pull"
-aliases = ["row", "rows", "kb row"]
+aliases = ["One-arm kettlebell row", "row", "rows", "kb row"]
 start = 1
 ladder = ["A bag, about 4 kg", "8 kg", "8 kg, 3 s lowering", "16 kg", "16 kg, 3 s lowering", "16 kg, pause at top"]
 renames = { "Heavier kettlebell" = "16 kg" }
@@ -693,16 +694,17 @@ ladder = ["A bag, 1-3 kg, standing at the counter", "A bag, 1-3 kg, walking alon
 
 [[exercises]]
 slug = "neck-flexion"
-name = "Neck flexion (lying on back, head off edge)"
+name = "Neck flexion"
 summary = "Lie on your back with your head off the edge of a bed or bench. Tuck your chin and lift your head slowly, then lower just as slowly. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
 muscles = { neck = 1 }
 pattern = "isolation"
-aliases = ["neck flexion", "neck curl", "neck curls", "neck front"]
+aliases = ["Neck flexion (lying on back, head off edge)", "neck curl", "neck curls", "neck front"]
 start = 1
 ladder = ["Seated, hand resistance, held", "Bodyweight, slow", "Hand resistance on forehead", "Folded towel + light plate/bottle on forehead"]
 [exercises.cues]
 "Seated, hand resistance, held" = "Sit tall, palm on your forehead; push your head gently into your hand without moving, hold 5 s. Each hold is one rep."
+"Bodyweight, slow" = "Lie on your back, head off the edge of a bed or bench; tuck your chin and lift your head slowly."
 [exercises.questions]
 "Bodyweight, slow" = "Can you do 10 slow, pain-free neck lifts lying on your back, head off the edge?"
 "Hand resistance on forehead" = "Can you do 10 slow, pain-free neck lifts with your hand pressing lightly on your forehead?"
@@ -715,17 +717,18 @@ ladder = ["Seated, hand resistance, held", "Bodyweight, slow", "Hand resistance 
 
 [[exercises]]
 slug = "neck-extension"
-name = "Neck extension (lying face down, head off edge)"
+name = "Neck extension"
 summary = "Lie face down with your head off the edge. Lift your head to neutral and a little beyond, slowly, then lower. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
 muscles = { neck = 1 }
 qualities = ["posture"]
 pattern = "isolation"
-aliases = ["neck extension", "neck back", "neck extensions"]
+aliases = ["Neck extension (lying face down, head off edge)", "neck back", "neck extensions"]
 start = 1
 ladder = ["Seated, hand resistance, held", "Bodyweight, slow", "Hand resistance on back of head", "Towel-wrapped light weight on back of head"]
 [exercises.cues]
 "Seated, hand resistance, held" = "Sit tall, hands behind your head; push your head gently back into them without moving, hold 5 s. Each hold is one rep."
+"Bodyweight, slow" = "Lie face down, head off the edge of a bed or bench; lift your head to neutral and a little beyond, slowly."
 [exercises.questions]
 "Bodyweight, slow" = "Can you do 10 slow, pain-free neck lifts lying face down, head off the edge?"
 "Hand resistance on back of head" = "Can you do 10 slow, pain-free neck lifts with your hand pressing lightly on the back of your head?"
@@ -827,12 +830,12 @@ renames = { "Heavier kettlebell" = "8 kg, 1.5 reps" }
 
 [[exercises]]
 slug = "kb-curl"
-name = "Kettlebell curl"
-summary = "Stand tall, elbows pinned to your sides. Curl the kettlebell up, squeeze, then lower over about two seconds."
+name = "Curl"
+summary = "Stand tall, elbows pinned to your sides. Curl the weight up, squeeze, then lower over about two seconds."
 kind = "reps"
 muscles = { biceps = 1, forearms = 0.25 }
 pattern = "isolation"
-aliases = ["curls", "curl", "bicep curls"]
+aliases = ["Kettlebell curl", "curls", "bicep curls"]
 start = 2
 ladder = ["Water bottles, about 1 kg", "A bag, 2-4 kg", "8 kg", "8 kg, slow tempo", "8 kg, 3 s lowering, pause at top", "16 kg, hammer grip", "16 kg, slow tempo"]
 failure_ok = true
@@ -867,12 +870,12 @@ renames = { "Heavier kettlebell" = "8 kg, 3 s lowering, pause at top" }
 
 [[exercises]]
 slug = "lateral-raise"
-name = "Kettlebell lateral raise"
+name = "Lateral raise"
 summary = "Slight bend in the elbows. Raise the weight out to the side to shoulder height, leading with the elbow, then lower slowly."
 kind = "reps"
 muscles = { "side delts" = 1 }
 pattern = "isolation"
-aliases = ["lateral raises", "laterals", "side raises"]
+aliases = ["Kettlebell lateral raise", "lateral raises", "laterals", "side raises"]
 start = 1
 ladder = ["Seated, water bottles", "8 kg or water bottles", "Lean-away single-arm"]
 failure_ok = true
@@ -888,16 +891,17 @@ failure_ok = true
 
 [[exercises]]
 slug = "neck-lateral"
-name = "Neck side bend (lying on side, head off edge)"
+name = "Neck side bend"
 summary = "Lie on your side with your head off the edge. Lift your ear towards your shoulder slowly, then lower; do both sides. Small, slow and pain-free; skip it with a neck injury."
 kind = "reps"
 muscles = { neck = 1 }
 pattern = "isolation"
-aliases = ["neck side", "neck lateral", "side neck"]
+aliases = ["Neck side bend (lying on side, head off edge)", "neck side", "neck lateral", "side neck"]
 start = 1
 ladder = ["Seated, hand resistance, held", "Bodyweight, slow", "Hand resistance on side of head", "Towel-wrapped light weight"]
 [exercises.cues]
 "Seated, hand resistance, held" = "Sit tall, palm on the side of your head above the ear; push gently into it without moving, hold 5 s. Each side."
+"Bodyweight, slow" = "Lie on your side, head off the edge of a bed or bench; lift your ear towards your shoulder slowly. Each side."
 [exercises.questions]
 "Bodyweight, slow" = "Can you do 10 slow, pain-free side neck lifts on each side, lying on your side, head off the edge?"
 "Hand resistance on side of head" = "Can you do 10 slow, pain-free side neck lifts on each side with your hand pressing lightly?"
@@ -2421,6 +2425,7 @@ ladder = ["Raised seat, hands push off", "Sit to stand, hands push off", "Sit to
 "To a chair, holding a backpack" = "A backpack with a few books, hugged to your chest; touch the seat and stand. Fast up, slow down."
 "Full depth" = "No chair: as deep as your back stays flat, heels down. Fast up, slow down."
 "8 kg, 3 s lowering" = "Kettlebell held by the horns at your chest; three seconds down."
+"Heavier kettlebell" = "A 16 kg kettlebell held by the horns at your chest."
 [exercises.questions]
 "Sit to stand, hands push off" = "Can you stand up from a chair 3 times, pushing off with your hands?"
 "Sit to stand, hands on thighs" = "Can you stand up from a chair 3 times with your hands on your thighs?"
@@ -2445,6 +2450,7 @@ ladder = ["Raised seat, hands push off", "Sit to stand, hands push off", "Sit to
 "1.5-rep squats, 8 kg" = 5
 "Heavier kettlebell" = 5
 [exercises.marks]
+"Full depth" = ["knees"]
 "8 kg, 3 s lowering" = ["knees"]
 "1.5-rep squats, 8 kg" = ["knees"]
 "Heavier kettlebell" = ["knees"]
