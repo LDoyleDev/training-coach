@@ -118,15 +118,17 @@ def step_down(
     planned: Sequence[int | None] | None = None,
     skipped: Sequence[bool] | None = None,
     loaded: bool = False,
+    failure_sets: Sequence[int | None] | None = None,
 ) -> StepDown:
     """Suggest the step below when the last two sessions judged (``judged_sessions``) both had
     the bottom of the range out of reach (``out_of_reach``). ``recent`` is every session at the
     step, newest first, with the weaker side of a one-sided set (``combine_sides``); ``planned``
-    the sets each planned (ADR-0084); ``pace`` gives the targets they were given (ADR-0057). A
-    loaded step never: the weight is what to lower (ADR-0072)."""
+    the sets each planned and ``failure_sets`` each one's last set to failure (ADR-0084); ``pace``
+    gives the targets they were given (ADR-0057). A loaded step never: the weight is what to
+    lower (ADR-0072)."""
     if loaded:
         return StepDown.NONE
-    sessions = judged(item, recent, pace, planned)
+    sessions = judged(item, recent, pace, planned, failure_sets)
     latest = judged_sessions(len(recent), skipped)[:SESSIONS_REQUIRED]
     if len(latest) < SESSIONS_REQUIRED or not all(out_of_reach(item, *sessions[i]) for i in latest):
         return StepDown.NONE
