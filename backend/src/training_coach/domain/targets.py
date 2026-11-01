@@ -126,20 +126,19 @@ def _performed(item: Prescription, values: Sequence[int], planned: int | None) -
     return done + [min(done)] * (count - len(done))
 
 
-def targets(
+def _replay(
     item: Prescription,
     history: Sequence[Sequence[int]],
-    pace: Pace = Pace.STANDARD,
-    planned: Sequence[int | None] | None = None,
-    failure_sets: Sequence[int | None] | None = None,
-) -> tuple[int, ...]:
-    """Target value per planned set at the person's ``pace``. ``history`` holds every
-    session's per-set values at this ladder step, newest first (as ``progression.assess``
-    takes them); ``planned``, in the same order, the sets each one planned, and
-    ``failure_sets`` the set each one ran to as many good reps as it could (ADR-0084)."""
+    pace: Pace,
+    planned: Sequence[int | None] | None,
+    failure_sets: Sequence[int | None] | None,
+) -> tuple[list[tuple[tuple[int, ...], tuple[int, ...]]], tuple[int, ...]]:
+    """Each session's targets and what it did, as performed, oldest first; then the next
+    session's targets."""
     given = [item.rep_min] * item.sets
     misses = [0] * item.sets
     reached = 0  # the most sets a session has planned so far
+    sessions = []
     counts = planned_counts(history, planned)
     fails = failure_counts(history, failure_sets)
     for values, count, fail in zip(
@@ -156,6 +155,7 @@ def targets(
         # targets grow from what was done instead of jumping to the bottom (ADR-0027).
         given[reached : len(done)] = done[reached:]
         reached = max(reached, len(done))
+        sessions.append((tuple(given[: len(done)]), tuple(done)))
         for n, value in enumerate(done):
             if value >= given[n]:
                 given[n], misses[n] = _cap(value + step(item, pace), item), 0
@@ -169,4 +169,32 @@ def targets(
             dropped = item.sets - len(done)
             given[len(done) :] = [given[len(done) - 1]] * dropped
             misses[len(done) :] = [0] * dropped
-    return tuple(given)
+    return sessions, tuple(given)
+
+
+def targets(
+    item: Prescription,
+    history: Sequence[Sequence[int]],
+    pace: Pace = Pace.STANDARD,
+    planned: Sequence[int | None] | None = None,
+    failure_sets: Sequence[int | None] | None = None,
+) -> tuple[int, ...]:
+    """Target value per planned set at the person's ``pace``. ``history`` holds every
+    session's per-set values at this ladder step, newest first (as ``progression.assess``
+    takes them); ``planned``, in the same order, the sets each one planned, and
+    ``failure_sets`` the set each one ran to as many good reps as it could (ADR-0084)."""
+    return _replay(item, history, pace, planned, failure_sets)[1]
+
+
+def judged(
+    item: Prescription,
+    history: Sequence[Sequence[int]],
+    pace: Pace = Pace.STANDARD,
+    planned: Sequence[int | None] | None = None,
+    failure_sets: Sequence[int | None] | None = None,
+) -> list[tuple[tuple[int, ...], tuple[int, ...]]]:
+    """Per session of ``history``, newest first as given: the targets it was given and its
+    values as the targets read them, one per set it planned (missing sets from the weakest
+    logged, capped at the top, a last set to failure at its target counted as met). A set's
+    baseline was given what it did, so it never misses."""
+    return list(reversed(_replay(item, history, pace, planned, failure_sets)[0]))

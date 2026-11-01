@@ -10,6 +10,11 @@ Steps lock by kit (ADR-0071) and by what the person has chosen to avoid (ADR-008
 ``step_locks``): Move up goes to the next open step; past the last one the exercise is at the top
 of its open steps, and ``unlock`` names the kit that opens the next, when kit can. A locked level
 can still be chosen by hand, with a warning.
+
+Stepping down is suggested, never done for the person (ADR-0084): ``Down`` says when the bottom of
+the range was out of reach twice; ``step_down`` applies the step below as a by-hand change once
+the rule is checked again, and ``not_yet_down`` dismisses the suggestion until a new session at
+the step meets the rule again.
 """
 
 from collections.abc import Sequence
@@ -35,10 +40,20 @@ from training_coach.domain.blocks import BlockKind, history_kind
 from training_coach.domain.enums import ExerciseKind, Place, Places, Side, WorkoutStatus
 from training_coach.domain.load import top_weight
 from training_coach.domain.locks import Limits
-from training_coach.domain.progression import Progress, assess, combine_sides
+from training_coach.domain.muscles import Muscle
+from training_coach.domain.progression import (
+    Catalogued,
+    Progress,
+    StepDown,
+    assess,
+    combine_sides,
+    easier_exercises,
+    judged_sessions,
+)
+from training_coach.domain.progression import step_down as step_down_rule
 from training_coach.domain.queue import local_date
 from training_coach.domain.records import NewBests, new_bests
-from training_coach.domain.targets import Prescription
+from training_coach.domain.targets import Pace, Prescription
 from training_coach.services import blocks, step_locks, user_settings, users
 from training_coach.services.seed import bundled_plan
 
@@ -47,6 +62,21 @@ TOP_NOTED = "progress.top_of_ladder"
 NO_OPEN_STEP = "no open step above this one"
 NO_LIMITS = Limits()  # nothing listed, nothing avoided: no step locks
 LEVEL_SET = "progress.level_set"
+NOT_YET_DOWN = "progress.not_yet_down"  # a step-down suggestion dismissed (ADR-0084)
+# Each Not yet to a step down: (exercise id, step id, newest session the rule judged then)
+Dismissals = frozenset[tuple[int, int, int | None]]
+DISMISSAL_KEYS = ("exercise_id", "step_id", "workout_id")
+
+
+@dataclass(frozen=True)
+class Down:
+    """The bottom of the range out of reach twice (ADR-0084): the step below to suggest, or at a
+    ladder's first step (or with every step below locked by the kit) none, and the catalogue's
+    easier exercises for the same muscles. Only a suggestion: the person decides."""
+
+    step_id: int  # the step judged: Step down and Not yet send it back
+    below: str | None  # the step below's name; None when there is none
+    easier: tuple[str, ...] = ()  # with no step below: level 1-2 exercises sharing a prime mover
 
 
 @dataclass(frozen=True)
@@ -67,6 +97,7 @@ class Feedback:
     # At the top with harder steps above, every one locked (kit, or what the person avoids):
     # said as "no open step above this one", never why (ADR-0083)
     capped: bool = False
+    down: Down | None = None  # the step below, suggested (ADR-0084)
 
 
 class MoveOutcome(StrEnum):
@@ -78,6 +109,9 @@ class MoveOutcome(StrEnum):
     STAYED = "stayed"  # Not yet, recorded
     LEVEL_SET = "level_set"  # put on a step by hand (ADR-0075)
     SAME_LEVEL = "same_level"  # already on that step: nothing to do
+    STEPPED_DOWN = "stepped_down"  # the step below, chosen from the suggestion (ADR-0084)
+    NO_STEP_BELOW = "no_step_below"  # the first step, or every step below is locked
+    STAYED_DOWN = "stayed_down"  # Not yet to a step down, recorded
 
 
 @dataclass(frozen=True)
@@ -250,6 +284,107 @@ def _below_top(step: LadderStep) -> bool:
     return at < len(ladder) - 1
 
 
+def _step_below(step: LadderStep, limits: Limits) -> LadderStep | None:
+    """The nearest open step below: a step down skips the locked ones (ADR-0084)."""
+    ladder, at = _at(step)
+    found = locks.previous_open(step_locks.ladder(step.exercise), at, limits)
+    return ladder[found] if found is not None else None
+
+
+def _skipped(session: Session, slug: str, step_id: int, workout_ids: Sequence[int]) -> list[bool]:
+    """Per workout, in the order given: whether the step-down rule passes it over (ADR-0084), a
+    strength-block session or one that did ``slug`` at ``step_id`` for today only (ADR-0080)."""
+    query = select(Workout.id, Workout.block, Workout.planned).where(Workout.id.in_(workout_ids))
+    found = {w: (block, planned) for w, block, planned in session.execute(query)}
+    skipped = []
+    for workout_id in workout_ids:
+        block, planned = found.get(workout_id, (None, None))
+        entry = (planned or {}).get(slug)
+        today = entry.get("today") if isinstance(entry, dict) else None
+        skipped.append(block == BlockKind.STRENGTH or today == step_id)
+    return skipped
+
+
+def _down_rule(
+    session: Session, item: TemplateItem, step: LadderStep, limits: Limits, pace: Pace
+) -> tuple[StepDown, int | None]:
+    """The step-down rule for one prescription, and the newest session it judged (what a Not
+    yet dismisses), None when it judged none."""
+    if blocks.load_kit(step.exercise.slug, step.name) is not None:
+        return StepDown.NONE, None  # the weight is what to lower (ADR-0072)
+    block = history_kind(ExerciseKind(item.exercise.kind), BlockKind.HYPERTROPHY)
+    done = sessions_at_step(session, step.exercise_id, step.id, item.per_side, block)
+    ids = [w for w, _ in done]
+    skipped = _skipped(session, step.exercise.slug, step.id, ids)
+    found = step_down_rule(
+        _prescription(item),
+        [v for _, v in done],
+        has_step_below=_step_below(step, limits) is not None,
+        pace=pace,
+        planned=planned_sets(session, step.exercise.slug, ids),
+        skipped=skipped,
+        failure_sets=failure_sets(session, step.exercise.slug, ids),
+    )
+    latest = judged_sessions(len(ids), skipped)
+    return found, ids[latest[0]] if latest else None
+
+
+def dismissals(session: Session) -> Dismissals:
+    """Every Not yet to a step down, read once per call that judges many exercises
+    (``overview``, ``feedback``) rather than once per exercise."""
+    found: set[tuple[int, int, int | None]] = set()
+    for p in session.scalars(select(Event.payload).where(Event.kind == NOT_YET_DOWN)):
+        if isinstance(p, dict):
+            exercise_id, step_id, workout_id = (p.get(k) for k in DISMISSAL_KEYS)
+            if isinstance(exercise_id, int) and isinstance(step_id, int):
+                judged = workout_id if isinstance(workout_id, int) else None
+                found.add((exercise_id, step_id, judged))
+    return frozenset(found)
+
+
+def easier(slug: str) -> tuple[str, ...]:
+    """The bundled catalogue's exercises starting at level 1 or 2 that share a prime mover with
+    ``slug``, for a ladder's first step (ADR-0083, ADR-0084)."""
+    plan = bundled_plan().exercises
+    mine = next((e for e in plan if e.slug == slug), None)
+    if mine is None:
+        return ()
+    catalogue = [
+        Catalogued(e.name, _primes(e.muscles), e.levels.get(e.ladder[0]))
+        for e in plan
+        if e.slug != slug and not e.retired
+    ]
+    return tuple(easier_exercises(_primes(mine.muscles), catalogue))
+
+
+def _primes(muscles: dict[Muscle, float]) -> frozenset[str]:
+    return frozenset(m for m, weight in muscles.items() if weight == 1)
+
+
+def down(
+    session: Session,
+    items: Sequence[TemplateItem],
+    step: LadderStep,
+    limits: Limits,
+    dismissed: Dismissals | None = None,
+) -> Down | None:
+    """The step-down suggestion for the exercise on ``step``, under any of its prescriptions;
+    None when the rule isn't met, or a Not yet dismissed it for the session it last judged.
+    ``dismissed``: the ``dismissals`` already read, when judging many exercises."""
+    pace = user_settings.load(session).pace
+    if dismissed is None:
+        dismissed = dismissals(session)
+    for item in items:
+        found, latest = _down_rule(session, item, step, limits, pace)
+        if found is StepDown.NONE or (step.exercise_id, step.id, latest) in dismissed:
+            continue
+        below = _step_below(step, limits)
+        if below is not None:
+            return Down(step.id, below.name)
+        return Down(step.id, None, easier(step.exercise.slug))
+    return None
+
+
 def _status(
     session: Session, item: TemplateItem | None, step: LadderStep, limits: Limits = NO_LIMITS
 ) -> Progress:
@@ -334,6 +469,7 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
     # Move up is still a lasting change at home (ADR-0086). What the person avoids applies
     # anywhere (ADR-0083).
     limits = step_locks.limits(session, at_gym=workout.place == Place.GYM)
+    dismissed = dismissals(session)
     result = []
     for exercise_id, step_id in logged:
         exercise = session.get(Exercise, exercise_id)
@@ -357,6 +493,14 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
         # an older step, or a strength-block session, only counts for bests (ADR-0028).
         on_current = state is not None and state.ladder_step_id == step_id and not in_strength
         status = _status(session, item, step, limits) if on_current else Progress.HOLD
+        # A step down is judged on the step trained now; strength-block sessions are passed
+        # over inside the rule, so a block doesn't hold it (ADR-0084).
+        at_level = state is not None and state.ladder_step_id == step_id
+        suggested = (
+            down(session, [item], step, limits, dismissed)
+            if at_level and item is not None
+            else None
+        )
         upcoming = _next_step(step, limits) if status is Progress.READY else None
         note_top = status is Progress.TOP_OF_LADDER and not _top_noted(
             session, exercise_id, step_id
@@ -379,6 +523,7 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
                 unlock=_unlock(step, limits) if status is Progress.TOP_OF_LADDER else None,
                 load_kg=weight,
                 capped=status is Progress.TOP_OF_LADDER and _below_top(step),
+                down=suggested,
             )
         )
     return result
@@ -490,6 +635,66 @@ def set_level(session: Session, exercise_id: int, step_id: int) -> Move | None:
     return Move(MoveOutcome.LEVEL_SET, exercise.name, step.name, warning)
 
 
+def _on(
+    session: Session, exercise_id: int, step_id: int
+) -> tuple[Exercise, LadderStep] | Move | None:
+    """The exercise and step a step-down answer names; ALREADY_MOVED when the exercise isn't on
+    that step any more; None when either doesn't exist or the step isn't on its ladder."""
+    exercise = session.get(Exercise, exercise_id)
+    state = users.exercise_state(session, exercise_id)
+    step = session.get(LadderStep, step_id)
+    if exercise is None or state is None or step is None or step.exercise_id != exercise_id:
+        return None
+    if state.ladder_step_id != step_id:
+        return Move(MoveOutcome.ALREADY_MOVED, exercise.name)
+    return exercise, step
+
+
+def step_down(session: Session, exercise_id: int, from_step_id: int) -> Move | None:
+    """Step down from the suggestion (ADR-0084): the nearest open step below ``from_step_id``,
+    set as a by-hand change (``set_level``, its event logged). Checked again now, as Move up is,
+    so a stale or forged press changes nothing: the exercise must still be on ``from_step_id``
+    (else ALREADY_MOVED) and the suggestion must still stand (else NOT_READY: a Not yet or a
+    newer session has removed it). None for an exercise or step that doesn't exist."""
+    found = _on(session, exercise_id, from_step_id)
+    if not isinstance(found, tuple):
+        return found
+    exercise, step = found
+    limits = step_locks.limits(session)
+    suggested = down(session, _items(session, exercise_id), step, limits)
+    if suggested is None:
+        return Move(MoveOutcome.NOT_READY, exercise.name)
+    below = _step_below(step, limits)
+    if below is None:
+        return Move(MoveOutcome.NO_STEP_BELOW, exercise.name, step.name)
+    moved = set_level(session, exercise_id, below.id)
+    warning = moved.warning if moved is not None else None
+    return Move(MoveOutcome.STEPPED_DOWN, exercise.name, below.name, warning)
+
+
+def not_yet_down(session: Session, exercise_id: int, step_id: int) -> Move | None:
+    """Not yet to a step down: stay, and don't suggest it again until a new session at the step
+    meets the rule. Recorded only while the exercise is still on ``step_id``. None for an
+    exercise or step that doesn't exist."""
+    found = _on(session, exercise_id, step_id)
+    if not isinstance(found, tuple):
+        return found
+    exercise, step = found
+    pace = user_settings.load(session).pace
+    limits = step_locks.limits(session)
+    judged = (
+        _down_rule(session, item, step, limits, pace)[1] for item in _items(session, exercise_id)
+    )
+    latest = next((w for w in judged if w is not None), None)
+    session.add(
+        Event(
+            kind=NOT_YET_DOWN,
+            payload={"exercise_id": exercise_id, "step_id": step_id, "workout_id": latest},
+        )
+    )
+    return Move(MoveOutcome.STAYED_DOWN, exercise.name, step.name)
+
+
 @dataclass(frozen=True)
 class Ready:
     """An exercise ready to move up, with its slug for a link to its ladder (ADR-0075)."""
@@ -557,6 +762,7 @@ class Standing:
     # The weight of the session that set ``best_set``, its heaviest set's (ADR-0072): the best
     # counts every weight, so it says which, as the weekly review does. None without one.
     best_kg: float | None = None
+    down: Down | None = None  # the step below, suggested (ADR-0084)
 
     @property
     def capped(self) -> bool:
@@ -653,6 +859,7 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
         order.setdefault(exercise_id, None)
 
     limits = step_locks.limits(session)
+    dismissed = dismissals(session)
     gym = user_settings.load(session).places is not Places.HOME
     result = []
     for exercise_id in order:
@@ -717,6 +924,9 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
                 if history
                 else (),
                 best_kg=top_weight(list(at_best.items())),
+                down=down(session, items, step, limits, dismissed)
+                if not exercise.retired
+                else None,
             )
         )
     return result
@@ -725,6 +935,11 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
 def ready(standings: list[Standing]) -> list[Ready]:
     """The exercises ready to move up, in plan order."""
     return [Ready(s.exercise, s.slug) for s in standings if s.status is Progress.READY]
+
+
+def stepping_down(standings: list[Standing]) -> list[Ready]:
+    """The exercises with a step down suggested (ADR-0084), in plan order."""
+    return [Ready(s.exercise, s.slug) for s in standings if s.down is not None]
 
 
 @dataclass(frozen=True)

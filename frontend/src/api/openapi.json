@@ -1183,6 +1183,16 @@
             "title": "Slug",
             "type": "string"
           },
+          "step_down": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StepDownView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "total": {
             "anyOf": [
               {
@@ -1225,7 +1235,8 @@
           "at_top",
           "unlock",
           "capped",
-          "load_kg"
+          "load_kg",
+          "step_down"
         ],
         "title": "EarnedView",
         "type": "object"
@@ -3968,7 +3979,7 @@
         "type": "object"
       },
       "MovedView": {
-        "description": "What a press did. Anything but ``moved``, ``stayed`` or ``level_set`` changed nothing.",
+        "description": "What a press did. Only ``moved``, ``level_set`` and ``stepped_down`` change the step;\n``stayed`` and ``stayed_down`` record a Not yet.",
         "properties": {
           "exercise": {
             "title": "Exercise",
@@ -3983,7 +3994,10 @@
               "strength_block",
               "stayed",
               "level_set",
-              "same_level"
+              "same_level",
+              "stepped_down",
+              "no_step_below",
+              "stayed_down"
             ],
             "title": "Outcome",
             "type": "string"
@@ -5332,6 +5346,13 @@
             "title": "Start",
             "type": "string"
           },
+          "step_down": {
+            "items": {
+              "$ref": "#/components/schemas/ReadyView"
+            },
+            "title": "Step Down",
+            "type": "array"
+          },
           "strength_block": {
             "title": "Strength Block",
             "type": "boolean"
@@ -5386,6 +5407,7 @@
           "bests",
           "ready",
           "top",
+          "step_down",
           "strength_block",
           "habits",
           "ai_comments",
@@ -6463,6 +6485,16 @@
             "title": "Step",
             "type": "string"
           },
+          "step_down": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StepDownView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "step_id": {
             "title": "Step Id",
             "type": "integer"
@@ -6519,7 +6551,8 @@
           "status",
           "retired",
           "trend",
-          "unlock"
+          "unlock",
+          "step_down"
         ],
         "title": "StandingView",
         "type": "object"
@@ -6567,6 +6600,40 @@
           "step_id"
         ],
         "title": "StepBody",
+        "type": "object"
+      },
+      "StepDownView": {
+        "description": "The bottom of the range out of reach twice (ADR-0084): a suggestion, nothing changes\nwithout a tap. ``below`` is the step to suggest; None at a ladder's first step (or with\nevery step below locked by the kit), when ``easier`` names the catalogue's level 1-2\nexercises for the same muscles, if any.",
+        "properties": {
+          "below": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Below"
+          },
+          "easier": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Easier",
+            "type": "array"
+          },
+          "step_id": {
+            "title": "Step Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step_id",
+          "below",
+          "easier"
+        ],
+        "title": "StepDownView",
         "type": "object"
       },
       "StretchBody": {
@@ -9785,6 +9852,112 @@
           }
         },
         "summary": "Not Yet",
+        "tags": [
+          "progress"
+        ]
+      }
+    },
+    "/api/progress/{slug}/not-yet-down": {
+      "post": {
+        "description": "Not yet to a step down: stay; suggested again only after a new session that meets the\nrule (ADR-0084).",
+        "operationId": "not_yet_down_api_progress__slug__not_yet_down_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Not Yet Down",
+        "tags": [
+          "progress"
+        ]
+      }
+    },
+    "/api/progress/{slug}/step-down": {
+      "post": {
+        "description": "Step down, from the suggestion (ADR-0084): the step below ``from_step_id``, as a level\nchosen by hand. A stale page (the exercise moved since) changes nothing.",
+        "operationId": "step_down_api_progress__slug__step_down_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveUpBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Step Down",
         "tags": [
           "progress"
         ]

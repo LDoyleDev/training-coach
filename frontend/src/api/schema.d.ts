@@ -1239,6 +1239,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/progress/{slug}/not-yet-down": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Not Yet Down
+         * @description Not yet to a step down: stay; suggested again only after a new session that meets the
+         *     rule (ADR-0084).
+         */
+        post: operations["not_yet_down_api_progress__slug__not_yet_down_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/progress/{slug}/step-down": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Step Down
+         * @description Step down, from the suggestion (ADR-0084): the step below ``from_step_id``, as a level
+         *     chosen by hand. A stale page (the exercise moved since) changes nothing.
+         */
+        post: operations["step_down_api_progress__slug__step_down_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/proposals": {
         parameters: {
             query?: never;
@@ -2247,6 +2289,7 @@ export interface components {
             next_step: string | null;
             /** Slug */
             slug: string;
+            step_down: components["schemas"]["StepDownView"] | null;
             /** Total */
             total: number | null;
             /**
@@ -3159,7 +3202,8 @@ export interface components {
         };
         /**
          * MovedView
-         * @description What a press did. Anything but ``moved``, ``stayed`` or ``level_set`` changed nothing.
+         * @description What a press did. Only ``moved``, ``level_set`` and ``stepped_down`` change the step;
+         *     ``stayed`` and ``stayed_down`` record a Not yet.
          */
         MovedView: {
             /** Exercise */
@@ -3168,7 +3212,7 @@ export interface components {
              * Outcome
              * @enum {string}
              */
-            outcome: "moved" | "already_moved" | "not_ready" | "no_next_step" | "strength_block" | "stayed" | "level_set" | "same_level";
+            outcome: "moved" | "already_moved" | "not_ready" | "no_next_step" | "strength_block" | "stayed" | "level_set" | "same_level" | "stepped_down" | "no_step_below" | "stayed_down";
             /** Step */
             step: string | null;
             /** Warning */
@@ -3657,6 +3701,8 @@ export interface components {
             ];
             /** Start */
             start: string;
+            /** Step Down */
+            step_down: components["schemas"]["ReadyView"][];
             /** Strength Block */
             strength_block: boolean;
             /** Top */
@@ -4002,6 +4048,7 @@ export interface components {
             status: "hold" | "ready" | "top_of_ladder";
             /** Step */
             step: string;
+            step_down: components["schemas"]["StepDownView"] | null;
             /** Step Id */
             step_id: number;
             /** Step Number */
@@ -4034,6 +4081,21 @@ export interface components {
         };
         /** StepBody */
         StepBody: {
+            /** Step Id */
+            step_id: number;
+        };
+        /**
+         * StepDownView
+         * @description The bottom of the range out of reach twice (ADR-0084): a suggestion, nothing changes
+         *     without a tap. ``below`` is the step to suggest; None at a ladder's first step (or with
+         *     every step below locked by the kit), when ``easier`` names the catalogue's level 1-2
+         *     exercises for the same muscles, if any.
+         */
+        StepDownView: {
+            /** Below */
+            below: string | null;
+            /** Easier */
+            easier: string[];
             /** Step Id */
             step_id: number;
         };
@@ -6228,6 +6290,76 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["StepBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    not_yet_down_api_progress__slug__not_yet_down_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    step_down_api_progress__slug__step_down_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveUpBody"];
             };
         };
         responses: {

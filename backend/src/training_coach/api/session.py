@@ -342,6 +342,23 @@ class SaveBody(ClashReply):
     day: date | None = None  # empty: today; an earlier day saves one left unsaved
 
 
+class StepDownView(BaseModel):
+    """The bottom of the range out of reach twice (ADR-0084): a suggestion, nothing changes
+    without a tap. ``below`` is the step to suggest; None at a ladder's first step (or with
+    every step below locked by the kit), when ``easier`` names the catalogue's level 1-2
+    exercises for the same muscles, if any."""
+
+    step_id: int  # the step judged, sent back by Step down and Not yet
+    below: str | None
+    easier: list[str]
+
+
+def step_down_view(found: feedback.Down | None) -> StepDownView | None:
+    if found is None:
+        return None
+    return StepDownView(step_id=found.step_id, below=found.below, easier=list(found.easier))
+
+
 class EarnedView(BaseModel):
     exercise: str
     unit: Literal["reps", "seconds", "minutes"]
@@ -357,6 +374,7 @@ class EarnedView(BaseModel):
     # never why (ADR-0083)
     capped: bool
     load_kg: float | None  # the session's weight, which its bests were counted at (ADR-0072)
+    step_down: StepDownView | None  # the bottom of the range out of reach twice (ADR-0084)
 
 
 class TimingView(BaseModel):
@@ -663,9 +681,10 @@ def save(body: SaveBody, request: Request, user: Owner) -> SavedView:
                     unlock=e.unlock if e.note_top else None,
                     capped=e.capped and e.note_top,
                     load_kg=e.load_kg,
+                    step_down=step_down_view(e.down),
                 )
                 for e in earned
-                if e.bests or e.next_step or e.note_top
+                if e.bests or e.next_step or e.note_top or e.down
             ],
             stretching=day == today and stretching.offered(session, result.workout_id),
             timing=timing_view(session_times.of_workout(session, result.workout_id)),

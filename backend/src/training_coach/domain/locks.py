@@ -82,6 +82,12 @@ def next_open(ladder: Sequence[Asks], at: int, limits: Limits) -> int | None:
     return next((i for i in range(at + 1, len(ladder)) if lock(ladder[i], limits).open), None)
 
 
+def previous_open(ladder: Sequence[Asks], at: int, limits: Limits) -> int | None:
+    """The nearest step before ``at`` that isn't locked (a step down skips locked ones,
+    ADR-0084), or None at the first step, or when every step below is locked."""
+    return next((i for i in range(at - 1, -1, -1) if lock(ladder[i], limits).open), None)
+
+
 def unlocks_next(ladder: Sequence[Asks], at: int, limits: Limits) -> tuple[int, list[str]] | None:
     """At the top of the open steps (harder steps exist, none of them open): the first harder
     step that only kit locks, and the kit it lacks. No kit opens a step the person avoids, so

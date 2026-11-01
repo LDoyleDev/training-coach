@@ -8,6 +8,7 @@ from training_coach.domain.locks import (
     Lock,
     lock,
     next_open,
+    previous_open,
     unlocks_next,
     warning,
 )
@@ -81,6 +82,15 @@ def test_move_up_skips_locked_steps() -> None:
     assert next_open(ladder, 0, Limits(kit=[BAR])) == 2
     assert next_open(ladder, 2, Limits(kit=[BAR])) is None
     assert next_open(ladder, 0, Limits(kit=[BAR, KB16])) == 1
+
+
+def test_a_step_down_skips_locked_steps() -> None:
+    ladder = [Asks(), Asks(["kettlebell:16"]), Asks(["pull-up bar"]), Asks(["kettlebell:16"])]
+    assert previous_open(ladder, 3, Limits(kit=[BAR])) == 2
+    assert previous_open(ladder, 2, Limits(kit=[BAR])) == 0
+    assert previous_open(ladder, 0, Limits()) is None
+    floor = [Asks(marks=[Mark.FLOOR]), Asks()]
+    assert previous_open(floor, 1, OFF_THE_FLOOR) is None
 
 
 def test_move_up_skips_a_marked_step_and_a_kit_locked_one() -> None:

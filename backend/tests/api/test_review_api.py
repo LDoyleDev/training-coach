@@ -130,6 +130,18 @@ def test_an_earlier_week_is_counted_to_its_sunday(signed_in: TestClient, engine:
     assert view["ready"] == []  # today's standing says nothing about that week
 
 
+def test_a_step_down_suggested_this_week_links_to_the_plan(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0084: pull-ups out of reach twice after the baseline (4 sets of 5-12)."""
+    for day in (5, 6, 7):
+        _log(engine, "pull-up", [2, 2, 2, 2], date(2026, 10, day))
+    view = signed_in.get("/api/review").json()
+    assert view["step_down"] == [{"exercise": "Pull-up", "slug": "pull-up"}]
+    earlier = signed_in.get("/api/review", params={"week": "2026-10-01"}).json()
+    assert earlier["step_down"] == []
+
+
 def test_a_week_that_has_not_started_is_refused(signed_in: TestClient) -> None:
     assert signed_in.get("/api/review", params={"week": "2026-10-12"}).status_code == 422
     assert signed_in.get("/api/review", params={"week": "soon"}).status_code == 422

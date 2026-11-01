@@ -74,6 +74,31 @@ for people starting low (ADR-0083).
 - `plan.toml` gains `failure_ok` per exercise; settings gain the last-set option.
 - The step-down suggestion sits next to Move up on the web, the bot and the weekly review.
 
+## Addendum (2026-10-31): the step-down rule as built (#525)
+
+- **The rule** (`domain/progression.py` `step_down`): the last two sessions at the step, not
+  counting the first there (the baseline, ADR-0027), each had most of the sets that day planned
+  both short of the target it was given and below the bottom of the range. "Missed their targets
+  with most sets below the bottom" is read per set, so a session that is still climbing below
+  the range (5, then 6, then 7) never suggests a step down, and neither does a session with
+  most sets at or above the bottom. The targets are the ones `targets.py` replays, at the
+  person's pace; a one-sided set counts its weaker side, a missing set the weakest logged, and
+  a last set to failure at or above its target counts as met, as the targets read it.
+- **Passed over:** a loaded step (never suggested), strength-block sessions, and sets done at a
+  level chosen "For today". The guided save marks those in the workout's plan map
+  (`workouts.planned[slug]["today"]`, the step id), the room ADR-0084 left for a later key, so
+  no migration. Workouts saved before this have no mark.
+- **The step below** is the nearest open one (Move up skips locked steps too: kit, and the
+  marks a person avoids, ADR-0083). With none, at a ladder's first step or with every step
+  below locked, it says so and names the catalogue's exercises whose first step is level 1 or 2
+  and that share a prime mover (weight 1), if any. The "lower range" alternative is left out
+  for now.
+- **Step down** is a by-hand change (`progress.set_level`, `progress.level_set` logged),
+  checked again when pressed as Move up is: a press after the exercise moved, or once a Not yet
+  or a newer session has removed the suggestion, changes nothing.
+  **Not yet** records `progress.not_yet_down` with the newest session the rule judged; the
+  suggestion stays hidden until a newer session meets the rule again. No migration: events.
+
 ## Addendum: the last set as built (#535)
 
 - **Where:** strength and conditioning sessions, the ones a day can shorten (ADR-0082). A recovery
