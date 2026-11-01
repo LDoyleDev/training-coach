@@ -4,6 +4,20 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.14.0](https://github.com/LDoyleDev/training-coach/compare/v1.13.0...v1.14.0) (2026-11-01)
+
+
+### Features
+
+* **db:** knees marks on the new deep steps, names that fit the ladders ([#546](https://github.com/LDoyleDev/training-coach/issues/546)) ([a9b25cd](https://github.com/LDoyleDev/training-coach/commit/a9b25cd50642e1e70e0428679ddbdc8aeba09892))
+* **web:** draw the door-frame row and curl ([#549](https://github.com/LDoyleDev/training-coach/issues/549)) ([b4cfbd8](https://github.com/LDoyleDev/training-coach/commit/b4cfbd8998cd13382af19a3b6ceb22a2835ced43))
+* **web:** draw the lower ladder steps, so none is left without a figure ([#548](https://github.com/LDoyleDev/training-coach/issues/548)) ([fd54206](https://github.com/LDoyleDev/training-coach/commit/fd542064791082a53e8835197bab82de5dc88207))
+
+
+### Documentation
+
+* **docs:** session log for 1.13.0 ([#547](https://github.com/LDoyleDev/training-coach/issues/547)) ([a7ba5ff](https://github.com/LDoyleDev/training-coach/commit/a7ba5ffbcf32d3e780bb3d8ac1f143d2a309a36d))
+
 ## [1.13.0](https://github.com/LDoyleDev/training-coach/compare/v1.12.0...v1.13.0) (2026-11-01)
 
 
