@@ -72,6 +72,7 @@ import useWakeLock from './useWakeLock'
 import { DEFAULT_SOUND, type Sound, playChange, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import { card, primary, primaryInline, secondary } from '../ui'
 import { KIT_HREF } from '../account/kit'
+import { NO_OPEN_STEP } from '../plan/ladder'
 import { BREATHING, LAST_SET_LOCKED, lastSetTarget } from './safety'
 import { StopSignsCard, StopSignsTap } from './StopSigns'
 
@@ -982,7 +983,7 @@ export default function SessionPage() {
                       </a>
                     </>
                   )}
-                  {e.at_top && <TopNote unlock={e.unlock} />}
+                  {e.at_top && <TopNote unlock={e.unlock} capped={e.capped} />}
                 </li>
               ))}
             </ul>
@@ -1010,8 +1011,10 @@ export default function SessionPage() {
 }
 
 /** The ready rule met with no level to move to (ADR-0078): says so, and when the kit is what's
- * missing, what would open the next level (ADR-0071). The person decides; nothing moves. */
-function TopNote({ unlock }: { unlock: string | null }) {
+ * missing, what would open the next level (ADR-0071). With harder steps all locked otherwise,
+ * says only that none is open (ADR-0083). The person decides; nothing moves. */
+function TopNote({ unlock, capped }: { unlock: string | null; capped: boolean }) {
+  if (!unlock && capped) return <> · top of the range, with {NO_OPEN_STEP}.</>
   if (!unlock) return <> · top of the range on the last level of its ladder.</>
   return (
     <>

@@ -68,6 +68,7 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
     today = local_date(datetime.now(UTC), Settings().tz).isoformat()
     assert signed_in.put("/api/body", json={"values": {"bodyweight": 83.4}}).is_success
     assert signed_in.put(f"/api/photos/{today}/front", content=CLEAN, headers=JPEG).is_success
+    assert signed_in.patch("/api/settings", json={"avoid_floor": True}).is_success  # ADR-0083
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
         mine.add(Passkey(credential_id="cred", public_key=b"key", sign_count=0, name="Pixel"))
         user_settings.update(mine, last_set_amrap=True)  # a setting of mine (ADR-0084)
@@ -90,6 +91,7 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
     assert _count(engine, PlanState, OWNER) == 1
     assert _count(engine, UserSettings, OWNER) == 1
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        assert user_settings.load(mine).avoid == frozenset()  # the preferences went too
         kinds = list(mine.scalars(select(Event.kind)))
         settings = user_settings.load(mine)
     assert kinds == ["account.erased"]  # nothing about what was there

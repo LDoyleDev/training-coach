@@ -59,6 +59,7 @@ def test_today_offers_the_lengths_and_says_how_long_as_planned(signed_in: TestCl
         "warm_up": "full",
         "shortest": None,
         "fixed": False,
+        "from_setting": False,
         "last_set": None,  # locked: nothing logged yet (ADR-0084)
     }
 
@@ -126,6 +127,23 @@ def test_strangers_are_refused(engine: Engine) -> None:
     with TestClient(create_app(settings), base_url=ORIGIN) as client:
         body = {"template_id": 1, "place": "home", "minutes": 20}
         assert client.put("/api/session/length", json=body).status_code == 401
+
+
+def test_today_shows_minutes_per_session_as_chosen_until_the_day_picks(
+    signed_in: TestClient,
+) -> None:
+    """ADR-0082 T2: the setting is the day's length, labelled as from it; As planned for the
+    day overrides it."""
+    planned = signed_in.get("/api/session/today").json()["session"]["minutes"]
+    assert signed_in.patch("/api/settings", json={"session_minutes": 30}).status_code == 200
+    session = signed_in.get("/api/session/today").json()["session"]
+    assert (session["length"]["minutes"], session["length"]["from_setting"]) == (30, True)
+    assert session["minutes"] <= 30 < planned
+    answer = _choose(signed_in, None)
+    assert answer.status_code == 200
+    length = answer.json()["session"]["length"]
+    assert (length["minutes"], length["from_setting"]) == (None, False)
+    assert answer.json()["session"]["minutes"] == planned
 
 
 def test_today_offers_the_last_set_option_and_marks_its_sets(

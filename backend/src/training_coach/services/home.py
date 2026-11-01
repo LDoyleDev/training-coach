@@ -134,7 +134,8 @@ def _label(workout: Workout, names: dict[int, str]) -> str:
 
 
 def _today(session: Session, on: date, tz: ZoneInfo) -> tuple[str | None, int | None, int | None]:
-    """Today's session for the button: its name, the plan's minutes and the usual minutes."""
+    """Today's session for the button: its name, the minutes at today's length and the usual
+    minutes, which are as planned, so none on a shorter day (ADR-0082)."""
     test_day = retests.due(session, on, tz)
     if test_day is not None:
         return test_day.name, None, None
@@ -143,6 +144,8 @@ def _today(session: Session, on: date, tz: ZoneInfo) -> tuple[str | None, int | 
         return None, None, None
     if plan.after_run:  # the rest of the day's session after its cardio (ADR-0066)
         return f"{plan.name}, after your run", plan.minutes, None
+    if plan.length is not None and plan.length.minutes is not None:
+        return plan.name, plan.minutes, None
     return plan.name, plan.minutes, session_times.usual_minutes(session, plan.template_id)
 
 

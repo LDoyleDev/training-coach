@@ -12,7 +12,9 @@ const option = (on: boolean) =>
 /**
  * Short on time today (ADR-0082): As planned, 40, 30 or 20 min, for today's session only; the
  * plan doesn't change. The person picks; nothing is recommended. Once a set is kept the length
- * is fixed and shows as words. What the length drops is named before Start.
+ * is fixed and shows as words. What the length drops is named before Start. With no choice for
+ * the day, the person's time per session on Account is shown as chosen, said to be theirs, and
+ * As planned stays a choice for the day.
  */
 export default function LengthChoice({
   session,
@@ -28,6 +30,7 @@ export default function LengthChoice({
   onLastSet: (on: boolean) => void
 }) {
   const chosen = length.minutes
+  const mine = length.from_setting ? ' (your time per session)' : ''
   // Offered with a shorter day (ADR-0084): not while locked, nor with nothing it applies to.
   const lastSet = length.last_set ?? null
   const choices: Minutes[] = [null, ...(length.options as NonNullable<Minutes>[])]
@@ -38,8 +41,8 @@ export default function LengthChoice({
       </h2>
       {length.fixed ? (
         <p className="m-0">
-          {chosen === null ? 'As planned' : `${chosen} min`} today, about {session.minutes} min. It
-          stays like this now a set is kept.
+          {chosen === null ? 'As planned' : `${chosen} min`} today{mine}, about {session.minutes}{' '}
+          min. It stays like this now a set is kept.
         </p>
       ) : (
         <>
@@ -60,7 +63,9 @@ export default function LengthChoice({
           <p className="m-0 text-sm text-[var(--slate)]">
             {chosen === null
               ? `About ${length.planned_minutes} min as planned. For today only; the plan stays the same.`
-              : `About ${session.minutes} min at this length, warm-up included. As planned: about ${length.planned_minutes} min.`}
+              : length.from_setting
+                ? `${chosen} min is your time per session, set on Account: about ${session.minutes} min, warm-up included. As planned today: about ${length.planned_minutes} min.`
+                : `About ${session.minutes} min at this length, warm-up included. As planned: about ${length.planned_minutes} min.`}
           </p>
         </>
       )}

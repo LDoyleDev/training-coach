@@ -36,6 +36,7 @@ const PLANNED: Length = {
   warm_up: 'full',
   shortest: null,
   fixed: false,
+  from_setting: false,
 }
 
 const SESSION: Guided = {
@@ -354,6 +355,41 @@ test('a conditioning day logs its run at the shortened minutes once a length is 
   expect(screen.getByText('Target 12 min')).toBeInTheDocument()
 })
 
+test('time per session shows as chosen, from the setting, with As planned still a choice', async () => {
+  const mine = { ...SHORT, length: { ...SHORT.length!, from_setting: true } }
+  const sent = serve({ today: [today(mine, 4)], length: [Response.json(today(SESSION, 5))] })
+  render(<SessionPage />)
+  expect(await screen.findByRole('button', { name: '20 min' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  expect(
+    screen.getByText(
+      '20 min is your time per session, set on Account: about 18 min, warm-up included. As planned today: about 49 min.',
+    ),
+  ).toBeInTheDocument()
+  expect(screen.getByText('Dropped today: Plank, Calf raise.')).toBeInTheDocument()
+  expect(screen.getByText('About 18 min')).toBeInTheDocument() // not "usually": a shorter day
+  fireEvent.click(button('As planned'))
+  expect(
+    await screen.findByText('About 49 min as planned. For today only; the plan stays the same.'),
+  ).toBeInTheDocument()
+  expect(sent['PUT /api/session/length']).toEqual([
+    { template_id: 3, place: 'home', revision: 4, first: [], minutes: null, keep: [] },
+  ])
+})
+
+test('a started session at the time per session says so', async () => {
+  const started = { ...SHORT, length: { ...SHORT.length!, fixed: true, from_setting: true } }
+  serve({ today: [today(started, 3)] })
+  render(<SessionPage />)
+  expect(
+    await screen.findByText(
+      /20 min today \(your time per session\), about 18 min\. It stays like this now a set is kept\./,
+    ),
+  ).toBeInTheDocument()
+})
+
 /** At 40 min with the last-set option offered (ADR-0084): off, then on. */
 const FORTY: Guided = { ...SESSION, length: { ...PLANNED, minutes: 40, last_set: false } }
 const FORTY_ON: Guided = {
@@ -386,6 +422,14 @@ test('turning it off says so', async () => {
   fireEvent.click(await screen.findByRole('button', { name: /as many good reps/ }))
   expect(await screen.findByText('Saved: last sets as usual.')).toBeInTheDocument()
   expect(sent['PATCH /api/settings']).toEqual([{ last_set_amrap: false }])
+})
+
+test('it is offered too when the shorter length is the time per session', async () => {
+  const mine = { ...FORTY, length: { ...FORTY.length!, from_setting: true } }
+  serve({ today: [today(mine)] })
+  render(<SessionPage />)
+  expect(await screen.findByRole('heading', { name: 'Legs' })).toBeInTheDocument()
+  expect(lastSet()).toHaveAttribute('aria-pressed', 'false')
 })
 
 test.each([

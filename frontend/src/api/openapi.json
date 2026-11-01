@@ -1149,6 +1149,10 @@
             ],
             "title": "Best Set"
           },
+          "capped": {
+            "title": "Capped",
+            "type": "boolean"
+          },
           "exercise": {
             "title": "Exercise",
             "type": "string"
@@ -1220,6 +1224,7 @@
           "slug",
           "at_top",
           "unlock",
+          "capped",
           "load_kg"
         ],
         "title": "EarnedView",
@@ -2923,7 +2928,7 @@
         "type": "object"
       },
       "LengthView": {
-        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``last_set``: the person's last-set option (ADR-0084),\noffered here with a shorter day; empty when it isn't offered: locked while they are new, or\nno exercise today it applies to.",
+        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.\n``last_set``: the person's last-set option (ADR-0084), offered here with a shorter day;\nempty when it isn't offered: locked while they are new, or no exercise today it applies to.",
         "properties": {
           "dropped": {
             "items": {
@@ -2934,6 +2939,10 @@
           },
           "fixed": {
             "title": "Fixed",
+            "type": "boolean"
+          },
+          "from_setting": {
+            "title": "From Setting",
             "type": "boolean"
           },
           "keep": {
@@ -3005,7 +3014,8 @@
           "dropped",
           "warm_up",
           "shortest",
-          "fixed"
+          "fixed",
+          "from_setting"
         ],
         "title": "LengthView",
         "type": "object"
@@ -3102,6 +3112,13 @@
       "LevelView": {
         "description": "One step of an exercise's ladder, to change the level on the set screen (ADR-0080).",
         "properties": {
+          "avoided": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avoided",
+            "type": "array"
+          },
           "cue": {
             "anyOf": [
               {
@@ -3133,7 +3150,8 @@
           "id",
           "name",
           "cue",
-          "missing"
+          "missing",
+          "avoided"
         ],
         "title": "LevelView",
         "type": "object"
@@ -5407,6 +5425,13 @@
       },
       "RungView": {
         "properties": {
+          "avoided": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avoided",
+            "type": "array"
+          },
           "cue": {
             "anyOf": [
               {
@@ -5450,6 +5475,7 @@
           "name",
           "cue",
           "missing",
+          "avoided",
           "question"
         ],
         "title": "RungView",
@@ -5861,6 +5887,50 @@
       "SettingsChange": {
         "description": "Only the fields sent change.",
         "properties": {
+          "avoid_floor": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avoid Floor"
+          },
+          "avoid_hanging": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avoid Hanging"
+          },
+          "avoid_impact": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avoid Impact"
+          },
+          "avoid_kneeling": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avoid Kneeling"
+          },
           "blocks": {
             "anyOf": [
               {
@@ -6003,6 +6073,22 @@
             ],
             "title": "Review Time"
           },
+          "session_minutes": {
+            "anyOf": [
+              {
+                "enum": [
+                  40,
+                  30,
+                  20
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Minutes"
+          },
           "sound": {
             "anyOf": [
               {
@@ -6041,6 +6127,22 @@
       },
       "SettingsView": {
         "properties": {
+          "avoid_floor": {
+            "title": "Avoid Floor",
+            "type": "boolean"
+          },
+          "avoid_hanging": {
+            "title": "Avoid Hanging",
+            "type": "boolean"
+          },
+          "avoid_impact": {
+            "title": "Avoid Impact",
+            "type": "boolean"
+          },
+          "avoid_kneeling": {
+            "title": "Avoid Kneeling",
+            "type": "boolean"
+          },
           "blocks_since": {
             "anyOf": [
               {
@@ -6111,6 +6213,22 @@
             "title": "Review Time",
             "type": "string"
           },
+          "session_minutes": {
+            "anyOf": [
+              {
+                "enum": [
+                  40,
+                  30,
+                  20
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Minutes"
+          },
           "sound": {
             "$ref": "#/components/schemas/Sound"
           },
@@ -6143,6 +6261,11 @@
           "default_increments",
           "talk_test",
           "stop_signs_seen",
+          "avoid_floor",
+          "avoid_kneeling",
+          "avoid_impact",
+          "avoid_hanging",
+          "session_minutes",
           "last_set_amrap",
           "last_set_locked",
           "paused",
@@ -6823,6 +6946,10 @@
       "TopView": {
         "description": "The ready rule met with no level to move to, said once per level (ADR-0078). ``unlock``\nsays what opens the next level when the kit is what's missing (ADR-0071); else None, the\ntop of the ladder.",
         "properties": {
+          "capped": {
+            "title": "Capped",
+            "type": "boolean"
+          },
           "exercise": {
             "title": "Exercise",
             "type": "string"
@@ -6846,7 +6973,8 @@
         "required": [
           "exercise",
           "slug",
-          "unlock"
+          "unlock",
+          "capped"
         ],
         "title": "TopView",
         "type": "object"

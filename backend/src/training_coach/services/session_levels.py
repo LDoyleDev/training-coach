@@ -16,8 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import Exercise, LadderStep, SetLog
-from training_coach.domain import kit as kit_rules
-from training_coach.services import equipment, guided, progress, users
+from training_coach.domain import locks
+from training_coach.services import guided, progress, step_locks, users
 from training_coach.services.progress import Rung
 
 NOT_IN_SESSION = "that exercise isn't in today's session"
@@ -32,20 +32,20 @@ class Scope(StrEnum):
 @dataclass(frozen=True)
 class Changed:
     revision: int  # the kept progress's, for the browser's next keep
-    warning: str | None  # the chosen step needs kit that isn't listed: chosen anyway
+    warning: str | None  # the chosen step is locked (kit, or what they avoid): chosen anyway
 
 
 def ladders(session: Session, slugs: Iterable[str]) -> dict[str, tuple[Rung, ...]]:
-    """Each exercise's ladder, easiest first, with the kit each step lacks (ADR-0071), for the
-    exercises that have more than one step: the others have no level to change."""
-    kit = equipment.kit(session)
+    """Each exercise's ladder, easiest first, with why each step is locked (ADR-0071, ADR-0083),
+    for the exercises that have more than one step: the others have no level to change."""
+    limits = step_locks.limits(session)
     found = session.scalars(
         select(Exercise).where(Exercise.slug.in_(set(slugs))).options(selectinload(Exercise.ladder))
     )
     return {
         exercise.slug: tuple(
-            Rung(r.id, r.name, r.cue, tuple(kit_rules.missing(kit, needs)))
-            for r, needs in zip(exercise.ladder, equipment.ladder_needs(exercise), strict=True)
+            progress.rung(r, locks.lock(asks, limits))
+            for r, asks in zip(exercise.ladder, step_locks.ladder(exercise), strict=True)
         )
         for exercise in found
         if len(exercise.ladder) > 1
@@ -90,7 +90,7 @@ def change(
         for s in row.sets
     ]
     if scope is Scope.TODAY:
-        warning = progress.kit_warning(session, slug, step.name)
+        warning = step_locks.warning(session, step)
     else:
         moved = progress.set_level(session, exercise.id, step.id)
         warning = moved.warning if moved is not None else None
