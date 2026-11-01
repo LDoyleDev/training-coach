@@ -476,10 +476,11 @@ someone who does the plan's other pulls begins. Their figures are still to draw 
    [kit-ladder-proposal.md](kit-ladder-proposal.md)), with step cues and band strengths. Still
    to come: figures for the new set-ups (the proposal's Figures section).
 5. **Plans per person** (A2): the migration copies the plan to every user; the seed keeps the
-   catalogue and starters; the canary test (multi-user L2) covers the plan routes. What reads
-   the plan today and a draft migration: [plans-per-person.md](plans-per-person.md).
-6. **Edit the plan:** set level (done, ADR-0075), swap, sets and range; Save makes a version. Import from
-   `plan.toml` the same way.
+   catalogue and starters; the canary test (multi-user L2) covers the plan routes. The import
+   from `plan.toml` ships with it (Liam, 1 Nov 2026), so the owner can always change their plan.
+   What reads the plan today, a draft migration and the open points:
+   [plans-per-person.md](plans-per-person.md).
+6. **Edit the plan:** set level (done, ADR-0075), swap, sets and range; Save makes a version.
 7. **The picker and an interactive map:** add and remove exercises; add a session.
 8. **Load:** the 29 gym exercises in the catalogue, `load_kg`, carry-over with − and +, double
    progression. **Built** (ADR-0072, Built): `set_logs.load_kg`, the weight on the set screen

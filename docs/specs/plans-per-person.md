@@ -1,6 +1,7 @@
 # Plans per person (builder step 5): what reads the plan, and a draft migration
 
 Status: **inventory as of v1.9.0 (30 Oct 2026); the migration outline is a draft for review.**
+One open point is answered (1 Nov 2026): the import ships with step 5, which starts about 4 Nov.
 Nothing here changes the schema. Builder step 5 (`program-builder.md`, option A2, ADR-0073)
 makes `session_templates`, `template_items` and `plan_versions` per person. This file lists every
 place that reads or writes those tables and `plan_state`, so the step can be checked against it.
@@ -125,7 +126,7 @@ the seed.
   save never lands on your workouts (the `version_on` gap above); the seed changes nobody's
   sessions. Step 5 removes each marker and the test must pass.
 - **Step 5 adds:** the three tables to `test_user_scope`'s list, a template id in the canary's
-  `OTHERS`, and the migration's own test.
+  `OTHERS`, the migration's own test, and the import's (it ships with step 5, below).
 
 ## Draft: the 5b migration (for review, not written)
 
@@ -166,7 +167,9 @@ Telegram button moves. Only copies for other people need new ids.
 today's guards (no shortened ladder, renames by entry), plus a new one: no exercise any person's
 items use (`all_users`) may be dropped. For a person with no sessions (a new member, an erased
 person) it copies the first starter, sessions and versions, into their rows, with `exercise_state`,
-`settings` and `plan_state` as today. It never touches a person who has sessions.
+`settings` and `plan_state` as today. It never touches a person who has sessions. The owner's
+plan changes from `plan.toml` come through the import instead (`POST /api/plan/import`: the
+plan as a pending change to review and save, Decided 1), which ships with step 5.
 
 **Before and after on the Pi** (backup-restore.md, "Rehearse a restore"):
 
@@ -184,8 +187,11 @@ person) it copies the first starter, sessions and versions, into their rows, wit
 ## Open points for review
 
 - **The gap between steps 5 and 6.** After step 5 the seed no longer changes the owner's plan,
-  and the import (`POST /api/plan/import`, Decided 1) is step 6. Until it ships, the owner can't
-  change their plan at all. Ship the import with 5, or keep an owner-only seed path until 6?
+  and the import (`POST /api/plan/import`, Decided 1) was planned for step 6. Until it ships, the
+  owner can't change their plan at all. Ship the import with 5, or keep an owner-only seed path
+  until 6? **Answered (Liam, 1 Nov 2026):** step 5 starts from about 4 Nov and the import ships
+  with it, in the same release as the migration, so there is no gap where the owner can't change
+  their plan. No owner-only seed path. Step 6 keeps the edits in the app.
 - **Starters**: kept only in `plan.toml` and copied straight from it (no starter tables), or
   stored? The draft assumes `plan.toml`, as ADR-0073 says.
 - **Refuse or copy** for members in the migration (step 3 above).
