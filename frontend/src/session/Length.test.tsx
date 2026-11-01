@@ -407,7 +407,7 @@ test('a shorter day offers the last set of as many good reps as you can, one tap
   expect(await screen.findByRole('heading', { name: 'Legs' })).toBeInTheDocument()
   expect(lastSet()).toHaveAttribute('aria-pressed', 'false')
   expect(
-    screen.getByText("On exercises where it's safe. Stop at the first rep that isn't clean."),
+    screen.getByText("On exercises suited to it. Stop at the first rep that isn't clean."),
   ).toBeInTheDocument()
   fireEvent.click(lastSet())
   expect(

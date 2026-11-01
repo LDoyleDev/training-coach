@@ -26,6 +26,7 @@ import {
   type Step,
 } from './logic'
 import { card, primary, secondary } from '../ui'
+import { STOP_LINE } from '../session/safety'
 import Toast from '../components/Toast'
 import { RetryCard, SignInCard } from '../components/StateCards'
 
@@ -159,8 +160,7 @@ export default function TestsPage({ embedded = false }: { embedded?: boolean }) 
             Two days of tests. Retest under the same conditions to see what changed.
           </p>
           <p className={card}>
-            These are maximum efforts. Only do them healthy, rested and warmed up, and stop if you
-            feel sharp pain, dizziness or chest tightness.
+            These are maximum efforts. Only do them healthy, rested and warmed up. {STOP_LINE}
           </p>
           {due && (
             <div className={card + ' flex flex-col gap-3 border-[var(--bell-ink)]'}>

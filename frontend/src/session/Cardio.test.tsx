@@ -135,7 +135,7 @@ test('with the talk test on, effort shows as the talk test; what is logged stays
   const sent = serve({ log: { ...LOGGED, planned: false } })
   render(<Cardio featured talkTest />)
   expect(
-    await screen.findByText('Talk test: Moderate: you can talk in full sentences.'),
+    await screen.findByText('Talk test: Moderate: you can talk in full sentences, but not sing.'),
   ).toBeInTheDocument()
   expect(screen.getByRole('list', { name: 'Cardio minutes by heart-rate zone' })).toBeVisible()
   click(/different minutes/)

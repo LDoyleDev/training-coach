@@ -3,6 +3,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { Clash, Done, Guided, Kept, Pending, Saved, TodayView } from '../api'
 import { playChange, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import SessionPage from './SessionPage'
+import { BODY_KNOWS, NORMAL, STOP_LINE } from './safety'
 
 vi.mock('../hiit/sounds', () => ({
   DEFAULT_SOUND: 'ring',
@@ -172,7 +173,7 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
   render(<SessionPage />)
   expect(await screen.findByRole('heading', { name: 'Legs' })).toBeInTheDocument()
   expect(screen.getByText('Warm up for about 5 minutes first.')).toBeInTheDocument()
-  expect(screen.getByText(/Stop if you feel sharp pain/)).toBeInTheDocument()
+  expect(screen.getByText(STOP_LINE)).toBeInTheDocument()
   click('Start session')
 
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument()
@@ -237,8 +238,11 @@ test('the stop signs show once before the first session, remembered on the serve
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
   expect(screen.getByRole('heading', { name: 'Before you start: stop signs' })).toBeVisible()
-  expect(screen.getByText(/Call 112 if it doesn't settle/)).toBeInTheDocument()
-  expect(screen.getByText('Sharp joint pain:')).toBeInTheDocument()
+  expect(screen.getByText(/Call 112 straight away if it's severe/)).toBeInTheDocument()
+  expect(screen.getByText(/hasn't gone after 5 minutes of rest/)).toBeInTheDocument()
+  expect(screen.getByText('Sharp or sudden pain in a joint or muscle:')).toBeInTheDocument()
+  expect(screen.getByText(NORMAL)).toBeInTheDocument() // what's normal comes first
+  expect(screen.getByText(BODY_KNOWS)).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'Jump squat' })).not.toBeInTheDocument()
   click('Got it, start')
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument()
@@ -283,13 +287,24 @@ test('the stop signs are one tap away on every set and rest', async () => {
   serve()
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
-  const signs = screen.getByText('Very dark urine after a hard session:')
+  const signs = screen.getByText(/^Very dark \(cola-coloured\) urine/)
   expect(signs).not.toBeVisible()
   fireEvent.click(screen.getByText('Stop signs'))
   expect(signs).toBeVisible()
   click('Confirm set')
   await screen.findByRole('button', { name: 'Skip rest' })
   expect(screen.getByText('Stop signs')).toBeInTheDocument()
+})
+
+test('the overview has the same stop line as the bot, and opens all the stop signs', async () => {
+  serve()
+  render(<SessionPage />)
+  expect(await screen.findByText(STOP_LINE)).toBeInTheDocument()
+  const fever = screen.getByText('A fever, or feeling ill:')
+  expect(fever).not.toBeVisible()
+  fireEvent.click(screen.getByText('All stop signs'))
+  expect(fever).toBeVisible()
+  expect(screen.getByText(/if you're pregnant:$/)).toBeVisible() // shown to everyone
 })
 
 test('the breathing cue shows once, on the first set after Start (ADR-0084)', async () => {
