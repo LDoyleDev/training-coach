@@ -171,7 +171,7 @@ person) it copies the first starter, sessions and versions, into their rows, wit
 plan changes from `plan.toml` come through the import instead (`POST /api/plan/import`: the
 plan as a pending change to review and save, Decided 1), which ships with step 5.
 
-**Before and after on the Pi** (backup-restore.md, "Rehearse a restore"):
+**Before and after on the Pi** (backup-restore.md, "Rehearsal"; last run 2026-11-02):
 
 1. Read-only first (`tc-read`): users, `plan_state` rows, open `session_progress` rows, and
    queue events inside the 24-hour undo window.
