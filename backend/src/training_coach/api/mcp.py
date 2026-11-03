@@ -21,12 +21,18 @@ from training_coach.api.oauth import MCP_PATH, NO_STORE, limited, server
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.rate_limit import RateLimit
-from training_coach.services import mcp_server, mcp_tokens
+from training_coach.services import mcp_server, mcp_tokens, users
 from training_coach.services.mcp_tokens import Access
 
 router = APIRouter(tags=["mcp"])
 PER_CONNECTION = 60  # requests a minute (requirement 16)
 TOKEN_NAMES = frozenset({"access_token", "token", "bearer"})
+# ADR-0085: the app can't see where the AI's person is, so it serves them for 30 days after
+# their last visit to the website from the EU or EEA.
+AWAY = (
+    "Paused: Training Coach serves the EU and EEA only. Open its website from there to "
+    "turn this connection back on."
+)
 
 
 def _challenge(request: Request, error: str | None = None) -> dict[str, str]:
@@ -39,7 +45,8 @@ def _challenge(request: Request, error: str | None = None) -> dict[str, str]:
 
 def connection(request: Request) -> Access:
     """The connection behind the bearer token; 401 (with the metadata pointer) without a live
-    one, 403 for a browser page from another site, 429 past 60 requests a minute."""
+    one, 403 for a browser page from another site, 451 more than 30 days after its person last
+    visited the website from the EU or EEA (ADR-0085), 429 past 60 requests a minute."""
     where = server(request)
     settings: Settings = request.app.state.settings
     origin = request.headers.get("origin")
@@ -52,8 +59,10 @@ def connection(request: Request) -> Access:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, "connect first", headers=_challenge(request)
         )
+    at = datetime.now(UTC)
     with session_scope(request.app.state.shared_sessions) as session:
-        access = mcp_tokens.verify(session, token.strip(), where.resource, datetime.now(UTC))
+        access = mcp_tokens.verify(session, token.strip(), where.resource, at)
+        away = access is not None and not users.served_remotely(session, access.user_id, at)
     if access is None:
         limited(request, "mcp")
         raise HTTPException(
@@ -69,6 +78,8 @@ def connection(request: Request) -> Access:
             "too many requests",
             headers={"Retry-After": str(limits.retry_after(key, now)), **NO_STORE},
         )
+    if away:  # after the limit, so a paused connection can't call without one
+        raise HTTPException(status.HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS, AWAY, NO_STORE)
     return access
 
 
@@ -81,7 +92,7 @@ Announce = Callable[[], Awaitable[None]]
 @router.post(
     MCP_PATH,
     response_model=None,
-    responses={200: {"description": "A JSON-RPC answer"}, 202: {}, 401: {}, 403: {}},
+    responses={200: {"description": "A JSON-RPC answer"}, 202: {}, 401: {}, 403: {}, 451: {}},
 )
 async def mcp(request: Request, access: Connection, background: BackgroundTasks) -> Response:
     """One JSON-RPC message (MCP Streamable HTTP, stateless, JSON answers)."""

@@ -1,11 +1,15 @@
 """People (ADR-0026). Per-person lookups here assume a session bound to the user
 (``db.session``), which filters them; they never take a user id themselves."""
 
+from datetime import datetime
+
 import structlog
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, ExerciseState, PlanState, User, UserSettings
+from training_coach.db.session import bound_user
+from training_coach.domain import region
 
 log = structlog.get_logger(__name__)
 
@@ -51,3 +55,24 @@ def settings_row(session: Session) -> UserSettings | None:
 
 def exercise_state(session: Session, exercise_id: int) -> ExerciseState | None:
     return session.scalar(select(ExerciseState).where(ExerciseState.exercise_id == exercise_id))
+
+
+def seen_in_europe(session: Session, user_id: int, now: datetime) -> None:
+    """A signed-in web visit by ``user_id`` from a listed country (ADR-0085): written at most
+    once an hour. Only the person's own session cookie leads here (``api.auth.owner``)."""
+    user = session.get(User, user_id)
+    if user is not None and region.worth_writing(user.last_seen_in_europe, now):
+        user.last_seen_in_europe = now
+
+
+def served_remotely(session: Session, user_id: int, now: datetime) -> bool:
+    """Whether the bot and the MCP endpoint serve ``user_id``: within 30 days of their last
+    visit from Europe. Any session may ask: users aren't per-person rows."""
+    user = session.get(User, user_id)
+    return user is not None and region.serves_remotely(user.last_seen_in_europe, now)
+
+
+def bot_served(session: Session, now: datetime) -> bool:
+    """``served_remotely`` for the person a session is bound to (the bot's sessions)."""
+    user = bound_user(session)
+    return user is not None and served_remotely(session, user, now)

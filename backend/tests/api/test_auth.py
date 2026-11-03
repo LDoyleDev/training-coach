@@ -47,6 +47,7 @@ ANY_REGION = {
     "/.well-known/oauth-protected-resource",
     "/.well-known/oauth-protected-resource/mcp",
     "/.well-known/oauth-authorization-server",
+    "/api/ingest/health-connect",  # the band reader keeps sending abroad (1 Nov 2026)
 }
 
 
