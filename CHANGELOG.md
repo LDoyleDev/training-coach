@@ -4,6 +4,21 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.16.0](https://github.com/LDoyleDev/training-coach/compare/v1.15.0...v1.16.0) (2026-11-03)
+
+
+### Features
+
+* **api:** pause the bot and MCP 30 days after a visit from Europe ([#514](https://github.com/LDoyleDev/training-coach/issues/514)) ([23704ad](https://github.com/LDoyleDev/training-coach/commit/23704ad4f2cf7bac4925c15f7da8e4b00e086d4f))
+* **web:** ask where the person lives, EU and EEA only ([#515](https://github.com/LDoyleDev/training-coach/issues/515)) ([0fef1eb](https://github.com/LDoyleDev/training-coach/commit/0fef1eb0349b7a0e1072f9e23a0ffec6f9acd21e))
+
+
+### Documentation
+
+* **docs:** band runbook: heart rate waits for Mi Fitness, MIUI kills ([#567](https://github.com/LDoyleDev/training-coach/issues/567)) ([0eaabdc](https://github.com/LDoyleDev/training-coach/commit/0eaabdc9658bfcfb8c5672295a040c77236631a0))
+* **docs:** restore drill of 2 Nov passed on the Pi before step 5 ([#566](https://github.com/LDoyleDev/training-coach/issues/566)) ([9e54540](https://github.com/LDoyleDev/training-coach/commit/9e545402d7c9b78383183accc78796998475b341))
+* **docs:** session log for 1.15.0 and reader 0.0.8 ([#559](https://github.com/LDoyleDev/training-coach/issues/559)) ([83db79b](https://github.com/LDoyleDev/training-coach/commit/83db79b66b01391ba41bd2ff292907bed5ac09bb))
+
 ## [1.15.0](https://github.com/LDoyleDev/training-coach/compare/v1.14.0...v1.15.0) (2026-11-01)
 
 
