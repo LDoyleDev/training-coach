@@ -34,13 +34,13 @@ def _view(country: str | None) -> ResidenceView:
 @router.get("", response_model=ResidenceView)
 def get_residence(request: Request, user: Owner) -> ResidenceView:
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
-        return _view(users.country(session, user))
+        return _view(users.country(session))
 
 
 @router.put("", response_model=ResidenceView)
 def set_residence(body: ResidenceBody, request: Request, user: Owner) -> ResidenceView:
     """Save the country; one off the list gets 422 with the reason."""
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
-        if not users.set_country(session, user, body.country):
+        if not users.set_country(session, body.country):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, ELSEWHERE)
-        return _view(users.country(session, user))
+        return _view(users.country(session))

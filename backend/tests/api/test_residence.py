@@ -11,7 +11,7 @@ from training_coach.api.app import create_app
 from training_coach.config import Settings
 from training_coach.db.models import User
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.services import auth
+from training_coach.services import auth, users
 from training_coach.services.users import OWNER
 
 PATH = "/api/account/residence"
@@ -60,3 +60,11 @@ def test_somewhere_else_is_refused_with_the_reason(
 def test_it_needs_a_signed_in_browser(client: TestClient) -> None:
     assert client.get(PATH).status_code == 401
     assert client.put(PATH, json={"country": "DE"}).status_code == 401
+
+
+def test_an_unbound_session_reads_and_writes_no_country(engine: Engine) -> None:
+    """The lookups use the session's bound person, never an id passed in (review of #515)."""
+    with session_scope(make_session_factory(engine)) as shared:
+        assert users.country(shared) is None
+        assert users.set_country(shared, "DE") is False
+    assert _stored(engine) is None
