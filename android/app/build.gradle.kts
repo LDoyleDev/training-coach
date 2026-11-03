@@ -1,6 +1,5 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -10,7 +9,10 @@ val (major, minor, patch) = appVersion.split(".").map { it.toInt() }
 
 android {
     namespace = "com.vybedev.coach.reader"
-    compileSdk = 36
+    // The API the code compiles against (androidx.core 1.19 needs 37). What the phone does is
+    // decided by minSdk and targetSdk, which stay explicit: AGP 9 would default targetSdk to
+    // compileSdk.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.vybedev.coach.reader"
@@ -49,10 +51,6 @@ android {
     }
 }
 
-kotlin {
-    jvmToolchain(17)
-}
-
 dependencies {
     // Health Connect: the data this app exists to read.
     implementation("androidx.health.connect:connect-client:1.1.0")
@@ -60,14 +58,14 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.10.01"))
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-compose:1.11.0")
-    implementation("androidx.core:core-ktx:1.17.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("androidx.core:core-ktx:1.19.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     // The background sync, once or twice a day: Android's own scheduler, which survives reboots
     // and needs no exact alarm or foreground service (Android 12, MIUI).
-    implementation("androidx.work:work-runtime-ktx:2.11.2")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
     // JSON built as JsonObject, no compiler plugin; also what the unit tests parse.
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
 
     testImplementation("junit:junit:4.13.2")
 }

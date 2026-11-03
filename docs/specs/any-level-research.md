@@ -1802,7 +1802,7 @@ item 27 (derived placement).
 
 - **EuropeActive / EREPS:** I found no primary text on what their standards require for
   pre-exercise screening (only book contents and a training provider's pages). Not confirmed
-  whether they name PAR-Q or PAR-Q+.
+  whether they name PAR-Q or PAR-Q+. (Closed in Part 5, S7: they name no questionnaire.)
 - **Ireland:** the HSE "Every Move Counts" and chronic-conditions PDFs were blocked (403).
   Irish practice is unconfirmed.
 - **UK CMO 2019:** the PDF wasn't retrieved.
@@ -1828,3 +1828,180 @@ item 27 (derived placement).
 - **ePARmed-X+ or PAR-Q+ online:** whether either is CE-marked as a device: not checked.
 - **Wording checks:** the questions and notes need a clinician's check, as B7 already says for the
   stop signs.
+
+
+## Part 5: Safety wording for Europe, line by line (1 Nov 2026)
+
+Researched 1 Nov 2026 against `main` at `318d40e`. It fills Part 4's gaps (EuropeActive, Ireland,
+pregnancy stop signs, heart-rate medicines, illness) and checks the live wording line by line. Not
+medical or legal advice: a briefing for the clinician and the lawyer that ADR-0085 requires before
+anyone but Liam uses the app. The marks are Part 4's.
+
+### Sources
+
+Screening and stop signs:
+
+| # | Source | URL | What it adds |
+| --- | --- | --- | --- |
+| S1 | PAR-Q+ 2025 (form dated 01-11-2024) [full] | https://eparmedx.com/wp-content/uploads/2025/01/PARQPlus2025Fillable.pdf | All "no": "you are cleared for physical activity", so "cleared" is PAR-Q+'s own word. Delay while you have "a cold or fever"; Q3's dizziness clarifier; valid 12 months |
+| S2 | PAR-Q+ Terms and Conditions [full, via a fetch summary] | https://eparmedx.com/about/terms-and-conditions/ | Written permission to put it in an app, even unedited; covers wording, order and pathways; adaptations can't be called validated; linking not restricted |
+| S3 | ACSM preparticipation screening, Riebe et al. 2015 [abstract] | https://pubmed.ncbi.nlm.nih.gov/26473759/ | Activity, symptoms or known disease, and intensity; events "often preceded by warning signs/symptoms" |
+| S4 | ESC 2020 sports cardiology guidelines [part: 4.2, 4.3.2, intensity, pregnancy] | https://academic.oup.com/eurheartj/article/42/1/17/5898937 | Symptom self-check; beta-blockers: talk test or RPE unless tested on the medicine; pregnancy stop signs (Class I, A): severe breathlessness, chest pain, dizziness, painful contractions, bleeding, fluid leaking |
+| S5 | DGSP S2k guideline, 2024 [part] | https://edoc.hu-berlin.de/items/802d40df-c976-4a76-80d4-b3da25623d2c/full | A doctor's exam before intense sport; DEGAM dissent |
+| S6 | DGSP GesundheitsCheck, 2002 [full] | https://www.klinikum-guetersloh.de/fileadmin/04_hauptseite/02_Medizinische_Zentren/Sportmedizinisches_Zentrum/eingangsfragebogen.pdf | Wait if ill or pregnant |
+| S7 | EuropeActive standards: Active Ageing Trainer, Personal Trainer (2019) [full, both summaries] | https://www.europeactive-standards.eu/sites/europeactive-standards.eu/files/documents/standards19/Active-Ageing_201905.pdf ; https://www.europeactive-standards.eu/sites/europeactive-standards.eu/files/documents/standards19/Personal-Trainer_201905.pdf | "Appropriate" screening and referral, and recognising when to stop; **names no questionnaire** (closes Part 4's EuropeActive gap) |
+| S8 | Reid et al., "Benefits outweigh the risks", BJSM 2022 [full] | https://storre.stir.ac.uk/bitstream/1893/33537/1/427.full.pdf | No routine clearance if people build up gradually; the stop list (breathlessness, chest pain, palpitations, dizziness, sudden change in vision); "increased awareness of the heartbeat is normal"; temporary pain is common; acute infection |
+| S9 | WHO 2020 guidelines (Bull et al.) [secondary] | https://pmc.ncbi.nlm.nih.gov/articles/PMC7719906/table/T4 | Clearance generally unnecessary; pregnant women should know the danger signs |
+| S10 | NHS, activity guidelines for older adults [full] | https://www.nhs.uk/live-well/exercise/physical-activity-guidelines-older-adults/ | Moderate: "talk, but not sing" |
+| S11 | Irish Heart Foundation, Be Active [full, via a fetch summary] | https://irishheart.ie/campaigns/be-active/ | Chest pain, pressure or tightness: call 112 immediately; stop if you feel unwell |
+| S12 | HSE exercise videos [secondary] | https://hse.ie/eng/about/who/healthwellbeing/exercise-videos | GP advice if you have health concerns |
+| S13 | Deutsche Herzstiftung, 112 press release, 2022 [full] | https://www.mynewsdesk.com/de/deutsche-herzstiftung-e-v/pressreleases/herzinfarkt-verdacht-jede-minute-zaehlt-keine-scheu-vor-dem-notruf-112-3161487 | Pain lasting over 5 minutes that doesn't ease at rest: call 112 at once |
+| S14 | NHS, heart attack [full] | https://www.nhs.uk/conditions/heart-attack/ | Call the emergency number; "Do not drive yourself" |
+| S15 | European Commission, 112 [secondary] | https://digital-strategy.ec.europa.eu/en/policies/112 | 112 is free everywhere in the EU (and Iceland, Liechtenstein, Norway) |
+| S16 | Canadian pregnancy guideline 2019 (Mottola et al.) [full, public summary] | https://www.gov.nl.ca/tcar/files/Canadian-Guideline-for-Physical-Activity-Throughout-Pregnancy.pdf | Active through pregnancy unless contraindicated |
+| S17 | NHS, exercise in pregnancy [full] | https://www.nhs.uk/pregnancy/keeping-well/exercise/ | Talk to your midwife; stop if unwell |
+| S18 | Friman and Wesslén 2000 [part] | https://pmc.ncbi.nlm.nih.gov/articles/PMC7165523 | Rest with a fever; supports S1 and S8, not on its own |
+
+Law:
+
+| # | Source | URL | What it adds |
+| --- | --- | --- | --- |
+| L1 | MDCG 2019-11 rev.1 [part] | https://health.ec.europa.eu/document/download/b45335c5-1679-4c71-a91c-fc7a4d37f12b_en?filename=mdcg_2019_11_en.pdf | Fitness apps aren't MDSW; generic pathways are excluded; decision support combining rules with one person's data can be |
+| L2 | MDR 2017/745 Art. 2(12) | https://eur-lex.europa.eu/eli/reg/2017/745/oj | The intended purpose is what the maker states |
+| L3 | UCPD 2005/29/EC Annex I point 17 [full] | https://www.legislation.gov.uk/eudr/2005/29/annex/I | No false claims to cure |
+| L4 | 93/13/EEC Annex 1(a); BGB §309 Nr. 7 | https://www.legislation.gov.uk/eudr/1993/13/annex ; https://www.gesetze-im-internet.de/bgb/__309.html | No excluding liability for injury |
+| L5 | PLD (EU) 2024/2853 Art. 15 [secondary] | https://streamlex.eu/articles/pld-en-art-15/ | Software is a product from 9 Dec 2026; no contractual exclusion |
+| L6 | GDPR Art. 9 [full] | https://gdpr-info.eu/art-9-gdpr/ | Health data needs explicit consent |
+| L7 | CJEU C-21/23 Lindenapotheke [secondary] | https://curia.europa.eu/jcms/upload/docs/application/pdf/2024-10/cp240159en.pdf | Inferred health data counts; competitors can sue (UWG warning letters in Germany) |
+| L8 | EDPB Guidelines 2/2023 [secondary: draft and comments] | https://www.edpb.europa.eu/system/files/documents/webform/public_consultation_reply/comment_gyg_guidelines-2_2023-on-technical-scope-of-art.-53-of-eprivacy-directive-1.pdf | "Storage" may include browser memory; "strictly necessary" exemption (derived) |
+
+### What changed in the app, and why
+
+Live with this Part (1 Nov 2026), all in `frontend/src/session/safety.ts` unless named:
+
+- **Chest pain gets its own stop sign with 112 and a time limit:** "Call 112 straight away if
+  it's severe, or if it hasn't gone after 5 minutes of rest. Don't drive yourself." The old "Call
+  112 if it doesn't settle" gave no limit (S11, S13, S14, S15).
+- **Faint, dizzy, breathless, racing heart, sight:** a separate sign; sit or lie down, 112 if you
+  faint or it doesn't settle, no more training that day and a doctor first. "Palpitations with
+  any of these" was hard to read (S8).
+- **Sharp pain:** joint or muscle; stop that exercise, try an easier step, leave it out, get it
+  checked if it lasts days (S8, Part 2 item 27).
+- **Dark urine:** with unusually painful, swollen or weak muscles, "Get medical help the same day"
+  instead of "See a doctor" (Part 2, rhabdomyolysis; weak evidence, clinician to confirm).
+- **New:** a "what's normal" line before the signs (S8); fever or feeling ill (S1, S6, S8, S18);
+  pregnancy signs shown to everyone, not keyed to an answer, so they stay public-health
+  information (S4, S9, L1); "You know your body best: if something feels wrong, stop" (S11, S17).
+- **One reminder line** for the session page, the tests page and the bot (`bot/messages.py`
+  `STOP`), naming 112, with "All stop signs" on the session page. A backend test checks the bot
+  and web lines match word for word.
+- **Talk test:** "Moderate: … but not sing" (S10); one neutral line in the Settings explainer on
+  heart medicines and rhythms, with no question attached (S4; ADR-0083's "asked without a
+  reason" still holds).
+- **Last set:** "On exercises suited to it" instead of "where it's safe" (ADR-0085; L5).
+- **Readiness page intro:** "a doctor should say hard efforts are fine" was clearance by another
+  name; now "we suggest talking to a doctor first. You decide." The ADR-0046 flow is otherwise
+  unchanged.
+- **Intended purpose** on Account, About (L1, L2; ADR-0085). The sign-in page shows no intro
+  text, so it isn't there; the terms and ADR-0085's sign-up page should carry it too.
+- **Daily check rest advice** (`domain/daily_check.py`): "A walk is fine, unless you have a fever
+  or feel ill: then rest" (S1).
+
+Written for the ADR-0085 build, not live yet: the gate's "once a year, or sooner if your health
+changes" intro; the three note titles and texts replacing "Go as planned" after a health check;
+removing "Nothing in your answers says to hold back"; the generic hard-day line; the lines shown
+with every note (illness, joints, after an operation, health changes, the stop signs, "can't
+examine you"); Q8's over-breathing clarifier; the AI prompt and guide health lines; renaming the
+readiness data option. Their proposed text, with sources:
+
+- Gate intro: "Some questions about your health before you train, asked once a year, or sooner if
+  your health changes. A "yes" never stops you: it means we suggest talking to a doctor first. You
+  decide. The app gives general suggestions; it can't examine you." (S1, ADR-0085.)
+- Note A, "Talk to a doctor before you start": "We suggest you talk to a doctor before you start
+  training with us. Tell them what you answered. If you're pregnant or had a baby recently, your
+  midwife or doctor. You decide what you do." (S9, S16, S17.)
+- Note B, "Start easy, and ask a doctor before hard sessions": "Start easy and build up over
+  weeks. Before hard sessions (High-intensity and test days), we suggest asking a doctor first.
+  You decide." (S4, S8.)
+- Note C, "Start easy and build up": "Start easy and build up a little at a time, over weeks."
+- With every note: "If you have a fever or feel ill, wait until you feel better." "If a joint gets
+  worse with a movement, choose an easier step, or one of the preferences." "After an operation,
+  an injury or a serious illness, follow the advice you were given about when to start again, and
+  answer these questions again." (derived; clinician check.) "If your health changes, answer
+  again. We'll ask again in a year." The stop signs. "Training Coach gives general suggestions. It
+  can't examine you and doesn't know your health; you decide what you do."
+- Hard-day line: "Today is a hard session. If your health answers suggested asking a doctor first,
+  we suggest doing that before you go all out. You decide."
+- Q8 clarifier: "Answer no if it was from breathing too fast, or right after an all-out effort."
+  (S1, Q3 note.)
+- AI prompt (`prompts/weekly_comment.md`) and `docs/ai-guide.md`: "Health first: if the data or
+  the person mentions chest pain, fainting, dizziness, unusual breathlessness or sharp pain,
+  suggest they stop and talk to a doctor. Never diagnose, never say anyone is fit or safe to
+  train, and never suggest treatment. You aren't a doctor." Drop the readiness-answers bullet;
+  rename the AI data option to "daily checks (health data)".
+- Optional: under a note, "Why this note: you answered yes to question N. We suggest this to
+  anyone who does." Showing the rule openly reads as a printed self-check the person applies,
+  not a verdict about them, which supports the generic-pathway reading of L1 (derived, for the
+  lawyer).
+- Optional, only if the clinician wants it: "If someone collapses and isn't breathing normally,
+  call 112 and start chest compressions."
+
+### What a clinician must still check
+
+1. The 112 thresholds: "straight away if severe" and "after 5 minutes of rest" (Irish Heart and
+   NHS say at once, the Herzstiftung over 5 minutes); "don't train again that day, and talk to a
+   doctor" after a faint or palpitations.
+2. Dark urine: same-day help or 112; whether severe muscle pain alone should trigger it.
+3. Note B for inactive people with a known condition: ESC and Reid allow light exercise without
+   evaluation, ACSM wants clearance first.
+4. The question list: ACSM's extra symptoms for Q7 (swollen ankles, calf pain on walking that
+   eases with rest, unusual tiredness); the 35 threshold; the Q8 clarifier; the 6-month postpartum
+   window (derived).
+5. The pregnancy stop sign in the universal list, and "tightening of your bump".
+6. The illness and surgery lines, and whether "start a little easier" after illness is enough
+   (ESC is stricter after myocarditis, which the app can't detect).
+7. The "normal" line: that it reassures without telling anyone to ignore a real sign.
+8. The talk-test medicine line: that "some heart medicines or heart rhythms" is accurate and not
+   misleading.
+9. Translations, when they come, including the German stop signs.
+
+### What a lawyer must still check
+
+1. **MDR:** whether ADR-0085's answer-to-note logic is clinical decision support under L1;
+   whether showing the rule openly helps; whether the intended-purpose statement and the
+   talk-test line keep it non-medical; marketing claims against UCPD Annex I point 17 (L3) and
+   the German HWG.
+2. **GDPR:** whether the UG is a controller of on-device processing; whether answers in browser
+   memory and a note in localStorage fall under ePrivacy Art. 5(3) / TDDDG §25, and whether
+   "strictly necessary" applies (L8); Lindenapotheke's competitor standing raises the stakes (L7).
+3. **Liability:** that "can't examine you", "you decide" and the stop signs read as information,
+   not exclusion (L4, L5); any remaining "safe" in the app; the terms' liability clause.
+4. **The PAR-Q+ link:** whether a plain link to the official form and the German PDF needs
+   anything more than no claim of endorsement (S2).
+
+### Licensing
+
+- **PAR-Q+ can't be reproduced in the app**, not even unedited, without prior written permission
+  (eparmedx@gmail.com; fees possible). Changes to wording, order or pathways are covered, so a
+  paraphrase presented as PAR-Q+ is out. Linking isn't restricted: https://eparmedx.com/ and the
+  German PDF https://eparmedx.com/wp-content/uploads/2025/05/PARQGerman.pdf (both live on 1 Nov
+  2026).
+- **Never call our questions "PAR-Q", "based on PAR-Q+" or "validated"** in the app. Citing
+  PAR-Q+ as one source in docs and ADRs is fine (derived). The topics aren't protected, only the
+  expression.
+- **ACSM's algorithm figure** is copyright; its criteria aren't. Don't reproduce the flowchart.
+- **ESC, NHS, Herzstiftung, Irish Heart Foundation:** paraphrase in our own words; short
+  quotations with a citation in docs are fine.
+- **Translations:** PAR-Q+ has an official German version; our own questions need their own
+  reviewed translations.
+
+### Gaps
+
+- HSE Ireland's primary pages returned 403; the Irish view rests on S11 and a search summary
+  (S12).
+- ACOG 804, RCOG, Tommy's and the full Mottola text were blocked; the pregnancy signs rest on ESC
+  2020 (Class I, A).
+- ACSM 12th edition: no primary confirmation that the 2015 algorithm is unchanged.
+- EDPB 2/2023: the adopted text wasn't read. PLD Art. 15: read from a mirror, not EUR-Lex.
+- No primary public-health page on rhabdomyolysis was found; the dark-urine urgency rests on
+  clinical teaching.

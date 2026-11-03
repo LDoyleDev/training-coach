@@ -1,6 +1,6 @@
 # Training Coach: a guide for AI assistants
 
-Guide version: 4
+Guide version: 5
 
 You've been given a summary from **Training Coach**, a personal training app, by the person
 whose training it is. This page explains what the numbers mean and how to help. It contains no
@@ -37,6 +37,9 @@ personal data; the summary does.
   lists their home kit, a step it doesn't allow is locked: moving up skips to the next step
   they can do, and "top for my kit" names what would unlock the next one. Before a kit is
   listed nothing is locked. A gym has everything.
+- **No open step above.** "No open step above this one" means harder steps exist but none is
+  open to the person now. The app gives no reason; don't guess at one or ask about it, and
+  don't suggest the locked steps.
 - **Weights.** A gym exercise is one step done with a weight in kg (for dumbbells, the weight of
   one). Reps go up within the range at one weight; once every set of a session at that weight
   reached the top, the app suggests the next weight up and the reps start again at the bottom

@@ -31,9 +31,36 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
-          gradle-version: "8.14.4"
+          gradle-version: "9.7.1"
       - name: Test, lint and build
         run: gradle -p android --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease
+      - name: Check what the APK declares
+        # The release APK at the path the release job takes it from: package, minSdk, targetSdk and
+        # permissions must match android/app/expected-apk.txt, and versionCode must follow
+        # android/VERSION. Catches a toolchain or library update that changes what the phone sees.
+        run: |
+          apk=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          test -f "$apk" || { echo "::error::no APK at $apk"; exit 1; }
+          tools="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME"/build-tools | sort -V | tail -1)"
+          "$tools/aapt2" dump badging "$apk" > "$RUNNER_TEMP/badging.txt"
+          "$tools/aapt2" dump permissions "$apk" > "$RUNNER_TEMP/permissions.txt"
+          {
+            sed -nE "s/^package: name='([^']*)'.*/package: \1/p" "$RUNNER_TEMP/badging.txt"
+            sed -nE "s/^(minSdkVersion|sdkVersion): ?'([^']*)'.*/minSdk: \2/p" "$RUNNER_TEMP/badging.txt"
+            sed -nE "s/^targetSdkVersion: ?'([^']*)'.*/targetSdk: \1/p" "$RUNNER_TEMP/badging.txt"
+            grep -E '^(uses-permission|permission):' "$RUNNER_TEMP/permissions.txt" | LC_ALL=C sort
+          } > "$RUNNER_TEMP/apk.txt"
+          grep -v '^#' android/app/expected-apk.txt | diff -u - "$RUNNER_TEMP/apk.txt" ||
+            { grep -iE '^(package|[a-z]*sdk[a-z]*):' "$RUNNER_TEMP/badging.txt"; exit 1; }
+          IFS=. read -r major minor patch <<< "$(tr -d '[:space:]' < android/VERSION)"
+          code=$((10#$major * 10000 + 10#$minor * 100 + 10#$patch))
+          grep -q "^package: .* versionCode='$code' " "$RUNNER_TEMP/badging.txt" ||
+            { echo "::error::versionCode is not $code (android/VERSION)"; grep '^package:' "$RUNNER_TEMP/badging.txt"; exit 1; }
+          echo "APK checked: $(grep '^package:' "$RUNNER_TEMP/badging.txt")"
+          # The SDK platforms on the runner and their revisions: the build compiles against one of them.
+          for p in "$ANDROID_HOME"/platforms/*/source.properties; do
+            echo "$(basename "$(dirname "$p")"): $(grep -h '^Pkg.Revision=' "$p")"
+          done
       - name: Keep the unsigned release APK
         if: github.event_name == 'push'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

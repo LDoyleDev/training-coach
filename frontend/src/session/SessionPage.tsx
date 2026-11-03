@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   changeLevel,
   chooseLength,
+  easeBackIn,
   fetchPending,
   fetchSettings,
   fetchToday,
@@ -62,6 +63,7 @@ import Proposals from './Proposals'
 import LogDay from './LogDay'
 import LevelChange from './LevelChange'
 import LengthChoice, { KeepToggle } from './Length'
+import EaseBack from './EaseBack'
 import { levelNote, type LevelScope } from './levels'
 import ClashQuestion from './ClashQuestion'
 import { ExerciseFigures } from '../bodymap/BodyMap'
@@ -71,9 +73,11 @@ import { duration, soFar, times, type SetTime } from './times'
 import useWakeLock from './useWakeLock'
 import { DEFAULT_SOUND, type Sound, playChange, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import { card, primary, primaryInline, secondary } from '../ui'
+import { moveHref, stepDownText } from '../plan/ladder'
 import { KIT_HREF } from '../account/kit'
-import { BREATHING } from './safety'
-import { StopSignsCard, StopSignsTap } from './StopSigns'
+import { NO_OPEN_STEP } from '../plan/ladder'
+import { BREATHING, LAST_SET_LOCKED, STOP_LINE, lastSetTarget } from './safety'
+import { AllStopSigns, StopSignsCard, StopSignsTap } from './StopSigns'
 
 type Stage = 'overview' | 'set' | 'rest' | 'check' | 'saved'
 
@@ -362,6 +366,8 @@ export default function SessionPage() {
   const timesSoFar = stage === 'check' ? times(session, values) : null
   const step = screen.order[Math.min(position, total - 1)]
   const item = screen.items[step.item]
+  // Last set: as many good reps as you can (ADR-0084): its target is the floor.
+  const asMany = item.last_set_amrap && step.set_no === item.targets.length
   const kg = loadFor(screen, values, step.item, step.set_no)
   const base = valueFor(values, step.item, step.set_no, step.target)
   const value = kg === undefined ? base : { ...base, load_kg: kg }
@@ -466,6 +472,47 @@ export default function SessionPage() {
     } catch (error) {
       if (error instanceof SignedOutError) setSignedOut(true)
       else setNote("Couldn't change the length. Check your connection and try again.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Ease back in after a break (ADR-0084): one step down today for each exercise offered, or
+   * not today; asked once per return. A 409 reloads the session, as a length change does. */
+  const answerEaseBack = async (ease: boolean) => {
+    setSignedOut(false) // a retry after signing in again
+    setBusy(true)
+    try {
+      const result = await easeBackIn({ template_id: session.template_id, revision, first, ease })
+      if (result === 'stale')
+        return stale("Today's session moved on elsewhere, so nothing changed. Here it is now.")
+      if (typeof result === 'string') return setNote(result)
+      changed(
+        result,
+        ease
+          ? 'One step down today. Your levels stay as they are.'
+          : 'Not today: today is at your usual levels.',
+      )
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't answer. Check your connection and try again.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Last set: as many good reps as you can (ADR-0084), offered with a shorter day: the same
+   * setting as on Account, then today's session again with it. */
+  const pickLastSet = async (on: boolean) => {
+    setSignedOut(false)
+    setBusy(true)
+    try {
+      const result = await saveSettings({ last_set_amrap: on })
+      if (result === 'invalid') return setNote(`${LAST_SET_LOCKED}.`)
+      stale(on ? 'Saved: last set, as many good reps as you can.' : 'Saved: last sets as usual.')
+    } catch (error) {
+      if (error instanceof SignedOutError) setSignedOut(true)
+      else setNote("Couldn't change that. Check your connection and try again.")
     } finally {
       setBusy(false)
     }
@@ -610,6 +657,9 @@ export default function SessionPage() {
               onStale={stale}
             />
           )}
+          {session.ease_back.length > 0 && (
+            <EaseBack ease={session.ease_back} busy={busy} onAnswer={answerEaseBack} />
+          )}
           {session.length && (
             <LengthChoice
               session={session}
@@ -618,6 +668,7 @@ export default function SessionPage() {
               onChoose={(minutes) =>
                 pickLength(minutes, session.length?.keep ?? [], lengthText(session.name, minutes))
               }
+              onLastSet={pickLastSet}
             />
           )}
           {isCardio(session) ? (
@@ -706,6 +757,7 @@ export default function SessionPage() {
                 name={item.name}
                 step={item.step}
                 level={item.level}
+                noKit={item.no_kit}
                 done={
                   session.order.filter(
                     (s) => s.item === step.item && values[key(s.item, s.set_no)]?.confirmed,
@@ -750,11 +802,23 @@ export default function SessionPage() {
                 <span className="text-lg font-bold">
                   Set {step.set_no} of {item.targets.length}
                 </span>
-                <span className="text-[var(--slate)]">
-                  Target {unitText(item, step.target)}
-                  {item.per_side ? ' each side' : ''}
-                </span>
+                {!asMany && (
+                  <span className="text-[var(--slate)]">
+                    Target {unitText(item, step.target)}
+                    {item.per_side ? ' each side' : ''}
+                  </span>
+                )}
               </div>
+              {asMany && (
+                <div>
+                  <p className="m-0 font-bold">
+                    {lastSetTarget(
+                      unitText(item, step.target) + (item.per_side ? ' each side' : ''),
+                    )}
+                  </p>
+                  <p className="m-0 text-[var(--slate)]">Stop at the first rep that isn't clean.</p>
+                </div>
+              )}
               {item.unit === 'seconds' && (
                 <div className={card + ' flex flex-col items-center gap-2'}>
                   <span aria-live="polite" className="text-6xl font-extrabold">
@@ -950,7 +1014,16 @@ export default function SessionPage() {
                       </a>
                     </>
                   )}
-                  {e.at_top && <TopNote unlock={e.unlock} />}
+                  {e.at_top && <TopNote unlock={e.unlock} capped={e.capped} />}
+                  {e.step_down && (
+                    <>
+                      {' '}
+                      · {stepDownText(e.step_down)}{' '}
+                      <a href={moveHref(e.slug)} className="font-bold underline">
+                        Choose on the Plan tab
+                      </a>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
@@ -978,8 +1051,10 @@ export default function SessionPage() {
 }
 
 /** The ready rule met with no level to move to (ADR-0078): says so, and when the kit is what's
- * missing, what would open the next level (ADR-0071). The person decides; nothing moves. */
-function TopNote({ unlock }: { unlock: string | null }) {
+ * missing, what would open the next level (ADR-0071). With harder steps all locked otherwise,
+ * says only that none is open (ADR-0083). The person decides; nothing moves. */
+function TopNote({ unlock, capped }: { unlock: string | null; capped: boolean }) {
+  if (!unlock && capped) return <> · top of the range, with {NO_OPEN_STEP}.</>
   if (!unlock) return <> · top of the range on the last level of its ladder.</>
   return (
     <>
@@ -1122,9 +1197,10 @@ function Overview({
         <p className={card}>After your run: it's logged, and these sets are saved with it.</p>
       )}
       {warmUp && <p className={card}>{warmUp}</p>}
-      <p className="text-[var(--slate)]">
-        Stop if you feel sharp pain, dizziness or chest tightness.
-      </p>
+      <div>
+        <p className="m-0 text-[var(--slate)]">{STOP_LINE}</p>
+        <AllStopSigns />
+      </div>
       <ul className="flex flex-col gap-2">
         {session.items.map((item, index) => (
           <li key={item.slug} className={card + ' flex flex-col gap-2'}>

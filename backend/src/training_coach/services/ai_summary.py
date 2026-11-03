@@ -34,7 +34,7 @@ from training_coach.domain.progression import Progress
 from training_coach.domain.readiness import QUESTIONS
 from training_coach.services import equipment, fitness_tests, measurements, progress
 
-GUIDE_VERSION = 4  # bump with docs/ai-guide.md when the format or its meaning changes
+GUIDE_VERSION = 5  # bump with docs/ai-guide.md when the format or its meaning changes
 GUIDE_URL = "https://github.com/LDoyleDev/training-coach/blob/main/docs/ai-guide.md"
 
 UNITS = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: " s", ExerciseKind.DURATION_MIN: " min"}
@@ -110,6 +110,8 @@ def _exercises(session: Session) -> str:
         status = f"; {STATUS[s.status]}" if STATUS.get(s.status) else ""
         if s.status is Progress.TOP_OF_LADDER and s.unlock:  # top for the kit (ADR-0071)
             status = f"; top for my kit: {s.unlock}"
+        elif s.capped:  # every harder step locked; never why (ADR-0083)
+            status = f"; {progress.NO_OPEN_STEP}"
         retired = " (retired)" if s.retired else ""
         lines.append(
             f"- {s.exercise}{retired}: {s.step} (step {s.step_number} of {s.steps}); "

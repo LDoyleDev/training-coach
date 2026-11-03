@@ -182,3 +182,24 @@ exercises (a hand or a weight on the head), overhead extension (a heavier bell),
 prone Y-T-W (bottles), back extension (on the bed's edge; a bell at the chest), chin tuck
 (lying), ab rollout (a wheel; standing), side plank hip dip (straight legs; top leg up; a bell on
 the hip). Mobility and the three cardio entries have no single figure.
+
+## Addendum (1 Nov 2026): the lower steps drawn (#545)
+
+ADR-0083's lower steps (#534) were listed in `UNDRAWN`, showing no figure rather than the wrong
+one. All seventeen are drawn now, in `frontend/src/figures/ladder-down.ts`, and `UNDRAWN` is
+empty, so the audit in `steps.test.tsx` passes with no gaps. Each is drawn over its exercise's
+figure, as the steps above are:
+
+- **Push-up:** palms flat on a wall; hands on a counter, a table, a chair seat against a wall or a
+  low step, the body one straight slope lowered about the balls of the feet (the plank's
+  `line`); on the knees, pivoting on them from knees to head in one line.
+- **Split squat:** both feet on the floor, the back heel up, a hand on the back of a chair in
+  front, a short or a full range; the back foot on a low step.
+- **Pull-up:** on the balls of the feet on a chair under a bar at door-frame height (195 cm,
+  so the legs can push all the way to chin over the bar); scapular pulls, a 2 cm rise on
+  straight arms with the chest lifted.
+- **Household loads:** a bag in place of the row's bell; bottles, or a bag in one hand with the
+  other arm hanging, on the curl.
+- **Calf raise:** both feet on the flat floor facing the wall, with no close-up; both feet on
+  the step's edge.
+- **Copenhagen plank:** the bottom foot stays on the floor, from the side and from the front.

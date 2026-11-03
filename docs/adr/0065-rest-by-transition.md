@@ -55,11 +55,15 @@ choice, not a finding: a general or specific warm-up didn't add reps on submaxim
 few specific sets matter only above about 80% of a one-rep max (research file, Time
 efficiency). It saves 15 minutes a week over the three resistance sessions.
 
-- `WARM_UP_MINUTES` in `services/guided.py` is 5, so every resistance session's estimate
+- `WARM_UP_MINUTES` in `domain/trim.py` is 5, so every resistance session's estimate
   ("about N min" on Home and the overview) drops by 5 minutes.
 - The warm-up line says "Warm up for about 5 minutes first.": in the morning message before a
-  resistance session or a test day, and on a resistance session's overview in the app. It
-  replaces ADR-0028's "about 10 minutes of warm-up first". The bot's line takes the number from
-  `guided`.
+  resistance session, and on a resistance session's overview in the app. It replaces
+  ADR-0028's "about 10 minutes of warm-up first". The bot's line takes the number from
+  `domain/trim.py`.
+- A test day keeps 10 minutes (Liam, 1 Nov 2026): its tests are maximum efforts, where a few
+  specific sets matter. The morning message on a test day says "Warm up for about 10 minutes
+  first." from `TEST_DAY_WARM_UP_MINUTES`. A test day has no guided session or time estimate,
+  so nothing else changes.
 - The warm-up is a constant, not a per-person or per-session setting: a session gets it when
   its kind is `strength`. Nothing is stored, so there is no data to change. It stays untimed.

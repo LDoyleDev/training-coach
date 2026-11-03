@@ -84,7 +84,7 @@ def test_the_seed_stores_levels_marks_and_failure_ok_and_rewrites_them(session: 
 
 
 def test_every_bundled_step_has_a_level_and_known_marks() -> None:
-    """Retired exercises too: the goblet squat comes back as the Squat entry (ADR-0083)."""
+    """Retired exercises too, such as the reverse lunge (the goblet squat is back as the Squat)."""
     for exercise in load_plan().exercises:
         assert set(exercise.levels) == set(exercise.ladder), exercise.slug
         assert all(set(marks) <= set(Mark) for marks in exercise.marks.values())
@@ -104,13 +104,14 @@ PINNED = {
     ("chin-tuck", "5 s hold"): (1, set()),
     ("zone2", "Brisk walk / hike"): (2, set()),
     ("zone2", "Easy jog with weight vest or backpack"): (6, {"impact"}),
-    ("jump-squat", "Bodyweight, full rest"): (4, {"impact"}),
+    ("jump-squat", "Bodyweight, full rest"): (4, {"impact", "knees"}),
     ("kb-swing", "Two-hand, 8 kg"): (4, set()),
     ("kb-swing", "Two-hand, 24 kg"): (6, set()),
-    ("bulgarian-split-squat", "Bodyweight, back foot on chair"): (4, {"balance"}),
-    ("pistol-squat", "Full pistol"): (6, {"balance"}),
+    ("bulgarian-split-squat", "Bodyweight, back foot on chair"): (4, {"balance", "knees"}),
+    ("pistol-squat", "Sit to chair on one leg"): (4, {"balance"}),
+    ("pistol-squat", "Full pistol"): (6, {"balance", "knees"}),
     ("hamstring-curl", "Towel slide, both legs"): (4, {"floor"}),
-    ("hamstring-curl", "Nordic curl negatives"): (6, {"floor", "kneeling"}),
+    ("hamstring-curl", "Nordic curl negatives"): (6, {"floor", "kneeling", "knees"}),
     ("ab-rollout", "Kneeling towel slide, short range"): (4, {"floor", "kneeling"}),
     ("ab-rollout", "Standing ab wheel negatives"): (6, {"floor"}),
     ("side-plank-hip-dip", "On the knees"): (3, {"floor", "kneeling"}),
@@ -120,10 +121,12 @@ PINNED = {
     ("hiit", "8 rounds"): (4, set()),
     ("dip", "Dip bars, vest or backpack"): (6, set()),
     ("leg-press", "Machine"): (3, set()),
-    ("back-squat", "Barbell"): (4, set()),
+    ("back-squat", "Barbell"): (4, {"knees"}),
     ("glute-bridge", "Standing, at the counter"): (1, set()),
     ("glute-bridge", "On the floor"): (2, {"floor"}),
     ("step-up", "One stair, no hands"): (3, {"balance"}),
+    ("step-up", "One stair, holding 8 kg"): (4, {"balance"}),
+    ("zone2", "Easy jog / bike"): (4, set()),
     ("plank", "Hands on a counter"): (1, set()),
     ("plank", "On the knees"): (3, {"floor", "kneeling"}),
     ("deadlift", "A bag, from a block"): (2, set()),
@@ -135,6 +138,20 @@ PINNED = {
     ("balance", "Feet together, holding the counter"): (1, set()),
     ("balance", "One leg, eyes closed"): (5, {"balance"}),
     ("interval-walk", "3 min brisk, 3 min easy"): (2, set()),
+    # the lower steps of #508's migration, below today's bottoms
+    ("push-up", "Hands on a wall"): (1, set()),
+    ("push-up", "On the knees"): (3, {"floor", "kneeling"}),
+    ("pull-up", "Feet on a chair"): (3, {"hanging"}),
+    ("calf-raise", "Both legs, hands on a wall"): (1, set()),
+    ("suitcase-carry", "A bag, 1-3 kg, standing at the counter"): (1, set()),
+    ("kb-curl", "Water bottles, about 1 kg"): (1, set()),
+    ("bulgarian-split-squat", "Back foot on a low step"): (3, {"balance", "knees"}),
+    ("copenhagen-plank", "Knee on a chair, bottom foot helping"): (3, {"floor"}),
+    ("goblet-squat", "Raised seat, hands push off"): (1, set()),
+    ("goblet-squat", "Full depth"): (4, {"knees"}),
+    ("zone2", "Easy walk, short bouts are fine"): (1, set()),
+    ("neck-flexion", "Seated, hand resistance, held"): (1, set()),
+    ("neck-lateral", "Seated, hand resistance, held"): (1, set()),
 }
 
 
@@ -174,3 +191,39 @@ def test_a_last_set_to_failure_only_where_adr_0084_allows_it() -> None:
     allowed = {e.slug for e in load_plan().exercises if e.failure_ok}
     assert allowed == FAILURE_OK
     assert not allowed & NEVER
+
+
+# "Easy on my knees" (ADR-0083, #540): deep knee bending, every way the step can be done. Loaded
+# or full-depth squats, a single-leg squat below chair height, split squats at full range,
+# lunges, Nordic and reverse Nordic curls. Left open, so a way in remains: a squat or a one-leg
+# sit to a chair, a split squat's short range, low steps and one stair, bridges, machines whose
+# depth the seat sets (leg press, leg extension), and cardio with a bike or a walk among its ways
+# (jogging is "impact").
+KNEES = {
+    *(("jump-squat", s) for s in ("Bodyweight, full rest", "Pause at bottom, then jump",
+                                   "Holding 8 kg")),
+    *(("bulgarian-split-squat", s) for s in ("Holding a chair, full range",
+        "Back foot on a low step", "Bodyweight, back foot on chair",
+        "Goblet hold, 8 kg", "Goblet hold, 3 s lowering", "Goblet hold, 16 kg",
+        "Goblet hold 16 kg, 3 s lowering", "Suitcase hold, 16 kg + 8 kg")),
+    *(("pistol-squat", s) for s in ("Lower box", "Full pistol", "Holding 8 kg")),
+    ("hamstring-curl", "Nordic curl negatives"), ("hamstring-curl", "Full Nordic curl"),
+    *(("reverse-nordic", s) for s in ("Lean back about 30 degrees", "Lean deeper, 3 s lowering",
+        "To the floor, hands push you back", "To the floor and back, no hands")),
+    ("back-squat", "Barbell"),
+    # the Squat (#508): no chair, then the goblet steps; its chair-height steps stay open
+    *(("goblet-squat", s) for s in ("Full depth", "8 kg, 3 s lowering", "1.5-rep squats, 8 kg",
+                                     "Heavier kettlebell")),
+    # retired, kept for its history
+    *(("reverse-lunge", s) for s in ("Bodyweight", "Holding 8 kg", "Deficit, holding 8 kg")),
+}  # fmt: skip
+
+
+def test_easy_on_my_knees_marks_deep_knee_bending_and_nothing_else() -> None:
+    marked = {
+        (e.slug, step)
+        for e in load_plan().exercises
+        for step, marks in e.marks.items()
+        if Mark.KNEES in marks
+    }
+    assert marked == KNEES

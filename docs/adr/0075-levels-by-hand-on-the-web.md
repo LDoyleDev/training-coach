@@ -90,3 +90,5 @@ Liam (30 Oct 2026) asked for the level questions before plans per person: the se
 - **They suggest, the person decides.** The Plan page's ladder panel shows each step's
   question under its name ("Ready for this if yes: ..."), in `GET /api/progress`'s ladder;
   nothing sets a level from an answer.
+- **Confirmed (Liam, 1 Nov 2026):** the bottom of the step's range, and setup walking up from
+  the bottom to the first no, as above.

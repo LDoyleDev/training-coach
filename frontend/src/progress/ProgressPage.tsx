@@ -8,7 +8,7 @@ import TrendChart from './TrendChart'
 import { local } from './chart'
 import { lastAndBest } from './logic'
 import { KIT_HREF } from '../account/kit'
-import { moveButton, moveHref, needs, topLabel } from '../plan/ladder'
+import { lockedText, moveButton, moveHref, topLabel } from '../plan/ladder'
 import { card, secondary } from '../ui'
 import { RetryCard, SignInCard } from '../components/StateCards'
 
@@ -84,7 +84,7 @@ function Standings() {
         {loaded.standings.map((s) => {
           const status = s.status === 'ready' ? 'Ready to move up' : topLabel(s)
           const here = s.ladder.find((r) => r.id === s.step_id)
-          const locked = here ? needs(here) : null
+          const locked = here ? lockedText('This step', here) : null
           return (
             <li key={s.exercise} className={card + ' flex flex-col gap-3'}>
               <div className="flex flex-col gap-1">
@@ -111,7 +111,7 @@ function Standings() {
                     </a>
                   </span>
                 )}
-                {locked && <span>This step {locked}, not in your kit.</span>}
+                {locked && <span>{locked}</span>}
               </div>
               <TrendChart standing={s} today={loaded.today} />
             </li>

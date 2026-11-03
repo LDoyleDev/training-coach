@@ -4,6 +4,71 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.15.0](https://github.com/LDoyleDev/training-coach/compare/v1.14.0...v1.15.0) (2026-11-01)
+
+
+### Features
+
+* **bot:** a test day's warm-up line says 10 minutes, sessions keep 5 ([#555](https://github.com/LDoyleDev/training-coach/issues/555)) ([05d5f00](https://github.com/LDoyleDev/training-coach/commit/05d5f008b3efeec38db5a818faa9066a60f2facb))
+* **web:** stop signs with 112 and a time limit, checked for Europe ([#556](https://github.com/LDoyleDev/training-coach/issues/556)) ([33380b9](https://github.com/LDoyleDev/training-coach/commit/33380b99cae85457f38bb2e31c200fc01f16fd9a))
+
+
+### Documentation
+
+* **docs:** home and gym versions of the 3- and 4-day starters, accepted ([#484](https://github.com/LDoyleDev/training-coach/issues/484)) ([82241ee](https://github.com/LDoyleDev/training-coach/commit/82241ee0d8d79def4662da184c0ceb6081f2ca3d))
+* **docs:** session log for 1.14.0 ([#551](https://github.com/LDoyleDev/training-coach/issues/551)) ([318d40e](https://github.com/LDoyleDev/training-coach/commit/318d40e0ee1cdba1184926b6bb57a6dc009684ad))
+* **docs:** the plan import ships with builder step 5 (Liam, 1 Nov) ([#557](https://github.com/LDoyleDev/training-coach/issues/557)) ([81b02e6](https://github.com/LDoyleDev/training-coach/commit/81b02e6f2626e1710895fe9060e7dca820061729))
+
+## [1.14.0](https://github.com/LDoyleDev/training-coach/compare/v1.13.0...v1.14.0) (2026-11-01)
+
+
+### Features
+
+* **db:** knees marks on the new deep steps, names that fit the ladders ([#546](https://github.com/LDoyleDev/training-coach/issues/546)) ([a9b25cd](https://github.com/LDoyleDev/training-coach/commit/a9b25cd50642e1e70e0428679ddbdc8aeba09892))
+* **web:** draw the door-frame row and curl ([#549](https://github.com/LDoyleDev/training-coach/issues/549)) ([b4cfbd8](https://github.com/LDoyleDev/training-coach/commit/b4cfbd8998cd13382af19a3b6ceb22a2835ced43))
+* **web:** draw the lower ladder steps, so none is left without a figure ([#548](https://github.com/LDoyleDev/training-coach/issues/548)) ([fd54206](https://github.com/LDoyleDev/training-coach/commit/fd542064791082a53e8835197bab82de5dc88207))
+
+
+### Documentation
+
+* **docs:** session log for 1.13.0 ([#547](https://github.com/LDoyleDev/training-coach/issues/547)) ([a7ba5ff](https://github.com/LDoyleDev/training-coach/commit/a7ba5ffbcf32d3e780bb3d8ac1f143d2a309a36d))
+
+## [1.13.0](https://github.com/LDoyleDev/training-coach/compare/v1.12.0...v1.13.0) (2026-11-01)
+
+
+### Features
+
+* **db:** extend fifteen ladders downward and bring back the Squat (ADR-0083) ([#534](https://github.com/LDoyleDev/training-coach/issues/534)) ([910f2b0](https://github.com/LDoyleDev/training-coach/commit/910f2b0907c74fed1e91df9a18c3aa195289e70d))
+
+
+### Documentation
+
+* **docs:** session log for 1.12.0 ([#542](https://github.com/LDoyleDev/training-coach/issues/542)) ([3011439](https://github.com/LDoyleDev/training-coach/commit/30114395f65dbef693ed65f2e84abbda0e321efc))
+
+## [1.12.0](https://github.com/LDoyleDev/training-coach/compare/v1.11.0...v1.12.0) (2026-11-01)
+
+
+### Features
+
+* **api:** "Easy on my knees", a fifth preference (ADR-0083) ([#541](https://github.com/LDoyleDev/training-coach/issues/541)) ([f582fe3](https://github.com/LDoyleDev/training-coach/commit/f582fe321c0153645acde82dcab8460ab6cc4c5f))
+* **api:** an optional last set of as many good reps as you can (ADR-0084) ([#536](https://github.com/LDoyleDev/training-coach/issues/536)) ([78bd11c](https://github.com/LDoyleDev/training-coach/commit/78bd11c776042b90f59d544de5f1d18985fcd09f))
+* **api:** away, no equipment, as a third place on Today's switch (ADR-0086) ([#538](https://github.com/LDoyleDev/training-coach/issues/538)) ([4270b2b](https://github.com/LDoyleDev/training-coach/commit/4270b2b27f336b81e686da1e7e02218c31c07e48))
+* **api:** minutes per session on Account, the default length (ADR-0082) ([#529](https://github.com/LDoyleDev/training-coach/issues/529)) ([6f911fe](https://github.com/LDoyleDev/training-coach/commit/6f911fe3eb280649a732f889458226cd633aba39))
+* **api:** the four preferences lock the steps they mark (ADR-0083) ([#531](https://github.com/LDoyleDev/training-coach/issues/531)) ([8104c2c](https://github.com/LDoyleDev/training-coach/commit/8104c2c9814f0d49841e95bda8228cfa5497d248))
+* **db:** away versions of the seven sessions and door-frame pulls (ADR-0086) ([#539](https://github.com/LDoyleDev/training-coach/issues/539)) ([c9d7058](https://github.com/LDoyleDev/training-coach/commit/c9d7058f48a141299755229ba6423f64579b0752))
+* **db:** balance and interval walk entries, and the way-in rule (ADR-0083) ([#520](https://github.com/LDoyleDev/training-coach/issues/520)) ([9cd41ab](https://github.com/LDoyleDev/training-coach/commit/9cd41abc37591b2f0c7f38909f0c9c27b912f166))
+* **db:** entry exercises for the lower body and core (ADR-0083) ([#518](https://github.com/LDoyleDev/training-coach/issues/518)) ([9038ae4](https://github.com/LDoyleDev/training-coach/commit/9038ae48463d891ea40ba16488ba025773767ec4))
+* **db:** entry exercises for the upper body, with bands (ADR-0083) ([#519](https://github.com/LDoyleDev/training-coach/issues/519)) ([cc55cc2](https://github.com/LDoyleDev/training-coach/commit/cc55cc264e80688bf18c390864a215eb3bb4e473))
+* **domain:** suggest a step down when the range's bottom is out of reach ([#530](https://github.com/LDoyleDev/training-coach/issues/530)) ([cd5949c](https://github.com/LDoyleDev/training-coach/commit/cd5949c6bad48831d022e7403898aea52679fcd0))
+* **web:** ease back in after three weeks away, one step down today ([#533](https://github.com/LDoyleDev/training-coach/issues/533)) ([79e8678](https://github.com/LDoyleDev/training-coach/commit/79e86789aa49b884f9a1770dc8325384c1338163))
+* **web:** figures for the entry exercises (ADR-0063, ADR-0083) ([#523](https://github.com/LDoyleDev/training-coach/issues/523)) ([dd3b7fa](https://github.com/LDoyleDev/training-coach/commit/dd3b7fadb2c1eee71e2ce450ba17164f702c4625))
+* **web:** offer Step down next to Move up on Plan, saved screen, bot ([#532](https://github.com/LDoyleDev/training-coach/issues/532)) ([199a524](https://github.com/LDoyleDev/training-coach/commit/199a524f63be8471376f9b0e75d0f6340283e58a))
+
+
+### Documentation
+
+* **docs:** session log for 1.11.0 ([#521](https://github.com/LDoyleDev/training-coach/issues/521)) ([856f923](https://github.com/LDoyleDev/training-coach/commit/856f9236efab2ab963612d5c6cd5facdafa814f1))
+
 ## [1.11.0](https://github.com/LDoyleDev/training-coach/compare/v1.10.0...v1.11.0) (2026-10-31)
 
 

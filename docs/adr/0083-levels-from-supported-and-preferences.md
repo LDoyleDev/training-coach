@@ -94,6 +94,29 @@ moved a step yet: `b7e1c3d5f9a2` deleted two unused top steps. A walk-through as
 - Settings gain the four preferences and the talk-test setting; nothing about a person's health
   is stored.
 - A fifth preference, "Easy on my knees", came out of the walk-through; it is for Liam to decide.
+  (Decided 1 Nov 2026: added; see the addendum below.)
+
+## Built (the four preferences, #526, 31 Oct 2026)
+
+Decided while building, within this ADR:
+
+- **Settings** `avoid_floor`, `avoid_kneeling`, `avoid_impact` and `avoid_hanging`, off for
+  everyone. Account shows them under "What you'd rather avoid" with one line, "You choose what
+  you're ready for. These skip steps that need it.", and no question. Balance has no switch.
+- **One lock path:** `domain.locks` judges a step by its kit needs (ADR-0071) and its marks
+  together, and `services.step_locks` is the one way in for Move up, Plan, Progress, the set
+  screen's picker and a level by hand. A step's reasons are in words, "needs the floor — you've
+  chosen to keep off it", next to the kit's "needs a 16 kg kettlebell".
+- **What the person avoids goes with them:** it locks at the gym too, where kit doesn't.
+- **A step someone is on and now avoids** stays their level; Plan shows its exercise without
+  "Show all" and says "You've chosen to avoid this; pick another step."
+- **Top of your open steps:** with every harder step locked and no kit that opens one, Plan and
+  Progress say "Top of your open steps". `unlock` names kit only, passing over steps the person
+  avoids. Telegram, the AI summary, the saved screen and the reviews say "no open step above
+  this one", true without saying why; "top of the ladder" stays for the real last step.
+- **Strength blocks** (ADR-0028): the one step harder is the next open step, skipping kit
+  locks at home and what the person avoids anywhere; with none open above, the current step
+  with the top's tempo cue.
 
 ## Addendum (31 Oct 2026): the entry exercises as built (#507)
 
@@ -114,3 +137,73 @@ moved a step yet: `b7e1c3d5f9a2` deleted two unused top steps. A walk-through as
 - **The rule's test** lists the muscles still without a way in: chest, biceps, calves, forearms,
   upper traps and obliques until #508, and the neck, whose low step the revised list dropped.
 - **Balance** is a new quality and pattern (`balance`): counted in seconds, never as sets.
+
+## Addendum (31 Oct 2026): the migration as built (#508)
+
+- **One migration, `5ebed72122f7`,** moves fifteen ladders and the Squat; the steps, levels and
+  marks are hard-coded in it and plan.toml matches them (a test holds both). The Squat is the
+  retired `goblet-squat`, un-retired and renamed, with eight sit-to-stand steps below its goblet
+  steps; "Fast up, slow down" is in its cues from "arms crossed" on.
+- **Nothing stored refers to a position** but `ladder_steps.position`: levels, sets, a session in
+  progress, replaced workouts and events name step ids, which the migration keeps. `start` is in
+  plan.toml only; it moves by the same number, so it names the same step and nobody's starting
+  point changes. Placing people lower is setup's job (builder step 10).
+- **Left out, as different movements** (option A puts those in entry exercises, as #519 did with
+  the seated band row): the doorframe rows (a bodyweight two-hand pull, not the one-arm row) and
+  side-lying adduction (closer to the adductor squeeze than the Copenhagen plank). Either can be
+  added later without a migration, as a new exercise or at the top of the adductor squeeze. The
+  hamstrings' low steps are the standing hamstring curl entry (#518), so the towel slide ladder
+  is unchanged. The cardio row's bike or seated stepping is a mode of zone 2's easy walk.
+- **Exercise names stay** ("Single-leg calf raise", "Bulgarian split squat", "One-arm kettlebell
+  row", "Kettlebell curl", "Kettlebell lateral raise") although their new bottom steps aren't
+  that: renaming is the seed's job and needs no migration, so it can follow on its own. The
+  same goes for the neck exercises' "(lying ..., head off edge)".
+- **A seated way in for the neck** (Liam, 1 Nov 2026): "Seated, hand resistance, held" (1) below
+  the lying bottom step of neck flexion, extension and side bend: the head pressed gently into
+  the hand and held 5 s, each hold one rep. The way-in rule now holds for every muscle, with no
+  waiting list.
+
+## Addendum (1 Nov 2026): a fifth preference, "Easy on my knees" (#540)
+
+Liam decided to add the walk-through's fifth preference ("squats to a chair, one low step,
+progress by tempo or a backpack rather than depth, and a bike for cardio"). It is built exactly
+as the four are (the "Built" section above): a mark `knees`, a setting `avoid_knees`, off for
+everyone, the fifth switch in Account's "What you'd rather avoid" with the same one line and no
+question; the reason reads "needs deep knee bending — you've chosen to go easy on your knees".
+Like the others it locks through `step_locks`, goes to the gym, is in the export and erased with
+the account, and is never shown on Telegram or over MCP.
+
+- **What `knees` means:** deep knee bending, every way the step can be done (as `impact` is
+  read): a loaded or full-depth squat, one leg below chair height, a full-range split squat or
+  lunge, a Nordic or reverse Nordic. Marked: every jump squat step, every Bulgarian split squat
+  step (all are full range), the pistol's lower box, full pistol and 8 kg, both Nordic curls on
+  the hamstring curl, every reverse Nordic, the barbell back squat, and the retired goblet squat
+  and reverse lunge (for their history, and the Squat that comes back from the goblet squat).
+- **Left open, so a way in remains:** the one-leg sit to a chair (chair height), every step-up
+  (a low step or one stair; there is no high step), glute bridges, the hinges and swings, the
+  towel-slide curls, the leg press and leg extension (the seat and stop set the depth, and they
+  progress by load), and all cardio: a bike or a walk is among the ways of every cardio step, and
+  a jog is already `impact`. No jog or HIIT step is marked `knees`, since knee load isn't the
+  point of any of them.
+- **A test holds the way in:** with all five preferences on, every muscle on the body map keeps
+  an open step where it is a prime mover (none is left without one), and ADR-0083's level 1-2
+  ways in are unchanged.
+- **Left for #508 (PR #534):** its new steps need their marks once it lands: on the Bulgarian
+  split squat "Holding a chair, full range" and "Back foot on a low step", and on the Squat "A
+  lower seat, arms crossed" (if lower than a chair) and "Full depth".
+
+## Addendum (1 Nov 2026): follow-ups to the lower ladders (#545)
+
+- **Knees marks on #534's steps:** the Split squat's "Holding a chair, full range" and "Back
+  foot on a low step" (full range, the back knee just off the floor), and the Squat's "Full
+  depth" (no chair), with its goblet steps already marked. Its chair-height steps stay open,
+  "A lower seat, arms crossed" too: both feet, sitting down to a sofa or low stool, not one leg
+  below chair height. The seed writes marks on every run, so the migration's own marks are only
+  where these steps began.
+- **Names that fit the new bottoms:** "Split squat", "Calf raise", "One-arm row", "Curl",
+  "Lateral raise", "Neck flexion", "Neck extension" and "Neck side bend". Slugs stay; each old
+  name is an alias, so typed and spoken logs and lines copied from old messages still parse.
+  The neck's lying step names its position in a cue now that the exercise's name doesn't.
+- **The Squat's "Heavier kettlebell" keeps its name,** with a cue naming the 16 kg bell:
+  `5ebed72122f7`'s downgrade checks the ladder it left by name, so renaming the step in the seed
+  would make it refuse on every seeded database. A later migration can rename it.

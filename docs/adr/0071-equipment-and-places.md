@@ -1,6 +1,6 @@
 # ADR-0071: Each person lists their home kit; a gym has everything; steps lock by kit
 
-- Status: Accepted
+- Status: Accepted; "no away place" (Decided 10) amended by ADR-0086 (Away, no equipment)
 - Date: 2026-10-25
 - Deciders: Liam
 

@@ -1260,6 +1260,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/progress/{slug}/not-yet-down": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Not Yet Down
+         * @description Not yet to a step down: stay; suggested again only after a new session that meets the
+         *     rule (ADR-0084).
+         */
+        post: operations["not_yet_down_api_progress__slug__not_yet_down_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/progress/{slug}/step-down": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Step Down
+         * @description Step down, from the suggestion (ADR-0084): the step below ``from_step_id``, as a level
+         *     chosen by hand. A stale page (the exercise moved since) changes nothing.
+         */
+        post: operations["step_down_api_progress__slug__step_down_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/proposals": {
         parameters: {
             query?: never;
@@ -1359,6 +1401,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/session/ease-back": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Ease Back In
+         * @description Ease back in after a break, or not: one step down for today only on each exercise
+         *     offered, levels unchanged; either answer is asked once per return. 409 when the session
+         *     changed or another device moved on (reload); 422 when there is nothing to ease back into.
+         */
+        put: operations["ease_back_in_api_session_ease_back_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session/length": {
         parameters: {
             query?: never;
@@ -1433,10 +1497,10 @@ export interface paths {
         get?: never;
         /**
          * Choose Place
-         * @description Do today's session at home or at the gym (ADR-0071): the person's switch, never the
-         *     app's. 409 with ``kept_sets`` at the top of the body (a PlaceAsk, as the API types say) when
-         *     sets are kept for the version shown (ask, then confirm), or with a ``detail`` message when
-         *     today has no choice to make.
+         * @description Do today's session at home, at the gym or away with no equipment (ADR-0071, ADR-0086):
+         *     the person's switch, never the app's. 409 with ``kept_sets`` at the top of the body (a
+         *     PlaceAsk, as the API types say) when sets are kept for the version shown (ask, then
+         *     confirm), or with a ``detail`` message when today has no choice to make or not that one.
          */
         put: operations["choose_place_api_session_place_put"];
         post?: never;
@@ -2258,6 +2322,8 @@ export interface components {
             at_top: boolean;
             /** Best Set */
             best_set: number | null;
+            /** Capped */
+            capped: boolean;
             /** Exercise */
             exercise: string;
             /** Load Kg */
@@ -2266,6 +2332,7 @@ export interface components {
             next_step: string | null;
             /** Slug */
             slug: string;
+            step_down: components["schemas"]["StepDownView"] | null;
             /** Total */
             total: number | null;
             /**
@@ -2275,6 +2342,34 @@ export interface components {
             unit: "reps" | "seconds" | "minutes";
             /** Unlock */
             unlock: string | null;
+        };
+        /**
+         * EaseBackBody
+         * @description The answer to "Ease back in: one step down today" (ADR-0084).
+         */
+        EaseBackBody: {
+            /** Ease */
+            ease: boolean;
+            /** First */
+            first?: number[];
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
+            /** Template Id */
+            template_id: number;
+        };
+        /**
+         * EaseBackView
+         * @description An exercise back after three weeks or more away, and the step below its level that
+         *     "Ease back in: one step down today" would do it at, for today only (ADR-0084).
+         */
+        EaseBackView: {
+            /** Exercise */
+            exercise: string;
+            /** Step */
+            step: string;
         };
         /**
          * Energy
@@ -2386,6 +2481,8 @@ export interface components {
             block: components["schemas"]["BlockView"] | null;
             /** Day */
             day: string;
+            /** Ease Back */
+            ease_back: components["schemas"]["EaseBackView"][];
             /** Focus */
             focus: string;
             /** Items */
@@ -2409,6 +2506,8 @@ export interface components {
              * @default false
              */
             place_choice: boolean;
+            /** Places */
+            places?: components["schemas"]["Place"][];
             /** Rest Seconds */
             rest_seconds: number;
             /** Template Id */
@@ -2658,12 +2757,22 @@ export interface components {
             /** Cue */
             cue: string | null;
             flow?: components["schemas"]["FlowView"] | null;
+            /**
+             * Last Set Amrap
+             * @default false
+             */
+            last_set_amrap: boolean;
             level?: components["schemas"]["ItemLevelView"] | null;
             load?: components["schemas"]["LoadView"] | null;
             /** Muscles */
             muscles: components["schemas"]["ItemMuscleView"][];
             /** Name */
             name: string;
+            /**
+             * No Kit
+             * @default false
+             */
+            no_kit: boolean;
             /** Pair */
             pair: number | null;
             /** Parts */
@@ -2836,15 +2945,22 @@ export interface components {
          *     drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
          *     ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
          *     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
-         *     kept, so the length no longer changes.
+         *     kept, so the length no longer changes. ``from_setting``: the day has no choice, so
+         *     ``minutes`` is the person's minutes per session; As planned stays selectable for the day.
+         *     ``last_set``: the person's last-set option (ADR-0084), offered here with a shorter day;
+         *     empty when it isn't offered: locked while they are new, or no exercise today it applies to.
          */
         LengthView: {
             /** Dropped */
             dropped: string[];
             /** Fixed */
             fixed: boolean;
+            /** From Setting */
+            from_setting: boolean;
             /** Keep */
             keep: string[];
+            /** Last Set */
+            last_set?: boolean | null;
             /** Minutes */
             minutes: number | null;
             /** Options */
@@ -2901,6 +3017,8 @@ export interface components {
          * @description One step of an exercise's ladder, to change the level on the set screen (ADR-0080).
          */
         LevelView: {
+            /** Avoided */
+            avoided: string[];
             /** Cue */
             cue: string | null;
             /** Id */
@@ -3157,7 +3275,8 @@ export interface components {
         };
         /**
          * MovedView
-         * @description What a press did. Anything but ``moved``, ``stayed`` or ``level_set`` changed nothing.
+         * @description What a press did. Only ``moved``, ``level_set`` and ``stepped_down`` change the step;
+         *     ``stayed`` and ``stayed_down`` record a Not yet.
          */
         MovedView: {
             /** Exercise */
@@ -3166,7 +3285,7 @@ export interface components {
              * Outcome
              * @enum {string}
              */
-            outcome: "moved" | "already_moved" | "not_ready" | "no_next_step" | "strength_block" | "stayed" | "level_set" | "same_level";
+            outcome: "moved" | "already_moved" | "not_ready" | "no_next_step" | "strength_block" | "stayed" | "level_set" | "same_level" | "stepped_down" | "no_step_below" | "stayed_down";
             /** Step */
             step: string | null;
             /** Warning */
@@ -3342,11 +3461,11 @@ export interface components {
         };
         /**
          * Place
-         * @description Where a workout is done (ADR-0071): at home, with the person's own kit, or at a gym,
-         *     which has everything. A session can hold a version for each.
+         * @description Where a workout is done (ADR-0071): at home, with the person's own kit, at a gym, which
+         *     has everything, or away with no equipment (ADR-0086). A session can hold a version for each.
          * @enum {string}
          */
-        Place: "home" | "gym";
+        Place: "home" | "gym" | "away";
         /**
          * PlaceAsk
          * @description The answer to a switch with sets kept: ask first, then send it again with confirm.
@@ -3667,6 +3786,8 @@ export interface components {
             ];
             /** Start */
             start: string;
+            /** Step Down */
+            step_down: components["schemas"]["ReadyView"][];
             /** Strength Block */
             strength_block: boolean;
             /** Top */
@@ -3700,6 +3821,8 @@ export interface components {
         };
         /** RungView */
         RungView: {
+            /** Avoided */
+            avoided: string[];
             /** Cue */
             cue: string | null;
             /** Id */
@@ -3861,6 +3984,16 @@ export interface components {
          * @description Only the fields sent change.
          */
         SettingsChange: {
+            /** Avoid Floor */
+            avoid_floor?: boolean | null;
+            /** Avoid Hanging */
+            avoid_hanging?: boolean | null;
+            /** Avoid Impact */
+            avoid_impact?: boolean | null;
+            /** Avoid Kneeling */
+            avoid_kneeling?: boolean | null;
+            /** Avoid Knees */
+            avoid_knees?: boolean | null;
             /** Blocks */
             blocks?: boolean | null;
             /** Extra Cardio Min */
@@ -3868,6 +4001,8 @@ export interface components {
             /** Habits Enabled */
             habits_enabled?: boolean | null;
             increments?: components["schemas"]["IncrementsChange"] | null;
+            /** Last Set Amrap */
+            last_set_amrap?: boolean | null;
             /** Morning Time */
             morning_time?: string | null;
             /** Nudge Time */
@@ -3882,6 +4017,8 @@ export interface components {
             protein_g?: number | null;
             /** Review Time */
             review_time?: string | null;
+            /** Session Minutes */
+            session_minutes?: (40 | 30 | 20) | null;
             sound?: components["schemas"]["Sound"] | null;
             /** Stop Signs Seen */
             stop_signs_seen?: boolean | null;
@@ -3890,6 +4027,16 @@ export interface components {
         };
         /** SettingsView */
         SettingsView: {
+            /** Avoid Floor */
+            avoid_floor: boolean;
+            /** Avoid Hanging */
+            avoid_hanging: boolean;
+            /** Avoid Impact */
+            avoid_impact: boolean;
+            /** Avoid Kneeling */
+            avoid_kneeling: boolean;
+            /** Avoid Knees */
+            avoid_knees: boolean;
             /** Blocks Since */
             blocks_since: string | null;
             default_increments: components["schemas"]["IncrementsView"];
@@ -3898,6 +4045,10 @@ export interface components {
             /** Habits Enabled */
             habits_enabled: boolean;
             increments: components["schemas"]["IncrementsView"];
+            /** Last Set Amrap */
+            last_set_amrap: boolean;
+            /** Last Set Locked */
+            last_set_locked: boolean;
             /** Morning Time */
             morning_time: string;
             /** Nudge Time */
@@ -3912,6 +4063,8 @@ export interface components {
             protein_g: number | null;
             /** Review Time */
             review_time: string;
+            /** Session Minutes */
+            session_minutes: (40 | 30 | 20) | null;
             sound: components["schemas"]["Sound"];
             /** Stop Signs Seen */
             stop_signs_seen: boolean;
@@ -3980,6 +4133,7 @@ export interface components {
             status: "hold" | "ready" | "top_of_ladder";
             /** Step */
             step: string;
+            step_down: components["schemas"]["StepDownView"] | null;
             /** Step Id */
             step_id: number;
             /** Step Number */
@@ -4012,6 +4166,21 @@ export interface components {
         };
         /** StepBody */
         StepBody: {
+            /** Step Id */
+            step_id: number;
+        };
+        /**
+         * StepDownView
+         * @description The bottom of the range out of reach twice (ADR-0084): a suggestion, nothing changes
+         *     without a tap. ``below`` is the step to suggest; None at a ladder's first step (or with
+         *     every step below locked by the kit), when ``easier`` names the catalogue's level 1-2
+         *     exercises for the same muscles, if any.
+         */
+        StepDownView: {
+            /** Below */
+            below: string | null;
+            /** Easier */
+            easier: string[];
             /** Step Id */
             step_id: number;
         };
@@ -4168,6 +4337,8 @@ export interface components {
          *     top of the ladder.
          */
         TopView: {
+            /** Capped */
+            capped: boolean;
             /** Exercise */
             exercise: string;
             /** Slug */
@@ -6280,6 +6451,76 @@ export interface operations {
             };
         };
     };
+    not_yet_down_api_progress__slug__not_yet_down_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    step_down_api_progress__slug__step_down_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveUpBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     waiting_api_proposals_get: {
         parameters: {
             query?: never;
@@ -6444,6 +6685,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReviewWeekView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ease_back_in_api_session_ease_back_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EaseBackBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TodayView"];
                 };
             };
             /** @description Validation Error */

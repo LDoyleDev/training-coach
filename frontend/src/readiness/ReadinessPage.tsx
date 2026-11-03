@@ -57,8 +57,9 @@ export default function ReadinessPage() {
     <AppShell>
       <h1>Readiness</h1>
       <p>
-        Before hard exercise, a few questions about your health. A "yes" doesn't stop you training;
-        it means a doctor should say hard efforts are fine first. This isn't medical advice.
+        Some questions about your health before you train. A "yes" never stops you: it means we
+        suggest talking to a doctor first. You decide. The app gives general suggestions; it can't
+        examine you.
       </p>
       {answered_at && ask_again_after && (
         <p className="text-[var(--slate)]">

@@ -27,6 +27,7 @@ from enum import StrEnum
 from training_coach.domain.muscles import Muscle, Pattern
 
 WARM_UP_MINUTES = 5  # J.4, ADR-0065 addendum
+TEST_DAY_WARM_UP_MINUTES = 10  # a test day's maximum efforts (J.4, Liam, 1 Nov 2026)
 RAMP_MINUTES = 2  # one or two easy sets of the first exercise (ADR-0082)
 RAMP_UP_TO = 30  # at this many minutes or fewer, ramp sets replace the warm-up
 FULL_WARM_UP_LEVEL = 3  # a first exercise at this level or below keeps the warm-up (ADR-0083)

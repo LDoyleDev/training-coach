@@ -1,0 +1,20 @@
+# What the release APK declares to the phone. android.yml compares the unsigned release APK
+# against this file with aapt2 on every build, pull requests included; versionCode is checked
+# against android/VERSION in the same step, so a release doesn't touch this file.
+# A change here changes what the phone sees: say why in the PR (ADR-0070, read as little as
+# possible). Permissions are sorted; the merged ones come from WorkManager and androidx.core.
+package: com.vybedev.coach.reader
+minSdk: 28
+targetSdk: 36
+permission: com.vybedev.coach.reader.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+uses-permission: name='android.permission.FOREGROUND_SERVICE'
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.RECEIVE_BOOT_COMPLETED'
+uses-permission: name='android.permission.WAKE_LOCK'
+uses-permission: name='android.permission.health.READ_EXERCISE'
+uses-permission: name='android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND'
+uses-permission: name='android.permission.health.READ_HEART_RATE'
+uses-permission: name='android.permission.health.READ_SLEEP'
+uses-permission: name='android.permission.health.READ_STEPS'
+uses-permission: name='com.vybedev.coach.reader.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'

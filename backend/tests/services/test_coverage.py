@@ -65,7 +65,7 @@ def test_a_loaded_step_adds_to_the_spine_count(plan: Session) -> None:
     assert plan_coverage(plan).days[0].spine_sets == 6  # swings and single-leg RDLs
     split = plan.scalars(select(Exercise).where(Exercise.slug == "bulgarian-split-squat")).one()
     state = plan.scalars(select(ExerciseState).where(ExerciseState.exercise_id == split.id)).one()
-    state.ladder_step_id = split.ladder[1].id  # "Goblet hold, 8 kg"
+    state.ladder_step_id = split.ladder[4].id  # "Goblet hold, 8 kg"
     plan.flush()
     assert trained_steps(plan)["bulgarian-split-squat"] == "Goblet hold, 8 kg"
     legs = plan_coverage(plan).days[0]

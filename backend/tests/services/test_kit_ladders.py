@@ -100,9 +100,10 @@ def test_curl_and_triceps_get_an_8_kg_middle_step(session: Session) -> None:
         ("overhead-triceps-extension", "8 kg, 1.5 reps"),
     ):
         exercise = plan[slug]
-        assert exercise.ladder[2] == middle
-        assert exercise.needs[middle] == ["kettlebell:8"]
-        assert [exercise.needs[s] for s in exercise.ladder[3:]] == [["kettlebell:16"]] * 2
+        on_8 = [s for s in exercise.ladder if exercise.needs.get(s) == ["kettlebell:8"]]
+        assert on_8[-1] == middle == on_8[2]  # below 8 kg: bottles and a bag (ADR-0083)
+        after = exercise.ladder[exercise.ladder.index(middle) + 1 :]
+        assert [exercise.needs[s] for s in after] == [["kettlebell:16"]] * 2
 
 
 def test_every_new_step_has_needs_and_a_cue() -> None:
