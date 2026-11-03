@@ -95,7 +95,7 @@ TEXTS = {
     ),
     Advice.REST: (
         "Your body is asking for a break. Rest today: the session moves to tomorrow. A walk is "
-        "fine."
+        "fine, unless you have a fever or feel ill: then rest."
     ),
 }
 

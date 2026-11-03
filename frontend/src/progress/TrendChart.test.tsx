@@ -23,6 +23,7 @@ const standing = (trend: Standing['trend'], unit: Standing['unit'] = 'reps'): St
   retired: false,
   trend,
   unlock: null,
+  step_down: null,
 })
 
 /** Each polyline's x values, left to right. */

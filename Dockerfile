@@ -7,7 +7,7 @@
 # set on the runner's Docker (ci.yml), which serves the same digests.
 
 # --- 1. Dashboard ---------------------------------------------------------
-FROM docker.io/library/node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS web
+FROM docker.io/library/node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -15,7 +15,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # --- 2. Python dependencies ----------------------------------------------
-FROM docker.io/library/python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS deps
+FROM docker.io/library/python:3.12-slim@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159 AS deps
 COPY --from=ghcr.io/astral-sh/uv:0.8.17@sha256:e4644cb5bd56fdc2c5ea3ee0525d9d21eed1603bccd6a21f887a938be7e85be1 /uv /bin/uv
 # The Pi builds over a weak Wi-Fi link: v0.37.0's deploy failed on one download timing out
 # (30 s default). Allow longer, retry more, fetch fewer at once, and keep downloaded wheels in
@@ -28,7 +28,7 @@ COPY backend/ ./
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 
 # --- 3. Runtime ------------------------------------------------------------
-FROM docker.io/library/python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS runtime
+FROM docker.io/library/python:3.12-slim@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159 AS runtime
 # How scripts/auto-deploy.sh finds this app's old images to remove, and only them.
 LABEL training-coach.app="true"
 RUN groupadd --system --gid 10001 app \

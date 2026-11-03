@@ -1,15 +1,19 @@
-import { STOP_SIGNS } from './safety'
+import { BODY_KNOWS, NORMAL, STOP_SIGNS } from './safety'
 import { card, primary } from '../ui'
 
 function Signs() {
   return (
-    <ul className="m-0 flex flex-col gap-2 pl-5">
-      {STOP_SIGNS.map(({ signs, then }) => (
-        <li key={signs}>
-          <strong>{signs}:</strong> {then}
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-2">
+      <p className="m-0">{NORMAL}</p>
+      <ul className="m-0 flex flex-col gap-2 pl-5">
+        {STOP_SIGNS.map(({ signs, then }) => (
+          <li key={signs}>
+            <strong>{signs}:</strong> {then}
+          </li>
+        ))}
+      </ul>
+      <p className="m-0">{BODY_KNOWS}</p>
+    </div>
   )
 }
 
@@ -35,6 +39,18 @@ export function StopSignsTap() {
   return (
     <details className={card}>
       <summary className="min-h-11 cursor-pointer font-bold">Stop signs</summary>
+      <div className="mt-2">
+        <Signs />
+      </div>
+    </details>
+  )
+}
+
+/** The one-line reminder's "All stop signs", opening the full list in place. */
+export function AllStopSigns() {
+  return (
+    <details>
+      <summary className="min-h-11 cursor-pointer underline">All stop signs</summary>
       <div className="mt-2">
         <Signs />
       </div>

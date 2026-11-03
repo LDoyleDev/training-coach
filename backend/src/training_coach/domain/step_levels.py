@@ -4,7 +4,7 @@ Every step has a level on one scale across all ladders, so a person's general le
 sensible start everywhere. Levels place a person; they never cap progress: the top is open, and
 steps added above today's top stay at the highest level. Marks say what a step asks of the body
 beyond its level, for the preferences ("Keep me off the floor", "No kneeling", "No jumping or
-running", "No hanging"); balance marks a fall risk.
+running", "No hanging", "Easy on my knees"); balance marks a fall risk.
 
 Not a person's "level" on a ladder elsewhere in the code (the step they are on, ADR-0075).
 """
@@ -32,6 +32,10 @@ class Mark(StrEnum):
     IMPACT = "impact"  # jumps or running, every way the step can be done
     HANGING = "hanging"  # from a bar
     BALANCE = "balance"  # on one leg, or balance work without a hold: a fall risk
+    # Deep knee bending, every way the step can be done: a loaded or full-depth squat, one leg
+    # below chair height, a full-range split squat or lunge, a Nordic (#540). A squat to a
+    # chair, a low step and a bike are not.
+    KNEES = "knees"
 
 
 def first_fall(levels: Sequence[int]) -> int | None:

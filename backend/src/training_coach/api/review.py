@@ -67,6 +67,9 @@ class ReviewWeekView(BaseModel):
     bests: list[ReviewBestView]
     ready: list[ReadyView]  # ready to move up now, this week only; links to /plan
     top: list[TopView]  # reached the top this week and still there, this week only (ADR-0078)
+    # The bottom of the range out of reach twice, a step down suggested (ADR-0084); this week
+    # only, links to /plan
+    step_down: list[ReadyView]
     strength_block: bool
     habits: list[ReviewHabitView]  # empty in a week with no check-off
     ai_comments: bool  # an AI comment goes with Sunday's review on Telegram
@@ -124,6 +127,9 @@ def get_review(
         if current
         else [],
         top=[TopView(**vars(t)) for t in week_review.top] if current else [],
+        step_down=[ReadyView(exercise=r.exercise, slug=r.slug) for r in week_review.step_down]
+        if current
+        else [],
         strength_block=week_review.strength_block,
         habits=[
             ReviewHabitView(label=HABIT_LABELS[h.habit], done=h.done, days=h.days)

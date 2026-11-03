@@ -45,7 +45,7 @@ def choices(session: Session) -> list[Choice]:
 
 def plan(session: Session, day: date, template_id: int, tz: ZoneInfo) -> SessionPlan | None:
     """The session's exercises and targets, in the training block of ``day`` (ADR-0028)."""
-    return session_plan(session, template_id, blocks.current(session, day, tz))
+    return session_plan(session, template_id, blocks.current(session, day, tz), on=day)
 
 
 def _saved(found: workout_log.Saving) -> Saving:

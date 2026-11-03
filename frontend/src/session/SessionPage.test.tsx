@@ -3,6 +3,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { Clash, Done, Guided, Kept, Pending, Saved, TodayView } from '../api'
 import { playChange, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import SessionPage from './SessionPage'
+import { BODY_KNOWS, NORMAL, STOP_LINE } from './safety'
 
 vi.mock('../hiit/sounds', () => ({
   DEFAULT_SOUND: 'ring',
@@ -24,6 +25,7 @@ const SESSION: Guided = {
   after_run: false,
   place: 'home',
   place_choice: false,
+  ease_back: [],
   items: [
     {
       slug: 'jump-squat',
@@ -36,8 +38,10 @@ const SESSION: Guided = {
       pair: 1,
       targets: [6, 6],
       baseline: true,
+      no_kit: false,
       muscles: [],
       parts: [],
+      last_set_amrap: false,
     },
     {
       slug: 'calf-raise',
@@ -50,8 +54,10 @@ const SESSION: Guided = {
       pair: 1,
       targets: [15],
       baseline: false,
+      no_kit: false,
       muscles: [],
       parts: [],
+      last_set_amrap: false,
     },
   ],
   order: [
@@ -75,7 +81,9 @@ const SAVED: Saved = {
       next_step: null,
       at_top: false,
       unlock: null,
+      capped: false,
       load_kg: 22.5,
+      step_down: null,
     },
   ],
   stretching: true,
@@ -92,6 +100,7 @@ type Server = {
   sound?: string // the timer sound chosen in Settings; unset answers 404
   seen?: boolean | 'error' // the stop signs were read (spec B7); unset means read; 'error' fails the fetch
   place?: TodayView // what a Home | Gym switch answers (ADR-0071)
+  ease?: TodayView | number // what Ease back in answers (ADR-0084): a view or a status
 }
 
 /** A fake API; returns the bodies sent, by method and path. */
@@ -115,6 +124,10 @@ function serve(server: Server = {}) {
     }
     if (path === '/api/session/pending') return Response.json(server.pending ?? [])
     if (path === '/api/session/place' && server.place) return Response.json(server.place)
+    if (path === '/api/session/ease-back' && server.ease !== undefined)
+      return typeof server.ease === 'number'
+        ? new Response(null, { status: server.ease })
+        : Response.json(server.ease)
     if (path === '/api/settings')
       return server.seen === 'error'
         ? new Response(null, { status: 500 })
@@ -160,7 +173,7 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
   render(<SessionPage />)
   expect(await screen.findByRole('heading', { name: 'Legs' })).toBeInTheDocument()
   expect(screen.getByText('Warm up for about 5 minutes first.')).toBeInTheDocument()
-  expect(screen.getByText(/Stop if you feel sharp pain/)).toBeInTheDocument()
+  expect(screen.getByText(STOP_LINE)).toBeInTheDocument()
   click('Start session')
 
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument()
@@ -199,13 +212,37 @@ test('a whole session: overview, sets in pair order, check, save', async () => {
   expect(kept[2]).toMatchObject({ revision: 1, position: 3 })
 })
 
+test('a last set of as many good reps as you can shows its target as the floor (ADR-0084)', async () => {
+  const marked = { ...SESSION.items[0], last_set_amrap: true }
+  serve({ today: { session: { ...SESSION, items: [marked, SESSION.items[1]] }, progress: null } })
+  render(<SessionPage />)
+  // Not the last set of the jump squat: the usual target.
+  fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+  expect(await screen.findByText('Set 1 of 2')).toBeInTheDocument()
+  expect(screen.getByText('Target 6')).toBeInTheDocument()
+  expect(screen.queryByText(/as many good reps/)).not.toBeInTheDocument()
+  click('Confirm set')
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  click('Confirm set') // the calf raise isn't marked
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip rest' }))
+  expect(await screen.findByText('Set 2 of 2')).toBeInTheDocument()
+  expect(
+    screen.getByText('Last set: at least 6, then as many good reps as you can'),
+  ).toBeInTheDocument()
+  expect(screen.getByText("Stop at the first rep that isn't clean.")).toBeInTheDocument()
+  expect(screen.queryByText('Target 6')).not.toBeInTheDocument()
+})
+
 test('the stop signs show once before the first session, remembered on the server', async () => {
   const sent = serve({ seen: false })
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
   expect(screen.getByRole('heading', { name: 'Before you start: stop signs' })).toBeVisible()
-  expect(screen.getByText(/Call 112 if it doesn't settle/)).toBeInTheDocument()
-  expect(screen.getByText('Sharp joint pain:')).toBeInTheDocument()
+  expect(screen.getByText(/Call 112 straight away if it's severe/)).toBeInTheDocument()
+  expect(screen.getByText(/hasn't gone after 5 minutes of rest/)).toBeInTheDocument()
+  expect(screen.getByText('Sharp or sudden pain in a joint or muscle:')).toBeInTheDocument()
+  expect(screen.getByText(NORMAL)).toBeInTheDocument() // what's normal comes first
+  expect(screen.getByText(BODY_KNOWS)).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'Jump squat' })).not.toBeInTheDocument()
   click('Got it, start')
   expect(screen.getByRole('heading', { name: 'Jump squat' })).toBeInTheDocument()
@@ -250,13 +287,24 @@ test('the stop signs are one tap away on every set and rest', async () => {
   serve()
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
-  const signs = screen.getByText('Very dark urine after a hard session:')
+  const signs = screen.getByText(/^Very dark \(cola-coloured\) urine/)
   expect(signs).not.toBeVisible()
   fireEvent.click(screen.getByText('Stop signs'))
   expect(signs).toBeVisible()
   click('Confirm set')
   await screen.findByRole('button', { name: 'Skip rest' })
   expect(screen.getByText('Stop signs')).toBeInTheDocument()
+})
+
+test('the overview has the same stop line as the bot, and opens all the stop signs', async () => {
+  serve()
+  render(<SessionPage />)
+  expect(await screen.findByText(STOP_LINE)).toBeInTheDocument()
+  const fever = screen.getByText('A fever, or feeling ill:')
+  expect(fever).not.toBeVisible()
+  fireEvent.click(screen.getByText('All stop signs'))
+  expect(fever).toBeVisible()
+  expect(screen.getByText(/if you're pregnant:$/)).toBeVisible() // shown to everyone
 })
 
 test('the breathing cue shows once, on the first set after Start (ADR-0084)', async () => {
@@ -962,10 +1010,37 @@ test('an untimed save says nothing about time', async () => {
 test.each([
   [
     'an 8 kg kettlebell unlocks Holding 8 kg',
+    true,
     /top of the range on the last level your kit allows\. An 8 kg kettlebell unlocks Holding 8 kg\./,
   ],
-  [null, /top of the range on the last level of its ladder\./],
-])('the rule met with no level to move to says so (unlock %s)', async (unlock, text) => {
+  [null, false, /top of the range on the last level of its ladder\./],
+  // Harder steps above, every one locked otherwise: true, and never why (ADR-0083).
+  [null, true, /top of the range, with no open step above this one\./],
+])(
+  'the rule met with no level to move to says so (unlock %s, capped %s)',
+  async (unlock, capped, text) => {
+    const progress: Kept = {
+      template_id: 3,
+      position: 3,
+      first: [],
+      sets: [],
+      saved: false,
+      revision: 1,
+    }
+    const earned = { ...SAVED.earned[0], best_set: null, total: null, at_top: true, unlock, capped }
+    serve({ today: { session: SESSION, progress }, save: { ...SAVED, earned: [earned] } })
+    render(<SessionPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
+    click('Save session')
+    expect(await screen.findByText(text)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /ready to move up/ })).not.toBeInTheDocument()
+    const kit = screen.queryByRole('link', { name: 'My equipment' })
+    expect(kit === null).toBe(unlock === null)
+    if (kit) expect(kit).toHaveAttribute('href', '/account#my-equipment')
+  },
+)
+
+test('the saved screen suggests a step down and links to the ladder (ADR-0084)', async () => {
   const progress: Kept = {
     template_id: 3,
     position: 3,
@@ -974,16 +1049,21 @@ test.each([
     saved: false,
     revision: 1,
   }
-  const earned = { ...SAVED.earned[0], best_set: null, total: null, at_top: true, unlock }
+  const down = { step_id: 2, below: 'Bodyweight, full rest', easier: [] }
+  const earned = { ...SAVED.earned[0], best_set: null, total: null, step_down: down }
   serve({ today: { session: SESSION, progress }, save: { ...SAVED, earned: [earned] } })
   render(<SessionPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start session' }))
   click('Save session')
-  expect(await screen.findByText(text)).toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: /ready to move up/ })).not.toBeInTheDocument()
-  const kit = screen.queryByRole('link', { name: 'My equipment' })
-  expect(kit === null).toBe(unlock === null)
-  if (kit) expect(kit).toHaveAttribute('href', '/account#my-equipment')
+  expect(
+    await screen.findByText(
+      /The bottom of the range was out of reach twice\. Try the step below\?/,
+    ),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Choose on the Plan tab' })).toHaveAttribute(
+    'href',
+    '/plan?move=jump-squat',
+  )
 })
 
 test('the mobility item plays its flow and logs the minutes moved as its set', async () => {
@@ -1019,8 +1099,10 @@ test('the mobility item plays its flow and logs the minutes moved as its set', a
         pair: null,
         targets: [10],
         baseline: false,
+        no_kit: false,
         muscles: [],
         parts: [],
+        last_set_amrap: false,
         flow: { seconds: 120, safety: 'If something hurts, stop.', moves: [move, move] },
       },
     ],
@@ -1518,4 +1600,43 @@ test('the switch shows only when today has both versions', async () => {
   render(<SessionPage />)
   await screen.findByRole('button', { name: 'Start session' })
   expect(screen.queryByText('Where are you training today?')).not.toBeInTheDocument()
+})
+
+const RETURNING: Guided = {
+  ...SESSION,
+  ease_back: [{ exercise: 'Jump squat', step: 'Bodyweight, full rest' }],
+}
+
+test('after three weeks away, one prompt to ease back in, one step down today (ADR-0084)', async () => {
+  const sent = serve({
+    today: { session: RETURNING, progress: null },
+    ease: { session: SESSION, progress: null },
+  })
+  render(<SessionPage />)
+  const prompt = await screen.findByRole('region', { name: 'Ease back in: one step down today' })
+  expect(prompt).toHaveTextContent('Jump squat at Bodyweight, full rest')
+  expect(prompt).toHaveTextContent('Your levels stay as they are.')
+  click('One step down today')
+  expect(
+    await screen.findByText('One step down today. Your levels stay as they are.'),
+  ).toBeInTheDocument()
+  expect(sent['PUT /api/session/ease-back']).toEqual([
+    { template_id: 3, revision: 0, first: [], ease: true },
+  ])
+  expect(screen.queryByRole('region', { name: /Ease back in/ })).not.toBeInTheDocument()
+})
+
+test.each([
+  [{ session: SESSION, progress: null } as TodayView, 'Not today: today is at your usual levels.'],
+  [409, "Today's session moved on elsewhere, so nothing changed. Here it is now."],
+  [422, 'Nothing to ease back into now.'],
+  [500, "Couldn't answer. Check your connection and try again."],
+])('not today, or a refused answer, says so (%#)', async (ease, text) => {
+  const sent = serve({ today: { session: RETURNING, progress: null }, ease })
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Not today' }))
+  expect(await screen.findByText(text)).toBeInTheDocument()
+  expect(sent['PUT /api/session/ease-back']).toEqual([
+    { template_id: 3, revision: 0, first: [], ease: false },
+  ])
 })

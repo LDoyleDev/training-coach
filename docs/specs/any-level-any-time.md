@@ -1,14 +1,19 @@
 # Any level, any time: a proposal (31 Oct 2026)
 
-Status: **decided 31 Oct 2026** (Decided, at the end; ADR-0082 to ADR-0085). Built, by step of
+Status: **decided 31 Oct 2026** (Decided, at the end; ADR-0082 to ADR-0086). Built, by step of
 the Suggested order: 1 (ADRs, #495); 2, "Short on time today" (#501, #502, #509, #510, #516,
-#517); 3, stop signs and the talk test (#505); 4 started: a level, marks and `failure_ok` on
-every step (#506), the entry exercises (#507, ADR-0083's addendum), the ladders' downward
-migration next (#508). The Europe gate: layer 2 (#513); layers 3-4 (#514, #515) open. The evidence, with every
+#517); 3, stop signs and the talk test (#505; checked against European sources, #556); 4: a level, marks and `failure_ok` on every step
+(#506), the entry exercises (#518-#520, #523), the four preferences and "Easy on my knees"
+locking steps (#531, #541), the ladders' downward migration built and dry-run (#534, released
+alone); 5: minutes per session (#529), the map at that length open; 6: the step-down suggestion
+and "Ease back in" (#530, #532, #533), the optional last set (#536), the easy start waits for
+placement; 7 (setup, the starting starters) waits for builder step 5. Added 1 Nov: Away, no
+equipment (#538, #539, ADR-0086). The Europe gate: layer 2 (#513); layers 3-4 (#514, #515) wait
+for Liam's Cloudflare check. The evidence, with every
 source and how far it was read, is in [any-level-research.md](any-level-research.md) (Part 1:
 shorter sessions; Part 2: older, untrained and heavier people; Part 3: placing a person). This
 file builds on the program builder ([program-builder.md](program-builder.md)): its levels (G),
-setup (H) and starters (M) are where most of this lands.
+setup (H) and starters (N) are where most of this lands.
 
 ## Asked for (31 Oct 2026)
 
@@ -248,8 +253,14 @@ first, levels in brackets; **bold** is today's bottom step. Level-1 ranges start
 | Cardio | Easy walk, can be split into short bouts (1); bike or seated stepping (1-3, knee-friendly); interval walk from 2 rounds (2-3); **brisk walk** (2) |
 
 **Built (#507):** the entry exercises above, in no session yet; the squat and the low steps of
-existing ladders come with the migration (#508). The neck has no level 1-2 step: the draft's
-seated hand-resistance hold (B2) is the candidate.
+existing ladders come with the migration (#508). The neck had no level 1-2 step: the draft's
+seated hand-resistance hold (B2) was the candidate, and #508 adds it (Liam, 1 Nov 2026).
+
+**Built (#508):** migration `5ebed72122f7` puts the lower steps below fifteen ladders (push-up,
+side plank hip dip, kettlebell row, pull-up, calf raise, suitcase carry, curl, lateral raise,
+split squat, Copenhagen plank, back extension, zone 2, and a seated hand-resistance hold below
+neck flexion, extension and side bend) and brings back the Squat; ADR-0083's second addendum
+lists what was left out and why.
 
 Neck work stays out of the starting starters. For people 65 and over the walk-through suggests
 a daily 10-minute balance and sit-to-stand "snack" (WHO: 3 days or more; Sherrington 2019: the
@@ -309,11 +320,10 @@ Builder H's flow, with what the research adds (Part 3, Implications; Part 2, Scr
 
 ### B7. Stop signs and heart rate
 
-- **Stop signs,** before the first session and one tap away in the guided session: chest, jaw or
-  arm pain or pressure, dizziness or fainting, unusual breathlessness, or palpitations with any
-  of these mean stop and get help (call 112 if it doesn't settle); sharp joint pain means stop
-  and try an easier step; very dark urine after a hard session means see a doctor (Part 2,
-  Stop signs; the wording needs checking by a clinician).
+- **Stop signs,** before the first session and one tap away in the guided session, with one
+  reminder line on every session and test day. The wording lives in
+  `frontend/src/session/safety.ts`; its sources are research Part 2 (Stop signs) and Part 5 (the
+  European wording review, 1 Nov 2026). It needs checking by a clinician.
 - **"Use the talk test, not heart-rate zones"** (decided, ADR-0083 and ADR-0085: named neutrally
   and asked without a reason; it suits people whose heart rate is slowed by medicine or paced,
   which the app doesn't ask about): the cardio zones then show the talk test instead (ICFSR
@@ -321,13 +331,13 @@ Builder H's flow, with what the research adds (Part 3, Implications; Part 2, Scr
 
 ## Starters by level
 
-Builder M's 3- and 4-day starters suit levels 4-6. With B2 and B3 most of their exercises have
+Builder N's 3- and 4-day starters suit levels 4-6. With B2 and B3 most of their exercises have
 steps down to level 2-3; the ones without a low bottom (pistol, jump squat, swing at 8 kg, dips,
 pull-ups, Nordics, reverse Nordic, ab rollout, HIIT) need replacing. Options:
 
 | Option | What | Pros | Cons |
 | --- | --- | --- | --- |
-| S1 **"Starting" versions** (recommended) | A 2-day and a 3-day full-body starter written for levels 1-3: squat, glute bridge or step-up, push-up from the wall up, doorframe row, plank, balance, calf raise, a walk. Written and checked like M | Reviewable, like every starter so far | Two more starters in `plan.toml` |
+| S1 **"Starting" versions** (recommended) | A 2-day and a 3-day full-body starter written for levels 1-3: squat, glute bridge or step-up, push-up from the wall up, doorframe row, plank, balance, calf raise, a walk. Written and checked like N | Reviewable, like every starter so far | Two more starters in `plan.toml` |
 | S2 Swap at run time | Each exercise names its entry exercise; below its bottom level the session uses that one | One starter per day count | Generated sessions are harder to review; the picker (step 7) is where swapping belongs |
 
 ## In the code, in outline

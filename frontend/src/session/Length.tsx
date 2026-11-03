@@ -1,6 +1,7 @@
 import type { Guided, GuidedItem, Length } from '../api'
 import type { Minutes } from './logic'
 import { card, small } from '../ui'
+import { LAST_SET, LAST_SET_LINE } from './safety'
 
 const option = (on: boolean) =>
   'min-h-11 rounded-xl border-2 px-3 font-bold disabled:opacity-60 ' +
@@ -11,20 +12,27 @@ const option = (on: boolean) =>
 /**
  * Short on time today (ADR-0082): As planned, 40, 30 or 20 min, for today's session only; the
  * plan doesn't change. The person picks; nothing is recommended. Once a set is kept the length
- * is fixed and shows as words. What the length drops is named before Start.
+ * is fixed and shows as words. What the length drops is named before Start. With no choice for
+ * the day, the person's time per session on Account is shown as chosen, said to be theirs, and
+ * As planned stays a choice for the day.
  */
 export default function LengthChoice({
   session,
   length,
   busy,
   onChoose,
+  onLastSet,
 }: {
   session: Guided
   length: Length
   busy: boolean
   onChoose: (minutes: Minutes) => void
+  onLastSet: (on: boolean) => void
 }) {
   const chosen = length.minutes
+  const mine = length.from_setting ? ' (your time per session)' : ''
+  // Offered with a shorter day (ADR-0084): not while locked, nor with nothing it applies to.
+  const lastSet = length.last_set ?? null
   const choices: Minutes[] = [null, ...(length.options as NonNullable<Minutes>[])]
   return (
     <section aria-labelledby="length" className={card + ' flex flex-col gap-3'}>
@@ -33,8 +41,8 @@ export default function LengthChoice({
       </h2>
       {length.fixed ? (
         <p className="m-0">
-          {chosen === null ? 'As planned' : `${chosen} min`} today, about {session.minutes} min. It
-          stays like this now a set is kept.
+          {chosen === null ? 'As planned' : `${chosen} min`} today{mine}, about {session.minutes}{' '}
+          min. It stays like this now a set is kept.
         </p>
       ) : (
         <>
@@ -55,9 +63,25 @@ export default function LengthChoice({
           <p className="m-0 text-sm text-[var(--slate)]">
             {chosen === null
               ? `About ${length.planned_minutes} min as planned. For today only; the plan stays the same.`
-              : `About ${session.minutes} min at this length, warm-up included. As planned: about ${length.planned_minutes} min.`}
+              : length.from_setting
+                ? `${chosen} min is your time per session, set on Account: about ${session.minutes} min, warm-up included. As planned today: about ${length.planned_minutes} min.`
+                : `About ${session.minutes} min at this length, warm-up included. As planned: about ${length.planned_minutes} min.`}
           </p>
         </>
+      )}
+      {!length.fixed && chosen !== null && lastSet !== null && (
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            aria-pressed={lastSet}
+            className={option(lastSet)}
+            disabled={busy}
+            onClick={() => onLastSet(!lastSet)}
+          >
+            {lastSet ? `✓ ${LAST_SET}` : LAST_SET}
+          </button>
+          <p className="m-0 text-sm text-[var(--slate)]">{LAST_SET_LINE}</p>
+        </div>
       )}
       {length.shortest !== null && (
         <p className="m-0 font-bold">

@@ -1,8 +1,13 @@
+import re
+from dataclasses import replace
 from datetime import date
+from pathlib import Path
 
 import pytest
 
+from training_coach.bot import messages
 from training_coach.bot.messages import (
+    STOP,
     log_saved_text,
     rest_text,
     session_detail_text,
@@ -11,7 +16,8 @@ from training_coach.bot.messages import (
     work_list,
 )
 from training_coach.domain.blocks import Block, BlockKind
-from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.enums import ExerciseKind, Place
+from training_coach.services import retests
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.today import Day, ItemPlan, SessionPlan, Today
 
@@ -59,6 +65,17 @@ def test_work_list_alternates_pairs_with_a_gap_between_groups() -> None:
     ]
 
 
+def test_a_test_day_warms_up_for_10_minutes_and_a_session_for_5() -> None:
+    """Test days are maximum efforts: 10 minutes; every other day keeps 5 (J.4, 1 Nov 2026)."""
+    session = SessionPlan(7, "Arms", "Accessories", False, (_item(ExerciseKind.REPS, (8,)),))
+    test = retests.TestDayDue(1, "Retest, day 1", ("Push-ups", "Plank"))
+    text = messages.test_day_text(Today(session, (), test_day=test), "the Tests tab")
+    lines = text.splitlines()
+    assert "Warm up for about 10 minutes first." in lines
+    assert "Warm up for about 5 minutes first." not in lines
+    assert "Warm up for about 5 minutes first." in today_text(Today(session, ())).splitlines()
+
+
 def test_today_text_lists_exercises_and_notes() -> None:
     plan = Today(
         session=SessionPlan(7, "Arms", "Accessories", True, (_item(ExerciseKind.REPS, (8,)),)),
@@ -66,7 +83,7 @@ def test_today_text_lists_exercises_and_notes() -> None:
     )
     assert today_text(plan) == (
         "Today: Arms\nAccessories\nWarm up for about 5 minutes first.\n"
-        "Stop if you feel sharp pain, dizziness or chest tightness.\n\n"
+        f"{STOP}\n\n"
         "1. Plank (Knees): 8\n\n"
         "This one is optional: resting today is fine.\n\nAlready logged today: Legs (done)"
     )
@@ -161,4 +178,34 @@ def test_every_session_carries_the_stop_reminder_even_without_a_warm_up() -> Non
     plan = SessionPlan(9, "Long zone 2", "Easy", False, items, kind="conditioning")
     text = today_text(Today(plan, ()))
     assert "Warm up" not in text
-    assert "Stop if you feel sharp pain, dizziness or chest tightness." in text
+    assert STOP in text
+
+
+def test_the_stop_reminder_names_112_and_is_the_web_line_word_for_word() -> None:
+    """The bot and the session page say the same thing (safety-wording review, Part 5)."""
+    assert "Call 112" in STOP
+    safety = Path(__file__).resolve().parents[3] / "frontend" / "src" / "session" / "safety.ts"
+    web = re.search(r'export const STOP_LINE =\s*"([^"]*)"', safety.read_text(encoding="utf-8"))
+    assert web is not None
+    assert web.group(1) == STOP
+
+
+def test_the_bot_names_the_place_and_the_no_equipment_steps_away() -> None:
+    """ADR-0086: an away day says so, and which exercises are below the level for want of kit;
+    a home day reads as it always did."""
+    split = replace(_item(ExerciseKind.REPS, (8,), name="Split squat"), no_kit=True)
+    tibialis = _item(ExerciseKind.REPS, (15,), name="Tibialis raise")
+    plan = SessionPlan(1, "Legs", "Strength", False, (split, tibialis), place=Place.AWAY)
+    text = today_text(Today(plan, ()))
+    assert text.splitlines()[:4] == [
+        "Today: Legs",
+        "Strength",
+        "Away, no equipment: its no-equipment version.",
+        "No-equipment step today for Split squat: your level stays as it is.",
+    ]
+    detail = session_detail_text(plan).splitlines()
+    assert detail[1] == "Away, no equipment: its no-equipment version."
+    at_the_gym = replace(plan, place=Place.GYM, items=(tibialis,))
+    assert today_text(Today(at_the_gym, ())).splitlines()[2] == "At the gym: its gym version."
+    at_home = replace(plan, place=Place.HOME, items=(tibialis,))
+    assert today_text(Today(at_home, ())).splitlines()[2].startswith("Warm up")

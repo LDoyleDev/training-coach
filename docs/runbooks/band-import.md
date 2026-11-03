@@ -80,6 +80,9 @@ what changed in Health Connect since its last good sync and posts it to the coac
    time you opened Mi Fitness, and catches up when you open it: Mi Fitness writes only when it
    syncs with the band. Step 3.4 doesn't change that (on 24 Oct it was already set), so open
    Mi Fitness once or twice a day, or have an automation app open it, before the reader syncs.
+   Heart rate lags the most: on 2 Nov Mi Fitness's own background syncs had brought steps and
+   sleep for two days but no heart rate, and opening it wrote the missing 1,594 samples at once,
+   which the reader's next sync sent. The coach's two-day alert for one kind is that gap.
 4. In the coach, **Account** > **Band import** shows "Last data arrived ..." and "From the Coach
    reader <version>". After a night and a walk:
    - **Home** and **Progress** show last night's sleep, today's steps and resting heart rate;
@@ -123,7 +126,11 @@ Nothing in the reader closes it: it never finishes its screen or ends its proces
 until the screen is destroyed, not when it is paused or the screen goes off, and an interrupted
 sync loses nothing (it is sent again next time). Keeping the screen on during a sync only stops
 the timeout; the power button still turns it off. So find out what closed it, with the phone
-plugged into the desktop (USB debugging on) and these in Git Bash:
+plugged into the desktop (USB debugging on) and these in Git Bash. Without a cable (the POCO's
+USB port is unreliable), use Wi-Fi: Developer options > **Wireless debugging** on, **Pair device
+with pairing code**, and the person types `adb pair <ip:port> <code>` once. Then
+`adb mdns services` shows the address to `adb connect`; it changes each time Wireless debugging
+is turned back on, which the phone does by itself after a restart or a network change.
 
 1. `adb logcat -c`, then leave `adb logcat -b all -v time | grep -i -E "coach\.reader|FATAL"`
    running. Open the reader, tap **Sync now**, press the power button, wait two minutes, unlock.
@@ -132,7 +139,9 @@ plugged into the desktop (USB debugging on) and these in Git Bash:
 3. `adb shell dumpsys activity exit-info com.vybedev.coach.reader | head -40`: why the process
    last ended, even if the logcat missed it. `CRASH` or `ANR` is the reader's bug (send the
    stack trace from step 1's `FATAL EXCEPTION` lines); `LOW_MEMORY`, `SIGNALED` or `OTHER`
-   with a MIUI name in the description is the phone killing it (step 6).
+   with a MIUI name in the description is the phone killing it (step 6). On 2 Nov the closes
+   at screen-off were `USER REQUESTED` with `LockScreenClean`: MIUI's cleanup when the phone
+   locks, which locking the reader in recent apps stops.
 4. In step 1's output:
    - `wm_on_stop_called` and nothing more: Android stopped the screen as it should; if it
      looked closed on unlock, the lock screen took you home, not the reader.
@@ -152,8 +161,14 @@ plugged into the desktop (USB debugging on) and these in Git Bash:
    cleans up memory when the phone locks, and turn it off for the reader.
 7. The background sync, if a 12-hour run seems not to happen:
    `adb shell dumpsys jobscheduler | grep -A 15 coach.reader` shows the job, its network
-   constraint and its last run. `adb shell am get-standby-bucket com.vybedev.coach.reader`:
-   `40` or `45` (rare, restricted) means Android runs it seldom.
+   constraint and its last run; no `JOB #` line for the reader means none is scheduled.
+   `adb shell am get-standby-bucket com.vybedev.coach.reader`: `40` or `45` (rare,
+   restricted) means Android runs it seldom. After a restart the reader has to start once to
+   schedule again, and MIUI blocks that unless **Autostart** is on (logcat:
+   `Unable to launch app com.vybedev.coach.reader ... BOOT_COMPLETED ... process is not permit`;
+   `adb shell cmd appops get com.vybedev.coach.reader 10008` says `ignore`). On 2 Nov that left
+   no background sync from a 06:28 restart until the reader was opened; opening it schedules
+   one again.
 
 ## HC Webhook (retired)
 

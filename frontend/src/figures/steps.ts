@@ -4,9 +4,11 @@
  * plan.toml writes it; each entry says what changes over the exercise's figure. Every other step
  * shows the figure as it is.
  */
+import { AWAY_STEPS } from './away'
 import { BODY, solve, type Pose, type Vec } from './body'
 import { ENTRY_LOWER_STEPS } from './entry-lower'
 import { ENTRY_UPPER_STEPS } from './entry-upper'
+import { LADDER_DOWN_STEPS } from './ladder-down'
 import { FIGURES, type Figure } from './poses'
 
 type Change = Partial<Figure>
@@ -433,7 +435,7 @@ const hugged = (pose: Pose): Pose => ({
   armF: { at: [20, 20.5], from: 'waist' },
 })
 
-export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
+const DRAWN: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
   'pull-up': LOADED(VEST, FIGURES['pull-up']),
   'chin-up': LOADED(VEST, FIGURES['chin-up']),
   dip: {
@@ -705,12 +707,28 @@ export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> =
       end: hugged(FIGURES['hip-hinge'].end),
     },
   },
+  ...AWAY_STEPS,
   ...ENTRY_LOWER_STEPS,
   ...ENTRY_UPPER_STEPS,
 }
 
-/** ``slug``'s figure as it looks at the ladder step ``step``; nothing for a slug without one. */
+/** Every step drawn: the lower steps (ladder-down.ts) join their exercise's other steps. */
+export const STEPS: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
+  ...DRAWN,
+  ...Object.fromEntries(
+    Object.entries(LADDER_DOWN_STEPS).map(([slug, steps]) => [slug, { ...DRAWN[slug], ...steps }]),
+  ),
+}
+
+/** Steps set up differently from their exercise's figure that aren't drawn yet: they show no
+ * figure rather than the wrong one (a floor push-up for a push-up against the wall), and each comes
+ * out of here once it is drawn. Empty since #545 drew ADR-0083's lower steps (ladder-down.ts). */
+export const UNDRAWN: Readonly<Record<string, readonly string[]>> = {}
+
+/** ``slug``'s figure as it looks at the ladder step ``step``; nothing for a slug without one, or
+ * for a step that isn't drawn yet. */
 export function figureFor(slug: string, step?: string): Figure | undefined {
+  if (step !== undefined && UNDRAWN[slug]?.includes(step)) return undefined
   const figure: Figure | undefined = FIGURES[slug]
   const change = step === undefined ? undefined : STEPS[slug]?.[step]
   return figure && change ? { ...figure, ...change } : figure

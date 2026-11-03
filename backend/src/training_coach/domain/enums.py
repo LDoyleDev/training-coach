@@ -57,11 +57,12 @@ class Sound(StrEnum):
 
 
 class Place(StrEnum):
-    """Where a workout is done (ADR-0071): at home, with the person's own kit, or at a gym,
-    which has everything. A session can hold a version for each."""
+    """Where a workout is done (ADR-0071): at home, with the person's own kit, at a gym, which
+    has everything, or away with no equipment (ADR-0086). A session can hold a version for each."""
 
     HOME = "home"
     GYM = "gym"
+    AWAY = "away"
 
 
 class Places(StrEnum):

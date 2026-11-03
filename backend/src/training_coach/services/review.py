@@ -53,6 +53,8 @@ class Review:
     volume: list[tuple[Muscle, float]]  # fractional hard sets logged per muscle, largest first
     bests: list[Best]
     ready: list[progress.Ready]  # exercises ready to move up
+    # The bottom of the range out of reach twice: the step below suggested (ADR-0084).
+    step_down: list[progress.Ready] = field(default_factory=list)
     # Reached the top this week and still there, said once per level (ADR-0078); needs ``tz``.
     top: list[progress.Top] = field(default_factory=list)
     strength_block: bool = False  # moving up waits for the hypertrophy block (ADR-0028)
@@ -217,6 +219,7 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
         volume=_volume(session, start, end),
         bests=found.bests,
         ready=progress.ready(standings),
+        step_down=progress.stepping_down(standings),
         top=progress.tops(session, standings, start, tz) if tz is not None else [],
         strength_block=(
             tz is not None

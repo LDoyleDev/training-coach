@@ -53,10 +53,11 @@ def test_sets_are_raised_to_three_and_capped_at_four(plan: Session) -> None:
 
 
 # The bundled plan has no timed work in a strength session since the coverage update moved
-# dead hangs to Recovery, so this puts one back on Arms.
+# dead hangs to Recovery, so this puts one back on Arms: at the end of its home version, the one
+# its gym version follows.
 ARMS_LAST = (
     '  { exercise = "calf-raise", sets = 4, rep_min = 12, rep_max = 20, '
-    "per_side = true, pair = 4 },\n]"
+    "per_side = true, pair = 4 },\n]\ngym = ["
 )
 HANG = '  { exercise = "dead-hang", sets = 2, rep_min = 30, rep_max = 60 },\n]'
 
@@ -64,7 +65,8 @@ HANG = '  { exercise = "dead-hang", sets = 2, rep_min = 30, rep_max = 60 },\n]'
 def test_timed_work_and_other_sessions_are_unchanged(session: Session) -> None:
     text = files("training_coach.seed").joinpath("plan.toml").read_text(encoding="utf-8")
     assert text.count(ARMS_LAST) == 1
-    apply_seed(session, load_plan(text.replace(ARMS_LAST, ARMS_LAST[:-1] + HANG)))
+    hung = ARMS_LAST.removesuffix("]\ngym = [") + HANG + "\ngym = ["
+    apply_seed(session, load_plan(text.replace(ARMS_LAST, hung)))
     session.flush()
     plan = session
     hang = _item(plan, "arms", "dead-hang")

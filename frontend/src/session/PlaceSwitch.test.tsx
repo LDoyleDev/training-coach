@@ -111,3 +111,41 @@ test('a day with no choice any more reloads; a failure and a lost sign-in say so
   expect(await screen.findByText(/Your sign-in has ended/)).toBeInTheDocument()
   expect(onChanged).not.toHaveBeenCalled()
 })
+
+const THREE = { ...SESSION, places: ['home', 'gym', 'away'] } as Guided
+const AWAY: TodayView = { session: { ...THREE, place: 'away' }, progress: null }
+
+test('Away, with no equipment, is a third choice when the server offers it', async () => {
+  const sent = serve(Response.json(AWAY))
+  const { onChanged } = show(THREE)
+  expect(button('Away')).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByRole('group')).toHaveClass('grid-cols-3')
+  fireEvent.click(button('Away'))
+  await vi.waitFor(() => expect(onChanged).toHaveBeenCalled())
+  expect(sent).toEqual([{ place: 'away', confirm: false }])
+  expect(onChanged).toHaveBeenCalledWith(
+    AWAY,
+    'Torso + neck away, with no equipment: its no-equipment version.',
+  )
+})
+
+test('someone at home only gets Home | Away, and Away says what it asks for', () => {
+  serve()
+  show({ ...SESSION, place: 'away', places: ['home', 'away'] } as Guided)
+  expect(screen.queryByRole('button', { name: 'Gym' })).not.toBeInTheDocument()
+  expect(button('Away')).toHaveTextContent('✓ Away')
+  expect(screen.getByRole('group')).toHaveClass('grid-cols-2')
+  expect(screen.getByText(/^Away, no equipment: bodyweight, a chair, a bed/)).toBeInTheDocument()
+})
+
+test('switching away with sets kept names the no-equipment version', async () => {
+  serve(Response.json({ kept_sets: 2 }, { status: 409 }))
+  show(THREE)
+  fireEvent.click(button('Away'))
+  expect(
+    await screen.findByText(
+      "You've kept 2 sets of the home version. Switch to the no-equipment version? They are dropped; nothing saved changes.",
+    ),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Switch to away' })).toBeInTheDocument()
+})
