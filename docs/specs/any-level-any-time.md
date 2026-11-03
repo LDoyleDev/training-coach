@@ -8,8 +8,9 @@ locking steps (#531, #541), the ladders' downward migration built and dry-run (#
 alone); 5: minutes per session (#529), the map at that length open; 6: the step-down suggestion
 and "Ease back in" (#530, #532, #533), the optional last set (#536), the easy start waits for
 placement; 7 (setup, the starting starters) waits for builder step 5. Added 1 Nov: Away, no
-equipment (#538, #539, ADR-0086). The Europe gate: layer 2 (#513); layers 3-4 (#514, #515) wait
-for Liam's Cloudflare check. The evidence, with every
+equipment (#538, #539, ADR-0086). The Europe gate: layer 1, the Cloudflare rule (2-3 Nov);
+layer 2 (#513); layer 3 on Account until sign-up (#515) and layer 4 (#514), released in
+1.16.0. The evidence, with every
 source and how far it was read, is in [any-level-research.md](any-level-research.md) (Part 1:
 shorter sessions; Part 2: older, untrained and heavier people; Part 3: placing a person). This
 file builds on the program builder ([program-builder.md](program-builder.md)): its levels (G),
