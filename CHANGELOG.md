@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.17.0](https://github.com/LDoyleDev/training-coach/compare/v1.16.0...v1.17.0) (2026-11-04)
+
+
+### Features
+
+* **db:** reverse fly on dumbbells that take load, not one 8 kg kettlebell ([#571](https://github.com/LDoyleDev/training-coach/issues/571)) ([38a765e](https://github.com/LDoyleDev/training-coach/commit/38a765eca554f32f3b18643fd30c9b487a259117))
+
+
+### Documentation
+
+* **docs:** session log for 1.16.0, the EU and EEA only ([#568](https://github.com/LDoyleDev/training-coach/issues/568)) ([5b4bd13](https://github.com/LDoyleDev/training-coach/commit/5b4bd13f1998bc47aacb2ceaea0b57e06114a520))
+
 ## [1.16.0](https://github.com/LDoyleDev/training-coach/compare/v1.15.0...v1.16.0) (2026-11-03)
 
 
