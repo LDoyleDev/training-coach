@@ -615,18 +615,22 @@ qualities = ["posture"]
 pattern = "isolation"
 aliases = ["reverse fly", "rear delt", "rear delts", "reverse flyes"]
 start = 0
-ladder = ["Chest on bench/bed, water bottles", "Chest on bench/bed, 8 kg one arm", "Chest-supported, 3 s lowering"]
+# Dumbbells of varying weight since 4 Nov 2026 (Liam): one 8 kg kettlebell in one hand and a
+# 3 s lowering step on it gave way to a step that takes load (migration c8d2e4f6a1b3).
+ladder = ["Chest on bench/bed, water bottles", "Chest on bench/bed, dumbbells"]
 failure_ok = true
+renames = { "Chest on bench/bed, 8 kg one arm" = "Chest on bench/bed, dumbbells" }
 [exercises.needs]
-"Chest on bench/bed, 8 kg one arm" = ["kettlebell:8"]
-"Chest-supported, 3 s lowering" = ["kettlebell:8"]
+"Chest on bench/bed, dumbbells" = ["dumbbells"]
+[exercises.cues]
+"Chest on bench/bed, dumbbells" = "Light enough to keep a slight bend in the elbows; add weight only when every set of 12-18 is clean."
+[exercises.loads]
+"Chest on bench/bed, dumbbells" = "dumbbells"
 [exercises.questions]
-"Chest on bench/bed, 8 kg one arm" = "Can you do 12 reverse flies, chest supported, with 8 kg in one hand?"
-"Chest-supported, 3 s lowering" = "Can you do 12 reverse flies, chest supported, three seconds down?"
+"Chest on bench/bed, dumbbells" = "Can you do 12 reverse flies, chest supported, with a dumbbell in each hand?"
 [exercises.levels]
 "Chest on bench/bed, water bottles" = 3
-"Chest on bench/bed, 8 kg one arm" = 4
-"Chest-supported, 3 s lowering" = 5
+"Chest on bench/bed, dumbbells" = 4
 
 [[exercises]]
 slug = "band-face-pull"

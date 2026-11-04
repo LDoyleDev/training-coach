@@ -63,8 +63,9 @@ log = structlog.get_logger(__name__)
 
 SLUG = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 _PARK_OFFSET = 10_000
-# Loads only a gym carries: an exercise taking one isn't done away (ADR-0086).
-GYM_LOADS = frozenset({LoadKit.BARBELL, LoadKit.DUMBBELLS, LoadKit.MACHINE})
+# Loads only a gym carries: an exercise taking one isn't done away (ADR-0086). Not dumbbells: a
+# home step that takes them names them as its kit, so away passes over it, as the kit lock does.
+GYM_LOADS = frozenset({LoadKit.BARBELL, LoadKit.MACHINE})
 
 
 class SeedError(RuntimeError):
@@ -410,8 +411,9 @@ class PlanSeed(_Strict):
 
     def _away_needs_no_kit(self) -> None:
         """An away version (ADR-0086) is done with no equipment: each exercise's first step
-        needs no kit and takes no load, so there is always a step to train, and none of its
-        steps takes a gym load (the gym catalogue's barbell, dumbbells and machines)."""
+        needs no kit and takes no load, so there is always a step to train; none of its steps
+        takes a gym load (a barbell or a machine); and a step that takes load names its kit, so
+        the kit lock passes over it away."""
         exercises = {e.slug: e for e in self.exercises}
         for session in self.sessions:
             for item in session.away:
@@ -424,6 +426,12 @@ class PlanSeed(_Strict):
                     )
                 if set(exercise.loads.values()) & GYM_LOADS:
                     raise ValueError(f"session {session.slug}: away, {item.exercise} is gym work")
+                for step in exercise.loads:
+                    if not exercise.needs.get(step):
+                        raise ValueError(
+                            f"session {session.slug}: away, {item.exercise}'s step {step!r} "
+                            "takes load but names no kit"
+                        )
 
 
 def load_plan(text: str | None = None) -> PlanSeed:

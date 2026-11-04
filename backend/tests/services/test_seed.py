@@ -984,7 +984,8 @@ def test_the_gym_catalogue_takes_load_on_its_last_step_in_the_gym_versions_only(
     """ADR-0072: a loaded exercise is one step, or a ladder whose top step takes load; the gym
     exercises are in the sessions' gym versions (builder step 9), never the home ones."""
     plan = load_plan()
-    loaded = [e for e in plan.exercises if e.loads and LoadKit.BACKPACK not in e.loads.values()]
+    # A gym has everything, so its loaded steps name no kit; a home one names its own.
+    loaded = [e for e in plan.exercises if e.loads and not any(e.needs.get(s) for s in e.loads)]
     assert len(loaded) == 23
     assert all(list(e.loads) == [e.ladder[-1]] for e in loaded)
     at_home = {i.exercise for s in plan.sessions for i in s.items}
@@ -995,6 +996,17 @@ def test_the_gym_catalogue_takes_load_on_its_last_step_in_the_gym_versions_only(
     assert {e.slug for e in loaded if "triceps long head" in e.parts} == {
         "overhead-cable-extension"
     }
+
+
+def test_the_reverse_fly_goes_from_water_bottles_to_dumbbells_that_take_load() -> None:
+    """ADR-0072 (Liam, 4 Nov 2026): dumbbells of varying weight in place of one 8 kg kettlebell
+    in one hand; the 8 kg step is renamed in place, the 3 s lowering step removed (migration
+    c8d2e4f6a1b3)."""
+    fly = next(e for e in load_plan().exercises if e.slug == "reverse-fly")
+    assert fly.ladder == ["Chest on bench/bed, water bottles", "Chest on bench/bed, dumbbells"]
+    assert fly.renames == {"Chest on bench/bed, 8 kg one arm": "Chest on bench/bed, dumbbells"}
+    assert fly.loads == {"Chest on bench/bed, dumbbells": LoadKit.DUMBBELLS}
+    assert fly.needs == {"Chest on bench/bed, dumbbells": ["dumbbells"]}
 
 
 def test_the_dips_top_step_adds_weight_in_a_vest_or_backpack() -> None:
@@ -1142,6 +1154,15 @@ def test_an_away_version_needs_a_first_step_without_kit() -> None:
 def test_an_away_version_has_no_gym_work() -> None:
     with pytest.raises(ValidationError, match="away, pull-up is gym work"):
         load_plan(_upper_away(f"{PULL} }}", '[exercises.loads]\nWeighted = "machine"'))
+
+
+def test_an_away_version_may_have_a_dumbbell_step_that_names_its_kit() -> None:
+    """Dumbbells at home (the reverse fly, 4 Nov 2026): the step names them, so away passes
+    over it; one that names no kit, as a gym step doesn't, would be trained away."""
+    named = '[exercises.needs]\nWeighted = ["dumbbells"]\n[exercises.loads]\nWeighted = "dumbbells"'
+    load_plan(_upper_away(f"{PULL} }}", named))
+    with pytest.raises(ValidationError, match="step 'Weighted' takes load but names no kit"):
+        load_plan(_upper_away(f"{PULL} }}", '[exercises.loads]\nWeighted = "dumbbells"'))
 
 
 def test_an_away_version_names_known_exercises_in_pairs() -> None:
