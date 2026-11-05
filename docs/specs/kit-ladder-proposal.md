@@ -160,7 +160,7 @@ need (`backpack`) is already concrete. No change proposed.
 - Goblet squat (retired, history only): left as is.
 - Steps that hold "8 kg" low on the ladder (calf raise, tibialis, pistol, side plank hip dip,
   back extension, reverse fly) end at 8 kg on purpose; a 16 kg top for each can come later, by
-  appending.
+  appending. (The reverse fly has gone to dumbbells since: ADR-0072, 4 Nov 2026.)
 
 ## What the 16 kg kettlebell unlocks
 
