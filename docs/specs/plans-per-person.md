@@ -1,7 +1,8 @@
 # Plans per person (builder step 5): what reads the plan, and a draft migration
 
 Status: **inventory as of v1.9.0 (30 Oct 2026); the migration outline is a draft for review.**
-One open point is answered (1 Nov 2026): the import ships with step 5, which starts about 4 Nov.
+Two open points are answered: the import ships with step 5 (1 Nov 2026), and the migration
+refuses if anyone but the owner exists (5 Nov 2026).
 Nothing here changes the schema. Builder step 5 (`program-builder.md`, option A2, ADR-0073)
 makes `session_templates`, `template_items` and `plan_versions` per person. This file lists every
 place that reads or writes those tables and `plan_state`, so the step can be checked against it.
@@ -148,15 +149,11 @@ Telegram button moves. Only copies for other people need new ids.
    (`users.OWNER`, the ownership migration `c8b760ed9e52`, `link_owner` recreating id 1), so the
    migration first checks that user 1 exists, and the check in step 3 counts users other than 1:
    one definition of the owner for both.
-3. **Other people** (members; the switch is off, so the Pi should have none). Two options:
-   - **Refuse** (recommended): the migration fails with a clear message if any user but the
-     owner exists, and copying a plan is the join's job (the seed's, below). Check first,
-     read-only: `SELECT count(*) FROM users WHERE id != 1`.
-   - **Copy**: for each other user, copy the owner's sessions, items and versions (what they
-     have been training), then remap by slug and date: `workouts.template_id`, `plan_version_id`,
-     `plan_state.next_template_id` and `queued`, `session_progress.template_id`, and the JSON ids
-     in their events, proposals and replaced workouts. Much more code for a case that shouldn't
-     exist yet.
+3. **Other people** (members; the switch is off, and the Pi has none, checked 5 Nov 2026):
+   **refuse** (Liam, 5 Nov 2026). The migration fails with a clear message if any user but the
+   owner exists. Nobody is given a copy of the owner's plan: a new person starts from a starter
+   (the seed's job, below) and finds their own level at setup. Check first, read-only:
+   `SELECT count(*) FROM users WHERE id != 1`.
 4. **Downgrade**: refuse while any non-owner plan rows exist; otherwise drop the columns and keys
    and restore the single-column uniques. The owner's rows become the shared plan again.
 5. **Models and code in the same PR**: the three models inherit `Owned`; `version_on` takes the
@@ -169,7 +166,8 @@ items use (`all_users`) may be dropped. For a person with no sessions (a new mem
 person) it copies the first starter, sessions and versions, into their rows, with `exercise_state`,
 `settings` and `plan_state` as today. It never touches a person who has sessions. The owner's
 plan changes from `plan.toml` come through the import instead (`POST /api/plan/import`: the
-plan as a pending change to review and save, Decided 1), which ships with step 5.
+plan as a pending change to review and save, Decided 1), which ships with step 5. The import is
+the owner's alone: anyone else is refused (Liam, 5 Nov 2026).
 
 **Before and after on the Pi** (backup-restore.md, "Rehearsal"; last run 2026-11-02):
 
@@ -194,6 +192,7 @@ plan as a pending change to review and save, Decided 1), which ships with step 5
   their plan. No owner-only seed path. Step 6 keeps the edits in the app.
 - **Starters**: kept only in `plan.toml` and copied straight from it (no starter tables), or
   stored? The draft assumes `plan.toml`, as ADR-0073 says.
-- **Refuse or copy** for members in the migration (step 3 above).
+- **Refuse or copy** for members in the migration. **Answered (Liam, 5 Nov 2026):** refuse
+  (step 3 above), and the import is the owner's alone.
 - **Plan versions per person**: ADR-0073 adds "a short what changed" to each version. Today's
   `name` can hold it; a separate column can wait for step 6.

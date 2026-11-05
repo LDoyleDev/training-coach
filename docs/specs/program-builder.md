@@ -631,8 +631,8 @@ one): 56 sets on the 3-day, 52 on the 4-day, sessions of 22-41 minutes, the main
    steps are in `plan.toml` (accepted 25 Oct 2026,
    [kit-ladder-proposal.md](kit-ladder-proposal.md)), with step cues and band strengths. Still
    to come: figures for the new set-ups (the proposal's Figures section).
-5. **Plans per person** (A2): the migration copies the plan to every user; the seed keeps the
-   catalogue and starters; the canary test (multi-user L2) covers the plan routes. The import
+5. **Plans per person** (A2): the migration gives the plan to the owner and refuses if anyone
+   else exists (Liam, 5 Nov 2026); the seed keeps the catalogue and starters; the canary test (multi-user L2) covers the plan routes. The import
    from `plan.toml` ships with it (Liam, 1 Nov 2026), so the owner can always change their plan.
    What reads the plan today, a draft migration and the open points:
    [plans-per-person.md](plans-per-person.md).
