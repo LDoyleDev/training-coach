@@ -1,7 +1,7 @@
 """The body map on the Plan tab (``GET /api/plan/coverage``, program-builder.md F). Owner-only.
 
-Apart from ``GET /api/plan``, which serves only the bundled plan: this one counts the spine
-warning at the person's own ladder steps, and the home or gym versions (``place``, ADR-0071).
+It counts the person's own sessions (ADR-0073), the spine warning at their own ladder steps,
+and the home or gym versions (``place``, ADR-0071).
 """
 
 from fastapi import APIRouter, Request

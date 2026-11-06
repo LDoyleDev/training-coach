@@ -1125,7 +1125,7 @@ export interface paths {
         };
         /**
          * Get Plan
-         * @description The training plan, for the signed-in owner: the site is private (no public pages).
+         * @description The person's training plan: the site is private (no public pages).
          */
         get: operations["get_plan_api_plan_get"];
         put?: never;
