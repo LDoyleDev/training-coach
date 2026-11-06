@@ -4617,6 +4617,46 @@
         "title": "Places",
         "type": "string"
       },
+      "PlanImportView": {
+        "properties": {
+          "blocked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked"
+          },
+          "changes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "changes",
+          "blocked",
+          "version"
+        ],
+        "title": "PlanImportView",
+        "type": "object"
+      },
       "PlanView": {
         "properties": {
           "sessions": {
@@ -9809,6 +9849,48 @@
           }
         },
         "summary": "Get Coverage",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan/import": {
+      "get": {
+        "description": "What ``plan.toml`` would change in the owner's plan (ADR-0073); nothing for anyone else.",
+        "operationId": "get_plan_import_api_plan_import_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanImportView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Plan Import",
+        "tags": [
+          "plan"
+        ]
+      },
+      "post": {
+        "description": "Save it as one version: the owner's alone, anyone else is refused (Liam, 5 Nov 2026).\nAnswers what was saved; a change that can't be saved now is a conflict.",
+        "operationId": "post_plan_import_api_plan_import_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanImportView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Post Plan Import",
         "tags": [
           "plan"
         ]

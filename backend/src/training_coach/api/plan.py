@@ -4,17 +4,21 @@ exercise is comes from the catalogue. Progress stays out: it has its own routes.
 """
 
 from collections.abc import Iterable
+from datetime import UTC, date, datetime
 from typing import Literal, cast
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
 from training_coach.api.auth import Owner
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.queue import local_date
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, weekly_sets
+from training_coach.services import plan_import
 from training_coach.services.plan_rows import PlannedItem, PlannedSession, planned_sessions
 from training_coach.services.seed import ExerciseSeed, bundled_plan
+from training_coach.services.users import OWNER
 
 router = APIRouter(prefix="/api", tags=["plan"])
 
@@ -118,3 +122,34 @@ def get_plan(request: Request, user: Owner) -> PlanView:
     """The person's training plan: the site is private (no public pages)."""
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         return build_plan_view(planned_sessions(session))
+
+
+class PlanImportView(BaseModel):
+    changes: list[str]  # what saving would change, in words; empty: nothing waits
+    blocked: str | None  # why it can't be saved now
+    version: str | None  # what the new version would be called
+
+
+def _today(request: Request) -> date:
+    return local_date(datetime.now(UTC), request.app.state.settings.tz)
+
+
+@router.get("/plan/import", response_model=PlanImportView)
+def get_plan_import(request: Request, user: Owner) -> PlanImportView:
+    """What ``plan.toml`` would change in the owner's plan (ADR-0073); nothing for anyone else."""
+    with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
+        found = plan_import.preview(session, bundled_plan(), _today(request))
+    return PlanImportView(changes=list(found.changes), blocked=found.blocked, version=found.version)
+
+
+@router.post("/plan/import", response_model=PlanImportView)
+def post_plan_import(request: Request, user: Owner) -> PlanImportView:
+    """Save it as one version: the owner's alone, anyone else is refused (Liam, 5 Nov 2026).
+    Answers what was saved; a change that can't be saved now is a conflict."""
+    if user != OWNER:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "the plan import is the owner's")
+    with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
+        found = plan_import.save(session, bundled_plan(), _today(request))
+    if found.blocked:
+        raise HTTPException(status.HTTP_409_CONFLICT, found.blocked)
+    return PlanImportView(changes=list(found.changes), blocked=None, version=found.version)

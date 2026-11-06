@@ -3,12 +3,14 @@ from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
+from training_coach.db.models import SessionProgress, SessionTemplate, User
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.services import auth
+from training_coach.domain.queue import local_date
+from training_coach.services import auth, plan_import
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -25,6 +27,66 @@ def client(engine: Engine) -> Iterator[TestClient]:
             bound.commit()
         assert signed_in.post("/api/auth/redeem", json={"token": token}).status_code == 204
         yield signed_in
+
+
+def test_the_import_lists_nothing_while_the_plan_matches_the_file(client: TestClient) -> None:
+    assert client.get("/api/plan/import").json() == {
+        "changes": [],
+        "blocked": None,
+        "version": None,
+    }
+    assert client.post("/api/plan/import").json()["changes"] == []
+
+
+def _edited_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    """plan.toml as it would be after a release: its first session one set longer."""
+    plan = load_plan()
+    first = plan.sessions[0]
+    more = first.items[0].model_copy(update={"sets": first.items[0].sets + 1})
+    changed = first.model_copy(update={"items": [more, *first.items[1:]]})
+    edited = plan.model_copy(update={"sessions": [changed, *plan.sessions[1:]]})
+    monkeypatch.setattr("training_coach.api.plan.bundled_plan", lambda: edited)
+
+
+def test_the_import_saves_what_it_listed(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _edited_file(monkeypatch)
+    listed = client.get("/api/plan/import").json()
+    assert len(listed["changes"]) == 1
+    assert client.post("/api/plan/import").json()["changes"] == listed["changes"]
+    assert client.get("/api/plan/import").json()["changes"] == []
+
+
+def test_the_import_answers_a_conflict_with_a_session_in_progress(
+    client: TestClient, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _edited_file(monkeypatch)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
+        template = bound.scalars(select(SessionTemplate).order_by(SessionTemplate.position)).first()
+        assert template is not None
+        today = local_date(datetime.now(UTC), Settings().tz)
+        kept = [{"item": 0, "set_no": 1, "left": 8}]
+        bound.add(
+            SessionProgress(local_date=today, template_id=template.id, token="ab" * 16, sets=kept)
+        )
+    assert client.get("/api/plan/import").json()["blocked"] == plan_import.IN_PROGRESS
+    assert client.post("/api/plan/import").status_code == 409
+
+
+def test_anyone_else_is_refused_the_import(engine: Engine) -> None:
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=2))
+        shared.flush()
+        apply_seed(shared, load_plan())
+    settings = Settings(environment="test", database_url=str(engine.url))
+    with TestClient(create_app(settings), base_url="https://testserver") as member:
+        with make_session_factory(engine, user_id=2)() as bound:
+            token = auth.create_link(bound, datetime.now(UTC))
+            bound.commit()
+        assert member.post("/api/auth/redeem", json={"token": token}).status_code == 204
+        assert member.get("/api/plan/import").json()["changes"] == []
+        assert member.post("/api/plan/import").status_code == 403
 
 
 def test_the_plan_needs_a_signed_in_browser(engine: Engine) -> None:
