@@ -10,6 +10,7 @@ from alembic.config import Config
 
 from tests.db.test_migrations import BACKEND
 
+AFTER = "f3a9c1d7e5b2"  # this one: later ones may refuse the second person added here
 BEFORE = "5ebed72122f7"  # the revision before country and last_seen_in_europe
 
 
@@ -35,7 +36,7 @@ def test_existing_people_are_seen_now_and_a_downgrade_drops_the_columns(
                 " VALUES (2, '[]', '2026-10-01 07:00:00')"
             )
         )
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, AFTER)
     with engine.begin() as db:
         rows = db.execute(text("SELECT country, last_seen_in_europe FROM users")).all()
     assert len(rows) == 2  # the owner and the person added above

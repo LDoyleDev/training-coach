@@ -21,11 +21,15 @@ from training_coach.db.models import (
     Passkey,
     PlanState,
     ProgressPhoto,
+    SessionProgress,
+    SessionTemplate,
     User,
     UserSettings,
     WebSession,
+    Workout,
 )
 from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
+from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import local_date
 from training_coach.services import auth, user_settings
 from training_coach.services.seed import apply_seed, load_plan
@@ -103,6 +107,24 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
         settings = user_settings.load(mine)
     assert kinds == ["account.erased"]  # nothing about what was there
     assert settings.last_set_amrap is False  # back to the default
+
+
+def test_erasing_takes_my_workouts_and_session_in_progress(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """They point at my sessions, which go too once sessions are per person (ADR-0073)."""
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        first = mine.scalars(select(SessionTemplate).order_by(SessionTemplate.position)).first()
+        assert first is not None
+        day = date(2026, 10, 12)
+        mine.add(Workout(local_date=day, template_id=first.id, status=WorkoutStatus.DONE))
+        mine.add(SessionProgress(local_date=day, template_id=first.id, token="ab" * 16))
+
+    assert signed_in.post("/api/account/erase", json=ERASE).status_code == 204
+
+    for model in (Workout, SessionProgress):
+        assert _count(engine, model, OWNER) == 0, model.__name__
+    assert _count(engine, PlanState, OWNER) == 1  # and starts again
 
 
 def test_erasing_signs_this_browser_out(signed_in: TestClient) -> None:
