@@ -184,11 +184,8 @@ def test_my_edit_to_my_sessions_leaves_the_others_plan_alone(pair: Pair) -> None
     assert before == after
 
 
-@STEP_5
 @pytest.mark.parametrize("path", ["/api/plan", "/api/plan/coverage"])
 def test_the_plan_page_and_body_map_read_my_own_sessions(pair: Pair, path: str) -> None:
-    """Both read plan.toml today (``api/plan.build_plan_view``, ``services/coverage``), so an
-    edit in the database never shows there."""
     _, clients, engine = pair
     before = clients[2].get(path).content
     _edit_first_session(engine, 2, "Bravoplan")

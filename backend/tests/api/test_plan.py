@@ -7,15 +7,17 @@ from sqlalchemy import Engine
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.session import make_session_factory
+from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import auth
-from training_coach.services.seed import load_plan
+from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
 
 @pytest.fixture
 def client(engine: Engine) -> Iterator[TestClient]:
     """Signed in: the plan is private like every page (ADR-0041)."""
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, load_plan())
     settings = Settings(environment="test", database_url=str(engine.url))
     with TestClient(create_app(settings), base_url="https://testserver") as signed_in:
         with make_session_factory(engine, user_id=OWNER)() as bound:

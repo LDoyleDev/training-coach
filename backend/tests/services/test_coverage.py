@@ -72,9 +72,12 @@ def test_a_loaded_step_adds_to_the_spine_count(plan: Session) -> None:
     assert (legs.spine_sets, legs.spine_heavy) == (9, True)  # + 3 loaded split-squat sets
 
 
-def test_an_exercise_not_started_counts_at_the_plans_start(session: Session) -> None:
-    assert trained_steps(session) == {}
-    assert plan_coverage(session).days[0].spine_sets == 6
+def test_an_exercise_not_started_counts_at_the_plans_start(plan: Session) -> None:
+    for state in plan.scalars(select(ExerciseState)):
+        plan.delete(state)
+    plan.flush()
+    assert trained_steps(plan) == {}
+    assert plan_coverage(plan).days[0].spine_sets == 6
 
 
 def test_the_gym_view_counts_each_sessions_gym_version(plan: Session) -> None:

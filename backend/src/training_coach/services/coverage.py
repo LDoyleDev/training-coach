@@ -1,4 +1,4 @@
-"""The body map's numbers for one person: the bundled plan's week, counted per muscle at the
+"""The body map's numbers for one person: their plan's week, counted per muscle at the
 ladder step each exercise is trained at (program-builder.md F, step 3). Read-only.
 
 The step matters for the spine warning only: a squat or lunge loads the spine once its step
@@ -18,6 +18,7 @@ from training_coach.domain.enums import Place, Places
 from training_coach.domain.muscles import step_stress
 from training_coach.domain.places import day_place
 from training_coach.services import user_settings
+from training_coach.services.plan_rows import planned_sessions
 from training_coach.services.seed import bundled_plan
 
 
@@ -41,11 +42,10 @@ def map_place(session: Session) -> tuple[Places, Place]:
 
 def plan_coverage(session: Session, place: Place = Place.HOME) -> domain.Coverage:
     """The week with each session's version at ``place``."""
-    plan = bundled_plan()
-    exercises = {e.slug: e for e in plan.exercises}
+    exercises = {e.slug: e for e in bundled_plan().exercises}
     steps = trained_steps(session)
     week = []
-    for planned in plan.sessions:
+    for planned in planned_sessions(session):
         at = Place.GYM if place is Place.GYM and planned.gym else Place.HOME
         items = []
         for item in planned.gym if at is Place.GYM else planned.items:
