@@ -168,6 +168,38 @@ def test_a_draft_needs_a_note_and_something_in_it(
     assert client.post("/api/plan/changes", json=body).status_code == 422
 
 
+def test_the_map_follows_a_draft_and_saves_nothing(client: TestClient) -> None:
+    before = client.get("/api/plan/coverage", params={"place": "home"}).json()
+    draft = _draft(client, 20)
+    versions = draft["versions"]
+    assert isinstance(versions, list)
+    body = {
+        "place": "home",
+        "versions": [
+            {
+                "slug": v["slug"],
+                "place": v["place"],
+                "items": [
+                    {k: i[k] for k in ("exercise", "sets", "rep_min", "rep_max", "per_side")}
+                    for i in v["items"]
+                ],
+            }
+            for v in versions
+        ],
+    }
+    drafted = client.post("/api/plan/coverage/draft", json=body)
+    assert drafted.status_code == 200
+    sets = lambda view: sum(m["sets"] for m in view["muscles"])  # noqa: E731 - one use
+    assert sets(drafted.json()) > sets(before)
+    assert client.get("/api/plan/coverage", params={"place": "home"}).json() == before
+
+
+def test_an_empty_draft_is_the_plan_as_it_stands(client: TestClient) -> None:
+    before = client.get("/api/plan/coverage", params={"place": "home"}).json()
+    drafted = client.post("/api/plan/coverage/draft", json={"place": "home", "versions": []})
+    assert drafted.json() == before
+
+
 def test_the_plan_needs_a_signed_in_browser(engine: Engine) -> None:
     settings = Settings(environment="test", database_url=str(engine.url))
     with TestClient(create_app(settings), base_url="https://testserver") as stranger:

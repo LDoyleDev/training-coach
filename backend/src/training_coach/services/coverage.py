@@ -9,6 +9,8 @@ A session's home or gym version is counted (ADR-0071): the map shows one place a
 session with no gym version counts its one version at both.
 """
 
+from collections.abc import Mapping, Sequence
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,7 +20,7 @@ from training_coach.domain.enums import Place, Places
 from training_coach.domain.muscles import step_stress
 from training_coach.domain.places import day_place
 from training_coach.services import user_settings
-from training_coach.services.plan_rows import planned_sessions
+from training_coach.services.plan_rows import PlannedItem, planned_sessions, with_draft
 from training_coach.services.seed import bundled_plan
 
 
@@ -40,12 +42,17 @@ def map_place(session: Session) -> tuple[Places, Place]:
     return prefs.places, day_place(prefs.places, prefs.place)
 
 
-def plan_coverage(session: Session, place: Place = Place.HOME) -> domain.Coverage:
-    """The week with each session's version at ``place``."""
+def plan_coverage(
+    session: Session,
+    place: Place = Place.HOME,
+    draft: Mapping[tuple[str, Place], Sequence[PlannedItem]] | None = None,
+) -> domain.Coverage:
+    """The week with each session's version at ``place``, and with ``draft``'s versions in place
+    of the saved ones, for the map as a plan is edited (program-builder.md F). Nothing is saved."""
     exercises = {e.slug: e for e in bundled_plan().exercises}
     steps = trained_steps(session)
     week = []
-    for planned in planned_sessions(session):
+    for planned in with_draft(planned_sessions(session), draft or {}):
         at = Place.GYM if place is Place.GYM and planned.gym else Place.HOME
         items = []
         for item in planned.gym if at is Place.GYM else planned.items:

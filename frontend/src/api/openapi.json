@@ -911,6 +911,27 @@
         "title": "ConsentView",
         "type": "object"
       },
+      "CoverageDraft": {
+        "properties": {
+          "place": {
+            "$ref": "#/components/schemas/Place",
+            "default": "home"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/DraftVersion"
+            },
+            "maxItems": 30,
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "versions"
+        ],
+        "title": "CoverageDraft",
+        "type": "object"
+      },
       "CoverageView": {
         "properties": {
           "back_to_back": {
@@ -1200,6 +1221,73 @@
           "left"
         ],
         "title": "DoneView",
+        "type": "object"
+      },
+      "DraftItem": {
+        "properties": {
+          "exercise": {
+            "maxLength": 64,
+            "title": "Exercise",
+            "type": "string"
+          },
+          "per_side": {
+            "default": false,
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "rep_max": {
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Rep Max",
+            "type": "integer"
+          },
+          "rep_min": {
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Rep Min",
+            "type": "integer"
+          },
+          "sets": {
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "exercise",
+          "sets",
+          "rep_min",
+          "rep_max"
+        ],
+        "title": "DraftItem",
+        "type": "object"
+      },
+      "DraftVersion": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DraftItem"
+            },
+            "maxItems": 40,
+            "title": "Items",
+            "type": "array"
+          },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          },
+          "slug": {
+            "maxLength": 64,
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "place",
+          "items"
+        ],
+        "title": "DraftVersion",
         "type": "object"
       },
       "EarnedView": {
@@ -10222,6 +10310,48 @@
           }
         },
         "summary": "Get Coverage",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan/coverage/draft": {
+      "post": {
+        "description": "The map as a draft of the plan would make it, while editing: it saves nothing.",
+        "operationId": "post_coverage_draft_api_plan_coverage_draft_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverageDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Coverage Draft",
         "tags": [
           "plan"
         ]

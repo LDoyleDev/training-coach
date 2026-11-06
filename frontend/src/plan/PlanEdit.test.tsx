@@ -42,11 +42,20 @@ const VIEW = {
   ],
 }
 
+const drafts: unknown[] = []
+let map = new Response(null, { status: 401 })
+
 function serve(post: Response = Response.json({ revision: 'def', version: 'Note' })) {
   const sent: unknown[] = []
+  drafts.length = 0
+  map = new Response(null, { status: 401 })
   vi.stubGlobal(
     'fetch',
     vi.fn(async (_path: string, init?: RequestInit) => {
+      if (_path === '/api/plan/coverage/draft') {
+        drafts.push(JSON.parse(String(init?.body)))
+        return map
+      }
       if (init?.method === 'POST') {
         sent.push(JSON.parse(String(init.body)))
         return post
@@ -218,6 +227,27 @@ test.each([
   fireEvent.change(note(), { target: { value: 'Note' } })
   fireEvent.click(save())
   expect(await screen.findByRole('status')).toHaveTextContent(message)
+})
+
+test('the map is asked for with the draft, after the tapping stops', async () => {
+  serve()
+  render(<PlanEdit />)
+  fireEvent.click(await screen.findByRole('button', { name: 'One set more of Pull-up' }))
+  fireEvent.click(screen.getByRole('button', { name: 'One set more of Pull-up' }))
+  await vi.waitFor(() => expect(drafts.length).toBeGreaterThan(0), { timeout: 2000 })
+  const last = drafts.at(-1) as { place: string; versions: { items: { sets: number }[] }[] }
+  expect(last.place).toBe('home')
+  expect(last.versions[0]!.items[0]!.sets).toBe(6)
+})
+
+test('a failed map says so and the editor still works', async () => {
+  serve()
+  map = new Response(null, { status: 500 })
+  render(<PlanEdit />)
+  expect(await screen.findByRole('alert', {}, { timeout: 2000 })).toHaveTextContent(
+    "Couldn't load the body map",
+  )
+  expect(screen.getByRole('button', { name: 'One set more of Pull-up' })).toBeEnabled()
 })
 
 test('signed out and a failed load say so', async () => {

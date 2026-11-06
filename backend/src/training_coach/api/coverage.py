@@ -5,7 +5,7 @@ and the home or gym versions (``place``, ADR-0071).
 """
 
 from fastapi import APIRouter, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from training_coach.api.auth import Owner
 from training_coach.db.session import make_session_factory, session_scope
@@ -13,6 +13,7 @@ from training_coach.domain import coverage as domain
 from training_coach.domain.coverage import Band, Evidence, Heat
 from training_coach.domain.enums import Place, Places
 from training_coach.services import coverage as service
+from training_coach.services.plan_rows import PlannedItem
 
 router = APIRouter(prefix="/api/plan", tags=["plan"])
 
@@ -75,6 +76,25 @@ class CoverageView(BaseModel):
     ceiling: int
 
 
+class DraftItem(BaseModel):
+    exercise: str = Field(max_length=64)
+    sets: int = Field(ge=1, le=20)
+    rep_min: int = Field(ge=1, le=600)
+    rep_max: int = Field(ge=1, le=600)
+    per_side: bool = False
+
+
+class DraftVersion(BaseModel):
+    slug: str = Field(max_length=64)
+    place: Place
+    items: list[DraftItem] = Field(max_length=40)
+
+
+class CoverageDraft(BaseModel):
+    place: Place = Place.HOME
+    versions: list[DraftVersion] = Field(max_length=30)
+
+
 @router.get("/coverage", response_model=CoverageView)
 def get_coverage(request: Request, user: Owner, place: Place | None = None) -> CoverageView:
     """Weekly fractional sets per muscle with its band and warnings, from the plan as it
@@ -84,6 +104,25 @@ def get_coverage(request: Request, user: Owner, place: Place | None = None) -> C
         places, day = service.map_place(session)
         at = day if place is None else place
         found = service.plan_coverage(session, at)
+    return _view(found, at, places)
+
+
+@router.post("/coverage/draft", response_model=CoverageView)
+def post_coverage_draft(request: Request, user: Owner, body: CoverageDraft) -> CoverageView:
+    """The map as a draft of the plan would make it, while editing: it saves nothing."""
+    draft = {
+        (v.slug, v.place): [
+            PlannedItem(i.exercise, i.sets, i.rep_min, i.rep_max, i.per_side) for i in v.items
+        ]
+        for v in body.versions
+    }
+    with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
+        places, _ = service.map_place(session)
+        found = service.plan_coverage(session, body.place, draft)
+    return _view(found, body.place, places)
+
+
+def _view(found: domain.Coverage, at: Place, places: Places) -> CoverageView:
     return CoverageView(
         place=at,
         places=places,

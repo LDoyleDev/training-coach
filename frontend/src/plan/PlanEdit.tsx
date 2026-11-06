@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   fetchPlanEdit,
+  previewCoverage,
   savePlanChanges,
   SignedOutError,
   type CatalogueItem,
@@ -8,6 +9,8 @@ import {
   type Place,
   type PlanEdit as Loaded,
 } from '../api'
+import { BodyMap } from '../bodymap/BodyMap'
+import type { State as MapState } from '../bodymap/useCoverage'
 import AppShell from '../components/AppShell'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { card, primaryInline, secondary, small } from '../ui'
@@ -37,6 +40,8 @@ const WHY: Record<string, string> = {
   stale: 'Your plan changed since you opened this. Reload to see it, then make your edit again.',
   'in-progress': 'Finish or discard your session in progress first: its sets follow today’s list.',
 }
+
+const SETTLE_MS = 400 // after the last tap, ask for the map once
 
 const number = (text: string) => {
   const found = Number(text)
@@ -217,6 +222,32 @@ export default function PlanEdit() {
     [state],
   )
 
+  // The map follows the draft (program-builder.md F); away has no map, so it shows home's.
+  const mapPlace: Place = place === 'gym' ? 'gym' : 'home'
+  const [map, setMap] = useState<MapState>({ status: 'loading' })
+  const ready = state.status === 'ready'
+  const draftKey = JSON.stringify(pending)
+  useEffect(() => {
+    if (!ready) return
+    const controller = new AbortController()
+    const timer = setTimeout(() => {
+      previewCoverage({ place: mapPlace, versions: pending }, controller.signal)
+        .then((coverage) => setMap(coverage ? { status: 'ready', coverage } : { status: 'hidden' }))
+        .catch((err: unknown) => {
+          if (controller.signal.aborted) return
+          const message = err instanceof Error ? err.message : String(err)
+          setMap((cur) =>
+            cur.status === 'ready' ? { ...cur, problem: message } : { status: 'error', message },
+          )
+        })
+    }, SETTLE_MS)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- draftKey stands for pending
+  }, [ready, mapPlace, draftKey])
+
   if (state.status === 'loading')
     return (
       <AppShell>
@@ -352,6 +383,15 @@ export default function PlanEdit() {
             }}
           />
         )}
+      </section>
+      <section className={`${card} flex flex-col gap-3`} aria-labelledby="edit-map">
+        <h2 id="edit-map" className="m-0 text-xl font-bold">
+          What the week would give each muscle
+        </h2>
+        <p className="m-0 text-[var(--slate)]">
+          It follows your edits. Warnings are for you to weigh: nothing stops you saving.
+        </p>
+        <BodyMap state={map} />
       </section>
       <section className={`${card} flex flex-col gap-3`} aria-label="Save">
         <label className="flex flex-col gap-1">

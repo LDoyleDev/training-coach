@@ -2,7 +2,8 @@
 from ``plan.toml`` (builder step 5, ADR-0073). What an exercise is (its muscles, its ladder)
 stays in the catalogue."""
 
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, replace
 from datetime import date
 
 import structlog
@@ -10,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import SessionProgress, SessionTemplate, TemplateItem
+from training_coach.domain.enums import Place
 from training_coach.services import guided
 from training_coach.services.seed import bundled_plan
 
@@ -62,6 +64,25 @@ def _items(rows: list[TemplateItem], known: set[str]) -> tuple[PlannedItem, ...]
         else:
             log.warning("plan.exercise_not_in_catalogue", exercise=item.exercise.slug)
     return tuple(found)
+
+
+def with_draft(
+    sessions: list[PlannedSession], versions: Mapping[tuple[str, Place], Sequence[PlannedItem]]
+) -> list[PlannedSession]:
+    """The sessions as they would be with a draft's versions, by session slug and place; items
+    the catalogue doesn't know are left out, as they are from the rows."""
+    known = {e.slug for e in bundled_plan().exercises}
+
+    def drafted(
+        session: PlannedSession, place: Place, now: tuple[PlannedItem, ...]
+    ) -> tuple[PlannedItem, ...]:
+        found = versions.get((session.slug, place))
+        return now if found is None else tuple(i for i in found if i.exercise in known)
+
+    return [
+        replace(s, items=drafted(s, Place.HOME, s.items), gym=drafted(s, Place.GYM, s.gym))
+        for s in sessions
+    ]
 
 
 def planned_sessions(session: Session) -> list[PlannedSession]:
