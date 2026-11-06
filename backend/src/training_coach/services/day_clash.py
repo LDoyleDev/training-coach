@@ -209,7 +209,7 @@ def _date(session: Session, workout: Workout, day: date) -> None:
     session's progress for the old day is dropped: its sets are in the workout."""
     _drop_progress(session, workout.id)
     workout.local_date = day
-    workout.plan_version_id = version_on(day)
+    workout.plan_version_id = version_on(day, workout.user_id)
 
 
 def _drop_progress(session: Session, workout_id: int) -> None:

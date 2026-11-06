@@ -2,14 +2,16 @@
 
 Deleting the user row takes every per-person row with it: each one's ``user_id`` is
 ``ON DELETE CASCADE`` (a test holds every ``Owned`` table to that). The person then starts
-again under the same id and Telegram account, with the plan's starting rows, so the bot and the
-web app keep working. Shared rows (the plan) are untouched.
+again under the same id and Telegram account, with a starter (ADR-0073), so the bot and the web
+app keep working. The catalogue and everyone else's rows are untouched.
 """
 
 import structlog
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Event, User
+from training_coach.db.models import Event, PlanState, User, Workout
+from training_coach.db.session import ALL_USERS
 from training_coach.services.seed import PlanSeed, apply_seed
 
 log = structlog.get_logger(__name__)
@@ -22,6 +24,12 @@ def erase(session: Session, user_id: int, plan: PlanSeed) -> bool:
     if user is None:
         return False
     telegram, seen = user.telegram_user_id, user.last_seen_in_europe
+    # These RESTRICT the person's sessions and versions, and a RESTRICT fires even inside the
+    # cascade, whichever table it reaches first: so they go first.
+    for model in (PlanState, Workout):
+        session.execute(
+            delete(model).where(model.user_id == user_id), execution_options={ALL_USERS: True}
+        )
     session.delete(user)
     session.flush()  # the cascade runs here, in the database
     session.expunge_all()  # rows loaded before it are gone

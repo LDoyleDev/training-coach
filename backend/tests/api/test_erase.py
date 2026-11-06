@@ -166,6 +166,6 @@ def test_every_per_person_table_goes_with_its_person() -> None:
     assert owned
     for mapper in owned:
         (column,) = (c for c in mapper.local_table.columns if c.name == "user_id")
-        (key,) = column.foreign_keys
-        assert key.column.table.name == "users", mapper.class_.__name__
+        # A composite key to the person's own session or version may share the column.
+        (key,) = (k for k in column.foreign_keys if k.column.table.name == "users")
         assert key.ondelete == "CASCADE", mapper.class_.__name__
