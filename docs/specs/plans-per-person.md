@@ -1,7 +1,8 @@
 # Plans per person (builder step 5): what reads the plan, and a draft migration
 
 Status: **inventory as of v1.9.0 (30 Oct 2026), reviewed against 1.17.0 on 6 Nov 2026 (below);
-being built, in the order under "The build".** The open points are answered: the import ships
+built on `main` (#578-#580 and the import), not yet released; the order is under "The build".**
+The open points are answered: the import ships
 with step 5 (1 Nov 2026), the migration refuses if anyone but the owner exists (5 Nov 2026), one
 database with each person's rows, starters in `plan.toml` and notes in `name` (6 Nov 2026).
 Nothing here changes the schema. Builder step 5 (`program-builder.md`, option A2, ADR-0073)
@@ -200,8 +201,8 @@ them, and SQLite's RESTRICT fires at once, even inside a cascade. So erase delet
   the first saved version would otherwise fail every start, unseen (the Dockerfile's `|| true`).
 - New, against every person's stored items: an exercise they use must stay in the catalogue and
   not be retired, and an away item's steps must stay within what `_away_needs_no_kit` allows.
-- With a difference between the owner's rows and `plan.toml`, the seed logs it and leaves it: the
-  Plan page offers the import.
+- A difference between the owner's rows and `plan.toml` stays until the owner saves it: the Plan
+  page shows it, with the import.
 
 **A new person's versions.** `plan.toml` has no starters yet, so the 7-day cycle is the first
 starter. Its `[[versions]]` are the owner's history, so a new person gets one version, "Starting

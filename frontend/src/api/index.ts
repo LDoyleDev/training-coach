@@ -21,6 +21,26 @@ export async function fetchPlan(signal?: AbortSignal): Promise<Plan | null> {
   return (await res.json()) as Plan
 }
 
+export type PlanImport = Schemas['PlanImportView']
+
+/** What plan.toml would change in the owner's plan (ADR-0073); null when not signed in. */
+export async function fetchPlanImport(signal?: AbortSignal): Promise<PlanImport | null> {
+  const res = await fetch('/api/plan/import', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as PlanImport
+}
+
+/** Save it as one version. 'blocked': it can't be saved now (a session in progress). */
+export async function savePlanImport(): Promise<PlanImport | 'blocked'> {
+  const res = signedIn(
+    await fetch('/api/plan/import', { method: 'POST', credentials: 'same-origin' }),
+  )
+  if (res.status === 409) return 'blocked'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as PlanImport
+}
+
 export type Coverage = Schemas['CoverageView']
 export type MuscleCoverage = Schemas['MuscleView']
 export type Band = Schemas['Band']

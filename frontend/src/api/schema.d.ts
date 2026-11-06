@@ -1158,6 +1158,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plan/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Plan Import
+         * @description What ``plan.toml`` would change in the owner's plan (ADR-0073); nothing for anyone else.
+         */
+        get: operations["get_plan_import_api_plan_import_get"];
+        put?: never;
+        /**
+         * Post Plan Import
+         * @description Save it as one version: the owner's alone, anyone else is refused (Liam, 5 Nov 2026).
+         *     Answers what was saved; a change that can't be saved now is a conflict.
+         */
+        post: operations["post_plan_import_api_plan_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/progress": {
         parameters: {
             query?: never;
@@ -3489,6 +3514,15 @@ export interface components {
          * @enum {string}
          */
         Places: "home" | "gym" | "both";
+        /** PlanImportView */
+        PlanImportView: {
+            /** Blocked */
+            blocked: string | null;
+            /** Changes */
+            changes: string[];
+            /** Version */
+            version: string | null;
+        };
         /** PlanView */
         PlanView: {
             /** Sessions */
@@ -6302,6 +6336,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_plan_import_api_plan_import_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanImportView"];
+                };
+            };
+        };
+    };
+    post_plan_import_api_plan_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanImportView"];
                 };
             };
         };
