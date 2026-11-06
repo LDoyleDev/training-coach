@@ -28,6 +28,9 @@ ALLOWED: dict[tuple[str, str], str] = {
         "what anyone's plan uses, slugs and places only: the catalogue must keep it"
     ),
     ("services.seed::sync_sessions", ALL): "names the user in the query",
+    ("services.seed::_tell_people", ALL): (
+        "who uses a changed exercise, ids and slugs only: each gets their own notice"
+    ),
     ("db.session::_only_this_users_rows", ALL): "the guard itself, reading the option",
     ("db.session::make_engine._begin_before_savepoint", RAW): "BEGIN: touches no rows",
     ("services.auth::<module>", ALL): "EVERYONE: sign-in looks up a token before knowing whose",

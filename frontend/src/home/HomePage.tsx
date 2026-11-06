@@ -4,6 +4,7 @@ import AppShell from '../components/AppShell'
 import BandSummary from '../components/BandSummary'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { moveButton, moveHref } from '../plan/ladder'
+import PlanNotices from '../plan/PlanNotices'
 import TopNotes from '../plan/TopNotes'
 import { InstallHint } from '../pwa/InstallApp'
 import { range, standing } from '../session/cardioTotals'
@@ -76,6 +77,7 @@ export default function HomePage() {
     .join(' · ')
   return (
     <AppShell>
+      <PlanNotices />
       <section aria-labelledby="done" className="flex flex-col gap-3">
         <h1 id="done" className="m-0 text-3xl font-extrabold">
           {totals.sessions > 0 ? "What you've done" : 'Your first session is waiting'}

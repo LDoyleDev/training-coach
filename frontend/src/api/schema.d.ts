@@ -1055,6 +1055,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Notices */
+        get: operations["get_notices_api_notices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notices/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Notices
+         * @description "Got it": these won't show again.
+         */
+        post: operations["read_notices_api_notices_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/photos": {
         parameters: {
             query?: never;
@@ -3401,6 +3438,13 @@ export interface components {
              */
             start: string;
         };
+        /** NoticeView */
+        NoticeView: {
+            /** Id */
+            id: number;
+            /** Text */
+            text: string;
+        };
         /** OptionView */
         OptionView: {
             /** Label */
@@ -3648,6 +3692,11 @@ export interface components {
             name: string;
             /** Template Id */
             template_id: number;
+        };
+        /** ReadBody */
+        ReadBody: {
+            /** Ids */
+            ids: number[];
         };
         /** ReadinessSavedView */
         ReadinessSavedView: {
@@ -6165,6 +6214,57 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LogPlanView"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_notices_api_notices_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoticeView"][];
+                };
+            };
+        };
+    };
+    read_notices_api_notices_read_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

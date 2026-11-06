@@ -21,6 +21,29 @@ export async function fetchPlan(signal?: AbortSignal): Promise<Plan | null> {
   return (await res.json()) as Plan
 }
 
+export type Notice = Schemas['NoticeView']
+
+/** What a release changed in the plan, until seen (ADR-0087); null when not signed in. */
+export async function fetchNotices(signal?: AbortSignal): Promise<Notice[] | null> {
+  const res = await fetch('/api/notices', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Notice[]
+}
+
+/** "Got it": these won't show again. */
+export async function readNotices(ids: number[]): Promise<void> {
+  const res = signedIn(
+    await fetch('/api/notices/read', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    }),
+  )
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+}
+
 export type PlanImport = Schemas['PlanImportView']
 
 /** What plan.toml would change in the owner's plan (ADR-0073); null when not signed in. */
