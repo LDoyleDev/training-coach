@@ -20,7 +20,7 @@ from typing import Annotated, Literal, Self
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import (
@@ -36,11 +36,9 @@ from training_coach.db.models import (
     TemplateItem,
     User,
     UserSettings,
-    Workout,
-    version_on,
 )
 from training_coach.db.session import ALL_USERS
-from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.fitness_tests import DAYS, FitnessTest, Unit
 from training_coach.domain.load import LoadKit
 from training_coach.domain.mobility_flow import Flow, Move
@@ -63,6 +61,7 @@ log = structlog.get_logger(__name__)
 
 SLUG = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 _PARK_OFFSET = 10_000
+STARTING_VERSION = "Starting plan"  # a new person's first version (ADR-0073)
 # Loads only a gym carries: an exercise taking one isn't done away (ADR-0086). Not dumbbells: a
 # home step that takes them names them as its kit, so away passes over it, as the kit lock does.
 GYM_LOADS = frozenset({LoadKit.BARBELL, LoadKit.MACHINE})
@@ -221,6 +220,20 @@ class ItemSeed(_Strict):
         if self.rep_max < self.rep_min:
             raise ValueError(f"{self.exercise}: rep_max < rep_min")
         return self
+
+
+def _away_problem(exercise: ExerciseSeed) -> str | None:
+    """Why an exercise can't be in an away version, in words following its name; None when it
+    can (``PlanSeed._away_needs_no_kit``)."""
+    first = exercise.ladder[0]
+    if exercise.needs.get(first) or first in exercise.loads:
+        return f"'s first step {first!r} needs kit"
+    if set(exercise.loads.values()) & GYM_LOADS:
+        return " is gym work"
+    for step in exercise.loads:
+        if not exercise.needs.get(step):
+            return f"'s step {step!r} takes load but names no kit"
+    return None
 
 
 class SessionSeed(_Strict):
@@ -417,21 +430,9 @@ class PlanSeed(_Strict):
         exercises = {e.slug: e for e in self.exercises}
         for session in self.sessions:
             for item in session.away:
-                exercise = exercises[item.exercise]
-                first = exercise.ladder[0]
-                if exercise.needs.get(first) or first in exercise.loads:
-                    raise ValueError(
-                        f"session {session.slug}: away, {item.exercise}'s first step "
-                        f"{first!r} needs kit"
-                    )
-                if set(exercise.loads.values()) & GYM_LOADS:
-                    raise ValueError(f"session {session.slug}: away, {item.exercise} is gym work")
-                for step in exercise.loads:
-                    if not exercise.needs.get(step):
-                        raise ValueError(
-                            f"session {session.slug}: away, {item.exercise}'s step {step!r} "
-                            "takes load but names no kit"
-                        )
+                problem = _away_problem(exercises[item.exercise])
+                if problem:
+                    raise ValueError(f"session {session.slug}: away, {item.exercise}{problem}")
 
 
 def load_plan(text: str | None = None) -> PlanSeed:
@@ -464,14 +465,6 @@ class SeedResult:
 
 def _preflight(session: Session, plan: PlanSeed, exercises: dict[str, Exercise]) -> None:
     """Refuse plans that would drop things history depends on, before any write."""
-    existing_sessions = set(session.scalars(select(SessionTemplate.slug)))
-    removed = sorted(existing_sessions - {s.slug for s in plan.sessions})
-    if removed:
-        # Sessions define the queue (ADR-0006); dropping one would orphan it in the cycle.
-        raise SeedError(
-            f"sessions {removed} exist in the database but not in plan.toml; "
-            "removing a session needs a data migration (see docs/specs/phase-1-daily-loop.md)"
-        )
     # Every person's history protects the shared ladders, whoever this session is bound to.
     everyone = {ALL_USERS: True}
     in_use = set(
@@ -513,21 +506,25 @@ def _preflight(session: Session, plan: PlanSeed, exercises: dict[str, Exercise])
                 )
 
 
-def _versions_preflight(session: Session, plan: PlanSeed) -> None:
-    """A version workouts record stays: removing or re-dating it would rewrite their history."""
-    kept = {v.since for v in plan.versions}
-    recorded = session.execute(
-        select(PlanVersion.since, PlanVersion.name)
-        .join(Workout, Workout.plan_version_id == PlanVersion.id)
+def _stored_items_preflight(session: Session, plan: PlanSeed) -> None:
+    """The catalogue must still hold what anyone's plan uses: the checks ``PlanSeed`` makes of
+    its own sessions, made of everyone's stored ones (ADR-0073)."""
+    catalogue = {e.slug: e for e in plan.exercises}
+    stored = session.execute(
+        select(Exercise.slug, TemplateItem.place)
+        .join(TemplateItem, TemplateItem.exercise_id == Exercise.id)
         .distinct(),
         execution_options={ALL_USERS: True},
     )
-    for since, name in recorded:
-        if since not in kept:
-            raise SeedError(
-                f"plan version {name!r} (since {since}) is recorded on workouts but not in "
-                "plan.toml; keep it there (its name can change, its date can't)"
-            )
+    for slug, place in stored:
+        exercise = catalogue.get(slug)
+        if exercise is None:
+            raise SeedError(f"{slug} is in someone's plan, so it must stay in plan.toml")
+        if exercise.retired:
+            raise SeedError(f"{slug} is in someone's plan, so it can't be retired")
+        problem = _away_problem(exercise) if place == Place.AWAY else None
+        if problem:
+            raise SeedError(f"{slug} is in someone's away version, and {slug}{problem}")
 
 
 def _tests_preflight(session: Session, plan: PlanSeed) -> None:
@@ -538,31 +535,6 @@ def _tests_preflight(session: Session, plan: PlanSeed) -> None:
     missing = sorted(recorded - kept)
     if missing:
         raise SeedError(f"tests {missing} have results but are not in plan.toml; keep them there")
-
-
-def _apply_versions(session: Session, plan: PlanSeed, result: SeedResult) -> None:
-    existing = {v.since: v for v in session.scalars(select(PlanVersion))}
-    for seed in plan.versions:
-        version = existing.pop(seed.since, None)
-        if version is None:
-            session.add(PlanVersion(since=seed.since, name=seed.name))
-            result.created += 1
-        else:
-            _set(version, result, name=seed.name)
-    for version in existing.values():  # unrecorded (the preflight checked)
-        session.delete(version)
-        result.deleted += 1
-    session.flush()
-    # Every workout carries the version in force on its date: one saved before its version
-    # existed, or one a version added between two others now covers, is brought up to date.
-    on_date = version_on(Workout.local_date)
-    filled = session.execute(
-        update(Workout)
-        .where(Workout.plan_version_id.is_distinct_from(on_date))
-        .values(plan_version_id=on_date),
-        execution_options={ALL_USERS: True},
-    )
-    result.updated += getattr(filled, "rowcount", 0)  # an UPDATE gives a CursorResult
 
 
 def _set(obj: object, result: SeedResult, **values: object) -> None:
@@ -577,6 +549,7 @@ def _set(obj: object, result: SeedResult, **values: object) -> None:
 
 
 def _version(
+    user_id: int,
     items: list[TemplateItem],
     seeds: list[ItemSeed],
     exercises: dict[str, Exercise],
@@ -596,7 +569,7 @@ def _version(
         }
         item = found.get(position)
         if item is None:
-            items.append(TemplateItem(position=position, **values))
+            items.append(TemplateItem(user_id=user_id, position=position, **values))
             result.created += 1
         else:
             _set(item, result, **values)
@@ -606,19 +579,87 @@ def _version(
             result.deleted += 1
 
 
-def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
-    """Upsert the plan. The caller owns the transaction (commit / rollback).
+def sync_sessions(
+    session: Session,
+    plan: PlanSeed,
+    user_id: int,
+    exercises: dict[str, Exercise],
+    result: SeedResult,
+) -> None:
+    """Make this person's sessions match ``plan``: a new one's items, or an existing one's by
+    position. Items removed from a session are deleted (nothing else references them)."""
+    templates = {
+        t.slug: t
+        for t in session.scalars(
+            select(SessionTemplate).where(SessionTemplate.user_id == user_id),
+            execution_options={ALL_USERS: True},
+        )
+    }
+    wanted = {s.slug: i for i, s in enumerate(plan.sessions)}
+    current = {t.slug: t.position for t in templates.values()}
+    if current != {slug: wanted[slug] for slug in current}:
+        # Reordering: park existing positions out of the way so the unique index never
+        # sees two sessions on one position mid-update. New sessions always get positions
+        # after the existing ones' final positions, so they cannot collide.
+        for existing in templates.values():
+            existing.position += _PARK_OFFSET
+        session.flush()
+    for position, seed_session in enumerate(plan.sessions):
+        template = templates.get(seed_session.slug)
+        if template is None:
+            template = SessionTemplate(user_id=user_id, slug=seed_session.slug, position=position)
+            session.add(template)
+            templates[seed_session.slug] = template
+            result.created += 1
+            template.name, template.focus = seed_session.name, seed_session.focus
+            template.kind = seed_session.type
+            template.is_rest_optional = seed_session.is_rest_optional
+        else:
+            _set(
+                template,
+                result,
+                position=position,
+                name=seed_session.name,
+                focus=seed_session.focus,
+                is_rest_optional=seed_session.is_rest_optional,
+                kind=seed_session.type,
+            )
+        _version(user_id, template.items, seed_session.items, exercises, result)
+        _version(user_id, template.gym_items, seed_session.gym, exercises, result)
+        _version(user_id, template.away_items, seed_session.away, exercises, result)
+    session.flush()
 
-    Raises ``SeedError`` before changing anything if the plan would remove a session, shorten
-    a ladder, or rename a ladder step that history uses without a ``renames`` entry: all would
-    remap or orphan logged history.
-    Items removed from a session are deleted (nothing else references them).
+
+def _start_plan(
+    session: Session,
+    plan: PlanSeed,
+    user_id: int,
+    exercises: dict[str, Exercise],
+    result: SeedResult,
+) -> None:
+    """A person with no sessions (new, or erased) gets the starter, which today is the 7-day
+    cycle (ADR-0073). ``plan.toml``'s versions are the owner's history, so they get one."""
+    sync_sessions(session, plan, user_id, exercises, result)
+    if plan.versions:
+        since = max(v.since for v in plan.versions)
+        session.add(PlanVersion(user_id=user_id, since=since, name=STARTING_VERSION))
+        result.created += 1
+    session.flush()
+
+
+def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
+    """Upsert the catalogue, and start anyone who has no plan yet. It never changes the sessions
+    of a person who has them (ADR-0073). The caller owns the transaction (commit / rollback).
+
+    Raises ``SeedError`` before changing anything if the plan would shorten a ladder, rename a
+    ladder step that history uses without a ``renames`` entry, or take away what someone's plan
+    uses: all would remap or orphan logged history.
     """
     result = SeedResult()
 
     exercises = {e.slug: e for e in session.scalars(select(Exercise))}
     _preflight(session, plan, exercises)
-    _versions_preflight(session, plan)
+    _stored_items_preflight(session, plan)
     _tests_preflight(session, plan)
     for seed in plan.exercises:
         exercise = exercises.get(seed.slug)
@@ -678,53 +719,21 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 )
                 result.created += 1
 
-    templates = {t.slug: t for t in session.scalars(select(SessionTemplate))}
-    wanted = {s.slug: i for i, s in enumerate(plan.sessions)}
-    current = {t.slug: t.position for t in templates.values()}
-    if current != {slug: wanted[slug] for slug in current}:
-        # Reordering: park existing positions out of the way so the unique index never
-        # sees two sessions on one position mid-update. New sessions always get positions
-        # after the existing ones' final positions, so they cannot collide.
-        for existing in templates.values():
-            existing.position += _PARK_OFFSET
-        session.flush()
-    for position, seed_session in enumerate(plan.sessions):
-        template = templates.get(seed_session.slug)
-        if template is None:
-            template = SessionTemplate(slug=seed_session.slug, position=position)
-            session.add(template)
-            templates[seed_session.slug] = template
-            result.created += 1
-            template.name, template.focus = seed_session.name, seed_session.focus
-            template.kind = seed_session.type
-            template.is_rest_optional = seed_session.is_rest_optional
-        else:
-            _set(
-                template,
-                result,
-                position=position,
-                name=seed_session.name,
-                focus=seed_session.focus,
-                is_rest_optional=seed_session.is_rest_optional,
-                kind=seed_session.type,
-            )
-        _version(template.items, seed_session.items, exercises, result)
-        _version(template.gym_items, seed_session.gym, exercises, result)
-        _version(template.away_items, seed_session.away, exercises, result)
-    session.flush()
-
-    _apply_versions(session, plan, result)
-
-    first = templates[plan.sessions[0].slug]
     for user_id in people:
         mine = {ALL_USERS: True}  # the seed names the user itself
+        sessions = select(SessionTemplate.id).where(SessionTemplate.user_id == user_id)
+        if session.scalars(sessions, execution_options=mine).first() is None:
+            _start_plan(session, plan, user_id, exercises, result)
         if (
             session.scalar(
                 select(PlanState.id).where(PlanState.user_id == user_id), execution_options=mine
             )
             is None
         ):
-            session.add(PlanState(user_id=user_id, next_template_id=first.id))
+            first = session.scalars(
+                sessions.order_by(SessionTemplate.position), execution_options=mine
+            ).first()
+            session.add(PlanState(user_id=user_id, next_template_id=first))
             result.created += 1
         if (
             session.scalar(

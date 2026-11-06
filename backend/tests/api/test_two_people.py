@@ -51,7 +51,7 @@ from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain import readiness
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.habits import Habit
-from training_coach.services import auth, seed
+from training_coach.services import auth, seed, users
 
 ORIGIN = "https://coach.example.com"
 NOW = datetime(2026, 10, 12, 10, tzinfo=UTC)  # a Monday
@@ -177,7 +177,6 @@ OTHERS: dict[str, str] = {
 }
 QUERIES: dict[str, dict[str, str]] = {
     "/api/session/stretching/{workout_id}": {"minutes": "10"},
-    "/api/log/plan": {"day": NOW.date().isoformat(), "template_id": "1"},
     "/api/equipment/unlocks": {"add": "kettlebell:16"},
 }
 
@@ -195,8 +194,11 @@ def _readable(response: Response) -> bytes:
     return b"\n".join([json.dumps(data).encode(), *photos])
 
 
-def _reads(app: FastAPI, client: TestClient, other: Ids) -> dict[str, tuple[int, bytes]]:
+def _reads(
+    app: FastAPI, client: TestClient, other: Ids, my_session: int
+) -> dict[str, tuple[int, bytes]]:
     answers: dict[str, tuple[int, bytes]] = {}
+    log_plan = {"day": NOW.date().isoformat(), "template_id": str(my_session)}
     for path, route in api_routes(app):
         calls = {dependency.call for dependency in route.dependant.dependencies}
         if "GET" not in (route.methods or set()) or owner not in calls:
@@ -205,7 +207,9 @@ def _reads(app: FastAPI, client: TestClient, other: Ids) -> dict[str, tuple[int,
         if "{" in path:
             assert path in OTHERS, f"{path}: add its parameter to OTHERS"
             url = path.replace(f"{{{OTHERS[path]}}}", str(getattr(other, OTHERS[path])))
-        response = client.get(url, params=QUERIES.get(path))
+        response = client.get(
+            url, params=log_plan if path == "/api/log/plan" else QUERIES.get(path)
+        )
         answers[path] = (response.status_code, _readable(response))
     return answers
 
@@ -234,11 +238,24 @@ def test_signed_in_reads_show_only_my_own_data(two: Engine, me: int, other: int)
         assert client.post("/api/auth/redeem", json={"token": token}).status_code == 204
         _give(two, me, mine)
         their_ids = _give(two, other, theirs)
-        before = _reads(app, client, their_ids)
+        with make_session_factory(two, user_id=me)() as bound:
+            state = users.plan_state(bound)
+            assert state is not None
+            assert state.next_template_id is not None
+            first = state.next_template_id
+        with make_session_factory(two, user_id=other)() as bound:
+            state = users.plan_state(bound)
+            assert state is not None
+            assert state.next_template_id is not None
+            their_session = state.next_template_id
+        # Their session's id means nothing to me (ADR-0073).
+        asked = {"day": NOW.date().isoformat(), "template_id": their_session}
+        assert client.get("/api/log/plan", params=asked).status_code == 404
+        before = _reads(app, client, their_ids, first)
         with session_scope(make_session_factory(two)) as s:
             s.execute(delete(User).where(User.id == other))  # cascades to all of theirs
             assert s.get(Exercise, 1) is not None  # the shared plan stays
-        after = _reads(app, client, their_ids)
+        after = _reads(app, client, their_ids, first)
 
     assert len(before) >= 30, sorted(before)
     for path in OTHERS:

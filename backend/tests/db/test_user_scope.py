@@ -258,6 +258,9 @@ def test_every_per_person_table_is_covered() -> None:
     from training_coach.db.session import owned_models
 
     assert {m.__tablename__ for m in owned_models()} == {  # type: ignore[attr-defined]
+        "plan_versions",
+        "session_templates",
+        "template_items",
         "workouts",
         "set_logs",
         "exercise_state",

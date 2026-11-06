@@ -43,6 +43,7 @@ from training_coach.db.models import (
     SessionTemplate,
     SetLog,
     SleepSession,
+    TemplateItem,
     User,
     UserSettings,
     WebSession,
@@ -52,6 +53,9 @@ from training_coach.db.session import bound_user
 
 # Per-person tables, by the name they get in data.json.
 TABLES: dict[str, type] = {
+    "sessions": SessionTemplate,
+    "session_items": TemplateItem,
+    "plan_versions": PlanVersion,
     "workouts": Workout,
     "sets": SetLog,
     "replaced_workouts": ReplacedWorkout,  # kept 24 hours for /undo (ADR-0060)
@@ -111,14 +115,12 @@ def _rows(session: Session, model: type) -> list[dict[str, Any]]:
 
 
 def _reference(session: Session) -> dict[str, Any]:
-    """The shared plan's names, so exercise, step, session and version ids can be read."""
+    """The catalogue's names, so exercise and step ids can be read."""
     return {
         "exercises": {
             e.id: {"slug": e.slug, "name": e.name} for e in session.scalars(select(Exercise))
         },
         "ladder_steps": {s.id: s.name for s in session.scalars(select(LadderStep))},
-        "sessions": {t.id: t.name for t in session.scalars(select(SessionTemplate))},
-        "plan_versions": {v.id: v.name for v in session.scalars(select(PlanVersion))},
     }
 
 

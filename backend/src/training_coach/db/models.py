@@ -120,40 +120,61 @@ class LadderStep(Base):
     exercise: Mapped[Exercise] = relationship(back_populates="ladder")
 
 
-class PlanVersion(Base):
-    """A version of the plan, in force from ``since`` until the next one (#107, ADR-0034).
-    Set by the seed from plan.toml; a workout records the version in force on its date."""
+class Owned:
+    """Marks a per-person table. A session bound to a user (``db.session``) sees and writes
+    only that user's rows of every ``Owned`` model."""
+
+    user_id: Mapped[int] | Mapped[int | None]
+
+
+def _owner() -> Mapped[int]:
+    return mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+
+
+# ------------------------------------------------------------- each person's plan (ADR-0073)
+
+
+class PlanVersion(Owned, Base):
+    """A version of a person's plan, in force from ``since`` until the next one (#107, ADR-0034);
+    a workout records the version in force on its date."""
 
     __tablename__ = "plan_versions"
+    __table_args__ = (UniqueConstraint("user_id", "since"), UniqueConstraint("user_id", "id"))
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    since: Mapped[date] = mapped_column(Date, unique=True)
+    user_id: Mapped[int] = _owner()
+    since: Mapped[date] = mapped_column(Date)
     name: Mapped[str] = mapped_column(String(120))
 
 
-def version_on(day: Any) -> Any:
-    """SQL for the id of the plan version in force on ``day`` (a date or a date column)."""
+def version_on(day: Any, user: Any) -> Any:
+    """SQL for the id of the plan version in force for ``user`` on ``day`` (each a value or a
+    column). It names the person itself: a flush's statements skip the session's binding."""
     return (
         select(PlanVersion.id)
-        .where(PlanVersion.since <= day)
+        .where(PlanVersion.user_id == user, PlanVersion.since <= day)
         .order_by(PlanVersion.since.desc())
         .limit(1)
         .scalar_subquery()
     )
 
 
-class SessionTemplate(Base):
-    """A session in the cycle. ``position`` is its place in the queue (ADR-0006)."""
+class SessionTemplate(Owned, Base):
+    """A session in a person's cycle. ``position`` is its place in the queue (ADR-0006)."""
 
     __tablename__ = "session_templates"
     __table_args__ = (
+        UniqueConstraint("user_id", "position"),
+        UniqueConstraint("user_id", "slug"),
+        UniqueConstraint("user_id", "id"),
         CheckConstraint("position >= 0", name="position_non_negative"),
         CheckConstraint("kind IN ('strength', 'conditioning', 'recovery')", name="kind_valid"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    position: Mapped[int] = mapped_column(Integer, unique=True)
-    slug: Mapped[str] = mapped_column(String(64), unique=True)
+    user_id: Mapped[int] = _owner()
+    position: Mapped[int] = mapped_column(Integer)
+    slug: Mapped[str] = mapped_column(String(64))
     name: Mapped[str] = mapped_column(String(120))
     focus: Mapped[str] = mapped_column(String(120))
     is_rest_optional: Mapped[bool] = mapped_column(Boolean, server_default=false())
@@ -203,11 +224,16 @@ class SessionTemplate(Base):
         return place if self._other(place) else Place.HOME
 
 
-class TemplateItem(Base):
+class TemplateItem(Owned, Base):
     """A planned exercise within a session. For duration exercises the range is minutes."""
 
     __tablename__ = "template_items"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["user_id", "template_id"],
+            ["session_templates.user_id", "session_templates.id"],
+            ondelete="CASCADE",
+        ),
         UniqueConstraint("template_id", "place", "position"),
         CheckConstraint(_in("place", Place), name="place_valid"),
         CheckConstraint("position >= 0", name="position_non_negative"),
@@ -217,7 +243,8 @@ class TemplateItem(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    template_id: Mapped[int] = mapped_column(ForeignKey("session_templates.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = _owner()
+    template_id: Mapped[int] = mapped_column(Integer)
     position: Mapped[int] = mapped_column(Integer)
     exercise_id: Mapped[int] = mapped_column(ForeignKey("exercises.id", ondelete="RESTRICT"))
     sets: Mapped[int] = mapped_column(Integer)
@@ -230,7 +257,10 @@ class TemplateItem(Base):
     place: Mapped[str] = mapped_column(String(8), server_default=Place.HOME.value)
 
     template: Mapped[SessionTemplate] = relationship(
-        back_populates="items", overlaps="gym_items,away_items"
+        primaryjoin="SessionTemplate.id == TemplateItem.template_id",
+        foreign_keys=[template_id],
+        back_populates="items",
+        overlaps="gym_items,away_items",
     )
     exercise: Mapped[Exercise] = relationship()
 
@@ -270,17 +300,6 @@ class User(Base):
     last_seen_in_europe: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
-class Owned:
-    """Marks a per-person table. A session bound to a user (``db.session``) sees and writes
-    only that user's rows of every ``Owned`` model."""
-
-    user_id: Mapped[int] | Mapped[int | None]
-
-
-def _owner() -> Mapped[int]:
-    return mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-
-
 # ----------------------------------------------------------------------- state
 
 
@@ -311,12 +330,17 @@ class PlanState(Owned, Base):
     (ADR-0022)."""
 
     __tablename__ = "plan_state"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["user_id", "next_template_id"],
+            ["session_templates.user_id", "session_templates.id"],
+            ondelete="RESTRICT",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
-    next_template_id: Mapped[int | None] = mapped_column(
-        ForeignKey("session_templates.id", ondelete="RESTRICT")
-    )
+    next_template_id: Mapped[int | None] = mapped_column(Integer)
     # Template ids served after the pointer before the cycle resumes (a swap, ADR-0022).
     queued: Mapped[list[int]] = mapped_column(JSON, default=list, server_default="[]")
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
@@ -459,6 +483,16 @@ class Workout(Owned, Base):
 
     __tablename__ = "workouts"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["user_id", "template_id"],
+            ["session_templates.user_id", "session_templates.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["user_id", "plan_version_id"],
+            ["plan_versions.user_id", "plan_versions.id"],
+            ondelete="RESTRICT",
+        ),
         CheckConstraint(_in("status", WorkoutStatus), name="status_valid"),
         CheckConstraint(_in("block", BlockKind), name="block_valid"),
         CheckConstraint(_in("activity", CardioActivity), name="activity_valid"),
@@ -469,9 +503,7 @@ class Workout(Owned, Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = _owner()
     local_date: Mapped[date] = mapped_column(Date, index=True)
-    template_id: Mapped[int | None] = mapped_column(
-        ForeignKey("session_templates.id", ondelete="RESTRICT")
-    )
+    template_id: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(16))
     # The training block it was logged in (ADR-0028); empty when blocks were off.
     block: Mapped[str | None] = mapped_column(String(16))
@@ -489,11 +521,9 @@ class Workout(Owned, Base):
     started_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     # Where it was done (ADR-0071); every workout from before places is at home.
     place: Mapped[str] = mapped_column(String(8), server_default=Place.HOME.value)
-    # The plan version in force on local_date (ADR-0034), set on insert; empty only when
-    # the plan has no versions yet (the seed fills those in once it has).
-    plan_version_id: Mapped[int | None] = mapped_column(
-        ForeignKey("plan_versions.id", ondelete="RESTRICT"), index=True
-    )
+    # The plan version in force on local_date (ADR-0034), set on insert; empty only when the
+    # person's plan has no version by that date.
+    plan_version_id: Mapped[int | None] = mapped_column(Integer, index=True)
     # A guided session's day (ADR-0082, ADR-0084): the minutes chosen ("short on time
     # today"), empty when done as planned; and what it planned, exercise slug ->
     # {"sets": N}. Typed logs and workouts saved before have no plan: every set was planned.
@@ -514,7 +544,7 @@ def _plan_version(_mapper: object, _connection: object, workout: Workout) -> Non
     """Every way a workout is saved (today, a past day, the guided session, a rest) gets the
     plan version in force on its date, computed in the INSERT itself."""
     if workout.plan_version_id is None:
-        workout.plan_version_id = version_on(workout.local_date)
+        workout.plan_version_id = version_on(workout.local_date, workout.user_id)
 
 
 class ReplacedWorkout(Owned, Base):
@@ -663,6 +693,11 @@ class SessionProgress(Owned, Base):
 
     __tablename__ = "session_progress"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["user_id", "template_id"],
+            ["session_templates.user_id", "session_templates.id"],
+            ondelete="CASCADE",
+        ),
         UniqueConstraint("user_id", "local_date"),
         CheckConstraint(_in("place", Place), name="place_valid"),
     )
@@ -670,7 +705,7 @@ class SessionProgress(Owned, Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = _owner()
     local_date: Mapped[date] = mapped_column(Date)
-    template_id: Mapped[int] = mapped_column(ForeignKey("session_templates.id", ondelete="CASCADE"))
+    template_id: Mapped[int] = mapped_column(Integer)
     position: Mapped[int] = mapped_column(Integer, default=0)
     first: Mapped[list[int]] = mapped_column(JSON, default=list)  # pairs started second-first
     # [{"item": 0, "set_no": 1, "left": 8, "right": null}], in the order confirmed

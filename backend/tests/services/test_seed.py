@@ -30,7 +30,16 @@ from training_coach.domain.load import LoadKit
 from training_coach.domain.parser import Known, parse_log
 from training_coach.domain.volume import weekly_sets
 from training_coach.services import users
-from training_coach.services.seed import PlanSeed, SeedError, apply_seed, load_plan
+from training_coach.services.seed import (
+    STARTING_VERSION,
+    PlanSeed,
+    SeedError,
+    SeedResult,
+    apply_seed,
+    load_plan,
+    sync_sessions,
+)
+from training_coach.services.users import OWNER
 
 MINI_PLAN = """
 [[exercises]]
@@ -75,6 +84,14 @@ DIP_LEVELS = 'levels = { "Feet down" = 4, "Feet up" = 5 }'
 def _levels(ladder: str) -> str:
     """Level 4 for every step of a ladder written as a TOML list (ADR-0083)."""
     return "levels = { " + ", ".join(f'"{step}" = 4' for step in json.loads(ladder)) + " }"
+
+
+def _reseed(session: Session, plan: PlanSeed) -> SeedResult:
+    """The catalogue, then the owner's sessions brought to ``plan`` (what the import does)."""
+    result = apply_seed(session, plan)
+    exercises = {e.slug: e for e in session.scalars(select(Exercise))}
+    sync_sessions(session, plan, OWNER, exercises, result)
+    return result
 
 
 def _count(session: Session, model: type) -> int:
@@ -187,7 +204,7 @@ def test_moving_an_exercise_to_another_session_keeps_its_step(session: Session) 
         '  { exercise = "pull-up", sets = 5, rep_min = 5, rep_max = 12 },\n]',
     )
 
-    apply_seed(session, load_plan(moved))
+    _reseed(session, load_plan(moved))
     session.commit()
 
     assert users.exercise_state(session, pull_up.id).ladder_step_id == weighted.id
@@ -204,7 +221,7 @@ def test_reseed_applies_edits_and_additions(session: Session) -> None:
         .replace("sets = 4, rep_min = 5", "sets = 5, rep_min = 5")
         .replace('name = "Dip"', 'name = "Dip (chairs)"')
     )
-    result = apply_seed(session, load_plan(edited))
+    result = _reseed(session, load_plan(edited))
     session.commit()
 
     assert result.created == 1  # the new ladder step
@@ -225,7 +242,7 @@ def test_reseed_can_reorder_sessions(session: Session) -> None:
         + "[[sessions]]"
         + upper_block
     )
-    apply_seed(session, load_plan(reordered))
+    _reseed(session, load_plan(reordered))
     session.commit()
 
     order = session.scalars(select(SessionTemplate.slug).order_by(SessionTemplate.position)).all()
@@ -263,7 +280,7 @@ def test_new_session_can_be_inserted_anywhere(session: Session, insert_at: int) 
     session.commit()
     head, blocks = _sessions(MINI_PLAN)
     blocks.insert(insert_at, NEW_SESSION)
-    apply_seed(session, load_plan(head + "".join(blocks)))
+    _reseed(session, load_plan(head + "".join(blocks)))
     session.commit()
 
     order = session.scalars(select(SessionTemplate.slug).order_by(SessionTemplate.position)).all()
@@ -272,19 +289,6 @@ def test_new_session_can_be_inserted_anywhere(session: Session, insert_at: int) 
     assert order == expected
     positions = session.scalars(select(SessionTemplate.position).order_by(SessionTemplate.position))
     assert list(positions) == [0, 1, 2]
-
-
-def test_removing_a_session_is_rejected_and_changes_nothing(session: Session) -> None:
-    apply_seed(session, load_plan(MINI_PLAN))
-    session.commit()
-    head, blocks = _sessions(MINI_PLAN)
-
-    with pytest.raises(SeedError, match=r"\['upper'\].*needs a data migration"):
-        apply_seed(session, load_plan(head + blocks[1]))
-    session.rollback()
-
-    order = session.scalars(select(SessionTemplate.slug).order_by(SessionTemplate.position)).all()
-    assert order == ["upper", "arms"]
 
 
 def test_item_removed_from_session_is_deleted(session: Session) -> None:
@@ -297,7 +301,7 @@ def test_item_removed_from_session_is_deleted(session: Session) -> None:
     session.commit()
     assert _count(session, TemplateItem) == 3
 
-    result = apply_seed(session, load_plan(MINI_PLAN))
+    result = _reseed(session, load_plan(MINI_PLAN))
     session.commit()
 
     assert result.deleted == 1
@@ -788,7 +792,10 @@ def test_the_bundled_plan_starts_with_the_original_and_the_rebuild() -> None:
 
 
 def test_a_workout_records_the_version_in_force_on_its_date(session: Session) -> None:
-    apply_seed(session, load_plan(VERSIONS + MINI_PLAN))
+    apply_seed(session, load_plan(MINI_PLAN))
+    session.add(PlanVersion(since=date(2026, 9, 29), name="Original plan"))
+    session.add(PlanVersion(since=date(2026, 10, 1), name="Rebuild"))
+    session.flush()
     # A past day logged late gets the version of its own date, not today's.
     assert _version(session, _workout(session, date(2026, 9, 30))) == "Original plan"
     assert _version(session, _workout(session, date(2026, 10, 1))) == "Rebuild"
@@ -796,59 +803,59 @@ def test_a_workout_records_the_version_in_force_on_its_date(session: Session) ->
     assert _version(session, _workout(session, date(2026, 9, 1))) is None  # before any
 
 
-def test_the_seed_fills_in_workouts_saved_before_their_version(session: Session) -> None:
-    apply_seed(session, load_plan(MINI_PLAN))
-    early, late = _workout(session, date(2026, 9, 30)), _workout(session, date(2026, 10, 2))
-    before = _workout(session, date(2026, 9, 1))
-    assert _version(session, early) is None
-    result = apply_seed(session, load_plan(VERSIONS + MINI_PLAN))
-    assert result.updated == 2
-    for workout in (early, late, before):
-        session.refresh(workout)
-    assert (_version(session, early), _version(session, late)) == ("Original plan", "Rebuild")
-    assert _version(session, before) is None
-    assert not apply_seed(session, load_plan(VERSIONS + MINI_PLAN)).changed
-
-
-def test_a_recorded_version_keeps_its_date_but_can_be_renamed(session: Session) -> None:
+def test_a_new_person_gets_one_version_dated_as_the_latest(session: Session) -> None:
+    """``plan.toml``'s versions are the owner's history, not theirs (ADR-0073)."""
     apply_seed(session, load_plan(VERSIONS + MINI_PLAN))
-    _workout(session, date(2026, 9, 30))
-    renamed = VERSIONS.replace("Original plan", "First plan")
-    assert apply_seed(session, load_plan(renamed + MINI_PLAN)).updated == 1
-    redated = renamed.replace("2026-09-29", "2026-09-28")
-    with pytest.raises(SeedError, match=re.escape("'First plan' (since 2026-09-29) is recorded")):
-        apply_seed(session, load_plan(redated + MINI_PLAN))
+    found = session.execute(select(PlanVersion.since, PlanVersion.name)).all()
+    assert [tuple(row) for row in found] == [(date(2026, 10, 1), STARTING_VERSION)]
+    assert _version(session, _workout(session, date(2026, 10, 2))) == STARTING_VERSION
 
 
-def test_an_unrecorded_version_can_be_removed(session: Session) -> None:
+def test_the_seed_leaves_a_persons_sessions_and_versions_alone(session: Session) -> None:
     apply_seed(session, load_plan(VERSIONS + MINI_PLAN))
-    only_original = VERSIONS.split("[[versions]]")[1]
-    result = apply_seed(session, load_plan("[[versions]]" + only_original + MINI_PLAN))
-    assert result.deleted == 1
-    assert session.scalars(select(PlanVersion.name)).all() == ["Original plan"]
+    session.commit()
+    before = sorted(session.scalars(select(TemplateItem.sets)))
+    edited = (VERSIONS + MINI_PLAN).replace("sets = 4", "sets = 5").replace("Rebuild", "Renamed")
+    assert not apply_seed(session, load_plan(edited)).changed
+    assert sorted(session.scalars(select(TemplateItem.sets))) == before
+    assert session.scalars(select(PlanVersion.name)).all() == [STARTING_VERSION]
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        (lambda t: t.replace('slug = "pull-up"', 'slug = "chin-up"'), "must stay in plan.toml"),
+        (
+            lambda t: t.replace('slug = "pull-up"', 'slug = "pull-up"\nretired = true'),
+            "can't be retired",
+        ),
+    ],
+    ids=["dropped", "retired"],
+)
+def test_what_someones_plan_uses_stays_in_the_catalogue(
+    session: Session, change: Callable[[str], str], message: str
+) -> None:
+    plan = load_plan(MINI_PLAN)
+    apply_seed(session, plan)
+    session.commit()
+    others = MINI_PLAN.replace('exercise = "pull-up"', 'exercise = "dip"')
+    with pytest.raises(SeedError, match=message):
+        apply_seed(session, load_plan(change(others)))
+
+
+def test_an_away_item_stored_keeps_its_exercise_free_of_kit(session: Session) -> None:
+    apply_seed(session, load_plan(_upper_away(f"{PULL} }}")))
+    session.commit()
+    kit = '[exercises.needs]\n"Negatives" = ["pull-up bar"]'
+    ladder = 'ladder = ["Negatives", "Strict", "Weighted"]'
+    with pytest.raises(SeedError, match="away version"):
+        apply_seed(session, load_plan(MINI_PLAN.replace(ladder, f"{ladder}\n{kit}", 1)))
 
 
 def test_versions_must_be_in_date_order() -> None:
     swapped = VERSIONS.replace("2026-09-29", "2026-10-02")
     with pytest.raises(ValidationError, match="in date order"):
         load_plan(swapped + MINI_PLAN)
-
-
-def test_a_version_added_between_two_others_takes_over_its_workouts(session: Session) -> None:
-    apply_seed(session, load_plan(VERSIONS + MINI_PLAN))
-    before, after = _workout(session, date(2026, 10, 3)), _workout(session, date(2026, 10, 6))
-    between = (
-        VERSIONS
-        + """
-[[versions]]
-since = 2026-10-05
-name = "Heavier bell"
-"""
-    )
-    assert apply_seed(session, load_plan(between + MINI_PLAN)).updated == 1
-    for workout in (before, after):
-        session.refresh(workout)
-    assert (_version(session, before), _version(session, after)) == ("Rebuild", "Heavier bell")
 
 
 # ------------------------------------------------------------------ baseline tests (#94)
@@ -1095,7 +1102,7 @@ def test_a_gym_version_shrinks_and_goes_like_a_home_one(session: Session) -> Non
     upper = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "upper")).one()
     assert [(i.position, i.pair) for i in upper.gym_items] == [(0, 1), (1, 1)]
     assert [i.position for i in upper.items] == [0]
-    result = apply_seed(session, load_plan(_upper_items(f"{PULL} }}")))
+    result = _reseed(session, load_plan(_upper_items(f"{PULL} }}")))
     session.flush()
     session.expire_all()
     assert result.deleted == 2
@@ -1133,7 +1140,7 @@ def test_an_away_version_is_stored_with_its_place_and_goes_like_the_others(
     assert [i.place for i in upper.items] == ["home"]
     assert upper.version(Place.AWAY) == upper.away_items
     assert upper.done_at(Place.AWAY) is Place.AWAY
-    result = apply_seed(session, load_plan(_upper_items(f"{PULL} }}")))
+    result = _reseed(session, load_plan(_upper_items(f"{PULL} }}")))
     session.flush()
     session.expire_all()
     assert result.deleted == 2
