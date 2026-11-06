@@ -46,3 +46,15 @@ change another's plan.
   (multi-user L2) extended to the plan routes, with a restore drill before it.
 - Steps 6 and 7 (editing, the picker) build on it.
 - The builder's suggested order becomes 4, 8, 9, then 5, 6, 7, 10.
+
+## Addendum (Liam, 5-6 Nov 2026)
+
+- **One database.** A person's plan is their own rows in the shared tables, not new tables or a
+  database per person: the binding (ADR-0029) already scopes them, the catalogue is shared and
+  SQLite can't enforce keys across files, and one file means one migration, backup and restore.
+  Backups hold everyone together, so a restore can bring back someone who left
+  (`multi-user-plan.md`, J).
+- **Nobody gets a copy of the owner's plan.** The migration refuses if anyone else exists, and the
+  import from `plan.toml` is the owner's alone. A new person starts from a starter, walked through
+  setup (builder step 10), and finds their own level.
+- The build and what the review changed: `plans-per-person.md`.
