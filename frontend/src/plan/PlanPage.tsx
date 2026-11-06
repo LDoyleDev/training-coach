@@ -1,5 +1,6 @@
 import PlanView from '../App'
 import AppShell from '../components/AppShell'
+import { secondary } from '../ui'
 import ExtraCardio from './ExtraCardio'
 import Levels from './Levels'
 import PlanImportCard from './PlanImportCard'
@@ -11,6 +12,9 @@ export default function PlanPage() {
   return (
     <AppShell>
       <h1 className="text-3xl font-extrabold">Plan</h1>
+      <a href="/plan/edit" className={`${secondary} self-start content-center`}>
+        Edit your plan
+      </a>
       <PlanImportCard />
       <Levels />
       <ExtraCardio />

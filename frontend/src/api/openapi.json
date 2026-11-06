@@ -494,6 +494,76 @@
         "title": "CardioDetailsView",
         "type": "object"
       },
+      "CatalogueItemView": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ExerciseKind"
+          },
+          "muscles": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Muscles",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "range": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "kind",
+          "per_side",
+          "muscles",
+          "pattern",
+          "places",
+          "range"
+        ],
+        "title": "CatalogueItemView",
+        "type": "object"
+      },
       "ChangeBody": {
         "properties": {
           "template_id": {
@@ -1291,6 +1361,103 @@
           "step"
         ],
         "title": "EaseBackView",
+        "type": "object"
+      },
+      "EditItemView": {
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pair": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "rep_max": {
+            "title": "Rep Max",
+            "type": "integer"
+          },
+          "rep_min": {
+            "title": "Rep Min",
+            "type": "integer"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "exercise",
+          "name",
+          "sets",
+          "rep_min",
+          "rep_max",
+          "per_side",
+          "pair"
+        ],
+        "title": "EditItemView",
+        "type": "object"
+      },
+      "EditSessionView": {
+        "properties": {
+          "away": {
+            "items": {
+              "$ref": "#/components/schemas/EditItemView"
+            },
+            "title": "Away",
+            "type": "array"
+          },
+          "focus": {
+            "title": "Focus",
+            "type": "string"
+          },
+          "gym": {
+            "items": {
+              "$ref": "#/components/schemas/EditItemView"
+            },
+            "title": "Gym",
+            "type": "array"
+          },
+          "home": {
+            "items": {
+              "$ref": "#/components/schemas/EditItemView"
+            },
+            "title": "Home",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "focus",
+          "home",
+          "gym",
+          "away"
+        ],
+        "title": "EditSessionView",
         "type": "object"
       },
       "Energy": {
@@ -2410,6 +2577,58 @@
           "url"
         ],
         "title": "IngestView",
+        "type": "object"
+      },
+      "ItemChange": {
+        "properties": {
+          "exercise": {
+            "maxLength": 64,
+            "title": "Exercise",
+            "type": "string"
+          },
+          "pair": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair"
+          },
+          "per_side": {
+            "default": false,
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "rep_max": {
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Rep Max",
+            "type": "integer"
+          },
+          "rep_min": {
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Rep Min",
+            "type": "integer"
+          },
+          "sets": {
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "exercise",
+          "sets",
+          "rep_min",
+          "rep_max"
+        ],
+        "title": "ItemChange",
         "type": "object"
       },
       "ItemLevelView": {
@@ -4617,6 +4836,66 @@
         "title": "Places",
         "type": "string"
       },
+      "PlanChanges": {
+        "properties": {
+          "note": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          },
+          "revision": {
+            "maxLength": 32,
+            "title": "Revision",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionChange"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "revision",
+          "note",
+          "versions"
+        ],
+        "title": "PlanChanges",
+        "type": "object"
+      },
+      "PlanEditView": {
+        "properties": {
+          "catalogue": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogueItemView"
+            },
+            "title": "Catalogue",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/EditSessionView"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "revision",
+          "sessions",
+          "catalogue"
+        ],
+        "title": "PlanEditView",
+        "type": "object"
+      },
       "PlanImportView": {
         "properties": {
           "blocked": {
@@ -4655,6 +4934,31 @@
           "version"
         ],
         "title": "PlanImportView",
+        "type": "object"
+      },
+      "PlanSavedView": {
+        "properties": {
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "revision",
+          "version"
+        ],
+        "title": "PlanSavedView",
         "type": "object"
       },
       "PlanView": {
@@ -7397,6 +7701,33 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VersionChange": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemChange"
+            },
+            "maxItems": 40,
+            "title": "Items",
+            "type": "array"
+          },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          },
+          "slug": {
+            "maxLength": 64,
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "place",
+          "items"
+        ],
+        "title": "VersionChange",
+        "type": "object"
+      },
       "VolumeView": {
         "properties": {
           "group": {
@@ -9804,6 +10135,48 @@
         ]
       }
     },
+    "/api/plan/changes": {
+      "post": {
+        "description": "Save a draft of the person's own plan as one version. A draft of an older plan, or a\nsession in progress, is a conflict; what the app couldn't run is refused with the reason.",
+        "operationId": "post_plan_changes_api_plan_changes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanChanges"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanSavedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Plan Changes",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
     "/api/plan/coverage": {
       "get": {
         "description": "Weekly fractional sets per muscle with its band and warnings, from the plan as it\nstands, counting each session's version at ``place`` (default: the day's place); nothing\nhere changes it, not even the place Today starts at.",
@@ -9849,6 +10222,28 @@
           }
         },
         "summary": "Get Coverage",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan/edit": {
+      "get": {
+        "description": "The person's sessions with every version, and what they can choose from.",
+        "operationId": "get_plan_edit_api_plan_edit_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanEditView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Plan Edit",
         "tags": [
           "plan"
         ]

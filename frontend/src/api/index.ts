@@ -21,6 +21,41 @@ export async function fetchPlan(signal?: AbortSignal): Promise<Plan | null> {
   return (await res.json()) as Plan
 }
 
+export type PlanEdit = Schemas['PlanEditView']
+export type EditSession = Schemas['EditSessionView']
+export type EditItem = Schemas['EditItemView']
+export type CatalogueItem = Schemas['CatalogueItemView']
+export type ItemChange = Schemas['ItemChange']
+export type PlanChanges = Schemas['PlanChanges']
+
+/** Your sessions with every version, and what you can choose from; null when not signed in. */
+export async function fetchPlanEdit(signal?: AbortSignal): Promise<PlanEdit | null> {
+  const res = await fetch('/api/plan/edit', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as PlanEdit
+}
+
+/** Save a draft as one version. Refused: why ('stale', 'in-progress' or in words). */
+export async function savePlanChanges(
+  body: PlanChanges,
+): Promise<{ status: 'saved' } | { status: 'refused'; reason: string }> {
+  const res = signedIn(
+    await fetch('/api/plan/changes', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  )
+  if (res.status === 409 || res.status === 422) {
+    const { detail } = (await res.json()) as { detail: unknown }
+    return { status: 'refused', reason: typeof detail === 'string' ? detail : 'Check your edits.' }
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return { status: 'saved' }
+}
+
 export type PlanImport = Schemas['PlanImportView']
 
 /** What plan.toml would change in the owner's plan (ADR-0073); null when not signed in. */

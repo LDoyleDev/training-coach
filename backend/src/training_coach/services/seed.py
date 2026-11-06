@@ -12,6 +12,7 @@ plan file has been edited:
 """
 
 import tomllib
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from functools import lru_cache
@@ -222,7 +223,7 @@ class ItemSeed(_Strict):
         return self
 
 
-def _away_problem(exercise: ExerciseSeed) -> str | None:
+def away_problem(exercise: ExerciseSeed) -> str | None:
     """Why an exercise can't be in an away version, in words following its name; None when it
     can (``PlanSeed._away_needs_no_kit``)."""
     first = exercise.ladder[0]
@@ -253,17 +254,19 @@ class SessionSeed(_Strict):
         """Every item of every version."""
         return (*self.items, *self.gym, *self.away)
 
+    @staticmethod
+    def check_pairs(name: str, version: Sequence[ItemSeed]) -> None:
+        """Each pair number marks exactly two items, next to each other."""
+        numbers = [item.pair for item in version]
+        for number in {n for n in numbers if n is not None}:
+            where = [i for i, n in enumerate(numbers) if n == number]
+            if len(where) != 2 or where[1] != where[0] + 1:
+                raise ValueError(f"session {name}: pair {number} must be two neighbouring items")
+
     @model_validator(mode="after")
     def _pairs(self) -> Self:
-        """Each pair number marks exactly two items, next to each other, in each version."""
         for version in (self.items, self.gym, self.away):
-            numbers = [item.pair for item in version]
-            for number in {n for n in numbers if n is not None}:
-                where = [i for i, n in enumerate(numbers) if n == number]
-                if len(where) != 2 or where[1] != where[0] + 1:
-                    raise ValueError(
-                        f"session {self.slug}: pair {number} must be two neighbouring items"
-                    )
+            self.check_pairs(self.slug, version)
         return self
 
 
@@ -430,7 +433,7 @@ class PlanSeed(_Strict):
         exercises = {e.slug: e for e in self.exercises}
         for session in self.sessions:
             for item in session.away:
-                problem = _away_problem(exercises[item.exercise])
+                problem = away_problem(exercises[item.exercise])
                 if problem:
                     raise ValueError(f"session {session.slug}: away, {item.exercise}{problem}")
 
@@ -522,7 +525,7 @@ def _stored_items_preflight(session: Session, plan: PlanSeed) -> None:
             raise SeedError(f"{slug} is in someone's plan, so it must stay in plan.toml")
         if exercise.retired:
             raise SeedError(f"{slug} is in someone's plan, so it can't be retired")
-        problem = _away_problem(exercise) if place == Place.AWAY else None
+        problem = away_problem(exercise) if place == Place.AWAY else None
         if problem:
             raise SeedError(f"{slug} is in someone's away version, and {slug}{problem}")
 
@@ -548,7 +551,7 @@ def _set(obj: object, result: SeedResult, **values: object) -> None:
         result.updated += 1
 
 
-def _version(
+def sync_version(
     user_id: int,
     items: list[TemplateItem],
     seeds: list[ItemSeed],
@@ -624,9 +627,9 @@ def sync_sessions(
                 is_rest_optional=seed_session.is_rest_optional,
                 kind=seed_session.type,
             )
-        _version(user_id, template.items, seed_session.items, exercises, result)
-        _version(user_id, template.gym_items, seed_session.gym, exercises, result)
-        _version(user_id, template.away_items, seed_session.away, exercises, result)
+        sync_version(user_id, template.items, seed_session.items, exercises, result)
+        sync_version(user_id, template.gym_items, seed_session.gym, exercises, result)
+        sync_version(user_id, template.away_items, seed_session.away, exercises, result)
     session.flush()
 
 

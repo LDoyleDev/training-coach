@@ -13,13 +13,12 @@ from training_coach.db.models import (
     Event,
     Exercise,
     PlanVersion,
-    SessionProgress,
     SessionTemplate,
     TemplateItem,
 )
 from training_coach.db.session import bound_user
 from training_coach.domain.enums import Place
-from training_coach.services import guided
+from training_coach.services.plan_rows import session_in_progress
 from training_coach.services.seed import ItemSeed, PlanSeed, SeedResult, sync_sessions
 from training_coach.services.users import OWNER
 
@@ -115,14 +114,7 @@ def _blocked(session: Session, plan: PlanSeed, today: date) -> str | None:
     used = {i.exercise for s in plan.sessions for i in s.versions}
     if used - known:
         return "plan.toml's new exercises aren't in the catalogue yet: the seed hasn't run."
-    today_row = session.scalar(
-        select(SessionProgress).where(
-            SessionProgress.local_date == today, SessionProgress.saved_workout_id.is_(None)
-        )
-    )
-    if (today_row is not None and today_row.sets) or guided.pending(session, today):
-        return IN_PROGRESS
-    return None
+    return IN_PROGRESS if session_in_progress(session, today) else None
 
 
 def preview(session: Session, plan: PlanSeed, today: date) -> Preview:

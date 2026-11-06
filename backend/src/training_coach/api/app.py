@@ -141,6 +141,7 @@ SPA_PAGES = (
     "/body",
     "/progress",
     "/plan",
+    "/plan/edit",
     "/readiness",
     "/review",
     "/connect",  # the consent page for connecting an AI app (ADR-0047 C)
