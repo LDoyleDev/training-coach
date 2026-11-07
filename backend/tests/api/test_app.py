@@ -128,6 +128,27 @@ async def test_people_who_left_and_are_back_are_named_never_deleted(engine: Engi
         assert shared.get(User, 4) is not None
 
 
+@pytest.mark.parametrize("broken", ["not json", '[{"id": 4}]'])
+async def test_a_list_it_cant_read_is_told_and_never_stops_start_up(
+    engine: Engine, broken: str
+) -> None:
+    """Review of #600: just after a restore is when the owner needs the app up most."""
+    source = backup.database_path(str(engine.url))
+    assert source is not None
+    left_list.path_for(source).write_text(broken)
+    sent: list[str] = []
+
+    async def notify(text: str) -> bool:
+        sent.append(text)
+        raise RuntimeError("telegram down")  # a failing message doesn't stop it either
+
+    settings = Settings(environment="test", database_url=str(engine.url))
+    with capture_logs() as logs:
+        await _left_back(settings, make_session_factory(engine), notify)
+    assert "left.check_failed" in [entry["event"] for entry in logs]
+    assert sent == [api_app.LEFT_UNREADABLE]
+
+
 async def test_no_word_when_nobody_who_left_is_back(engine: Engine) -> None:
     sent: list[str] = []
 
