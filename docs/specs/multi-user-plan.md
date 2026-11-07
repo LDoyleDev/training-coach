@@ -348,17 +348,21 @@ guards, cheapest first:
    test (L1, L2). Tests only.
 3. **Done (#236).** **Fix the owner leaks** that don't need a second person to fix: alerts to
    the person they're about, settings moving only that person's jobs, drafts per person.
-4. `users.role` and `label`, `TC_MULTI_USER` and `TC_MAX_MEMBERS`, the `Admin` dependency and
-   the route test's fourth kind.
+4. **Done (7 Nov 2026).** `users.role` and `label`, `TC_MULTI_USER` and `TC_MAX_MEMBERS`, the
+   `Admin` dependency and the route test's fourth kind.
 5. **Invites:** table, make and revoke on Account ("People"), `/join` with notice, adult check
-   and passkey.
+   and passkey. **Done (7 Nov 2026)**, except the notice, which step 11 publishes: the routes
+   (`GET /api/people`, `POST` and `DELETE /api/invites`, `POST /api/join`), People on Account
+   and the `/join` page.
 6. **Consent records** and per-category withdraw and erase.
 7. **Leave, remove a member, admin recovery link** (ADR succeeding ADR-0044) and the restore
    runbook step.
 8. **Telegram for members:** connect link, the members filter, a session per update.
 9. **Schedules per person**, and band offers and band data alerts per person (the alert
    state is already per person, on `ingest_keys`).
-10. **Groq cap per person.**
+10. **Done (7 Nov 2026).** **Groq cap per person:** 20 voice notes or fallback readings a day for
+    a member (`services/groq_quota.py`), none for the owner; it bites once members have Telegram
+    (step 8).
 11. **Legal before the first invite:** notice published in the app, DPIA written, then
     `TC_MULTI_USER` on. Members stay training-only until a lawyer has reviewed the notice,
     consent and DPIA (Decided, 14).

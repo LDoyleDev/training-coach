@@ -298,6 +298,10 @@ class User(Base):
     # Their last signed-in web visit from a listed country: the bot and MCP serve them for 30
     # days after it (domain.region). A new person starts now, from the visit that made them.
     last_seen_in_europe: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    # admin or member (ADR-0059): the owner is the one admin. Read only with TC_MULTI_USER on.
+    role: Mapped[str] = mapped_column(String(8), default="member", server_default="member")
+    # What the admin's list calls them ("Mum"); it says nothing about their data.
+    label: Mapped[str | None] = mapped_column(String(40))
 
 
 # ----------------------------------------------------------------------- state
@@ -735,6 +739,23 @@ class SessionProgress(Owned, Base):
 
 
 # ----------------------------------------------------------------- web sign-in
+
+
+class Invite(Base):
+    """A one-time invite to join (ADR-0059). Shared, not per person: it names who made it and,
+    once used, who it became. Only the token's SHA-256 is kept."""
+
+    __tablename__ = "invites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    label: Mapped[str | None] = mapped_column(String(40))  # what the admin's list calls them
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    used_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class LoginLink(Owned, Base):
@@ -1203,6 +1224,20 @@ class LogProposal(Owned, Base):
     resolved_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
+class PlanNotice(Owned, Base):
+    """What a release changed in a person's plan (ADR-0087): shown until they've seen it, and
+    told on Telegram once. Written by the seed, or a migration that changes a ladder."""
+
+    __tablename__ = "plan_notices"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    text: Mapped[str] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    read_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    told_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
 class Event(Owned, Base):
     """Audit log. Payloads must never contain secrets, transcripts or measurements.
     ``user_id`` is empty for system events such as ``seed.applied``."""
@@ -1230,6 +1265,7 @@ __all__ = [
     "HeartRateSample",
     "ImportedWorkout",
     "IngestKey",
+    "Invite",
     "LadderStep",
     "LogProposal",
     "LoginLink",

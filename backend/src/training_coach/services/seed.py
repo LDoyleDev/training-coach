@@ -12,6 +12,7 @@ plan file has been edited:
 """
 
 import tomllib
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from functools import lru_cache
@@ -29,6 +30,7 @@ from training_coach.db.models import (
     ExerciseState,
     FitnessTestDay,
     LadderStep,
+    PlanNotice,
     PlanState,
     PlanVersion,
     SessionTemplate,
@@ -112,6 +114,9 @@ class ExerciseSeed(_Strict):
     marks: dict[str, Annotated[list[Mark], Field(min_length=1)]] = Field(default_factory=dict)
     # A last set to failure is safe here: isolation and stable exercises (ADR-0084)
     failure_ok: bool = False
+    # A lengthened-position pick, first in the picker (program-builder.md, Decided 5); read from
+    # the bundled plan like needs
+    lengthened: bool = False
     # Reps, seconds or minutes a set, low to high, for an exercise no session uses yet (an
     # entry exercise, ADR-0083): its questions ask for the bottom. A session item sets its own.
     range: tuple[Annotated[int, Field(ge=1)], Annotated[int, Field(ge=1)]] | None = None
@@ -222,7 +227,7 @@ class ItemSeed(_Strict):
         return self
 
 
-def _away_problem(exercise: ExerciseSeed) -> str | None:
+def away_problem(exercise: ExerciseSeed) -> str | None:
     """Why an exercise can't be in an away version, in words following its name; None when it
     can (``PlanSeed._away_needs_no_kit``)."""
     first = exercise.ladder[0]
@@ -253,17 +258,19 @@ class SessionSeed(_Strict):
         """Every item of every version."""
         return (*self.items, *self.gym, *self.away)
 
+    @staticmethod
+    def check_pairs(name: str, version: Sequence[ItemSeed]) -> None:
+        """Each pair number marks exactly two items, next to each other."""
+        numbers = [item.pair for item in version]
+        for number in {n for n in numbers if n is not None}:
+            where = [i for i, n in enumerate(numbers) if n == number]
+            if len(where) != 2 or where[1] != where[0] + 1:
+                raise ValueError(f"session {name}: pair {number} must be two neighbouring items")
+
     @model_validator(mode="after")
     def _pairs(self) -> Self:
-        """Each pair number marks exactly two items, next to each other, in each version."""
         for version in (self.items, self.gym, self.away):
-            numbers = [item.pair for item in version]
-            for number in {n for n in numbers if n is not None}:
-                where = [i for i, n in enumerate(numbers) if n == number]
-                if len(where) != 2 or where[1] != where[0] + 1:
-                    raise ValueError(
-                        f"session {self.slug}: pair {number} must be two neighbouring items"
-                    )
+            self.check_pairs(self.slug, version)
         return self
 
 
@@ -430,7 +437,7 @@ class PlanSeed(_Strict):
         exercises = {e.slug: e for e in self.exercises}
         for session in self.sessions:
             for item in session.away:
-                problem = _away_problem(exercises[item.exercise])
+                problem = away_problem(exercises[item.exercise])
                 if problem:
                     raise ValueError(f"session {session.slug}: away, {item.exercise}{problem}")
 
@@ -522,7 +529,7 @@ def _stored_items_preflight(session: Session, plan: PlanSeed) -> None:
             raise SeedError(f"{slug} is in someone's plan, so it must stay in plan.toml")
         if exercise.retired:
             raise SeedError(f"{slug} is in someone's plan, so it can't be retired")
-        problem = _away_problem(exercise) if place == Place.AWAY else None
+        problem = away_problem(exercise) if place == Place.AWAY else None
         if problem:
             raise SeedError(f"{slug} is in someone's away version, and {slug}{problem}")
 
@@ -548,7 +555,7 @@ def _set(obj: object, result: SeedResult, **values: object) -> None:
         result.updated += 1
 
 
-def _version(
+def sync_version(
     user_id: int,
     items: list[TemplateItem],
     seeds: list[ItemSeed],
@@ -577,6 +584,23 @@ def _version(
         if position >= len(seeds):
             items.remove(item)  # delete-orphan: removed from the plan
             result.deleted += 1
+
+
+def _tell_people(session: Session, changes: dict[str, list[str]]) -> None:
+    """A notice for each person whose plan has a changed exercise, in any version (ADR-0087). It
+    runs before anyone new starts: a plan made after the change has nothing to be told."""
+    if not changes:
+        return
+    using = session.execute(
+        select(TemplateItem.user_id, Exercise.slug)
+        .join(Exercise, Exercise.id == TemplateItem.exercise_id)
+        .where(Exercise.slug.in_(changes))
+        .distinct()
+        .order_by(TemplateItem.user_id, Exercise.slug),
+        execution_options={ALL_USERS: True},
+    )
+    for user_id, slug in using.all():
+        session.add_all(PlanNotice(user_id=user_id, text=text) for text in changes[slug])
 
 
 def sync_sessions(
@@ -624,9 +648,9 @@ def sync_sessions(
                 is_rest_optional=seed_session.is_rest_optional,
                 kind=seed_session.type,
             )
-        _version(user_id, template.items, seed_session.items, exercises, result)
-        _version(user_id, template.gym_items, seed_session.gym, exercises, result)
-        _version(user_id, template.away_items, seed_session.away, exercises, result)
+        sync_version(user_id, template.items, seed_session.items, exercises, result)
+        sync_version(user_id, template.gym_items, seed_session.gym, exercises, result)
+        sync_version(user_id, template.away_items, seed_session.away, exercises, result)
     session.flush()
 
 
@@ -661,6 +685,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
     _preflight(session, plan, exercises)
     _stored_items_preflight(session, plan)
     _tests_preflight(session, plan)
+    changes: dict[str, list[str]] = {}
     for seed in plan.exercises:
         exercise = exercises.get(seed.slug)
         if exercise is None:
@@ -673,6 +698,10 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
             exercise.retired, exercise.per_side = seed.retired, seed.per_side
             exercise.failure_ok = seed.failure_ok
         else:
+            if exercise.name != seed.name:
+                changes.setdefault(seed.slug, []).append(
+                    f"{exercise.name} is now called {seed.name}."
+                )
             _set(
                 exercise,
                 result,
@@ -684,6 +713,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 failure_ok=seed.failure_ok,
             )
         steps = {step.position: step for step in exercise.ladder}
+        had_steps = bool(steps)
         for position, name in enumerate(seed.ladder):
             step = steps.get(position)
             facts = {
@@ -694,56 +724,19 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
             if step is None:
                 exercise.ladder.append(LadderStep(position=position, name=name, **facts))
                 result.created += 1
+                if had_steps:
+                    changes.setdefault(seed.slug, []).append(f'{seed.name}: a new level, "{name}".')
             else:
+                if step.name != name:
+                    changes.setdefault(seed.slug, []).append(
+                        f'{seed.name}: "{step.name}" is now "{name}".'
+                    )
                 _set(step, result, name=name, **facts)
     session.flush()
+    _tell_people(session, changes)
 
-    # Each person's own rows: where they are on every ladder (ADR-0026). The seed runs in an
-    # unbound session, so every per-person query here names the user.
-    people = list(session.scalars(select(User.id).order_by(User.id)))
-    for user_id in people:
-        started = set(
-            session.scalars(
-                select(ExerciseState.exercise_id).where(ExerciseState.user_id == user_id),
-                execution_options={ALL_USERS: True},
-            )
-        )
-        for seed in plan.exercises:
-            exercise = exercises[seed.slug]
-            if exercise.id not in started:
-                start_step = next(s for s in exercise.ladder if s.position == seed.start)
-                session.add(
-                    ExerciseState(
-                        user_id=user_id, exercise_id=exercise.id, ladder_step_id=start_step.id
-                    )
-                )
-                result.created += 1
-
-    for user_id in people:
-        mine = {ALL_USERS: True}  # the seed names the user itself
-        sessions = select(SessionTemplate.id).where(SessionTemplate.user_id == user_id)
-        if session.scalars(sessions, execution_options=mine).first() is None:
-            _start_plan(session, plan, user_id, exercises, result)
-        if (
-            session.scalar(
-                select(PlanState.id).where(PlanState.user_id == user_id), execution_options=mine
-            )
-            is None
-        ):
-            first = session.scalars(
-                sessions.order_by(SessionTemplate.position), execution_options=mine
-            ).first()
-            session.add(PlanState(user_id=user_id, next_template_id=first))
-            result.created += 1
-        if (
-            session.scalar(
-                select(UserSettings.id).where(UserSettings.user_id == user_id),
-                execution_options=mine,
-            )
-            is None
-        ):
-            session.add(UserSettings(user_id=user_id))
-            result.created += 1
+    for user_id in list(session.scalars(select(User.id).order_by(User.id))):
+        start_person(session, plan, user_id, exercises, result)
 
     counts = {"created": result.created, "updated": result.updated, "deleted": result.deleted}
     if result.changed:
@@ -752,3 +745,55 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
     else:
         log.info("seed.unchanged")
     return result
+
+
+def start_person(
+    session: Session,
+    plan: PlanSeed,
+    user_id: int,
+    exercises: dict[str, Exercise],
+    result: SeedResult,
+) -> None:
+    """Whatever this person lacks of what everyone starts with: a place on every ladder, a plan
+    (ADR-0073), a place in its queue and their settings. Run by every seed for everyone, and
+    when someone joins (ADR-0059). In an unbound session: every query names the user."""
+    mine = {ALL_USERS: True}  # the seed names the user itself
+    started = set(
+        session.scalars(
+            select(ExerciseState.exercise_id).where(ExerciseState.user_id == user_id),
+            execution_options=mine,
+        )
+    )
+    for seed in plan.exercises:
+        exercise = exercises[seed.slug]
+        if exercise.id not in started:
+            start_step = next(s for s in exercise.ladder if s.position == seed.start)
+            session.add(
+                ExerciseState(
+                    user_id=user_id, exercise_id=exercise.id, ladder_step_id=start_step.id
+                )
+            )
+            result.created += 1
+    sessions = select(SessionTemplate.id).where(SessionTemplate.user_id == user_id)
+    if session.scalars(sessions, execution_options=mine).first() is None:
+        _start_plan(session, plan, user_id, exercises, result)
+    if (
+        session.scalar(
+            select(PlanState.id).where(PlanState.user_id == user_id), execution_options=mine
+        )
+        is None
+    ):
+        first = session.scalars(
+            sessions.order_by(SessionTemplate.position), execution_options=mine
+        ).first()
+        session.add(PlanState(user_id=user_id, next_template_id=first))
+        result.created += 1
+    if (
+        session.scalar(
+            select(UserSettings.id).where(UserSettings.user_id == user_id),
+            execution_options=mine,
+        )
+        is None
+    ):
+        session.add(UserSettings(user_id=user_id))
+        result.created += 1
