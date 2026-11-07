@@ -1358,6 +1358,39 @@ export async function revokeInvite(id: number): Promise<boolean> {
   return true
 }
 
+export type Me = Schemas['Me']
+
+/** Who is signed in, and their role (ADR-0059); null when signed out. */
+export async function fetchMe(signal?: AbortSignal): Promise<Me | null> {
+  const res = await fetch('/api/auth/me', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Me
+}
+
+/** A member leaving (ADR-0088): everything of theirs deleted, the account too. */
+export const leaveTrainingCoach = (confirm: string) =>
+  withFreshSignIn(() => confirmed('/api/account/leave', confirm))
+
+/** An admin removing a member (ADR-0088); false if they weren't a member any more. */
+export const removeMember = (id: number, confirm: string) =>
+  withFreshSignIn(() => confirmed(`/api/people/${id}/remove`, confirm))
+
+async function confirmed(path: string, confirm: string): Promise<boolean> {
+  const res = signedIn(
+    await fetch(path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm }),
+    }),
+  )
+  if (res.status === 403) throw new StaleSignInError()
+  if (res.status === 404) return false
+  if (res.status !== 204) throw new Error(`The server answered ${res.status}.`)
+  return true
+}
+
 /** Join with an invite (ADR-0059): signed in as the new member when 'joined'. */
 export async function joinWithInvite(
   token: string,
