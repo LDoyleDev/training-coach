@@ -4353,6 +4353,18 @@
             ],
             "title": "Closing On"
           },
+          "recovered_by_admin_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovered By Admin At"
+          },
           "role": {
             "enum": [
               "admin",
@@ -4370,7 +4382,8 @@
           "user_id",
           "role",
           "closed",
-          "closing_on"
+          "closing_on",
+          "recovered_by_admin_at"
         ],
         "title": "Me",
         "type": "object"
@@ -5856,6 +5869,25 @@
           "summary"
         ],
         "title": "RecordedView",
+        "type": "object"
+      },
+      "RecoveryView": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expires_at"
+        ],
+        "title": "RecoveryView",
         "type": "object"
       },
       "Redeem": {
@@ -10598,6 +10630,49 @@
           }
         },
         "summary": "Get People",
+        "tags": [
+          "people"
+        ]
+      }
+    },
+    "/api/people/{member_id}/recovery": {
+      "post": {
+        "description": "A recovery link for a member who lost their passkey (ADR-0059, I1), for the admin to hand\nthem: once, 24 hours, and only the newest works. Using it signs out their other browsers and\nremoves their passkeys, like /recover. The member is told now, and again when it is used;\nan admin's own browser can't open it. 404 for anyone who isn't a member.",
+        "operationId": "make_recovery_link_api_people__member_id__recovery_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Make Recovery Link",
         "tags": [
           "people"
         ]

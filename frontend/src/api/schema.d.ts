@@ -1196,6 +1196,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/people/{member_id}/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Recovery Link
+         * @description A recovery link for a member who lost their passkey (ADR-0059, I1), for the admin to hand
+         *     them: once, 24 hours, and only the newest works. Using it signs out their other browsers and
+         *     removes their passkeys, like /recover. The member is told now, and again when it is used;
+         *     an admin's own browser can't open it. 404 for anyone who isn't a member.
+         */
+        post: operations["make_recovery_link_api_people__member_id__recovery_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/people/{member_id}/remove": {
         parameters: {
             query?: never;
@@ -3632,6 +3655,8 @@ export interface components {
             closed: boolean;
             /** Closing On */
             closing_on: string | null;
+            /** Recovered By Admin At */
+            recovered_by_admin_at: string | null;
             /**
              * Role
              * @enum {string}
@@ -4170,6 +4195,16 @@ export interface components {
             summary: string;
             /** Workout Id */
             workout_id: number;
+        };
+        /** RecoveryView */
+        RecoveryView: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Token */
+            token: string;
         };
         /** Redeem */
         Redeem: {
@@ -6852,6 +6887,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PeopleView"];
+                };
+            };
+        };
+    };
+    make_recovery_link_api_people__member_id__recovery_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

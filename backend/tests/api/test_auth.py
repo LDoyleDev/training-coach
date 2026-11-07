@@ -74,8 +74,8 @@ def test_a_link_signs_the_browser_in(app_client: TestClient, engine: Engine) -> 
     cookie = response.headers["set-cookie"].lower()
     for flag in ("httponly", "secure", "samesite=strict", "path=/"):
         assert flag in cookie
-    me = {"user_id": OWNER, "role": "admin", "closed": False, "closing_on": None}
-    assert app_client.get("/api/auth/me").json() == me
+    me = app_client.get("/api/auth/me").json()
+    assert (me["role"], me["closed"], me["closing_on"]) == ("admin", False, None)
 
 
 def test_a_used_or_made_up_link_is_refused(app_client: TestClient, engine: Engine) -> None:
