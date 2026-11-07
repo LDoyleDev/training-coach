@@ -496,8 +496,37 @@
       },
       "CatalogueItemView": {
         "properties": {
+          "first_step": {
+            "title": "First Step",
+            "type": "string"
+          },
           "kind": {
             "$ref": "#/components/schemas/ExerciseKind"
+          },
+          "lengthened": {
+            "title": "Lengthened",
+            "type": "boolean"
+          },
+          "levels": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Levels"
           },
           "muscles": {
             "additionalProperties": {
@@ -509,6 +538,13 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "needs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Needs",
+            "type": "array"
           },
           "pattern": {
             "title": "Pattern",
@@ -559,7 +595,11 @@
           "muscles",
           "pattern",
           "places",
-          "range"
+          "range",
+          "first_step",
+          "levels",
+          "needs",
+          "lengthened"
         ],
         "title": "CatalogueItemView",
         "type": "object"

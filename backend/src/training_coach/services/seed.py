@@ -114,6 +114,9 @@ class ExerciseSeed(_Strict):
     marks: dict[str, Annotated[list[Mark], Field(min_length=1)]] = Field(default_factory=dict)
     # A last set to failure is safe here: isolation and stable exercises (ADR-0084)
     failure_ok: bool = False
+    # A lengthened-position pick, first in the picker (program-builder.md, Decided 5); read from
+    # the bundled plan like needs
+    lengthened: bool = False
     # Reps, seconds or minutes a set, low to high, for an exercise no session uses yet (an
     # entry exercise, ADR-0083): its questions ask for the bottom. A session item sets its own.
     range: tuple[Annotated[int, Field(ge=1)], Annotated[int, Field(ge=1)]] | None = None

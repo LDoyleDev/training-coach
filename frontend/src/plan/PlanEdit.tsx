@@ -12,6 +12,7 @@ import {
 import { BodyMap } from '../bodymap/BodyMap'
 import type { State as MapState } from '../bodymap/useCoverage'
 import AppShell from '../components/AppShell'
+import { FigureAt } from '../figures/Figure'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { card, primaryInline, secondary, small } from '../ui'
 import {
@@ -20,6 +21,7 @@ import {
   draftOf,
   moved,
   muscles,
+  pickerLine,
   newItem,
   paired,
   PLACES,
@@ -79,8 +81,22 @@ function Picker({
       <ul className="m-0 flex list-none flex-col gap-1 p-0">
         {list.map((e) => (
           <li key={e.slug}>
-            <button type="button" className={`${small} w-full text-left`} onClick={() => onPick(e)}>
-              {e.name}
+            <button
+              type="button"
+              aria-labelledby={`pick-${e.slug}`}
+              aria-describedby={`line-${e.slug}`}
+              className={`${small} flex w-full items-center gap-3 text-left`}
+              onClick={() => onPick(e)}
+            >
+              <span className="w-14 shrink-0" aria-hidden="true">
+                <FigureAt slug={e.slug} step={e.first_step} t={0} label="" />
+              </span>
+              <span className="flex flex-col">
+                <span id={`pick-${e.slug}`}>{e.name}</span>
+                <span id={`line-${e.slug}`} className="text-sm font-normal">
+                  {pickerLine(e)}
+                </span>
+              </span>
             </button>
           </li>
         ))}
