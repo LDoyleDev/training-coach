@@ -24,7 +24,11 @@ PEER = ("172.17.0.1", 50000)
 
 @pytest.fixture
 def app(engine: Engine) -> FastAPI:
-    return create_app(Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN))
+    return create_app(
+        Settings(
+            environment="test", database_url=str(engine.url), public_url=ORIGIN, multi_user=True
+        )
+    )
 
 
 def _browser(app: FastAPI, engine: Engine, user: int = OWNER, agent: str = "Phone") -> TestClient:
