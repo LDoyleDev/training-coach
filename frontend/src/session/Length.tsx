@@ -9,12 +9,15 @@ const option = (on: boolean) =>
     ? 'border-[var(--bell-ink)] bg-[var(--bell-ink)] text-[var(--chalk)]'
     : 'border-[var(--ink)] text-[var(--ink)]')
 
+const COLUMNS: Record<number, string> = { 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4' }
+
 /**
- * Short on time today (ADR-0082): As planned, 40, 30 or 20 min, for today's session only; the
- * plan doesn't change. The person picks; nothing is recommended. Once a set is kept the length
- * is fixed and shows as words. What the length drops is named before Start. With no choice for
- * the day, the person's time per session on Account is shown as chosen, said to be theirs, and
- * As planned stays a choice for the day.
+ * Short on time today (ADR-0082): As planned, and whichever of 40, 30 or 20 min is shorter than
+ * the session, for today's session only; the plan doesn't change. A session none of them is
+ * shorter than shows nothing. The person picks; nothing is recommended. Once a set is kept the
+ * length is fixed and shows as words. What the length drops is named before Start. With no choice
+ * for the day, the person's time per session on Account is shown as chosen, said to be theirs,
+ * and As planned stays a choice for the day.
  */
 export default function LengthChoice({
   session,
@@ -30,6 +33,7 @@ export default function LengthChoice({
   onLastSet: (on: boolean) => void
 }) {
   const chosen = length.minutes
+  if (chosen === null && length.options.length === 0) return null
   const mine = length.from_setting ? ' (your time per session)' : ''
   // Offered with a shorter day (ADR-0084): not while locked, nor with nothing it applies to.
   const lastSet = length.last_set ?? null
@@ -46,7 +50,11 @@ export default function LengthChoice({
         </p>
       ) : (
         <>
-          <div role="group" aria-labelledby="length" className="grid grid-cols-4 gap-2">
+          <div
+            role="group"
+            aria-labelledby="length"
+            className={`grid ${COLUMNS[choices.length]} gap-2`}
+          >
             {choices.map((minutes) => (
               <button
                 key={String(minutes)}

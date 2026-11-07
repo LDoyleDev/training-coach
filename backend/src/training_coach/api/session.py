@@ -208,8 +208,9 @@ class BlockView(BaseModel):
 
 class LengthView(BaseModel):
     """Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on
-    offer, the exercises pinned with Keep, about how long as planned, what the chosen length
-    drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
+    offer (only those shorter than as planned, so maybe none), the exercises pinned with Keep,
+    about how long as planned, what the chosen length drops (exercise names, in the order they
+    went) and the warm-up it keeps: the 5-minute one,
     ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
     kept, so the length no longer changes. ``from_setting``: the day has no choice, so
@@ -237,7 +238,7 @@ def length_view(plan: guided.Guided) -> LengthView | None:
     offered = any(i.targets and applies(i.kind, i.failure_ok) for i in plan.items)
     return LengthView(
         minutes=found.minutes,
-        options=list(guided.OPTIONS),
+        options=list(found.options),
         keep=list(found.keep),
         planned_minutes=found.planned,
         dropped=[plan.items[i].exercise for i in trimmed.dropped],
@@ -629,7 +630,7 @@ def choose_place(body: PlaceBody, request: Request, user: Owner) -> TodayView | 
 
 
 class LengthBody(BaseModel):
-    """Short on time today (ADR-0082): as planned (empty) or 40, 30 or 20 minutes, never
+    """Short on time today (ADR-0082): as planned (empty) or a length on offer, never
     dropping the exercises pinned with ``keep`` (slugs)."""
 
     template_id: int  # the session the browser shows: a different one now is a conflict
@@ -645,7 +646,7 @@ def choose_length(body: LengthBody, request: Request, user: Owner) -> TodayView:
     """Run today's session shorter, or as planned again (ADR-0082): the session at that
     length. 409 when the session changed, another device moved on since ``revision``
     (reload), or a set is kept already (the length is fixed then); 422 for a session that
-    always runs as planned, or a Keep for an exercise it doesn't have."""
+    always runs as planned, a length not on offer, or a Keep for an exercise it doesn't have."""
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         plan = guided.today(session, on, settings.tz, set(body.first))
