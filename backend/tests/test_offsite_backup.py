@@ -65,8 +65,8 @@ def pi(tmp_path: Path) -> Path:
 def _run(pi: Path, **extra: str) -> subprocess.CompletedProcess[str]:
     assert BASH is not None
     env = {
-        **extra,
         **os.environ,
+        **extra,  # after the environment, so a test's TMPDIR wins
         "PATH": f"{pi / 'stubs'}{os.pathsep}{os.environ['PATH']}",
         "STUB_DIR": str(pi),
         "TC_OFFSITE_ENV": str(pi / "offsite.env"),
@@ -109,6 +109,24 @@ def test_the_list_of_people_who_left_goes_off_site_each_night(pi: Path) -> None:
     assert result.returncode == 0, result.stderr
     copy = pi / "bucket" / "left-users.json.age"
     assert copy.read_text() == f"ENCRYPTED({RECIPIENT},):[]"
+
+
+def test_a_failed_list_upload_still_prunes_and_leaves_no_temp_files(pi: Path) -> None:
+    """Review of #600: retention runs first, and the encrypted copy's folder is removed."""
+    day = "2026-10-12"
+    _backup(pi, day)
+    (pi / "bucket").mkdir()
+    (pi / "bucket" / f"training_coach-{day}.db.age").write_text("already there")
+    old = pi / "bucket" / "training_coach-2026-08-01.db.age"
+    old.write_text("old")
+    stamp = time.time() - 40 * 86400
+    os.utime(old, (stamp, stamp))
+    (pi / "left-users.json").write_text("[]")
+    (pi / "tmp").mkdir()
+    done = _run(pi, STUB_FAIL="copyto", TMPDIR=str(pi / "tmp"))
+    assert done.returncode != 0
+    assert not old.exists()
+    assert list((pi / "tmp").iterdir()) == []
 
 
 def test_without_anyone_who_left_there_is_no_list_to_copy(pi: Path) -> None:
