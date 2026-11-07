@@ -26,12 +26,15 @@ test('before the night has set the day, it says 30 days', () => {
 test('downloading says so, and a failure says to try again', async () => {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => new Response(new Blob(['zip']), { status: 200 })),
+    vi.fn(async () => new Response('zip', { status: 200 })),
   )
   vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x', revokeObjectURL: () => {} })
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
   render(<Closing me={ME} />)
   fireEvent.click(screen.getByRole('button', { name: 'Download my data' }))
   expect(await screen.findByText('Your data is downloading.')).toBeInTheDocument()
+  expect(click).toHaveBeenCalled()
+  click.mockRestore()
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => new Response(null, { status: 500 })),
