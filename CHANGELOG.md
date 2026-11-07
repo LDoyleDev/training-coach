@@ -4,6 +4,27 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.19.0](https://github.com/LDoyleDev/training-coach/compare/v1.18.1...v1.19.0) (2026-11-07)
+
+
+### Features
+
+* **api:** a release changing an exercise in your plan tells you ([#582](https://github.com/LDoyleDev/training-coach/issues/582)) ([084bc50](https://github.com/LDoyleDev/training-coach/commit/084bc5024d1996af01946485ce9ba30c6c783559))
+* **api:** invites an admin makes and someone joins with, behind TC_MULTI_USER ([#596](https://github.com/LDoyleDev/training-coach/issues/596)) ([9982d9e](https://github.com/LDoyleDev/training-coach/commit/9982d9e9b2a973aa4c3c81a87c0565ae6668f065))
+* **api:** warn of a session over an hour and of pushing without pulling ([#593](https://github.com/LDoyleDev/training-coach/issues/593)) ([5bd4bde](https://github.com/LDoyleDev/training-coach/commit/5bd4bde77d1a802ac36a4ddff4a4f276da366fc4))
+* **bot:** a member's daily cap on the shared Groq key ([#598](https://github.com/LDoyleDev/training-coach/issues/598)) ([dd20e62](https://github.com/LDoyleDev/training-coach/commit/dd20e622bf6ee9edef0dfc1a11f5639597793fc8))
+* **db:** people get a role, admin or member, behind TC_MULTI_USER ([#595](https://github.com/LDoyleDev/training-coach/issues/595)) ([7aca8b1](https://github.com/LDoyleDev/training-coach/commit/7aca8b14753cd85fbc2a1bf7ecd0d2f19b372a3c))
+* **web:** a muscle on the map names what would add to it ([#594](https://github.com/LDoyleDev/training-coach/issues/594)) ([e14e8bd](https://github.com/LDoyleDev/training-coach/commit/e14e8bde213e5809487a3ca5aa054769837d214f))
+* **web:** edit your own plan, saved as one version with a note ([#583](https://github.com/LDoyleDev/training-coach/issues/583)) ([8f82a65](https://github.com/LDoyleDev/training-coach/commit/8f82a65feff8c2e4d2aa399a49d2da3b8945fe9f))
+* **web:** People on Account and the /join page, behind TC_MULTI_USER ([#597](https://github.com/LDoyleDev/training-coach/issues/597)) ([a58e761](https://github.com/LDoyleDev/training-coach/commit/a58e76113b2656e9cada2a2fa47c1b424fc543e9))
+* **web:** the body map follows your edits as you make them ([#584](https://github.com/LDoyleDev/training-coach/issues/584)) ([cd65142](https://github.com/LDoyleDev/training-coach/commit/cd65142b2894519fd453feff258c23b174c7022d))
+* **web:** the picker shows who an exercise is for and what it needs ([#592](https://github.com/LDoyleDev/training-coach/issues/592)) ([665308c](https://github.com/LDoyleDev/training-coach/commit/665308c4737d503b301d486e1c2696b22bc41018))
+
+
+### Documentation
+
+* **docs:** session log for 1.18.1, lengths shorter than the session ([#590](https://github.com/LDoyleDev/training-coach/issues/590)) ([3830a26](https://github.com/LDoyleDev/training-coach/commit/3830a269632d37f830bef5ce116eeb200273e224))
+
 ## [1.18.1](https://github.com/LDoyleDev/training-coach/compare/v1.18.0...v1.18.1) (2026-11-07)
 
 
