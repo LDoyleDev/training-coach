@@ -1,7 +1,7 @@
 # Plans per person (builder step 5): what reads the plan, and a draft migration
 
 Status: **inventory as of v1.9.0 (30 Oct 2026), reviewed against 1.17.0 on 6 Nov 2026 (below);
-built on `main` (#578-#580 and the import), not yet released; the order is under "The build".**
+released in 1.18.0 on 7 Nov 2026 (#578-#581); the order is under "The build".**
 The open points are answered: the import ships
 with step 5 (1 Nov 2026), the migration refuses if anyone but the owner exists (5 Nov 2026), one
 database with each person's rows, starters in `plan.toml` and notes in `name` (6 Nov 2026).
@@ -234,13 +234,13 @@ Merging never touches the Pi; only a release does.
 
 1. Tests only: migration tests pinned to named revisions, an erase with a logged workout.
 2. `/api/plan` and coverage read rows (shared rows until the flip).
-3. `version_on` takes the person (not used until the flip).
-4. The seed split into catalogue, sessions and starter, behaving as today. Steps 1-4 can be released
-   on their own, with no change to live data.
-5. **The flip:** the migration, `Owned`, composite keys, the seed's new job and guards, erase,
-   export. It can't be split: schema, models and seed land together.
-6. The import, with a small card on the Plan page. No release between 5 and 6, so the owner can
+3. **The flip:** the migration, `Owned`, composite keys, `version_on` taking the person, the seed's
+   split and new job and guards, erase, export. It can't be split: schema, models and seed land
+   together.
+4. The import, with a small card on the Plan page. No release between 3 and 4, so the owner can
    always change their plan.
+
+Released in 1.18.0, 7 Nov 2026 (`docs/sessions/2026-11-07-plans-per-person.md`).
 
 ## Open points for review
 
