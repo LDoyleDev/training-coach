@@ -174,7 +174,12 @@ which is never stopped or touched:
    counts, and delete the decrypted file.
 6. `docker rm -f tc-drill ...`, `rm -rf ~/tc-drill`.
 
-Last rehearsed: **2026-11-02 on the Pi** (v1.15.0), as above, before plans per person (builder
+Last restored on the Pi: **2026-11-07** (v1.17.0 and the 1.18.0 release image), the plans-per-person
+drill (`docs/sessions/2026-11-07-plans-per-person.md`): backup into separate containers, integrity,
+foreign keys and every table's rows compared, and the migration down again. It didn't repeat the
+photos' round trip through a second backup, or the off-site copy.
+
+Last full rehearsal: **2026-11-02 on the Pi** (v1.15.0), as above, before plans per person (builder
 step 5). The integrity and foreign-key checks, the migration, the row counts of all 40 tables and
 the bytes of the 3 real photos matched after the restore and again after the second round trip;
 the bot stayed off in both drill containers. The 2 Nov off-site copy decrypted with the backup key

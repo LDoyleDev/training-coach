@@ -34,6 +34,7 @@ from training_coach.db.models import (
     McpConnection,
     Measurement,
     Passkey,
+    PlanNotice,
     PlanState,
     PlanVersion,
     ProgressPhoto,
@@ -56,6 +57,7 @@ TABLES: dict[str, type] = {
     "sessions": SessionTemplate,
     "session_items": TemplateItem,
     "plan_versions": PlanVersion,
+    "plan_notices": PlanNotice,
     "workouts": Workout,
     "sets": SetLog,
     "replaced_workouts": ReplacedWorkout,  # kept 24 hours for /undo (ADR-0060)

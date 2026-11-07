@@ -1203,6 +1203,20 @@ class LogProposal(Owned, Base):
     resolved_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
+class PlanNotice(Owned, Base):
+    """What a release changed in a person's plan (ADR-0087): shown until they've seen it, and
+    told on Telegram once. Written by the seed, or a migration that changes a ladder."""
+
+    __tablename__ = "plan_notices"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    text: Mapped[str] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    read_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    told_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
 class Event(Owned, Base):
     """Audit log. Payloads must never contain secrets, transcripts or measurements.
     ``user_id`` is empty for system events such as ``seed.applied``."""

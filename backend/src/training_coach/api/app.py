@@ -39,6 +39,7 @@ from training_coach.api.ingest import router as ingest_router
 from training_coach.api.log import router as log_router
 from training_coach.api.mcp import PER_CONNECTION
 from training_coach.api.mcp import router as mcp_router
+from training_coach.api.notices import router as notices_router
 from training_coach.api.oauth import PER_ADDRESS
 from training_coach.api.oauth import router as oauth_router
 from training_coach.api.passkeys import router as passkeys_router
@@ -248,6 +249,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return Health(status="ok", version=__version__, bot_enabled=settings.bot_enabled)
 
     app.include_router(plan_router)
+    app.include_router(notices_router)
     app.include_router(coverage_router)
     app.include_router(equipment_router)
     app.include_router(auth_router)

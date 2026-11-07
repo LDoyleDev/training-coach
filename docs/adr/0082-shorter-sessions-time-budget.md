@@ -85,3 +85,16 @@ day has to record what it planned (ADR-0084), and both ship together.
 - Settings gain minutes per session.
 - The 30-minute line and the level-3 exception are choices, not findings (Iversen 2021 allows
   ramp sets in short sessions); each is one constant.
+
+## Addendum (7 Nov 2026): only lengths shorter than the session
+
+Liam noticed the HIIT session, about 6 minutes of work, was offered 40, 30 and 20. A length is now
+on offer only when it is less than the session's estimate as planned, warm-up included. With none
+left, Short on time today doesn't show, on the session or in the bot's morning line. The estimate
+used to count HIIT's rounds as one ordinary set, about a minute; it now counts 30 s a round.
+
+A length the session already fits counts as as planned, whether it came from minutes per session
+or a choice made earlier: the setting doesn't apply and the full warm-up stays, as at or under 30
+minutes it would otherwise give way to ramp sets. A session already started keeps the length it
+was fixed at. Choosing a length not on offer is refused. Which lengths are on offer is worked out
+from the person's pace, as the estimate is.

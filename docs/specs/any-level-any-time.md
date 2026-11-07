@@ -106,7 +106,7 @@ item, only sets its count to 0. Progress on a shorter day:
 
 | Option | What | For |
 | --- | --- | --- |
-| T1 **Short on time today** | On the session overview and Today: As planned, 40, 30 or 20 minutes. Today only; the plan doesn't change. What's dropped is listed before Start; the guided session, the bot's work list and the time estimate follow it | A busy day |
+| T1 **Short on time today** | On the session overview and Today: As planned, and whichever of 40, 30 or 20 minutes is shorter than the session. Today only; the plan doesn't change. What's dropped is listed before Start; the guided session, the bot's work list and the time estimate follow it | A busy day |
 | T2 **Minutes per session** | On Account and in setup: every session runs at that length unless the day says otherwise. The body map shows the week at that length, with what it costs ("at 30 minutes: chest 6 sets, light green") | Someone who always has 30 minutes |
 
 Recommended: both, T1 first (it helps the owner now and needs no change to how plans are

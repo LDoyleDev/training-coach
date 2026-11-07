@@ -68,14 +68,45 @@ def test_save_changes_the_version_and_makes_one_plan_version(
     assert [v.name for v in today] == ["More sets"]
 
 
-def test_a_second_save_that_day_updates_its_version(session: Session, plan: PlanSeed) -> None:
+def test_a_second_save_that_day_adds_to_its_version(session: Session, plan: PlanSeed) -> None:
     _save(session, plan, ItemEdit("pull-up", 5, 5, 12))
     session.commit()
     edit = VersionEdit("upper", Place.HOME, (ItemEdit("pull-up", 6, 5, 12),))
-    plan_edit.save(session, [edit], "Even more", plan_edit.revision(session), plan, TODAY)
+    saved = plan_edit.save(session, [edit], "Even more", plan_edit.revision(session), plan, TODAY)
     session.commit()
     today = session.scalars(select(PlanVersion).where(PlanVersion.since == TODAY)).all()
-    assert [v.name for v in today] == ["Even more"]
+    assert [v.name for v in today] == ["More sets; Even more"]
+    assert isinstance(saved, plan_edit.Saved)
+    assert saved.version == "More sets; Even more"
+
+
+@pytest.mark.parametrize(
+    ("earlier", "note", "name"),
+    [
+        ("Imported from plan.toml", "Fewer dips", "Imported from plan.toml; Fewer dips"),
+        ("Fewer dips", "Fewer dips", "Fewer dips"),
+        ("x" * 110, "Fewer dips", "Fewer dips"),  # past what the name holds: the newest
+    ],
+)
+def test_a_days_version_keeps_what_it_said(
+    session: Session, plan: PlanSeed, earlier: str, note: str, name: str
+) -> None:
+    session.add(PlanVersion(since=TODAY, name=earlier))
+    session.flush()
+    edit = VersionEdit("upper", Place.HOME, (ItemEdit("pull-up", 6, 5, 12),))
+    plan_edit.save(session, [edit], note, plan_edit.revision(session), plan, TODAY)
+    session.flush()
+    today = session.scalars(select(PlanVersion).where(PlanVersion.since == TODAY)).all()
+    assert [v.name for v in today] == [name]
+
+
+def test_an_exercise_the_seed_has_not_loaded_is_refused(session: Session, plan: PlanSeed) -> None:
+    """plan.toml has it, but the seed failed on it: refused in words, not a server error."""
+    new = plan.exercises[0].model_copy(update={"slug": "new-move"})
+    bigger = plan.model_copy(update={"exercises": [*plan.exercises, new]})
+    found = _save(session, bigger, ItemEdit("new-move", 3, 5, 12))
+    assert found == "new-move isn't in the catalogue."
+    assert _upper(session).items[0].sets == 4
 
 
 def test_saving_what_is_already_there_makes_no_version(session: Session, plan: PlanSeed) -> None:
