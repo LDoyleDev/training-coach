@@ -4589,6 +4589,13 @@
       },
       "MuscleView": {
         "properties": {
+          "adds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Adds",
+            "type": "array"
+          },
           "back_to_back": {
             "items": {
               "type": "string"
@@ -4686,7 +4693,8 @@
           "over_session_cap",
           "back_to_back",
           "missing_parts",
-          "sources"
+          "sources",
+          "adds"
         ],
         "title": "MuscleView",
         "type": "object"

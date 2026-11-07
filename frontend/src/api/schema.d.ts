@@ -3671,6 +3671,8 @@ export interface components {
         };
         /** MuscleView */
         MuscleView: {
+            /** Adds */
+            adds: string[];
             /** Back To Back */
             back_to_back: string[];
             band: components["schemas"]["Band"];

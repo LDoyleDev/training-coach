@@ -252,6 +252,29 @@ def test_the_catalogue_says_who_an_exercise_is_for_and_what_it_needs(client: Tes
     assert not catalogue["push-up"]["lengthened"]
 
 
+def test_a_muscle_names_what_would_add_to_it_where_it_can_be_done(client: TestClient) -> None:
+    for place in ("home", "gym"):
+        view = client.get("/api/plan/coverage", params={"place": place}).json()
+        names = {e["name"]: e for e in client.get("/api/plan/edit").json()["catalogue"]}
+        for m in view["muscles"]:
+            counted = {s["exercise"] for s in m["sources"]}
+            assert len(m["adds"]) <= 4
+            for name in m["adds"]:
+                assert place in names[name]["places"], (place, name)
+                assert names[name]["muscles"].get(m["muscle"]) == 1
+                assert name not in counted
+
+
+def test_a_lengthened_pick_comes_first_in_what_would_add(client: TestClient) -> None:
+    view = client.get("/api/plan/coverage", params={"place": "gym"}).json()
+    lengthened = {
+        e["name"] for e in client.get("/api/plan/edit").json()["catalogue"] if e["lengthened"]
+    }
+    for m in view["muscles"]:
+        flags = [name in lengthened for name in m["adds"]]
+        assert flags == sorted(flags, reverse=True), m["muscle"]
+
+
 def _draft_of(slug: str, exercise: str) -> dict[str, object]:
     item = {"exercise": exercise, "sets": 20, "rep_min": 5, "rep_max": 10}
     return {"place": "home", "versions": [{"slug": slug, "place": "home", "items": [item]}]}

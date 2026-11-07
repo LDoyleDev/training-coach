@@ -20,6 +20,7 @@ from training_coach.domain.enums import Place, Places
 from training_coach.domain.muscles import step_stress
 from training_coach.domain.places import day_place
 from training_coach.services import guided, user_settings
+from training_coach.services.plan_edit import places_for
 from training_coach.services.plan_rows import PlannedItem, planned_sessions, with_draft
 from training_coach.services.seed import ExerciseSeed, bundled_plan
 from training_coach.services.today import ItemPlan
@@ -41,6 +42,23 @@ def map_place(session: Session) -> tuple[Places, Place]:
     both sees the one last chosen on Today's switch."""
     prefs = user_settings.load(session)
     return prefs.places, day_place(prefs.places, prefs.place)
+
+
+ADDS = 4  # exercises named under a muscle on the map
+
+
+def would_add(found: domain.Coverage, place: Place) -> dict[str, list[str]]:
+    """Per muscle, exercises that would add to it (program-builder.md F): ones that can be done at
+    ``place`` and train it most, not already counted for it this week; a lengthened-position pick
+    first (Decided 5), then by name."""
+    catalogue = [e for e in bundled_plan().exercises if not e.retired and place in places_for(e)]
+    out: dict[str, list[str]] = {}
+    for m in found.muscles:
+        counted = {s.exercise for s in m.sources}
+        picks = [e for e in catalogue if e.muscles.get(m.muscle) == 1 and e.name not in counted]
+        picks.sort(key=lambda e: (not e.lengthened, e.name))
+        out[m.muscle] = [e.name for e in picks[:ADDS]]
+    return out
 
 
 def _minutes(items: Sequence[PlannedItem], exercises: Mapping[str, ExerciseSeed], kind: str) -> int:
