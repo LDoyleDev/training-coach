@@ -65,8 +65,11 @@ def _gated(client: TestClient) -> list[tuple[str, str]]:
 def test_every_health_route_refuses_a_member(member: TestClient) -> None:
     gated = _gated(member)
     paths = {path for _, path in gated}
-    for expected in ("/api/body", "/api/readiness", "/api/daily-check", "/api/account/ingest"):
+    for expected in ("/api/body", "/api/daily-check", "/api/account/ingest"):
         assert expected in paths, expected  # the gate is on the routes it should be
+    # The health questions are answered on the device: members answer them too (ADR-0085).
+    assert "/api/readiness" not in paths
+    assert member.get("/api/readiness").json()["due"] is True
     for method, path in gated:
         assert member.request(method, path, json={}).status_code == 403, (method, path)
 

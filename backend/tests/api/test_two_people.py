@@ -38,7 +38,7 @@ from training_coach.db.models import (
     Measurement,
     Passkey,
     ProgressPhoto,
-    ReadinessAnswers,
+    ReadinessCheck,
     SessionTemplate,
     SetLog,
     SleepSession,
@@ -129,11 +129,7 @@ def _give(engine: Engine, user: int, marks: Marks) -> Ids:
                     results=[],
                     token=marks.name.ljust(20, "x"),
                 ),
-                ReadinessAnswers(
-                    version=readiness.VERSION,
-                    answers={q.key: False for q in readiness.QUESTIONS},
-                    answered_at=NOW,
-                ),
+                ReadinessCheck(version=readiness.VERSION, answered_at=NOW),
                 DailyCheck(
                     local_date=NOW.date(),
                     sleep="good",

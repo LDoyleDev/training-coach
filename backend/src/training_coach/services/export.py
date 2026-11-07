@@ -38,7 +38,7 @@ from training_coach.db.models import (
     PlanState,
     PlanVersion,
     ProgressPhoto,
-    ReadinessAnswers,
+    ReadinessCheck,
     ReplacedWorkout,
     SessionProgress,
     SessionTemplate,
@@ -63,7 +63,7 @@ TABLES: dict[str, type] = {
     "replaced_workouts": ReplacedWorkout,  # kept 24 hours for /undo (ADR-0060)
     "test_days": FitnessTestDay,
     "measurements": Measurement,
-    "readiness_answers": ReadinessAnswers,
+    "readiness_checks": ReadinessCheck,
     "daily_checks": DailyCheck,
     "health_days": HealthDay,
     "sleep_sessions": SleepSession,

@@ -9,18 +9,19 @@ import pytest
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import (
+    DailyCheck,
     Equipment,
     FitnessTestDay,
     HabitCheck,
     Measurement,
-    ReadinessAnswers,
+    ReadinessCheck,
 )
 from training_coach.domain.kit import Item
 from training_coach.domain.measurements import BodyFatEstimate, Kind
 from training_coach.domain.muscles import Kit
 from training_coach.domain.progression import Progress
 from training_coach.domain.queue import local_date
-from training_coach.domain.readiness import KEYS, VERSION
+from training_coach.domain.readiness import VERSION
 from training_coach.services import ai_summary, equipment, measurements, progress, workout_log
 from training_coach.services.ai_summary import GUIDE_URL, GUIDE_VERSION, Options, summary
 from training_coach.services.seed import apply_seed, load_plan
@@ -131,26 +132,31 @@ def test_nothing_logged_says_so(plan: Session) -> None:
 def test_health_data_only_when_asked(plan: Session) -> None:
     plan.add(Measurement(local_date=TODAY, kind="waist", tenths=845))
     plan.add(
-        ReadinessAnswers(
-            version=VERSION,
-            answers={**dict.fromkeys(KEYS, False), "joints": True},
+        DailyCheck(
+            local_date=TODAY,
+            sleep="poor",
+            soreness="a_lot",
+            energy="low",
             answered_at=datetime.now(UTC),
         )
     )
+    plan.add(ReadinessCheck(version=VERSION, answered_at=datetime.now(UTC)))
     plan.flush()
     plain = summary(plan, TODAY, Options(weeks=4))
     assert "84.5" not in plain
-    assert "Readiness" not in plain
+    assert "Daily checks" not in plain
     shared = summary(plan, TODAY, Options(weeks=4, body=True, readiness=True))
     assert "Waist: 84.5 cm" in shared
-    assert "bone, joint or muscle problem that hard exercise could make worse? Yes" in shared
+    assert f"- {TODAY.isoformat()}: sleep poor, soreness a lot, energy low" in shared
     assert "health data, shared by choice" in shared
+    # The health questions' answers never reach the server (ADR-0085): nothing to share.
+    assert "Readiness" not in shared
 
 
-def test_unanswered_readiness_and_no_measurements_say_so(plan: Session) -> None:
+def test_no_daily_checks_and_no_measurements_say_so(plan: Session) -> None:
     text = summary(plan, TODAY, Options(weeks=4, body=True, readiness=True))
-    assert "None in this period." in text
-    assert "Not answered." in text
+    title = "## Daily checks, newest first (health data, shared by choice)"
+    assert f"{title}\nNone in this period." in text
 
 
 def test_test_days_and_habits(plan: Session) -> None:

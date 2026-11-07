@@ -243,7 +243,9 @@ export default function Account() {
             <h2 id="readiness" className="mb-2 text-xl">
               Readiness
             </h2>
-            <p className="mt-0">Seven questions about your health before hard exercise.</p>
+            <p className="mt-0">
+              Ten questions about your health, asked once a year. The answers stay on this device.
+            </p>
             <a href="/readiness" className={`${secondary} inline-flex items-center no-underline`}>
               Answer or update them
             </a>

@@ -25,8 +25,9 @@ def closed_to(user_id: int, multi_user: bool) -> bool:
 
 
 def health_open(user_id: int) -> bool:
-    """Whether ``user_id`` may keep health data: body measurements and photos, readiness
-    answers, daily checks, heart rate and band data. Members are training-only until a lawyer
+    """Whether ``user_id`` may keep health data: body measurements and photos, daily
+    checks, heart rate and band data (the health questions' answers never reach the server,
+    ADR-0085). Members are training-only until a lawyer
     has reviewed the privacy notice, the consent step and a DPIA (ADR-0059, Decided 14), so only
     the owner, by id, until then."""
     return user_id == OWNER

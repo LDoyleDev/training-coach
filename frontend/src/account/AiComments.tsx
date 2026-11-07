@@ -143,7 +143,7 @@ export default function AiComments() {
                   checked={ai.readiness}
                   onChange={(e) => void choose({ readiness: e.target.checked })}
                 />
-                Comments may see readiness answers (health data)
+                Comments may see daily checks (health data)
               </label>
               <p className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => void test()}>

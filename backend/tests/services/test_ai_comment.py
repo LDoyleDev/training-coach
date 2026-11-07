@@ -73,7 +73,7 @@ async def test_health_data_goes_only_when_ticked(keyed: sessionmaker[Session]) -
     groq = respx.post(CHAT).respond(json=_reply("ok"))
     await ai_comment.weekly(keyed, SETTINGS, TODAY)
     user = json.loads(groq.calls.last.request.content)["messages"][1]["content"]
-    assert "Readiness" in user
+    assert "Daily checks" in user
 
 
 @respx.mock
