@@ -57,6 +57,8 @@ class SessionLoadView(BaseModel):
     grip_sets: int
     spine_heavy: bool
     grip_heavy: bool
+    minutes: int  # about how long as planned, warm-up included
+    over_an_hour: bool
     muscles: list[SessionMuscleView]  # only those it works, main muscles first
 
 
@@ -65,6 +67,9 @@ class CoverageView(BaseModel):
     places: Places  # where the person trains: Home | Gym is offered at both
     muscles: list[MuscleView]  # main muscles first
     sessions: list[SessionLoadView]  # queue order
+    push_sets: int  # a week
+    pull_sets: int
+    pushing_without_pulling: bool  # less than one pulling set for two pushing
     main_on_target: int  # main muscles in the green band
     main_total: int
     session_cap: int
@@ -82,6 +87,7 @@ class DraftItem(BaseModel):
     rep_min: int = Field(ge=1, le=600)
     rep_max: int = Field(ge=1, le=600)
     per_side: bool = False
+    pair: int | None = Field(default=None, ge=1)
 
 
 class DraftVersion(BaseModel):
@@ -112,7 +118,8 @@ def post_coverage_draft(request: Request, user: Owner, body: CoverageDraft) -> C
     """The map as a draft of the plan would make it, while editing: it saves nothing."""
     draft = {
         (v.slug, v.place): [
-            PlannedItem(i.exercise, i.sets, i.rep_min, i.rep_max, i.per_side) for i in v.items
+            PlannedItem(i.exercise, i.sets, i.rep_min, i.rep_max, i.per_side, i.pair)
+            for i in v.items
         ]
         for v in body.versions
     }
@@ -155,12 +162,17 @@ def _view(found: domain.Coverage, at: Place, places: Places) -> CoverageView:
                 grip_sets=d.grip_sets,
                 spine_heavy=d.spine_heavy,
                 grip_heavy=d.grip_heavy,
+                minutes=d.minutes,
+                over_an_hour=d.over_an_hour,
                 muscles=[
                     SessionMuscleView(muscle=m, sets=n, heat=domain.heat(n)) for m, n in d.muscles
                 ],
             )
             for d in found.days
         ],
+        push_sets=found.push_sets,
+        pull_sets=found.pull_sets,
+        pushing_without_pulling=found.pushing_without_pulling,
         main_on_target=found.main_on_target,
         main_total=len(domain.MAIN),
         session_cap=domain.SESSION_CAP,

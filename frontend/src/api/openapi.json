@@ -1015,6 +1015,18 @@
           "places": {
             "$ref": "#/components/schemas/Places"
           },
+          "pull_sets": {
+            "title": "Pull Sets",
+            "type": "integer"
+          },
+          "push_sets": {
+            "title": "Push Sets",
+            "type": "integer"
+          },
+          "pushing_without_pulling": {
+            "title": "Pushing Without Pulling",
+            "type": "boolean"
+          },
           "session_cap": {
             "title": "Session Cap",
             "type": "integer"
@@ -1036,6 +1048,9 @@
           "places",
           "muscles",
           "sessions",
+          "push_sets",
+          "pull_sets",
+          "pushing_without_pulling",
           "main_on_target",
           "main_total",
           "session_cap",
@@ -1269,6 +1284,18 @@
             "maxLength": 64,
             "title": "Exercise",
             "type": "string"
+          },
+          "pair": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair"
           },
           "per_side": {
             "default": false,
@@ -6336,12 +6363,20 @@
             "title": "Grip Sets",
             "type": "integer"
           },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
           "muscles": {
             "items": {
               "$ref": "#/components/schemas/SessionMuscleView"
             },
             "title": "Muscles",
             "type": "array"
+          },
+          "over_an_hour": {
+            "title": "Over An Hour",
+            "type": "boolean"
           },
           "place": {
             "$ref": "#/components/schemas/Place"
@@ -6371,6 +6406,8 @@
           "grip_sets",
           "spine_heavy",
           "grip_heavy",
+          "minutes",
+          "over_an_hour",
           "muscles"
         ],
         "title": "SessionLoadView",

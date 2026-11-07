@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -198,6 +199,47 @@ def test_an_empty_draft_is_the_plan_as_it_stands(client: TestClient) -> None:
     before = client.get("/api/plan/coverage", params={"place": "home"}).json()
     drafted = client.post("/api/plan/coverage/draft", json={"place": "home", "versions": []})
     assert drafted.json() == before
+
+
+def _sessions(view: dict[str, Any]) -> dict[str, Any]:
+    return {s["slug"]: s for s in view["sessions"]}
+
+
+def test_the_bundled_plan_raises_neither_week_warning(client: TestClient) -> None:
+    for place in ("home", "gym"):
+        view = client.get("/api/plan/coverage", params={"place": place}).json()
+        assert view["push_sets"] > 0
+        assert view["pull_sets"] > 0
+        assert not view["pushing_without_pulling"]
+        assert not any(s["over_an_hour"] for s in view["sessions"]), place
+
+
+def test_the_map_flags_a_draft_over_an_hour(client: TestClient) -> None:
+    slug = client.get("/api/plan/edit").json()["sessions"][0]["slug"]
+    item = {"exercise": "push-up", "sets": 20, "rep_min": 5, "rep_max": 10}
+    body = {
+        "place": "home",
+        "versions": [{"slug": slug, "place": "home", "items": [item, {**item, "sets": 20}]}],
+    }
+    view = client.post("/api/plan/coverage/draft", json=body).json()
+    assert _sessions(view)[slug]["minutes"] > 60
+    assert _sessions(view)[slug]["over_an_hour"]
+    assert view["push_sets"] >= 40
+
+
+def test_a_pair_in_a_draft_makes_it_shorter(client: TestClient) -> None:
+    slug = client.get("/api/plan/edit").json()["sessions"][0]["slug"]
+    first = {"exercise": "push-up", "sets": 4, "rep_min": 5, "rep_max": 10}
+    second = {"exercise": "doorway-row", "sets": 4, "rep_min": 5, "rep_max": 10}
+
+    def minutes(pair: int | None) -> int:
+        items = [{**first, "pair": pair}, {**second, "pair": pair}]
+        body = {"place": "home", "versions": [{"slug": slug, "place": "home", "items": items}]}
+        view = client.post("/api/plan/coverage/draft", json=body).json()
+        minutes: int = _sessions(view)[slug]["minutes"]
+        return minutes
+
+    assert minutes(1) < minutes(None)
 
 
 def test_the_catalogue_says_who_an_exercise_is_for_and_what_it_needs(client: TestClient) -> None:

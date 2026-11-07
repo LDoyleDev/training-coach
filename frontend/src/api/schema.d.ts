@@ -2397,6 +2397,12 @@ export interface components {
             muscles: components["schemas"]["MuscleView"][];
             place: components["schemas"]["Place"];
             places: components["schemas"]["Places"];
+            /** Pull Sets */
+            pull_sets: number;
+            /** Push Sets */
+            push_sets: number;
+            /** Pushing Without Pulling */
+            pushing_without_pulling: boolean;
             /** Session Cap */
             session_cap: number;
             /** Sessions */
@@ -2484,6 +2490,8 @@ export interface components {
         DraftItem: {
             /** Exercise */
             exercise: string;
+            /** Pair */
+            pair?: number | null;
             /**
              * Per Side
              * @default false
@@ -4185,8 +4193,12 @@ export interface components {
             grip_heavy: boolean;
             /** Grip Sets */
             grip_sets: number;
+            /** Minutes */
+            minutes: number;
             /** Muscles */
             muscles: components["schemas"]["SessionMuscleView"][];
+            /** Over An Hour */
+            over_an_hour: boolean;
             place: components["schemas"]["Place"];
             /** Session */
             session: string;

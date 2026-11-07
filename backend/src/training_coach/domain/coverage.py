@@ -2,9 +2,9 @@
 and F; the evidence is in program-builder-research.md). Pure logic, no I/O.
 
 Sets are fractional (ADR-0064). A muscle's band comes from its weekly sets; green also needs
-the muscle on two days a week. The warnings are the ones a read-only map can show: too much in
-one session, the same muscle hard on two days running, a muscle part compounds miss, and
-sessions heavy on the spine or the grip.
+the muscle on two days a week. The warnings: too much in one session, the same muscle hard on two
+days running, a muscle part compounds miss, sessions heavy on the spine or the grip, a session
+over an hour, and pushing without pulling.
 """
 
 from collections.abc import Iterable, Mapping, Sequence
@@ -12,7 +12,12 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from training_coach.domain.enums import Place
-from training_coach.domain.muscles import PART_OF, Muscle, Part, Stress
+from training_coach.domain.muscles import PART_OF, Muscle, Part, Pattern, Stress
+
+HOUR = 60  # minutes: a session past this gets a warning (program-builder.md F)
+PUSHES = frozenset({Pattern.HORIZONTAL_PUSH, Pattern.VERTICAL_PUSH})
+PULLS = frozenset({Pattern.HORIZONTAL_PULL, Pattern.VERTICAL_PULL})
+PULLS_PER_PUSH = 2  # fewer than one pulling set for two pushing: a rule of thumb, not a study
 
 
 class Band(StrEnum):
@@ -133,6 +138,7 @@ class Item:
     muscles: Mapping[Muscle, float]
     parts: frozenset[Part] = frozenset()
     stress: frozenset[Stress] = frozenset()  # at the step being trained (``step_stress``)
+    pattern: Pattern | None = None
 
 
 @dataclass(frozen=True)
@@ -143,6 +149,7 @@ class Day:
     items: Sequence[Item]
     slug: str = ""  # the session template's, so a page can match its own list
     place: Place = Place.HOME  # the version counted: its gym one, or the one done at both
+    minutes: int = 0  # about how long as planned, warm-up included
 
 
 @dataclass(frozen=True)
@@ -183,6 +190,11 @@ class DayLoad:
     slug: str = ""
     muscles: tuple[tuple[Muscle, float], ...] = ()
     place: Place = Place.HOME
+    minutes: int = 0
+
+    @property
+    def over_an_hour(self) -> bool:
+        return self.minutes > HOUR
 
     @property
     def spine_heavy(self) -> bool:
@@ -197,6 +209,12 @@ class DayLoad:
 class Coverage:
     muscles: tuple[MuscleCoverage, ...]  # every muscle, main ones first, then the fixed order
     days: tuple[DayLoad, ...]
+    push_sets: int = 0  # a week, of the push patterns
+    pull_sets: int = 0  # a week, of the pull patterns
+
+    @property
+    def pushing_without_pulling(self) -> bool:
+        return self.pull_sets * PULLS_PER_PUSH < self.push_sets
 
     @property
     def main_on_target(self) -> int:
@@ -229,10 +247,17 @@ def coverage(week: Sequence[Day]) -> Coverage:
             slug=day.slug,
             muscles=tuple((m, totals[m]) for m in _ordered(Muscle) if totals.get(m, 0) > 0),
             place=day.place,
+            minutes=day.minutes,
         )
         for day, totals in zip(week, per_day, strict=True)
     )
-    return Coverage(tuple(found), loads)
+    sets = [item for day in week for item in day.items]
+    return Coverage(
+        tuple(found),
+        loads,
+        push_sets=sum(i.sets for i in sets if i.pattern in PUSHES),
+        pull_sets=sum(i.sets for i in sets if i.pattern in PULLS),
+    )
 
 
 def _ordered(muscles: Iterable[Muscle]) -> list[Muscle]:
