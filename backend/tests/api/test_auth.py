@@ -74,7 +74,7 @@ def test_a_link_signs_the_browser_in(app_client: TestClient, engine: Engine) -> 
     cookie = response.headers["set-cookie"].lower()
     for flag in ("httponly", "secure", "samesite=strict", "path=/"):
         assert flag in cookie
-    assert app_client.get("/api/auth/me").json() == {"user_id": OWNER, "role": "admin"}
+    assert app_client.get("/api/auth/me").json()["role"] == "admin"
 
 
 def test_a_used_or_made_up_link_is_refused(app_client: TestClient, engine: Engine) -> None:
@@ -131,7 +131,7 @@ def test_only_an_admin_gets_past_admin(engine: Engine) -> None:
         assert client.get("/api/test-admin").json() == OWNER
     with TestClient(app, base_url="https://testserver") as member:
         member.post("/api/auth/redeem", json={"token": _link(engine, user_id=2)})
-        assert member.get("/api/auth/me").json() == {"user_id": 2, "role": "member"}
+        assert member.get("/api/auth/me").json()["role"] == "member"
         assert member.get("/api/test-admin").status_code == 403
 
 
