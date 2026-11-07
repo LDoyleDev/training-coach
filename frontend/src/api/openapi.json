@@ -4337,6 +4337,22 @@
       },
       "Me": {
         "properties": {
+          "closed": {
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "closing_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closing On"
+          },
           "recovered_by_admin_at": {
             "anyOf": [
               {
@@ -4365,6 +4381,8 @@
         "required": [
           "user_id",
           "role",
+          "closed",
+          "closing_on",
           "recovered_by_admin_at"
         ],
         "title": "Me",

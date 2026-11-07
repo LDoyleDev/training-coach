@@ -4,7 +4,7 @@ their phone are refused too. Their sessions are refused, not ended, so switching
 them straight in. The owner is never closed out."""
 
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -79,6 +79,24 @@ def test_every_wind_down_path_is_a_real_route(two: Engine) -> None:
     """Review of #601: a typo or a later rename mustn't silently close the way out."""
     app = create_app(Settings(environment="test", database_url=str(two.url)))
     assert WIND_DOWN - {path for path, _ in api_routes(app)} == set()
+
+
+def test_who_they_are_says_it_is_closed_and_when_their_data_goes(
+    off: TestClient, two: Engine
+) -> None:
+    """For the closing page: a notice on their next sign-in (ADR-0059)."""
+    _sign_in(off, two, MEMBER)
+    assert off.get("/api/auth/me").json()["closed"] is True
+    assert off.get("/api/auth/me").json()["closing_on"] is None  # until the night's wind-down
+    with session_scope(make_session_factory(two)) as shared:
+        shared.get_one(User, MEMBER).closing_on = date(2026, 12, 7)
+    assert off.get("/api/auth/me").json()["closing_on"] == "2026-12-07"
+
+
+def test_open_again_it_isnt_closed(two: Engine) -> None:
+    with _app(two, multi_user=True) as open_:
+        _sign_in(open_, two, MEMBER)
+        assert open_.get("/api/auth/me").json()["closed"] is False
 
 
 def test_a_member_can_still_leave_while_off(off: TestClient, two: Engine) -> None:

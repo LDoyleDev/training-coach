@@ -3651,6 +3651,10 @@ export interface components {
         };
         /** Me */
         Me: {
+            /** Closed */
+            closed: boolean;
+            /** Closing On */
+            closing_on: string | null;
             /** Recovered By Admin At */
             recovered_by_admin_at: string | null;
             /**

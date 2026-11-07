@@ -1,7 +1,7 @@
 """People (ADR-0026). Per-person lookups here assume a session bound to the user
 (``db.session``), which filters them; they never take a user id themselves."""
 
-from datetime import datetime
+from datetime import date, datetime
 
 import structlog
 from sqlalchemy import select
@@ -34,6 +34,12 @@ def role(session: Session, user_id: int) -> str | None:
     """``user_id``'s role, None if there's no such person. Any session may ask: users is shared."""
     found = session.get(User, user_id)
     return found.role if found is not None else None
+
+
+def closing_on(session: Session, user_id: int) -> date | None:
+    """The day a member's data is erased in the wind-down (ADR-0059); None if not closing."""
+    found = session.get(User, user_id)
+    return found.closing_on if found is not None else None
 
 
 def link_owner(session: Session, telegram_user_id: int) -> int:
