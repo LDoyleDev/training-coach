@@ -95,6 +95,10 @@ def test_a_members_ai_app_gets_no_health_scope(member: TestClient, two: Engine) 
     body = {"kind": "body", "measurements": {"bodyweight": 82.4}}
     proposed = rpc(member, token, "tools/call", {"name": "propose_log", "arguments": body})
     assert "aren't available to this person yet" in proposed.text
+    # Any heart rate given, even a 0, is refused the same way as by /api/cardio (review of #608).
+    walk = {"kind": "cardio", "cardio": "zone2", "minutes": 30, "avg_hr": 0}
+    proposed = rpc(member, token, "tools/call", {"name": "propose_log", "arguments": walk})
+    assert "aren't available to this person yet" in proposed.text
 
 
 def test_a_members_phone_is_refused_band_data_with_the_switch_on(

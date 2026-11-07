@@ -458,7 +458,10 @@ def check(
         return Refused(_reason(error))
     if not users.health_open(_user(session)) and (
         isinstance(found, BodyProposal)
-        or (isinstance(found, CardioProposal) and (found.avg_hr or found.max_hr) is not None)
+        or (
+            isinstance(found, CardioProposal)
+            and (found.avg_hr is not None or found.max_hr is not None)
+        )
     ):
         # Health data: members are training-only for now (ADR-0059).
         return Refused("body measurements and heart rate aren't available to this person yet")
