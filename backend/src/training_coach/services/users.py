@@ -14,6 +14,13 @@ from training_coach.domain import region
 log = structlog.get_logger(__name__)
 
 OWNER = 1  # created by the migration that added users; phase 1 has only this person
+ADMIN, MEMBER = "admin", "member"  # roles (ADR-0059): the owner is the one admin
+
+
+def is_admin(session: Session, user_id: int) -> bool:
+    """Whether ``user_id`` is an admin. Run in an unbound session (``users`` is shared)."""
+    found = session.get(User, user_id)
+    return found is not None and found.role == ADMIN
 
 
 def link_owner(session: Session, telegram_user_id: int) -> int:
@@ -21,7 +28,7 @@ def link_owner(session: Session, telegram_user_id: int) -> int:
     unbound session at start-up. If the allowed account changed, the owner moves with it."""
     owner = session.get(User, OWNER)
     if owner is None:  # a database created before the users migration can't get here
-        owner = User(id=OWNER)
+        owner = User(id=OWNER, role=ADMIN)
         session.add(owner)
     if owner.telegram_user_id != telegram_user_id:
         if owner.telegram_user_id is not None:

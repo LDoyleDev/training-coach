@@ -348,8 +348,8 @@ guards, cheapest first:
    test (L1, L2). Tests only.
 3. **Done (#236).** **Fix the owner leaks** that don't need a second person to fix: alerts to
    the person they're about, settings moving only that person's jobs, drafts per person.
-4. `users.role` and `label`, `TC_MULTI_USER` and `TC_MAX_MEMBERS`, the `Admin` dependency and
-   the route test's fourth kind.
+4. **Done (7 Nov 2026).** `users.role` and `label`, `TC_MULTI_USER` and `TC_MAX_MEMBERS`, the
+   `Admin` dependency and the route test's fourth kind.
 5. **Invites:** table, make and revoke on Account ("People"), `/join` with notice, adult check
    and passkey.
 6. **Consent records** and per-category withdraw and erase.

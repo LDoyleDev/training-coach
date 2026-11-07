@@ -11,11 +11,12 @@ from sqlalchemy import Engine
 
 from tests.routes import api_routes
 from training_coach.api.app import create_app
-from training_coach.api.auth import COOKIE, owner
+from training_coach.api.auth import COOKIE, Admin, admin, owner
 from training_coach.api.mcp import connection
 from training_coach.api.region import exempt
 from training_coach.config import Settings
-from training_coach.db.session import make_session_factory
+from training_coach.db.models import User
+from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import auth
 from training_coach.services.users import OWNER
 
@@ -58,8 +59,8 @@ def app_client(engine: Engine) -> Iterator[TestClient]:
         yield client
 
 
-def _link(engine: Engine) -> str:
-    with make_session_factory(engine, user_id=OWNER)() as bound:
+def _link(engine: Engine, user_id: int = OWNER) -> str:
+    with make_session_factory(engine, user_id=user_id)() as bound:
         token = auth.create_link(bound, datetime.now(UTC))
         bound.commit()
     return token
@@ -96,20 +97,41 @@ def test_signing_out_ends_the_session(app_client: TestClient, engine: Engine) ->
 
 def test_every_route_is_public_or_owner_only(engine: Engine) -> None:
     """A new route must say who may call it (ADR-0036): listed here as public, behind
-    ``owner`` (a session cookie), or behind ``connection`` (an AI app's bearer token, ADR-0047
-    C), never both. Pages of the web app (no schema) only serve the static index. And only the
-    ``ANY_REGION`` routes skip the EU and EEA check (ADR-0085)."""
+    ``owner`` (a session cookie), ``admin`` (an admin's session, ADR-0059), or ``connection`` (an
+    AI app's bearer token, ADR-0047 C), never two. Pages of the web app (no schema) only serve
+    the static index. And only the ``ANY_REGION`` routes skip the EU and EEA check (ADR-0085)."""
     app = create_app(Settings(environment="test", database_url=str(engine.url)))
     routes = [(path, route) for path, route in api_routes(app) if route.include_in_schema]
     assert len(routes) > 50  # the routers' routes, not just the app's own
     for path, route in routes:
         calls = {dep.call for dep in route.dependant.dependencies}
-        guarded = owner in calls or connection in calls
+        kinds = [kind for kind in (owner, admin, connection) if kind in calls]
+        guarded = bool(kinds)
         assert path in PUBLIC or guarded, f"{path} declares no access"
         assert not (path in PUBLIC and guarded), f"{path} is listed as public"
-        assert not (owner in calls and connection in calls), f"{path} takes both"
+        assert len(kinds) <= 1, f"{path} takes more than one"
         assert (connection in calls) == (path == "/mcp"), path
         assert exempt(path) == (path in ANY_REGION), f"{path}: region exemption changed"
+
+
+def test_only_an_admin_gets_past_admin(engine: Engine) -> None:
+    """Signed in as the owner, the one admin, it answers; as a member, 403; signed out, 401."""
+    app = create_app(Settings(environment="test", database_url=str(engine.url)))
+
+    @app.get("/api/test-admin")
+    def probe(user: Admin) -> int:
+        return user
+
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=2))
+    with TestClient(app, base_url="https://testserver") as client:
+        assert client.get("/api/test-admin").status_code == 401
+        client.post("/api/auth/redeem", json={"token": _link(engine)})
+        assert client.get("/api/test-admin").json() == OWNER
+    with TestClient(app, base_url="https://testserver") as member:
+        member.post("/api/auth/redeem", json={"token": _link(engine, user_id=2)})
+        assert member.get("/api/auth/me").status_code == 200
+        assert member.get("/api/test-admin").status_code == 403
 
 
 def test_the_signin_page_serves_the_web_app(engine: Engine, tmp_path: Path) -> None:
