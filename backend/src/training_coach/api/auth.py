@@ -5,7 +5,7 @@ database stores only hashed. ``test_every_route_is_public_or_owner_only`` keeps 
 access deliberate.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
@@ -43,6 +43,10 @@ class Redeem(BaseModel):
 class Me(BaseModel):
     user_id: int
     role: Literal["admin", "member"]  # ADR-0059: what Account offers them (People, or leaving)
+    # The app is closed to them (TC_MULTI_USER off, ADR-0059): only export and leave answer,
+    # and their data goes on closing_on (None until the night's wind-down has set it).
+    closed: bool
+    closing_on: date | None
     # Recovered with an admin's link within the last 30 days: Account says so, and it can't be
     # dismissed, so an admin who signed in that way can't hide it (ADR-0059).
     recovered_by_admin_at: datetime | None
@@ -194,12 +198,16 @@ PasskeyFresh = Annotated[auth.PasskeyProof, Depends(passkey_proved)]
 
 @router.get("/me", response_model=Me)
 def me(request: Request, user: Owner) -> Me:
+    settings: Settings = request.app.state.settings
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as mine:
         role = users.role(mine, user)
+        closing = users.closing_on(mine, user)
         recovered = auth.admin_recovered_on(mine, datetime.now(UTC))
     return Me(
         user_id=user,
         role="admin" if role == users.ADMIN else "member",
+        closed=users.closed_to(user, settings.multi_user),
+        closing_on=closing,
         recovered_by_admin_at=recovered,
     )
 
