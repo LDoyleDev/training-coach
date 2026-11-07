@@ -161,3 +161,22 @@ test('someone already gone, or a stale sign-in, says so', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Remove Mum' }))
   expect(await screen.findByText(/removing someone needs you to confirm/)).toBeInTheDocument()
 })
+
+test('a recovery link for a member is shown once, with who to hand it to', async () => {
+  const asked = serve({
+    'GET /api/people': { status: 200, body: PEOPLE },
+    'POST /api/people/2/recovery': [
+      { status: 200, body: { token: 'rec123', expires_at: '2026-11-08T10:00:00Z' } },
+      { status: 404 },
+    ],
+  })
+  render(<People />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Recovery link for Mum' }))
+  expect(await screen.findByRole('textbox', { name: 'Recovery link' })).toHaveValue(
+    `${window.location.origin}/signin#rec123`,
+  )
+  expect(screen.getByText(/Hand this to Mum yourself/)).toBeInTheDocument()
+  expect(asked).toContain('POST /api/people/2/recovery')
+  fireEvent.click(screen.getByRole('button', { name: 'Recovery link for Mum' }))
+  expect(await screen.findByRole('status')).toHaveTextContent('They had already gone.')
+})

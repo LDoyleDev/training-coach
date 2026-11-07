@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import {
   fetchPeople,
   makeInvite,
+  makeRecoveryLink,
   type People as Found,
   removeMember,
   revokeInvite,
@@ -28,6 +29,7 @@ export default function People() {
   const [removing, setRemoving] = useState<number | null>(null)
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false) // one removal at a time
+  const [recovery, setRecovery] = useState<{ name: string; link: string } | null>(null)
 
   const load = useCallback((signal?: AbortSignal) => {
     fetchPeople(signal)
@@ -84,6 +86,17 @@ export default function People() {
     }
   }
 
+  const recover = async (id: number, name: string) => {
+    setNote(null)
+    try {
+      const made = await makeRecoveryLink(id)
+      if (!made) return setNote('They had already gone.')
+      setRecovery({ name, link: `${window.location.origin}/signin#${made.token}` })
+    } catch (error) {
+      failed(error)
+    }
+  }
+
   const revoke = async (id: number) => {
     setNote(null)
     try {
@@ -113,6 +126,13 @@ export default function People() {
                   <span className="flex-1">
                     {name}, joined {day(m.joined)}
                   </span>
+                  <button
+                    type="button"
+                    className={small}
+                    onClick={() => void recover(m.id, m.label ?? 'them')}
+                  >
+                    Recovery link for {m.label ?? 'member'}
+                  </button>
                   {removing !== m.id && (
                     <button
                       type="button"
@@ -162,6 +182,23 @@ export default function People() {
             )
           })}
         </ul>
+      )}
+      {recovery && (
+        <div className="flex flex-col gap-1">
+          <p className="m-0">
+            Hand this to {recovery.name} yourself, the way you sent the invite, only if they asked
+            for it. It works once, for 24 hours, on their own device, and signs out their other
+            devices. They are told it was made, and Account shows them it was used.
+          </p>
+          <input readOnly value={recovery.link} aria-label="Recovery link" className="min-h-11" />
+          <button
+            type="button"
+            className={`${small} self-start`}
+            onClick={() => void navigator.clipboard?.writeText(recovery.link)}
+          >
+            Copy the recovery link
+          </button>
+        </div>
       )}
       {found.invites.length > 0 && (
         <>
