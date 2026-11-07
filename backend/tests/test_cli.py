@@ -207,3 +207,49 @@ def test_rotate_secrets_reseals_with_the_newest_key(
     with pytest.raises(SystemExit, match="TC_SECRETS_KEY is not set"):
         main(["rotate-secrets"])
     get_settings.cache_clear()
+
+
+def test_forget_left_names_who_is_back_and_deletes_them_only_when_told(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """After a restore (ADR-0088): first it only names them; --apply deletes them again."""
+    from training_coach.db.models import User
+    from training_coach.db.session import make_session_factory, session_scope
+    from training_coach.services import left_list
+
+    database = tmp_path / "cli.db"
+    monkeypatch.setenv("TC_DATABASE_URL", f"sqlite:///{database}")
+    monkeypatch.setenv("TC_ENVIRONMENT", "test")
+    get_settings.cache_clear()
+    command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
+    joined, now = datetime(2026, 11, 1, tzinfo=UTC), datetime(2026, 11, 7, tzinfo=UTC)
+    engine = make_engine(f"sqlite:///{database}")
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add_all([User(id=4, created_at=joined), User(id=5, created_at=now)])
+    left_list.record(left_list.path_for(database), 4, joined, now)
+    left_list.record(left_list.path_for(database), 5, joined, now)  # 5 is someone new
+
+    main(["forget-left"])
+    assert "left.back" in capsys.readouterr().out
+    with session_scope(make_session_factory(engine)) as shared:
+        assert shared.get(User, 4) is not None  # named, not deleted
+
+    main(["forget-left", "--apply"])
+    assert "left.forgotten" in capsys.readouterr().out
+    with session_scope(make_session_factory(engine)) as shared:
+        assert shared.get(User, 4) is None
+        assert shared.get(User, 5) is not None
+
+    main(["forget-left"])
+    assert "left.none_back" in capsys.readouterr().out
+    engine.dispose()
+    get_settings.cache_clear()
+
+
+def test_forget_left_needs_a_database_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TC_DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("TC_ENVIRONMENT", "test")
+    get_settings.cache_clear()
+    with pytest.raises(SystemExit):
+        main(["forget-left"])
+    get_settings.cache_clear()

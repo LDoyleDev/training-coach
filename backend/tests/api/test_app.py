@@ -1,14 +1,17 @@
 import asyncio
 import contextlib
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine
 from structlog.testing import capture_logs
 
 from training_coach import __version__
 from training_coach.api import app as api_app
 from training_coach.api.app import (
+    _left_back,
     _on_loop,
     _owner_notifier,
     _report_death,
@@ -18,6 +21,9 @@ from training_coach.api.app import (
 )
 from training_coach.api.security import SECURITY_HEADERS
 from training_coach.config import Settings
+from training_coach.db.models import User
+from training_coach.db.session import make_session_factory, session_scope
+from training_coach.services import backup, left_list
 from training_coach.services.user_settings import Prefs
 from training_coach.services.users import OWNER
 
@@ -97,6 +103,67 @@ async def test_backups_start_for_a_database_file_and_stop_cleanly(tmp_path: Path
     task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await task
+
+
+async def test_people_who_left_and_are_back_are_named_never_deleted(engine: Engine) -> None:
+    """After a restore (ADR-0088): the owner hears of it and deletes them on purpose."""
+    joined = datetime(2026, 11, 1, tzinfo=UTC)
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=4, created_at=joined))
+    source = backup.database_path(str(engine.url))
+    assert source is not None
+    left_list.record(left_list.path_for(source), 4, joined, datetime(2026, 11, 7, tzinfo=UTC))
+    sent: list[str] = []
+
+    async def notify(text: str) -> bool:
+        sent.append(text)
+        return True
+
+    settings = Settings(environment="test", database_url=str(engine.url))
+    with capture_logs() as logs:
+        await _left_back(settings, make_session_factory(engine), notify)
+    assert [entry["users"] for entry in logs if entry["event"] == "left.back"] == [[4]]
+    assert sent == [api_app.LEFT_BACK.format(count="1 person")]
+    with session_scope(make_session_factory(engine)) as shared:
+        assert shared.get(User, 4) is not None
+
+
+@pytest.mark.parametrize("broken", ["not json", '[{"id": 4}]'])
+async def test_a_list_it_cant_read_is_told_and_never_stops_start_up(
+    engine: Engine, broken: str
+) -> None:
+    """Review of #600: just after a restore is when the owner needs the app up most."""
+    source = backup.database_path(str(engine.url))
+    assert source is not None
+    left_list.path_for(source).write_text(broken)
+    sent: list[str] = []
+
+    async def notify(text: str) -> bool:
+        sent.append(text)
+        raise RuntimeError("telegram down")  # a failing message doesn't stop it either
+
+    settings = Settings(environment="test", database_url=str(engine.url))
+    with capture_logs() as logs:
+        await _left_back(settings, make_session_factory(engine), notify)
+    assert "left.check_failed" in [entry["event"] for entry in logs]
+    assert sent == [api_app.LEFT_UNREADABLE]
+
+
+async def test_no_word_when_nobody_who_left_is_back(engine: Engine) -> None:
+    sent: list[str] = []
+
+    async def notify(text: str) -> bool:
+        sent.append(text)
+        return True
+
+    await _left_back(
+        Settings(environment="test", database_url=str(engine.url)),
+        make_session_factory(engine),
+        notify,
+    )
+    memory = Settings(environment="test", database_url="sqlite:///:memory:")
+    await _left_back(memory, make_session_factory(engine), notify)  # no file, so no list
+    assert sent == []
 
 
 def test_no_backups_for_an_in_memory_database(settings: Settings) -> None:

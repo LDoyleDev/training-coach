@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from sqlalchemy.orm import Session, sessionmaker
 from telegram import Bot
 
 from training_coach import __version__
@@ -61,7 +62,7 @@ from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.domain.rate_limit import RateLimit
 from training_coach.logging import configure_logging
-from training_coach.services import backup, users
+from training_coach.services import backup, left_list, users
 from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
@@ -123,6 +124,45 @@ def _start_backups(settings: Settings, notify: backup.Notify | None) -> asyncio.
     )
     task.add_done_callback(_report_death)
     return task
+
+
+LEFT_BACK = (
+    "{count} who left Training Coach are back in the database, from a restored backup. Nothing "
+    "was deleted: run `training-coach forget-left --apply` (backup-restore runbook, ADR-0088)."
+)
+
+
+async def _left_back(
+    settings: Settings, shared: sessionmaker[Session], notify: backup.Notify | None
+) -> None:
+    """After a restore, anyone on the left list who is back is named, never deleted here: the
+    owner deletes them again on purpose (ADR-0088). Only a warning, so it never stops the app
+    starting: a list it can't read (malformed, or put back with the wrong owner) is logged and
+    told instead, as the owner needs the app up most just after a restore."""
+    try:
+        path = left_list.for_url(settings.database_url)
+        if path is None:
+            return
+        entries = left_list.read(path)
+        with session_scope(shared) as session:
+            back = left_list.back(session, entries)
+        if not back:
+            return
+        log.error("left.back", users=back)
+        text = LEFT_BACK.format(count=f"{len(back)} people" if len(back) > 1 else "1 person")
+    except Exception as exc:  # a warning step must not stop start-up
+        log.error("left.check_failed", error=type(exc).__name__)
+        text = LEFT_UNREADABLE
+    if notify is not None:
+        with contextlib.suppress(Exception):
+            await notify(text)
+
+
+LEFT_UNREADABLE = (
+    "Training Coach couldn't read its list of people who left (left-users.json), so it can't "
+    "tell whether a restore brought anyone back. Check the file (backup-restore runbook, "
+    "ADR-0088)."
+)
 
 
 def _report_death(task: "asyncio.Task[None]") -> None:
@@ -208,6 +248,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         notify = _owner_notifier(settings, bot.bot if bot else None)
         app.state.notify = notify  # ops: a failed backup
         nightly = _start_backups(settings, notify)
+        await _left_back(settings, make_session_factory(engine), notify)
         try:
             yield
         finally:

@@ -70,6 +70,17 @@ docker compose up -d --build                               # migrations run on s
 curl -s localhost:8095/healthz && docker compose logs app | grep -E "bot.started|backup"
 ```
 
+Then put back who left (ADR-0088): a backup from before someone left brings them back. The
+app says so at start-up (`left.back` in the log, and a message to you) but deletes nobody itself:
+
+```bash
+docker compose exec app training-coach forget-left           # names who is back, by id
+docker compose exec app training-coach forget-left --apply   # deletes them again
+```
+
+It matches by id and join time, so someone new on a left person's id is never touched. With the
+SD card gone too, restore `left-users.json` first (below), then run it.
+
 Restoring an older backup into a newer release is fine: migrations bring it up to date on
 start. Restoring into an older release than the backup's needs that release's schema; check
 out the matching tag first.
@@ -149,6 +160,8 @@ On any machine with age: download the file from the R2 dashboard (or
 `rclone copy r2:<bucket>/<name> .`), then decrypt with the backup key, e.g. on Windows
 `age -d -i $HOME\.age\training-coach-backups.txt -o training_coach.db <name>.db.age` (or a key
 file restored from the password manager), and restore that file as in "Restore" above.
+Decrypt `left-users.json.age` the same way to `data/left-users.json` (owner `10001`, mode 640)
+before starting the app, so `forget-left` has the list.
 
 ## Rehearsal
 

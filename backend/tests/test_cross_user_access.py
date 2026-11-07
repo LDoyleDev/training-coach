@@ -23,7 +23,7 @@ RAW = "raw SQL"  # sqlalchemy text(), .connection(), .connect(), exec_driver_sql
 # (module::function, kind) -> why it may see more than one person.
 ALLOWED: dict[tuple[str, str], str] = {
     ("db.session::<module>", ALL): "defines the option",
-    ("services.erase::erase", ALL): "deletes the named person's workouts and queue row",
+    ("services.erase::_delete", ALL): "deletes the named person's workouts and queue row",
     ("services.seed::_stored_items_preflight", ALL): (
         "what anyone's plan uses, slugs and places only: the catalogue must keep it"
     ),
@@ -63,7 +63,9 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("services.ai_key::rotate_all", ALL): "re-seals every person's key with a new app key",
     ("api.app::create_app", UNBOUND): "app.state.shared_sessions, for the lookups below",
     ("api.app::create_app", SHARED): "made once here",
-    ("api.app::create_app.lifespan", UNBOUND): "links the owner at start-up (users.link_owner)",
+    ("api.app::create_app.lifespan", UNBOUND): (
+        "links the owner at start-up (users.link_owner); finds who left and is back (ADR-0088)"
+    ),
     ("api.account::erase_my_data", UNBOUND): "erase deletes and recreates the user row (ADR-0044)",
     ("api.auth::_shared", SHARED): "sign-in: whose cookie or link is this",
     ("api.invites::_shared", SHARED): "invites and users are shared; labels and join days only",
@@ -73,6 +75,7 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("api.mcp::connection", SHARED): "whose bearer token is this",
     ("__main__::seed", UNBOUND): "the seed command: shared plan rows and everyone's start",
     ("__main__::rotate_secrets", UNBOUND): "re-seals every person's AI key",
+    ("__main__::forget_left", UNBOUND): "deletes listed people a restore put back (ADR-0088)",
     ("services.backup::create", RAW): "sqlite3's backup API copies the whole file",
 }
 
