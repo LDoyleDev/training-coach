@@ -341,6 +341,85 @@ pull-ups, Nordics, reverse Nordic, ab rollout, HIIT) need replacing. Options:
 | S1 **"Starting" versions** (recommended) | A 2-day and a 3-day full-body starter written for levels 1-3: squat, glute bridge or step-up, push-up from the wall up, doorframe row, plank, balance, calf raise, a walk. Written and checked like N | Reviewable, like every starter so far | Two more starters in `plan.toml` |
 | S2 Swap at run time | Each exercise names its entry exercise; below its bottom level the session uses that one | One starter per day count | Generated sessions are harder to review; the picker (step 7) is where swapping belongs |
 
+### S1: the starting starters (proposed 7 Nov 2026, for Liam's review)
+
+Nothing here ships until Liam has read it. Every exercise is in the catalogue, and none needs kit
+at its first step except a door for the row. The sums are the app's own: `plan_coverage` and the
+guided estimate, on the drafts run through the seed. Ranges are 8-15 reps as above, or the range
+the catalogue already gives an entry exercise.
+
+**2-day full body:** A and B, about three days apart.
+
+| Session | Home (sets) | Time |
+| --- | --- | --- |
+| A | sit to stand 3 + doorway row 3; push-up 3 + glute bridge 3; calf raise 3 + plank 2; balance 2; a walk of 5-15 min (20) | 35 min |
+| B | step-up 2 a side + push-up 3; hip hinge 3 + doorway row 3; lateral raise 3 + curl 2; balance 2; a walk of 5-15 min (19) | 37 min |
+
+**3-day full body:** A, B and C, with a day between.
+
+| Session | Home (sets) | Time |
+| --- | --- | --- |
+| A | sit to stand 3 + doorway row 3; push-up 3 + glute bridge 2; calf raise 3 + plank 2; balance 2 (18) | 28 min |
+| B | step-up 3 a side + push-up 3; hip hinge 3 + doorway row 3; lateral raise 3 + curl 3; balance 2 (20) | 33 min |
+| C | sit to stand 3 + doorway row 2; push-up 2 + standing leg curl 3; calf raise 2 + seated press 2; toe lift 2; plank 2; balance 2 (20) | 32 min |
+
+"Sit to stand" is the low end of the Goblet squat ladder. The times include the 5-minute warm-up;
+the estimator runs high for short sets, and Short on time today offers 30 or 20 on all but the
+3-day A, which offers 20.
+
+Sets a week, as the map counts them:
+
+| Muscle | 2-day | 3-day |
+| --- | --- | --- |
+| Quads | 5, light green | 9, light green |
+| Glutes | 9.5, light green | 12.5, green |
+| Hamstrings | 4.5, light green | 7, light green |
+| Chest | 6, light green | 8, light green |
+| Lats | 6, light green | 8, light green |
+| Upper back | 6, light green | 8, light green |
+| Triceps | 3, **amber** | 5, light green |
+| Biceps | 5, light green | 7, light green |
+| Side delts | 3, **amber** | 4, light green |
+| Calves | 3, **amber** | 5, light green |
+| Abs | 2, **amber** | 4, light green |
+| Lower back | 3, **amber** | 3, **amber** |
+| Adductors | 3, **amber** | 6, green |
+
+**Where these are a judgment call:**
+
+- **The 2-day is short of the table above** (5-7 sets for each main muscle) on triceps, side delts
+  and calves, and just short on hamstrings. One set more of each adds about 8 minutes across the
+  week. I kept the sessions under 40 minutes, since a new person's first weeks are for learning
+  the movements, and the map shows the gap.
+- **A level 1 person has no row without a band.** The doorway row starts at level 2, and the band
+  row needs a band. They would start on its lowest step, which may be too much.
+- **The floor.** The glute bridge's level 1 step is standing and its later ones are on the floor;
+  the plank starts at a counter. "No floor work" is handled by the step marks, not by the starter.
+- **No gym versions.** Machines start at level 3, so these run the same at the gym, and the picker
+  can swap one in. Away is the same list, as nothing needs kit.
+- **No neck work, HIIT or heavy loading**, as the spec says. Over-65s' balance and sit-to-stand
+  "snack" is the walk-through's suggestion, not part of these lists.
+- **The easy start (B6) sits on top:** the first two weeks run one or two sets of three or four of
+  these, with 5-10 minutes of walking.
+
+**Two things the seed needs to accept these:**
+
+- An exercise with a catalogue `range` can't also be used by a session, so `range` comes off the
+  ones used here, and each session item sets its own.
+- A walk inside a strength session works in the sums. It would be the first, so the guided
+  session's handling of it needs checking when the starters are built.
+
+**To decide: rest days (builder N's last point).** The queue offers its next session every day
+(ADR-0006), so a 3-day queue of A, B, C would offer B the day after A, and the map would warn that
+they run back to back.
+
+- **Rest places in the queue (recommended):** A, rest, B, rest, C, rest, rest. It keeps ADR-0006:
+  a missed session still moves everything back a day, and the map counts days correctly. The days
+  tapped in the walk-through set where the queue starts.
+- **Training days as a setting:** sessions are only offered on the tapped days. It's closer to how
+  people think, but it adds a second rule beside the queue, and a missed Monday waits until
+  Wednesday.
+
 ## In the code, in outline
 
 - **`plan.toml`:** `[exercises.levels]` per step, step marks, `failure_ok` per exercise, the
