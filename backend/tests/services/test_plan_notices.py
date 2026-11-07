@@ -10,7 +10,7 @@ from tests.services.test_seed import MINI_PLAN
 from training_coach.db.models import PlanNotice, SessionTemplate, User
 from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
 from training_coach.services import plan_notices
-from training_coach.services.seed import apply_seed, load_plan
+from training_coach.services.seed import SeedError, apply_seed, load_plan
 
 NOW = datetime(2026, 11, 6, 12, tzinfo=UTC)
 RENAMED_STEP = MINI_PLAN.replace(
@@ -59,6 +59,24 @@ def test_a_change_to_an_exercise_in_my_plan_tells_me_once(
     apply_seed(started, load_plan(plan))  # the next start finds nothing new to say
     started.commit()
     assert _texts(started) == [text]
+
+
+def test_a_level_put_in_the_middle_of_a_ladder_is_refused_not_told_as_renames(
+    started: Session,
+) -> None:
+    """Steps compare by position, so an insert would read as every later step renamed. The seed
+    refuses it first: a level goes in the middle by a migration, which writes its own notices."""
+    inserted = MINI_PLAN.replace(
+        "levels = { Negatives = 4, Strict = 4, Weighted = 6 }",
+        "levels = { Negatives = 4, Slow = 4, Strict = 4, Weighted = 6 }",
+    ).replace(
+        'ladder = ["Negatives", "Strict", "Weighted"]',
+        'ladder = ["Negatives", "Slow", "Strict", "Weighted"]',
+    )
+    with pytest.raises(SeedError):
+        apply_seed(started, load_plan(inserted))
+    started.rollback()
+    assert _texts(started) == []
 
 
 def test_a_new_plan_and_a_changed_cue_say_nothing(started: Session) -> None:
