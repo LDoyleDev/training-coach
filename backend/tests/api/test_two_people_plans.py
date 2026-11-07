@@ -56,7 +56,9 @@ def pair(engine: Engine) -> Iterator[Pair]:
             s.add(User(id=2))
             s.flush()
             seed.apply_seed(s, seed.bundled_plan())
-        settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+        settings = Settings(  # two people sign in only with TC_MULTI_USER on (ADR-0059)
+            environment="test", database_url=str(engine.url), public_url=ORIGIN, multi_user=True
+        )
         app = create_app(settings)
         with TestClient(app, base_url=ORIGIN) as first:
             # The second browser shares the app the first one started: entering it would run

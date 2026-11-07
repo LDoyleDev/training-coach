@@ -36,8 +36,10 @@ ALL = ["training:read", "body:read", "readiness:read", "log:propose"]
 
 
 @contextmanager
-def app_client(engine: Engine) -> Iterator[TestClient]:
-    settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+def app_client(engine: Engine, multi_user: bool = False) -> Iterator[TestClient]:
+    settings = Settings(
+        environment="test", database_url=str(engine.url), public_url=ORIGIN, multi_user=multi_user
+    )
     # The tunnel reaches the app from the Docker bridge, naming the caller in CF-Connecting-IP.
     with TestClient(create_app(settings), base_url=ORIGIN, client=("172.17.0.1", 50000)) as client:
         yield client

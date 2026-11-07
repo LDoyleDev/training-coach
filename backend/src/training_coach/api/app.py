@@ -5,6 +5,7 @@ import asyncio
 import contextlib
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 
 import structlog
@@ -62,7 +63,7 @@ from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.domain.rate_limit import RateLimit
 from training_coach.logging import configure_logging
-from training_coach.services import backup, left_list, users
+from training_coach.services import backup, left_list, users, wind_down
 from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
@@ -124,6 +125,60 @@ def _start_backups(settings: Settings, notify: backup.Notify | None) -> asyncio.
     )
     task.add_done_callback(_report_death)
     return task
+
+
+def _start_wind_down(
+    settings: Settings,
+    shared: sessionmaker[Session],
+    send: Send | None,
+    notify: backup.Notify | None,
+) -> asyncio.Task[None]:
+    """The members' wind-down (ADR-0059), every day whatever the switch says, bot or no bot."""
+    left = left_list.for_url(settings.database_url)
+
+    def today() -> wind_down.Report:
+        with session_scope(shared) as session:
+            local = datetime.now(UTC).astimezone(settings.tz).date()
+            return wind_down.run(session, settings.multi_user, local, left)
+
+    async def once() -> None:
+        report = await asyncio.to_thread(today)
+        await _tell_wind_down(report, send, notify)
+
+    task = asyncio.create_task(wind_down.run_daily(once, settings.tz), name="wind_down.daily")
+    task.add_done_callback(_report_wind_down_death)
+    return task
+
+
+async def _tell_wind_down(
+    report: wind_down.Report, send: Send | None, notify: backup.Notify | None
+) -> None:
+    """Each member in their own chat; the owner gets the count and the day, never who. A
+    message that can't go out is logged, never stops the rest."""
+    messages = [(t.chat, wind_down.closing_text(t.on)) for t in report.closing]
+    messages += [(t.chat, wind_down.ERASED) for t in report.erased]
+    for chat, text in messages:
+        if send is not None and chat is not None:
+            try:
+                await send(chat, text)
+            except Exception as exc:  # the next member is still told
+                log.warning("wind_down.tell_failed", error=type(exc).__name__)
+    if report.closing and notify is not None:
+        count = len(report.closing)
+        who = "1 member" if count == 1 else f"{count} members"
+        on = wind_down.day(report.closing[0].on)
+        with contextlib.suppress(Exception):
+            await notify(
+                f"TC_MULTI_USER is off: Training Coach is closing to {who} (told on Telegram if "
+                f"linked). Their data is erased on {on} unless you switch it back on before then."
+            )
+
+
+def _report_wind_down_death(task: "asyncio.Task[None]") -> None:
+    if task.cancelled():
+        return
+    error = task.exception()
+    log.error("wind_down.loop_died", error=type(error).__name__ if error else "returned")
 
 
 LEFT_BACK = (
@@ -248,10 +303,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         notify = _owner_notifier(settings, bot.bot if bot else None)
         app.state.notify = notify  # ops: a failed backup
         nightly = _start_backups(settings, notify)
+        closing = _start_wind_down(settings, make_session_factory(engine), app.state.send, notify)
         await _left_back(settings, make_session_factory(engine), notify)
         try:
             yield
         finally:
+            closing.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await closing
             if nightly is not None:
                 nightly.cancel()
                 # A loop that died was logged by its done-callback; never let it stop shutdown.

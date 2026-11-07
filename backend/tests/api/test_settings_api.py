@@ -114,7 +114,9 @@ def test_a_second_persons_new_time_moves_only_their_own_jobs(engine: Engine) -> 
         shared.add(User(id=OTHER))
     with session_scope(make_session_factory(engine, user_id=OTHER)) as bound:
         token = auth.create_link(bound, datetime.now(UTC))
-    settings = Settings(environment="test", database_url=str(engine.url), public_url=ORIGIN)
+    settings = Settings(
+        environment="test", database_url=str(engine.url), public_url=ORIGIN, multi_user=True
+    )
     with TestClient(create_app(settings), base_url=ORIGIN) as other:
         assert other.post("/api/auth/redeem", json={"token": token}).status_code == 204
         calls: list[tuple[int, Prefs]] = []

@@ -80,7 +80,7 @@ def test_anyone_else_is_refused_the_import(engine: Engine) -> None:
         shared.add(User(id=2))
         shared.flush()
         apply_seed(shared, load_plan())
-    settings = Settings(environment="test", database_url=str(engine.url))
+    settings = Settings(environment="test", database_url=str(engine.url), multi_user=True)
     with TestClient(create_app(settings), base_url="https://testserver") as member:
         with make_session_factory(engine, user_id=2)() as bound:
             token = auth.create_link(bound, datetime.now(UTC))

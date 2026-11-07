@@ -231,7 +231,10 @@ def test_signed_in_reads_show_only_my_own_data(two: Engine, me: int, other: int)
     with make_session_factory(two, user_id=me)() as bound:
         token = auth.create_link(bound, NOW)
         bound.commit()
-    settings = Settings(environment="test", database_url=str(two.url), public_url=ORIGIN)
+    # Two people only sign in with TC_MULTI_USER on (ADR-0059).
+    settings = Settings(
+        environment="test", database_url=str(two.url), public_url=ORIGIN, multi_user=True
+    )
     app = create_app(settings)
     with TestClient(app, base_url=ORIGIN) as client:
         # Signed in before the passkeys exist: a start link only works until then.

@@ -17,6 +17,7 @@ from training_coach.api.app import (
     _report_death,
     _sender,
     _start_backups,
+    _tell_wind_down,
     create_app,
 )
 from training_coach.api.security import SECURITY_HEADERS
@@ -164,6 +165,38 @@ async def test_no_word_when_nobody_who_left_is_back(engine: Engine) -> None:
     memory = Settings(environment="test", database_url="sqlite:///:memory:")
     await _left_back(memory, make_session_factory(engine), notify)  # no file, so no list
     assert sent == []
+
+
+async def test_the_wind_down_tells_each_member_and_the_owner_only_a_count() -> None:
+    from datetime import date
+
+    from training_coach.services import wind_down
+    from training_coach.services.wind_down import Report, Told
+
+    on = date(2026, 12, 7)
+    sent: list[tuple[int, str]] = []
+    owner: list[str] = []
+
+    async def send(chat: int, text: str) -> bool:
+        if chat == 2222:
+            raise RuntimeError("blocked the bot")  # the next one is still told
+        sent.append((chat, text))
+        return True
+
+    async def notify(text: str) -> bool:
+        owner.append(text)
+        return True
+
+    report = Report(
+        closing=[Told(2222, on), Told(3333, on), Told(None, on)], erased=[Told(4444, on)]
+    )
+    await _tell_wind_down(report, send, notify)
+    assert sent == [(3333, wind_down.closing_text(on)), (4444, wind_down.ERASED)]
+    assert len(owner) == 1
+    assert "closing to 3 members" in owner[0]
+    assert "7 December 2026" in owner[0]
+    await _tell_wind_down(Report(), send, notify)  # a quiet day: nothing
+    assert len(owner) == 1
 
 
 def test_no_backups_for_an_in_memory_database(settings: Settings) -> None:
