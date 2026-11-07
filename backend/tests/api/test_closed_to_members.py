@@ -12,7 +12,9 @@ from sqlalchemy import Engine
 
 from tests import oauth_flow as flow
 from tests.api.test_mcp import rpc
+from tests.routes import api_routes
 from training_coach.api.app import create_app
+from training_coach.api.auth import WIND_DOWN
 from training_coach.config import Settings
 from training_coach.db.models import User
 from training_coach.db.session import make_session_factory, session_scope
@@ -71,6 +73,19 @@ def test_a_member_still_has_who_they_are_and_their_export(off: TestClient, two: 
     _sign_in(off, two, MEMBER)
     assert off.get("/api/auth/me").json()["user_id"] == MEMBER
     assert off.get("/api/account/export").status_code == 200  # just signed in: fresh
+
+
+def test_every_wind_down_path_is_a_real_route(two: Engine) -> None:
+    """Review of #601: a typo or a later rename mustn't silently close the way out."""
+    app = create_app(Settings(environment="test", database_url=str(two.url)))
+    assert WIND_DOWN - {path for path, _ in api_routes(app)} == set()
+
+
+def test_a_member_can_still_leave_while_off(off: TestClient, two: Engine) -> None:
+    _sign_in(off, two, MEMBER)
+    assert off.post("/api/account/leave", json={"confirm": "leave"}).status_code == 204
+    with session_scope(make_session_factory(two)) as shared:
+        assert shared.get(User, MEMBER) is None
 
 
 def test_the_owner_is_never_closed_out(off: TestClient, two: Engine) -> None:
