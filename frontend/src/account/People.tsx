@@ -1,6 +1,14 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
-import { fetchPeople, makeInvite, type People as Found, revokeInvite, SignedOutError } from '../api'
-import { card, primaryInline, small } from '../ui'
+import {
+  fetchPeople,
+  makeInvite,
+  type People as Found,
+  removeMember,
+  revokeInvite,
+  SignedOutError,
+  StaleSignInError,
+} from '../api'
+import { card, danger, primaryInline, small } from '../ui'
 
 const day = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
@@ -8,13 +16,17 @@ const day = (iso: string) =>
 /**
  * People (ADR-0059), for the admin while invites are on: members by label and the day they
  * joined, nothing of their data; open invites, each revocable; and a one-time link to make, shown
- * once, to send by any messenger. Hidden for anyone else and while invites are off.
+ * once, to send by any messenger. Removing a member (ADR-0088) deletes everything of theirs, so it
+ * asks whether they were told and offered their export, and for the word typed. Hidden for anyone
+ * else and while invites are off.
  */
 export default function People() {
   const [found, setFound] = useState<Found | null>(null)
   const [label, setLabel] = useState('')
   const [link, setLink] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<number | null>(null)
+  const [confirm, setConfirm] = useState('')
 
   const load = useCallback((signal?: AbortSignal) => {
     fetchPeople(signal)
@@ -34,7 +46,10 @@ export default function People() {
     setNote(
       error instanceof SignedOutError
         ? 'Your sign-in ended. Sign in again, then retry.'
-        : "That didn't work. Check your connection and try again.",
+        : error instanceof StaleSignInError
+          ? 'For safety, removing someone needs you to confirm it’s you. Try again and confirm ' +
+            'with your fingerprint when your phone asks.'
+          : "That didn't work. Check your connection and try again.",
     )
 
   const make = async (event: FormEvent) => {
@@ -45,6 +60,19 @@ export default function People() {
       if (made === 'full') return setNote('There is no room for another member.')
       setLink(`${window.location.origin}/join#${made.token}`)
       setLabel('')
+      load()
+    } catch (error) {
+      failed(error)
+    }
+  }
+
+  const remove = async (event: FormEvent, id: number) => {
+    event.preventDefault()
+    setNote(null)
+    try {
+      setNote((await removeMember(id, confirm)) ? 'Removed.' : 'They had already gone.')
+      setRemoving(null)
+      setConfirm('')
       load()
     } catch (error) {
       failed(error)
@@ -71,12 +99,59 @@ export default function People() {
         joined, nothing of their training or health.
       </p>
       {found.members.length > 0 && (
-        <ul className="m-0 pl-5">
-          {found.members.map((m, i) => (
-            <li key={`${m.label ?? ''}-${i}`}>
-              {m.label ?? 'No name given'}, joined {day(m.joined)}
-            </li>
-          ))}
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
+          {found.members.map((m) => {
+            const name = m.label ?? 'No name given'
+            return (
+              <li key={m.id} className="flex flex-col gap-2">
+                <span className="flex items-center gap-2">
+                  <span className="flex-1">
+                    {name}, joined {day(m.joined)}
+                  </span>
+                  {removing !== m.id && (
+                    <button
+                      type="button"
+                      className={small}
+                      onClick={() => {
+                        setRemoving(m.id)
+                        setConfirm('')
+                      }}
+                    >
+                      Remove {m.label ?? 'member'}
+                    </button>
+                  )}
+                </span>
+                {removing === m.id && (
+                  <form onSubmit={(e) => void remove(e, m.id)} className="flex flex-col gap-2">
+                    <p className="m-0">
+                      Have you told {m.label ?? 'them'} and offered them their export first?
+                      Removing deletes their account and everything of theirs at once.
+                    </p>
+                    <label className="flex flex-col gap-1">
+                      <span>
+                        Type <strong>remove</strong> to confirm
+                      </span>
+                      <input
+                        value={confirm}
+                        onChange={(e) => setConfirm(e.target.value)}
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                      />
+                    </label>
+                    <span className="flex gap-2">
+                      <button type="submit" disabled={confirm !== 'remove'} className={danger}>
+                        Remove {m.label ?? 'member'}
+                      </button>
+                      <button type="button" className={small} onClick={() => setRemoving(null)}>
+                        Keep them
+                      </button>
+                    </span>
+                  </form>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
       {found.invites.length > 0 && (
