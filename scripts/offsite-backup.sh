@@ -89,17 +89,18 @@ else
   log "uploaded $name"
 fi
 
+# Retention: nothing off-site is older than KEEP_DAYS. Before the list below, so a failed list
+# upload never keeps old backups.
+rclone delete --min-age "${KEEP_DAYS}d" --include 'training_coach-*.db.age' "$remote/"
+
 # The people who left (ADR-0088): listed beside the database, not in it, so a restore can't bring
 # them back. Copied every night, replacing the last copy, so it outlives the SD card too.
 left="$(dirname "$BACKUPS")/left-users.json"
 if [ -f "$left" ]; then
-  listed=$(mktemp -d)
-  age "${recipients[@]}" -o "$listed/left-users.json.age" "$left"
-  rclone copyto --s3-no-check-bucket --s3-no-head "$listed/left-users.json.age" "$remote/left-users.json.age"
+  [ -n "$work" ] || work=$(mktemp -d)  # removed on exit, like the backup's
+  age "${recipients[@]}" -o "$work/left-users.json.age" "$left"
+  rclone copyto --s3-no-check-bucket --s3-no-head "$work/left-users.json.age" "$remote/left-users.json.age"
   log "uploaded left-users.json.age"
 fi
-
-# Retention: nothing off-site is older than KEEP_DAYS.
-rclone delete --min-age "${KEEP_DAYS}d" --include 'training_coach-*.db.age' "$remote/"
 log "ok: kept the last $KEEP_DAYS days off-site"
 ping ""

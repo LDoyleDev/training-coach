@@ -136,18 +136,33 @@ async def _left_back(
     settings: Settings, shared: sessionmaker[Session], notify: backup.Notify | None
 ) -> None:
     """After a restore, anyone on the left list who is back is named, never deleted here: the
-    owner deletes them again on purpose (ADR-0088)."""
-    source = backup.database_path(settings.database_url)
-    if source is None:
-        return
-    entries = left_list.read(left_list.path_for(source))
-    with session_scope(shared) as session:
-        back = left_list.back(session, entries)
-    if not back:
-        return
-    log.error("left.back", users=back)
+    owner deletes them again on purpose (ADR-0088). Only a warning, so it never stops the app
+    starting: a list it can't read (malformed, or put back with the wrong owner) is logged and
+    told instead, as the owner needs the app up most just after a restore."""
+    try:
+        path = left_list.for_url(settings.database_url)
+        if path is None:
+            return
+        entries = left_list.read(path)
+        with session_scope(shared) as session:
+            back = left_list.back(session, entries)
+        if not back:
+            return
+        log.error("left.back", users=back)
+        text = LEFT_BACK.format(count=f"{len(back)} people" if len(back) > 1 else "1 person")
+    except Exception as exc:  # a warning step must not stop start-up
+        log.error("left.check_failed", error=type(exc).__name__)
+        text = LEFT_UNREADABLE
     if notify is not None:
-        await notify(LEFT_BACK.format(count=f"{len(back)} people" if len(back) > 1 else "1 person"))
+        with contextlib.suppress(Exception):
+            await notify(text)
+
+
+LEFT_UNREADABLE = (
+    "Training Coach couldn't read its list of people who left (left-users.json), so it can't "
+    "tell whether a restore brought anyone back. Check the file (backup-restore runbook, "
+    "ADR-0088)."
+)
 
 
 def _report_death(task: "asyncio.Task[None]") -> None:
