@@ -391,7 +391,7 @@ export default function Settings() {
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
         <legend className="mb-2 font-bold">Time per session</legend>
         <p className="m-0 text-sm text-[var(--slate)]">
-          Every session runs at this length unless you pick another for the day.
+          Every session longer than this runs at this length unless you pick another for the day.
         </p>
         <div className="grid grid-cols-2 gap-2">
           {LENGTHS.map(({ minutes, label }) => (

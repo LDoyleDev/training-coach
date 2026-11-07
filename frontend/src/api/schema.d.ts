@@ -1498,7 +1498,7 @@ export interface paths {
          * @description Run today's session shorter, or as planned again (ADR-0082): the session at that
          *     length. 409 when the session changed, another device moved on since ``revision``
          *     (reload), or a set is kept already (the length is fixed then); 422 for a session that
-         *     always runs as planned, or a Keep for an exercise it doesn't have.
+         *     always runs as planned, a length not on offer, or a Keep for an exercise it doesn't have.
          */
         put: operations["choose_length_api_session_length_put"];
         post?: never;
@@ -2981,7 +2981,7 @@ export interface components {
         };
         /**
          * LengthBody
-         * @description Short on time today (ADR-0082): as planned (empty) or 40, 30 or 20 minutes, never
+         * @description Short on time today (ADR-0082): as planned (empty) or a length on offer, never
          *     dropping the exercises pinned with ``keep`` (slugs).
          */
         LengthBody: {
@@ -3003,8 +3003,9 @@ export interface components {
         /**
          * LengthView
          * @description Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on
-         *     offer, the exercises pinned with Keep, about how long as planned, what the chosen length
-         *     drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
+         *     offer (only those shorter than as planned, so maybe none), the exercises pinned with Keep,
+         *     about how long as planned, what the chosen length drops (exercise names, in the order they
+         *     went) and the warm-up it keeps: the 5-minute one,
          *     ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
          *     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
          *     kept, so the length no longer changes. ``from_setting``: the day has no choice, so
