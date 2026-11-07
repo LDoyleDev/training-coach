@@ -4,7 +4,7 @@ import People from './People'
 
 type Reply = { status: number; body?: unknown }
 const PEOPLE = {
-  members: [{ label: 'Mum', joined: '2026-11-07' }],
+  members: [{ id: 2, label: 'Mum', joined: '2026-11-07' }],
   invites: [
     { id: 4, label: 'Sam', created_at: '2026-11-07T08:00:00Z', expires_at: '2026-11-10T08:00:00Z' },
   ],
@@ -109,4 +109,55 @@ test('a lost sign-in or a failure says what to do', async () => {
   expect(await screen.findByRole('status')).toHaveTextContent('Your sign-in ended')
   fireEvent.click(screen.getByRole('button', { name: 'Make an invite' }))
   expect(await screen.findByText(/That didn't work/)).toBeInTheDocument()
+})
+
+test('removing a member asks if they were told, needs the word, and says it is done', async () => {
+  const asked = serve({
+    'GET /api/people': [
+      { status: 200, body: PEOPLE },
+      { status: 200, body: { ...PEOPLE, members: [] } },
+    ],
+    'POST /api/people/2/remove': { status: 204 },
+  })
+  render(<People />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove Mum' }))
+  expect(screen.getByText(/Have you told Mum and offered them their export/)).toBeInTheDocument()
+  const go = screen.getByRole('button', { name: 'Remove Mum' })
+  expect(go).toBeDisabled()
+  fireEvent.change(screen.getByRole('textbox', { name: /Type remove/ }), {
+    target: { value: 'remove' },
+  })
+  fireEvent.click(go)
+  expect(await screen.findByRole('status')).toHaveTextContent('Removed.')
+  expect(asked).toContain('POST /api/people/2/remove {"confirm":"remove"}')
+  expect(await screen.findByText(/0 of 5 members/)).toBeInTheDocument()
+})
+
+test('keeping them closes the question without removing anyone', async () => {
+  const asked = serve({ 'GET /api/people': { status: 200, body: PEOPLE } })
+  render(<People />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove Mum' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Keep them' }))
+  expect(screen.queryByRole('textbox', { name: /Type remove/ })).not.toBeInTheDocument()
+  expect(asked.some((a) => a.includes('/remove'))).toBe(false)
+})
+
+test('someone already gone, or a stale sign-in, says so', async () => {
+  serve({
+    'GET /api/people': { status: 200, body: PEOPLE },
+    'POST /api/people/2/remove': [{ status: 404 }, { status: 403 }],
+  })
+  render(<People />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove Mum' }))
+  fireEvent.change(screen.getByRole('textbox', { name: /Type remove/ }), {
+    target: { value: 'remove' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Remove Mum' }))
+  expect(await screen.findByRole('status')).toHaveTextContent('They had already gone.')
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove Mum' }))
+  fireEvent.change(screen.getByRole('textbox', { name: /Type remove/ }), {
+    target: { value: 'remove' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Remove Mum' }))
+  expect(await screen.findByText(/removing someone needs you to confirm/)).toBeInTheDocument()
 })
