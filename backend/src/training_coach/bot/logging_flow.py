@@ -205,7 +205,9 @@ class LogHandlers:
             await message.reply_text(VOICE_FAILED)
             return
         with session_scope(self.sessions) as session:
-            groq_quota.count(session, datetime.now(UTC))  # Groq answered: one of today's uses
+            # Groq answered: one of today's uses. Two notes at once can both pass the check
+            # before either counts, so the cap can be passed by a note or two: fine for fairness.
+            groq_quota.count(session, datetime.now(UTC))
         if not heard:
             await message.reply_text(VOICE_FAILED)
             return

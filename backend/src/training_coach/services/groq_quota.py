@@ -7,7 +7,7 @@ Counted from the person's own ``groq.used`` events since their local midnight; t
 bound to them, so the count is theirs.
 """
 
-from datetime import datetime, time
+from datetime import UTC, datetime, time
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
@@ -21,17 +21,20 @@ MEMBER_CAP = 20  # uses a day ("say 20", H1)
 USED = "groq.used"
 
 
-def _capped(session: Session) -> bool:
+def _admin(session: Session) -> bool:
+    """Only a session known to be an admin's goes uncapped: a cost guard fails closed."""
     user = bound_user(session)
     person = session.get(User, user) if user is not None else None
-    return person is not None and person.role != ADMIN
+    return person is not None and person.role == ADMIN
 
 
 def left(session: Session, now: datetime, tz: ZoneInfo) -> bool:
-    """Whether this person may use the shared key now."""
-    if not _capped(session):
+    """Whether this person may use the shared key now; never for a session bound to nobody."""
+    if _admin(session):
         return True
-    midnight = datetime.combine(now.astimezone(tz).date(), time(), tz)
+    if bound_user(session) is None:
+        return False
+    midnight = datetime.combine(now.astimezone(tz).date(), time(), tz).astimezone(UTC)
     used = session.scalar(
         select(func.count()).select_from(Event).where(Event.kind == USED, Event.at >= midnight)
     )
@@ -40,6 +43,6 @@ def left(session: Session, now: datetime, tz: ZoneInfo) -> bool:
 
 def count(session: Session, now: datetime) -> None:
     """One use Groq answered, for a member; nothing for an admin."""
-    if _capped(session):
+    if not _admin(session) and bound_user(session) is not None:
         session.add(Event(kind=USED, at=now, payload={}))
         session.flush()

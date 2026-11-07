@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import Engine, select
 
 from training_coach.db.models import Event, User
-from training_coach.db.session import make_session_factory, session_scope
+from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
 from training_coach.services import groq_quota
 from training_coach.services.users import OWNER
 
@@ -52,6 +52,24 @@ def test_the_count_starts_again_at_local_midnight(engine: Engine) -> None:
         _take(engine, member, late)
     assert not _take(engine, member, late)
     assert _take(engine, member, late + timedelta(hours=1))  # 00:30 the next day
+
+
+def test_uses_just_after_local_midnight_count_for_that_day(engine: Engine) -> None:
+    """00:10 in Berlin is 23:10 UTC the day before: still today's."""
+    member = _member(engine)
+    just_after = datetime(2026, 11, 7, 23, 10, tzinfo=UTC)
+    for _ in range(groq_quota.MEMBER_CAP):
+        _take(engine, member, just_after)
+    assert not _take(engine, member, just_after + timedelta(minutes=20))
+
+
+def test_a_session_bound_to_nobody_is_refused_and_counts_nothing(engine: Engine) -> None:
+    with session_scope(make_session_factory(engine)) as shared:
+        assert not groq_quota.left(shared, NOON, BERLIN)
+        groq_quota.count(shared, NOON)
+        everyone = {ALL_USERS: True}  # nobody's, so look at everyone's
+        used = select(Event).where(Event.kind == groq_quota.USED)
+        assert shared.scalars(used, execution_options=everyone).all() == []
 
 
 def test_each_members_count_is_their_own(engine: Engine) -> None:
