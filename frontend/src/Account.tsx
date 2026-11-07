@@ -4,6 +4,7 @@ import AiComments from './account/AiComments'
 import BandImport from './account/BandImport'
 import BodySettings from './account/BodySettings'
 import HeartRateZones from './account/HeartRateZones'
+import Leave from './account/Leave'
 import MyEquipment from './account/MyEquipment'
 import People from './account/People'
 import Residence from './account/Residence'
@@ -272,6 +273,8 @@ export default function Account() {
             </h2>
             <p className="m-0">{INTENDED_PURPOSE}</p>
           </section>
+
+          <Leave />
 
           <section aria-labelledby="erase" className={card}>
             <h2 id="erase" className="mb-2 text-xl">
