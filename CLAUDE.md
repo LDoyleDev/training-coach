@@ -39,7 +39,7 @@ make dev-web     # dashboard dev server, proxies to :8080
 make migration m="describe change"   # autogenerate an Alembic migration
 make migrate     # apply migrations
 make api-types   # regenerate dashboard API types after changing a response model (ADR-0020)
-make seed        # load/update the training plan (idempotent, never resets progress)
+make seed        # load/update the catalogue, start anyone with no plan (idempotent, ADR-0073)
 ```
 
 ## Workflow (every task)

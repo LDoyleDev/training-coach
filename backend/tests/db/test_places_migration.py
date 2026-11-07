@@ -10,6 +10,7 @@ from alembic.config import Config
 from tests.db.test_migrations import BACKEND
 
 BEFORE = "c3e8a1f5d9b2"  # the revision before places
+AFTER = "b4f9e2a7c1d6"  # places: later ones change the tables these rows go in
 
 
 def test_existing_workouts_and_items_are_home_and_a_downgrade_drops_only_gym_items(
@@ -49,7 +50,7 @@ def test_existing_workouts_and_items_are_home_and_a_downgrade_drops_only_gym_ite
                 " VALUES (1, '2026-10-26', 'done', '2026-10-26 07:00:00')"
             )
         )
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, AFTER)
     with engine.begin() as db:
         assert db.execute(text("SELECT place FROM workouts")).scalars().all() == ["home"]
         assert db.execute(text("SELECT place FROM template_items")).scalars().all() == ["home"]

@@ -12,6 +12,7 @@ plan file has been edited:
 """
 
 import tomllib
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from functools import lru_cache
@@ -20,7 +21,7 @@ from typing import Annotated, Literal, Self
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import (
@@ -29,6 +30,7 @@ from training_coach.db.models import (
     ExerciseState,
     FitnessTestDay,
     LadderStep,
+    PlanNotice,
     PlanState,
     PlanVersion,
     SessionTemplate,
@@ -36,11 +38,9 @@ from training_coach.db.models import (
     TemplateItem,
     User,
     UserSettings,
-    Workout,
-    version_on,
 )
 from training_coach.db.session import ALL_USERS
-from training_coach.domain.enums import ExerciseKind
+from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.fitness_tests import DAYS, FitnessTest, Unit
 from training_coach.domain.load import LoadKit
 from training_coach.domain.mobility_flow import Flow, Move
@@ -63,8 +63,10 @@ log = structlog.get_logger(__name__)
 
 SLUG = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 _PARK_OFFSET = 10_000
-# Loads only a gym carries: an exercise taking one isn't done away (ADR-0086).
-GYM_LOADS = frozenset({LoadKit.BARBELL, LoadKit.DUMBBELLS, LoadKit.MACHINE})
+STARTING_VERSION = "Starting plan"  # a new person's first version (ADR-0073)
+# Loads only a gym carries: an exercise taking one isn't done away (ADR-0086). Not dumbbells: a
+# home step that takes them names them as its kit, so away passes over it, as the kit lock does.
+GYM_LOADS = frozenset({LoadKit.BARBELL, LoadKit.MACHINE})
 
 
 class SeedError(RuntimeError):
@@ -112,6 +114,9 @@ class ExerciseSeed(_Strict):
     marks: dict[str, Annotated[list[Mark], Field(min_length=1)]] = Field(default_factory=dict)
     # A last set to failure is safe here: isolation and stable exercises (ADR-0084)
     failure_ok: bool = False
+    # A lengthened-position pick, first in the picker (program-builder.md, Decided 5); read from
+    # the bundled plan like needs
+    lengthened: bool = False
     # Reps, seconds or minutes a set, low to high, for an exercise no session uses yet (an
     # entry exercise, ADR-0083): its questions ask for the bottom. A session item sets its own.
     range: tuple[Annotated[int, Field(ge=1)], Annotated[int, Field(ge=1)]] | None = None
@@ -222,6 +227,20 @@ class ItemSeed(_Strict):
         return self
 
 
+def away_problem(exercise: ExerciseSeed) -> str | None:
+    """Why an exercise can't be in an away version, in words following its name; None when it
+    can (``PlanSeed._away_needs_no_kit``)."""
+    first = exercise.ladder[0]
+    if exercise.needs.get(first) or first in exercise.loads:
+        return f"'s first step {first!r} needs kit"
+    if set(exercise.loads.values()) & GYM_LOADS:
+        return " is gym work"
+    for step in exercise.loads:
+        if not exercise.needs.get(step):
+            return f"'s step {step!r} takes load but names no kit"
+    return None
+
+
 class SessionSeed(_Strict):
     slug: str = Field(pattern=SLUG, max_length=64)
     type: Literal["strength", "conditioning", "recovery"] = "strength"
@@ -239,17 +258,19 @@ class SessionSeed(_Strict):
         """Every item of every version."""
         return (*self.items, *self.gym, *self.away)
 
+    @staticmethod
+    def check_pairs(name: str, version: Sequence[ItemSeed]) -> None:
+        """Each pair number marks exactly two items, next to each other."""
+        numbers = [item.pair for item in version]
+        for number in {n for n in numbers if n is not None}:
+            where = [i for i, n in enumerate(numbers) if n == number]
+            if len(where) != 2 or where[1] != where[0] + 1:
+                raise ValueError(f"session {name}: pair {number} must be two neighbouring items")
+
     @model_validator(mode="after")
     def _pairs(self) -> Self:
-        """Each pair number marks exactly two items, next to each other, in each version."""
         for version in (self.items, self.gym, self.away):
-            numbers = [item.pair for item in version]
-            for number in {n for n in numbers if n is not None}:
-                where = [i for i, n in enumerate(numbers) if n == number]
-                if len(where) != 2 or where[1] != where[0] + 1:
-                    raise ValueError(
-                        f"session {self.slug}: pair {number} must be two neighbouring items"
-                    )
+            self.check_pairs(self.slug, version)
         return self
 
 
@@ -410,20 +431,15 @@ class PlanSeed(_Strict):
 
     def _away_needs_no_kit(self) -> None:
         """An away version (ADR-0086) is done with no equipment: each exercise's first step
-        needs no kit and takes no load, so there is always a step to train, and none of its
-        steps takes a gym load (the gym catalogue's barbell, dumbbells and machines)."""
+        needs no kit and takes no load, so there is always a step to train; none of its steps
+        takes a gym load (a barbell or a machine); and a step that takes load names its kit, so
+        the kit lock passes over it away."""
         exercises = {e.slug: e for e in self.exercises}
         for session in self.sessions:
             for item in session.away:
-                exercise = exercises[item.exercise]
-                first = exercise.ladder[0]
-                if exercise.needs.get(first) or first in exercise.loads:
-                    raise ValueError(
-                        f"session {session.slug}: away, {item.exercise}'s first step "
-                        f"{first!r} needs kit"
-                    )
-                if set(exercise.loads.values()) & GYM_LOADS:
-                    raise ValueError(f"session {session.slug}: away, {item.exercise} is gym work")
+                problem = away_problem(exercises[item.exercise])
+                if problem:
+                    raise ValueError(f"session {session.slug}: away, {item.exercise}{problem}")
 
 
 def load_plan(text: str | None = None) -> PlanSeed:
@@ -456,14 +472,6 @@ class SeedResult:
 
 def _preflight(session: Session, plan: PlanSeed, exercises: dict[str, Exercise]) -> None:
     """Refuse plans that would drop things history depends on, before any write."""
-    existing_sessions = set(session.scalars(select(SessionTemplate.slug)))
-    removed = sorted(existing_sessions - {s.slug for s in plan.sessions})
-    if removed:
-        # Sessions define the queue (ADR-0006); dropping one would orphan it in the cycle.
-        raise SeedError(
-            f"sessions {removed} exist in the database but not in plan.toml; "
-            "removing a session needs a data migration (see docs/specs/phase-1-daily-loop.md)"
-        )
     # Every person's history protects the shared ladders, whoever this session is bound to.
     everyone = {ALL_USERS: True}
     in_use = set(
@@ -505,21 +513,25 @@ def _preflight(session: Session, plan: PlanSeed, exercises: dict[str, Exercise])
                 )
 
 
-def _versions_preflight(session: Session, plan: PlanSeed) -> None:
-    """A version workouts record stays: removing or re-dating it would rewrite their history."""
-    kept = {v.since for v in plan.versions}
-    recorded = session.execute(
-        select(PlanVersion.since, PlanVersion.name)
-        .join(Workout, Workout.plan_version_id == PlanVersion.id)
+def _stored_items_preflight(session: Session, plan: PlanSeed) -> None:
+    """The catalogue must still hold what anyone's plan uses: the checks ``PlanSeed`` makes of
+    its own sessions, made of everyone's stored ones (ADR-0073)."""
+    catalogue = {e.slug: e for e in plan.exercises}
+    stored = session.execute(
+        select(Exercise.slug, TemplateItem.place)
+        .join(TemplateItem, TemplateItem.exercise_id == Exercise.id)
         .distinct(),
         execution_options={ALL_USERS: True},
     )
-    for since, name in recorded:
-        if since not in kept:
-            raise SeedError(
-                f"plan version {name!r} (since {since}) is recorded on workouts but not in "
-                "plan.toml; keep it there (its name can change, its date can't)"
-            )
+    for slug, place in stored:
+        exercise = catalogue.get(slug)
+        if exercise is None:
+            raise SeedError(f"{slug} is in someone's plan, so it must stay in plan.toml")
+        if exercise.retired:
+            raise SeedError(f"{slug} is in someone's plan, so it can't be retired")
+        problem = away_problem(exercise) if place == Place.AWAY else None
+        if problem:
+            raise SeedError(f"{slug} is in someone's away version, and {slug}{problem}")
 
 
 def _tests_preflight(session: Session, plan: PlanSeed) -> None:
@@ -530,31 +542,6 @@ def _tests_preflight(session: Session, plan: PlanSeed) -> None:
     missing = sorted(recorded - kept)
     if missing:
         raise SeedError(f"tests {missing} have results but are not in plan.toml; keep them there")
-
-
-def _apply_versions(session: Session, plan: PlanSeed, result: SeedResult) -> None:
-    existing = {v.since: v for v in session.scalars(select(PlanVersion))}
-    for seed in plan.versions:
-        version = existing.pop(seed.since, None)
-        if version is None:
-            session.add(PlanVersion(since=seed.since, name=seed.name))
-            result.created += 1
-        else:
-            _set(version, result, name=seed.name)
-    for version in existing.values():  # unrecorded (the preflight checked)
-        session.delete(version)
-        result.deleted += 1
-    session.flush()
-    # Every workout carries the version in force on its date: one saved before its version
-    # existed, or one a version added between two others now covers, is brought up to date.
-    on_date = version_on(Workout.local_date)
-    filled = session.execute(
-        update(Workout)
-        .where(Workout.plan_version_id.is_distinct_from(on_date))
-        .values(plan_version_id=on_date),
-        execution_options={ALL_USERS: True},
-    )
-    result.updated += getattr(filled, "rowcount", 0)  # an UPDATE gives a CursorResult
 
 
 def _set(obj: object, result: SeedResult, **values: object) -> None:
@@ -568,7 +555,8 @@ def _set(obj: object, result: SeedResult, **values: object) -> None:
         result.updated += 1
 
 
-def _version(
+def sync_version(
+    user_id: int,
     items: list[TemplateItem],
     seeds: list[ItemSeed],
     exercises: dict[str, Exercise],
@@ -588,7 +576,7 @@ def _version(
         }
         item = found.get(position)
         if item is None:
-            items.append(TemplateItem(position=position, **values))
+            items.append(TemplateItem(user_id=user_id, position=position, **values))
             result.created += 1
         else:
             _set(item, result, **values)
@@ -598,79 +586,39 @@ def _version(
             result.deleted += 1
 
 
-def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
-    """Upsert the plan. The caller owns the transaction (commit / rollback).
+def _tell_people(session: Session, changes: dict[str, list[str]]) -> None:
+    """A notice for each person whose plan has a changed exercise, in any version (ADR-0087). It
+    runs before anyone new starts: a plan made after the change has nothing to be told."""
+    if not changes:
+        return
+    using = session.execute(
+        select(TemplateItem.user_id, Exercise.slug)
+        .join(Exercise, Exercise.id == TemplateItem.exercise_id)
+        .where(Exercise.slug.in_(changes))
+        .distinct()
+        .order_by(TemplateItem.user_id, Exercise.slug),
+        execution_options={ALL_USERS: True},
+    )
+    for user_id, slug in using.all():
+        session.add_all(PlanNotice(user_id=user_id, text=text) for text in changes[slug])
 
-    Raises ``SeedError`` before changing anything if the plan would remove a session, shorten
-    a ladder, or rename a ladder step that history uses without a ``renames`` entry: all would
-    remap or orphan logged history.
-    Items removed from a session are deleted (nothing else references them).
-    """
-    result = SeedResult()
 
-    exercises = {e.slug: e for e in session.scalars(select(Exercise))}
-    _preflight(session, plan, exercises)
-    _versions_preflight(session, plan)
-    _tests_preflight(session, plan)
-    for seed in plan.exercises:
-        exercise = exercises.get(seed.slug)
-        if exercise is None:
-            exercise = Exercise(slug=seed.slug)
-            session.add(exercise)
-            exercises[seed.slug] = exercise
-            result.created += 1
-            exercise.name, exercise.kind = seed.name, seed.kind.value
-            exercise.aliases = list(seed.aliases)
-            exercise.retired, exercise.per_side = seed.retired, seed.per_side
-            exercise.failure_ok = seed.failure_ok
-        else:
-            _set(
-                exercise,
-                result,
-                name=seed.name,
-                kind=seed.kind.value,
-                aliases=list(seed.aliases),
-                retired=seed.retired,
-                per_side=seed.per_side,
-                failure_ok=seed.failure_ok,
-            )
-        steps = {step.position: step for step in exercise.ladder}
-        for position, name in enumerate(seed.ladder):
-            step = steps.get(position)
-            facts = {
-                "cue": seed.cues.get(name),
-                "level": seed.levels.get(name),
-                "marks": [mark.value for mark in seed.marks.get(name, [])],
-            }
-            if step is None:
-                exercise.ladder.append(LadderStep(position=position, name=name, **facts))
-                result.created += 1
-            else:
-                _set(step, result, name=name, **facts)
-    session.flush()
-
-    # Each person's own rows: where they are on every ladder (ADR-0026). The seed runs in an
-    # unbound session, so every per-person query here names the user.
-    people = list(session.scalars(select(User.id).order_by(User.id)))
-    for user_id in people:
-        started = set(
-            session.scalars(
-                select(ExerciseState.exercise_id).where(ExerciseState.user_id == user_id),
-                execution_options={ALL_USERS: True},
-            )
+def sync_sessions(
+    session: Session,
+    plan: PlanSeed,
+    user_id: int,
+    exercises: dict[str, Exercise],
+    result: SeedResult,
+) -> None:
+    """Make this person's sessions match ``plan``: a new one's items, or an existing one's by
+    position. Items removed from a session are deleted (nothing else references them)."""
+    templates = {
+        t.slug: t
+        for t in session.scalars(
+            select(SessionTemplate).where(SessionTemplate.user_id == user_id),
+            execution_options={ALL_USERS: True},
         )
-        for seed in plan.exercises:
-            exercise = exercises[seed.slug]
-            if exercise.id not in started:
-                start_step = next(s for s in exercise.ladder if s.position == seed.start)
-                session.add(
-                    ExerciseState(
-                        user_id=user_id, exercise_id=exercise.id, ladder_step_id=start_step.id
-                    )
-                )
-                result.created += 1
-
-    templates = {t.slug: t for t in session.scalars(select(SessionTemplate))}
+    }
     wanted = {s.slug: i for i, s in enumerate(plan.sessions)}
     current = {t.slug: t.position for t in templates.values()}
     if current != {slug: wanted[slug] for slug in current}:
@@ -683,7 +631,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
     for position, seed_session in enumerate(plan.sessions):
         template = templates.get(seed_session.slug)
         if template is None:
-            template = SessionTemplate(slug=seed_session.slug, position=position)
+            template = SessionTemplate(user_id=user_id, slug=seed_session.slug, position=position)
             session.add(template)
             templates[seed_session.slug] = template
             result.created += 1
@@ -700,33 +648,95 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 is_rest_optional=seed_session.is_rest_optional,
                 kind=seed_session.type,
             )
-        _version(template.items, seed_session.items, exercises, result)
-        _version(template.gym_items, seed_session.gym, exercises, result)
-        _version(template.away_items, seed_session.away, exercises, result)
+        sync_version(user_id, template.items, seed_session.items, exercises, result)
+        sync_version(user_id, template.gym_items, seed_session.gym, exercises, result)
+        sync_version(user_id, template.away_items, seed_session.away, exercises, result)
     session.flush()
 
-    _apply_versions(session, plan, result)
 
-    first = templates[plan.sessions[0].slug]
-    for user_id in people:
-        mine = {ALL_USERS: True}  # the seed names the user itself
-        if (
-            session.scalar(
-                select(PlanState.id).where(PlanState.user_id == user_id), execution_options=mine
-            )
-            is None
-        ):
-            session.add(PlanState(user_id=user_id, next_template_id=first.id))
+def _start_plan(
+    session: Session,
+    plan: PlanSeed,
+    user_id: int,
+    exercises: dict[str, Exercise],
+    result: SeedResult,
+) -> None:
+    """A person with no sessions (new, or erased) gets the starter, which today is the 7-day
+    cycle (ADR-0073). ``plan.toml``'s versions are the owner's history, so they get one."""
+    sync_sessions(session, plan, user_id, exercises, result)
+    if plan.versions:
+        since = max(v.since for v in plan.versions)
+        session.add(PlanVersion(user_id=user_id, since=since, name=STARTING_VERSION))
+        result.created += 1
+    session.flush()
+
+
+def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
+    """Upsert the catalogue, and start anyone who has no plan yet. It never changes the sessions
+    of a person who has them (ADR-0073). The caller owns the transaction (commit / rollback).
+
+    Raises ``SeedError`` before changing anything if the plan would shorten a ladder, rename a
+    ladder step that history uses without a ``renames`` entry, or take away what someone's plan
+    uses: all would remap or orphan logged history.
+    """
+    result = SeedResult()
+
+    exercises = {e.slug: e for e in session.scalars(select(Exercise))}
+    _preflight(session, plan, exercises)
+    _stored_items_preflight(session, plan)
+    _tests_preflight(session, plan)
+    changes: dict[str, list[str]] = {}
+    for seed in plan.exercises:
+        exercise = exercises.get(seed.slug)
+        if exercise is None:
+            exercise = Exercise(slug=seed.slug)
+            session.add(exercise)
+            exercises[seed.slug] = exercise
             result.created += 1
-        if (
-            session.scalar(
-                select(UserSettings.id).where(UserSettings.user_id == user_id),
-                execution_options=mine,
+            exercise.name, exercise.kind = seed.name, seed.kind.value
+            exercise.aliases = list(seed.aliases)
+            exercise.retired, exercise.per_side = seed.retired, seed.per_side
+            exercise.failure_ok = seed.failure_ok
+        else:
+            if exercise.name != seed.name:
+                changes.setdefault(seed.slug, []).append(
+                    f"{exercise.name} is now called {seed.name}."
+                )
+            _set(
+                exercise,
+                result,
+                name=seed.name,
+                kind=seed.kind.value,
+                aliases=list(seed.aliases),
+                retired=seed.retired,
+                per_side=seed.per_side,
+                failure_ok=seed.failure_ok,
             )
-            is None
-        ):
-            session.add(UserSettings(user_id=user_id))
-            result.created += 1
+        steps = {step.position: step for step in exercise.ladder}
+        had_steps = bool(steps)
+        for position, name in enumerate(seed.ladder):
+            step = steps.get(position)
+            facts = {
+                "cue": seed.cues.get(name),
+                "level": seed.levels.get(name),
+                "marks": [mark.value for mark in seed.marks.get(name, [])],
+            }
+            if step is None:
+                exercise.ladder.append(LadderStep(position=position, name=name, **facts))
+                result.created += 1
+                if had_steps:
+                    changes.setdefault(seed.slug, []).append(f'{seed.name}: a new level, "{name}".')
+            else:
+                if step.name != name:
+                    changes.setdefault(seed.slug, []).append(
+                        f'{seed.name}: "{step.name}" is now "{name}".'
+                    )
+                _set(step, result, name=name, **facts)
+    session.flush()
+    _tell_people(session, changes)
+
+    for user_id in list(session.scalars(select(User.id).order_by(User.id))):
+        start_person(session, plan, user_id, exercises, result)
 
     counts = {"created": result.created, "updated": result.updated, "deleted": result.deleted}
     if result.changed:
@@ -735,3 +745,55 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
     else:
         log.info("seed.unchanged")
     return result
+
+
+def start_person(
+    session: Session,
+    plan: PlanSeed,
+    user_id: int,
+    exercises: dict[str, Exercise],
+    result: SeedResult,
+) -> None:
+    """Whatever this person lacks of what everyone starts with: a place on every ladder, a plan
+    (ADR-0073), a place in its queue and their settings. Run by every seed for everyone, and
+    when someone joins (ADR-0059). In an unbound session: every query names the user."""
+    mine = {ALL_USERS: True}  # the seed names the user itself
+    started = set(
+        session.scalars(
+            select(ExerciseState.exercise_id).where(ExerciseState.user_id == user_id),
+            execution_options=mine,
+        )
+    )
+    for seed in plan.exercises:
+        exercise = exercises[seed.slug]
+        if exercise.id not in started:
+            start_step = next(s for s in exercise.ladder if s.position == seed.start)
+            session.add(
+                ExerciseState(
+                    user_id=user_id, exercise_id=exercise.id, ladder_step_id=start_step.id
+                )
+            )
+            result.created += 1
+    sessions = select(SessionTemplate.id).where(SessionTemplate.user_id == user_id)
+    if session.scalars(sessions, execution_options=mine).first() is None:
+        _start_plan(session, plan, user_id, exercises, result)
+    if (
+        session.scalar(
+            select(PlanState.id).where(PlanState.user_id == user_id), execution_options=mine
+        )
+        is None
+    ):
+        first = session.scalars(
+            sessions.order_by(SessionTemplate.position), execution_options=mine
+        ).first()
+        session.add(PlanState(user_id=user_id, next_template_id=first))
+        result.created += 1
+    if (
+        session.scalar(
+            select(UserSettings.id).where(UserSettings.user_id == user_id),
+            execution_options=mine,
+        )
+        is None
+    ):
+        session.add(UserSettings(user_id=user_id))
+        result.created += 1

@@ -46,7 +46,8 @@
 # isn't full); never jumps, swings, pistols, Nordics, loaded hinges, carries, neck work, ab
 # rollouts or Copenhagen planks. `range = [low, high]` (reps, seconds or minutes a set) is for an
 # exercise no session uses yet: the range a session would give it, whose bottom its questions ask
-# for; a session item sets its own (ADR-0083).
+# for; a session item sets its own (ADR-0083). `lengthened = true`: a lengthened-position pick,
+# first in the picker for the muscle it trains (program-builder.md, Decided 5).
 
 # Plan versions, oldest first: each is in force from `since` until the next (ADR-0034). Every
 # workout records the version in force on its date. Add a version when the plan changes; a
@@ -329,6 +330,7 @@ summary = "Stand on one leg, kettlebell in the opposite hand. Hinge at the hip w
 kind = "reps"
 muscles = { hamstrings = 1, glutes = 0.5, "lower back" = 0.25 }
 pattern = "hinge"
+lengthened = true
 stress = ["spine"]
 aliases = ["rdl", "single leg rdl", "romanian deadlift"]
 start = 0
@@ -364,6 +366,7 @@ summary = "Lie on your back, heels on a towel on a smooth floor, hips lifted. Pu
 kind = "reps"
 muscles = { hamstrings = 1 }
 pattern = "isolation"
+lengthened = true
 aliases = ["hamstring curl", "towel curl", "sliders", "leg curl", "nordic", "nordics"]
 start = 0
 ladder = ["Towel slide, both legs", "Towel slide, single leg", "Nordic curl negatives", "Full Nordic curl"]
@@ -389,6 +392,7 @@ summary = "Ball of one foot on a step, heel hanging. Rise as high as you can, pa
 kind = "reps"
 muscles = { calves = 1 }
 pattern = "isolation"
+lengthened = true
 aliases = ["Single-leg calf raise", "calves", "calf raises"]
 start = 2
 ladder = ["Both legs, hands on a wall", "Both legs, on a step", "Bodyweight on a step", "Holding 8 kg", "8 kg, 2 s pause at top"]
@@ -615,18 +619,22 @@ qualities = ["posture"]
 pattern = "isolation"
 aliases = ["reverse fly", "rear delt", "rear delts", "reverse flyes"]
 start = 0
-ladder = ["Chest on bench/bed, water bottles", "Chest on bench/bed, 8 kg one arm", "Chest-supported, 3 s lowering"]
+# Dumbbells of varying weight since 4 Nov 2026 (Liam): one 8 kg kettlebell in one hand and a
+# 3 s lowering step on it gave way to a step that takes load (migration c8d2e4f6a1b3).
+ladder = ["Chest on bench/bed, water bottles", "Chest on bench/bed, dumbbells"]
 failure_ok = true
+renames = { "Chest on bench/bed, 8 kg one arm" = "Chest on bench/bed, dumbbells" }
 [exercises.needs]
-"Chest on bench/bed, 8 kg one arm" = ["kettlebell:8"]
-"Chest-supported, 3 s lowering" = ["kettlebell:8"]
+"Chest on bench/bed, dumbbells" = ["dumbbells"]
+[exercises.cues]
+"Chest on bench/bed, dumbbells" = "Light enough to keep a slight bend in the elbows; add weight only when every set of 12-18 is clean."
+[exercises.loads]
+"Chest on bench/bed, dumbbells" = "dumbbells"
 [exercises.questions]
-"Chest on bench/bed, 8 kg one arm" = "Can you do 12 reverse flies, chest supported, with 8 kg in one hand?"
-"Chest-supported, 3 s lowering" = "Can you do 12 reverse flies, chest supported, three seconds down?"
+"Chest on bench/bed, dumbbells" = "Can you do 12 reverse flies, chest supported, with a dumbbell in each hand?"
 [exercises.levels]
 "Chest on bench/bed, water bottles" = 3
-"Chest on bench/bed, 8 kg one arm" = 4
-"Chest-supported, 3 s lowering" = 5
+"Chest on bench/bed, dumbbells" = 4
 
 [[exercises]]
 slug = "band-face-pull"
@@ -802,6 +810,7 @@ kind = "reps"
 muscles = { triceps = 1 }
 parts = ["triceps long head"]
 pattern = "isolation"
+lengthened = true
 aliases = ["overhead extension", "overhead extensions", "triceps extension", "triceps extensions", "overhead triceps"]
 start = 0
 ladder = ["8 kg, both hands", "8 kg, 3 s lowering", "8 kg, 1.5 reps", "16 kg, both hands", "16 kg, 3 s lowering"]
@@ -1521,6 +1530,7 @@ summary = "Stand holding the bar, knees soft. Push your hips back and slide the 
 kind = "reps"
 muscles = { hamstrings = 1, glutes = 0.5, "lower back" = 0.5, forearms = 0.5 }
 pattern = "hinge"
+lengthened = true
 stress = ["spine", "grip"]
 aliases = ["barbell rdl", "bb rdl", "barbell rdls"]
 start = 0
@@ -1539,6 +1549,7 @@ summary = "Sit with the pad above your heels and the thigh pad snug. Curl your h
 kind = "reps"
 muscles = { hamstrings = 1 }
 pattern = "isolation"
+lengthened = true
 aliases = ["seated leg curls", "seated hamstring curl", "machine leg curl"]
 start = 0
 ladder = ["Machine"]
@@ -1595,6 +1606,7 @@ summary = "Balls of your feet on the edge, shoulders under the pads. Lower your 
 kind = "reps"
 muscles = { calves = 1 }
 pattern = "isolation"
+lengthened = true
 aliases = ["standing calf raises", "machine calf raise", "calf machine"]
 start = 0
 ladder = ["Machine"]
@@ -1752,6 +1764,7 @@ summary = "Lie back on a bench at about 45°, arms hanging straight down. Curl t
 kind = "reps"
 muscles = { biceps = 1, forearms = 0.25 }
 pattern = "isolation"
+lengthened = true
 aliases = ["incline curl", "incline curls", "incline db curl", "incline dumbbell curls"]
 start = 0
 ladder = ["Incline bench"]
@@ -1785,6 +1798,7 @@ kind = "reps"
 muscles = { triceps = 1 }
 parts = ["triceps long head"]
 pattern = "isolation"
+lengthened = true
 aliases = ["cable overhead extension", "overhead cable extension", "rope overhead extension"]
 start = 0
 ladder = ["Cable"]

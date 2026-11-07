@@ -21,11 +21,15 @@ from training_coach.db.models import (
     Passkey,
     PlanState,
     ProgressPhoto,
+    SessionProgress,
+    SessionTemplate,
     User,
     UserSettings,
     WebSession,
+    Workout,
 )
 from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
+from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import local_date
 from training_coach.services import auth, user_settings
 from training_coach.services.seed import apply_seed, load_plan
@@ -40,7 +44,9 @@ ERASE = {"confirm": "erase"}
 def signed_in(engine: Engine) -> Iterator[TestClient]:
     with session_scope(make_session_factory(engine)) as shared:
         apply_seed(shared, load_plan())
-        shared.get_one(User, OWNER).telegram_user_id = TELEGRAM
+        owner = shared.get_one(User, OWNER)
+        owner.telegram_user_id, owner.country = TELEGRAM, "DE"
+        owner.last_seen_in_europe = datetime(2026, 1, 1, tzinfo=UTC)
     with make_session_factory(engine, user_id=OWNER)() as bound:
         token = auth.create_link(bound, datetime.now(UTC))
         bound.commit()
@@ -87,7 +93,11 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
         assert _count(engine, model, OWNER) == 0, model.__name__
     assert _count(engine, Measurement, 2) == 1  # someone else's
     with session_scope(make_session_factory(engine)) as shared:
-        assert shared.get_one(User, OWNER).telegram_user_id == TELEGRAM  # the bot still knows me
+        me = shared.get_one(User, OWNER)
+        assert me.telegram_user_id == TELEGRAM  # the bot still knows me
+        assert me.country is None  # asked again (ADR-0085)
+        # Kept: an erase without a country mustn't restart the bot and MCP's 30 days.
+        assert me.last_seen_in_europe == datetime(2026, 1, 1, tzinfo=UTC)
     # A fresh start: the plan's first session and default settings, so everything still works.
     assert _count(engine, PlanState, OWNER) == 1
     assert _count(engine, UserSettings, OWNER) == 1
@@ -97,6 +107,24 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
         settings = user_settings.load(mine)
     assert kinds == ["account.erased"]  # nothing about what was there
     assert settings.last_set_amrap is False  # back to the default
+
+
+def test_erasing_takes_my_workouts_and_session_in_progress(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """They point at my sessions, which go too once sessions are per person (ADR-0073)."""
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        first = mine.scalars(select(SessionTemplate).order_by(SessionTemplate.position)).first()
+        assert first is not None
+        day = date(2026, 10, 12)
+        mine.add(Workout(local_date=day, template_id=first.id, status=WorkoutStatus.DONE))
+        mine.add(SessionProgress(local_date=day, template_id=first.id, token="ab" * 16))
+
+    assert signed_in.post("/api/account/erase", json=ERASE).status_code == 204
+
+    for model in (Workout, SessionProgress):
+        assert _count(engine, model, OWNER) == 0, model.__name__
+    assert _count(engine, PlanState, OWNER) == 1  # and starts again
 
 
 def test_erasing_signs_this_browser_out(signed_in: TestClient) -> None:
@@ -138,6 +166,6 @@ def test_every_per_person_table_goes_with_its_person() -> None:
     assert owned
     for mapper in owned:
         (column,) = (c for c in mapper.local_table.columns if c.name == "user_id")
-        (key,) = column.foreign_keys
-        assert key.column.table.name == "users", mapper.class_.__name__
+        # A composite key to the person's own session or version may share the column.
+        (key,) = (k for k in column.foreign_keys if k.column.table.name == "users")
         assert key.ondelete == "CASCADE", mapper.class_.__name__

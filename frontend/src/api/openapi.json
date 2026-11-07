@@ -494,6 +494,116 @@
         "title": "CardioDetailsView",
         "type": "object"
       },
+      "CatalogueItemView": {
+        "properties": {
+          "first_step": {
+            "title": "First Step",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ExerciseKind"
+          },
+          "lengthened": {
+            "title": "Lengthened",
+            "type": "boolean"
+          },
+          "levels": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Levels"
+          },
+          "muscles": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Muscles",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Needs",
+            "type": "array"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "range": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "kind",
+          "per_side",
+          "muscles",
+          "pattern",
+          "places",
+          "range",
+          "first_step",
+          "levels",
+          "needs",
+          "lengthened"
+        ],
+        "title": "CatalogueItemView",
+        "type": "object"
+      },
       "ChangeBody": {
         "properties": {
           "template_id": {
@@ -841,6 +951,27 @@
         "title": "ConsentView",
         "type": "object"
       },
+      "CoverageDraft": {
+        "properties": {
+          "place": {
+            "$ref": "#/components/schemas/Place",
+            "default": "home"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/DraftVersion"
+            },
+            "maxItems": 30,
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "versions"
+        ],
+        "title": "CoverageDraft",
+        "type": "object"
+      },
       "CoverageView": {
         "properties": {
           "back_to_back": {
@@ -884,6 +1015,18 @@
           "places": {
             "$ref": "#/components/schemas/Places"
           },
+          "pull_sets": {
+            "title": "Pull Sets",
+            "type": "integer"
+          },
+          "push_sets": {
+            "title": "Push Sets",
+            "type": "integer"
+          },
+          "pushing_without_pulling": {
+            "title": "Pushing Without Pulling",
+            "type": "boolean"
+          },
           "session_cap": {
             "title": "Session Cap",
             "type": "integer"
@@ -905,6 +1048,9 @@
           "places",
           "muscles",
           "sessions",
+          "push_sets",
+          "pull_sets",
+          "pushing_without_pulling",
           "main_on_target",
           "main_total",
           "session_cap",
@@ -1132,6 +1278,85 @@
         "title": "DoneView",
         "type": "object"
       },
+      "DraftItem": {
+        "properties": {
+          "exercise": {
+            "maxLength": 64,
+            "title": "Exercise",
+            "type": "string"
+          },
+          "pair": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair"
+          },
+          "per_side": {
+            "default": false,
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "rep_max": {
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Rep Max",
+            "type": "integer"
+          },
+          "rep_min": {
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Rep Min",
+            "type": "integer"
+          },
+          "sets": {
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "exercise",
+          "sets",
+          "rep_min",
+          "rep_max"
+        ],
+        "title": "DraftItem",
+        "type": "object"
+      },
+      "DraftVersion": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DraftItem"
+            },
+            "maxItems": 40,
+            "title": "Items",
+            "type": "array"
+          },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          },
+          "slug": {
+            "maxLength": 64,
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "place",
+          "items"
+        ],
+        "title": "DraftVersion",
+        "type": "object"
+      },
       "EarnedView": {
         "properties": {
           "at_top": {
@@ -1291,6 +1516,103 @@
           "step"
         ],
         "title": "EaseBackView",
+        "type": "object"
+      },
+      "EditItemView": {
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pair": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "rep_max": {
+            "title": "Rep Max",
+            "type": "integer"
+          },
+          "rep_min": {
+            "title": "Rep Min",
+            "type": "integer"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "exercise",
+          "name",
+          "sets",
+          "rep_min",
+          "rep_max",
+          "per_side",
+          "pair"
+        ],
+        "title": "EditItemView",
+        "type": "object"
+      },
+      "EditSessionView": {
+        "properties": {
+          "away": {
+            "items": {
+              "$ref": "#/components/schemas/EditItemView"
+            },
+            "title": "Away",
+            "type": "array"
+          },
+          "focus": {
+            "title": "Focus",
+            "type": "string"
+          },
+          "gym": {
+            "items": {
+              "$ref": "#/components/schemas/EditItemView"
+            },
+            "title": "Gym",
+            "type": "array"
+          },
+          "home": {
+            "items": {
+              "$ref": "#/components/schemas/EditItemView"
+            },
+            "title": "Home",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "focus",
+          "home",
+          "gym",
+          "away"
+        ],
+        "title": "EditSessionView",
         "type": "object"
       },
       "Energy": {
@@ -2412,6 +2734,113 @@
         "title": "IngestView",
         "type": "object"
       },
+      "InviteBody": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "title": "InviteBody",
+        "type": "object"
+      },
+      "InviteView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "InviteView",
+        "type": "object"
+      },
+      "ItemChange": {
+        "properties": {
+          "exercise": {
+            "maxLength": 64,
+            "title": "Exercise",
+            "type": "string"
+          },
+          "pair": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair"
+          },
+          "per_side": {
+            "default": false,
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "rep_max": {
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Rep Max",
+            "type": "integer"
+          },
+          "rep_min": {
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Rep Min",
+            "type": "integer"
+          },
+          "sets": {
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "exercise",
+          "sets",
+          "rep_min",
+          "rep_max"
+        ],
+        "title": "ItemChange",
+        "type": "object"
+      },
       "ItemLevelView": {
         "description": "Changing the level on the set screen (ADR-0080): the step trained today, whether it was\nchosen for today only, and the exercise's ladder, easiest first.",
         "properties": {
@@ -2598,6 +3027,25 @@
           "parts"
         ],
         "title": "ItemView",
+        "type": "object"
+      },
+      "JoinBody": {
+        "properties": {
+          "adult": {
+            "title": "Adult",
+            "type": "boolean"
+          },
+          "token": {
+            "maxLength": 100,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "adult"
+        ],
+        "title": "JoinBody",
         "type": "object"
       },
       "KeepBody": {
@@ -2954,7 +3402,7 @@
         "type": "object"
       },
       "LengthBody": {
-        "description": "Short on time today (ADR-0082): as planned (empty) or 40, 30 or 20 minutes, never\ndropping the exercises pinned with ``keep`` (slugs).",
+        "description": "Short on time today (ADR-0082): as planned (empty) or a length on offer, never\ndropping the exercises pinned with ``keep`` (slugs).",
         "properties": {
           "first": {
             "items": {
@@ -3011,7 +3459,7 @@
         "type": "object"
       },
       "LengthView": {
-        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.\n``last_set``: the person's last-set option (ADR-0084), offered here with a shorter day;\nempty when it isn't offered: locked while they are new, or no exercise today it applies to.",
+        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer (only those shorter than as planned, so maybe none), the exercises pinned with Keep,\nabout how long as planned, what the chosen length drops (exercise names, in the order they\nwent) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.\n``last_set``: the person's last-set option (ADR-0084), offered here with a shorter day;\nempty when it isn't offered: locked while they are new, or no exercise today it applies to.",
         "properties": {
           "dropped": {
             "items": {
@@ -3854,6 +4302,25 @@
         "title": "LoggedWorkoutView",
         "type": "object"
       },
+      "MadeView": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expires_at"
+        ],
+        "title": "MadeView",
+        "type": "object"
+      },
       "Me": {
         "properties": {
           "user_id": {
@@ -3956,6 +4423,32 @@
           "value"
         ],
         "title": "MeasurementView",
+        "type": "object"
+      },
+      "MemberView": {
+        "properties": {
+          "joined": {
+            "format": "date",
+            "title": "Joined",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "required": [
+          "label",
+          "joined"
+        ],
+        "title": "MemberView",
         "type": "object"
       },
       "MoveUpBody": {
@@ -4096,6 +4589,13 @@
       },
       "MuscleView": {
         "properties": {
+          "adds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Adds",
+            "type": "array"
+          },
           "back_to_back": {
             "items": {
               "type": "string"
@@ -4193,7 +4693,8 @@
           "over_session_cap",
           "back_to_back",
           "missing_parts",
-          "sources"
+          "sources",
+          "adds"
         ],
         "title": "MuscleView",
         "type": "object"
@@ -4370,6 +4871,24 @@
         "title": "NightView",
         "type": "object"
       },
+      "NoticeView": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "NoticeView",
+        "type": "object"
+      },
       "OptionView": {
         "properties": {
           "label": {
@@ -4514,6 +5033,35 @@
         "title": "PendingView",
         "type": "object"
       },
+      "PeopleView": {
+        "properties": {
+          "invites": {
+            "items": {
+              "$ref": "#/components/schemas/InviteView"
+            },
+            "title": "Invites",
+            "type": "array"
+          },
+          "max_members": {
+            "title": "Max Members",
+            "type": "integer"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MemberView"
+            },
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "required": [
+          "members",
+          "invites",
+          "max_members"
+        ],
+        "title": "PeopleView",
+        "type": "object"
+      },
       "PhotoView": {
         "properties": {
           "id": {
@@ -4616,6 +5164,131 @@
         ],
         "title": "Places",
         "type": "string"
+      },
+      "PlanChanges": {
+        "properties": {
+          "note": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          },
+          "revision": {
+            "maxLength": 32,
+            "title": "Revision",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionChange"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "revision",
+          "note",
+          "versions"
+        ],
+        "title": "PlanChanges",
+        "type": "object"
+      },
+      "PlanEditView": {
+        "properties": {
+          "catalogue": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogueItemView"
+            },
+            "title": "Catalogue",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/EditSessionView"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "revision",
+          "sessions",
+          "catalogue"
+        ],
+        "title": "PlanEditView",
+        "type": "object"
+      },
+      "PlanImportView": {
+        "properties": {
+          "blocked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked"
+          },
+          "changes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "changes",
+          "blocked",
+          "version"
+        ],
+        "title": "PlanImportView",
+        "type": "object"
+      },
+      "PlanSavedView": {
+        "properties": {
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "revision",
+          "version"
+        ],
+        "title": "PlanSavedView",
+        "type": "object"
       },
       "PlanView": {
         "properties": {
@@ -4975,6 +5648,23 @@
         "title": "QueuedView",
         "type": "object"
       },
+      "ReadBody": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 200,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "ReadBody",
+        "type": "object"
+      },
       "ReadinessSavedView": {
         "properties": {
           "status": {
@@ -5147,6 +5837,49 @@
         ],
         "title": "Refusal",
         "type": "string"
+      },
+      "ResidenceBody": {
+        "properties": {
+          "country": {
+            "maxLength": 2,
+            "minLength": 2,
+            "title": "Country",
+            "type": "string"
+          }
+        },
+        "required": [
+          "country"
+        ],
+        "title": "ResidenceBody",
+        "type": "object"
+      },
+      "ResidenceView": {
+        "properties": {
+          "choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "required": [
+          "country",
+          "choices"
+        ],
+        "title": "ResidenceView",
+        "type": "object"
       },
       "Resistance": {
         "description": "A resistance band's strength.",
@@ -5786,12 +6519,20 @@
             "title": "Grip Sets",
             "type": "integer"
           },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
           "muscles": {
             "items": {
               "$ref": "#/components/schemas/SessionMuscleView"
             },
             "title": "Muscles",
             "type": "array"
+          },
+          "over_an_hour": {
+            "title": "Over An Hour",
+            "type": "boolean"
           },
           "place": {
             "$ref": "#/components/schemas/Place"
@@ -5821,6 +6562,8 @@
           "grip_sets",
           "spine_heavy",
           "grip_heavy",
+          "minutes",
+          "over_an_hour",
           "muscles"
         ],
         "title": "SessionLoadView",
@@ -7314,6 +8057,33 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VersionChange": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemChange"
+            },
+            "maxItems": 40,
+            "title": "Items",
+            "type": "array"
+          },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          },
+          "slug": {
+            "maxLength": 64,
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "place",
+          "items"
+        ],
+        "title": "VersionChange",
+        "type": "object"
+      },
       "VolumeView": {
         "properties": {
           "group": {
@@ -8110,6 +8880,67 @@
           }
         },
         "summary": "Remove Passkey",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/residence": {
+      "get": {
+        "operationId": "get_residence_api_account_residence_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResidenceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Residence",
+        "tags": [
+          "account"
+        ]
+      },
+      "put": {
+        "description": "Save the country; one off the list gets 422 with the reason.",
+        "operationId": "set_residence_api_account_residence_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResidenceBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResidenceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Residence",
         "tags": [
           "account"
         ]
@@ -9358,6 +10189,119 @@
         ]
       }
     },
+    "/api/invites": {
+      "post": {
+        "description": "A one-time link for someone to join, valid 72 hours; 409 when the house is full (open\ninvites count).",
+        "operationId": "make_invite_api_invites_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MadeView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Make Invite",
+        "tags": [
+          "people"
+        ]
+      }
+    },
+    "/api/invites/{invite_id}": {
+      "delete": {
+        "description": "Revoke an open invite; 404 for one that's used, expired, revoked or unknown.",
+        "operationId": "revoke_invite_api_invites__invite_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Invite",
+        "tags": [
+          "people"
+        ]
+      }
+    },
+    "/api/join": {
+      "post": {
+        "description": "Join with an invite: the new member signed in, to add a passkey next. 401 for a link that\nis used, revoked or expired; 422 unless they are an adult; 409 when there's no room.",
+        "operationId": "join_api_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join",
+        "tags": [
+          "people"
+        ]
+      }
+    },
     "/api/log": {
       "get": {
         "operationId": "options_api_log_get",
@@ -9479,6 +10423,88 @@
         "summary": "Plan",
         "tags": [
           "log"
+        ]
+      }
+    },
+    "/api/notices": {
+      "get": {
+        "operationId": "get_notices_api_notices_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NoticeView"
+                  },
+                  "title": "Response Get Notices Api Notices Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Notices",
+        "tags": [
+          "notices"
+        ]
+      }
+    },
+    "/api/notices/read": {
+      "post": {
+        "description": "\"Got it\": these won't show again.",
+        "operationId": "read_notices_api_notices_read_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Notices",
+        "tags": [
+          "notices"
+        ]
+      }
+    },
+    "/api/people": {
+      "get": {
+        "description": "Members' labels and join days, and the open invites: nothing of anyone's data.",
+        "operationId": "get_people_api_people_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeopleView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get People",
+        "tags": [
+          "people"
         ]
       }
     },
@@ -9640,7 +10666,7 @@
     },
     "/api/plan": {
       "get": {
-        "description": "The training plan, for the signed-in owner: the site is private (no public pages).",
+        "description": "The person's training plan: the site is private (no public pages).",
         "operationId": "get_plan_api_plan_get",
         "responses": {
           "200": {
@@ -9655,6 +10681,48 @@
           }
         },
         "summary": "Get Plan",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan/changes": {
+      "post": {
+        "description": "Save a draft of the person's own plan as one version. A draft of an older plan, or a\nsession in progress, is a conflict; what the app couldn't run is refused with the reason.",
+        "operationId": "post_plan_changes_api_plan_changes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanChanges"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanSavedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Plan Changes",
         "tags": [
           "plan"
         ]
@@ -9705,6 +10773,112 @@
           }
         },
         "summary": "Get Coverage",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan/coverage/draft": {
+      "post": {
+        "description": "The map as a draft of the plan would make it, while editing: it saves nothing.",
+        "operationId": "post_coverage_draft_api_plan_coverage_draft_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverageDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Coverage Draft",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan/edit": {
+      "get": {
+        "description": "The person's sessions with every version, and what they can choose from.",
+        "operationId": "get_plan_edit_api_plan_edit_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanEditView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Plan Edit",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan/import": {
+      "get": {
+        "description": "What ``plan.toml`` would change in the owner's plan (ADR-0073); nothing for anyone else.",
+        "operationId": "get_plan_import_api_plan_import_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanImportView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Plan Import",
+        "tags": [
+          "plan"
+        ]
+      },
+      "post": {
+        "description": "Save it as one version: the owner's alone, anyone else is refused (Liam, 5 Nov 2026).\nAnswers what was saved; a change that can't be saved now is a conflict.",
+        "operationId": "post_plan_import_api_plan_import_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanImportView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Post Plan Import",
         "tags": [
           "plan"
         ]
@@ -10290,7 +11464,7 @@
     },
     "/api/session/length": {
       "put": {
-        "description": "Run today's session shorter, or as planned again (ADR-0082): the session at that\nlength. 409 when the session changed, another device moved on since ``revision``\n(reload), or a set is kept already (the length is fixed then); 422 for a session that\nalways runs as planned, or a Keep for an exercise it doesn't have.",
+        "description": "Run today's session shorter, or as planned again (ADR-0082): the session at that\nlength. 409 when the session changed, another device moved on since ``revision``\n(reload), or a set is kept already (the length is fixed then); 422 for a session that\nalways runs as planned, a length not on offer, or a Keep for an exercise it doesn't have.",
         "operationId": "choose_length_api_session_length_put",
         "requestBody": {
           "content": {
@@ -11145,6 +12319,9 @@
           },
           "403": {
             "description": "Forbidden"
+          },
+          "451": {
+            "description": "Unavailable For Legal Reasons"
           }
         },
         "summary": "Mcp",

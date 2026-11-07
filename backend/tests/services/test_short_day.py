@@ -228,9 +228,7 @@ def test_as_planned_again_undoes_a_shorter_day(plan: Session) -> None:
 def test_a_keep_for_another_exercise_or_odd_minutes_is_refused(plan: Session) -> None:
     found = _today(plan)
     assert guided.choose_length(plan, found, 0, 20, ("pull-up",)) == guided.NOT_IN_SESSION
-    assert (
-        guided.choose_length(plan, found, 0, 25, ()) == "choose 40, 30, 20 minutes, or as planned"
-    )
+    assert guided.choose_length(plan, found, 0, 25, ()) == guided.NOT_SHORTER
     assert guided.kept(plan, DAY) is None
 
 
@@ -256,18 +254,14 @@ def test_a_shorter_day_saves_its_minutes_and_what_it_planned(plan: Session) -> N
 @pytest.mark.parametrize(
     ("slug", "timed", "chosen", "saved"),
     [
-        ("hiit", None, 20, None),  # one short item, no warm-up: nothing to cut
         ("zone2", None, 40, 40),  # its 45 minutes shorten to 40
         ("legs", None, 40, 40),  # third sets go
-        ("legs", 26, 40, None),  # someone this quick fits 40 as planned, warm-up and all
         ("legs", 26, 30, 30),  # the same sets, but ramp sets replace the warm-up
     ],
 )
-def test_a_length_that_changed_nothing_saves_as_planned(
+def test_a_shorter_day_saves_its_minutes(
     plan: Session, slug: str, timed: int | None, chosen: int, saved: int | None
 ) -> None:
-    """Minutes chosen that cut no set, shortened nothing, dropped nothing and kept the warm-up
-    save no minutes: the day still counts toward "usually" and as done as planned."""
     if timed is not None:
         _timed_legs(plan, minutes=timed, times=3)
     _at(plan, slug)
@@ -278,17 +272,33 @@ def test_a_length_that_changed_nothing_saves_as_planned(
     assert plan.get_one(Workout, result.workout_id).minutes == saved
 
 
+def test_a_length_fixed_that_changed_nothing_saves_as_planned(plan: Session) -> None:
+    """A day fixed at minutes that cut no set, shortened nothing, dropped nothing and kept the
+    warm-up saves no minutes: it still counts toward "usually" and as done as planned. Such a
+    length isn't on offer now, but a session started before that can hold one."""
+    _at(plan, "legs")
+    found = _choose(plan, None)
+    guided.keep(plan, found, 2, 1, [], [guided.Done(0, 1, 8)])
+    row = plan.scalars(select(SessionProgress)).one()
+    assert row.fixed is not None
+    row.fixed = {**row.fixed, "minutes": 60}
+    plan.flush()
+    result = guided.save(plan, DAY, DAY, BERLIN)
+    assert isinstance(result, workout_log.Saved)
+    assert plan.get_one(Workout, result.workout_id).minutes is None
+
+
 @pytest.mark.parametrize(
     ("before", "chosen", "saved"),
     [
         (None, 20, 20),  # the block after the run is cut to fit
-        (None, 40, None),  # it fits 40 as planned: nothing to record
-        (30, 40, 30),  # the run's own shorter day stays recorded
+        (None, None, None),  # as planned: nothing to record
+        (30, None, 30),  # the run's own shorter day stays recorded
         (30, 20, 20),
     ],
 )
 def test_a_trimmed_block_after_the_run_records_its_minutes_on_the_runs_workout(
-    plan: Session, before: int | None, chosen: int, saved: int | None
+    plan: Session, before: int | None, chosen: int | None, saved: int | None
 ) -> None:
     """ADR-0066: the block joins the run's workout, so that workout carries the minutes when
     the block was trimmed, and keeps any it had when the block wasn't."""

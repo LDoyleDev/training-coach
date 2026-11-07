@@ -4,6 +4,61 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.18.1](https://github.com/LDoyleDev/training-coach/compare/v1.18.0...v1.18.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **api:** offer only lengths shorter than the session due ([#586](https://github.com/LDoyleDev/training-coach/issues/586)) ([9e3ce4d](https://github.com/LDoyleDev/training-coach/commit/9e3ce4d804999a4973279b781b74dfbd35ac8a2d))
+
+
+### Documentation
+
+* **docs:** session log for 1.18.0, plans per person ([#587](https://github.com/LDoyleDev/training-coach/issues/587)) ([aac37b9](https://github.com/LDoyleDev/training-coach/commit/aac37b95253c817b6577b2e877c4b6a670bb16eb))
+
+## [1.18.0](https://github.com/LDoyleDev/training-coach/compare/v1.17.0...v1.18.0) (2026-11-06)
+
+
+### Features
+
+* **api:** the owner saves a plan.toml change as one version ([#581](https://github.com/LDoyleDev/training-coach/issues/581)) ([5281962](https://github.com/LDoyleDev/training-coach/commit/5281962fd3f91c51b0fa4ac649e9b02627681001))
+* **api:** the Plan page and body map read the plan rows, not plan.toml ([#579](https://github.com/LDoyleDev/training-coach/issues/579)) ([4fe4329](https://github.com/LDoyleDev/training-coach/commit/4fe4329a43c35d93200c3fa7da9dc5b4b6e22835))
+* **db:** each person owns their sessions, items and plan versions ([#580](https://github.com/LDoyleDev/training-coach/issues/580)) ([65292c1](https://github.com/LDoyleDev/training-coach/commit/65292c1e7b2e87736360f47bb7ab3465545d4555))
+
+
+### Documentation
+
+* **docs:** session log for 1.17.0, the reverse fly on dumbbells ([#573](https://github.com/LDoyleDev/training-coach/issues/573)) ([32bc8f9](https://github.com/LDoyleDev/training-coach/commit/32bc8f9a57f6ca8c67d28cab992cac9663b19ae3))
+* **docs:** step 5 refuses other people; the import is the owner's alone ([#575](https://github.com/LDoyleDev/training-coach/issues/575)) ([d439bab](https://github.com/LDoyleDev/training-coach/commit/d439babd1dd4f70b62b151ce2a9e7af57fbc4b9e))
+* **docs:** step 5 review: erase, seed guards, the import and the build ([#576](https://github.com/LDoyleDev/training-coach/issues/576)) ([d49e677](https://github.com/LDoyleDev/training-coach/commit/d49e67786a84e81d812ce4b639becd71428fc7ef))
+
+## [1.17.0](https://github.com/LDoyleDev/training-coach/compare/v1.16.0...v1.17.0) (2026-11-04)
+
+
+### Features
+
+* **db:** reverse fly on dumbbells that take load, not one 8 kg kettlebell ([#571](https://github.com/LDoyleDev/training-coach/issues/571)) ([38a765e](https://github.com/LDoyleDev/training-coach/commit/38a765eca554f32f3b18643fd30c9b487a259117))
+
+
+### Documentation
+
+* **docs:** session log for 1.16.0, the EU and EEA only ([#568](https://github.com/LDoyleDev/training-coach/issues/568)) ([5b4bd13](https://github.com/LDoyleDev/training-coach/commit/5b4bd13f1998bc47aacb2ceaea0b57e06114a520))
+
+## [1.16.0](https://github.com/LDoyleDev/training-coach/compare/v1.15.0...v1.16.0) (2026-11-03)
+
+
+### Features
+
+* **api:** pause the bot and MCP 30 days after a visit from Europe ([#514](https://github.com/LDoyleDev/training-coach/issues/514)) ([23704ad](https://github.com/LDoyleDev/training-coach/commit/23704ad4f2cf7bac4925c15f7da8e4b00e086d4f))
+* **web:** ask where the person lives, EU and EEA only ([#515](https://github.com/LDoyleDev/training-coach/issues/515)) ([0fef1eb](https://github.com/LDoyleDev/training-coach/commit/0fef1eb0349b7a0e1072f9e23a0ffec6f9acd21e))
+
+
+### Documentation
+
+* **docs:** band runbook: heart rate waits for Mi Fitness, MIUI kills ([#567](https://github.com/LDoyleDev/training-coach/issues/567)) ([0eaabdc](https://github.com/LDoyleDev/training-coach/commit/0eaabdc9658bfcfb8c5672295a040c77236631a0))
+* **docs:** restore drill of 2 Nov passed on the Pi before step 5 ([#566](https://github.com/LDoyleDev/training-coach/issues/566)) ([9e54540](https://github.com/LDoyleDev/training-coach/commit/9e545402d7c9b78383183accc78796998475b341))
+* **docs:** session log for 1.15.0 and reader 0.0.8 ([#559](https://github.com/LDoyleDev/training-coach/issues/559)) ([83db79b](https://github.com/LDoyleDev/training-coach/commit/83db79b66b01391ba41bd2ff292907bed5ac09bb))
+
 ## [1.15.0](https://github.com/LDoyleDev/training-coach/compare/v1.14.0...v1.15.0) (2026-11-01)
 
 

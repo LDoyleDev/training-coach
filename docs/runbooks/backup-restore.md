@@ -164,19 +164,26 @@ which is never stopped or touched:
    of the same image on it, with no `.env` (so no bot and no messages) and no network:
    `docker run -d --name tc-drill --user "$(id -u):$(id -g)" -v "$HOME/tc-drill/data:/data"
    --read-only --tmpfs /tmp --cap-drop ALL --network none training-coach:local`.
-3. When it's healthy, compare the integrity check, the migration (`alembic_version`) and the
-   counts with step 1.
-4. With no photos or measurements in the live data yet, add a test photo and measurement to the
-   drill copy, back the drill copy up (`docker exec tc-drill training-coach backup`), restore
-   that into a second drill container and check the photo comes back byte for byte.
+3. When it's healthy, compare the integrity check, `PRAGMA foreign_key_check`, the migration
+   (`alembic_version`) and the counts with step 1.
+4. Back the drill copy up (`docker exec tc-drill training-coach backup`), restore that into a
+   second drill container and check the photos come back byte for byte (a hash of every
+   `jpeg`). With no photos in the data, add a test photo and measurement to the drill copy first.
 5. Off-site: download last night's copy (`rclone copyto r2:<bucket>/<name> ...`, with
    `offsite.env` sourced), decrypt it on the desktop with the backup key (above), compare its
    counts, and delete the decrypted file.
 6. `docker rm -f tc-drill ...`, `rm -rf ~/tc-drill`.
 
-Last rehearsed: **2026-10-25 on the Pi** (v0.38.1), as above. The restore, the migration check,
-every count and the test photo's bytes matched, and the off-site copy decrypted with the backup
-key and matched its nightly backup. The drill also found the off-site job had never run (the
-timer, the alert unit and the `coach-data` group were never installed, and the bucket was
-empty); they were installed the same day and the first copy uploaded. Before that: 2026-10-07 on
-the desktop (#14), with a seeded database.
+Last restored on the Pi: **2026-11-07** (v1.17.0 and the 1.18.0 release image), the plans-per-person
+drill (`docs/sessions/2026-11-07-plans-per-person.md`): backup into separate containers, integrity,
+foreign keys and every table's rows compared, and the migration down again. It didn't repeat the
+photos' round trip through a second backup, or the off-site copy.
+
+Last full rehearsal: **2026-11-02 on the Pi** (v1.15.0), as above, before plans per person (builder
+step 5). The integrity and foreign-key checks, the migration, the row counts of all 40 tables and
+the bytes of the 3 real photos matched after the restore and again after the second round trip;
+the bot stayed off in both drill containers. The 2 Nov off-site copy decrypted with the backup key
+and matched that night's backup the same way, and the job had uploaded every night since 30 Oct.
+Before that: 2026-10-25 on the Pi (v0.38.1), which found the off-site job had never run (the
+timer, the alert unit and the `coach-data` group were never installed, and the bucket was empty;
+all installed that day), and 2026-10-07 on the desktop (#14), with a seeded database.

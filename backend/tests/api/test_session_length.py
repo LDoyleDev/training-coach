@@ -10,11 +10,11 @@ from sqlalchemy import Engine, select
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import SessionProgress, Workout
+from training_coach.db.models import SessionProgress, SessionTemplate, Workout
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import Place, WorkoutStatus
 from training_coach.domain.queue import local_date
-from training_coach.services import auth
+from training_coach.services import auth, guided, users
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -118,6 +118,25 @@ def test_odd_minutes_or_a_keep_outside_the_session_are_refused(
     answer = _choose(signed_in, 20, ["pull-up"])
     assert answer.status_code == 422
     assert answer.json()["detail"] == "that exercise isn't in today's session"
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        assert bound.scalars(select(SessionProgress)).all() == []  # nothing written
+
+
+def test_a_session_shorter_than_every_length_offers_none_and_refuses_one(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        hiit = bound.scalars(select(SessionTemplate).where(SessionTemplate.slug == "hiit")).one()
+        state = users.plan_state(bound)
+        assert state is not None
+        state.next_template_id = hiit.id
+        bound.commit()
+    session = signed_in.get("/api/session/today").json()["session"]
+    assert session["length"]["options"] == []
+    assert session["length"]["planned_minutes"] == 4  # 8 rounds of 30 s
+    answer = _choose(signed_in, 20)
+    assert answer.status_code == 422
+    assert answer.json()["detail"] == guided.NOT_SHORTER
     with make_session_factory(engine, user_id=OWNER)() as bound:
         assert bound.scalars(select(SessionProgress)).all() == []  # nothing written
 

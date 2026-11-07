@@ -11,6 +11,7 @@ vi.mock('./progress/ProgressPage', () => ({ default: () => <p>progress</p> }))
 vi.mock('./home/HomePage', () => ({ default: () => <p>home</p> }))
 vi.mock('./review/ReviewPage', () => ({ default: () => <p>review</p> }))
 vi.mock('./connect/ConnectPage', () => ({ default: () => <p>connect</p> }))
+vi.mock('./JoinPage', () => ({ default: () => <p>join</p> }))
 
 afterEach(() => window.history.replaceState(null, '', '/'))
 
@@ -22,6 +23,7 @@ test.each([
   ['/progress', 'progress'],
   ['/review', 'review'],
   ['/connect', 'connect'],
+  ['/join', 'join'],
   ['/', 'home'],
 ])('%s shows %s', (path, text) => {
   window.history.replaceState(null, '', path)

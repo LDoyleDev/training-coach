@@ -4,11 +4,10 @@ The canary in ``test_two_people`` puts marks in each person's rows. Here one per
 the plan (logs a day, pushes a session, changes a level) and the other's answers must not move.
 That holds on today's shared plan and must keep holding after step 5.
 
-The ``xfail(strict=True)`` tests are what only step 5 makes true: an edit to my sessions leaves
-yours alone, the Plan page and body map read my own sessions, a session id and a plan version
-belong to one person, and the seed stops changing anyone's sessions. They fail on the shared
-plan today; step 5 removes the markers, and each must then pass. The read inventory behind
-them: ``docs/specs/plans-per-person.md``.
+And what step 5 (ADR-0073) made true: an edit to my sessions leaves yours alone, the Plan page
+and body map read my own sessions, a session id and a plan version belong to one person, and the
+seed changes nobody's sessions. The read inventory behind them:
+``docs/specs/plans-per-person.md``.
 """
 
 import io
@@ -36,12 +35,6 @@ from training_coach.services import ai_summary, auth, seed, users
 ORIGIN = "https://coach.example.com"
 NOW = datetime(2026, 10, 12, 10, tzinfo=UTC)  # a Monday
 TODAY = NOW.date()
-# True only once step 5 lands. raises: an error (a broken test) is not an expected failure.
-STEP_5 = pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="builder step 5 (ADR-0073): sessions and plan versions become each person's own",
-)
 Pair = tuple[FastAPI, dict[int, TestClient], Engine]
 
 
@@ -174,7 +167,6 @@ def _edit_first_session(engine: Engine, user: int, name: str) -> None:
         template.items[0].sets += 2
 
 
-@STEP_5
 def test_my_edit_to_my_sessions_leaves_the_others_plan_alone(pair: Pair) -> None:
     app, clients, engine = pair
     paths = ("/api/session/today", "/api/log", "/api/log/plan", "/api/plan", "/api/plan/coverage")
@@ -184,18 +176,14 @@ def test_my_edit_to_my_sessions_leaves_the_others_plan_alone(pair: Pair) -> None
     assert before == after
 
 
-@STEP_5
 @pytest.mark.parametrize("path", ["/api/plan", "/api/plan/coverage"])
 def test_the_plan_page_and_body_map_read_my_own_sessions(pair: Pair, path: str) -> None:
-    """Both read plan.toml today (``api/plan.build_plan_view``, ``services/coverage``), so an
-    edit in the database never shows there."""
     _, clients, engine = pair
     before = clients[2].get(path).content
     _edit_first_session(engine, 2, "Bravoplan")
     assert clients[2].get(path).content != before
 
 
-@STEP_5
 def test_a_session_and_its_items_belong_to_one_person(pair: Pair) -> None:
     _, _, engine = pair
     with make_session_factory(engine, user_id=1)() as bound:
@@ -210,7 +198,6 @@ def test_a_session_and_its_items_belong_to_one_person(pair: Pair) -> None:
         )
 
 
-@STEP_5
 def test_a_plan_version_i_save_never_lands_on_the_others_workouts(pair: Pair) -> None:
     """A workout takes the version in force on its date in the INSERT itself (ADR-0034,
     ``models._plan_version``). Flush statements skip the run-time binding, so step 5 must
@@ -219,15 +206,15 @@ def test_a_plan_version_i_save_never_lands_on_the_others_workouts(pair: Pair) ->
     with session_scope(make_session_factory(engine, user_id=2)) as bound:
         bound.add(PlanVersion(since=TODAY, name="Bravoversion"))
     with session_scope(make_session_factory(engine, user_id=1)) as bound:
+        bound.add(PlanVersion(since=TODAY - timedelta(days=1), name="Alphaversion"))
         workout = Workout(local_date=TODAY, status=WorkoutStatus.REST)
         bound.add(workout)
         bound.flush()
         recorded = bound.get(PlanVersion, workout.plan_version_id)
         assert recorded is not None
-        assert recorded.name != "Bravoversion"
+        assert recorded.name == "Alphaversion"
 
 
-@STEP_5
 def test_the_seed_changes_nobodys_sessions(pair: Pair) -> None:
     """After the copy a starter change reaches only people who join later (ADR-0073)."""
     _, clients, engine = pair

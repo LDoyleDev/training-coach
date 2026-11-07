@@ -34,8 +34,8 @@ def signed_in(engine: Engine) -> Iterator[TestClient]:
 
 
 def _ids(engine: Engine) -> dict[str, int]:
-    with make_session_factory(engine)() as shared:
-        return {t.slug: t.id for t in shared.scalars(select(SessionTemplate))}
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        return {t.slug: t.id for t in bound.scalars(select(SessionTemplate))}
 
 
 def _shown(client: TestClient) -> Any:

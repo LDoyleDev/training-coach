@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from tests.db.test_migrations import BACKEND
 
 BEFORE = "e5a7c9d1f3b4"  # the revision before away
+AFTER = "a7c2e9f4b1d3"  # away: later ones change the tables these rows go in
 ITEM = (
     "INSERT INTO template_items (template_id, position, exercise_id, sets, rep_min, rep_max,"
     " place) VALUES (1, 0, 1, 3, 8, 12, '{place}')"
@@ -30,7 +31,7 @@ def _upgraded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Config, 
     monkeypatch.setenv("TC_DATABASE_URL", url)
     get_settings.cache_clear()
     cfg = Config(str(BACKEND / "alembic.ini"))
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, AFTER)
     engine = create_engine(url)
     with engine.begin() as db:
         db.execute(
@@ -66,7 +67,7 @@ def test_away_rows_are_allowed_and_a_downgrade_drops_only_the_away_versions(
         assert db.execute(text("SELECT count(*) FROM workouts")).scalar_one() == 1
     with pytest.raises(IntegrityError), engine.begin() as db:
         db.execute(text(ITEM.format(place="away")))
-    command.upgrade(cfg, "head")  # and back up again
+    command.upgrade(cfg, AFTER)  # and back up again
     engine.dispose()
     get_settings.cache_clear()
 
