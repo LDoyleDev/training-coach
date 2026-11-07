@@ -56,6 +56,29 @@ export async function savePlanChanges(
   return { status: 'saved' }
 }
 
+export type Notice = Schemas['NoticeView']
+
+/** What a release changed in the plan, until seen (ADR-0087); null when not signed in. */
+export async function fetchNotices(signal?: AbortSignal): Promise<Notice[] | null> {
+  const res = await fetch('/api/notices', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Notice[]
+}
+
+/** "Got it": these won't show again. */
+export async function readNotices(ids: number[]): Promise<void> {
+  const res = signedIn(
+    await fetch('/api/notices/read', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    }),
+  )
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+}
+
 export type PlanImport = Schemas['PlanImportView']
 
 /** What plan.toml would change in the owner's plan (ADR-0073); null when not signed in. */
@@ -325,7 +348,7 @@ export async function choosePlace(
 export type Length = Schemas['LengthView']
 export type LengthBody = Schemas['LengthBody']
 
-/** Short on time today (ADR-0082): today's session at 40, 30 or 20 minutes, or as planned
+/** Short on time today (ADR-0082): today's session at a length on offer, or as planned
  * (``minutes`` null), never dropping the exercises in ``keep``. 'stale': the session changed,
  * moved on elsewhere or has started (reload); a string: why it was refused. */
 export async function chooseLength(body: LengthBody): Promise<TodayView | 'stale' | string> {

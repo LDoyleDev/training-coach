@@ -4,6 +4,7 @@ import { secondary } from '../ui'
 import ExtraCardio from './ExtraCardio'
 import Levels from './Levels'
 import PlanImportCard from './PlanImportCard'
+import PlanNotices from './PlanNotices'
 
 /** /plan: the plan as its own page in the nav (ADR-0069; it was a tab of Progress). Your level on
  * each ladder comes first, where every "Ready to move up" link lands (ADR-0075); then extra cardio
@@ -12,6 +13,7 @@ export default function PlanPage() {
   return (
     <AppShell>
       <h1 className="text-3xl font-extrabold">Plan</h1>
+      <PlanNotices />
       <a href="/plan/edit" className={`${secondary} self-start content-center`}>
         Edit your plan
       </a>

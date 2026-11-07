@@ -11,7 +11,7 @@ from training_coach.domain.parser import sets_text
 from training_coach.domain.progression import Progress
 from training_coach.domain.trim import TEST_DAY_WARM_UP_MINUTES, WARM_UP_MINUTES, WarmUp
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
-from training_coach.services.guided import OPTIONS, Length, work_groups
+from training_coach.services.guided import Length, work_groups
 from training_coach.services.progress import NO_OPEN_STEP, Down, Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.review import Review
@@ -85,10 +85,7 @@ BASELINE = (
     "Baseline for {names}: the first session at this step. Aim for the targets and log what "
     "you manage; the next targets grow from it."
 )
-SHORT_ON_TIME = (
-    f"Short on time? Pick {_joined([str(m) for m in OPTIONS], 'or')} minutes in the app "
-    "before you start."
-)
+SHORT_ON_TIME = "Short on time? Pick a shorter length in the app before you start."
 # At the person's minutes per session, before the day picks a length (ADR-0082).
 ANOTHER_LENGTH = "Pick another length for today in the app before you start."
 
@@ -130,7 +127,7 @@ def _length(plan: SessionPlan, length: Length | None) -> list[str]:
     about = f"About {length.planned} minutes" + (
         ", warm-up included." if plan.kind == "strength" else "."
     )
-    return [about if length.fixed else f"{about} {SHORT_ON_TIME}"]
+    return [about if length.fixed or not length.options else f"{about} {SHORT_ON_TIME}"]
 
 
 def _place(plan: SessionPlan) -> list[str]:

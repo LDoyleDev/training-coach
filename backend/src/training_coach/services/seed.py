@@ -30,6 +30,7 @@ from training_coach.db.models import (
     ExerciseState,
     FitnessTestDay,
     LadderStep,
+    PlanNotice,
     PlanState,
     PlanVersion,
     SessionTemplate,
@@ -582,6 +583,23 @@ def sync_version(
             result.deleted += 1
 
 
+def _tell_people(session: Session, changes: dict[str, list[str]]) -> None:
+    """A notice for each person whose plan has a changed exercise, in any version (ADR-0087). It
+    runs before anyone new starts: a plan made after the change has nothing to be told."""
+    if not changes:
+        return
+    using = session.execute(
+        select(TemplateItem.user_id, Exercise.slug)
+        .join(Exercise, Exercise.id == TemplateItem.exercise_id)
+        .where(Exercise.slug.in_(changes))
+        .distinct()
+        .order_by(TemplateItem.user_id, Exercise.slug),
+        execution_options={ALL_USERS: True},
+    )
+    for user_id, slug in using.all():
+        session.add_all(PlanNotice(user_id=user_id, text=text) for text in changes[slug])
+
+
 def sync_sessions(
     session: Session,
     plan: PlanSeed,
@@ -664,6 +682,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
     _preflight(session, plan, exercises)
     _stored_items_preflight(session, plan)
     _tests_preflight(session, plan)
+    changes: dict[str, list[str]] = {}
     for seed in plan.exercises:
         exercise = exercises.get(seed.slug)
         if exercise is None:
@@ -676,6 +695,10 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
             exercise.retired, exercise.per_side = seed.retired, seed.per_side
             exercise.failure_ok = seed.failure_ok
         else:
+            if exercise.name != seed.name:
+                changes.setdefault(seed.slug, []).append(
+                    f"{exercise.name} is now called {seed.name}."
+                )
             _set(
                 exercise,
                 result,
@@ -687,6 +710,7 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
                 failure_ok=seed.failure_ok,
             )
         steps = {step.position: step for step in exercise.ladder}
+        had_steps = bool(steps)
         for position, name in enumerate(seed.ladder):
             step = steps.get(position)
             facts = {
@@ -697,9 +721,16 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
             if step is None:
                 exercise.ladder.append(LadderStep(position=position, name=name, **facts))
                 result.created += 1
+                if had_steps:
+                    changes.setdefault(seed.slug, []).append(f'{seed.name}: a new level, "{name}".')
             else:
+                if step.name != name:
+                    changes.setdefault(seed.slug, []).append(
+                        f'{seed.name}: "{step.name}" is now "{name}".'
+                    )
                 _set(step, result, name=name, **facts)
     session.flush()
+    _tell_people(session, changes)
 
     # Each person's own rows: where they are on every ladder (ADR-0026). The seed runs in an
     # unbound session, so every per-person query here names the user.

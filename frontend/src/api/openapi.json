@@ -3173,7 +3173,7 @@
         "type": "object"
       },
       "LengthBody": {
-        "description": "Short on time today (ADR-0082): as planned (empty) or 40, 30 or 20 minutes, never\ndropping the exercises pinned with ``keep`` (slugs).",
+        "description": "Short on time today (ADR-0082): as planned (empty) or a length on offer, never\ndropping the exercises pinned with ``keep`` (slugs).",
         "properties": {
           "first": {
             "items": {
@@ -3230,7 +3230,7 @@
         "type": "object"
       },
       "LengthView": {
-        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer, the exercises pinned with Keep, about how long as planned, what the chosen length\ndrops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.\n``last_set``: the person's last-set option (ADR-0084), offered here with a shorter day;\nempty when it isn't offered: locked while they are new, or no exercise today it applies to.",
+        "description": "Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on\noffer (only those shorter than as planned, so maybe none), the exercises pinned with Keep,\nabout how long as planned, what the chosen length drops (exercise names, in the order they\nwent) and the warm-up it keeps: the 5-minute one,\nramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the\nchosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is\nkept, so the length no longer changes. ``from_setting``: the day has no choice, so\n``minutes`` is the person's minutes per session; As planned stays selectable for the day.\n``last_set``: the person's last-set option (ADR-0084), offered here with a shorter day;\nempty when it isn't offered: locked while they are new, or no exercise today it applies to.",
         "properties": {
           "dropped": {
             "items": {
@@ -4589,6 +4589,24 @@
         "title": "NightView",
         "type": "object"
       },
+      "NoticeView": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "NoticeView",
+        "type": "object"
+      },
       "OptionView": {
         "properties": {
           "label": {
@@ -5317,6 +5335,23 @@
           "name"
         ],
         "title": "QueuedView",
+        "type": "object"
+      },
+      "ReadBody": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 200,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "ReadBody",
         "type": "object"
       },
       "ReadinessSavedView": {
@@ -9957,6 +9992,66 @@
         ]
       }
     },
+    "/api/notices": {
+      "get": {
+        "operationId": "get_notices_api_notices_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NoticeView"
+                  },
+                  "title": "Response Get Notices Api Notices Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Notices",
+        "tags": [
+          "notices"
+        ]
+      }
+    },
+    "/api/notices/read": {
+      "post": {
+        "description": "\"Got it\": these won't show again.",
+        "operationId": "read_notices_api_notices_read_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Notices",
+        "tags": [
+          "notices"
+        ]
+      }
+    },
     "/api/photos": {
       "get": {
         "description": "Every photo, newest day first (no pictures, just what there is).",
@@ -10871,7 +10966,7 @@
     },
     "/api/session/length": {
       "put": {
-        "description": "Run today's session shorter, or as planned again (ADR-0082): the session at that\nlength. 409 when the session changed, another device moved on since ``revision``\n(reload), or a set is kept already (the length is fixed then); 422 for a session that\nalways runs as planned, or a Keep for an exercise it doesn't have.",
+        "description": "Run today's session shorter, or as planned again (ADR-0082): the session at that\nlength. 409 when the session changed, another device moved on since ``revision``\n(reload), or a set is kept already (the length is fixed then); 422 for a session that\nalways runs as planned, a length not on offer, or a Keep for an exercise it doesn't have.",
         "operationId": "choose_length_api_session_length_put",
         "requestBody": {
           "content": {

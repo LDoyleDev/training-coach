@@ -1055,6 +1055,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Notices */
+        get: operations["get_notices_api_notices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notices/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Notices
+         * @description "Got it": these won't show again.
+         */
+        post: operations["read_notices_api_notices_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/photos": {
         parameters: {
             query?: never;
@@ -1502,7 +1539,7 @@ export interface paths {
          * @description Run today's session shorter, or as planned again (ADR-0082): the session at that
          *     length. 409 when the session changed, another device moved on since ``revision``
          *     (reload), or a set is kept already (the length is fixed then); 422 for a session that
-         *     always runs as planned, or a Keep for an exercise it doesn't have.
+         *     always runs as planned, a length not on offer, or a Keep for an exercise it doesn't have.
          */
         put: operations["choose_length_api_session_length_put"];
         post?: never;
@@ -3058,7 +3095,7 @@ export interface components {
         };
         /**
          * LengthBody
-         * @description Short on time today (ADR-0082): as planned (empty) or 40, 30 or 20 minutes, never
+         * @description Short on time today (ADR-0082): as planned (empty) or a length on offer, never
          *     dropping the exercises pinned with ``keep`` (slugs).
          */
         LengthBody: {
@@ -3080,8 +3117,9 @@ export interface components {
         /**
          * LengthView
          * @description Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on
-         *     offer, the exercises pinned with Keep, about how long as planned, what the chosen length
-         *     drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
+         *     offer (only those shorter than as planned, so maybe none), the exercises pinned with Keep,
+         *     about how long as planned, what the chosen length drops (exercise names, in the order they
+         *     went) and the warm-up it keeps: the 5-minute one,
          *     ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
          *     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
          *     kept, so the length no longer changes. ``from_setting``: the day has no choice, so
@@ -3515,6 +3553,13 @@ export interface components {
              */
             start: string;
         };
+        /** NoticeView */
+        NoticeView: {
+            /** Id */
+            id: number;
+            /** Text */
+            text: string;
+        };
         /** OptionView */
         OptionView: {
             /** Label */
@@ -3787,6 +3832,11 @@ export interface components {
             name: string;
             /** Template Id */
             template_id: number;
+        };
+        /** ReadBody */
+        ReadBody: {
+            /** Ids */
+            ids: number[];
         };
         /** ReadinessSavedView */
         ReadinessSavedView: {
@@ -6312,6 +6362,57 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LogPlanView"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_notices_api_notices_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoticeView"][];
+                };
+            };
+        };
+    };
+    read_notices_api_notices_read_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
