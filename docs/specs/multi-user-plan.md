@@ -354,7 +354,12 @@ guards, cheapest first:
    and passkey. **Done (7 Nov 2026)**, except the notice, which step 11 publishes: the routes
    (`GET /api/people`, `POST` and `DELETE /api/invites`, `POST /api/join`), People on Account
    and the `/join` page.
-6. **Consent records** and per-category withdraw and erase.
+6. **Consent records** and per-category withdraw and erase. **Training-only first (7 Nov
+   2026):** until the lawyer's review, no member can keep or read health data at all
+   (`users.health_open`, the owner by id): the health routes answer 403 (`api.auth.Health`),
+   their phone's band posts, cardio heart rate and health proposals from their AI are refused,
+   and their AI app's tokens carry no body or readiness scope. So there is nothing to consent to
+   or withdraw yet; the consent records come with the lawyer's wording (plan review, 7 Nov).
 7. **Leave, remove a member, admin recovery link** (ADR succeeding ADR-0044) and the restore
    runbook step. The leave service and the left list are done ([ADR-0088](../adr/0088-leaving-and-the-left-list.md),
    7 Nov 2026): the list is a file beside the database, copied off-site nightly, matched by id

@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from training_coach.api.auth import Owner
+from training_coach.api.auth import Health
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
@@ -36,7 +36,7 @@ class HealthView(BaseModel):
 
 
 @router.get("", response_model=HealthView)
-def get_health(request: Request, user: Owner) -> HealthView:
+def get_health(request: Request, user: Health) -> HealthView:
     settings: Settings = request.app.state.settings
     today = local_date(datetime.now(UTC), settings.tz)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:

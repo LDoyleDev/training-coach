@@ -24,6 +24,14 @@ def closed_to(user_id: int, multi_user: bool) -> bool:
     return not multi_user and user_id != OWNER
 
 
+def health_open(user_id: int) -> bool:
+    """Whether ``user_id`` may keep health data: body measurements and photos, readiness
+    answers, daily checks, heart rate and band data. Members are training-only until a lawyer
+    has reviewed the privacy notice, the consent step and a DPIA (ADR-0059, Decided 14), so only
+    the owner, by id, until then."""
+    return user_id == OWNER
+
+
 def is_admin(session: Session, user_id: int) -> bool:
     """Whether ``user_id`` is an admin. Run in an unbound session (``users`` is shared)."""
     found = session.get(User, user_id)

@@ -33,7 +33,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import McpConnection, OAuthClient, OAuthCode, OAuthToken
 from training_coach.db.session import ALL_USERS
 from training_coach.domain import connections
-from training_coach.services import proposals
+from training_coach.services import proposals, users
 
 log = structlog.get_logger(__name__)
 
@@ -303,6 +303,8 @@ def verify(session: Session, token: str, resource: str, now: datetime) -> Access
     if connection.last_used_at is None or now - connection.last_used_at >= TOUCH_AFTER:
         connection.last_used_at = now
     granted = frozenset(row.scopes) & frozenset(connection.scopes)
+    if not users.health_open(connection.user_id):  # members are training-only (ADR-0059)
+        granted -= {scope.value for scope in connections.HEALTH}
     return Access(connection.id, connection.user_id, granted)
 
 

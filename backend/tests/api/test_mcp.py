@@ -19,6 +19,7 @@ from training_coach.api.app import create_app
 from training_coach.config import Settings
 from training_coach.db.models import Event, Exercise, Measurement, ReadinessAnswers, User
 from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
+from training_coach.domain.connections import HEALTH
 from training_coach.domain.queue import local_date
 from training_coach.domain.readiness import KEYS, VERSION
 from training_coach.services import mcp_tokens, mcp_tools, workout_log
@@ -338,6 +339,9 @@ def _another_persons_token_never_reads_my_rows(client: TestClient, engine: Engin
     mine_token = flow.mint(engine, ALL)
     for tool in TOOLS:
         args = ARGUMENTS.get(tool.name, {})
+        if tool.scope in HEALTH:  # a member's token carries no health scope (ADR-0059)
+            assert call(client, theirs, tool.name, **args).status_code == 403, tool.name
+            continue
         answer = text(call(client, theirs, tool.name, **args))
         assert "84.5" not in answer, tool.name
         assert "9 / 8" not in answer, tool.name

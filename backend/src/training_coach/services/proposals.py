@@ -54,6 +54,7 @@ from training_coach.services import (
     habits,
     measurements,
     user_settings,
+    users,
     workout_log,
 )
 from training_coach.services import zones as heart
@@ -455,6 +456,15 @@ def check(
         found = _PROPOSAL.validate_python(dict(arguments))
     except ValidationError as error:
         return Refused(_reason(error))
+    if not users.health_open(_user(session)) and (
+        isinstance(found, BodyProposal)
+        or (
+            isinstance(found, CardioProposal)
+            and (found.avg_hr is not None or found.max_hr is not None)
+        )
+    ):
+        # Health data: members are training-only for now (ADR-0059).
+        return Refused("body measurements and heart rate aren't available to this person yet")
     today = local_date(now, tz)
     day = found.day or today
     checked: _Checked | Refused
