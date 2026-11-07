@@ -250,6 +250,7 @@ MODEL_ASSISTED = (
 VOICE_FAILED = "Couldn't transcribe that. Please type the log instead."
 VOICE_OFF = "Voice logging isn't set up yet. Please type the log instead."
 VOICE_TOO_LONG = "That voice note is too long. Keep it under two minutes, or type the log."
+VOICE_CAPPED = "That's today's voice notes used up. Please type the log instead."
 HEARD_LENGTH = 300
 
 
