@@ -2,8 +2,8 @@
 
 Deleting the user row takes every per-person row with it: each one's ``user_id`` is
 ``ON DELETE CASCADE`` (a test holds every ``Owned`` table to that). The person then starts
-again under the same id and Telegram account, with a starter (ADR-0073), so the bot and the web
-app keep working. The catalogue and everyone else's rows are untouched.
+again under the same id, role and Telegram account, with a starter (ADR-0073), so the bot and
+the web app keep working. The catalogue and everyone else's rows are untouched.
 """
 
 import structlog
@@ -24,6 +24,7 @@ def erase(session: Session, user_id: int, plan: PlanSeed) -> bool:
     if user is None:
         return False
     telegram, seen = user.telegram_user_id, user.last_seen_in_europe
+    role, label, joined = user.role, user.label, user.created_at
     # These RESTRICT the person's sessions and versions, and a RESTRICT fires even inside the
     # cascade, whichever table it reaches first: so they go first.
     for model in (PlanState, Workout):
@@ -35,7 +36,18 @@ def erase(session: Session, user_id: int, plan: PlanSeed) -> bool:
     session.expunge_all()  # rows loaded before it are gone
     # The country of residence goes with the rest (asked again). "Last seen in Europe" is kept:
     # an erase sent without a country (LAN, Tailscale) mustn't restart the 30 days (ADR-0085).
-    session.add(User(id=user_id, telegram_user_id=telegram, last_seen_in_europe=seen))
+    # Who they are to the app is kept, not being their data: role, label and join day (ADR-0059),
+    # so the owner erasing stays the admin, not a new member.
+    session.add(
+        User(
+            id=user_id,
+            telegram_user_id=telegram,
+            last_seen_in_europe=seen,
+            role=role,
+            label=label,
+            created_at=joined,
+        )
+    )
     session.flush()
     apply_seed(session, plan)
     # Nothing about what was there: only that it was erased, as the history starts again.
