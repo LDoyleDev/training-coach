@@ -19,9 +19,10 @@ from training_coach.domain import coverage as domain
 from training_coach.domain.enums import Place, Places
 from training_coach.domain.muscles import step_stress
 from training_coach.domain.places import day_place
-from training_coach.services import user_settings
+from training_coach.services import guided, user_settings
 from training_coach.services.plan_rows import PlannedItem, planned_sessions, with_draft
-from training_coach.services.seed import bundled_plan
+from training_coach.services.seed import ExerciseSeed, bundled_plan
+from training_coach.services.today import ItemPlan
 
 
 def trained_steps(session: Session) -> dict[str, str]:
@@ -42,6 +43,24 @@ def map_place(session: Session) -> tuple[Places, Place]:
     return prefs.places, day_place(prefs.places, prefs.place)
 
 
+def _minutes(items: Sequence[PlannedItem], exercises: Mapping[str, ExerciseSeed], kind: str) -> int:
+    """About how long as planned, at the bottom of each range: where a new step starts."""
+    plans = tuple(
+        ItemPlan(
+            exercise=exercises[i.exercise].name,
+            kind=exercises[i.exercise].kind,
+            step="",
+            cue=None,
+            per_side=i.per_side,
+            targets=(i.rep_min,) * i.sets,
+            pair=i.pair,
+            slug=i.exercise,
+        )
+        for i in items
+    )
+    return guided.planned_minutes(plans, warm_up=kind == "strength")
+
+
 def plan_coverage(
     session: Session,
     place: Place = Place.HOME,
@@ -55,7 +74,8 @@ def plan_coverage(
     for planned in with_draft(planned_sessions(session), draft or {}):
         at = Place.GYM if place is Place.GYM and planned.gym else Place.HOME
         items = []
-        for item in planned.gym if at is Place.GYM else planned.items:
+        version = planned.gym if at is Place.GYM else planned.items
+        for item in version:
             ex = exercises[item.exercise]
             step = steps.get(ex.slug, ex.ladder[min(ex.start, len(ex.ladder) - 1)])
             items.append(
@@ -65,7 +85,9 @@ def plan_coverage(
                     muscles=dict(ex.muscles),
                     parts=frozenset(ex.parts),
                     stress=frozenset(step_stress(ex.stress, ex.pattern, ex.needs.get(step, []))),
+                    pattern=ex.pattern,
                 )
             )
-        week.append(domain.Day(planned.name, items, slug=planned.slug, place=at))
+        minutes = _minutes(version, exercises, planned.kind)
+        week.append(domain.Day(planned.name, items, slug=planned.slug, place=at, minutes=minutes))
     return domain.coverage(week)

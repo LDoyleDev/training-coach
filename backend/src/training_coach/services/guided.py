@@ -155,6 +155,11 @@ def _minutes(items: tuple[ItemPlan, ...], order: tuple[GuidedSet, ...], warm_up:
     return round(_seconds(items, order) / 60) + (WARM_UP[WarmUp.FULL] if warm_up else 0)
 
 
+def planned_minutes(items: tuple[ItemPlan, ...], warm_up: bool) -> int:
+    """About how long a list of items would take, for a session not being run: the body map's."""
+    return _minutes(items, _ordered(items, work_groups(items)), warm_up)
+
+
 def _seconds(items: tuple[ItemPlan, ...], order: tuple[GuidedSet, ...]) -> int:
     """Each set's work and the rest after it, warm-up not included."""
     seconds = 0

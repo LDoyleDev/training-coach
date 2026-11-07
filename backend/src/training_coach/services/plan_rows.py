@@ -25,6 +25,7 @@ class PlannedItem:
     rep_min: int
     rep_max: int
     per_side: bool
+    pair: int | None = None
 
 
 @dataclass(frozen=True)
@@ -58,7 +59,12 @@ def _items(rows: list[TemplateItem], known: set[str]) -> tuple[PlannedItem, ...]
         if item.exercise.slug in known:
             found.append(
                 PlannedItem(
-                    item.exercise.slug, item.sets, item.rep_min, item.rep_max, item.per_side
+                    item.exercise.slug,
+                    item.sets,
+                    item.rep_min,
+                    item.rep_max,
+                    item.per_side,
+                    item.pair,
                 )
             )
         else:
