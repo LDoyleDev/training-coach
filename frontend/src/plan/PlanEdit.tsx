@@ -54,16 +54,18 @@ function Picker({
   catalogue,
   place,
   label,
+  initial = '',
   onPick,
   onClose,
 }: {
   catalogue: CatalogueItem[]
   place: Place
   label: string
+  initial?: string // the muscle it opens on: one tapped on the map
   onPick: (from: CatalogueItem) => void
   onClose: () => void
 }) {
-  const [muscle, setMuscle] = useState('')
+  const [muscle, setMuscle] = useState(initial)
   const list = choices(catalogue, place, muscle || null)
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-[var(--line)] p-3">
@@ -217,6 +219,7 @@ export default function PlanEdit() {
   const [slug, setSlug] = useState<string | null>(null)
   const [place, setPlace] = useState<Place>('home')
   const [picking, setPicking] = useState<'add' | number | null>(null)
+  const [forMuscle, setForMuscle] = useState('')
   const [note, setNote] = useState('')
   const [said, setSaid] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -329,7 +332,7 @@ export default function PlanEdit() {
       <p className="m-0">
         Nothing changes until you save. <a href="/plan">Back to your plan</a>
       </p>
-      <section className={`${card} flex flex-col gap-3`} aria-label="Session">
+      <section id="edit-items" className={`${card} flex flex-col gap-3`} aria-label="Session">
         <label className="flex flex-col gap-1">
           <span>Session</span>
           <select
@@ -383,7 +386,10 @@ export default function PlanEdit() {
           <button
             type="button"
             className={`${secondary} self-start`}
-            onClick={() => setPicking('add')}
+            onClick={() => {
+              setForMuscle('')
+              setPicking('add')
+            }}
           >
             Add an exercise
           </button>
@@ -392,6 +398,8 @@ export default function PlanEdit() {
             catalogue={loaded.catalogue}
             place={place}
             label={picking === 'add' ? 'Add' : `Swap ${items[picking]?.name ?? ''}`}
+            key={`${picking}-${forMuscle}`} // a muscle tapped while it's open starts it afresh
+            initial={picking === 'add' ? forMuscle : ''}
             onClose={() => setPicking(null)}
             onPick={(from) => {
               set(picking === 'add' ? [...items, newItem(from)] : swapped(items, picking, from))
@@ -407,7 +415,14 @@ export default function PlanEdit() {
         <p className="m-0 text-[var(--slate)]">
           It follows your edits. Warnings are for you to weigh: nothing stops you saving.
         </p>
-        <BodyMap state={map} />
+        <BodyMap
+          state={map}
+          onAdd={(muscle) => {
+            setForMuscle(muscle)
+            setPicking('add')
+            document.getElementById('edit-items')?.scrollIntoView?.({ behavior: 'smooth' })
+          }}
+        />
       </section>
       <section className={`${card} flex flex-col gap-3`} aria-label="Save">
         <label className="flex flex-col gap-1">

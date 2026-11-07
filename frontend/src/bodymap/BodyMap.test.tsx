@@ -22,6 +22,7 @@ const muscle = (over: Partial<MuscleCoverage>): MuscleCoverage => ({
   back_to_back: [],
   missing_parts: [],
   sources: [],
+  adds: [],
   ...over,
 })
 

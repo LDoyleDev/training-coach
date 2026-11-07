@@ -121,11 +121,13 @@ function MuscleRow({
   coverage,
   open,
   onToggle,
+  onAdd,
 }: {
   m: MuscleCoverage
   coverage: Coverage
   open: boolean
   onToggle: () => void
+  onAdd?: (muscle: string) => void
 }) {
   const found = warnings(m, coverage)
   return (
@@ -169,15 +171,25 @@ function MuscleRow({
               ))}
             </ul>
           )}
+          {m.adds.length > 0 && <p className="mt-2 mb-0">Would add to it: {m.adds.join(', ')}.</p>}
+          {onAdd && (
+            <button
+              type="button"
+              className="mt-2 min-h-11 rounded-xl border-2 border-[var(--ink)] px-3 font-bold"
+              onClick={() => onAdd(m.muscle)}
+            >
+              Add an exercise for {muscleName(m.muscle).toLowerCase()}
+            </button>
+          )}
         </div>
       )}
     </li>
   )
 }
 
-/** The read-only body map on the Plan page (program-builder.md F, step 3): what the plan as it
- * stands gives each muscle in a week. */
-export function BodyMap({ state }: { state: State }) {
+/** The body map (program-builder.md F, step 3): what the plan gives each muscle in a week, with
+ * the exercises that would add to one. While editing, ``onAdd`` opens the picker for it. */
+export function BodyMap({ state, onAdd }: { state: State; onAdd?: (muscle: string) => void }) {
   const [open, setOpen] = useState<string | null>(null)
 
   if (state.status === 'loading') return <p className="status">Loading the body map…</p>
@@ -209,6 +221,7 @@ export function BodyMap({ state }: { state: State }) {
         coverage={coverage}
         open={open === m.muscle}
         onToggle={() => toggle(m.muscle)}
+        onAdd={onAdd}
       />
     ))
 
