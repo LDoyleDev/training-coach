@@ -4,6 +4,18 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.18.1](https://github.com/LDoyleDev/training-coach/compare/v1.18.0...v1.18.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **api:** offer only lengths shorter than the session due ([#586](https://github.com/LDoyleDev/training-coach/issues/586)) ([9e3ce4d](https://github.com/LDoyleDev/training-coach/commit/9e3ce4d804999a4973279b781b74dfbd35ac8a2d))
+
+
+### Documentation
+
+* **docs:** session log for 1.18.0, plans per person ([#587](https://github.com/LDoyleDev/training-coach/issues/587)) ([aac37b9](https://github.com/LDoyleDev/training-coach/commit/aac37b95253c817b6577b2e877c4b6a670bb16eb))
+
 ## [1.18.0](https://github.com/LDoyleDev/training-coach/compare/v1.17.0...v1.18.0) (2026-11-06)
 
 
