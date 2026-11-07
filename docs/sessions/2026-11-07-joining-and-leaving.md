@@ -25,15 +25,16 @@ backup, with no network and no `.env`. All passed:
 - `alembic downgrade b4e8d1f6a9c2` (all four migrations) on another copy matched the backup's
   rows and schema, and the old image ran on the result with the same answers.
 
-Live at 23:58:28 CET by the deploy timer, at a quiet time. The Pi's head is `a9c3e5f7b1d2`, `/healthz`
-says 1.19.0 with the bot on, and the first start logged `seed.unchanged` with no `seed.failed`.
+Live at 23:58:28 CET by the deploy timer, at a quiet time. The Pi's head is `a9c3e5f7b1d2`,
+`/healthz` says 1.19.0 with the bot on, and the first start logged `seed.unchanged` with no
+`seed.failed`.
 
 ## Decisions and where they live
 
 - **Members recover only with the admin's link; `/recover` stays the owner's (Liam, 7 Nov):**
   ADR-0059 addendum; `multi-user-plan.md`, Decided 2026-11-07.
-- **A member's erase drops their Telegram link (Liam, 7 Nov):** the same Decided list. Not built
-  yet: the code keeps it today.
+- **A member's erase drops their Telegram link (Liam, 7 Nov):** the same Decided list. Fixed in
+  #609.
 - **Members' bot messages on at default times; readiness answered on the device, not stored;
   the consent step built now with draft wording (Liam, 7 Nov):** the same Decided list.
 - **The walk-through for new people (Liam, 7 Nov):** everything starts at the bottom of its
@@ -44,8 +45,8 @@ says 1.19.0 with the bot on, and the first start logged `seed.unchanged` with no
 ## Open items and next steps
 
 1. **Joining step 8, Telegram for members:** the connect link, the members filter, a session per
-   update, and the erase dropping a member's link. #609 does the erase part. A written plan and an independent
-   review first: it changes the "the bot answers only the owner" rule.
+   update. A written plan and an independent review first: it changes the "the bot answers only
+   the owner" rule.
 2. **Step 6, the consent step,** and the walk-through (#577 stage 5), then **step 9**,
    schedules per person.
 3. **Waiting on Liam:** new starters for the walk-through, to replace the 2- and 3-day drafts in
