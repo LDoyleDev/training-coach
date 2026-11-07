@@ -4337,6 +4337,22 @@
       },
       "Me": {
         "properties": {
+          "closed": {
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "closing_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closing On"
+          },
           "role": {
             "enum": [
               "admin",
@@ -4352,7 +4368,9 @@
         },
         "required": [
           "user_id",
-          "role"
+          "role",
+          "closed",
+          "closing_on"
         ],
         "title": "Me",
         "type": "object"

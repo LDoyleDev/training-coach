@@ -3628,6 +3628,10 @@ export interface components {
         };
         /** Me */
         Me: {
+            /** Closed */
+            closed: boolean;
+            /** Closing On */
+            closing_on: string | null;
             /**
              * Role
              * @enum {string}
