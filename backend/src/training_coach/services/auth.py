@@ -18,7 +18,7 @@ from typing import cast
 from sqlalchemy import CursorResult, delete, select, update
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import LoginLink, Passkey, WebSession
+from training_coach.db.models import Event, LoginLink, Passkey, WebSession
 from training_coach.db.session import ALL_USERS
 from training_coach.services import mcp_tokens
 
@@ -31,7 +31,14 @@ LABEL_LENGTH = 120
 FRESH = timedelta(minutes=10)  # adding a passkey needs a sign-in this recent (ADR-0040)
 START = "start"
 RECOVER = "recover"
+# A recovery link an admin made for a member (ADR-0059, I1): the same as RECOVER, for 24 hours,
+# and it can't be opened in an admin's browser; using it is shown to the member for 30 days.
+BY_ADMIN = "by-admin"
+BY_ADMIN_TTL = timedelta(hours=24)
 NEEDS_PASSKEY = "needs-passkey"
+ADMIN_LINK_MADE = "auth.admin_link_made"  # events in the member's own history
+ADMIN_RECOVERED = "auth.admin_recovered"
+SHOWN_FOR = timedelta(days=30)  # how long Account shows a recovery by an admin's link
 EVERYONE = {ALL_USERS: True}
 
 
@@ -39,12 +46,41 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def create_link(session: Session, now: datetime, purpose: str = START) -> str:
-    """A sign-in link token for the user ``session`` is bound to; valid once, for 10 minutes."""
+def create_link(
+    session: Session, now: datetime, purpose: str = START, ttl: timedelta = LINK_TTL
+) -> str:
+    """A sign-in link token for the user ``session`` is bound to; valid once, for ``ttl``."""
     token = secrets.token_urlsafe(32)
-    session.add(LoginLink(token_hash=hash_token(token), expires_at=now + LINK_TTL, purpose=purpose))
+    session.add(LoginLink(token_hash=hash_token(token), expires_at=now + ttl, purpose=purpose))
     session.flush()
     return token
+
+
+def make_admin_link(session: Session, now: datetime) -> str:
+    """A recovery link an admin makes for the member ``session`` is bound to (ADR-0059, I1):
+    once, for 24 hours. Any open one made before stops working, so only the newest can be used.
+    The making is an event in the member's own history."""
+    for older in session.scalars(
+        select(LoginLink).where(
+            LoginLink.purpose == BY_ADMIN, LoginLink.used_at.is_(None), LoginLink.expires_at > now
+        )
+    ):
+        older.expires_at = now
+    token = create_link(session, now, BY_ADMIN, BY_ADMIN_TTL)
+    session.add(Event(kind=ADMIN_LINK_MADE, payload={}, at=now))
+    return token
+
+
+def admin_recovered_on(session: Session, now: datetime) -> datetime | None:
+    """When the person ``session`` is bound to was last recovered with an admin's link, if
+    within the last 30 days: Account shows it and it can't be dismissed (ADR-0059)."""
+    found: datetime | None = session.scalar(
+        select(Event.at)
+        .where(Event.kind == ADMIN_RECOVERED, Event.at > now - SHOWN_FOR)
+        .order_by(Event.at.desc())
+        .limit(1)
+    )
+    return found
 
 
 def has_passkeys(session: Session, user_id: int) -> bool:
@@ -64,6 +100,21 @@ class SignedIn:
 @dataclass(frozen=True)
 class Redeemed(SignedIn):
     recovered: bool  # a recovery link: every other browser was signed out
+    by_admin: bool = False  # one an admin made for them (ADR-0059)
+
+
+def link_purpose(session: Session, token: str, now: datetime) -> str | None:
+    """What an open link is for, without using it; None if it isn't one. ``session`` is
+    unbound: the link says whose it is."""
+    found: str | None = session.scalar(
+        select(LoginLink.purpose).where(
+            LoginLink.token_hash == hash_token(token),
+            LoginLink.used_at.is_(None),
+            LoginLink.expires_at > now,
+        ),
+        execution_options=EVERYONE,
+    )
+    return found
 
 
 def redeem_link(session: Session, token: str, now: datetime, label: str) -> Redeemed | str | None:
@@ -91,7 +142,7 @@ def redeem_link(session: Session, token: str, now: datetime, label: str) -> Rede
         select(LoginLink.user_id, LoginLink.purpose).where(LoginLink.token_hash == digest),
         execution_options=EVERYONE,
     ).one()
-    if purpose == RECOVER:
+    if purpose in (RECOVER, BY_ADMIN):
         session.execute(
             update(WebSession)
             .where(WebSession.user_id == user, WebSession.ended_at.is_(None))
@@ -101,7 +152,10 @@ def redeem_link(session: Session, token: str, now: datetime, label: str) -> Rede
         session.execute(delete(Passkey).where(Passkey.user_id == user), execution_options=EVERYONE)
         # So are connected AI apps: Telegram access alone never keeps a data channel open.
         mcp_tokens.revoke_all(session, user, now)
-        return Redeemed(start_session(session, user, now, label), user, recovered=True)
+        cookie = start_session(session, user, now, label)
+        if purpose == BY_ADMIN:
+            session.add(Event(user_id=user, kind=ADMIN_RECOVERED, payload={}, at=now))
+        return Redeemed(cookie, user, recovered=True, by_admin=purpose == BY_ADMIN)
     if has_passkeys(session, user):
         return NEEDS_PASSKEY
     return Redeemed(start_session(session, user, now, label), user, recovered=False)

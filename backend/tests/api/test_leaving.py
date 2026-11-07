@@ -89,7 +89,7 @@ def test_the_owner_erases_instead_of_leaving(admin: TestClient, engine: Engine) 
     assert admin.post("/api/account/leave", json=LEAVE).status_code == 403
     assert _here(engine, users.OWNER)
     assert _listed(engine) == []
-    assert admin.get("/api/auth/me").json() == {"user_id": users.OWNER, "role": "admin"}
+    assert admin.get("/api/auth/me").json()["role"] == "admin"
 
 
 @pytest.mark.parametrize("body", [{}, {"confirm": "yes"}, {"confirm": "LEAVE"}])

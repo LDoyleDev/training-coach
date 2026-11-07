@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from training_coach.api.alerts import alert, device
 from training_coach.api.region import visitor_country
 from training_coach.config import Settings
-from training_coach.db.session import session_scope
+from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.region import listed
 from training_coach.services import auth, users
 
@@ -43,6 +43,9 @@ class Redeem(BaseModel):
 class Me(BaseModel):
     user_id: int
     role: Literal["admin", "member"]  # ADR-0059: what Account offers them (People, or leaving)
+    # Recovered with an admin's link within the last 30 days: Account says so, and it can't be
+    # dismissed, so an admin who signed in that way can't hide it (ADR-0059).
+    recovered_by_admin_at: datetime | None
 
 
 def _shared(request: Request) -> sessionmaker[Session]:
@@ -111,15 +114,36 @@ def set_session_cookie(response: Response, token: str) -> None:
 def redeem(body: Redeem, request: Request, response: Response, background: BackgroundTasks) -> None:
     """Exchange a one-time link from the bot for a session cookie. Once a passkey exists only
     a recovery link does (403 otherwise: use the fingerprint, ADR-0040)."""
-    label = request.headers.get("user-agent", "")
+    label, now = request.headers.get("user-agent", ""), datetime.now(UTC)
     with session_scope(_shared(request)) as session:
-        redeemed = auth.redeem_link(session, body.token, datetime.now(UTC), label)
+        # An admin's link for a member is for the member's own device (ADR-0059): never opened
+        # where an admin is signed in, so an admin can't simply sign in as them here.
+        here = auth.session_user(session, request.cookies.get(COOKIE, ""), now)
+        if (
+            here is not None
+            and users.is_admin(session, here.user_id)
+            and auth.link_purpose(session, body.token, now) == auth.BY_ADMIN
+        ):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "open this link on the member's own device"
+            )
+        redeemed = auth.redeem_link(session, body.token, now, label)
     if redeemed is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "this link has expired or was used")
     if redeemed == auth.NEEDS_PASSKEY or not isinstance(redeemed, auth.Redeemed):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "sign in with your passkey")
     set_session_cookie(response, redeemed.cookie)
-    if redeemed.recovered:
+    if redeemed.by_admin:
+        alert(
+            request,
+            background,
+            redeemed.user_id,
+            "admin_link_used",
+            f"Your Training Coach account was recovered with the admin's link, on "
+            f"{device(request)}. Every other device was signed out and every passkey removed. "
+            "If this wasn't you, tell the admin now.",
+        )
+    elif redeemed.recovered:
         alert(
             request,
             background,
@@ -170,9 +194,14 @@ PasskeyFresh = Annotated[auth.PasskeyProof, Depends(passkey_proved)]
 
 @router.get("/me", response_model=Me)
 def me(request: Request, user: Owner) -> Me:
-    with session_scope(_shared(request)) as session:
-        role = users.role(session, user)
-    return Me(user_id=user, role="admin" if role == users.ADMIN else "member")
+    with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as mine:
+        role = users.role(mine, user)
+        recovered = auth.admin_recovered_on(mine, datetime.now(UTC))
+    return Me(
+        user_id=user,
+        role="admin" if role == users.ADMIN else "member",
+        recovered_by_admin_at=recovered,
+    )
 
 
 @router.post("/signout", status_code=status.HTTP_204_NO_CONTENT)

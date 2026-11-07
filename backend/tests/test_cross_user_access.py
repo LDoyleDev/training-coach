@@ -36,6 +36,7 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("services.auth::<module>", ALL): "EVERYONE: sign-in looks up a token before knowing whose",
     ("services.auth::has_passkeys", ALL): "names the user in the query",
     ("services.auth::redeem_link", ALL): "whose link is this; acts on that user only",
+    ("services.auth::link_purpose", ALL): "what an open link is for; reads nothing else",
     ("services.auth::_live", ALL): "whose session cookie is this",
     ("services.passkeys::<module>", ALL): "EVERYONE: credentials are unique across people",
     ("services.passkeys::sign_in", ALL): "whose passkey is this",

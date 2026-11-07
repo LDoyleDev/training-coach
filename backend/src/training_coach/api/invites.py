@@ -16,8 +16,8 @@ from training_coach.api.alerts import alert, alert_chat
 from training_coach.api.auth import Admin, Fresh, set_session_cookie
 from training_coach.api.oauth import limited
 from training_coach.config import Settings
-from training_coach.db.session import session_scope
-from training_coach.services import invites, left_list, users
+from training_coach.db.session import make_session_factory, session_scope
+from training_coach.services import auth, invites, left_list, users
 from training_coach.services.erase import leave
 
 router = APIRouter(prefix="/api", tags=["people"])
@@ -140,6 +140,37 @@ def remove_member(
         "The admin removed you from Training Coach, and everything of yours was deleted. "
         "Backups age out within 5 weeks.",
     )
+
+
+class RecoveryView(BaseModel):
+    token: str  # shown once: the link is /signin#<token>
+    expires_at: datetime
+
+
+@router.post("/people/{member_id}/recovery", response_model=RecoveryView)
+def make_recovery_link(
+    member_id: int, request: Request, background: BackgroundTasks, user: Admin, _fresh: Fresh
+) -> RecoveryView:
+    """A recovery link for a member who lost their passkey (ADR-0059, I1), for the admin to hand
+    them: once, 24 hours, and only the newest works. Using it signs out their other browsers and
+    removes their passkeys, like /recover. The member is told now, and again when it is used;
+    an admin's own browser can't open it. 404 for anyone who isn't a member."""
+    _on(request)
+    now = datetime.now(UTC)
+    # Bound to the member the path names: an admin acts for them here, and only here.
+    with session_scope(make_session_factory(request.app.state.engine, user_id=member_id)) as bound:
+        if users.role(bound, member_id) != users.MEMBER:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "no such member")
+        token = auth.make_admin_link(bound, now)
+    alert(
+        request,
+        background,
+        member_id,
+        "admin_link_made",
+        "The admin made a recovery link for you on Training Coach. Use it only if you asked "
+        "for one; if you didn't, tell them.",
+    )
+    return RecoveryView(token=token, expires_at=now + auth.BY_ADMIN_TTL)
 
 
 @router.post("/join", status_code=status.HTTP_204_NO_CONTENT)
