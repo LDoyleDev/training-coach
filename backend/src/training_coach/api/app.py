@@ -88,9 +88,8 @@ def _sender(telegram: Bot | None) -> Send | None:
     return send
 
 
-def _owner_notifier(settings: Settings, telegram: Bot | None) -> backup.Notify | None:
-    """A failed backup is worth a message, to the owner only (ADR-0009)."""
-    owner = settings.telegram_allowed_user_id
+def _owner_notifier(telegram: Bot | None, owner: int | None) -> backup.Notify | None:
+    """A failed backup is worth a message, to the owner's linked chat only (ADR-0009)."""
     if telegram is None or owner is None:
         return None
 
@@ -276,7 +275,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         bot = None
+        sends_only: Bot | None = None  # the bot off, its alerts still sent (a clash, below)
         owner = users.OWNER  # whose jobs the bot runs (set again by link_owner)
+        owner_chat: int | None = None  # where the owner's own alerts go: their linked chat
         if settings.bot_enabled:
             # bot_enabled means the token and the allowed account are both set.
             allowed = settings.telegram_allowed_user_id
@@ -285,22 +286,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # the bot sessions bound to that user.
             with session_scope(make_session_factory(engine)) as session:
                 owner = users.link_owner(session, allowed)
-            bot = build_bot(settings, make_session_factory(engine, user_id=owner))
+                owner_chat = users.telegram_chat(session, owner)
+            if owner_chat == allowed:
+                bot = build_bot(settings, make_session_factory(engine, user_id=owner))
+            else:
+                # Someone else holds the configured account (logged by link_owner). Until the
+                # bot finds each person from the sender (ADR-0089), it answers that account as
+                # the owner, so it stays off rather than hand a member the owner's data.
+                log.error("bot.disabled", reason="the configured account is someone else's")
+                # Alerts still go out (each to its own person's linked chat), from a Bot that
+                # only sends: no polling, no handlers, nothing to answer.
+                assert settings.telegram_bot_token is not None  # noqa: S101 - bot_enabled
+                sends_only = Bot(settings.telegram_bot_token.get_secret_value())
         if bot is not None:
             await bot.initialize()
             await bot.start()
             assert bot.updater is not None  # noqa: S101 - always set by the default builder
             await bot.updater.start_polling(drop_pending_updates=False)
             log.info("bot.started")
-        else:
+        elif not settings.bot_enabled:
             log.warning("bot.disabled", reason="telegram token or allowed user id not set")
         app.state.reschedule = (
             _on_loop(bot.bot_data[RESCHEDULE], owner) if bot is not None else None
         )
-        app.state.send = _sender(bot.bot if bot else None)  # sign-in alerts (ADR-0040)
+        telegram = bot.bot if bot is not None else sends_only
+        app.state.send = _sender(telegram)  # sign-in alerts (ADR-0040)
         # Proposals from a connected AI go to Telegram as they come (ADR-0058).
         app.state.announce_proposals = bot.bot_data[ANNOUNCE] if bot is not None else None
-        notify = _owner_notifier(settings, bot.bot if bot else None)
+        notify = _owner_notifier(telegram, owner_chat)
         app.state.notify = notify  # ops: a failed backup
         nightly = _start_backups(settings, notify)
         closing = _start_wind_down(settings, make_session_factory(engine), app.state.send, notify)
@@ -322,6 +335,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await bot.stop()
                 await bot.shutdown()
                 log.info("bot.stopped")
+            if sends_only is not None:
+                with contextlib.suppress(Exception):  # it made no requests of its own to close
+                    await sends_only.shutdown()
             engine.dispose()
 
     app = FastAPI(
