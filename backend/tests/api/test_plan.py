@@ -200,10 +200,66 @@ def test_an_empty_draft_is_the_plan_as_it_stands(client: TestClient) -> None:
     assert drafted.json() == before
 
 
+def _draft_of(slug: str, exercise: str) -> dict[str, object]:
+    item = {"exercise": exercise, "sets": 20, "rep_min": 5, "rep_max": 10}
+    return {"place": "home", "versions": [{"slug": slug, "place": "home", "items": [item]}]}
+
+
+def test_a_draft_session_i_dont_have_is_ignored(client: TestClient) -> None:
+    """The map draws what it can of a draft; saving is where a bad one is refused."""
+    before = client.get("/api/plan/coverage", params={"place": "home"}).json()
+    drafted = client.post("/api/plan/coverage/draft", json=_draft_of("no-such", "pull-up"))
+    assert drafted.status_code == 200
+    assert drafted.json() == before
+
+
+def test_a_draft_exercise_the_catalogue_doesnt_know_counts_for_nothing(client: TestClient) -> None:
+    slug = client.get("/api/plan/edit").json()["sessions"][0]["slug"]
+    drafted = client.post("/api/plan/coverage/draft", json=_draft_of(slug, "no-such"))
+    assert drafted.status_code == 200
+    without = client.post("/api/plan/coverage/draft", json={"place": "home", "versions": []})
+    assert sum(m["sets"] for m in drafted.json()["muscles"]) < sum(
+        m["sets"] for m in without.json()["muscles"]
+    )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"place": "home", "versions": [{"slug": "x", "place": "home", "items": []}] * 31},
+        {
+            "place": "home",
+            "versions": [
+                {
+                    "slug": "x",
+                    "place": "home",
+                    "items": [{"exercise": "a", "sets": 1, "rep_min": 1, "rep_max": 2}] * 41,
+                }
+            ],
+        },
+        {
+            "place": "home",
+            "versions": [
+                {
+                    "slug": "x",
+                    "place": "home",
+                    "items": [{"exercise": "a", "sets": 21, "rep_min": 1, "rep_max": 2}],
+                }
+            ],
+        },
+    ],
+    ids=["too-many-versions", "too-many-items", "too-many-sets"],
+)
+def test_a_draft_past_its_limits_is_refused(client: TestClient, body: dict[str, object]) -> None:
+    assert client.post("/api/plan/coverage/draft", json=body).status_code == 422
+
+
 def test_the_plan_needs_a_signed_in_browser(engine: Engine) -> None:
     settings = Settings(environment="test", database_url=str(engine.url))
     with TestClient(create_app(settings), base_url="https://testserver") as stranger:
         assert stranger.get("/api/plan").status_code == 401
+        empty = {"place": "home", "versions": []}
+        assert stranger.post("/api/plan/coverage/draft", json=empty).status_code == 401
 
 
 def test_plan_endpoint_returns_the_week_in_queue_order(client: TestClient) -> None:
