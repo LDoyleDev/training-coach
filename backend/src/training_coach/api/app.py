@@ -36,6 +36,7 @@ from training_coach.api.heart_rate import router as heart_rate_router
 from training_coach.api.home import router as home_router
 from training_coach.api.ingest import account_router as ingest_account_router
 from training_coach.api.ingest import router as ingest_router
+from training_coach.api.invites import router as invites_router
 from training_coach.api.log import router as log_router
 from training_coach.api.mcp import PER_CONNECTION
 from training_coach.api.mcp import router as mcp_router
@@ -250,6 +251,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(plan_router)
     app.include_router(notices_router)
+    app.include_router(invites_router)
     app.include_router(coverage_router)
     app.include_router(equipment_router)
     app.include_router(auth_router)

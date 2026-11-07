@@ -23,6 +23,7 @@ from training_coach.services.users import OWNER
 PUBLIC = {
     "/healthz",
     "/api/auth/redeem",
+    "/api/join",  # the invite's token proves it (ADR-0059), and it is off by default
     "/api/auth/signout",
     "/api/auth/passkeys/sign-in/options",
     "/api/auth/passkeys/sign-in",

@@ -1013,6 +1013,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Invite
+         * @description A one-time link for someone to join, valid 72 hours; 409 when the house is full (open
+         *     invites count).
+         */
+        post: operations["make_invite_api_invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/invites/{invite_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Invite
+         * @description Revoke an open invite; 404 for one that's used, expired, revoked or unknown.
+         */
+        delete: operations["revoke_invite_api_invites__invite_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join
+         * @description Join with an invite: the new member signed in, to add a passkey next. 401 for a link that
+         *     is used, revoked or expired; 422 unless they are an adult; 409 when there's no room.
+         */
+        post: operations["join_api_join_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/log": {
         parameters: {
             query?: never;
@@ -1086,6 +1148,26 @@ export interface paths {
          * @description "Got it": these won't show again.
          */
         post: operations["read_notices_api_notices_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get People
+         * @description Members' labels and join days, and the open invites: nothing of anyone's data.
+         */
+        get: operations["get_people_api_people_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2958,6 +3040,28 @@ export interface components {
             /** Url */
             url: string | null;
         };
+        /** InviteBody */
+        InviteBody: {
+            /** Label */
+            label?: string | null;
+        };
+        /** InviteView */
+        InviteView: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Id */
+            id: number;
+            /** Label */
+            label: string | null;
+        };
         /** ItemChange */
         ItemChange: {
             /** Exercise */
@@ -3038,6 +3142,13 @@ export interface components {
              * @enum {string}
              */
             unit: "reps" | "seconds" | "minutes";
+        };
+        /** JoinBody */
+        JoinBody: {
+            /** Adult */
+            adult: boolean;
+            /** Token */
+            token: string;
         };
         /** KeepBody */
         KeepBody: {
@@ -3453,6 +3564,16 @@ export interface components {
             /** Workout Id */
             workout_id: number;
         };
+        /** MadeView */
+        MadeView: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Token */
+            token: string;
+        };
         /** Me */
         Me: {
             /** User Id */
@@ -3486,6 +3607,16 @@ export interface components {
             on: string;
             /** Value */
             value: number;
+        };
+        /** MemberView */
+        MemberView: {
+            /**
+             * Joined
+             * Format: date
+             */
+            joined: string;
+            /** Label */
+            label: string | null;
         };
         /** MoveUpBody */
         MoveUpBody: {
@@ -3688,6 +3819,15 @@ export interface components {
             session: string;
             /** Sets */
             sets: number;
+        };
+        /** PeopleView */
+        PeopleView: {
+            /** Invites */
+            invites: components["schemas"]["InviteView"][];
+            /** Max Members */
+            max_members: number;
+            /** Members */
+            members: components["schemas"]["MemberView"][];
         };
         /** PhotoView */
         PhotoView: {
@@ -6354,6 +6494,99 @@ export interface operations {
             };
         };
     };
+    make_invite_api_invites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MadeView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_invite_api_invites__invite_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    join_api_join_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     options_api_log_get: {
         parameters: {
             query?: never;
@@ -6495,6 +6728,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_people_api_people_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeopleView"];
                 };
             };
         };
