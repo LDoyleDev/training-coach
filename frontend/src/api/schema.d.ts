@@ -93,7 +93,7 @@ export interface paths {
         /**
          * Ai Summary
          * @description My training as compact Markdown for my own AI (ADR-0047): the last 4 or 12 weeks, or
-         *     everything. Measurements and readiness answers (health data) only when asked for; photos
+         *     everything. Measurements and daily checks (health data) only when asked for; photos
          *     never.
          */
         get: operations["ai_summary_api_account_ai_summary_get"];
@@ -1646,7 +1646,8 @@ export interface paths {
         get: operations["get_readiness_api_readiness_get"];
         /**
          * Put Readiness
-         * @description Answer every question; the answers replace any earlier ones.
+         * @description Record that the current questions were answered now. 409 if the browser asked an older
+         *     version (a page loaded before a release): it reloads and asks the new ones.
          */
         put: operations["put_readiness_api_readiness_put"];
         post?: never;
@@ -2222,12 +2223,10 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** AnswersBody */
-        AnswersBody: {
-            /** Answers */
-            answers: {
-                [key: string]: boolean;
-            };
+        /** AnsweredBody */
+        AnsweredBody: {
+            /** Version */
+            version: number;
         };
         /** ApproveBody */
         ApproveBody: {
@@ -4119,13 +4118,6 @@ export interface components {
              */
             warnings: string[];
         };
-        /** QuestionView */
-        QuestionView: {
-            /** Key */
-            key: string;
-            /** Text */
-            text: string;
-        };
         /** QueuedView */
         QueuedView: {
             /** Name */
@@ -4138,34 +4130,19 @@ export interface components {
             /** Ids */
             ids: number[];
         };
-        /** ReadinessSavedView */
-        ReadinessSavedView: {
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "due" | "clear" | "see_doctor";
-        };
         /**
          * ReadinessView
-         * @description The questions, the latest answers if they still count, and what they mean.
+         * @description Which questions the server expects, and when they were last answered, if that counts.
          */
         ReadinessView: {
             /** Answered At */
             answered_at: string | null;
-            /** Answers */
-            answers: {
-                [key: string]: boolean;
-            } | null;
             /** Ask Again After */
             ask_again_after: string | null;
-            /** Questions */
-            questions: components["schemas"]["QuestionView"][];
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "due" | "clear" | "see_doctor";
+            /** Due */
+            due: boolean;
+            /** Version */
+            version: number;
         };
         /**
          * ReadyView
@@ -7581,7 +7558,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AnswersBody"];
+                "application/json": components["schemas"]["AnsweredBody"];
             };
         };
         responses: {
@@ -7591,7 +7568,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReadinessSavedView"];
+                    "application/json": components["schemas"]["ReadinessView"];
                 };
             };
             /** @description Validation Error */

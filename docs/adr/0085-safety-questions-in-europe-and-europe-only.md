@@ -176,3 +176,21 @@ Live now, in `frontend/src/session/safety.ts` unless named:
 The gate intro, the three notes, the lines shown with every note, the hard-day line, the Q8
 clarifier and the AI prompt and guide lines are written in Part 5 for this ADR's on-device build,
 and change only with it.
+
+## Addendum (2026-11-08): the on-device questions, built
+
+Built as decided, with Part 5's wording (#577; Liam, 7 Nov: members answer them too, nothing
+stored):
+
+- **The browser** asks the ten questions (`frontend/src/readiness/questions.ts`), with Yes, No
+  and Not sure ("not sure" counts as the careful answer: yes, or no for the first question), works
+  out note A, B or C and shows it with the lines every note carries and the stop signs. The
+  answers and the note stay in memory: nothing is kept on the device either.
+- **The server** keeps one `readiness_checks` row per person: the version and when they were
+  answered (migration `b2d4f6a8c0e3` drops `readiness_answers`; nothing is copied, as version 2
+  asks everyone again). `PUT /api/readiness` takes only `{"version": n}` and answers 409 for an
+  older version; asked again after 365 days. A test holds the web's `VERSION` to the server's.
+- **Hard days** say the generic line once answered, or ask for the questions when due. The AI
+  guide (version 6), the weekly prompt and the AI data option ("daily checks") drop the answers.
+- **Members** use `/api/readiness` (it holds no health data), so they get the same questions
+  and notes while training-only (ADR-0059).

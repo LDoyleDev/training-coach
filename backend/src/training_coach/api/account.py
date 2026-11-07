@@ -131,7 +131,7 @@ def ai_summary(
     readiness: bool = False,
 ) -> Response:
     """My training as compact Markdown for my own AI (ADR-0047): the last 4 or 12 weeks, or
-    everything. Measurements and readiness answers (health data) only when asked for; photos
+    everything. Measurements and daily checks (health data) only when asked for; photos
     never."""
     weeks = {"4w": 4, "12w": 12, "all": None}[period]
     settings = request.app.state.settings

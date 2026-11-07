@@ -1,74 +1,65 @@
-"""The readiness questions for the web app (ADR-0046). Owner-only; health data, never shared."""
+"""The health questions for the web app (ADR-0085). The browser asks them, works out the note
+and keeps the answers on the device; this only says whether they're due and records that they
+were answered. Not health data, so members use it too (ADR-0059's training-only rule)."""
 
 from datetime import UTC, datetime
-from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.auth import Health
+from training_coach.api.auth import Owner
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.domain.readiness import KEYS, QUESTIONS, RENEW
-from training_coach.domain.readiness import status as readiness_status
+from training_coach.domain.readiness import RENEW, VERSION, due
 from training_coach.services import readiness
 
 router = APIRouter(prefix="/api/readiness", tags=["readiness"])
-
-StatusName = Literal["due", "clear", "see_doctor"]
 
 
 def _bound(request: Request, user: int) -> sessionmaker[Session]:
     return make_session_factory(request.app.state.engine, user_id=user)
 
 
-class QuestionView(BaseModel):
-    key: str
-    text: str
-
-
 class ReadinessView(BaseModel):
-    """The questions, the latest answers if they still count, and what they mean."""
+    """Which questions the server expects, and when they were last answered, if that counts."""
 
-    questions: list[QuestionView]
-    status: StatusName
-    answers: dict[str, bool] | None  # None when due: asked again from scratch
+    version: int
+    due: bool
     answered_at: datetime | None
     ask_again_after: datetime | None
 
 
-@router.get("", response_model=ReadinessView)
-def get_readiness(request: Request, user: Health) -> ReadinessView:
-    now = datetime.now(UTC)
-    with session_scope(_bound(request, user)) as session:
-        row = readiness.latest(session)
-        answers = dict(row.answers) if row is not None else None
-        version = row.version if row is not None else None
-        answered = row.answered_at if row is not None else None
-    current = readiness_status(answers, version, answered, now)
-    counts = current != "due" and answered is not None
+def _view(version: int | None, answered: datetime | None, now: datetime) -> ReadinessView:
+    is_due = due(version, answered, now)
+    counts = not is_due and answered is not None
     return ReadinessView(
-        questions=[QuestionView(key=q.key, text=q.text) for q in QUESTIONS],
-        status=current.value,
-        answers=answers if counts else None,
+        version=VERSION,
+        due=is_due,
         answered_at=answered if counts else None,
         ask_again_after=answered + RENEW if counts and answered is not None else None,
     )
 
 
-class AnswersBody(BaseModel):
-    answers: dict[str, bool] = Field(max_length=len(QUESTIONS))
-
-
-class ReadinessSavedView(BaseModel):
-    status: StatusName
-
-
-@router.put("", response_model=ReadinessSavedView)
-def put_readiness(body: AnswersBody, request: Request, user: Health) -> ReadinessSavedView:
-    """Answer every question; the answers replace any earlier ones."""
-    if set(body.answers) != KEYS:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "answer every question")
+@router.get("", response_model=ReadinessView)
+def get_readiness(request: Request, user: Owner) -> ReadinessView:
     with session_scope(_bound(request, user)) as session:
-        current = readiness.save(session, body.answers, datetime.now(UTC))
-    return ReadinessSavedView(status=current.value)
+        row = readiness.latest(session)
+        version, answered = (row.version, row.answered_at) if row else (None, None)
+    return _view(version, answered, datetime.now(UTC))
+
+
+class AnsweredBody(BaseModel):
+    version: int  # the questions the browser asked: no answers, ever
+
+
+@router.put("", response_model=ReadinessView)
+def put_readiness(body: AnsweredBody, request: Request, user: Owner) -> ReadinessView:
+    """Record that the current questions were answered now. 409 if the browser asked an older
+    version (a page loaded before a release): it reloads and asks the new ones."""
+    if body.version != VERSION:
+        raise HTTPException(status.HTTP_409_CONFLICT, "the questions changed: reload the page")
+    now = datetime.now(UTC)
+    with session_scope(_bound(request, user)) as session:
+        row = readiness.answered(session, now)
+        version, answered = row.version, row.answered_at
+    return _view(version, answered, now)

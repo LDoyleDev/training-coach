@@ -31,9 +31,11 @@ today (voice transcription, reading logs the rules can't), not for commentary.
 - what each field means and its unit (reps, seconds, minutes, metres, tenths of a kg/cm);
 - ladders and steps, the progression rule (ADR-0027), blocks (ADR-0028), the queue (ADR-0006);
 - test days and conditions, and why "not comparable" matters;
-- what the readiness answers mean and that the app advises, not diagnoses;
-- **how to behave**: suggest, don't prescribe; refer to a doctor on any readiness "yes", chest
-  pain, dizziness; never invent data; say when there's too little to judge;
+- that the app advises, not diagnoses (the health questions' answers stay on the device,
+  ADR-0085);
+- **how to behave**: suggest, don't prescribe; refer to a doctor on chest pain, fainting,
+  dizziness, unusual breathlessness or sharp pain; never invent data; say when there's too
+  little to judge;
 - a version number. The export and every MCP answer name the guide version they match.
 
 No personal data, ever. A test fails if the guide's version and the export format's drift.
@@ -41,7 +43,7 @@ No personal data, ever. A test fails if the guide's version and the export forma
 ## A. Copy for my AI
 
 - Account page: "Copy for my AI" with a period (last 4 weeks / 12 weeks / everything) and two
-  ticks, both off: "include body measurements", "include readiness answers" (health data).
+  ticks, both off: "include body measurements", "include daily checks" (health data).
 - An editable question at the top (default: review the period, what's working, what to
   change), then compact Markdown: a header line with the guide link and version, then the plan
   position, each exercise's step and recent sessions, test days, habits. Typically 2-6k tokens.
@@ -98,7 +100,8 @@ apps can register themselves, and resource indicators (RFC 8707) so tokens only 
 **Scopes** (the consent page shows them in plain words; health scopes unticked by default)
 - `training:read`: plan, position, sessions, sets, tests, habits, progress.
 - `body:read`: measurements (health data). Photos are never offered.
-- `readiness:read`: readiness answers (health data).
+- `readiness:read`: daily checks (health data). The health questions' answers stay on the
+  device (ADR-0085).
 - `log:propose`: propose a workout log. **Proposals don't save**: they appear in the web app
   and on Telegram as "Your AI wants to log ... Save?" and wait for the person (the bot's
   confirm step, ADR-0007). Nothing the AI sends changes the plan, settings or sign-in.

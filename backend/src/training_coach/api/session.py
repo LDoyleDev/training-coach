@@ -335,8 +335,8 @@ class TodayView(BaseModel):
     planned: QueuedView | None = None
     progress: ProgressView | None = None
     test_day: TestDayDueView | None = None  # due today, in front of the session (ADR-0038)
-    # On a hard day (HIIT or a test day): answer the readiness questions, or see a doctor first
-    # (ADR-0046). Advice only.
+    # On a hard day (HIIT or a test day): answer the health questions, or the general line about
+    # asking a doctor first (ADR-0085). Advice only; it never knows the answers.
     readiness_note: str | None = None
     # Today's daily check, once answered (ADR-0053): "Slept OK, ...: go lighter today".
     daily_check: str | None = None
@@ -449,7 +449,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
     kept = guided.kept(session, on)
     plan = guided.today(session, on, settings.tz)
     test_day = test_day_view(retests.due(session, on, settings.tz))
-    current = readiness.current(session, datetime.now(UTC))
+    unanswered = readiness.is_due(session, datetime.now(UTC))
     if (
         plan is not None
         and kept is not None
@@ -464,7 +464,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
     if plan is not None and kept is not None and kept.first:
         plan = guided.today(session, on, settings.tz, set(kept.first))
     hard = test_day is not None or (plan is not None and plan.slug in HARD_SESSIONS)
-    caution = readiness_note(current, hard)
+    caution = readiness_note(unanswered, hard)
     answers = daily_check.on(session, on)
     daily = daily_summary(answers) if answers is not None else None
     if plan is None:

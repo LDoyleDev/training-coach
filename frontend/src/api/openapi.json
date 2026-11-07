@@ -103,21 +103,17 @@
         "title": "Answer",
         "type": "object"
       },
-      "AnswersBody": {
+      "AnsweredBody": {
         "properties": {
-          "answers": {
-            "additionalProperties": {
-              "type": "boolean"
-            },
-            "maxProperties": 7,
-            "title": "Answers",
-            "type": "object"
+          "version": {
+            "title": "Version",
+            "type": "integer"
           }
         },
         "required": [
-          "answers"
+          "version"
         ],
-        "title": "AnswersBody",
+        "title": "AnsweredBody",
         "type": "object"
       },
       "ApproveBody": {
@@ -5671,24 +5667,6 @@
         "title": "ProposalView",
         "type": "object"
       },
-      "QuestionView": {
-        "properties": {
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "text"
-        ],
-        "title": "QuestionView",
-        "type": "object"
-      },
       "QueuedView": {
         "properties": {
           "name": {
@@ -5724,26 +5702,8 @@
         "title": "ReadBody",
         "type": "object"
       },
-      "ReadinessSavedView": {
-        "properties": {
-          "status": {
-            "enum": [
-              "due",
-              "clear",
-              "see_doctor"
-            ],
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "title": "ReadinessSavedView",
-        "type": "object"
-      },
       "ReadinessView": {
-        "description": "The questions, the latest answers if they still count, and what they mean.",
+        "description": "Which questions the server expects, and when they were last answered, if that counts.",
         "properties": {
           "answered_at": {
             "anyOf": [
@@ -5757,20 +5717,6 @@
             ],
             "title": "Answered At"
           },
-          "answers": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "boolean"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Answers"
-          },
           "ask_again_after": {
             "anyOf": [
               {
@@ -5783,27 +5729,18 @@
             ],
             "title": "Ask Again After"
           },
-          "questions": {
-            "items": {
-              "$ref": "#/components/schemas/QuestionView"
-            },
-            "title": "Questions",
-            "type": "array"
+          "due": {
+            "title": "Due",
+            "type": "boolean"
           },
-          "status": {
-            "enum": [
-              "due",
-              "clear",
-              "see_doctor"
-            ],
-            "title": "Status",
-            "type": "string"
+          "version": {
+            "title": "Version",
+            "type": "integer"
           }
         },
         "required": [
-          "questions",
-          "status",
-          "answers",
+          "version",
+          "due",
           "answered_at",
           "ask_again_after"
         ],
@@ -8484,7 +8421,7 @@
     },
     "/api/account/ai-summary": {
       "get": {
-        "description": "My training as compact Markdown for my own AI (ADR-0047): the last 4 or 12 weeks, or\neverything. Measurements and readiness answers (health data) only when asked for; photos\nnever.",
+        "description": "My training as compact Markdown for my own AI (ADR-0047): the last 4 or 12 weeks, or\neverything. Measurements and daily checks (health data) only when asked for; photos\nnever.",
         "operationId": "ai_summary_api_account_ai_summary_get",
         "parameters": [
           {
@@ -11546,13 +11483,13 @@
         ]
       },
       "put": {
-        "description": "Answer every question; the answers replace any earlier ones.",
+        "description": "Record that the current questions were answered now. 409 if the browser asked an older\nversion (a page loaded before a release): it reloads and asks the new ones.",
         "operationId": "put_readiness_api_readiness_put",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AnswersBody"
+                "$ref": "#/components/schemas/AnsweredBody"
               }
             }
           },
@@ -11563,7 +11500,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReadinessSavedView"
+                  "$ref": "#/components/schemas/ReadinessView"
                 }
               }
             },
