@@ -242,6 +242,9 @@ Merging never touches the Pi; only a release does.
 
 Released in 1.18.0, 7 Nov 2026 (`docs/sessions/2026-11-07-plans-per-person.md`).
 
+The open points below keep the numbers this list had when they were answered: 5 the flip, 6 the
+import.
+
 ## Open points for review
 
 - **The gap between steps 5 and 6.** After step 5 the seed no longer changes the owner's plan,
