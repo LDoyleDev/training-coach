@@ -85,6 +85,17 @@ def owner(request: Request, response: Response) -> int:
 Owner = Annotated[int, Depends(owner)]
 
 
+def health(user: Owner) -> int:
+    """The signed-in person's id, for a route that reads or keeps health data; 403 for a member,
+    who is training-only until the lawyer's review (ADR-0059)."""
+    if not users.health_open(user):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "not available to members yet")
+    return user
+
+
+Health = Annotated[int, Depends(health)]
+
+
 def admin(request: Request, user: Owner) -> int:
     """The signed-in admin's id (ADR-0059); 403 for anyone else signed in. Admins make and revoke
     invites and see counts, never a member's data."""

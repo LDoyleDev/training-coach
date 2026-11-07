@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.auth import Owner
+from training_coach.api.auth import Health
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.readiness import KEYS, QUESTIONS, RENEW
 from training_coach.domain.readiness import status as readiness_status
@@ -38,7 +38,7 @@ class ReadinessView(BaseModel):
 
 
 @router.get("", response_model=ReadinessView)
-def get_readiness(request: Request, user: Owner) -> ReadinessView:
+def get_readiness(request: Request, user: Health) -> ReadinessView:
     now = datetime.now(UTC)
     with session_scope(_bound(request, user)) as session:
         row = readiness.latest(session)
@@ -65,7 +65,7 @@ class ReadinessSavedView(BaseModel):
 
 
 @router.put("", response_model=ReadinessSavedView)
-def put_readiness(body: AnswersBody, request: Request, user: Owner) -> ReadinessSavedView:
+def put_readiness(body: AnswersBody, request: Request, user: Health) -> ReadinessSavedView:
     """Answer every question; the answers replace any earlier ones."""
     if set(body.answers) != KEYS:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "answer every question")

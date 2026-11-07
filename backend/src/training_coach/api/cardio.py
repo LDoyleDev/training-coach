@@ -13,7 +13,7 @@ from training_coach.domain import cardio as details
 from training_coach.domain.enums import CardioActivity
 from training_coach.domain.queue import local_date
 from training_coach.domain.zones import Split
-from training_coach.services import cardio, workout_log
+from training_coach.services import cardio, users, workout_log
 from training_coach.services.day_clash import Clash, Refused
 
 router = APIRouter(prefix="/api/cardio", tags=["cardio"])
@@ -134,6 +134,9 @@ def options(request: Request, user: Owner) -> OptionsView:
 def log(body: LogBody, request: Request, user: Owner) -> LoggedView:
     """Save one cardio log for today. 409 when today's session changed meanwhile, or with
     what is saved already when the day has its session (ADR-0060)."""
+    if (body.avg_hr is not None or body.max_hr is not None) and not users.health_open(user):
+        # Heart rate is health data: members are training-only for now (ADR-0059).
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "heart rate isn't available to members yet")
     settings = request.app.state.settings
     now = datetime.now(UTC)
     on = local_date(now, settings.tz)

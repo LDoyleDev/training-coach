@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.auth import Owner
+from training_coach.api.auth import Health
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.photos import MAX_BYTES, Pose
@@ -36,7 +36,7 @@ class PhotoView(BaseModel):
 
 
 @router.get("", response_model=list[PhotoView])
-def listing(request: Request, user: Owner) -> list[PhotoView]:
+def listing(request: Request, user: Health) -> list[PhotoView]:
     """Every photo, newest day first (no pictures, just what there is)."""
     with session_scope(_bound(request, user)) as session:
         found = photos.listing(session)
@@ -60,7 +60,7 @@ async def _body(request: Request) -> bytes:
 
 
 @router.put("/{on}/{pose}", response_model=SavedPhoto)
-async def upload(on: date, pose: PoseName, request: Request, user: Owner) -> SavedPhoto:
+async def upload(on: date, pose: PoseName, request: Request, user: Health) -> SavedPhoto:
     """Store a photo for a day and pose, replacing one already there; its metadata is removed."""
     data = await _body(request)
     settings: Settings = request.app.state.settings
@@ -73,7 +73,7 @@ async def upload(on: date, pose: PoseName, request: Request, user: Owner) -> Sav
 
 
 @router.get("/{photo_id}", response_class=Response, responses={200: {"content": {JPEG: {}}}})
-def picture(photo_id: int, request: Request, user: Owner) -> Response:
+def picture(photo_id: int, request: Request, user: Health) -> Response:
     """One photo. Never cached anywhere but in memory."""
     with session_scope(_bound(request, user)) as session:
         data = photos.picture(session, photo_id)
@@ -83,7 +83,7 @@ def picture(photo_id: int, request: Request, user: Owner) -> Response:
 
 
 @router.delete("/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remove(photo_id: int, request: Request, user: Owner) -> None:
+def remove(photo_id: int, request: Request, user: Health) -> None:
     with session_scope(_bound(request, user)) as session:
         removed = photos.delete(session, photo_id)
     if not removed:
