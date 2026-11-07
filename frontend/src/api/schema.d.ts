@@ -1216,6 +1216,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plan/coverage/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Coverage Draft
+         * @description The map as a draft of the plan would make it, while editing: it saves nothing.
+         */
+        post: operations["post_coverage_draft_api_plan_coverage_draft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plan/edit": {
         parameters: {
             query?: never;
@@ -2339,6 +2359,13 @@ export interface components {
             /** Scopes */
             scopes: components["schemas"]["ConsentScopeView"][];
         };
+        /** CoverageDraft */
+        CoverageDraft: {
+            /** @default home */
+            place: components["schemas"]["Place"];
+            /** Versions */
+            versions: components["schemas"]["DraftVersion"][];
+        };
         /** CoverageView */
         CoverageView: {
             /** Back To Back */
@@ -2441,6 +2468,30 @@ export interface components {
             set_no: number;
             /** Started At */
             started_at?: string | null;
+        };
+        /** DraftItem */
+        DraftItem: {
+            /** Exercise */
+            exercise: string;
+            /**
+             * Per Side
+             * @default false
+             */
+            per_side: boolean;
+            /** Rep Max */
+            rep_max: number;
+            /** Rep Min */
+            rep_min: number;
+            /** Sets */
+            sets: number;
+        };
+        /** DraftVersion */
+        DraftVersion: {
+            /** Items */
+            items: components["schemas"]["DraftItem"][];
+            place: components["schemas"]["Place"];
+            /** Slug */
+            slug: string;
         };
         /** EarnedView */
         EarnedView: {
@@ -6600,6 +6651,39 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoverageView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_coverage_draft_api_plan_coverage_draft_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoverageDraft"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

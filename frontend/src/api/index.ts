@@ -116,6 +116,23 @@ export async function fetchCoverage(place?: Place, signal?: AbortSignal): Promis
   return (await res.json()) as Coverage
 }
 
+/** The map as a draft of the plan would make it (program-builder.md F); it saves nothing. */
+export async function previewCoverage(
+  body: Schemas['CoverageDraft'],
+  signal?: AbortSignal,
+): Promise<Coverage | null> {
+  const res = await fetch('/api/plan/coverage/draft', {
+    method: 'POST',
+    signal,
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Coverage
+}
+
 const range = (a: number, b: number) => (a === b ? `${a}` : `${a}–${b}`)
 
 /** "4 × 8–15 per side", "1 × 45–75 min", "2 × 30–60 s" */
