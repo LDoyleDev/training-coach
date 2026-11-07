@@ -735,52 +735,8 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
     session.flush()
     _tell_people(session, changes)
 
-    # Each person's own rows: where they are on every ladder (ADR-0026). The seed runs in an
-    # unbound session, so every per-person query here names the user.
-    people = list(session.scalars(select(User.id).order_by(User.id)))
-    for user_id in people:
-        started = set(
-            session.scalars(
-                select(ExerciseState.exercise_id).where(ExerciseState.user_id == user_id),
-                execution_options={ALL_USERS: True},
-            )
-        )
-        for seed in plan.exercises:
-            exercise = exercises[seed.slug]
-            if exercise.id not in started:
-                start_step = next(s for s in exercise.ladder if s.position == seed.start)
-                session.add(
-                    ExerciseState(
-                        user_id=user_id, exercise_id=exercise.id, ladder_step_id=start_step.id
-                    )
-                )
-                result.created += 1
-
-    for user_id in people:
-        mine = {ALL_USERS: True}  # the seed names the user itself
-        sessions = select(SessionTemplate.id).where(SessionTemplate.user_id == user_id)
-        if session.scalars(sessions, execution_options=mine).first() is None:
-            _start_plan(session, plan, user_id, exercises, result)
-        if (
-            session.scalar(
-                select(PlanState.id).where(PlanState.user_id == user_id), execution_options=mine
-            )
-            is None
-        ):
-            first = session.scalars(
-                sessions.order_by(SessionTemplate.position), execution_options=mine
-            ).first()
-            session.add(PlanState(user_id=user_id, next_template_id=first))
-            result.created += 1
-        if (
-            session.scalar(
-                select(UserSettings.id).where(UserSettings.user_id == user_id),
-                execution_options=mine,
-            )
-            is None
-        ):
-            session.add(UserSettings(user_id=user_id))
-            result.created += 1
+    for user_id in list(session.scalars(select(User.id).order_by(User.id))):
+        start_person(session, plan, user_id, exercises, result)
 
     counts = {"created": result.created, "updated": result.updated, "deleted": result.deleted}
     if result.changed:
@@ -789,3 +745,55 @@ def apply_seed(session: Session, plan: PlanSeed) -> SeedResult:
     else:
         log.info("seed.unchanged")
     return result
+
+
+def start_person(
+    session: Session,
+    plan: PlanSeed,
+    user_id: int,
+    exercises: dict[str, Exercise],
+    result: SeedResult,
+) -> None:
+    """Whatever this person lacks of what everyone starts with: a place on every ladder, a plan
+    (ADR-0073), a place in its queue and their settings. Run by every seed for everyone, and
+    when someone joins (ADR-0059). In an unbound session: every query names the user."""
+    mine = {ALL_USERS: True}  # the seed names the user itself
+    started = set(
+        session.scalars(
+            select(ExerciseState.exercise_id).where(ExerciseState.user_id == user_id),
+            execution_options=mine,
+        )
+    )
+    for seed in plan.exercises:
+        exercise = exercises[seed.slug]
+        if exercise.id not in started:
+            start_step = next(s for s in exercise.ladder if s.position == seed.start)
+            session.add(
+                ExerciseState(
+                    user_id=user_id, exercise_id=exercise.id, ladder_step_id=start_step.id
+                )
+            )
+            result.created += 1
+    sessions = select(SessionTemplate.id).where(SessionTemplate.user_id == user_id)
+    if session.scalars(sessions, execution_options=mine).first() is None:
+        _start_plan(session, plan, user_id, exercises, result)
+    if (
+        session.scalar(
+            select(PlanState.id).where(PlanState.user_id == user_id), execution_options=mine
+        )
+        is None
+    ):
+        first = session.scalars(
+            sessions.order_by(SessionTemplate.position), execution_options=mine
+        ).first()
+        session.add(PlanState(user_id=user_id, next_template_id=first))
+        result.created += 1
+    if (
+        session.scalar(
+            select(UserSettings.id).where(UserSettings.user_id == user_id),
+            execution_options=mine,
+        )
+        is None
+    ):
+        session.add(UserSettings(user_id=user_id))
+        result.created += 1

@@ -741,6 +741,23 @@ class SessionProgress(Owned, Base):
 # ----------------------------------------------------------------- web sign-in
 
 
+class Invite(Base):
+    """A one-time invite to join (ADR-0059). Shared, not per person: it names who made it and,
+    once used, who it became. Only the token's SHA-256 is kept."""
+
+    __tablename__ = "invites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    label: Mapped[str | None] = mapped_column(String(40))  # what the admin's list calls them
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    used_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
 class LoginLink(Owned, Base):
     """A one-time sign-in link sent by the bot (ADR-0036). Only the token's SHA-256 is kept."""
 
@@ -1248,6 +1265,7 @@ __all__ = [
     "HeartRateSample",
     "ImportedWorkout",
     "IngestKey",
+    "Invite",
     "LadderStep",
     "LogProposal",
     "LoginLink",
