@@ -29,11 +29,16 @@ export default function People() {
   const [removing, setRemoving] = useState<number | null>(null)
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false) // one removal at a time
+  // A recovery link, shown once: cleared on any reload of the list, a removal or a failed try.
   const [recovery, setRecovery] = useState<{ name: string; link: string } | null>(null)
+  const [asking, setAsking] = useState<number | null>(null) // whose link to confirm
 
   const load = useCallback((signal?: AbortSignal) => {
     fetchPeople(signal)
-      .then(setFound)
+      .then((people) => {
+        setFound(people)
+        setRecovery(null) // the list changed: a link shown before isn't shown again
+      })
       .catch(() => {}) // the section stays hidden; the rest of the page still works
   }, [])
   useEffect(() => {
@@ -88,6 +93,8 @@ export default function People() {
 
   const recover = async (id: number, name: string) => {
     setNote(null)
+    setRecovery(null)
+    setAsking(null)
     try {
       const made = await makeRecoveryLink(id)
       if (!made) return setNote('They had already gone.')
@@ -120,18 +127,15 @@ export default function People() {
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {found.members.map((m) => {
             const name = m.label ?? 'No name given'
+            const who = m.label ?? 'this member'
             return (
               <li key={m.id} className="flex flex-col gap-2">
                 <span className="flex items-center gap-2">
                   <span className="flex-1">
                     {name}, joined {day(m.joined)}
                   </span>
-                  <button
-                    type="button"
-                    className={small}
-                    onClick={() => void recover(m.id, m.label ?? 'them')}
-                  >
-                    Recovery link for {m.label ?? 'member'}
+                  <button type="button" className={small} onClick={() => setAsking(m.id)}>
+                    Recovery link for {who}
                   </button>
                   {removing !== m.id && (
                     <button
@@ -142,10 +146,30 @@ export default function People() {
                         setConfirm('')
                       }}
                     >
-                      Remove {m.label ?? 'member'}
+                      Remove {who}
                     </button>
                   )}
                 </span>
+                {asking === m.id && (
+                  <div className="flex flex-col gap-2">
+                    <p className="m-0">
+                      Make a recovery link for {who}? Only if they asked for one: they are told now,
+                      and any link made for them before stops working.
+                    </p>
+                    <span className="flex gap-2">
+                      <button
+                        type="button"
+                        className={primaryInline}
+                        onClick={() => void recover(m.id, who)}
+                      >
+                        Make the link
+                      </button>
+                      <button type="button" className={small} onClick={() => setAsking(null)}>
+                        Not now
+                      </button>
+                    </span>
+                  </div>
+                )}
                 {removing === m.id && (
                   <form onSubmit={(e) => void remove(e, m.id)} className="flex flex-col gap-2">
                     <p className="m-0">
@@ -170,7 +194,7 @@ export default function People() {
                         disabled={confirm !== 'remove' || busy}
                         className={danger}
                       >
-                        Remove {m.label ?? 'member'}
+                        Remove {who}
                       </button>
                       <button type="button" className={small} onClick={() => setRemoving(null)}>
                         Keep them

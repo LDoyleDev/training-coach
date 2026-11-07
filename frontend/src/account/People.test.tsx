@@ -162,7 +162,7 @@ test('someone already gone, or a stale sign-in, says so', async () => {
   expect(await screen.findByText(/removing someone needs you to confirm/)).toBeInTheDocument()
 })
 
-test('a recovery link for a member is shown once, with who to hand it to', async () => {
+test('a recovery link is made only once confirmed, then shown with who to hand it to', async () => {
   const asked = serve({
     'GET /api/people': { status: 200, body: PEOPLE },
     'POST /api/people/2/recovery': [
@@ -172,11 +172,50 @@ test('a recovery link for a member is shown once, with who to hand it to', async
   })
   render(<People />)
   fireEvent.click(await screen.findByRole('button', { name: 'Recovery link for Mum' }))
+  expect(screen.getByText(/Make a recovery link for Mum\?/)).toBeInTheDocument()
+  expect(asked.some((a) => a.includes('/recovery'))).toBe(false) // nothing until confirmed
+  fireEvent.click(screen.getByRole('button', { name: 'Make the link' }))
   expect(await screen.findByRole('textbox', { name: 'Recovery link' })).toHaveValue(
     `${window.location.origin}/signin#rec123`,
   )
   expect(screen.getByText(/Hand this to Mum yourself/)).toBeInTheDocument()
-  expect(asked).toContain('POST /api/people/2/recovery')
+  // A second try that fails takes the old link away: it no longer works.
   fireEvent.click(screen.getByRole('button', { name: 'Recovery link for Mum' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Make the link' }))
   expect(await screen.findByRole('status')).toHaveTextContent('They had already gone.')
+  expect(screen.queryByRole('textbox', { name: 'Recovery link' })).not.toBeInTheDocument()
+})
+
+test('not now makes no link and tells nobody', async () => {
+  const asked = serve({ 'GET /api/people': { status: 200, body: PEOPLE } })
+  render(<People />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Recovery link for Mum' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Not now' }))
+  expect(screen.queryByText(/Make a recovery link for Mum/)).not.toBeInTheDocument()
+  expect(asked.some((a) => a.includes('/recovery'))).toBe(false)
+})
+
+test('the link goes once the list reloads, as after removing them', async () => {
+  serve({
+    'GET /api/people': [
+      { status: 200, body: PEOPLE },
+      { status: 200, body: { ...PEOPLE, members: [] } },
+    ],
+    'POST /api/people/2/recovery': {
+      status: 200,
+      body: { token: 'rec123', expires_at: '2026-11-08T10:00:00Z' },
+    },
+    'POST /api/people/2/remove': { status: 204 },
+  })
+  render(<People />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Recovery link for Mum' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Make the link' }))
+  await screen.findByRole('textbox', { name: 'Recovery link' })
+  fireEvent.click(screen.getByRole('button', { name: 'Remove Mum' }))
+  fireEvent.change(screen.getByRole('textbox', { name: /Type remove/ }), {
+    target: { value: 'remove' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Remove Mum' }))
+  expect(await screen.findByText(/0 of 5 members/)).toBeInTheDocument()
+  expect(screen.queryByRole('textbox', { name: 'Recovery link' })).not.toBeInTheDocument()
 })
