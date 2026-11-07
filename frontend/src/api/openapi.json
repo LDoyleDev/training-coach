@@ -4370,6 +4370,24 @@
         "title": "NightView",
         "type": "object"
       },
+      "NoticeView": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "NoticeView",
+        "type": "object"
+      },
       "OptionView": {
         "properties": {
           "label": {
@@ -5013,6 +5031,23 @@
           "name"
         ],
         "title": "QueuedView",
+        "type": "object"
+      },
+      "ReadBody": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 200,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "ReadBody",
         "type": "object"
       },
       "ReadinessSavedView": {
@@ -9623,6 +9658,66 @@
         "summary": "Plan",
         "tags": [
           "log"
+        ]
+      }
+    },
+    "/api/notices": {
+      "get": {
+        "operationId": "get_notices_api_notices_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NoticeView"
+                  },
+                  "title": "Response Get Notices Api Notices Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Notices",
+        "tags": [
+          "notices"
+        ]
+      }
+    },
+    "/api/notices/read": {
+      "post": {
+        "description": "\"Got it\": these won't show again.",
+        "operationId": "read_notices_api_notices_read_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Notices",
+        "tags": [
+          "notices"
         ]
       }
     },

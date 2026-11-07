@@ -41,6 +41,7 @@ from training_coach.bot import band as band_ui
 from training_coach.bot import buttons, links, logging_flow
 from training_coach.bot import daily_check as daily_ui
 from training_coach.bot import habits as habits_ui
+from training_coach.bot import notices as notices_ui
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import proposals as proposals_ui
 from training_coach.bot import settings as settings_ui
@@ -628,6 +629,11 @@ def build_bot(
     )
     resend = handlers.unless_away(proposal_handlers.job)
     jobs.run_repeating(resend, interval=proposals_ui.EVERY, name=proposals_ui.JOB)
+
+    # What a release changed in the plan (ADR-0087): told once.
+    notice_handlers = notices_ui.NoticeHandlers(settings, sessions, send_outcome)
+    tell = handlers.unless_away(notice_handlers.job)
+    jobs.run_repeating(tell, interval=notices_ui.EVERY, name=notices_ui.JOB)
 
     async def announce() -> None:
         await proposal_handlers.announce(application.bot)
