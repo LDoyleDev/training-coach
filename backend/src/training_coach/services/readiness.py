@@ -1,35 +1,30 @@
-"""The readiness questions' answers (ADR-0046): reading the latest and saving new ones.
-Health data: the answers are never logged."""
+"""When the health questions were last answered (ADR-0085). The answers themselves never reach
+the server: the browser asks, works out the note and keeps both on the device."""
 
-from collections.abc import Mapping
 from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import ReadinessAnswers
-from training_coach.domain.readiness import KEYS, VERSION, Status, status
+from training_coach.db.models import ReadinessCheck
+from training_coach.domain.readiness import VERSION, due
 
 
-def latest(session: Session) -> ReadinessAnswers | None:
-    return session.scalar(select(ReadinessAnswers))
+def latest(session: Session) -> ReadinessCheck | None:
+    return session.scalar(select(ReadinessCheck))
 
 
-def current(session: Session, now: datetime) -> Status:
+def is_due(session: Session, now: datetime) -> bool:
+    row = latest(session)
+    return due(row.version if row else None, row.answered_at if row else None, now)
+
+
+def answered(session: Session, now: datetime) -> ReadinessCheck:
+    """Record that the current questions were answered now, replacing any earlier record."""
     row = latest(session)
     if row is None:
-        return Status.DUE
-    return status(row.answers, row.version, row.answered_at, now)
-
-
-def save(session: Session, answers: Mapping[str, bool], now: datetime) -> Status:
-    """Store a full set of answers to the current questions, replacing any earlier ones."""
-    if set(answers) != KEYS:
-        raise ValueError("every question needs an answer")
-    row = latest(session)
-    if row is None:
-        row = ReadinessAnswers()
+        row = ReadinessCheck()
         session.add(row)
-    row.version, row.answers, row.answered_at = VERSION, dict(answers), now
+    row.version, row.answered_at = VERSION, now
     session.flush()
-    return status(row.answers, row.version, row.answered_at, now)
+    return row

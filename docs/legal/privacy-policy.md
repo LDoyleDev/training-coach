@@ -20,10 +20,10 @@ stores:
 | Your Telegram user id and settings (reminder times, habits) | To know it's you on Telegram and send reminders when you asked | Contract (Art. 6(1)(b) GDPR) |
 | Workouts, sets, test results, habit check-offs, where you are in the plan | The training itself | Contract (Art. 6(1)(b)) |
 | Body measurements (bodyweight, body fat from a scale, height, waist, neck, chest, upper arm, thigh, resting heart rate; a body-fat estimate worked out from them if you turn it on) and progress photos | Showing your progress. These are **health data** | Your explicit consent (Art. 9(2)(a)), which you can withdraw at any time [consent step in sign-up] |
-| Answers to the readiness questions | Warning you before hard efforts if a doctor should be asked first. **Health data** | Your explicit consent (Art. 9(2)(a)) |
+| When you last answered the health questions, and which version of them. Your answers, and the suggestion they lead to, are worked out on your device and never sent to us | Asking the questions again after a year or when they change, and reminding you before hard sessions | Contract (Art. 6(1)(b)) [lawyer: confirm that a date alone isn't health data] |
 | The daily check (how you slept, how sore you are, your energy), kept for a year | Advising you to train as planned, lighter or rest that day. **Health data** | Your explicit consent (Art. 9(2)(a)) |
 | Band data you choose to send from your phone (Health Connect): workouts with heart rate, sleep times and stages, daily steps, resting heart rate, weight; per-minute heart rate kept 8 days, the rest until you delete it | Counting cardio (after you confirm), heart-rate zones, sleep and steps on your dashboard. **Health data** | Your explicit consent (Art. 9(2)(a)) |
-| If you turn on AI comments with your own Groq key: the weekly AI comment, kept 7 days. It can mention measurements or readiness answers only if you let the comment see them | Showing the comment under that week's review on the website as well as on Telegram | Contract (Art. 6(1)(b)); for health data in it, the consent you gave for that data (Art. 9(2)(a)) |
+| If you turn on AI comments with your own Groq key: the weekly AI comment, kept 7 days. It can mention measurements or daily checks only if you let the comment see them | Showing the comment under that week's review on the website as well as on Telegram | Contract (Art. 6(1)(b)); for health data in it, the consent you gave for that data (Art. 9(2)(a)) |
 | Passkeys (the public half only), signed-in browsers (a label and when last seen), sign-in links (stored only as a hash) | Signing you in securely, letting you sign out lost devices | Contract (Art. 6(1)(b)); security (Art. 6(1)(f)) |
 | A short record of account events (signed in, passkey added, data downloaded or erased) | Security, and showing you what happened | Legitimate interest in keeping your account safe (Art. 6(1)(f)) |
 | The country you live in (from the EU and EEA list), and the date and time you last used the website, signed in, from a country on that list. Your IP address isn't kept for this: Cloudflare tells the website the country of each visit, and only "last seen in Europe" is stored, at most once an hour | The service is offered in the EU and EEA only. The Telegram bot and a connected AI app can't see where you are, so they pause 30 days after your last visit to the website from there, and start again with your next one | Contract (Art. 6(1)(b)); legitimate interest in offering the service only where it is built to meet the law (Art. 6(1)(f)) [lawyer: basis] |
@@ -66,7 +66,7 @@ You can, at any time:
 - have it corrected (Art. 16) or erased (Art. 17): "Erase all my data", or ask us;
 - restrict or object to its use (Art. 18, 21);
 - withdraw your consent for health data, without affecting what was done before (Art. 7(3));
-  measurements, photos, readiness answers and daily checks are then erased [today only by erasing
+  measurements, photos and daily checks are then erased [today only by erasing
   everything; a per-category erase is needed before launch];
 - complain to a data protection authority, for example [the authority for our address].
 

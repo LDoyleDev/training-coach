@@ -17,11 +17,10 @@ from tests import oauth_flow as flow
 from tests.oauth_flow import ALL, ORIGIN
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import Event, Exercise, Measurement, ReadinessAnswers, User
+from training_coach.db.models import DailyCheck, Event, Exercise, Measurement, User
 from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
 from training_coach.domain.connections import HEALTH
 from training_coach.domain.queue import local_date
-from training_coach.domain.readiness import KEYS, VERSION
 from training_coach.services import mcp_tokens, mcp_tools, workout_log
 from training_coach.services.ai_summary import GUIDE_VERSION
 from training_coach.services.mcp_tools import MARK, TOOLS
@@ -287,9 +286,11 @@ def _health(engine: Engine, user: int = OWNER) -> None:
     with session_scope(make_session_factory(engine, user_id=user)) as mine:
         mine.add(Measurement(local_date=TODAY, kind="waist", tenths=845))
         mine.add(
-            ReadinessAnswers(
-                version=VERSION,
-                answers={**dict.fromkeys(KEYS, False), "joints": True},
+            DailyCheck(
+                local_date=TODAY,
+                sleep="poor",
+                soreness="a_lot",
+                energy="low",
                 answered_at=datetime.now(UTC),
             )
         )
@@ -299,15 +300,14 @@ def test_health_data_only_with_its_scope(client: TestClient, engine: Engine) -> 
     _health(engine)
     training = text(call(client, flow.mint(engine, ["training:read"]), "get_summary"))
     assert "84.5" not in training
-    assert "Readiness" not in training
+    assert "Daily checks" not in training
     everything = text(call(client, flow.mint(engine, ALL), "get_summary"))
     assert "Waist: 84.5 cm" in everything
-    assert "Readiness answers" in everything
+    assert "sleep poor, soreness a lot, energy low" in everything
     body = text(call(client, flow.mint(engine, ["body:read"]), "get_body"))
     assert "Waist: 84.5 cm" in body
     readiness = text(call(client, flow.mint(engine, ["readiness:read"]), "get_readiness"))
-    assert "joint or muscle problem" in readiness
-    assert "Daily checks" in readiness
+    assert "sleep poor, soreness a lot, energy low" in readiness
     assert "84.5" not in readiness
 
 

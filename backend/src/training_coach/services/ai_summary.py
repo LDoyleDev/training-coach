@@ -1,8 +1,8 @@
 """A compact summary of a person's training for their own AI (ADR-0047, "Copy for my AI").
 
 Plain Markdown that any AI can read, with a link to the guide that explains the numbers
-(`docs/ai-guide.md`, version ``GUIDE_VERSION``). Health data (measurements, readiness answers)
-only when the person asks for it; photos never. The same summary will feed the Groq comments
+(`docs/ai-guide.md`, version ``GUIDE_VERSION``). Health data (measurements, daily checks) only
+when the person asks for it; photos never. The same summary will feed the Groq comments
 and the MCP connection, so it is built here, once.
 """
 
@@ -19,7 +19,6 @@ from training_coach.db.models import (
     HabitCheck,
     LadderStep,
     PlanState,
-    ReadinessAnswers,
     SessionTemplate,
     SetLog,
     Workout,
@@ -31,10 +30,9 @@ from training_coach.domain.kit import label as kit_label
 from training_coach.domain.load import weights_text
 from training_coach.domain.measurements import CADENCE, CHECKLIST, ESTIMATE_LABEL, SPECS, Kind, how
 from training_coach.domain.progression import Progress
-from training_coach.domain.readiness import QUESTIONS
 from training_coach.services import equipment, fitness_tests, measurements, progress
 
-GUIDE_VERSION = 5  # bump with docs/ai-guide.md when the format or its meaning changes
+GUIDE_VERSION = 6  # bump with docs/ai-guide.md when the format or its meaning changes
 GUIDE_URL = "https://github.com/LDoyleDev/training-coach/blob/main/docs/ai-guide.md"
 
 UNITS = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: " s", ExerciseKind.DURATION_MIN: " min"}
@@ -49,7 +47,7 @@ STATUS = {
 class Options:
     weeks: int | None  # None: everything
     body: bool = False  # body measurements (health data)
-    readiness: bool = False  # readiness answers (health data)
+    readiness: bool = False  # daily checks (health data); health answers stay on the device
 
 
 def summary(session: Session, today: date, options: Options) -> str:
@@ -71,7 +69,7 @@ def summary(session: Session, today: date, options: Options) -> str:
     if options.body:
         parts.append(_body(session, since))
     if options.readiness:
-        parts.append(_readiness(session))
+        parts.append(_daily_checks(session, since))
     return "\n\n".join(p for p in parts if p) + "\n"
 
 
@@ -245,21 +243,22 @@ def body(session: Session, since: date | None) -> str:
 
 
 def readiness(session: Session, since: date) -> str:
-    """The readiness answers and the daily checks since ``since`` (ADR-0053)."""
-    checks = list(
-        session.scalars(
-            select(DailyCheck)
-            .where(DailyCheck.local_date >= since)
-            .order_by(DailyCheck.local_date.desc())
-        )
-    )
+    """The daily checks since ``since`` (ADR-0053). The health questions' answers never reach
+    the server (ADR-0085), so there are none to share."""
+    return _daily_checks(session, since)
+
+
+def _daily_checks(session: Session, since: date | None) -> str:
+    query = select(DailyCheck).order_by(DailyCheck.local_date.desc())
+    if since is not None:
+        query = query.where(DailyCheck.local_date >= since)
     lines = ["## Daily checks, newest first (health data, shared by choice)"]
     lines += [
         f"- {c.local_date.isoformat()}: sleep {c.sleep}, soreness {c.soreness.replace('_', ' ')}, "
         f"energy {c.energy}"
-        for c in checks
+        for c in session.scalars(query)
     ] or ["None in this period."]
-    return f"{_readiness(session)}\n\n" + "\n".join(lines)
+    return "\n".join(lines)
 
 
 def exercise(session: Session, slug: str, since: date | None) -> str | None:
@@ -300,16 +299,4 @@ def exercise(session: Session, slug: str, since: date | None) -> str | None:
         lines.append(f"- {w.local_date.isoformat()} ({step}): {_sets(values, unit)}")
     if not workouts:
         lines.append("None in this period.")
-    return "\n".join(lines)
-
-
-def _readiness(session: Session) -> str:
-    row = session.scalar(select(ReadinessAnswers))
-    title = "## Readiness answers (health data, shared by choice)"
-    if row is None:
-        return f"{title}\nNot answered."
-    lines = [f"{title}, answered {row.answered_at.date().isoformat()}"]
-    for q in QUESTIONS:
-        answer = row.answers.get(q.key)
-        lines.append(f"- {q.text} {'Yes' if answer else 'No' if answer is False else '?'}")
     return "\n".join(lines)

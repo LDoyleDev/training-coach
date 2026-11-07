@@ -2,28 +2,24 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Readiness } from '../api'
 import ReadinessPage from './ReadinessPage'
+import { NOTES, QUESTIONS, VERSION } from './questions'
 
-const QUESTIONS = [
-  { key: 'heart', text: 'Heart condition?' },
-  { key: 'joints', text: 'Joint problem?' },
-]
-const DUE: Readiness = {
-  questions: QUESTIONS,
-  status: 'due',
-  answers: null,
-  answered_at: null,
-  ask_again_after: null,
-}
+const DUE: Readiness = { version: VERSION, due: true, answered_at: null, ask_again_after: null }
 
-function serve(readiness: Readiness | null | 'error', saved: string | number = 'clear') {
+function serve(readiness: Readiness | null | 'error', saved = 200) {
   const sent: unknown[] = []
   vi.stubGlobal(
     'fetch',
     vi.fn(async (_path: string, init?: RequestInit) => {
       if (init?.method === 'PUT') {
         sent.push(JSON.parse(String(init.body)))
-        if (typeof saved === 'number') return new Response(null, { status: saved })
-        return Response.json({ status: saved })
+        if (saved !== 200) return new Response(null, { status: saved })
+        return Response.json({
+          ...DUE,
+          due: false,
+          answered_at: '2026-11-08T12:00:00Z',
+          ask_again_after: '2027-11-08T12:00:00Z',
+        })
       }
       if (readiness === 'error') return new Response(null, { status: 500 })
       if (readiness === null) return new Response(null, { status: 401 })
@@ -37,60 +33,76 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-/** The Yes or No radio of one question (a fieldset named by its question). */
-function within(question: string, value: 'Yes' | 'No'): HTMLElement {
+/** One answer's radio in a question's fieldset. */
+function within(question: string, value: 'Yes' | 'No' | 'Not sure'): HTMLElement {
   const group = screen.getByRole('group', { name: question })
   const radio = Array.from(group.querySelectorAll('label')).find((l) => l.textContent === value)
   if (!radio) throw new Error(`no ${value} for ${question}`)
   return radio.querySelector('input') as HTMLElement
 }
 
-test('the intro suggests a doctor and leaves the choice to you, with no clearance', async () => {
+async function answerAll(except: Record<number, 'Yes' | 'No' | 'Not sure'> = {}) {
+  await screen.findByRole('group', { name: QUESTIONS[0].text })
+  QUESTIONS.forEach((q, i) =>
+    fireEvent.click(within(q.text, except[i] ?? (i === 0 ? 'Yes' : 'No'))),
+  )
+}
+
+test('the intro suggests a doctor, leaves the choice to you and says the answers stay here', async () => {
   serve(DUE)
   render(<ReadinessPage />)
-  expect(await screen.findByText(/A "yes" never stops you/)).toHaveTextContent(
-    'we suggest talking to a doctor first. You decide.',
-  )
-  expect(screen.queryByText(/hard efforts are fine|doctor should say/)).not.toBeInTheDocument()
+  const intro = await screen.findByText(/A "yes" never stops you/)
+  expect(intro).toHaveTextContent('we suggest talking to a doctor first. You decide.')
+  expect(intro).toHaveTextContent('Your answers stay on this device.')
+  expect(screen.queryByText(/cleared|safe for you|risk score/i)).not.toBeInTheDocument()
 })
 
-test('saving needs every question answered, then says what the answers mean', async () => {
-  const sent = serve(DUE, 'see_doctor')
+test('every question needs an answer; the note is worked out here and only the version sent', async () => {
+  const sent = serve(DUE)
   render(<ReadinessPage />)
-  const save = await screen.findByRole('button', { name: 'Save my answers' })
+  const save = await screen.findByRole('button', { name: 'See what we suggest' })
   expect(save).toBeDisabled()
-  fireEvent.click(within('Heart condition?', 'Yes'))
-  expect(save).toBeDisabled()
-  fireEvent.click(within('Joint problem?', 'No'))
+  await answerAll({ 2: 'Yes' }) // a heart condition
   fireEvent.click(save)
-  expect(await screen.findByText(/Check with a doctor before hard efforts/)).toBeInTheDocument()
-  expect(sent).toEqual([{ answers: { heart: true, joints: false } }])
+  expect(
+    await screen.findByRole('heading', { name: NOTES.easy_ask_before_hard.title }),
+  ).toBeInTheDocument()
+  expect(await screen.findByText(/asked again after 8 Nov 2027/)).toBeInTheDocument()
+  expect(sent).toEqual([{ version: VERSION }])
 })
 
-test('all no says nothing holds you back', async () => {
-  serve(DUE, 'clear')
+test('inactive and 35 or over: start easy and ask before hard sessions', async () => {
+  serve(DUE)
   render(<ReadinessPage />)
-  await screen.findByRole('group', { name: 'Heart condition?' })
-  fireEvent.click(within('Heart condition?', 'No'))
-  fireEvent.click(within('Joint problem?', 'No'))
-  fireEvent.click(screen.getByRole('button', { name: 'Save my answers' }))
-  expect(await screen.findByText(/Nothing in your answers says to hold back/)).toBeInTheDocument()
+  await answerAll({ 0: 'No', 1: 'Yes' })
+  fireEvent.click(screen.getByRole('button', { name: 'See what we suggest' }))
+  expect(
+    await screen.findByRole('heading', { name: NOTES.easy_ask_before_hard.title }),
+  ).toBeInTheDocument()
 })
 
-test('earlier answers are filled in, with when they are asked again', async () => {
+test('pregnancy suggests a midwife or doctor before starting', async () => {
+  serve(DUE)
+  render(<ReadinessPage />)
+  await answerAll({ 9: 'Yes' })
+  fireEvent.click(screen.getByRole('button', { name: 'See what we suggest' }))
+  expect(await screen.findByRole('heading', { name: NOTES.doctor_first.title })).toBeInTheDocument()
+  expect(screen.getByText(NOTES.doctor_first.text)).toBeInTheDocument() // names a midwife too
+})
+
+test('no answers are filled in from before, only when they were given', async () => {
   serve({
     ...DUE,
-    status: 'clear',
-    answers: { heart: false, joints: true },
+    due: false,
     answered_at: '2026-10-10T12:00:00Z',
-    ask_again_after: '2027-04-10T12:00:00Z',
+    ask_again_after: '2027-10-10T12:00:00Z',
   })
   render(<ReadinessPage />)
   expect(
-    await screen.findByText(/Answered 10 Oct 2026; asked again after 10 Apr 2027/),
+    await screen.findByText(/Answered 10 Oct 2026; asked again after 10 Oct 2027/),
   ).toBeInTheDocument()
-  expect(within('Joint problem?', 'Yes')).toBeChecked()
-  expect(screen.getByRole('button', { name: 'Save my answers' })).toBeEnabled()
+  expect(within(QUESTIONS[0].text, 'Yes')).not.toBeChecked()
+  expect(screen.getByRole('button', { name: 'See what we suggest' })).toBeDisabled()
 })
 
 test('signed out, it points to sign in', async () => {
@@ -108,22 +120,23 @@ test('a failed load says so', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the questions")
 })
 
-test('a sign-in that ended while saving points to sign in again', async () => {
+test('a sign-in that ended while saving points to sign in again, with the note shown', async () => {
   serve(DUE, 401)
   render(<ReadinessPage />)
-  await screen.findByRole('group', { name: 'Heart condition?' })
-  fireEvent.click(within('Heart condition?', 'No'))
-  fireEvent.click(within('Joint problem?', 'No'))
-  fireEvent.click(screen.getByRole('button', { name: 'Save my answers' }))
+  await answerAll()
+  fireEvent.click(screen.getByRole('button', { name: 'See what we suggest' }))
   expect(await screen.findByRole('link', { name: 'Sign in again' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: NOTES.easy.title })).toBeInTheDocument()
 })
 
-test('a failed save says so', async () => {
-  serve(DUE, 500)
+test.each([
+  [500, "Couldn't save that you answered"],
+  [409, 'Reload to answer the new ones'],
+])('a failed save (%s) says so and still shows the note', async (status, text) => {
+  serve(DUE, status)
   render(<ReadinessPage />)
-  await screen.findByRole('group', { name: 'Heart condition?' })
-  fireEvent.click(within('Heart condition?', 'No'))
-  fireEvent.click(within('Joint problem?', 'No'))
-  fireEvent.click(screen.getByRole('button', { name: 'Save my answers' }))
-  expect(await screen.findByText(/Couldn't save/)).toBeInTheDocument()
+  await answerAll()
+  fireEvent.click(screen.getByRole('button', { name: 'See what we suggest' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(text)
+  expect(screen.getByRole('heading', { name: NOTES.easy.title })).toBeInTheDocument()
 })

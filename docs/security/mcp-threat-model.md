@@ -7,8 +7,8 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11, and 20
 - **Covered:** the remote MCP endpoint `https://coach.vybe-dev.com/mcp` and the OAuth 2.1 authorization server inside the app (`/oauth/*` and `/.well-known/*`).
 - **Scopes:**
   - Phase C1 (read-only): `training:read`, `body:read`, `readiness:read` (the owner chose to
-    offer the health scopes from C1; `readiness:read` covers the readiness answers and the daily
-    check, ADR-0053).
+    offer the health scopes from C1; `readiness:read` covers the daily checks, ADR-0053; the
+    health questions' answers stay on the device, ADR-0085).
   - Phase C2: `log:propose`, unticked on the consent page like the health scopes (ADR-0058).
 - **Tools:** `get_guide`, `get_summary(period)`, `get_exercise(slug)`, `get_tests()`, `get_body(period)`, `get_readiness()`, `propose_log(...)`.
 - **Out of scope:**
@@ -18,7 +18,8 @@ Status: **reviewed; the owner's decisions are recorded below (2026-10-11, and 20
 ## Assets
 
 - **Training data:** workouts, sets, tests, habits and the plan position (`services/ai_summary.py`).
-- **Health data:** body measurements, readiness answers and daily checks. Photos are never exposed.
+- **Health data:** body measurements and daily checks. Photos are never exposed; the health
+  questions' answers never reach the server (ADR-0085).
 - **OAuth secrets:**
   - authorization codes, access tokens and refresh tokens;
   - PKCE verifiers, which the client holds;

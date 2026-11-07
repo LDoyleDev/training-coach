@@ -323,7 +323,8 @@ guards, cheapest first:
 ### M. Consent, notice, DPIA
 
 - **Consent per category**, matching the privacy draft's health rows: body (measurements and
-  photos), readiness answers, daily check, band data, and what the AI comment may see (already
+  photos), daily check, band data, and what the AI comment may see (the health questions'
+  answers stay on the device since ADR-0085's build, so they need none; already
   the `share_body` and `share_readiness` switches). A `consents` table (per person: category,
   notice version, given, withdrawn). A feature asks for its consent the first time it is opened;
   withdrawing erases that category (the privacy draft lists this as needed before launch).
