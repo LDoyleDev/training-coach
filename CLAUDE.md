@@ -81,8 +81,9 @@ formats every file you edit (ADR-0021).
 
 ## Security rules (non-negotiable; see threat model)
 
-- The bot answers only `TC_TELEGRAM_ALLOWED_USER_ID`. Every handler uses the `owner_only`
-  filter. Add a test for each new handler proving strangers are ignored.
+- The bot answers only `TC_TELEGRAM_ALLOWED_USER_ID`. Every update meets the sender gate first
+  (`bot/gate.py`, ADR-0089), and every handler still uses the `owner_only` filter. Add a test
+  for each new handler proving strangers are ignored.
 - LLM output is untrusted data: parse into a Pydantic model, reject anything that does not
   validate, and show it to the user for confirmation before saving. LLMs never get tools and
   never trigger actions directly. (An outside AI the person connects over MCP gets read tools

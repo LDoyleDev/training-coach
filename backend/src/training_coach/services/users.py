@@ -73,6 +73,12 @@ def link_owner(session: Session, telegram_user_id: int) -> int:
     return owner.id
 
 
+def by_telegram(session: Session, telegram_user_id: int) -> int | None:
+    """Whose Telegram account this is: the user id linked to it, or None for a stranger (the
+    bot's sender gate, ADR-0089). Any session may ask: users aren't per-person rows."""
+    return session.scalar(select(User.id).where(User.telegram_user_id == telegram_user_id))
+
+
 def telegram_chat(session: Session, user_id: int) -> int | None:
     """The private chat to message ``user_id`` in, or None if they have no Telegram linked.
     Any session may ask: users aren't per-person rows."""

@@ -63,6 +63,10 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("services.seed::start_person", ALL): "one person's starting rows, naming them in each query",
     ("services.ai_key::rotate_all", ALL): "re-seals every person's key with a new app key",
     ("api.app::create_app", UNBOUND): "app.state.shared_sessions, for the lookups below",
+    (
+        "db.session::unbound_like",
+        UNBOUND,
+    ): "the bot's sender gate: whose Telegram account (users only)",
     ("api.app::create_app", SHARED): "made once here",
     ("api.app::create_app.lifespan", UNBOUND): (
         "links the owner at start-up (users.link_owner); finds who left and is back (ADR-0088)"
