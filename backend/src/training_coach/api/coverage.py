@@ -41,6 +41,7 @@ class MuscleView(BaseModel):
     back_to_back: list[str]  # two sessions running that both load it hard; empty if none
     missing_parts: list[str]  # parts no exercise reaches: triceps long head, rectus femoris
     sources: list[SourceView]
+    adds: list[str]  # exercises at this place that would add to it, not yet counted for it
 
 
 class SessionMuscleView(BaseModel):
@@ -130,6 +131,7 @@ def post_coverage_draft(request: Request, user: Owner, body: CoverageDraft) -> C
 
 
 def _view(found: domain.Coverage, at: Place, places: Places) -> CoverageView:
+    adds = service.would_add(found, at)
     return CoverageView(
         place=at,
         places=places,
@@ -150,6 +152,7 @@ def _view(found: domain.Coverage, at: Place, places: Places) -> CoverageView:
                 back_to_back=list(m.back_to_back or ()),
                 missing_parts=list(m.missing_parts),
                 sources=[SourceView(**vars(s)) for s in m.sources],
+                adds=adds[m.muscle],
             )
             for m in found.muscles
         ],

@@ -316,6 +316,53 @@ test('a failed map says so and the editor still works', async () => {
   expect(screen.getByRole('button', { name: 'One set more of Pull-up' })).toBeEnabled()
 })
 
+test('a muscle on the map opens the picker for it', async () => {
+  serve()
+  map = Response.json({
+    place: 'home',
+    places: 'home',
+    muscles: [
+      {
+        muscle: 'lats',
+        main: true,
+        sets: 3,
+        days: 1,
+        most: 3,
+        most_in: 'Upper',
+        band: 'amber',
+        low: 10,
+        high: 20,
+        evidence: null,
+        one_day: true,
+        over_session_cap: false,
+        back_to_back: [],
+        missing_parts: [],
+        sources: [],
+        adds: ['Scapular row', 'Band pulldown'],
+      },
+    ],
+    sessions: [],
+    main_on_target: 0,
+    main_total: 10,
+    session_cap: 11,
+    back_to_back: 4,
+    push_sets: 0,
+    pull_sets: 0,
+    pushing_without_pulling: false,
+    spine_cap: 8,
+    grip_cap: 8,
+    hard_from: 6,
+    minimum: 4,
+    ceiling: 30,
+  })
+  render(<PlanEdit />)
+  fireEvent.click(await screen.findByRole('button', { name: /^Lats: 3 sets/ }, { timeout: 2000 }))
+  expect(screen.getByText('Would add to it: Scapular row, Band pulldown.')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Add an exercise for lats' }))
+  expect(screen.getByRole('combobox', { name: /what should it train/ })).toHaveValue('lats')
+  expect(screen.queryByRole('button', { name: 'Push-up' })).not.toBeInTheDocument()
+})
+
 test('signed out and a failed load say so', async () => {
   vi.stubGlobal(
     'fetch',
