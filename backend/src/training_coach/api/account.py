@@ -9,13 +9,13 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.alerts import alert
+from training_coach.api.alerts import alert, alert_chat
 from training_coach.api.auth import COOKIE, Fresh, Owner
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import auth, passkeys
+from training_coach.services import auth, left_list, passkeys, users
 from training_coach.services.ai_summary import Options, summary
-from training_coach.services.erase import erase
+from training_coach.services.erase import erase, leave
 from training_coach.services.export import archive, record
 from training_coach.services.seed import load_plan
 
@@ -171,4 +171,37 @@ def erase_my_data(
         user,
         "data_erased",
         "All your Training Coach data was erased. Backups age out within 5 weeks.",
+    )
+
+
+class LeaveRequest(BaseModel):
+    confirm: Literal["leave"]  # typed by the person, as for erase
+
+
+@router.post("/leave", status_code=status.HTTP_204_NO_CONTENT)
+def leave_training_coach(
+    body: LeaveRequest,
+    request: Request,
+    response: Response,
+    background: BackgroundTasks,
+    user: Owner,
+    _fresh: Fresh,
+) -> None:
+    """A member leaving (ADR-0088): everything of theirs is deleted, the account too, with no
+    fresh start. Needs a recent sign-in and the word typed. 403 for the owner, who erases
+    instead. Works whatever ``TC_MULTI_USER`` says: leaving is always allowed."""
+    settings = request.app.state.settings
+    with session_scope(make_session_factory(request.app.state.engine)) as session:
+        chat = users.telegram_chat(session, user)  # now: after the leave there is no one to ask
+        left = leave(session, user, left_list.for_url(settings.database_url), datetime.now(UTC))
+    if not left:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "the owner erases instead of leaving")
+    response.delete_cookie(COOKIE, path="/", secure=True, httponly=True, samesite="strict")
+    alert_chat(
+        request,
+        background,
+        chat,
+        "left",
+        "You left Training Coach and everything of yours was deleted. Backups age out within "
+        "5 weeks.",
     )

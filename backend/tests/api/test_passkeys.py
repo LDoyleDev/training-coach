@@ -83,7 +83,7 @@ def test_add_a_passkey_then_sign_in_with_it(client: TestClient, engine: Engine) 
     assert stored.user_id == OWNER
 
     assert _sign_in(client, device) == 204
-    assert client.get("/api/auth/me").json() == {"user_id": OWNER}
+    assert client.get("/api/auth/me").json()["user_id"] == OWNER
     assert _passkeys(engine)[0].sign_count == 1
 
 

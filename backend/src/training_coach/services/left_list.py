@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import User
+from training_coach.services.backup import database_path
 
 NAME = "left-users.json"
 # Backups age out within 5 weeks (domain.backups, the off-site 35 days); a week more to be safe.
@@ -36,6 +37,12 @@ class Left:
 def path_for(database: Path) -> Path:
     """Where the list for ``database`` lives: beside it, outside ``backups/``."""
     return database.parent / NAME
+
+
+def for_url(database_url: str) -> Path | None:
+    """The list for the app's database; None without a database file (nothing to restore)."""
+    database = database_path(database_url)
+    return path_for(database) if database is not None else None
 
 
 def read(path: Path) -> list[Left]:

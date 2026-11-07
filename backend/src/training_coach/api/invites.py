@@ -6,17 +6,19 @@ only. ``/api/join`` is public: the invite's token is what proves it, rate limite
 """
 
 from datetime import UTC, date, datetime
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.alerts import alert
-from training_coach.api.auth import Admin, set_session_cookie
+from training_coach.api.alerts import alert, alert_chat
+from training_coach.api.auth import Admin, Fresh, set_session_cookie
 from training_coach.api.oauth import limited
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
-from training_coach.services import invites
+from training_coach.services import invites, left_list, users
+from training_coach.services.erase import leave
 
 router = APIRouter(prefix="/api", tags=["people"])
 
@@ -38,6 +40,7 @@ class InviteView(BaseModel):
 
 
 class MemberView(BaseModel):
+    id: int  # to remove them by; says nothing about them
     label: str | None
     joined: date
 
@@ -46,6 +49,10 @@ class PeopleView(BaseModel):
     members: list[MemberView]
     invites: list[InviteView]  # open ones
     max_members: int
+
+
+class RemoveBody(BaseModel):
+    confirm: Literal["remove"]  # typed by the admin: no removing someone by a stray click
 
 
 class JoinBody(BaseModel):
@@ -74,7 +81,8 @@ def get_people(request: Request, user: Admin) -> PeopleView:
         open_ = invites.open_invites(session, datetime.now(UTC))
     return PeopleView(
         members=[
-            MemberView(label=m.label, joined=m.joined.astimezone(settings.tz).date()) for m in found
+            MemberView(id=m.user_id, label=m.label, joined=m.joined.astimezone(settings.tz).date())
+            for m in found
         ],
         invites=[InviteView(**vars(i)) for i in open_],
         max_members=settings.max_members,
@@ -102,6 +110,36 @@ def revoke_invite(invite_id: int, request: Request, user: Admin) -> None:
         done = invites.revoke(session, invite_id, datetime.now(UTC))
     if not done:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no open invite")
+
+
+@router.post("/people/{member_id}/remove", status_code=status.HTTP_204_NO_CONTENT)
+def remove_member(
+    member_id: int,
+    body: RemoveBody,
+    request: Request,
+    background: BackgroundTasks,
+    user: Admin,
+    _fresh: Fresh,
+) -> None:
+    """Remove a member (ADR-0059, ADR-0088), once the admin has told them and offered their
+    export: everything of theirs is deleted, as if they had left. 404 for anyone who isn't a
+    member (an admin can't be removed). Needs a recent sign-in and the word typed."""
+    settings = _on(request)
+    with session_scope(_shared(request)) as session:
+        chat = users.telegram_chat(session, member_id)  # now: afterwards there is no one to ask
+        gone = leave(
+            session, member_id, left_list.for_url(settings.database_url), datetime.now(UTC)
+        )
+    if not gone:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such member")
+    alert_chat(
+        request,
+        background,
+        chat,
+        "member_removed",
+        "The admin removed you from Training Coach, and everything of yours was deleted. "
+        "Backups age out within 5 weeks.",
+    )
 
 
 @router.post("/join", status_code=status.HTTP_204_NO_CONTENT)
