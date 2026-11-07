@@ -356,7 +356,12 @@ guards, cheapest first:
    and the `/join` page.
 6. **Consent records** and per-category withdraw and erase.
 7. **Leave, remove a member, admin recovery link** (ADR succeeding ADR-0044) and the restore
-   runbook step.
+   runbook step. The leave service and the left list are done ([ADR-0088](../adr/0088-leaving-and-the-left-list.md),
+   7 Nov 2026): the list is a file beside the database, copied off-site nightly, matched by id
+   and join time, and put back by `training-coach forget-left` after a restore. Still to build,
+   after a plan review (7 Nov): the leave and remove routes and their pages; the switch-off rules
+   with ADR-0059's per-member `closing_on` and export-only Account; the admin recovery link with
+   ADR-0059's controls.
 8. **Telegram for members:** connect link, the members filter, a session per update.
 9. **Schedules per person**, and band offers and band data alerts per person (the alert
    state is already per person, on `ingest_keys`).
