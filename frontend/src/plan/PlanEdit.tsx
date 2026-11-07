@@ -398,6 +398,7 @@ export default function PlanEdit() {
             catalogue={loaded.catalogue}
             place={place}
             label={picking === 'add' ? 'Add' : `Swap ${items[picking]?.name ?? ''}`}
+            key={`${picking}-${forMuscle}`} // a muscle tapped while it's open starts it afresh
             initial={picking === 'add' ? forMuscle : ''}
             onClose={() => setPicking(null)}
             onPick={(from) => {

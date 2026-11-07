@@ -356,6 +356,7 @@ test('a muscle on the map opens the picker for it', async () => {
     ceiling: 30,
   })
   render(<PlanEdit />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Add an exercise' })) // open already
   fireEvent.click(await screen.findByRole('button', { name: /^Lats: 3 sets/ }, { timeout: 2000 }))
   expect(screen.getByText('Would add to it: Scapular row, Band pulldown.')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Add an exercise for lats' }))
