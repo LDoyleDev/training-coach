@@ -67,6 +67,7 @@ ALLOWED: dict[tuple[str, str], str] = {
         "links the owner at start-up (users.link_owner); finds who left and is back (ADR-0088)"
     ),
     ("api.account::erase_my_data", UNBOUND): "erase deletes and recreates the user row (ADR-0044)",
+    ("api.account::leave_training_coach", UNBOUND): "leaving deletes the user row (ADR-0088)",
     ("api.auth::_shared", SHARED): "sign-in: whose cookie or link is this",
     ("api.invites::_shared", SHARED): "invites and users are shared; labels and join days only",
     ("api.passkeys::_shared", SHARED): "passkey sign-in: whose credential is this",

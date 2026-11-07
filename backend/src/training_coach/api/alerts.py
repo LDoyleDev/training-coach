@@ -38,6 +38,17 @@ def alert(request: Request, background: BackgroundTasks, user: int, kind: str, t
     background.add_task(_tell, request.app.state.engine, send, user, kind, text)
 
 
+def alert_chat(
+    request: Request, background: BackgroundTasks, chat: int | None, kind: str, text: str
+) -> None:
+    """Like ``alert``, to a chat found beforehand: for someone whose user row is gone by the time
+    the response is sent (leaving, removed), so it can't be looked up afterwards."""
+    log.info("auth.alert", kind=kind)
+    send: Send | None = getattr(request.app.state, "send", None)
+    if send is not None and chat is not None:
+        background.add_task(send, chat, text)
+
+
 def _chat(engine: "Engine", user: int) -> int | None:
     with session_scope(make_session_factory(engine, user_id=user)) as session:
         return users.telegram_chat(session, user)
