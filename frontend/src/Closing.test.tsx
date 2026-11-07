@@ -4,7 +4,13 @@ import { Closing } from './Closing'
 
 vi.mock('./account/Leave', () => ({ default: () => <p>leave</p> }))
 
-const ME = { user_id: 2, role: 'member' as const, closed: true, closing_on: '2026-12-07' }
+const ME = {
+  user_id: 2,
+  role: 'member' as const,
+  closed: true,
+  closing_on: '2026-12-07',
+  recovered_by_admin_at: null,
+}
 
 afterEach(() => vi.unstubAllGlobals())
 
