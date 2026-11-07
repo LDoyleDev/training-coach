@@ -61,6 +61,19 @@ def owner(request: Request, response: Response) -> int:
 Owner = Annotated[int, Depends(owner)]
 
 
+def admin(request: Request, user: Owner) -> int:
+    """The signed-in admin's id (ADR-0059); 403 for anyone else signed in. Admins make and revoke
+    invites and see counts, never a member's data."""
+    with session_scope(_shared(request)) as session:
+        allowed = users.is_admin(session, user)
+    if not allowed:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "for admins only")
+    return user
+
+
+Admin = Annotated[int, Depends(admin)]
+
+
 def set_session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         COOKIE,

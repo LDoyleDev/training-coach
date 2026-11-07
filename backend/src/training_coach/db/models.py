@@ -298,6 +298,10 @@ class User(Base):
     # Their last signed-in web visit from a listed country: the bot and MCP serve them for 30
     # days after it (domain.region). A new person starts now, from the visit that made them.
     last_seen_in_europe: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    # admin or member (ADR-0059): the owner is the one admin. Read only with TC_MULTI_USER on.
+    role: Mapped[str] = mapped_column(String(8), default="member", server_default="member")
+    # What the admin's list calls them ("Mum"); it says nothing about their data.
+    label: Mapped[str | None] = mapped_column(String(40))
 
 
 # ----------------------------------------------------------------------- state
