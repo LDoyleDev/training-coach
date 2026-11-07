@@ -21,7 +21,7 @@ from training_coach.services.day_clash import Clash, Refused, Resolution
 
 ZONE2 = review.ZONE2
 MODERATE = review.MODERATE
-HIIT = "hiit"
+HIIT = guided.HIIT
 KINDS = (ZONE2, MODERATE, HIIT)  # exercise slugs; HIIT counts rounds, the others minutes
 MAX_MINUTES = 600
 MAX_ROUNDS = 100

@@ -141,6 +141,23 @@ afterEach(() => {
 const button = (name: string | RegExp) => screen.getByRole('button', { name })
 const choice = () => screen.getByRole('group', { name: 'Short on time today?' })
 
+test('only lengths shorter than the session are offered', async () => {
+  serve({
+    today: [today({ ...SESSION, length: { ...PLANNED, options: [30, 20], planned_minutes: 35 } })],
+  })
+  render(<SessionPage />)
+  await screen.findByRole('heading', { name: 'Legs' })
+  const options = within(choice()).getAllByRole('button')
+  expect(options.map((b) => b.textContent)).toEqual(['As planned', '30 min', '20 min'])
+})
+
+test('a session shorter than every length shows no choice', async () => {
+  serve({ today: [today({ ...SESSION, length: { ...PLANNED, options: [], planned_minutes: 6 } })] })
+  render(<SessionPage />)
+  await screen.findByRole('heading', { name: 'Legs' })
+  expect(screen.queryByRole('heading', { name: 'Short on time today?' })).not.toBeInTheDocument()
+})
+
 test('loading, then the choice as planned; nothing is recommended', async () => {
   serve({})
   render(<SessionPage />)

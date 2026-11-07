@@ -290,7 +290,7 @@ export async function choosePlace(
 export type Length = Schemas['LengthView']
 export type LengthBody = Schemas['LengthBody']
 
-/** Short on time today (ADR-0082): today's session at 40, 30 or 20 minutes, or as planned
+/** Short on time today (ADR-0082): today's session at a length on offer, or as planned
  * (``minutes`` null), never dropping the exercises in ``keep``. 'stale': the session changed,
  * moved on elsewhere or has started (reload); a string: why it was refused. */
 export async function chooseLength(body: LengthBody): Promise<TodayView | 'stale' | string> {
