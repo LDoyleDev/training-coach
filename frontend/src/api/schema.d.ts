@@ -2209,13 +2209,24 @@ export interface components {
         };
         /** CatalogueItemView */
         CatalogueItemView: {
+            /** First Step */
+            first_step: string;
             kind: components["schemas"]["ExerciseKind"];
+            /** Lengthened */
+            lengthened: boolean;
+            /** Levels */
+            levels: [
+                number,
+                number
+            ] | null;
             /** Muscles */
             muscles: {
                 [key: string]: number;
             };
             /** Name */
             name: string;
+            /** Needs */
+            needs: string[];
             /** Pattern */
             pattern: string;
             /** Per Side */

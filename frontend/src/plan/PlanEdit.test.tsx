@@ -28,6 +28,10 @@ const VIEW = {
       pattern: 'horizontal push',
       places: ['home', 'gym', 'away'],
       range: null,
+      first_step: 'Hands on a wall',
+      levels: [1, 6],
+      needs: [],
+      lengthened: false,
     },
     {
       slug: 'lat-pulldown',
@@ -38,6 +42,38 @@ const VIEW = {
       pattern: 'vertical pull',
       places: ['gym'],
       range: [8, 12],
+      first_step: 'Machine',
+      levels: [3, 6],
+      needs: [],
+      lengthened: false,
+    },
+    {
+      slug: 'band-pulldown',
+      name: 'Band pulldown',
+      kind: 'reps',
+      per_side: false,
+      muscles: { lats: 1 },
+      pattern: 'vertical pull',
+      places: ['home', 'gym'],
+      range: null,
+      first_step: 'Light band',
+      levels: [2, 2],
+      needs: ['a light band'],
+      lengthened: false,
+    },
+    {
+      slug: 'scapular-row',
+      name: 'Scapular row',
+      kind: 'reps',
+      per_side: false,
+      muscles: { lats: 1 },
+      pattern: 'horizontal pull',
+      places: ['home', 'gym'],
+      range: null,
+      first_step: 'Bodyweight',
+      levels: [2, 4],
+      needs: [],
+      lengthened: true,
     },
   ],
 }
@@ -180,6 +216,36 @@ test('the picker filters by muscle and can be closed', async () => {
   expect(screen.queryByRole('button', { name: 'Push-up' })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   expect(screen.getByRole('button', { name: 'Add an exercise' })).toBeInTheDocument()
+})
+
+test('the picker says who it is for and what it needs, and puts a lengthened pick first', async () => {
+  serve()
+  render(<PlanEdit />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Add an exercise' }))
+  fireEvent.change(screen.getByRole('combobox', { name: /what should it train/ }), {
+    target: { value: 'lats' },
+  })
+  const list = screen.getAllByRole('button').filter((b) => b.hasAttribute('aria-describedby'))
+  expect(list.map((b) => b.getAttribute('aria-labelledby'))).toEqual([
+    'pick-scapular-row',
+    'pick-band-pulldown',
+  ])
+  expect(screen.getByRole('button', { name: 'Band pulldown' })).toHaveAccessibleDescription(
+    'Level 2 · Needs a light band',
+  )
+  expect(screen.getByRole('button', { name: 'Scapular row' })).toHaveAccessibleDescription(
+    'Levels 2-4 · No kit to start · Trains it stretched',
+  )
+})
+
+test('a gym exercise says so instead of what it needs', async () => {
+  serve()
+  render(<PlanEdit />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Gym' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Add an exercise' }))
+  expect(screen.getByRole('button', { name: 'Lat pulldown' })).toHaveAccessibleDescription(
+    'Levels 3-6 · Gym only',
+  )
 })
 
 test('alternating pairs an item with the next', async () => {

@@ -200,6 +200,16 @@ def test_an_empty_draft_is_the_plan_as_it_stands(client: TestClient) -> None:
     assert drafted.json() == before
 
 
+def test_the_catalogue_says_who_an_exercise_is_for_and_what_it_needs(client: TestClient) -> None:
+    catalogue = {e["slug"]: e for e in client.get("/api/plan/edit").json()["catalogue"]}
+    assert catalogue["push-up"]["first_step"] == "Hands on a wall"
+    assert catalogue["push-up"]["levels"] == [1, 6]
+    assert catalogue["push-up"]["needs"] == []
+    assert catalogue["band-row"]["needs"] == ["a light band"]
+    assert catalogue["seated-leg-curl"]["lengthened"]
+    assert not catalogue["push-up"]["lengthened"]
+
+
 def _draft_of(slug: str, exercise: str) -> dict[str, object]:
     item = {"exercise": exercise, "sets": 20, "rep_min": 5, "rep_max": 10}
     return {"place": "home", "versions": [{"slug": slug, "place": "home", "items": [item]}]}
