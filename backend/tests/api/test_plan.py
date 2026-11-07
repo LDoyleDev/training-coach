@@ -89,6 +89,85 @@ def test_anyone_else_is_refused_the_import(engine: Engine) -> None:
         assert member.post("/api/plan/import").status_code == 403
 
 
+def _draft(client: TestClient, sets: int) -> dict[str, object]:
+    edit = client.get("/api/plan/edit").json()
+    first = edit["sessions"][0]
+    items = [
+        {k: i[k] for k in ("exercise", "sets", "rep_min", "rep_max", "per_side", "pair")}
+        for i in first["home"]
+    ]
+    items[0]["sets"] = sets
+    return {
+        "revision": edit["revision"],
+        "note": "One more set",
+        "versions": [{"slug": first["slug"], "place": "home", "items": items}],
+    }
+
+
+def test_the_editor_gets_every_version_and_the_catalogue(client: TestClient) -> None:
+    edit = client.get("/api/plan/edit").json()
+    plan = load_plan()
+    assert [s["slug"] for s in edit["sessions"]] == [s.slug for s in plan.sessions]
+    assert any(s["away"] for s in edit["sessions"])
+    slugs = {e["slug"] for e in edit["catalogue"]}
+    assert slugs == {e.slug for e in plan.exercises if not e.retired}
+    assert all("gym" in e["places"] for e in edit["catalogue"])
+
+
+def test_saving_a_draft_shows_on_the_plan_and_makes_a_version(client: TestClient) -> None:
+    body = _draft(client, 9)
+    saved = client.post("/api/plan/changes", json=body)
+    assert saved.status_code == 200
+    assert saved.json()["version"] == "One more set"
+    assert saved.json()["revision"] == client.get("/api/plan/edit").json()["revision"]
+    assert client.get("/api/plan").json()["sessions"][0]["exercises"][0]["sets"] == 9
+
+
+def test_a_stale_draft_is_a_conflict(client: TestClient) -> None:
+    body = _draft(client, 9)
+    assert client.post("/api/plan/changes", json=body).status_code == 200
+    late = client.post("/api/plan/changes", json={**body, "note": "Late"})
+    assert late.status_code == 409
+    assert late.json()["detail"] == "stale"
+
+
+def test_a_session_in_progress_is_a_conflict(client: TestClient, engine: Engine) -> None:
+    body = _draft(client, 9)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as bound:
+        template = bound.scalars(select(SessionTemplate).order_by(SessionTemplate.position)).first()
+        assert template is not None
+        today = local_date(datetime.now(UTC), Settings().tz)
+        kept = [{"item": 0, "set_no": 1, "left": 8}]
+        bound.add(
+            SessionProgress(local_date=today, template_id=template.id, token="ab" * 16, sets=kept)
+        )
+    late = client.post("/api/plan/changes", json=body)
+    assert late.status_code == 409
+    assert late.json()["detail"] == "in-progress"
+
+
+def test_what_the_app_couldnt_run_is_refused_with_the_reason(client: TestClient) -> None:
+    body = _draft(client, 9)
+    versions = body["versions"]
+    assert isinstance(versions, list)
+    versions[0]["items"][0]["exercise"] = "no-such"
+    refused = client.post("/api/plan/changes", json=body)
+    assert refused.status_code == 422
+    assert "catalogue" in refused.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [{"note": ""}, {"versions": []}],
+    ids=["no-note", "nothing-to-save"],
+)
+def test_a_draft_needs_a_note_and_something_in_it(
+    client: TestClient, change: dict[str, object]
+) -> None:
+    body = {**_draft(client, 9), **change}
+    assert client.post("/api/plan/changes", json=body).status_code == 422
+
+
 def test_the_plan_needs_a_signed_in_browser(engine: Engine) -> None:
     settings = Settings(environment="test", database_url=str(engine.url))
     with TestClient(create_app(settings), base_url="https://testserver") as stranger:

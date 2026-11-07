@@ -1,0 +1,383 @@
+import { useEffect, useMemo, useState } from 'react'
+import {
+  fetchPlanEdit,
+  savePlanChanges,
+  SignedOutError,
+  type CatalogueItem,
+  type EditItem,
+  type Place,
+  type PlanEdit as Loaded,
+} from '../api'
+import AppShell from '../components/AppShell'
+import { RetryCard, SignInCard } from '../components/StateCards'
+import { card, primaryInline, secondary, small } from '../ui'
+import {
+  changed,
+  choices,
+  draftOf,
+  moved,
+  muscles,
+  newItem,
+  paired,
+  PLACES,
+  removed,
+  swapped,
+  togglePair,
+  withItem,
+  type Draft,
+} from './editLogic'
+
+type State =
+  | { status: 'loading' }
+  | { status: 'signed-out' }
+  | { status: 'error' }
+  | { status: 'ready'; loaded: Loaded; draft: Draft }
+
+const WHY: Record<string, string> = {
+  stale: 'Your plan changed since you opened this. Reload to see it, then make your edit again.',
+  'in-progress': 'Finish or discard your session in progress first: its sets follow today’s list.',
+}
+
+const number = (text: string) => {
+  const found = Number(text)
+  return Number.isInteger(found) && found >= 1 ? found : null
+}
+
+function Picker({
+  catalogue,
+  place,
+  label,
+  onPick,
+  onClose,
+}: {
+  catalogue: CatalogueItem[]
+  place: Place
+  label: string
+  onPick: (from: CatalogueItem) => void
+  onClose: () => void
+}) {
+  const [muscle, setMuscle] = useState('')
+  const list = choices(catalogue, place, muscle || null)
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-[var(--line)] p-3">
+      <label className="flex flex-col gap-1">
+        <span>{label}: what should it train?</span>
+        <select value={muscle} onChange={(e) => setMuscle(e.target.value)} className="min-h-11">
+          <option value="">Anything</option>
+          {muscles(catalogue).map((m) => (
+            <option key={m} value={m}>
+              {m.replaceAll('_', ' ')}
+            </option>
+          ))}
+        </select>
+      </label>
+      <ul className="m-0 flex list-none flex-col gap-1 p-0">
+        {list.map((e) => (
+          <li key={e.slug}>
+            <button type="button" className={`${small} w-full text-left`} onClick={() => onPick(e)}>
+              {e.name}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className={`${small} self-start`} onClick={onClose}>
+        Cancel
+      </button>
+    </div>
+  )
+}
+
+function Row({
+  item,
+  at,
+  items,
+  set,
+  onSwap,
+}: {
+  item: EditItem
+  at: number
+  items: EditItem[]
+  set: (items: EditItem[]) => void
+  onSwap: () => void
+}) {
+  const range = (key: 'rep_min' | 'rep_max', label: string) => (
+    <label className="flex flex-col gap-1">
+      <span>{label}</span>
+      <input
+        type="number"
+        min={1}
+        value={item[key]}
+        className="min-h-11 w-20"
+        onChange={(e) => {
+          const found = number(e.target.value)
+          if (found !== null) set(withItem(items, at, { [key]: found }))
+        }}
+      />
+    </label>
+  )
+  return (
+    <li className="flex flex-col gap-2 rounded-xl border border-[var(--line)] p-3">
+      <span className="font-bold">{item.name}</span>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex items-center gap-2" role="group" aria-label={`Sets of ${item.name}`}>
+          <button
+            type="button"
+            className={small}
+            aria-label={`One set fewer of ${item.name}`}
+            disabled={item.sets <= 1}
+            onClick={() => set(withItem(items, at, { sets: item.sets - 1 }))}
+          >
+            −
+          </button>
+          <span className="tabular-nums">{item.sets} sets</span>
+          <button
+            type="button"
+            className={small}
+            aria-label={`One set more of ${item.name}`}
+            disabled={item.sets >= 20}
+            onClick={() => set(withItem(items, at, { sets: item.sets + 1 }))}
+          >
+            +
+          </button>
+        </div>
+        {range('rep_min', 'From')}
+        {range('rep_max', 'To')}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={small}
+          disabled={at === 0}
+          aria-label={`Move ${item.name} up`}
+          onClick={() => set(moved(items, at, -1))}
+        >
+          Up
+        </button>
+        <button
+          type="button"
+          className={small}
+          disabled={at === items.length - 1}
+          aria-label={`Move ${item.name} down`}
+          onClick={() => set(moved(items, at, 1))}
+        >
+          Down
+        </button>
+        <button type="button" className={small} onClick={onSwap} aria-label={`Swap ${item.name}`}>
+          Swap
+        </button>
+        <button
+          type="button"
+          className={small}
+          aria-label={`Remove ${item.name}`}
+          onClick={() => set(removed(items, at))}
+        >
+          Remove
+        </button>
+        {at < items.length - 1 && (
+          <button
+            type="button"
+            className={small}
+            aria-pressed={paired(items, at)}
+            aria-label={`Alternate ${item.name} with the next`}
+            onClick={() => set(togglePair(items, at))}
+          >
+            Alternate with next
+          </button>
+        )}
+      </div>
+    </li>
+  )
+}
+
+/** /plan/edit: your own plan, a session and place at a time (builder step 6). Nothing changes until
+ * Save, which makes one version with your note. Only what the app couldn't run is refused. */
+export default function PlanEdit() {
+  const [state, setState] = useState<State>({ status: 'loading' })
+  const [slug, setSlug] = useState<string | null>(null)
+  const [place, setPlace] = useState<Place>('home')
+  const [picking, setPicking] = useState<'add' | number | null>(null)
+  const [note, setNote] = useState('')
+  const [said, setSaid] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchPlanEdit(controller.signal)
+      .then((loaded) => {
+        if (loaded === null) return setState({ status: 'signed-out' })
+        setState({ status: 'ready', loaded, draft: draftOf(loaded.sessions) })
+        setSlug(loaded.sessions[0]?.slug ?? null)
+      })
+      .catch(() => setState({ status: 'error' }))
+    return () => controller.abort()
+  }, [])
+
+  const pending = useMemo(
+    () => (state.status === 'ready' ? changed(state.draft, state.loaded.sessions) : []),
+    [state],
+  )
+
+  if (state.status === 'loading')
+    return (
+      <AppShell>
+        <p className="status" role="status">
+          Loading your plan…
+        </p>
+      </AppShell>
+    )
+  if (state.status === 'signed-out')
+    return (
+      <AppShell>
+        <SignInCard text="Sign in to edit your plan." />
+      </AppShell>
+    )
+  if (state.status === 'error')
+    return (
+      <AppShell>
+        <RetryCard text="Couldn't load your plan. Check your connection." />
+      </AppShell>
+    )
+
+  const { loaded, draft } = state
+  const session = loaded.sessions.find((s) => s.slug === slug) ?? loaded.sessions[0]
+  if (!session) return null
+  const items = draft[session.slug]![place]
+  const set = (next: EditItem[]) => {
+    setSaid(null)
+    setState({
+      ...state,
+      draft: { ...draft, [session.slug]: { ...draft[session.slug]!, [place]: next } },
+    })
+  }
+
+  const save = async () => {
+    setBusy(true)
+    setSaid(null)
+    try {
+      const saved = await savePlanChanges({
+        revision: loaded.revision,
+        note: note.trim(),
+        versions: pending,
+      })
+      if (saved.status !== 'saved') return setSaid(WHY[saved.reason] ?? saved.reason)
+      const fresh = await fetchPlanEdit()
+      if (fresh) setState({ status: 'ready', loaded: fresh, draft: draftOf(fresh.sessions) })
+      setNote('')
+      setSaid('Saved as a new version of your plan.')
+    } catch (error) {
+      setSaid(
+        error instanceof SignedOutError
+          ? 'Your sign-in ended. Sign in again, then retry.'
+          : "That didn't work. Check your connection and try again.",
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const empty = place === 'gym' ? 'Done the same way at the gym.' : 'No away version.'
+  return (
+    <AppShell>
+      <h1 className="text-3xl font-extrabold">Edit your plan</h1>
+      <p className="m-0">
+        Nothing changes until you save. <a href="/plan">Back to your plan</a>
+      </p>
+      <section className={`${card} flex flex-col gap-3`} aria-label="Session">
+        <label className="flex flex-col gap-1">
+          <span>Session</span>
+          <select
+            className="min-h-11"
+            value={session.slug}
+            onChange={(e) => {
+              setSlug(e.target.value)
+              setPicking(null)
+            }}
+          >
+            {loaded.sessions.map((s) => (
+              <option key={s.slug} value={s.slug}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Where it's done">
+          {PLACES.map((p) => (
+            <button
+              key={p.place}
+              type="button"
+              className={small}
+              aria-pressed={place === p.place}
+              onClick={() => {
+                setPlace(p.place)
+                setPicking(null)
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {items.length === 0 ? (
+          <p className="m-0 text-[var(--slate)]">{empty}</p>
+        ) : (
+          <ol className="m-0 flex list-none flex-col gap-2 p-0">
+            {items.map((item, at) => (
+              <Row
+                key={`${item.exercise}-${at}`}
+                item={item}
+                at={at}
+                items={items}
+                set={set}
+                onSwap={() => setPicking(at)}
+              />
+            ))}
+          </ol>
+        )}
+        {picking === null ? (
+          <button
+            type="button"
+            className={`${secondary} self-start`}
+            onClick={() => setPicking('add')}
+          >
+            Add an exercise
+          </button>
+        ) : (
+          <Picker
+            catalogue={loaded.catalogue}
+            place={place}
+            label={picking === 'add' ? 'Add' : `Swap ${items[picking]?.name ?? ''}`}
+            onClose={() => setPicking(null)}
+            onPick={(from) => {
+              set(picking === 'add' ? [...items, newItem(from)] : swapped(items, picking, from))
+              setPicking(null)
+            }}
+          />
+        )}
+      </section>
+      <section className={`${card} flex flex-col gap-3`} aria-label="Save">
+        <label className="flex flex-col gap-1">
+          <span>What changed? A short note, for your history.</span>
+          <input
+            type="text"
+            maxLength={120}
+            value={note}
+            className="min-h-11"
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </label>
+        <button
+          type="button"
+          className={`${primaryInline} self-start`}
+          disabled={busy || pending.length === 0 || note.trim() === ''}
+          onClick={() => void save()}
+        >
+          Save as a new version
+        </button>
+        {said && (
+          <p role="status" className="status m-0">
+            {said}
+          </p>
+        )}
+      </section>
+    </AppShell>
+  )
+}

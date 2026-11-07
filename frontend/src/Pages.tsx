@@ -2,6 +2,7 @@ import Account from './Account'
 import BodyTabs from './body/BodyTabs'
 import ConnectPage from './connect/ConnectPage'
 import HomePage from './home/HomePage'
+import PlanEdit from './plan/PlanEdit'
 import PlanPage from './plan/PlanPage'
 import ProgressPage from './progress/ProgressPage'
 import ReadinessPage from './readiness/ReadinessPage'
@@ -29,6 +30,7 @@ export default function Pages() {
     return <ProgressPage />
   }
   if (window.location.pathname === '/plan') return <PlanPage />
+  if (window.location.pathname === '/plan/edit') return <PlanEdit />
   if (window.location.pathname === '/readiness') return <ReadinessPage />
   if (window.location.pathname === '/review') return <ReviewPage />
   if (window.location.pathname === '/connect') return <ConnectPage />

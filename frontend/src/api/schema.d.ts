@@ -1173,6 +1173,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plan/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Plan Changes
+         * @description Save a draft of the person's own plan as one version. A draft of an older plan, or a
+         *     session in progress, is a conflict; what the app couldn't run is refused with the reason.
+         */
+        post: operations["post_plan_changes_api_plan_changes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plan/coverage": {
         parameters: {
             query?: never;
@@ -1187,6 +1208,26 @@ export interface paths {
          *     here changes it, not even the place Today starts at.
          */
         get: operations["get_coverage_api_plan_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Plan Edit
+         * @description The person's sessions with every version, and what they can choose from.
+         */
+        get: operations["get_plan_edit_api_plan_edit_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2146,6 +2187,29 @@ export interface components {
             /** Speed Kmh */
             speed_kmh: number | null;
         };
+        /** CatalogueItemView */
+        CatalogueItemView: {
+            kind: components["schemas"]["ExerciseKind"];
+            /** Muscles */
+            muscles: {
+                [key: string]: number;
+            };
+            /** Name */
+            name: string;
+            /** Pattern */
+            pattern: string;
+            /** Per Side */
+            per_side: boolean;
+            /** Places */
+            places: components["schemas"]["Place"][];
+            /** Range */
+            range: [
+                number,
+                number
+            ] | null;
+            /** Slug */
+            slug: string;
+        };
         /** ChangeBody */
         ChangeBody: {
             /** Template Id */
@@ -2432,6 +2496,38 @@ export interface components {
             exercise: string;
             /** Step */
             step: string;
+        };
+        /** EditItemView */
+        EditItemView: {
+            /** Exercise */
+            exercise: string;
+            /** Name */
+            name: string;
+            /** Pair */
+            pair: number | null;
+            /** Per Side */
+            per_side: boolean;
+            /** Rep Max */
+            rep_max: number;
+            /** Rep Min */
+            rep_min: number;
+            /** Sets */
+            sets: number;
+        };
+        /** EditSessionView */
+        EditSessionView: {
+            /** Away */
+            away: components["schemas"]["EditItemView"][];
+            /** Focus */
+            focus: string;
+            /** Gym */
+            gym: components["schemas"]["EditItemView"][];
+            /** Home */
+            home: components["schemas"]["EditItemView"][];
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
         };
         /**
          * Energy
@@ -2791,6 +2887,24 @@ export interface components {
             refused_reason: components["schemas"]["Refusal"] | null;
             /** Url */
             url: string | null;
+        };
+        /** ItemChange */
+        ItemChange: {
+            /** Exercise */
+            exercise: string;
+            /** Pair */
+            pair?: number | null;
+            /**
+             * Per Side
+             * @default false
+             */
+            per_side: boolean;
+            /** Rep Max */
+            rep_max: number;
+            /** Rep Min */
+            rep_min: number;
+            /** Sets */
+            sets: number;
         };
         /**
          * ItemLevelView
@@ -3559,12 +3673,37 @@ export interface components {
          * @enum {string}
          */
         Places: "home" | "gym" | "both";
+        /** PlanChanges */
+        PlanChanges: {
+            /** Note */
+            note: string;
+            /** Revision */
+            revision: string;
+            /** Versions */
+            versions: components["schemas"]["VersionChange"][];
+        };
+        /** PlanEditView */
+        PlanEditView: {
+            /** Catalogue */
+            catalogue: components["schemas"]["CatalogueItemView"][];
+            /** Revision */
+            revision: string;
+            /** Sessions */
+            sessions: components["schemas"]["EditSessionView"][];
+        };
         /** PlanImportView */
         PlanImportView: {
             /** Blocked */
             blocked: string | null;
             /** Changes */
             changes: string[];
+            /** Version */
+            version: string | null;
+        };
+        /** PlanSavedView */
+        PlanSavedView: {
+            /** Revision */
+            revision: string;
             /** Version */
             version: string | null;
         };
@@ -4486,6 +4625,14 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VersionChange */
+        VersionChange: {
+            /** Items */
+            items: components["schemas"]["ItemChange"][];
+            place: components["schemas"]["Place"];
+            /** Slug */
+            slug: string;
         };
         /** VolumeView */
         VolumeView: {
@@ -6410,6 +6557,39 @@ export interface operations {
             };
         };
     };
+    post_plan_changes_api_plan_changes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanChanges"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanSavedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_coverage_api_plan_coverage_get: {
         parameters: {
             query?: {
@@ -6437,6 +6617,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_plan_edit_api_plan_edit_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanEditView"];
                 };
             };
         };

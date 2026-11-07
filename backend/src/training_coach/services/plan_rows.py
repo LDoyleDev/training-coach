@@ -3,12 +3,14 @@ from ``plan.toml`` (builder step 5, ADR-0073). What an exercise is (its muscles,
 stays in the catalogue."""
 
 from dataclasses import dataclass
+from datetime import date
 
 import structlog
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from training_coach.db.models import SessionTemplate, TemplateItem
+from training_coach.db.models import SessionProgress, SessionTemplate, TemplateItem
+from training_coach.services import guided
 from training_coach.services.seed import bundled_plan
 
 log = structlog.get_logger(__name__)
@@ -33,6 +35,17 @@ class PlannedSession:
     optional: bool
     items: tuple[PlannedItem, ...]  # the home version
     gym: tuple[PlannedItem, ...]  # empty: done the same way at the gym
+
+
+def session_in_progress(session: Session, today: date) -> bool:
+    """Kept sets wait to be saved, today or from a day before: they hold item positions, which a
+    change to the plan would shift (ADR-0073)."""
+    row = session.scalar(
+        select(SessionProgress).where(
+            SessionProgress.local_date == today, SessionProgress.saved_workout_id.is_(None)
+        )
+    )
+    return bool(row is not None and row.sets) or bool(guided.pending(session, today))
 
 
 def _items(rows: list[TemplateItem], known: set[str]) -> tuple[PlannedItem, ...]:
