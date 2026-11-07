@@ -370,8 +370,10 @@ guards, cheapest first:
    switch off a member gets 403 on everything but who they are, their export and leaving
    (`api.auth.WIND_DOWN`), on MCP and band import too, decided by the owner's id. The wind-down:
    a daily job (04:30) gives each member a `closing_on` 30 days on and tells them, erases them on
-   the day, and clears it if the switch goes back on. Still to build: the closing page in the web
-   app (the notice on their next sign-in), and the admin recovery link with ADR-0059's controls.
+   the day, and clears it if the switch goes back on; the closing page in the web app. The admin
+   recovery link with ADR-0059's controls: once, 24 hours, only the newest, never opened in an
+   admin's browser, the member told when it is made and used, and a notice on Account for 30
+   days. **Done (7 Nov 2026).**
 8. **Telegram for members:** connect link, the members filter, a session per update.
 9. **Schedules per person**, and band offers and band data alerts per person (the alert
    state is already per person, on `ingest_keys`).

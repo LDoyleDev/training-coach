@@ -7,6 +7,7 @@ import HeartRateZones from './account/HeartRateZones'
 import Leave from './account/Leave'
 import MyEquipment from './account/MyEquipment'
 import People from './account/People'
+import Recovered from './account/Recovered'
 import Residence from './account/Residence'
 import WeightSteps from './account/WeightSteps'
 import CopyForAI from './account/CopyForAI'
@@ -168,6 +169,7 @@ export default function Account() {
 
           <Residence />
 
+          <Recovered />
           <People />
 
           <MyEquipment />
