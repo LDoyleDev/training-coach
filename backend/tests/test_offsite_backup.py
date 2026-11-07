@@ -99,6 +99,24 @@ def test_the_newest_backup_goes_off_site_encrypted_once(pi: Path) -> None:
     assert len(list((pi / "bucket").iterdir())) == 1
 
 
+def test_the_list_of_people_who_left_goes_off_site_each_night(pi: Path) -> None:
+    """ADR-0088: beside the database, so off-site it is what survives the SD card."""
+    _backup(pi, "2026-10-12")
+    (pi / "left-users.json").write_text('[{"id": 4}]')
+    assert _run(pi).returncode == 0
+    (pi / "left-users.json").write_text("[]")  # pruned since: the copy follows
+    result = _run(pi)
+    assert result.returncode == 0, result.stderr
+    copy = pi / "bucket" / "left-users.json.age"
+    assert copy.read_text() == f"ENCRYPTED({RECIPIENT},):[]"
+
+
+def test_without_anyone_who_left_there_is_no_list_to_copy(pi: Path) -> None:
+    _backup(pi, "2026-10-12")
+    assert _run(pi).returncode == 0
+    assert not (pi / "bucket" / "left-users.json.age").exists()
+
+
 def test_the_upload_skips_rclones_head_by_version_id(pi: Path) -> None:
     # R2 answers 501 to it, so every run needed a retry (26 Oct); the lsf afterwards checks instead.
     _backup(pi, "2026-10-10")
