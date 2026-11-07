@@ -1376,6 +1376,20 @@ export const leaveTrainingCoach = (confirm: string) =>
 export const removeMember = (id: number, confirm: string) =>
   withFreshSignIn(() => confirmed(`/api/people/${id}/remove`, confirm))
 
+/** An admin's recovery link for a member (ADR-0059): the token, shown once; null if they
+ *  weren't a member any more. */
+export const makeRecoveryLink = (id: number) => withFreshSignIn(() => recoveryNow(id))
+
+async function recoveryNow(id: number): Promise<Schemas['RecoveryView'] | null> {
+  const res = signedIn(
+    await fetch(`/api/people/${id}/recovery`, { method: 'POST', credentials: 'same-origin' }),
+  )
+  if (res.status === 403) throw new StaleSignInError()
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Schemas['RecoveryView']
+}
+
 async function confirmed(path: string, confirm: string): Promise<boolean> {
   const res = signedIn(
     await fetch(path, {

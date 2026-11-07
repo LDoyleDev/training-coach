@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import {
   fetchPeople,
   makeInvite,
+  makeRecoveryLink,
   type People as Found,
   removeMember,
   revokeInvite,
@@ -28,10 +29,16 @@ export default function People() {
   const [removing, setRemoving] = useState<number | null>(null)
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false) // one removal at a time
+  // A recovery link, shown once: cleared on any reload of the list, a removal or a failed try.
+  const [recovery, setRecovery] = useState<{ name: string; link: string } | null>(null)
+  const [asking, setAsking] = useState<number | null>(null) // whose link to confirm
 
   const load = useCallback((signal?: AbortSignal) => {
     fetchPeople(signal)
-      .then(setFound)
+      .then((people) => {
+        setFound(people)
+        setRecovery(null) // the list changed: a link shown before isn't shown again
+      })
       .catch(() => {}) // the section stays hidden; the rest of the page still works
   }, [])
   useEffect(() => {
@@ -84,6 +91,19 @@ export default function People() {
     }
   }
 
+  const recover = async (id: number, name: string) => {
+    setNote(null)
+    setRecovery(null)
+    setAsking(null)
+    try {
+      const made = await makeRecoveryLink(id)
+      if (!made) return setNote('They had already gone.')
+      setRecovery({ name, link: `${window.location.origin}/signin#${made.token}` })
+    } catch (error) {
+      failed(error)
+    }
+  }
+
   const revoke = async (id: number) => {
     setNote(null)
     try {
@@ -107,12 +127,16 @@ export default function People() {
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {found.members.map((m) => {
             const name = m.label ?? 'No name given'
+            const who = m.label ?? 'this member'
             return (
               <li key={m.id} className="flex flex-col gap-2">
                 <span className="flex items-center gap-2">
                   <span className="flex-1">
                     {name}, joined {day(m.joined)}
                   </span>
+                  <button type="button" className={small} onClick={() => setAsking(m.id)}>
+                    Recovery link for {who}
+                  </button>
                   {removing !== m.id && (
                     <button
                       type="button"
@@ -122,10 +146,30 @@ export default function People() {
                         setConfirm('')
                       }}
                     >
-                      Remove {m.label ?? 'member'}
+                      Remove {who}
                     </button>
                   )}
                 </span>
+                {asking === m.id && (
+                  <div className="flex flex-col gap-2">
+                    <p className="m-0">
+                      Make a recovery link for {who}? Only if they asked for one: they are told now,
+                      and any link made for them before stops working.
+                    </p>
+                    <span className="flex gap-2">
+                      <button
+                        type="button"
+                        className={primaryInline}
+                        onClick={() => void recover(m.id, who)}
+                      >
+                        Make the link
+                      </button>
+                      <button type="button" className={small} onClick={() => setAsking(null)}>
+                        Not now
+                      </button>
+                    </span>
+                  </div>
+                )}
                 {removing === m.id && (
                   <form onSubmit={(e) => void remove(e, m.id)} className="flex flex-col gap-2">
                     <p className="m-0">
@@ -150,7 +194,7 @@ export default function People() {
                         disabled={confirm !== 'remove' || busy}
                         className={danger}
                       >
-                        Remove {m.label ?? 'member'}
+                        Remove {who}
                       </button>
                       <button type="button" className={small} onClick={() => setRemoving(null)}>
                         Keep them
@@ -162,6 +206,23 @@ export default function People() {
             )
           })}
         </ul>
+      )}
+      {recovery && (
+        <div className="flex flex-col gap-1">
+          <p className="m-0">
+            Hand this to {recovery.name} yourself, the way you sent the invite, only if they asked
+            for it. It works once, for 24 hours, on their own device, and signs out their other
+            devices. They are told it was made, and Account shows them it was used.
+          </p>
+          <input readOnly value={recovery.link} aria-label="Recovery link" className="min-h-11" />
+          <button
+            type="button"
+            className={`${small} self-start`}
+            onClick={() => void navigator.clipboard?.writeText(recovery.link)}
+          >
+            Copy the recovery link
+          </button>
+        </div>
       )}
       {found.invites.length > 0 && (
         <>
