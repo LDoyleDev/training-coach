@@ -9,16 +9,19 @@ import os
 import sys
 import tomllib
 from datetime import UTC, datetime
+from pathlib import Path
 
 import structlog
 import uvicorn
 from pydantic import ValidationError
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import SQLAlchemyError
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.logging import configure_logging
-from training_coach.services import ai_key, erase, left_list
+from training_coach.services import ai_key, erase, left_list, users
 from training_coach.services import backup as backups
 from training_coach.services.secret_box import SecretBox
 from training_coach.services.seed import SeedError, apply_seed, load_plan
@@ -110,6 +113,24 @@ def forget_left(apply: bool) -> None:
 NOTIFY_LENGTH = 1000  # one Telegram message, well under its limit
 
 
+def _owner_chat(settings: Settings) -> int | None:
+    """The owner's linked chat, from the database (``users.owner_chat``). If the database can't
+    be read, the configured account: an alert about a broken Pi must still get out."""
+    url = make_url(settings.database_url)
+    if url.get_backend_name() == "sqlite" and not Path(url.database or "").is_file():
+        return settings.telegram_allowed_user_id  # never make an empty database to ask
+    try:
+        engine = make_engine(settings.database_url)
+        try:
+            with session_scope(make_session_factory(engine)) as session:
+                return users.owner_chat(session, settings.telegram_allowed_user_id)
+        finally:
+            engine.dispose()
+    except SQLAlchemyError:
+        log.warning("notify.owner_lookup_failed")
+        return settings.telegram_allowed_user_id
+
+
 def notify(text: str = "") -> None:
     """Send ``text`` to the owner on Telegram: how jobs outside the app (a failed deploy or
     off-site backup, ``training-coach-alert@.service``) tell Liam. Exits 1 if it can't."""
@@ -132,9 +153,13 @@ def notify(text: str = "") -> None:
         assert settings.telegram_allowed_user_id is not None  # noqa: S101 - checked above
         # No `async with`: its initialize() makes a request of its own that a network blip
         # would fail outside the retries. send_message needs none of it (review of #168).
+        chat = _owner_chat(settings)
+        if chat is None:
+            log.error("notify.failed", reason="the owner has no Telegram linked")
+            return False
         bot = Bot(settings.telegram_bot_token.get_secret_value())
         try:
-            return await send_with_retry(bot, settings.telegram_allowed_user_id, message)
+            return await send_with_retry(bot, chat, message)
         except TelegramError as exc:  # anything the retries don't absorb is a failed alert
             log.error("notify.failed", reason=type(exc).__name__)
             return False
