@@ -78,6 +78,8 @@ def connection(request: Request) -> Access:
             "too many requests",
             headers={"Retry-After": str(limits.retry_after(key, now)), **NO_STORE},
         )
+    if users.closed_to(access.user_id, settings.multi_user):  # ADR-0059: members, switch off
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "closed to members", NO_STORE)
     if away:  # after the limit, so a paused connection can't call without one
         raise HTTPException(status.HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS, AWAY, NO_STORE)
     return access

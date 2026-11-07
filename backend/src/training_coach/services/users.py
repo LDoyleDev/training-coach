@@ -17,6 +17,13 @@ OWNER = 1  # created by the migration that added users; phase 1 has only this pe
 ADMIN, MEMBER = "admin", "member"  # roles (ADR-0059): the owner is the one admin
 
 
+def closed_to(user_id: int, multi_user: bool) -> bool:
+    """With ``TC_MULTI_USER`` off the app is closed to everyone but the owner (ADR-0059): only
+    the export-only Account still answers them. Decided by id, not role, so the owner can never
+    be closed out by their own row."""
+    return not multi_user and user_id != OWNER
+
+
 def is_admin(session: Session, user_id: int) -> bool:
     """Whether ``user_id`` is an admin. Run in an unbound session (``users`` is shared)."""
     found = session.get(User, user_id)

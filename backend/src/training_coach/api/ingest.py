@@ -26,7 +26,7 @@ from training_coach.api.passkeys import _client
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.band_watch import Refusal
-from training_coach.services import health_import, ingest_keys
+from training_coach.services import health_import, ingest_keys, users
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 account_router = APIRouter(prefix="/api/account/ingest", tags=["account"])
@@ -184,6 +184,11 @@ async def health_connect(request: Request, background: BackgroundTasks) -> Inges
     if user is None:
         limiter.failed(address, clock)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "unknown ingest secret")
+    settings: Settings = request.app.state.settings
+    if users.closed_to(user, settings.multi_user):
+        # A good secret, so not a failure: a member's phone on the owner's Wi-Fi mustn't lock
+        # the owner's uploads out (ADR-0059, review of the joining plan).
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "closed to members")
     # Busy is checked before the body is read and before the post counts against the secret,
     # and again once it is read; a post turned away then is refunded (review of #324). The
     # slot is taken only after reading, so a body sent slowly can't hold one.
@@ -192,7 +197,6 @@ async def health_connect(request: Request, background: BackgroundTasks) -> Inges
         raise _busy_answer()
     if not limiter.allow_secret(user, clock):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "too many requests")
-    settings: Settings = request.app.state.settings
     bound = make_session_factory(request.app.state.engine, user_id=user)
     try:
         raw = await _body(request)
