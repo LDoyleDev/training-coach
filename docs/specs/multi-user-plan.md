@@ -361,10 +361,12 @@ guards, cheapest first:
    and join time, and put back by `training-coach forget-left` after a restore. The routes too:
    `POST /api/account/leave` (a member, a recent sign-in and the word typed, whatever the switch
    says) and `POST /api/people/{id}/remove` (an admin, the same, while the switch is on);
-   `/api/auth/me` gives the role. Still to build, after a plan review (7 Nov): their pages; the
-   switch-off rules
-   with ADR-0059's per-member `closing_on` and export-only Account; the admin recovery link with
-   ADR-0059's controls.
+   `/api/auth/me` gives the role; Leave on Account and Remove on People. Off means off: with the
+   switch off a member gets 403 on everything but who they are, their export and leaving
+   (`api.auth.WIND_DOWN`), on MCP and band import too, decided by the owner's id. The wind-down:
+   a daily job (04:30) gives each member a `closing_on` 30 days on and tells them, erases them on
+   the day, and clears it if the switch goes back on. Still to build: the closing page in the web
+   app (the notice on their next sign-in), and the admin recovery link with ADR-0059's controls.
 8. **Telegram for members:** connect link, the members filter, a session per update.
 9. **Schedules per person**, and band offers and band data alerts per person (the alert
    state is already per person, on `ingest_keys`).
