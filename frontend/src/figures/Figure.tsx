@@ -212,22 +212,23 @@ export default function Figure({
 
   useEffect(() => {
     if (!figure || still || typeof requestAnimationFrame !== 'function') return
-    let frame = 0
-    let shown = true
+    // Set by the loop and the observer after render, so held in objects, not reassigned.
+    const frame = { id: 0 }
+    const seen = { now: true }
     const begin = performance.now()
     const tick = (now: number) => {
-      if (shown) setT(progress(figure, now - begin))
-      frame = requestAnimationFrame(tick)
+      if (seen.now) setT(progress(figure, now - begin))
+      frame.id = requestAnimationFrame(tick)
     }
-    frame = requestAnimationFrame(tick)
+    frame.id = requestAnimationFrame(tick)
     // Off screen, keep the clock but don't redraw.
     const watch =
       typeof IntersectionObserver === 'function' && box.current
-        ? new IntersectionObserver(([entry]) => (shown = entry.isIntersecting))
+        ? new IntersectionObserver(([entry]) => (seen.now = entry.isIntersecting))
         : null
     if (watch && box.current) watch.observe(box.current)
     return () => {
-      cancelAnimationFrame(frame)
+      cancelAnimationFrame(frame.id)
       watch?.disconnect()
     }
   }, [figure, still])
