@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { fetchMe, leaveTrainingCoach, StaleSignInError } from '../api'
+import { fetchMe, leaveTrainingCoach, SignedOutError, StaleSignInError } from '../api'
 import { card, danger } from '../ui'
 
 /**
@@ -10,6 +10,7 @@ export default function Leave() {
   const [member, setMember] = useState(false)
   const [confirm, setConfirm] = useState('')
   const [note, setNote] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false) // one destructive request at a time
 
   useEffect(() => {
     const controller = new AbortController()
@@ -23,17 +24,22 @@ export default function Leave() {
 
   const leave = (event: FormEvent) => {
     event.preventDefault()
+    if (busy) return
     setNote(null)
+    setBusy(true)
     leaveTrainingCoach(confirm)
       .then(() => window.location.assign('/signin'))
-      .catch((error: unknown) =>
+      .catch((error: unknown) => {
+        setBusy(false)
         setNote(
-          error instanceof StaleSignInError
-            ? 'For safety, leaving needs you to confirm it’s you. Try again and confirm with ' +
+          error instanceof SignedOutError
+            ? 'Your sign-in ended. Sign in again, then retry.'
+            : error instanceof StaleSignInError
+              ? 'For safety, leaving needs you to confirm it’s you. Try again and confirm with ' +
                 'your fingerprint when your phone asks.'
-            : "That didn't work. Nothing was deleted; check your connection and try again.",
-        ),
-      )
+              : "That didn't work. Nothing was deleted; check your connection and try again.",
+        )
+      })
   }
 
   return (
@@ -60,7 +66,7 @@ export default function Leave() {
           />
         </label>
         <div>
-          <button type="submit" disabled={confirm !== 'leave'} className={danger}>
+          <button type="submit" disabled={confirm !== 'leave' || busy} className={danger}>
             Leave Training Coach
           </button>
         </div>

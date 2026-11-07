@@ -27,6 +27,7 @@ export default function People() {
   const [note, setNote] = useState<string | null>(null)
   const [removing, setRemoving] = useState<number | null>(null)
   const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false) // one removal at a time
 
   const load = useCallback((signal?: AbortSignal) => {
     fetchPeople(signal)
@@ -68,7 +69,9 @@ export default function People() {
 
   const remove = async (event: FormEvent, id: number) => {
     event.preventDefault()
+    if (busy) return
     setNote(null)
+    setBusy(true)
     try {
       setNote((await removeMember(id, confirm)) ? 'Removed.' : 'They had already gone.')
       setRemoving(null)
@@ -76,6 +79,8 @@ export default function People() {
       load()
     } catch (error) {
       failed(error)
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -140,7 +145,11 @@ export default function People() {
                       />
                     </label>
                     <span className="flex gap-2">
-                      <button type="submit" disabled={confirm !== 'remove'} className={danger}>
+                      <button
+                        type="submit"
+                        disabled={confirm !== 'remove' || busy}
+                        className={danger}
+                      >
                         Remove {m.label ?? 'member'}
                       </button>
                       <button type="button" className={small} onClick={() => setRemoving(null)}>

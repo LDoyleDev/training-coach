@@ -74,3 +74,40 @@ test('a failure or a stale sign-in says nothing was deleted, or what to do', asy
   fireEvent.click(screen.getByRole('button', { name: 'Leave Training Coach' }))
   expect(await screen.findByText(/leaving needs you to confirm/)).toBeInTheDocument()
 })
+
+test('an ended sign-in says to sign in again', async () => {
+  serve({ 'GET /api/auth/me': MEMBER, 'POST /api/account/leave': { status: 401 } })
+  render(<Leave />)
+  fireEvent.change(await screen.findByRole('textbox', { name: /Type leave/ }), {
+    target: { value: 'leave' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Leave Training Coach' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Your sign-in ended')
+})
+
+test('a second press while leaving sends nothing more', async () => {
+  let finish: (r: Response) => void = () => {}
+  const posts: string[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((path: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        posts.push(path)
+        return new Promise<Response>((resolve) => (finish = resolve))
+      }
+      return Promise.resolve(new Response(JSON.stringify(MEMBER.body), { status: 200 }))
+    }),
+  )
+  vi.stubGlobal('location', { ...window.location, assign: vi.fn() })
+  render(<Leave />)
+  fireEvent.change(await screen.findByRole('textbox', { name: /Type leave/ }), {
+    target: { value: 'leave' },
+  })
+  const go = screen.getByRole('button', { name: 'Leave Training Coach' })
+  fireEvent.click(go)
+  expect(go).toBeDisabled()
+  fireEvent.click(go)
+  finish(new Response(null, { status: 204 }))
+  await vi.waitFor(() => expect(window.location.assign).toHaveBeenCalled())
+  expect(posts).toEqual(['/api/account/leave'])
+})
