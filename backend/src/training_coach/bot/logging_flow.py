@@ -35,6 +35,7 @@ from training_coach.bot.messages import (
     LOG_SAVED_BEFORE,
     LOG_STALE,
     MODEL_ASSISTED,
+    VOICE_CAPPED,
     VOICE_FAILED,
     VOICE_OFF,
     VOICE_TOO_LONG,
@@ -48,7 +49,7 @@ from training_coach.db.session import session_scope
 from training_coach.domain.dates import date_line
 from training_coach.domain.parser import MAX_TEXT, SPLIT_ENTRIES
 from training_coach.domain.queue import local_date
-from training_coach.services import progress, stretching, workout_log
+from training_coach.services import groq_quota, progress, stretching, workout_log
 from training_coach.services.day_clash import MOVE, Clash, Refused, Resolution
 from training_coach.services.groq import GroqClient, GroqUnavailableError
 from training_coach.services.workout_log import Draft, Saved, Stale
@@ -186,6 +187,10 @@ class LogHandlers:
             return
         with session_scope(self.sessions) as session:
             vocabulary = workout_log.exercise_names(session)
+            allowed = groq_quota.take(session, datetime.now(UTC), self.settings.tz)
+        if not allowed:
+            await message.reply_text(VOICE_CAPPED)
+            return
         try:
             file = await voice.get_file()
             # The Bot API may omit a size; never download something of unknown size.
@@ -262,6 +267,10 @@ class LogHandlers:
         accept with no problems at all, and the owner still confirms before anything is saved.
         """
         if self.groq is None:
+            return None
+        with session_scope(self.sessions) as session:
+            allowed = groq_quota.take(session, datetime.now(UTC), self.settings.tz)
+        if not allowed:  # today's uses of the shared key are spent: the rule parser's reading
             return None
         try:
             rewrite = await self.groq.rewrite_log(text, names=names)

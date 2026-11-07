@@ -360,7 +360,9 @@ guards, cheapest first:
 8. **Telegram for members:** connect link, the members filter, a session per update.
 9. **Schedules per person**, and band offers and band data alerts per person (the alert
    state is already per person, on `ingest_keys`).
-10. **Groq cap per person.**
+10. **Done (7 Nov 2026).** **Groq cap per person:** 20 voice notes or fallback readings a day for
+    a member (`services/groq_quota.py`), none for the owner; it bites once members have Telegram
+    (step 8).
 11. **Legal before the first invite:** notice published in the app, DPIA written, then
     `TC_MULTI_USER` on. Members stay training-only until a lawyer has reviewed the notice,
     consent and DPIA (Decided, 14).
