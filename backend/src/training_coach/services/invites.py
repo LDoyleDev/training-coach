@@ -41,6 +41,7 @@ class OpenInvite:
 
 @dataclass(frozen=True)
 class Member:
+    user_id: int
     label: str | None
     joined: datetime
 
@@ -56,7 +57,7 @@ class Joined:
 def members(session: Session) -> list[Member]:
     """Everyone but the admins, oldest first: their label and the day they joined, nothing more."""
     rows = session.scalars(select(User).where(User.role == MEMBER).order_by(User.created_at))
-    return [Member(u.label, u.created_at) for u in rows]
+    return [Member(u.id, u.label, u.created_at) for u in rows]
 
 
 def _open(now: datetime) -> ColumnElement[bool]:

@@ -6,7 +6,7 @@ access deliberate.
 """
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.alerts import alert, device
 from training_coach.api.region import visitor_country
+from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.region import listed
 from training_coach.services import auth, users
@@ -22,6 +23,17 @@ from training_coach.services import auth, users
 # same domain can't plant or shadow it (security review, 2026-10-10).
 COOKIE = "__Host-tc_session"
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+# What still answers a member while TC_MULTI_USER is off (ADR-0059): who they are, their export,
+# leaving, and the passkey check those need. Everything else is refused.
+WIND_DOWN = frozenset(
+    {
+        "/api/auth/me",
+        "/api/account/export",
+        "/api/account/leave",
+        "/api/auth/passkeys/confirm/options",
+        "/api/auth/passkeys/confirm",
+    }
+)
 
 
 class Redeem(BaseModel):
@@ -30,6 +42,7 @@ class Redeem(BaseModel):
 
 class Me(BaseModel):
     user_id: int
+    role: Literal["admin", "member"]  # ADR-0059: what Account offers them (People, or leaving)
 
 
 def _shared(request: Request) -> sessionmaker[Session]:
@@ -41,7 +54,9 @@ def _shared(request: Request) -> sessionmaker[Session]:
 def owner(request: Request, response: Response) -> int:
     """The signed-in user's id; 401 without a live session. When the session is renewed, the
     cookie is sent again so the browser keeps it for the same 30 days as the server. A visit
-    from a listed country is recorded for the bot and MCP's 30 days (ADR-0085)."""
+    from a listed country is recorded for the bot and MCP's 30 days (ADR-0085). With
+    ``TC_MULTI_USER`` off, a member gets 403 on everything but ``WIND_DOWN`` (ADR-0059); their
+    session is refused, not ended, so switching back on lets them straight in again."""
     token = request.cookies.get(COOKIE)
     if token:
         now, country = datetime.now(UTC), visitor_country(request)
@@ -52,6 +67,12 @@ def owner(request: Request, response: Response) -> int:
             if seen is not None and country is not None and listed(country):
                 users.seen_in_europe(session, seen.user_id, now)
         if seen is not None:
+            settings: Settings = request.app.state.settings
+            closed = users.closed_to(seen.user_id, settings.multi_user)
+            if closed and request.url.path not in WIND_DOWN:
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN, "Training Coach is closed to members"
+                )
             if seen.renewed:
                 set_session_cookie(response, token)
             return seen.user_id
@@ -148,8 +169,10 @@ PasskeyFresh = Annotated[auth.PasskeyProof, Depends(passkey_proved)]
 
 
 @router.get("/me", response_model=Me)
-def me(user: Owner) -> Me:
-    return Me(user_id=user)
+def me(request: Request, user: Owner) -> Me:
+    with session_scope(_shared(request)) as session:
+        role = users.role(session, user)
+    return Me(user_id=user, role="admin" if role == users.ADMIN else "member")
 
 
 @router.post("/signout", status_code=status.HTTP_204_NO_CONTENT)

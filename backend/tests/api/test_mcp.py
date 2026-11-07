@@ -318,7 +318,14 @@ def test_no_tool_reaches_photos_or_sign_in(client: TestClient, engine: Engine) -
             assert word not in answer, (tool.name, word)
 
 
-def test_another_persons_token_never_reads_my_rows(client: TestClient, engine: Engine) -> None:
+def test_another_persons_token_never_reads_my_rows(engine: Engine) -> None:
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        apply_seed(mine, load_plan())
+    with flow.app_client(engine, multi_user=True) as client:  # a second person: switch on
+        _another_persons_token_never_reads_my_rows(client, engine)
+
+
+def _another_persons_token_never_reads_my_rows(client: TestClient, engine: Engine) -> None:
     """Requirement 12: user B's token, all scopes, against user A's data."""
     _health(engine)
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:

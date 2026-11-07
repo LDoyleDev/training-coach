@@ -3401,6 +3401,20 @@
         "title": "LadderView",
         "type": "object"
       },
+      "LeaveRequest": {
+        "properties": {
+          "confirm": {
+            "const": "leave",
+            "title": "Confirm",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "title": "LeaveRequest",
+        "type": "object"
+      },
       "LengthBody": {
         "description": "Short on time today (ADR-0082): as planned (empty) or a length on offer, never\ndropping the exercises pinned with ``keep`` (slugs).",
         "properties": {
@@ -4323,13 +4337,22 @@
       },
       "Me": {
         "properties": {
+          "role": {
+            "enum": [
+              "admin",
+              "member"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
           "user_id": {
             "title": "User Id",
             "type": "integer"
           }
         },
         "required": [
-          "user_id"
+          "user_id",
+          "role"
         ],
         "title": "Me",
         "type": "object"
@@ -4427,6 +4450,10 @@
       },
       "MemberView": {
         "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
           "joined": {
             "format": "date",
             "title": "Joined",
@@ -4445,6 +4472,7 @@
           }
         },
         "required": [
+          "id",
           "label",
           "joined"
         ],
@@ -5837,6 +5865,20 @@
         ],
         "title": "Refusal",
         "type": "string"
+      },
+      "RemoveBody": {
+        "properties": {
+          "confirm": {
+            "const": "remove",
+            "title": "Confirm",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "title": "RemoveBody",
+        "type": "object"
       },
       "ResidenceBody": {
         "properties": {
@@ -8849,6 +8891,41 @@
         ]
       }
     },
+    "/api/account/leave": {
+      "post": {
+        "description": "A member leaving (ADR-0088): everything of theirs is deleted, the account too, with no\nfresh start. Needs a recent sign-in and the word typed. 403 for the owner, who erases\ninstead. Works whatever ``TC_MULTI_USER`` says: leaving is always allowed.",
+        "operationId": "leave_training_coach_api_account_leave_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leave Training Coach",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/account/passkeys/{key_id}": {
       "delete": {
         "description": "Remove a passkey; like adding one, it needs a recent sign-in (ADR-0040).",
@@ -10503,6 +10580,52 @@
           }
         },
         "summary": "Get People",
+        "tags": [
+          "people"
+        ]
+      }
+    },
+    "/api/people/{member_id}/remove": {
+      "post": {
+        "description": "Remove a member (ADR-0059, ADR-0088), once the admin has told them and offered their\nexport: everything of theirs is deleted, as if they had left. 404 for anyone who isn't a\nmember (an admin can't be removed). Needs a recent sign-in and the word typed.",
+        "operationId": "remove_member_api_people__member_id__remove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Member",
         "tags": [
           "people"
         ]
