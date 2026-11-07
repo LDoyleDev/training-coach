@@ -187,7 +187,7 @@ class LogHandlers:
             return
         with session_scope(self.sessions) as session:
             vocabulary = workout_log.exercise_names(session)
-            allowed = groq_quota.take(session, datetime.now(UTC), self.settings.tz)
+            allowed = groq_quota.left(session, datetime.now(UTC), self.settings.tz)
         if not allowed:
             await message.reply_text(VOICE_CAPPED)
             return
@@ -204,6 +204,8 @@ class LogHandlers:
             log.warning("bot.voice_failed", error=type(exc).__name__)
             await message.reply_text(VOICE_FAILED)
             return
+        with session_scope(self.sessions) as session:
+            groq_quota.count(session, datetime.now(UTC))  # Groq answered: one of today's uses
         if not heard:
             await message.reply_text(VOICE_FAILED)
             return
@@ -269,7 +271,7 @@ class LogHandlers:
         if self.groq is None:
             return None
         with session_scope(self.sessions) as session:
-            allowed = groq_quota.take(session, datetime.now(UTC), self.settings.tz)
+            allowed = groq_quota.left(session, datetime.now(UTC), self.settings.tz)
         if not allowed:  # today's uses of the shared key are spent: the rule parser's reading
             return None
         try:
@@ -277,6 +279,8 @@ class LogHandlers:
         except GroqUnavailableError as exc:
             log.warning("bot.model_fallback_failed", reason=exc.reason)
             return None
+        with session_scope(self.sessions) as session:
+            groq_quota.count(session, datetime.now(UTC))
         model_text = workout_log.rewrite_text(rewrite)
         if not model_text:
             return None

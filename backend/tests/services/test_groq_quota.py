@@ -1,5 +1,5 @@
 """The shared Groq key's daily cap (ADR-0059, H1): members have one, counted from their own
-local midnight; the owner has none."""
+local midnight, only for calls Groq answered; the owner has none."""
 
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -24,8 +24,18 @@ def _member(engine: Engine) -> int:
 
 
 def _take(engine: Engine, user: int, now: datetime = NOON) -> bool:
+    """Ask, and use it when allowed, as the bot does with an answer from Groq."""
     with session_scope(make_session_factory(engine, user_id=user)) as bound:
-        return groq_quota.take(bound, now, BERLIN)
+        allowed = groq_quota.left(bound, now, BERLIN)
+        if allowed:
+            groq_quota.count(bound, now)
+        return allowed
+
+
+def test_asking_spends_nothing(engine: Engine) -> None:
+    member = _member(engine)
+    with session_scope(make_session_factory(engine, user_id=member)) as bound:
+        assert all(groq_quota.left(bound, NOON, BERLIN) for _ in range(groq_quota.MEMBER_CAP + 1))
 
 
 def test_a_member_has_twenty_a_day(engine: Engine) -> None:

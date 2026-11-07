@@ -181,3 +181,20 @@ async def test_a_member_past_todays_voice_notes_is_asked_to_type(seeded: Session
     calls = await run(bot, voice(OWNER), routes=add)
     assert texts(calls) == [VOICE_CAPPED]
     assert not sent[0].called
+
+
+async def test_a_voice_note_groq_failed_on_spends_none_of_the_day(seeded: Sessions) -> None:
+    engine = seeded.kw["bind"]
+    with session_scope(make_session_factory(engine)) as shared:
+        member = User(role="member")
+        shared.add(member)
+        shared.flush()
+        member_id = member.id
+        apply_seed(shared, load_plan())
+    theirs = make_session_factory(engine, user_id=member_id)
+    bot = build_bot(SETTINGS, theirs, GroqClient(SecretStr("gsk_TEST-KEY"), backoff=0))
+    calls = await run(bot, voice(OWNER), routes=groq_says(httpx.Response(503)))
+    assert texts(calls) == [VOICE_FAILED]
+    with theirs() as bound:
+        used = bound.scalars(select(Event).where(Event.kind == groq_quota.USED)).all()
+    assert used == []
