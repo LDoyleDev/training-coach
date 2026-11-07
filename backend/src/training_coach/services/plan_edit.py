@@ -25,6 +25,7 @@ from training_coach.db.models import (
 )
 from training_coach.db.session import bound_user
 from training_coach.domain.enums import Place
+from training_coach.domain.kit import need_label
 from training_coach.services.plan_rows import session_in_progress
 from training_coach.services.seed import (
     GYM_LOADS,
@@ -146,6 +147,17 @@ def places_for(exercise: ExerciseSeed) -> list[Place]:
     if away_problem(exercise) is None:
         found.append(Place.AWAY)
     return found
+
+
+def level_range(exercise: ExerciseSeed) -> tuple[int, int] | None:
+    """Who the exercise is for, from its first step's level to its last (ADR-0083)."""
+    found = [exercise.levels[s] for s in exercise.ladder if s in exercise.levels]
+    return (min(found), max(found)) if found else None
+
+
+def first_needs(exercise: ExerciseSeed) -> list[str]:
+    """What its first step needs, in words: where a person would start with the least kit."""
+    return [need_label(need) for need in exercise.needs.get(exercise.ladder[0], [])]
 
 
 def _problem(edit: VersionEdit, catalogue: dict[str, ExerciseSeed]) -> str | None:

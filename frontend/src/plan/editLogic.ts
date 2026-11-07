@@ -125,7 +125,8 @@ export function swapped(items: EditItem[], at: number, from: CatalogueItem): Edi
   )
 }
 
-/** What can be picked at this place, optionally training this muscle, biggest share first. */
+/** What can be picked at this place, optionally training this muscle: a lengthened-position pick
+ * that trains it most first (program-builder.md, Decided 5), then the biggest share. */
 export function choices(
   catalogue: CatalogueItem[],
   place: Place,
@@ -133,11 +134,26 @@ export function choices(
 ): CatalogueItem[] {
   const open = catalogue.filter((e) => e.places.includes(place))
   if (!muscle) return [...open].sort((a, b) => a.name.localeCompare(b.name))
+  const first = (e: CatalogueItem) => (e.lengthened && e.muscles[muscle] === 1 ? 1 : 0)
   return open
     .filter((e) => (e.muscles[muscle] ?? 0) > 0)
     .sort(
-      (a, b) => (b.muscles[muscle] ?? 0) - (a.muscles[muscle] ?? 0) || a.name.localeCompare(b.name),
+      (a, b) =>
+        first(b) - first(a) ||
+        (b.muscles[muscle] ?? 0) - (a.muscles[muscle] ?? 0) ||
+        a.name.localeCompare(b.name),
     )
+}
+
+/** The line under an exercise in the picker: who it is for and what it needs. */
+export function pickerLine(e: CatalogueItem): string {
+  const [low, high] = e.levels ?? [null, null]
+  const levels = low === null ? null : low === high ? `Level ${low}` : `Levels ${low}-${high}`
+  const needs = e.needs.length > 0 ? `Needs ${e.needs.join(', ')}` : 'No kit to start'
+  const places = e.places.includes('home') ? null : 'Gym only'
+  return [levels, places ?? needs, e.lengthened ? 'Trains it stretched' : null]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export function muscles(catalogue: CatalogueItem[]): string[] {

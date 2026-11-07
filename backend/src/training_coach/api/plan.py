@@ -152,6 +152,10 @@ class CatalogueItemView(BaseModel):
     pattern: str
     places: list[Place]  # where it can be planned
     range: tuple[int, int] | None  # the catalogue's reps for it, when it has its own
+    first_step: str  # its easiest step, which its picture shows
+    levels: tuple[int, int] | None  # who it is for, from its first step to its last (ADR-0083)
+    needs: list[str]  # what its first step needs, in words; empty: no kit
+    lengthened: bool  # a lengthened-position pick (program-builder.md, Decided 5)
 
 
 class PlanEditView(BaseModel):
@@ -206,6 +210,10 @@ def get_plan_edit(request: Request, user: Owner) -> PlanEditView:
                 pattern=e.pattern,
                 places=plan_edit.places_for(e),
                 range=e.range,
+                first_step=e.ladder[0],
+                levels=plan_edit.level_range(e),
+                needs=plan_edit.first_needs(e),
+                lengthened=e.lengthened,
             )
             for e in exercises
         ],
