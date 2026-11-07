@@ -1322,6 +1322,60 @@ export async function saveBodySettings(body: BodySettingsBody): Promise<BodySett
 
 export type Residence = Schemas['ResidenceView']
 
+export type People = Schemas['PeopleView']
+
+/** People (ADR-0059): members and open invites, for an admin while invites are on; null for
+ * anyone else, signed out, or while invites are off. */
+export async function fetchPeople(signal?: AbortSignal): Promise<People | null> {
+  const res = await fetch('/api/people', { signal, credentials: 'same-origin' })
+  if ([401, 403, 404].includes(res.status)) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as People
+}
+
+/** A one-time invite: its token, shown once; 'full' when there's no room. */
+export async function makeInvite(label: string): Promise<Schemas['MadeView'] | 'full'> {
+  const res = signedIn(
+    await fetch('/api/invites', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: label || null }),
+    }),
+  )
+  if (res.status === 409) return 'full'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Schemas['MadeView']
+}
+
+/** Revoke an open invite; false when it was used or expired already. */
+export async function revokeInvite(id: number): Promise<boolean> {
+  const res = signedIn(
+    await fetch(`/api/invites/${id}`, { method: 'DELETE', credentials: 'same-origin' }),
+  )
+  if (res.status === 404) return false
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return true
+}
+
+/** Join with an invite (ADR-0059): signed in as the new member when 'joined'. */
+export async function joinWithInvite(
+  token: string,
+  adult: boolean,
+): Promise<'joined' | 'used' | 'full' | 'off'> {
+  const res = await fetch('/api/join', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, adult }),
+  })
+  if (res.status === 204) return 'joined'
+  if (res.status === 401) return 'used'
+  if (res.status === 409) return 'full'
+  if (res.status === 404) return 'off'
+  throw new Error(`The server answered ${res.status}.`)
+}
+
 /** The country of residence and the list to choose from; null when not signed in. */
 export async function fetchResidence(signal?: AbortSignal): Promise<Residence | null> {
   const res = await fetch('/api/account/residence', { signal, credentials: 'same-origin' })

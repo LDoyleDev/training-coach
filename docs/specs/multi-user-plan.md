@@ -351,8 +351,9 @@ guards, cheapest first:
 4. **Done (7 Nov 2026).** `users.role` and `label`, `TC_MULTI_USER` and `TC_MAX_MEMBERS`, the
    `Admin` dependency and the route test's fourth kind.
 5. **Invites:** table, make and revoke on Account ("People"), `/join` with notice, adult check
-   and passkey. **The routes are built (7 Nov 2026):** `GET /api/people`, `POST` and `DELETE
-   /api/invites`, `POST /api/join`; the Account section and the `/join` page come next.
+   and passkey. **Done (7 Nov 2026)**, except the notice, which step 11 publishes: the routes
+   (`GET /api/people`, `POST` and `DELETE /api/invites`, `POST /api/join`), People on Account
+   and the `/join` page.
 6. **Consent records** and per-category withdraw and erase.
 7. **Leave, remove a member, admin recovery link** (ADR succeeding ADR-0044) and the restore
    runbook step.
