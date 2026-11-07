@@ -162,13 +162,14 @@ def erase_my_data(
     photos, settings, passkeys and every signed-in browser. Needs a recent sign-in, like
     passkey changes; signs this browser out and alerts on Telegram."""
     with session_scope(make_session_factory(request.app.state.engine)) as session:
+        chat = users.telegram_chat(session, user)  # now: a member's erase unlinks it
         if not erase(session, user, load_plan()):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "no such person")
     response.delete_cookie(COOKIE, path="/", secure=True, httponly=True, samesite="strict")
-    alert(
+    alert_chat(
         request,
         background,
-        user,
+        chat,
         "data_erased",
         "All your Training Coach data was erased. Backups age out within 5 weeks.",
     )

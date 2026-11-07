@@ -41,6 +41,23 @@ options they choose between are below.
 15. **Controller:** the owner personally, as the legal drafts say, until the lawyer advises.
 16. **iPhone members:** band import is Android-only; that is fine.
 
+### Decided (2026-11-07)
+
+The owner's answers on 7 Nov, which change or add to the above:
+
+- **Recovery (changes 10):** members get back in only with the admin's recovery link (step 7,
+  built). `/recover` in the bot stays the owner's, so a forwarded connect link can't become a
+  way into someone's account.
+- **Erasing (settles E):** a member's erase drops their Telegram link too, as E and ADR-0044
+  say; they connect again from Account. The owner's link stays.
+- **Messages:** a member who connects Telegram gets the morning message, the evening nudge and
+  Sunday's review at the default times, which they can change or turn off in Settings (F1).
+- **Readiness:** members answer the readiness questions on their device before a hard session,
+  and nothing is stored (as ADR-0085's safety questions).
+- **Consent (step 6):** build the consent step now: asked at the start of the walk-through, per
+  category, with a record of each. The wording stays a draft until the lawyer's review, which
+  comes before `TC_MULTI_USER` goes on (step 11), so members stay training-only until then.
+
 ## What's true today
 
 ### The data is already scoped
@@ -359,8 +376,9 @@ guards, cheapest first:
    2026):** until the lawyer's review, no member can keep or read health data at all
    (`users.health_open`, the owner by id): the health routes answer 403 (`api.auth.Health`),
    their phone's band posts, cardio heart rate and health proposals from their AI are refused,
-   and their AI app's tokens carry no body or readiness scope. So there is nothing to consent to
-   or withdraw yet; the consent records come with the lawyer's wording (plan review, 7 Nov).
+   and their AI app's tokens carry no body or readiness scope. Next, the consent step, asked
+   at the start of the walk-through, with draft wording until the lawyer's review (Decided
+   2026-11-07).
 7. **Leave, remove a member, admin recovery link** (ADR succeeding ADR-0044) and the restore
    runbook step. The leave service and the left list are done ([ADR-0088](../adr/0088-leaving-and-the-left-list.md),
    7 Nov 2026): the list is a file beside the database, copied off-site nightly, matched by id

@@ -2,8 +2,10 @@
 
 Deleting the user row takes every per-person row with it: each one's ``user_id`` is
 ``ON DELETE CASCADE`` (a test holds every ``Owned`` table to that). The person then starts
-again under the same id, role and Telegram account, with a starter (ADR-0073), so the bot and
-the web app keep working. The catalogue and everyone else's rows are untouched.
+again under the same id and role, with a starter (ADR-0073), so the web app keeps working. The
+owner keeps their Telegram account, which the bot is set up for; a member's link goes with the
+rest, and they connect again from Account (ADR-0059's 2026-11-07 addendum). The catalogue and
+everyone else's rows are untouched.
 
 A member leaving goes the same way with no fresh start, and is put on the left list first, so a
 restored backup can't quietly bring them back.
@@ -20,7 +22,7 @@ from training_coach.db.models import Event, Invite, PlanState, User, Workout
 from training_coach.db.session import ALL_USERS
 from training_coach.services import left_list
 from training_coach.services.seed import PlanSeed, apply_seed
-from training_coach.services.users import MEMBER
+from training_coach.services.users import MEMBER, OWNER
 
 log = structlog.get_logger(__name__)
 
@@ -31,7 +33,8 @@ def erase(session: Session, user_id: int, plan: PlanSeed) -> bool:
     user = session.get(User, user_id)
     if user is None:
         return False
-    telegram, seen = user.telegram_user_id, user.last_seen_in_europe
+    telegram = user.telegram_user_id if user_id == OWNER else None
+    seen = user.last_seen_in_europe
     role, label, joined = user.role, user.label, user.created_at
     _delete(session, user)
     # The country of residence goes with the rest (asked again). "Last seen in Europe" is kept:

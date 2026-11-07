@@ -129,3 +129,11 @@ as the legal drafts say, until the lawyer advises otherwise (the UG is an option
   categories stay off for members until a lawyer has reviewed both.
 - Build order, options and open *verify* numbers (Groq limits, database size):
   `docs/specs/multi-user-plan.md`.
+
+## Addendum (2026-11-07): no `/recover` for members
+
+Liam's answer, 7 Nov: members recover only with the admin's recovery link. `/recover` in the bot
+stays the owner's. The plan review found that a connect link forwarded to someone else would let
+them link their own Telegram and then use `/recover` to take over the account; with `/recover`
+the owner's alone, a wrong link reaches the bot's messages and quick logs, not the sign-in. A
+member's erase drops their Telegram link, as the leaving section says for leaving.
