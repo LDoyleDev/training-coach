@@ -1,6 +1,16 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
-from training_coach.domain.region import ALLOWED, admits, listed
+from training_coach.domain.region import (
+    ALLOWED,
+    admits,
+    listed,
+    serves_remotely,
+    worth_writing,
+)
+
+SEEN = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
 
 
 def test_the_list_is_the_eu_the_eea_and_the_eu_territories() -> None:
@@ -23,3 +33,14 @@ def test_everyone_else_is_refused_including_unknown_and_tor(country: str) -> Non
 
 def test_no_country_at_all_is_let_through() -> None:
     assert admits(None)
+
+
+def test_the_bot_and_mcp_serve_for_30_days_after_a_visit_from_europe() -> None:
+    assert serves_remotely(SEEN, SEEN)
+    assert serves_remotely(SEEN, SEEN + timedelta(days=30))
+    assert not serves_remotely(SEEN, SEEN + timedelta(days=30, seconds=1))
+
+
+def test_a_visit_is_written_at_most_once_an_hour() -> None:
+    assert not worth_writing(SEEN, SEEN + timedelta(minutes=59))
+    assert worth_writing(SEEN, SEEN + timedelta(hours=1))

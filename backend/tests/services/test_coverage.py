@@ -4,12 +4,14 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Exercise, ExerciseState
+from tests import factories
+from training_coach.db.models import Exercise, ExerciseState, SessionTemplate, TemplateItem
 from training_coach.domain.coverage import Band
 from training_coach.domain.enums import Place, Places
 from training_coach.domain.muscles import Muscle
 from training_coach.services import user_settings
 from training_coach.services.coverage import map_place, plan_coverage, trained_steps
+from training_coach.services.plan_rows import planned_sessions
 from training_coach.services.seed import apply_seed, load_plan
 
 
@@ -72,9 +74,25 @@ def test_a_loaded_step_adds_to_the_spine_count(plan: Session) -> None:
     assert (legs.spine_sets, legs.spine_heavy) == (9, True)  # + 3 loaded split-squat sets
 
 
-def test_an_exercise_not_started_counts_at_the_plans_start(session: Session) -> None:
-    assert trained_steps(session) == {}
-    assert plan_coverage(session).days[0].spine_sets == 6
+def test_a_row_for_an_exercise_the_catalogue_lost_is_left_out(plan: Session) -> None:
+    lost = factories.exercise(plan, slug="not-in-the-catalogue")
+    legs = plan.scalars(select(SessionTemplate).order_by(SessionTemplate.position)).first()
+    assert legs is not None
+    before = sum(d.spine_sets for d in plan_coverage(plan).days)
+    legs.items.append(TemplateItem(position=99, exercise_id=lost.id, sets=4, rep_min=5, rep_max=9))
+    plan.flush()
+    assert sum(d.spine_sets for d in plan_coverage(plan).days) == before
+    assert "not-in-the-catalogue" not in {
+        i.exercise for s in planned_sessions(plan) for i in s.items
+    }
+
+
+def test_an_exercise_not_started_counts_at_the_plans_start(plan: Session) -> None:
+    for state in plan.scalars(select(ExerciseState)):
+        plan.delete(state)
+    plan.flush()
+    assert trained_steps(plan) == {}
+    assert plan_coverage(plan).days[0].spine_sets == 6
 
 
 def test_the_gym_view_counts_each_sessions_gym_version(plan: Session) -> None:

@@ -22,6 +22,7 @@ const muscle = (over: Partial<MuscleCoverage>): MuscleCoverage => ({
   back_to_back: [],
   missing_parts: [],
   sources: [],
+  adds: [],
   ...over,
 })
 
@@ -72,6 +73,8 @@ const coverage: Coverage = {
       place: 'home',
       spine_sets: 10,
       grip_sets: 3,
+      minutes: 40,
+      over_an_hour: false,
       spine_heavy: true,
       grip_heavy: false,
       muscles: [
@@ -85,6 +88,8 @@ const coverage: Coverage = {
       place: 'home',
       spine_sets: 0,
       grip_sets: 9,
+      minutes: 40,
+      over_an_hour: false,
       spine_heavy: false,
       grip_heavy: true,
       muscles: [],
@@ -94,6 +99,9 @@ const coverage: Coverage = {
   main_total: 10,
   session_cap: 11,
   back_to_back: 4,
+  push_sets: 0,
+  pull_sets: 0,
+  pushing_without_pulling: false,
   spine_cap: 8,
   grip_cap: 8,
   hard_from: 6,
@@ -262,6 +270,19 @@ describe('words', () => {
     )
     expect(warnings(lats, coverage)).toEqual([])
     expect(sessionWarnings({ ...coverage, sessions: [] })).toEqual([])
+    const [first] = coverage.sessions
+    expect(
+      sessionWarnings({
+        ...coverage,
+        sessions: [{ ...first!, spine_heavy: false, over_an_hour: true, minutes: 72 }],
+        push_sets: 12,
+        pull_sets: 3,
+        pushing_without_pulling: true,
+      }),
+    ).toEqual([
+      'Legs: about 72 minutes, over an hour.',
+      '12 pushing sets a week and 3 pulling: a rule of thumb is at least one pulling set for two pushing.',
+    ])
   })
 })
 

@@ -1,7 +1,10 @@
 # Plans per person (builder step 5): what reads the plan, and a draft migration
 
-Status: **inventory as of v1.9.0 (30 Oct 2026); the migration outline is a draft for review.**
-One open point is answered (1 Nov 2026): the import ships with step 5, which starts about 4 Nov.
+Status: **inventory as of v1.9.0 (30 Oct 2026), reviewed against 1.17.0 on 6 Nov 2026 (below);
+released in 1.18.0 on 7 Nov 2026 (#578-#581); the order is under "The build".**
+The open points are answered: the import ships
+with step 5 (1 Nov 2026), the migration refuses if anyone but the owner exists (5 Nov 2026), one
+database with each person's rows, starters in `plan.toml` and notes in `name` (6 Nov 2026).
 Nothing here changes the schema. Builder step 5 (`program-builder.md`, option A2, ADR-0073)
 makes `session_templates`, `template_items` and `plan_versions` per person. This file lists every
 place that reads or writes those tables and `plan_state`, so the step can be checked against it.
@@ -30,7 +33,7 @@ Shared keys today: `session_templates.position` and `.slug` are unique, and so i
 
 `services/seed.apply_seed`, run unbound on every start (Dockerfile), on `make seed` and by erase:
 
-- **`session_templates`**: upserts every session by slug; reorders positions (parked out of the
+- **`session_templates`**: upserts every session by slug, with its home, gym and away versions; reorders positions (parked out of the
   way first); refuses to remove a session (`_preflight`).
 - **`template_items`**: makes each version (home, gym) match `plan.toml` by position: updates,
   appends, deletes items past the plan's last (`_version`).
@@ -85,7 +88,7 @@ one in its `OTHERS` table.
 | `api/plan.py:build_plan_view` (`GET /api/plan`) | **Reads `plan.toml`**, not the database | The person's sessions from a bound session |
 | `services/coverage.py:plan_coverage` (`GET /api/plan/coverage`) | **Reads `plan.toml`** sessions, with the person's steps | The person's sessions |
 | `services/seed.py:_preflight` | Reads `SessionTemplate.slug` unbound | Raises once the table is `Owned`; the guard goes with the seed's new job |
-| `services/erase.py:erase` | Deletes the person, then runs the whole seed (everyone's plan) | Copies a starter for that person only |
+| `services/erase.py:erase` | Deletes the person, then runs the whole seed (everyone's plan) | Deletes the person's workouts and queue row first (see "Erase"), then copies a starter for that person only |
 
 ### Readers of `plan.toml` that stay shared (the catalogue)
 
@@ -148,15 +151,11 @@ Telegram button moves. Only copies for other people need new ids.
    (`users.OWNER`, the ownership migration `c8b760ed9e52`, `link_owner` recreating id 1), so the
    migration first checks that user 1 exists, and the check in step 3 counts users other than 1:
    one definition of the owner for both.
-3. **Other people** (members; the switch is off, so the Pi should have none). Two options:
-   - **Refuse** (recommended): the migration fails with a clear message if any user but the
-     owner exists, and copying a plan is the join's job (the seed's, below). Check first,
-     read-only: `SELECT count(*) FROM users WHERE id != 1`.
-   - **Copy**: for each other user, copy the owner's sessions, items and versions (what they
-     have been training), then remap by slug and date: `workouts.template_id`, `plan_version_id`,
-     `plan_state.next_template_id` and `queued`, `session_progress.template_id`, and the JSON ids
-     in their events, proposals and replaced workouts. Much more code for a case that shouldn't
-     exist yet.
+3. **Other people** (members; the switch is off, and the Pi has none, checked 5 Nov 2026):
+   **refuse** (Liam, 5 Nov 2026). The migration fails with a clear message if any user but the
+   owner exists. Nobody is given a copy of the owner's plan: a new person starts from a starter
+   (the seed's job, below) and finds their own level at setup. Check first, read-only:
+   `SELECT count(*) FROM users WHERE id != 1`.
 4. **Downgrade**: refuse while any non-owner plan rows exist; otherwise drop the columns and keys
    and restore the single-column uniques. The owner's rows become the shared plan again.
 5. **Models and code in the same PR**: the three models inherit `Owned`; `version_on` takes the
@@ -169,20 +168,82 @@ items use (`all_users`) may be dropped. For a person with no sessions (a new mem
 person) it copies the first starter, sessions and versions, into their rows, with `exercise_state`,
 `settings` and `plan_state` as today. It never touches a person who has sessions. The owner's
 plan changes from `plan.toml` come through the import instead (`POST /api/plan/import`: the
-plan as a pending change to review and save, Decided 1), which ships with step 5.
+plan as a pending change to review and save, Decided 1), which ships with step 5. The import is
+the owner's alone: anyone else is refused (Liam, 5 Nov 2026).
 
-**Before and after on the Pi** (backup-restore.md, "Rehearse a restore"):
+**Before and after on the Pi** (backup-restore.md, "Rehearsal"; last run 2026-11-02):
 
 1. Read-only first (`tc-read`): users, `plan_state` rows, open `session_progress` rows, and
    queue events inside the 24-hour undo window.
 2. `training-coach backup` by hand before the release.
-3. Drill: restore the backup into `tc-drill` with the new image; the migration runs on start.
-   Check row counts per plan table match, every `user_id` is 1, `PRAGMA foreign_key_check` is
-   clean, and the owner's `/api/session/today`, `/api/progress`, `/api/review` and the export
-   match the old image's answers on the same copy. Then `alembic downgrade -1` on a second copy
-   and compare it with the backup.
+3. Drill, before the release PR is merged, so no tag exists and the deploy timer has nothing to
+   take: a scratch clone at the release commit, `docker build -t training-coach:drill`, and the
+   backup restored into `tc-drill` with that image; the migration and seed run on start. Pass
+   when: row counts per plan table match, every `user_id` is 1, `PRAGMA foreign_key_check` is
+   clean, the logs have no `seed.failed`, the import's diff is empty, and the owner's
+   `/api/session/today`, `/api/progress`, `/api/review` and the export match the old image's
+   answers on the same copy. Then `alembic downgrade -1` on a second copy and compare it with
+   the backup.
 4. A dry run is on a copy only: services commit inside, so a rollback is not a dry run.
 5. Release at a quiet time, with no guided session in progress.
+
+## Review (6 Nov 2026): what the plan was missing
+
+A plan-critic read the plan against the code at 1.17.0. The migration holds; these change it.
+
+**Erase.** Sessions and versions cascade from `users`, while `workouts` and `plan_state` RESTRICT
+them, and SQLite's RESTRICT fires at once, even inside a cascade. So erase deletes the person's
+`plan_state` and `workouts` first, then the user. A test erases someone with a logged workout.
+
+**The seed's guards.** After the flip, on every start:
+
+- `_versions_preflight` and the session-removal check go: the seed no longer touches either, and
+  the first saved version would otherwise fail every start, unseen (the Dockerfile's `|| true`).
+- New, against every person's stored items: an exercise they use must stay in the catalogue and
+  not be retired, and an away item's steps must stay within what `_away_needs_no_kit` allows.
+- A difference between the owner's rows and `plan.toml` stays until the owner saves it: the Plan
+  page shows it, with the import.
+
+**A new person's versions.** `plan.toml` has no starters yet, so the 7-day cycle is the first
+starter. Its `[[versions]]` are the owner's history, so a new person gets one version, "Starting
+plan", dated as the latest of them, so a past day they log still has one.
+
+**The import** (`GET` and `POST /api/plan/import`, the owner's alone, anyone else refused):
+
+- `GET` lists what would change: sessions added or reordered, and each version's items. Empty when
+  the owner's rows match `plan.toml`.
+- `POST` saves it as one version dated today, named after the latest `[[versions]]` entry. A
+  second import that day updates that version, as `(user_id, since)` is unique.
+- Workouts keep the version they have: only the seed's old bulk UPDATE re-stamped them, and a bound
+  session refuses one. A workout logged earlier today did the old plan, so that is right.
+- A session in progress today refuses it (`session_progress.sets` holds item positions, which
+  would shift): finish or discard the session first.
+- A session in the owner's rows but not in `plan.toml` refuses it, as the seed does today.
+
+**Reads.** `/api/plan` and coverage read rows through a service (the API layer can't query
+models). `/api/plan/coverage?place=away` keeps today's answer (the home version) when ported.
+`TemplateItem.template` pins its join, as the collections do.
+
+**Rollback.** The old image can't find the new revision, so it can't start on the migrated file:
+going back means restoring the pre-deploy backup, which loses anything logged after it
+(`deploy.md`, Rollback). Hence a quiet time, and step 1's read first.
+
+## The build
+
+Merging never touches the Pi; only a release does.
+
+1. Tests only: migration tests pinned to named revisions, an erase with a logged workout.
+2. `/api/plan` and coverage read rows (shared rows until the flip).
+3. **The flip:** the migration, `Owned`, composite keys, `version_on` taking the person, the seed's
+   split and new job and guards, erase, export. It can't be split: schema, models and seed land
+   together.
+4. The import, with a small card on the Plan page. No release between 3 and 4, so the owner can
+   always change their plan.
+
+Released in 1.18.0, 7 Nov 2026 (`docs/sessions/2026-11-07-plans-per-person.md`).
+
+The open points below keep the numbers this list had when they were answered: 5 the flip, 6 the
+import.
 
 ## Open points for review
 
@@ -193,7 +254,10 @@ plan as a pending change to review and save, Decided 1), which ships with step 5
   with it, in the same release as the migration, so there is no gap where the owner can't change
   their plan. No owner-only seed path. Step 6 keeps the edits in the app.
 - **Starters**: kept only in `plan.toml` and copied straight from it (no starter tables), or
-  stored? The draft assumes `plan.toml`, as ADR-0073 says.
-- **Refuse or copy** for members in the migration (step 3 above).
-- **Plan versions per person**: ADR-0073 adds "a short what changed" to each version. Today's
-  `name` can hold it; a separate column can wait for step 6.
+  stored? **Answered (Liam, 6 Nov 2026):** `plan.toml`, as ADR-0073 says.
+- **Refuse or copy** for members in the migration. **Answered (Liam, 5 Nov 2026):** refuse
+  (step 3 above), and the import is the owner's alone.
+- **Plan versions per person**: ADR-0073 adds "a short what changed" to each version. **Answered
+  (Liam, 6 Nov 2026):** today's `name` holds it, and people manage their own plans. A change made
+  in the background (a release changing an exercise in someone's plan) tells them: a notice,
+  built after the import, with its own ADR.

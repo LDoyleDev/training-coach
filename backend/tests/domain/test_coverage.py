@@ -17,7 +17,7 @@ from training_coach.domain.coverage import (
     target,
 )
 from training_coach.domain.enums import Place
-from training_coach.domain.muscles import Muscle, Part, Stress
+from training_coach.domain.muscles import Muscle, Part, Pattern, Stress
 
 Q, G, T = Muscle.QUADS, Muscle.GLUTES, Muscle.TRICEPS
 
@@ -129,6 +129,30 @@ def test_a_part_is_flagged_until_an_exercise_reaches_it() -> None:
     assert coverage([pressing]).muscles[6].missing_parts == (Part.TRICEPS_LONG_HEAD,)
     overhead = Day("B", [_item(3, {T: 1}, parts=frozenset({Part.TRICEPS_LONG_HEAD}))])
     assert coverage([pressing, overhead]).muscles[6].missing_parts == ()
+
+
+@pytest.mark.parametrize(("minutes", "over"), [(0, False), (60, False), (61, True)])
+def test_a_session_over_an_hour_is_flagged(minutes: int, over: bool) -> None:
+    found = coverage([Day("Long", [], minutes=minutes)])
+    assert found.days[0].minutes == minutes
+    assert found.days[0].over_an_hour is over
+
+
+@pytest.mark.parametrize(
+    ("push", "pull", "flagged"),
+    [(0, 0, False), (0, 4, False), (8, 4, False), (9, 4, True), (4, 0, True)],
+)
+def test_pushing_without_pulling_is_fewer_than_one_for_two(
+    push: int, pull: int, flagged: bool
+) -> None:
+    items = [
+        Item("Press", push, {Muscle.CHEST: 1}, pattern=Pattern.HORIZONTAL_PUSH),
+        Item("Row", pull, {Muscle.UPPER_BACK: 1}, pattern=Pattern.VERTICAL_PULL),
+        Item("Squat", 9, {Muscle.QUADS: 1}, pattern=Pattern.SQUAT),
+    ]
+    found = coverage([Day("Upper", items)])
+    assert (found.push_sets, found.pull_sets) == (push, pull)
+    assert found.pushing_without_pulling is flagged
 
 
 def test_spine_and_grip_load_per_session() -> None:

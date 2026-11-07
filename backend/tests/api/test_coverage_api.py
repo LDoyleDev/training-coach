@@ -66,6 +66,8 @@ def test_coverage_gives_each_muscle_its_band_and_warnings(client: TestClient) ->
         "grip_sets": 3,
         "spine_heavy": False,
         "grip_heavy": False,
+        "minutes": 49,  # as the session screen says
+        "over_an_hour": False,
     }
     assert body["hard_from"] == 6
     assert (body["place"], body["places"]) == ("home", "home")

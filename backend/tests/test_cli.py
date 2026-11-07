@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from training_coach.__main__ import main
 from training_coach.config import get_settings
 from training_coach.db.models import SessionTemplate
-from training_coach.db.session import make_engine
+from training_coach.db.session import ALL_USERS, make_engine
 
 BACKEND = Path(__file__).resolve().parents[1]
 
@@ -30,7 +30,8 @@ def test_seed_command_loads_plan_twice_safely(
 
     engine = make_engine(url)
     with Session(engine) as session:
-        assert session.scalar(select(func.count()).select_from(SessionTemplate)) == 7
+        count = select(func.count()).select_from(SessionTemplate)
+        assert session.scalar(count, execution_options={ALL_USERS: True}) == 7
     engine.dispose()
     get_settings.cache_clear()
 

@@ -110,6 +110,11 @@ class Settings(BaseSettings):
             raise ValueError("public_url is an origin only, like https://coach.example.com")
         return f"{url.scheme}://{url.netloc}"
 
+    # Invite-only members (ADR-0059). Off: no invites, members get nothing, and only the owner
+    # is served. At most ``max_members`` people besides the owner.
+    multi_user: bool = False
+    max_members: int = Field(default=5, ge=0, le=20)
+
     @property
     def tz(self) -> ZoneInfo:
         return ZoneInfo(self.timezone)

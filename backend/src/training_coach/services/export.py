@@ -34,6 +34,7 @@ from training_coach.db.models import (
     McpConnection,
     Measurement,
     Passkey,
+    PlanNotice,
     PlanState,
     PlanVersion,
     ProgressPhoto,
@@ -43,13 +44,20 @@ from training_coach.db.models import (
     SessionTemplate,
     SetLog,
     SleepSession,
+    TemplateItem,
+    User,
     UserSettings,
     WebSession,
     Workout,
 )
+from training_coach.db.session import bound_user
 
 # Per-person tables, by the name they get in data.json.
 TABLES: dict[str, type] = {
+    "sessions": SessionTemplate,
+    "session_items": TemplateItem,
+    "plan_versions": PlanVersion,
+    "plan_notices": PlanNotice,
     "workouts": Workout,
     "sets": SetLog,
     "replaced_workouts": ReplacedWorkout,  # kept 24 hours for /undo (ADR-0060)
@@ -109,14 +117,24 @@ def _rows(session: Session, model: type) -> list[dict[str, Any]]:
 
 
 def _reference(session: Session) -> dict[str, Any]:
-    """The shared plan's names, so exercise, step, session and version ids can be read."""
+    """The catalogue's names, so exercise and step ids can be read."""
     return {
         "exercises": {
             e.id: {"slug": e.slug, "name": e.name} for e in session.scalars(select(Exercise))
         },
         "ladder_steps": {s.id: s.name for s in session.scalars(select(LadderStep))},
-        "sessions": {t.id: t.name for t in session.scalars(select(SessionTemplate))},
-        "plan_versions": {v.id: v.name for v in session.scalars(select(PlanVersion))},
+    }
+
+
+def _account(session: Session) -> dict[str, Any]:
+    """What the users row holds about them (ADR-0085); the Telegram id is in their own chat."""
+    user = session.get(User, bound_user(session))
+    if user is None:
+        return {}
+    return {
+        "country": user.country,
+        "last_seen_in_europe": _value(user.last_seen_in_europe),
+        "created_at": _value(user.created_at),
     }
 
 
@@ -125,6 +143,7 @@ def archive(session: Session, now: datetime) -> bytes:
     person (photos are about 300 KB each, a few a month), well within the Pi's memory."""
     data = {
         "exported_at": now.isoformat(),
+        "account": _account(session),
         "tables": {name: _rows(session, model) for name, model in TABLES.items()},
         "reference": _reference(session),
     }

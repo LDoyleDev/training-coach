@@ -631,12 +631,14 @@ one): 56 sets on the 3-day, 52 on the 4-day, sessions of 22-41 minutes, the main
    steps are in `plan.toml` (accepted 25 Oct 2026,
    [kit-ladder-proposal.md](kit-ladder-proposal.md)), with step cues and band strengths. Still
    to come: figures for the new set-ups (the proposal's Figures section).
-5. **Plans per person** (A2): the migration copies the plan to every user; the seed keeps the
-   catalogue and starters; the canary test (multi-user L2) covers the plan routes. The import
+5. **Plans per person** (A2): the migration gives the plan to the owner and refuses if anyone
+   else exists (Liam, 5 Nov 2026); the seed keeps the catalogue and starters; the canary test (multi-user L2) covers the plan routes. The import
    from `plan.toml` ships with it (Liam, 1 Nov 2026), so the owner can always change their plan.
    What reads the plan today, a draft migration and the open points:
    [plans-per-person.md](plans-per-person.md).
 6. **Edit the plan:** set level (done, ADR-0075), swap, sets and range; Save makes a version.
+   **Built** (`/plan/edit`, `POST /api/plan/changes`): a draft in the browser, saved against the
+   plan's revision, with a short note. The picker's first form came with it (step 7).
 7. **The picker and an interactive map:** add and remove exercises; add a session.
 8. **Load:** the 29 gym exercises in the catalogue, `load_kg`, carry-over with − and +, double
    progression. **Built** (ADR-0072, Built): `set_logs.load_kg`, the weight on the set screen
@@ -658,6 +660,8 @@ one): 56 sets on the 3-day, 52 on the 4-day, sessions of 22-41 minutes, the main
 10. **Setup flow** (H), the 3- and 4-day starters (accepted 1 Nov 2026: N above), and the level questions (G1).
     Proposed 31 Oct 2026: setup also asks the minutes a session has, places people from far below
     today's ladders, and offers starting starters ([any-level-any-time.md](any-level-any-time.md)).
+    It also asks the country of residence from the EU and EEA list and refuses "Somewhere else"
+    (ADR-0085); until then it is set on Account (`/api/account/residence`).
 
 Pictures arrive alongside, as poses are drawn: the set screen first, then the picker. Steps 2-4, 8 and 9
 help the owner straight away with no change to how plans are stored; step 5 is the point of no

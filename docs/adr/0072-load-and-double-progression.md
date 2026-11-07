@@ -182,8 +182,8 @@ Decided while building, within this ADR:
 - **Owning none heavier:** nothing is suggested, and the set screen says "Top for your kit: 18
   kg dumbbells would open the next weight", the last weight plus the person's step, as "top
   for your kit" names what opens the next ladder step.
-- The home versions in `plan.toml` have no loaded step yet, so on the set screen this waits
-  for a home version with one (editing the plan, builder step 6).
+- The home versions in `plan.toml` had no loaded step yet, so on the set screen this waited
+  for one (Built, the reverse fly on dumbbells, below).
 
 ## Built (vest and backpack, 29 Oct 2026)
 
@@ -225,3 +225,15 @@ Decided while building, within this ADR, from Liam's answers of 29 Oct (Confirme
   / 10 / 9 at 16 kg"), and the best names a weight as the weekly review does: it counts every
   weight, so it names the heaviest set's of the first session to reach it ("best 12 at 12 kg";
   a later tie sets no best). An exercise without weights reads as before.
+
+## Built (the reverse fly on dumbbells, 4 Nov 2026)
+
+- **Liam's call:** dumbbells of varying weight, not one 8 kg kettlebell in one hand. The ladder
+  is water bottles, then "Chest on bench/bed, dumbbells", the first home step that takes
+  dumbbells: − and + step through the weights owned, and the next one is suggested as above.
+- **The steps:** the seed renames the 8 kg step in place, and migration `c8d2e4f6a1b3` removes
+  "Chest-supported, 3 s lowering", after the checks `b7e1c3d5f9a2` makes (also events naming
+  it). Nothing used either step on the Pi.
+- **Away (ADR-0086):** a gym load is a barbell or a machine, as that ADR says. Dumbbells aren't
+  one, so a step taking them names them as its kit, and away passes over it as the kit lock
+  does; the seed refuses an away exercise with a step that takes load and names no kit.

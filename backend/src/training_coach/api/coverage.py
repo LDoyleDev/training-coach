@@ -1,11 +1,11 @@
 """The body map on the Plan tab (``GET /api/plan/coverage``, program-builder.md F). Owner-only.
 
-Apart from ``GET /api/plan``, which serves only the bundled plan: this one counts the spine
-warning at the person's own ladder steps, and the home or gym versions (``place``, ADR-0071).
+It counts the person's own sessions (ADR-0073), the spine warning at their own ladder steps,
+and the home or gym versions (``place``, ADR-0071).
 """
 
 from fastapi import APIRouter, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from training_coach.api.auth import Owner
 from training_coach.db.session import make_session_factory, session_scope
@@ -13,6 +13,7 @@ from training_coach.domain import coverage as domain
 from training_coach.domain.coverage import Band, Evidence, Heat
 from training_coach.domain.enums import Place, Places
 from training_coach.services import coverage as service
+from training_coach.services.plan_rows import PlannedItem
 
 router = APIRouter(prefix="/api/plan", tags=["plan"])
 
@@ -40,6 +41,7 @@ class MuscleView(BaseModel):
     back_to_back: list[str]  # two sessions running that both load it hard; empty if none
     missing_parts: list[str]  # parts no exercise reaches: triceps long head, rectus femoris
     sources: list[SourceView]
+    adds: list[str]  # exercises at this place that would add to it, not yet counted for it
 
 
 class SessionMuscleView(BaseModel):
@@ -56,6 +58,8 @@ class SessionLoadView(BaseModel):
     grip_sets: int
     spine_heavy: bool
     grip_heavy: bool
+    minutes: int  # about how long as planned, warm-up included
+    over_an_hour: bool
     muscles: list[SessionMuscleView]  # only those it works, main muscles first
 
 
@@ -64,6 +68,9 @@ class CoverageView(BaseModel):
     places: Places  # where the person trains: Home | Gym is offered at both
     muscles: list[MuscleView]  # main muscles first
     sessions: list[SessionLoadView]  # queue order
+    push_sets: int  # a week
+    pull_sets: int
+    pushing_without_pulling: bool  # less than one pulling set for two pushing
     main_on_target: int  # main muscles in the green band
     main_total: int
     session_cap: int
@@ -75,6 +82,26 @@ class CoverageView(BaseModel):
     ceiling: int
 
 
+class DraftItem(BaseModel):
+    exercise: str = Field(max_length=64)
+    sets: int = Field(ge=1, le=20)
+    rep_min: int = Field(ge=1, le=600)
+    rep_max: int = Field(ge=1, le=600)
+    per_side: bool = False
+    pair: int | None = Field(default=None, ge=1)
+
+
+class DraftVersion(BaseModel):
+    slug: str = Field(max_length=64)
+    place: Place
+    items: list[DraftItem] = Field(max_length=40)
+
+
+class CoverageDraft(BaseModel):
+    place: Place = Place.HOME
+    versions: list[DraftVersion] = Field(max_length=30)
+
+
 @router.get("/coverage", response_model=CoverageView)
 def get_coverage(request: Request, user: Owner, place: Place | None = None) -> CoverageView:
     """Weekly fractional sets per muscle with its band and warnings, from the plan as it
@@ -84,6 +111,27 @@ def get_coverage(request: Request, user: Owner, place: Place | None = None) -> C
         places, day = service.map_place(session)
         at = day if place is None else place
         found = service.plan_coverage(session, at)
+    return _view(found, at, places)
+
+
+@router.post("/coverage/draft", response_model=CoverageView)
+def post_coverage_draft(request: Request, user: Owner, body: CoverageDraft) -> CoverageView:
+    """The map as a draft of the plan would make it, while editing: it saves nothing."""
+    draft = {
+        (v.slug, v.place): [
+            PlannedItem(i.exercise, i.sets, i.rep_min, i.rep_max, i.per_side, i.pair)
+            for i in v.items
+        ]
+        for v in body.versions
+    }
+    with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
+        places, _ = service.map_place(session)
+        found = service.plan_coverage(session, body.place, draft)
+    return _view(found, body.place, places)
+
+
+def _view(found: domain.Coverage, at: Place, places: Places) -> CoverageView:
+    adds = service.would_add(found, at)
     return CoverageView(
         place=at,
         places=places,
@@ -104,6 +152,7 @@ def get_coverage(request: Request, user: Owner, place: Place | None = None) -> C
                 back_to_back=list(m.back_to_back or ()),
                 missing_parts=list(m.missing_parts),
                 sources=[SourceView(**vars(s)) for s in m.sources],
+                adds=adds[m.muscle],
             )
             for m in found.muscles
         ],
@@ -116,12 +165,17 @@ def get_coverage(request: Request, user: Owner, place: Place | None = None) -> C
                 grip_sets=d.grip_sets,
                 spine_heavy=d.spine_heavy,
                 grip_heavy=d.grip_heavy,
+                minutes=d.minutes,
+                over_an_hour=d.over_an_hour,
                 muscles=[
                     SessionMuscleView(muscle=m, sets=n, heat=domain.heat(n)) for m, n in d.muscles
                 ],
             )
             for d in found.days
         ],
+        push_sets=found.push_sets,
+        pull_sets=found.pull_sets,
+        pushing_without_pulling=found.pushing_without_pulling,
         main_on_target=found.main_on_target,
         main_total=len(domain.MAIN),
         session_cap=domain.SESSION_CAP,

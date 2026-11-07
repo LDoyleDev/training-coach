@@ -50,7 +50,9 @@ def _exercise(session: Session, slug: str) -> Exercise:
 
 
 def test_only_the_kit_ladders_rename_a_step() -> None:
-    assert {e.slug for e in load_plan().exercises if e.renames} == KIT_LADDERS
+    # and the reverse fly's 8 kg step, which became its dumbbell step (4 Nov 2026)
+    renamed = {e.slug for e in load_plan().exercises if e.renames}
+    assert renamed == KIT_LADDERS | {"reverse-fly"}
 
 
 def test_everyone_stays_on_the_same_step_through_the_renames(session: Session) -> None:

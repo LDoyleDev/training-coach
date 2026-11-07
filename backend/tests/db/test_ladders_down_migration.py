@@ -117,9 +117,11 @@ LOGGED = [
 def old(cfg: Config) -> Iterator[Engine]:
     """A database at the revision before, seeded with the release before's plan, with a person's
     levels, logged sets, a session in progress, a replaced workout and events."""
-    command.upgrade(cfg, BEFORE)
+    # Seeded at head, as the seed follows the models, then taken back to the revision before.
+    command.upgrade(cfg, "head")
     engine = create_engine(get_settings().database_url)
     _seed(engine, _previous())
+    command.downgrade(cfg, BEFORE)
     with engine.begin() as db:
         for slug, step in LEVELS.items():
             db.execute(
@@ -214,6 +216,12 @@ def _squat(engine: Engine) -> tuple[str, bool]:
         return name, bool(retired)
 
 
+def _placed(steps: dict[int, Any]) -> dict[int, Any]:
+    """Each step's exercise, position and name, less the reverse fly's: a later migration and
+    the seed change those, and going back gives its top step a new id."""
+    return {i: v[:3] for i, v in steps.items() if v[0] != "reverse-fly"}
+
+
 def test_the_steps_move_up_keeping_their_ids_and_everything_that_points_at_them(
     cfg: Config, old: Engine
 ) -> None:
@@ -238,14 +246,16 @@ def test_the_steps_move_up_keeping_their_ids_and_everything_that_points_at_them(
     assert _squat(old) == ("Squat", False)
 
     # The seed then finds every step where the plan has it: nothing added, nothing moved.
+    # At head, as the seed follows the models: a later migration takes the reverse fly's top step.
+    command.upgrade(cfg, "head")
     seeded = _seed(old, load_plan())
     assert seeded.created == 0
-    assert {i: v[:3] for i, v in _steps(old).items()} == {i: v[:3] for i, v in after.items()}
+    assert _placed(_steps(old)) == _placed(after)
     assert _history(old) == history
     assert not _seed(old, load_plan()).changed
 
     command.downgrade(cfg, BEFORE)  # nothing uses a new step yet: they go, the rest move back
-    assert {i: v[:3] for i, v in _steps(old).items()} == {i: v[:3] for i, v in before.items()}
+    assert _placed(_steps(old)) == _placed(before)
     assert _history(old) == history
     assert _squat(old) == ("Goblet squat", True)
 

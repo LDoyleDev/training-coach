@@ -21,6 +21,84 @@ export async function fetchPlan(signal?: AbortSignal): Promise<Plan | null> {
   return (await res.json()) as Plan
 }
 
+export type PlanEdit = Schemas['PlanEditView']
+export type EditSession = Schemas['EditSessionView']
+export type EditItem = Schemas['EditItemView']
+export type CatalogueItem = Schemas['CatalogueItemView']
+export type ItemChange = Schemas['ItemChange']
+export type PlanChanges = Schemas['PlanChanges']
+
+/** Your sessions with every version, and what you can choose from; null when not signed in. */
+export async function fetchPlanEdit(signal?: AbortSignal): Promise<PlanEdit | null> {
+  const res = await fetch('/api/plan/edit', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as PlanEdit
+}
+
+/** Save a draft as one version. Refused: why ('stale', 'in-progress' or in words). */
+export async function savePlanChanges(
+  body: PlanChanges,
+): Promise<{ status: 'saved' } | { status: 'refused'; reason: string }> {
+  const res = signedIn(
+    await fetch('/api/plan/changes', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  )
+  if (res.status === 409 || res.status === 422) {
+    const { detail } = (await res.json()) as { detail: unknown }
+    return { status: 'refused', reason: typeof detail === 'string' ? detail : 'Check your edits.' }
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return { status: 'saved' }
+}
+
+export type Notice = Schemas['NoticeView']
+
+/** What a release changed in the plan, until seen (ADR-0087); null when not signed in. */
+export async function fetchNotices(signal?: AbortSignal): Promise<Notice[] | null> {
+  const res = await fetch('/api/notices', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Notice[]
+}
+
+/** "Got it": these won't show again. */
+export async function readNotices(ids: number[]): Promise<void> {
+  const res = signedIn(
+    await fetch('/api/notices/read', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    }),
+  )
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+}
+
+export type PlanImport = Schemas['PlanImportView']
+
+/** What plan.toml would change in the owner's plan (ADR-0073); null when not signed in. */
+export async function fetchPlanImport(signal?: AbortSignal): Promise<PlanImport | null> {
+  const res = await fetch('/api/plan/import', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as PlanImport
+}
+
+/** Save it as one version. 'blocked': it can't be saved now (a session in progress). */
+export async function savePlanImport(): Promise<PlanImport | 'blocked'> {
+  const res = signedIn(
+    await fetch('/api/plan/import', { method: 'POST', credentials: 'same-origin' }),
+  )
+  if (res.status === 409) return 'blocked'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as PlanImport
+}
+
 export type Coverage = Schemas['CoverageView']
 export type MuscleCoverage = Schemas['MuscleView']
 export type Band = Schemas['Band']
@@ -33,6 +111,23 @@ export type Heat = Schemas['Heat']
 export async function fetchCoverage(place?: Place, signal?: AbortSignal): Promise<Coverage | null> {
   const url = place ? `/api/plan/coverage?place=${place}` : '/api/plan/coverage'
   const res = await fetch(url, { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Coverage
+}
+
+/** The map as a draft of the plan would make it (program-builder.md F); it saves nothing. */
+export async function previewCoverage(
+  body: Schemas['CoverageDraft'],
+  signal?: AbortSignal,
+): Promise<Coverage | null> {
+  const res = await fetch('/api/plan/coverage/draft', {
+    method: 'POST',
+    signal,
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
   if (res.status === 401) return null
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Coverage
@@ -270,7 +365,7 @@ export async function choosePlace(
 export type Length = Schemas['LengthView']
 export type LengthBody = Schemas['LengthBody']
 
-/** Short on time today (ADR-0082): today's session at 40, 30 or 20 minutes, or as planned
+/** Short on time today (ADR-0082): today's session at a length on offer, or as planned
  * (``minutes`` null), never dropping the exercises in ``keep``. 'stale': the session changed,
  * moved on elsewhere or has started (reload); a string: why it was refused. */
 export async function chooseLength(body: LengthBody): Promise<TodayView | 'stale' | string> {
@@ -1221,6 +1316,90 @@ export async function saveBodySettings(body: BodySettingsBody): Promise<BodySett
   }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as BodySettings
+}
+
+// ------------------------------------------------------ where you live (ADR-0085)
+
+export type Residence = Schemas['ResidenceView']
+
+export type People = Schemas['PeopleView']
+
+/** People (ADR-0059): members and open invites, for an admin while invites are on; null for
+ * anyone else, signed out, or while invites are off. */
+export async function fetchPeople(signal?: AbortSignal): Promise<People | null> {
+  const res = await fetch('/api/people', { signal, credentials: 'same-origin' })
+  if ([401, 403, 404].includes(res.status)) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as People
+}
+
+/** A one-time invite: its token, shown once; 'full' when there's no room. */
+export async function makeInvite(label: string): Promise<Schemas['MadeView'] | 'full'> {
+  const res = signedIn(
+    await fetch('/api/invites', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: label || null }),
+    }),
+  )
+  if (res.status === 409) return 'full'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Schemas['MadeView']
+}
+
+/** Revoke an open invite; false when it was used or expired already. */
+export async function revokeInvite(id: number): Promise<boolean> {
+  const res = signedIn(
+    await fetch(`/api/invites/${id}`, { method: 'DELETE', credentials: 'same-origin' }),
+  )
+  if (res.status === 404) return false
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return true
+}
+
+/** Join with an invite (ADR-0059): signed in as the new member when 'joined'. */
+export async function joinWithInvite(
+  token: string,
+  adult: boolean,
+): Promise<'joined' | 'used' | 'full' | 'off'> {
+  const res = await fetch('/api/join', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, adult }),
+  })
+  if (res.status === 204) return 'joined'
+  if (res.status === 401) return 'used'
+  if (res.status === 409) return 'full'
+  if (res.status === 404) return 'off'
+  throw new Error(`The server answered ${res.status}.`)
+}
+
+/** The country of residence and the list to choose from; null when not signed in. */
+export async function fetchResidence(signal?: AbortSignal): Promise<Residence | null> {
+  const res = await fetch('/api/account/residence', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Residence
+}
+
+/** Save the country of residence; a string says why it was refused. */
+export async function saveResidence(country: string): Promise<Residence | string> {
+  const res = signedIn(
+    await fetch('/api/account/residence', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ country }),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 422) {
+    const detail = ((await res.json()) as { detail?: unknown }).detail
+    return typeof detail === 'string' ? detail : 'Choose a country from the list.'
+  }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Residence
 }
 
 // ------------------------------------------------------ band import secret (ADR-0055)
