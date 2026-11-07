@@ -302,6 +302,9 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(8), default="member", server_default="member")
     # What the admin's list calls them ("Mum"); it says nothing about their data.
     label: Mapped[str | None] = mapped_column(String(40))
+    # The day a member's data is erased, set when TC_MULTI_USER goes off with them still here
+    # (ADR-0059's wind-down, 30 days on); cleared if it goes back on. Always None for the owner.
+    closing_on: Mapped[date | None] = mapped_column(Date)
 
 
 # ----------------------------------------------------------------------- state
