@@ -102,7 +102,7 @@ def test_another_persons_keys_and_browsers_are_not_there(
         their_device = _sign_ins(them)["devices"][0]["id"]
         assert phone.delete(f"/api/account/passkeys/{key_id}").status_code == 404
         assert phone.delete(f"/api/account/devices/{their_device}").status_code == 404
-        assert them.get("/api/auth/me").json() == {"user_id": 2}
+        assert them.get("/api/auth/me").json()["user_id"] == 2
     assert [d["label"] for d in _sign_ins(phone)["devices"]] == ["Phone"]
 
 

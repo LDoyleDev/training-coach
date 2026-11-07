@@ -88,7 +88,7 @@ def test_an_invite_makes_one_member_with_their_own_start(admin: TestClient, seed
     people = admin.get("/api/people").json()
     assert people["invites"] == []
     assert [m["label"] for m in people["members"]] == ["Mum"]
-    assert set(people["members"][0]) == {"label", "joined"}  # nothing of their data
+    assert set(people["members"][0]) == {"id", "label", "joined"}  # nothing of their data
     with make_session_factory(seeded)() as shared:
         person = shared.get(User, me)
         assert person is not None

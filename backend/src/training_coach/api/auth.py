@@ -6,7 +6,7 @@ access deliberate.
 """
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
@@ -42,6 +42,7 @@ class Redeem(BaseModel):
 
 class Me(BaseModel):
     user_id: int
+    role: Literal["admin", "member"]  # ADR-0059: what Account offers them (People, or leaving)
 
 
 def _shared(request: Request) -> sessionmaker[Session]:
@@ -168,8 +169,10 @@ PasskeyFresh = Annotated[auth.PasskeyProof, Depends(passkey_proved)]
 
 
 @router.get("/me", response_model=Me)
-def me(user: Owner) -> Me:
-    return Me(user_id=user)
+def me(request: Request, user: Owner) -> Me:
+    with session_scope(_shared(request)) as session:
+        role = users.role(session, user)
+    return Me(user_id=user, role="admin" if role == users.ADMIN else "member")
 
 
 @router.post("/signout", status_code=status.HTTP_204_NO_CONTENT)

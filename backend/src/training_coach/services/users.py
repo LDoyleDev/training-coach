@@ -30,6 +30,12 @@ def is_admin(session: Session, user_id: int) -> bool:
     return found is not None and found.role == ADMIN
 
 
+def role(session: Session, user_id: int) -> str | None:
+    """``user_id``'s role, None if there's no such person. Any session may ask: users is shared."""
+    found = session.get(User, user_id)
+    return found.role if found is not None else None
+
+
 def link_owner(session: Session, telegram_user_id: int) -> int:
     """The owner's user id, linked to the allowed Telegram account (ADR-0009). Run in an
     unbound session at start-up. If the allowed account changed, the owner moves with it."""

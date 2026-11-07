@@ -77,7 +77,7 @@ def test_recovery_signs_out_everyone_else_and_removes_every_passkey(
     other = client.cookies.get("__Host-tc_session")
     client.cookies.clear()
     assert _redeem(client, _link(engine, auth.RECOVER)) == 204
-    assert client.get("/api/auth/me").json() == {"user_id": OWNER}
+    assert client.get("/api/auth/me").json()["user_id"] == OWNER
     assert _passkeys(engine) == []
     with make_session_factory(engine)() as shared:
         live = shared.scalars(

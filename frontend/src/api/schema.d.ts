@@ -315,6 +315,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Leave Training Coach
+         * @description A member leaving (ADR-0088): everything of theirs is deleted, the account too, with no
+         *     fresh start. Needs a recent sign-in and the word typed. 403 for the owner, who erases
+         *     instead. Works whatever ``TC_MULTI_USER`` says: leaving is always allowed.
+         */
+        post: operations["leave_training_coach_api_account_leave_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/account/passkeys/{key_id}": {
         parameters: {
             query?: never;
@@ -1168,6 +1190,28 @@ export interface paths {
         get: operations["get_people_api_people_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/people/{member_id}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove Member
+         * @description Remove a member (ADR-0059, ADR-0088), once the admin has told them and offered their
+         *     export: everything of theirs is deleted, as if they had left. 404 for anyone who isn't a
+         *     member (an admin can't be removed). Needs a recent sign-in and the word typed.
+         */
+        post: operations["remove_member_api_people__member_id__remove_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3274,6 +3318,14 @@ export interface components {
             /** Top */
             top: components["schemas"]["TopView"][];
         };
+        /** LeaveRequest */
+        LeaveRequest: {
+            /**
+             * Confirm
+             * @constant
+             */
+            confirm: "leave";
+        };
         /**
          * LengthBody
          * @description Short on time today (ADR-0082): as planned (empty) or a length on offer, never
@@ -3576,6 +3628,11 @@ export interface components {
         };
         /** Me */
         Me: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "admin" | "member";
             /** User Id */
             user_id: number;
         };
@@ -3610,6 +3667,8 @@ export interface components {
         };
         /** MemberView */
         MemberView: {
+            /** Id */
+            id: number;
             /**
              * Joined
              * Format: date
@@ -4121,6 +4180,14 @@ export interface components {
          * @enum {string}
          */
         Refusal: "too_large" | "not_json" | "failed" | "skipped";
+        /** RemoveBody */
+        RemoveBody: {
+            /**
+             * Confirm
+             * @constant
+             */
+            confirm: "remove";
+        };
         /** ResidenceBody */
         ResidenceBody: {
             /** Country */
@@ -5425,6 +5492,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    leave_training_coach_api_account_leave_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -6750,6 +6848,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PeopleView"];
+                };
+            };
+        };
+    };
+    remove_member_api_people__member_id__remove_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemoveBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
