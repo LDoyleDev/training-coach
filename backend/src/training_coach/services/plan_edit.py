@@ -180,6 +180,13 @@ def _pairs_problem(edit: VersionEdit, name: str) -> str | None:
     return None
 
 
+def _both(earlier: str, note: str) -> str:
+    """A day's version says all that changed that day, as far as its name holds: past that, the
+    newest note."""
+    joined = f"{earlier}; {note}"
+    return note if earlier == note or len(joined) > PlanVersion.name.type.length else joined
+
+
 def save(
     session: Session,
     edits: Sequence[VersionEdit],
@@ -189,12 +196,14 @@ def save(
     today: date,
 ) -> Saved | str:
     """Replace the versions named and make one version dated ``today`` with ``note``: a second
-    save that day updates it. Workouts keep the version they have. Returns ``STALE``,
+    save that day adds its note to it. Workouts keep the version they have. Returns ``STALE``,
     ``IN_PROGRESS`` or why it is refused, in words, having changed nothing."""
     if revision(session) != draft_of:
         return STALE
     rows = {t.slug: t for t in templates(session)}
-    catalogue = {e.slug: e for e in plan.exercises}
+    exercises = {e.slug: e for e in session.scalars(select(Exercise))}
+    # Only what's loaded: the seed can fail on a release's new exercise (the Dockerfile goes on).
+    catalogue = {e.slug: e for e in plan.exercises if e.slug in exercises}
     for edit in edits:
         template = rows.get(edit.slug)
         if template is None:
@@ -211,17 +220,18 @@ def save(
         return IN_PROGRESS
     user = bound_user(session)
     assert user is not None  # noqa: S101 - a person's plan is edited through their bound session
-    exercises = {e.slug: e for e in session.scalars(select(Exercise))}
     result = SeedResult()
     for edit in edits:
         sync_version(user, _versions(rows[edit.slug])[edit.place], _seeds(edit), exercises, result)
     version = session.scalar(select(PlanVersion).where(PlanVersion.since == today))
     if version is None:
-        session.add(PlanVersion(since=today, name=note))
+        version = PlanVersion(since=today, name=note)
+        session.add(version)
     else:
-        version.name = note
+        version.name = _both(version.name, note)
+    name = version.name
     session.add(Event(kind="plan.edited", payload={"versions": len(edits)}))
     session.flush()
     session.expire_all()
     log.info("plan.edited", versions=len(edits))
-    return Saved(revision(session), note)
+    return Saved(revision(session), name)
