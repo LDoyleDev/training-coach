@@ -8,7 +8,7 @@ from sqlalchemy import Engine, select
 
 from training_coach.bot.notices import NoticeHandlers, message
 from training_coach.config import Settings
-from training_coach.db.models import PlanNotice
+from training_coach.db.models import PlanNotice, User
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services.users import OWNER
 
@@ -63,3 +63,17 @@ async def test_nothing_to_tell_sends_nothing(engine: Engine) -> None:
     handlers, sent = _handlers(engine, "sent")
     await handlers.tell(MagicMock())
     assert sent == []
+
+
+async def test_only_the_owners_are_told_on_the_owners_chat(engine: Engine) -> None:
+    """The handlers get sessions bound to the owner, so someone else's never reach this chat."""
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=2))
+    with session_scope(make_session_factory(engine, user_id=2)) as theirs:
+        theirs.add(PlanNotice(text="Theirs."))
+    _add(engine, "Mine.")
+    handlers, sent = _handlers(engine, "sent")
+    await handlers.tell(MagicMock())
+    assert sent == [(CHAT, message(["Mine."]))]
+    with make_session_factory(engine, user_id=2)() as theirs:
+        assert [n.told_at for n in theirs.scalars(select(PlanNotice))] == [None]
