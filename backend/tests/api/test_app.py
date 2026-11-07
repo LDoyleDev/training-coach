@@ -274,9 +274,18 @@ def test_the_bot_stays_off_when_the_configured_account_is_a_members(
     engine: Engine, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Until the bot finds each person from the sender (ADR-0089), it would answer the
-    configured account as the owner: with a member holding it, it doesn't start."""
+    configured account as the owner: with a member holding it, it doesn't start. The owner's
+    alerts still reach the owner's own linked chat (review of #614)."""
     with session_scope(make_session_factory(engine)) as shared:
+        users.link_owner(shared, 4242)
         shared.add(User(id=2, role=users.MEMBER, telegram_user_id=99))
+    sent: list[tuple[int, str]] = []
+
+    async def fake_send(_bot: object, chat_id: int, text: str) -> bool:
+        sent.append((chat_id, text))
+        return True
+
+    monkeypatch.setattr(api_app, "send_with_retry", fake_send)
 
     def never(*_a: object, **_kw: object) -> None:
         raise AssertionError("the bot was built for a member's account")
@@ -290,6 +299,9 @@ def test_the_bot_stays_off_when_the_configured_account_is_a_members(
     )
     with TestClient(create_app(settings)) as client:
         assert client.get("/healthz").status_code == 200
-        assert client.app.state.notify is None  # type: ignore[attr-defined]  # a FastAPI app
+        notify = client.app.state.notify  # type: ignore[attr-defined]  # a FastAPI app
+        assert notify is not None
+        client.portal.call(notify, "backup failed")  # type: ignore[union-attr]  # a TestClient
+    assert sent == [(4242, "backup failed")]
     with session_scope(make_session_factory(engine)) as shared:
         assert shared.get_one(User, 2).telegram_user_id == 99
