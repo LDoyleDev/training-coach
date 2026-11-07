@@ -46,12 +46,13 @@ const make = (over: Partial<Home> = {}): Home => ({
   ...over,
 })
 
-function serve(answer: Home | 401 | 500) {
+function serve(answer: Home | 401 | 500, notices: { id: number; text: string }[] = []) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () =>
-      typeof answer === 'number' ? new Response(null, { status: answer }) : Response.json(answer),
-    ),
+    vi.fn(async (path: string) => {
+      if (typeof answer === 'number') return new Response(null, { status: answer })
+      return Response.json(path === '/api/notices' ? notices : answer)
+    }),
   )
 }
 
@@ -175,6 +176,12 @@ test('the button says how long today usually takes, once it has been timed', asy
   serve(make({ today_usual_minutes: 38 }))
   render(<HomePage />)
   expect(await screen.findByRole('link', { name: 'Today: Legs · usually 38 min' })).toBeVisible()
+})
+
+test('a change a release made to the plan shows on Home', async () => {
+  serve(make(), [{ id: 1, text: 'Pull-up is now called Bar pull.' }])
+  render(<HomePage />)
+  expect(await screen.findByText('Pull-up is now called Bar pull.')).toBeInTheDocument()
 })
 
 test('a test day has no length', async () => {
