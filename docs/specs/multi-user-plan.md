@@ -420,7 +420,8 @@ guards, cheapest first:
 10. **Done (7 Nov 2026).** **Groq cap per person:** 20 voice notes or fallback readings a day for
     a member (`services/groq_quota.py`), none for the owner; it bites once members have Telegram
     (step 8).
-11. **Legal before the first invite:** notice published in the app, DPIA written, then
+11. **Legal before the first invite:** notice published in the app, DPIA written (draft in
+    `docs/legal/dpia.md`, 8 Nov, with its open items), then
     `TC_MULTI_USER` on for invited family and friends (Decided 2026-11-08). A lawyer reviews
     the notice, consent and DPIA before anyone outside them.
 
