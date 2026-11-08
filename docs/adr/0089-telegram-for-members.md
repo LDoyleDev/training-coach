@@ -67,8 +67,10 @@ that code was sent to: it sets `telegram_user_id` and `telegram_linked_at`, reco
 the bot says "Connected". The Telegram name is shown only after the code matches, as a check,
 never as the thing to confirm, since anyone can set any name. A link can hold several claims, so
 someone who used a forwarded link first can't block or impersonate the member's own claim: their
-code is in their chat, not the member's. Codes are stored hashed with the claim, die with the
-link (10 minutes), and five wrong codes end the link. A link that was forwarded, or seen over
+code is in their chat, not the member's. A link takes at most 3 claims, and its codes are
+unique within it (drawn again on a clash), so a code names one claim. Codes are stored hashed
+with the claim and die with the link (10 minutes). Five wrong codes end the link; only the
+member's own signed-in browser can type one, so someone else can't use that to end it. A link that was forwarded, or seen over
 someone's shoulder, does nothing without the code from the member's own Telegram typed into the
 member's own signed-in browser. A Telegram account already linked to anyone is refused, as is the
 owner's configured account; a member already linked must unlink first. The confirm is a
