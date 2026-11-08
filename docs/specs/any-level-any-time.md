@@ -358,10 +358,10 @@ pull-ups, Nordics, reverse Nordic, ab rollout, HIIT) need replacing. Options:
 | S1 **"Starting" versions** (recommended) | A 2-day and a 3-day full-body starter written for levels 1-3: squat, glute bridge or step-up, push-up from the wall up, doorframe row, plank, balance, calf raise, a walk. Written and checked like N | Reviewable, like every starter so far | Two more starters in `plan.toml` |
 | S2 Swap at run time | Each exercise names its entry exercise; below its bottom level the session uses that one | One starter per day count | Generated sessions are harder to review; the picker (step 7) is where swapping belongs |
 
-### S1: the starters, by days a week and place (proposed 8 Nov 2026, for Liam's review)
+### S1: the starters, by days a week and place (approved 8 Nov 2026)
 
-Nothing here ships until Liam has read it. This replaces the 7 Nov draft of the 2- and 3-day
-starters, after Liam's answers in B5: everything starts at the bottom of its ladder, the
+Liam approved this on 8 Nov 2026 with the answers below (Decided). It replaces the 7 Nov draft
+of the 2- and 3-day starters, after Liam's answers in B5: everything starts at the bottom of its ladder, the
 walk-through moves each exercise up, and the session is trimmed to the person's minutes and
 number of exercises.
 
@@ -369,11 +369,11 @@ number of exercises.
 
 - **Three starters: 2, 3 and 4 days a week.** The same starter serves home and the gym; at the
   gym, an exercise someone is placed high on becomes a machine or a free-weight lift (Gym, below).
-  I'd leave out 1 and 5 days (below).
+  There is no 1-day or 5-day starter (below).
 - **One set for everyone.** Because every exercise starts at its lowest step, the same list has
   to suit a frail 80-year-old and a fit 30-year-old. So I picked exercises whose ladders run from
-  level 1 or 2 up to level 4-6 with no kit. One gap is left: the hip hinge stops at level 3
-  (question 2).
+  level 1 or 2 up to level 4-6 with no kit. The hip hinge, which stopped at level 3, gets three
+  steps at its top (Decided, 2).
 - **Every main muscle gets at least 4 sets a week** (the least shown to grow muscle) on all three,
   most of them on two days. The 3- and 4-day starters reach the full target for a few muscles.
 - **Sessions are 38-42 minutes on the 2- and 3-day starters and 26-35 on the 4-day**, so the 40,
@@ -580,38 +580,34 @@ chair seat (2), the side plank at a counter (2) and the glute bridge at its stan
 by a session, so `range` comes off the squat, hip hinge and balance, and each session item sets
 its own. `start` is 0 for every exercise in a starter.
 
-#### Questions for Liam
+#### Decided (8 Nov 2026)
 
-1. **One set of starters for every level?** These would replace builder N's 3- and 4-day
-   starters for new people, since N's start at level 4 (pistols, jump squats, swings). The 7-day
-   cycle stays as your own plan.
-2. **The hip hinge stops at level 3.** I'd add steps at its top: single leg with a hand on the
-   counter (4), single leg with no hands (5), single leg holding a bag (5). That is a bodyweight
-   single-leg Romanian deadlift. The seed allows steps at the end of a ladder without a
-   migration; they would need questions, cues and figures. That also lets the gym swap reach the
-   barbell Romanian deadlift at level 4, which gives the lower back work at the gym again.
-3. **Someone at level 1:** should the walk-through leave out the split squat (0 sets, as the trim
-   does) when the everyday questions place them at level 1? The squat still works the legs.
-4. **The walk-through's length:** a fit person could face up to 67 "Can you do...?" questions on
-   the 3-day starter (squat 10, push-up 9, split squat 8, balance 7, and so on). Should each
-   ladder's questions start at the level the age and exercise questions suggest, walking up or
-   down from there (B5 step 4), with the bottom still the default if they skip?
-5. **The gym:** swaps written into each person's gym version from where they're placed, as above?
-6. **Leave out 1 and 5 days**, as above?
-7. **4 days as upper and lower** (as builder N has it), rather than four full-body sessions?
-8. **Balance kept late in the trim for everyone**, or only for people 65 and over?
+Liam's answer to the questions below was "All OK to proceed", so each one is decided as proposed.
 
-**To decide: rest days (builder N's last point).** The queue offers its next session every day
-(ADR-0006), so a 3-day queue of A, B, C would offer B the day after A, and the map would warn that
-they run back to back.
-
-- **Rest places in the queue (recommended):** A, rest, B, rest, C, rest, rest. It keeps ADR-0006:
-  a missed session still moves everything back a day, and the map counts days correctly. The days
-  tapped in the walk-through set where the queue starts. The 2-day would be A, rest, rest, B, rest,
-  rest, rest, and the 4-day Lower 1, Upper 1, rest, Lower 2, Upper 2, rest, rest.
-- **Training days as a setting:** sessions are only offered on the tapped days. It's closer to how
-  people think, but it adds a second rule beside the queue, and a missed Monday waits until
-  Wednesday.
+1. **One set of starters for every level.** These replace builder N's 3- and 4-day starters for
+   new people, since N's start at level 4 (pistols, jump squats, swings). The 7-day cycle stays
+   as Liam's own plan.
+2. **The hip hinge gets three steps at its top:** single leg with a hand on the counter (4),
+   single leg with no hands (5), single leg holding a bag (5), a bodyweight single-leg Romanian
+   deadlift. Steps at the end of a ladder need no migration; they need questions, cues and
+   figures. The gym swap can then reach the barbell Romanian deadlift at level 4, which gives the
+   lower back work at the gym again.
+3. **Someone placed at level 1 by the everyday questions gets no split squat** (0 sets, as the
+   trim does). The squat still works the legs.
+4. **Each ladder's questions start at the level the age and exercise questions suggest**, walking
+   up or down from there (B5 step 4). The bottom step stays the default if they skip.
+5. **The gym swaps are written into each person's gym version** when the walk-through makes
+   their plan, from where they are placed.
+6. **No 1-day or 5-day starter.**
+7. **4 days as upper and lower**, as builder N has it.
+8. **Balance is kept late in the trim for everyone.**
+9. **Rest days are places in the queue** (builder N's last point): A, rest, B, rest, C, rest,
+   rest for the 3-day; A, rest, rest, B, rest, rest, rest for the 2-day; Lower 1, Upper 1, rest,
+   Lower 2, Upper 2, rest, rest for the 4-day. It keeps ADR-0006: the queue offers its next
+   place every day, a missed session still moves everything back a day, and the map counts days
+   correctly. The days tapped in the walk-through set where the queue starts. The other option,
+   offering sessions only on the tapped days, was turned down: it adds a second rule beside the
+   queue, and a missed Monday would wait until Wednesday.
 
 ## In the code, in outline
 
