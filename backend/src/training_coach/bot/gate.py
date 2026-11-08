@@ -37,7 +37,10 @@ AWAY_TEXT = (
 )
 # Still answered when paused: the way back into the website, where a visit from Europe counts.
 ANYWHERE = frozenset({"/login", "/recover"})
-REMEMBERED = 256  # updates whose person the error handler can still look up
+# Updates whose person the error handler can still look up. The bot handles one update at a
+# time (no concurrent_updates, ADR-0089), so no other update passes the gate while a handler
+# runs, and a long one (a voice note) can't lose its entry before its error is answered.
+REMEMBERED = 256
 
 
 @dataclass(frozen=True)
