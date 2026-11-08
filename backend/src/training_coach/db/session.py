@@ -59,6 +59,12 @@ def make_session_factory(engine: Engine, user_id: int | None = None) -> sessionm
     return sessionmaker(bind=engine, expire_on_commit=False, info={USER: user_id})
 
 
+def unbound_like(factory: sessionmaker[Session]) -> sessionmaker[Session]:
+    """Unbound sessions on the same database as ``factory``: for the shared lookups a bound
+    caller needs first (the bot's sender gate: whose Telegram account is this)."""
+    return make_session_factory(factory.kw["bind"])
+
+
 def owned_models() -> list[type[Owned]]:
     """Every mapped per-person model, however deep below ``Owned`` it inherits."""
     return [m.class_ for m in Base.registry.mappers if issubclass(m.class_, Owned)]

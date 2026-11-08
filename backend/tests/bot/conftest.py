@@ -5,15 +5,21 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
+from tests.bot.fakes import OWNER as TELEGRAM_OWNER
 from tests.bot.fakes import SETTINGS
 from training_coach.bot.app import build_bot
-from training_coach.db.session import make_session_factory
+from training_coach.db.session import make_session_factory, session_scope
+from training_coach.services import users
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
 
 @pytest.fixture
 def sessions(engine: Engine) -> sessionmaker[Session]:
+    """The owner's sessions, with the owner linked to Telegram account OWNER as start-up does:
+    the sender gate finds people by their link (ADR-0089)."""
+    with session_scope(make_session_factory(engine)) as shared:
+        users.link_owner(shared, TELEGRAM_OWNER)
     return make_session_factory(engine, user_id=OWNER)
 
 

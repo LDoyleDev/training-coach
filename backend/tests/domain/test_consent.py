@@ -15,15 +15,15 @@ def _entry(answer: Answer, at: datetime = AT, category: Category = Category.BODY
     return Entry(category, answer, VERSIONS[category], at)
 
 
-def test_the_newest_answer_per_category_counts() -> None:
+def test_the_last_answer_written_per_category_counts() -> None:
     given, withdrawn = _entry(Answer.GIVEN), _entry(Answer.WITHDRAWN, LATER)
     band = _entry(Answer.GIVEN, category=Category.BAND)
-    assert latest([withdrawn, given, band]) == {Category.BODY: withdrawn, Category.BAND: band}
+    assert latest([given, band, withdrawn]) == {Category.BODY: withdrawn, Category.BAND: band}
 
 
-def test_at_the_same_moment_the_later_entry_counts() -> None:
-    first, second = _entry(Answer.GIVEN), _entry(Answer.WITHDRAWN)
-    assert latest([first, second])[Category.BODY] == second
+def test_a_withdrawal_written_later_wins_even_if_the_clock_stepped_back() -> None:
+    given, withdrawn = _entry(Answer.GIVEN, LATER), _entry(Answer.WITHDRAWN, AT)
+    assert latest([given, withdrawn])[Category.BODY] == withdrawn
 
 
 @pytest.mark.parametrize(
