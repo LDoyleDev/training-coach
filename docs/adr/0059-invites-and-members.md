@@ -137,3 +137,11 @@ stays the owner's. The plan review found that a connect link forwarded to someon
 them link their own Telegram and then use `/recover` to take over the account; with `/recover`
 the owner's alone, a wrong link reaches the bot's messages and quick logs, not the sign-in. A
 member's erase drops their Telegram link, as the leaving section says for leaving.
+
+## Addendum (2026-11-08): family and friends first, on consent
+
+Liam's answer, 8 Nov: the app starts as a private test with invited family and friends, and the
+lawyer's review comes before any outside guests or customers. Members are no longer
+training-only until then: each health category opens for a member who gives consent to it, with
+a record, and withdrawing erases it. [ADR-0090](0090-consent-per-category-family-and-friends.md)
+records how; it changes the "Legal" paragraph above.
