@@ -71,3 +71,9 @@ test('a link without an invite says so', () => {
   expect(screen.getByText(/no invite in it/)).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Join' })).not.toBeInTheDocument()
 })
+
+test('joining says it is a private test for invited people', () => {
+  serve(204)
+  open('')
+  expect(screen.getByText(/private test for invited family and friends/)).toBeInTheDocument()
+})
