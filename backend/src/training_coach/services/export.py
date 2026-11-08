@@ -18,6 +18,7 @@ from training_coach.db.models import (
     AiComment,
     AiConnection,
     BandFeed,
+    Consent,
     DailyCheck,
     Equipment,
     Event,
@@ -64,6 +65,7 @@ TABLES: dict[str, type] = {
     "test_days": FitnessTestDay,
     "measurements": Measurement,
     "readiness_checks": ReadinessCheck,
+    "consents": Consent,  # every yes and withdrawal (ADR-0090)
     "daily_checks": DailyCheck,
     "health_days": HealthDay,
     "sleep_sessions": SleepSession,

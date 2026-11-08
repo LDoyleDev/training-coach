@@ -852,6 +852,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Consents */
+        get: operations["get_consents_api_consents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consents/{category}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Give
+         * @description A yes to the wording shown. 409 if the browser showed an older one (a page loaded before
+         *     a release): it reloads and shows the new wording.
+         */
+        put: operations["give_api_consents__category__put"];
+        post?: never;
+        /**
+         * Withdraw
+         * @description Withdraw, and erase what the category kept. A recent sign-in, as it deletes data.
+         */
+        delete: operations["withdraw_api_consents__category__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/daily-check": {
         parameters: {
             query?: never;
@@ -2217,12 +2259,17 @@ export interface components {
          * Answer
          * @description The browser's answer to a ceremony: WebAuthn JSON, checked by the library.
          */
-        Answer: {
+        "Answer-Input": {
             /** Credential */
             credential: {
                 [key: string]: unknown;
             };
         };
+        /**
+         * Answer
+         * @enum {string}
+         */
+        "Answer-Output": "given" | "withdrawn";
         /** AnsweredBody */
         AnsweredBody: {
             /** Version */
@@ -2389,6 +2436,22 @@ export interface components {
             /** Slug */
             slug: string;
         };
+        /**
+         * Category
+         * @enum {string}
+         */
+        Category: "body" | "daily_check" | "band" | "walkthrough";
+        /** CategoryView */
+        CategoryView: {
+            answer: components["schemas"]["Answer-Output"] | null;
+            /** At */
+            at: string | null;
+            category: components["schemas"]["Category"];
+            /** Open */
+            open: boolean;
+            /** Version */
+            version: number;
+        };
         /** ChangeBody */
         ChangeBody: {
             /** Template Id */
@@ -2517,6 +2580,13 @@ export interface components {
             redirect_uri: string;
             /** Scopes */
             scopes: components["schemas"]["ConsentScopeView"][];
+        };
+        /** ConsentsView */
+        ConsentsView: {
+            /** Asked */
+            asked: boolean;
+            /** Categories */
+            categories: components["schemas"]["CategoryView"][];
         };
         /** CoverageDraft */
         CoverageDraft: {
@@ -2834,6 +2904,11 @@ export interface components {
             safety: string;
             /** Seconds */
             seconds: number;
+        };
+        /** GiveBody */
+        GiveBody: {
+            /** Version */
+            version: number;
         };
         /** GoTo */
         GoTo: {
@@ -5673,7 +5748,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Answer"];
+                "application/json": components["schemas"]["Answer-Input"];
             };
         };
         responses: {
@@ -5724,7 +5799,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Answer"];
+                "application/json": components["schemas"]["Answer-Input"];
             };
         };
         responses: {
@@ -5775,7 +5850,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Answer"];
+                "application/json": components["schemas"]["Answer-Input"];
             };
         };
         responses: {
@@ -6301,6 +6376,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConsentView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_consents_api_consents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentsView"];
+                };
+            };
+        };
+    };
+    give_api_consents__category__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category: components["schemas"]["Category"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GiveBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_api_consents__category__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category: components["schemas"]["Category"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentsView"];
                 };
             };
             /** @description Validation Error */
