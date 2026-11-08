@@ -132,8 +132,7 @@ def _no_ai_sight(session: Session, *, body: bool) -> None:
 
 
 def _drop_proposals(session: Session, kind: str) -> None:
-    """Waiting proposals an AI app made of this kind: a body one, or a cardio one that may carry
-    heart rate. Saved logs are training data and stay."""
-    session.execute(
-        delete(LogProposal).where(LogProposal.kind == kind, LogProposal.status == "pending")
-    )
+    """Proposals an AI app made of this kind, waiting, saved or discarded: a body one, or a
+    cardio one that may carry heart rate, as their payload and summary hold the values. A saved
+    log itself is in its own table and stays as training data (review of #617)."""
+    session.execute(delete(LogProposal).where(LogProposal.kind == kind))

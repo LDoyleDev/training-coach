@@ -36,12 +36,10 @@ class Entry:
 
 
 def latest(entries: list[Entry]) -> dict[Category, Entry]:
-    """The newest entry per category (by time, then by order given for a tie)."""
-    found: dict[Category, Entry] = {}
-    for entry in entries:
-        if entry.category not in found or entry.at >= found[entry.category].at:
-            found[entry.category] = entry
-    return found
+    """The last entry per category, in the order they were written. Not by ``at``: a clock that
+    steps back (an NTP correction, the Pi's clock reset) mustn't let an earlier yes outrank a
+    withdrawal (review of #617). ``at`` is for showing when."""
+    return {entry.category: entry for entry in entries}
 
 
 def is_open(entry: Entry | None) -> bool:
