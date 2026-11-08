@@ -24,3 +24,9 @@ and everything after it shifts one day.
   projections from the pointer.
 - The domain logic is pure and fully unit-tested (skips, rest, multiple skips, week wrap, DST).
 - A "swap day" or "skip this session" action must be explicit and logged.
+
+## Addendum (2026-11-08): rest places
+
+A session can have rest places after it (ADR-0091): once it is done, the next days are rest days,
+read from the calendar, and the pointer's session is offered after them. The pointer still names
+a session and moves only as above, so a missed session still shifts everything back a day.

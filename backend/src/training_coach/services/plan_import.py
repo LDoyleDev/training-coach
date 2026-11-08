@@ -91,6 +91,10 @@ def _changes(session: Session, plan: PlanSeed) -> list[str]:
             or template.is_rest_optional != seed.is_rest_optional
         ):
             lines.append(f"{seed.name}: its focus or kind")
+        if template.rest_after != seed.rest_after:
+            lines.append(
+                f"{seed.name}: rest days after it, {template.rest_after} becomes {seed.rest_after}"
+            )
         versions = (
             (Place.HOME, template.items, seed.items),
             (Place.GYM, template.gym_items, seed.gym),

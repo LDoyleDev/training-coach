@@ -10,7 +10,7 @@ Code). Template: [template.md](template.md).
 | [0003](0003-docker-compose-on-pi.md) | Deploy with Docker Compose on the Pi | Accepted |
 | [0004](0004-react-vite-tailwind-dashboard.md) | Dashboard in React + Vite + Tailwind | Accepted |
 | [0005](0005-git-workflow-and-releases.md) | Git workflow, commit convention and releases | Accepted |
-| [0006](0006-session-queue-scheduling.md) | The plan is an ordered queue; missed sessions shift back | Accepted |
+| [0006](0006-session-queue-scheduling.md) | The plan is an ordered queue; missed sessions shift back | Accepted; rest places added by 0091 |
 | [0007](0007-llm-output-is-untrusted-data.md) | LLM output is untrusted data, never an action | Accepted |
 | [0008](0008-groq-transcription-and-parsing.md) | Groq for transcription and fallback parsing | Accepted |
 | [0009](0009-telegram-long-polling-owner-only.md) | Telegram via long polling, owner-only | Accepted; single allowed user superseded by 0059 |
@@ -95,3 +95,4 @@ Code). Template: [template.md](template.md).
 | [0088](0088-leaving-and-the-left-list.md) | Leaving deletes a member outright, and a list outside the database keeps them gone | Accepted |
 | [0089](0089-telegram-for-members.md) | Telegram for members: one sender gate, and a connection confirmed on the web | Accepted |
 | [0090](0090-consent-per-category-family-and-friends.md) | Consent per category, and a private test with invited family and friends first | Accepted |
+| [0091](0091-rest-places-in-the-queue.md) | Rest places in the queue, kept as rest days after a session | Accepted |

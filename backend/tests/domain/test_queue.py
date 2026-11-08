@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -13,6 +13,7 @@ from training_coach.domain.queue import (
     local_date,
     next_in_cycle,
     resettled,
+    rest_days_left,
     swap_with_next,
     upcoming,
 )
@@ -220,3 +221,22 @@ def test_resettled_catches_up_only_when_the_latest_session_changed(
     position: Position, before: DoneOn | None, after: DoneOn | None, expected: Position
 ) -> None:
     assert resettled(ORDER, position, before, after) == expected
+
+
+@pytest.mark.parametrize(
+    ("rest_after", "gone", "left"),
+    [
+        pytest.param(1, 0, 0, id="the-day-it-was-done"),
+        pytest.param(1, 1, 1, id="the-rest-day"),
+        pytest.param(1, 2, 0, id="the-next-session-day"),
+        pytest.param(1, 8, 0, id="missed-sessions-still-wait"),
+        pytest.param(3, 1, 3, id="first-of-three"),
+        pytest.param(3, 3, 1, id="last-of-three"),
+        pytest.param(0, 1, 0, id="no-rest-places"),
+        pytest.param(2, -1, 0, id="a-day-before-it"),
+    ],
+)
+def test_rest_places_are_the_days_after_a_session(rest_after: int, gone: int, left: int) -> None:
+    """ADR-0091: one day per rest place after the session's day; then the next session waits."""
+    done = date(2026, 11, 1)
+    assert rest_days_left(rest_after, done, done + timedelta(days=gone)) == left

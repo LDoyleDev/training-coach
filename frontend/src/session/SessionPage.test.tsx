@@ -765,6 +765,40 @@ test('a test day shows even with nothing left to train', async () => {
   expect(screen.getByText(/Nothing left today/)).toBeInTheDocument()
 })
 
+test('a rest day says so and names the next session (ADR-0091)', async () => {
+  const next = { template_id: 2, name: 'Zone 2' }
+  serve({ today: { session: null, progress: null, rest_day: next } })
+  render(<SessionPage />)
+  expect(await screen.findByRole('heading', { name: 'Rest day' })).toBeInTheDocument()
+  expect(screen.getByText('No session planned today. Next: Zone 2.')).toBeInTheDocument()
+  expect(screen.queryByText(/Nothing left today/)).not.toBeInTheDocument()
+})
+
+test('a rest day can still be trained: the next session is picked for today', async () => {
+  const next = { template_id: 2, name: 'Zone 2' }
+  serve({ today: { session: null, progress: null, rest_day: next } })
+  const inner = globalThis.fetch
+  const picks: unknown[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (path !== '/api/today/pick') return inner(path, init)
+      picks.push(JSON.parse(String(init?.body)))
+      const today = { session: SESSION, progress: null }
+      return Response.json({ session: 'Zone 2', advanced: false, today, undo: null })
+    }),
+  )
+  render(<SessionPage />)
+  click(
+    await screen
+      .findByRole('button', { name: 'Train today instead' })
+      .then(() => 'Train today instead'),
+  )
+  expect(await screen.findByText('Zone 2 is on for today.')).toBeInTheDocument()
+  expect(picks).toEqual([{ template_id: 2, picked_id: 2 }])
+  expect(screen.getByRole('button', { name: 'Start session' })).toBeInTheDocument()
+})
+
 test('a hard day shows the readiness advice, linking to the questions', async () => {
   const advice = 'Your readiness answers say to check with a doctor before hard efforts.'
   serve({ today: { session: SESSION, progress: null, readiness_note: advice } })

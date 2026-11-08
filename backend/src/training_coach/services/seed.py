@@ -247,6 +247,8 @@ class SessionSeed(_Strict):
     name: str = Field(min_length=1, max_length=120)
     focus: str = Field(min_length=1, max_length=120)
     is_rest_optional: bool = False
+    # The queue's rest places after it (ADR-0091): days with no session once it is done.
+    rest_after: int = Field(default=0, ge=0, le=6)
     items: list[ItemSeed] = Field(min_length=1)
     # The gym version (ADR-0071); empty: done the same way at the gym.
     gym: list[ItemSeed] = Field(default_factory=list)
@@ -638,6 +640,7 @@ def sync_sessions(
             template.name, template.focus = seed_session.name, seed_session.focus
             template.kind = seed_session.type
             template.is_rest_optional = seed_session.is_rest_optional
+            template.rest_after = seed_session.rest_after
         else:
             _set(
                 template,
@@ -647,6 +650,7 @@ def sync_sessions(
                 focus=seed_session.focus,
                 is_rest_optional=seed_session.is_rest_optional,
                 kind=seed_session.type,
+                rest_after=seed_session.rest_after,
             )
         sync_version(user_id, template.items, seed_session.items, exercises, result)
         sync_version(user_id, template.gym_items, seed_session.gym, exercises, result)

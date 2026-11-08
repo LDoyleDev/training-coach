@@ -37,6 +37,7 @@ from training_coach.db.models import (
     ImportedWorkout,
     Measurement,
     Passkey,
+    PlanState,
     ProgressPhoto,
     ReadinessCheck,
     SessionTemplate,
@@ -47,13 +48,14 @@ from training_coach.db.models import (
     WebSession,
     Workout,
 )
-from training_coach.db.session import make_session_factory, session_scope
+from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
 from training_coach.domain import readiness
 from training_coach.domain.consent import Category
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.habits import Habit
 from training_coach.services import auth, consent, seed, users
 
+EVERYONE = {ALL_USERS: True}
 ORIGIN = "https://coach.example.com"
 NOW = datetime(2026, 10, 12, 10, tzinfo=UTC)  # a Monday
 
@@ -270,6 +272,10 @@ def test_signed_in_reads_show_only_my_own_data(
         assert client.get("/api/log/plan", params=asked).status_code == 404
         before = _reads(app, client, their_ids, first)
         with session_scope(make_session_factory(two)) as s:
+            # As erase does: these RESTRICT their sessions, and SQLite's cascade order follows
+            # the schema, so they go first (a rebuilt table moves, ADR-0091's migration).
+            for model in (PlanState, Workout):
+                s.execute(delete(model).where(model.user_id == other), execution_options=EVERYONE)
             s.execute(delete(User).where(User.id == other))  # cascades to all of theirs
             assert s.get(Exercise, 1) is not None  # the shared plan stays
         after = _reads(app, client, their_ids, first)
