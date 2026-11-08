@@ -70,7 +70,15 @@ someone who used a forwarded link first can't block or impersonate the member's 
 code is in their chat, not the member's. A link takes at most 3 claims, and its codes are
 unique within it (drawn again on a clash), so a code names one claim. Codes are stored hashed
 with the claim and die with the link (10 minutes). Five wrong codes end the link; only the
-member's own signed-in browser can type one, so someone else can't use that to end it. A link that was forwarded, or seen over
+member's own signed-in browser can type one, so someone else can't use that to end it.
+
+What's left is persuasion: someone who used a forwarded link could send the member their own
+code and say "type this to verify". So Account says, beside the code field, "Type only the code
+the bot sent you after you tapped the link yourself. Never type a code someone sends you. If you
+didn't open the bot just now, tap Cancel", and shows how many claims the link has. With more
+than one, it says "Someone else used this link too: cancel it and make a new one", and Confirm
+is off. Once a code matches, the Telegram name is shown with Confirm, as a last check. The
+threat-model row for a forwarded connect link records this gap. A link that was forwarded, or seen over
 someone's shoulder, does nothing without the code from the member's own Telegram typed into the
 member's own signed-in browser. A Telegram account already linked to anyone is refused, as is the
 owner's configured account; a member already linked must unlink first. The confirm is a
