@@ -59,6 +59,7 @@ from training_coach.api.security import request_guard, security_headers_middlewa
 from training_coach.api.session import router as session_router
 from training_coach.api.settings import Reschedule
 from training_coach.api.settings import router as settings_router
+from training_coach.api.telegram_link import router as telegram_link_router
 from training_coach.bot.app import (
     ALLOWED_UPDATES,
     ANNOUNCE,
@@ -70,7 +71,7 @@ from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.domain.rate_limit import RateLimit
 from training_coach.logging import configure_logging
-from training_coach.services import backup, left_list, users, wind_down
+from training_coach.services import backup, left_list, telegram_link, users, wind_down
 from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
@@ -143,6 +144,8 @@ def _start_wind_down(
     left = left_list.for_url(settings.database_url)
 
     def today() -> wind_down.Report:
+        with session_scope(shared) as session:  # expired connect links too (ADR-0089)
+            telegram_link.clear_expired(session, datetime.now(UTC))
         with session_scope(shared) as session:
             local = datetime.now(UTC).astimezone(settings.tz).date()
             return wind_down.run(session, settings.multi_user, local, left)
@@ -321,6 +324,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         telegram = bot.bot if bot is not None else sends_only
         app.state.send = _sender(telegram)  # sign-in alerts (ADR-0040)
+        # For a member's connect link, t.me/<bot> (ADR-0089): known once the bot has started.
+        app.state.bot_username = bot.bot.username if bot is not None else None
         # Proposals from a connected AI go to Telegram as they come (ADR-0058).
         app.state.announce_proposals = bot.bot_data[ANNOUNCE] if bot is not None else None
         notify = _owner_notifier(telegram, owner_chat)
@@ -384,6 +389,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(passkeys_router)
     app.include_router(account_router)
+    app.include_router(telegram_link_router)
     app.include_router(residence_router)
     app.include_router(ai_router)
     app.include_router(session_router)

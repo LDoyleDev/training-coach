@@ -7625,6 +7625,125 @@
         "title": "StretchedView",
         "type": "object"
       },
+      "TelegramCode": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "TelegramCode",
+        "type": "object"
+      },
+      "TelegramLinkView": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expires_at"
+        ],
+        "title": "TelegramLinkView",
+        "type": "object"
+      },
+      "TelegramMatch": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "TelegramMatch",
+        "type": "object"
+      },
+      "TelegramPending": {
+        "properties": {
+          "claims": {
+            "title": "Claims",
+            "type": "integer"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expires_at",
+          "claims"
+        ],
+        "title": "TelegramPending",
+        "type": "object"
+      },
+      "TelegramView": {
+        "properties": {
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TelegramPending"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "set_on_server": {
+            "title": "Set On Server",
+            "type": "boolean"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          }
+        },
+        "required": [
+          "set_on_server",
+          "connected",
+          "name",
+          "since",
+          "pending"
+        ],
+        "title": "TelegramView",
+        "type": "object"
+      },
       "TestDayBody": {
         "properties": {
           "day": {
@@ -9134,6 +9253,152 @@
           }
         },
         "summary": "Sign Ins",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/telegram": {
+      "delete": {
+        "description": "Disconnect Telegram, telling the chat it was. No recent sign-in needed: it only takes\naccess away.",
+        "operationId": "unlink_api_account_telegram_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Unlink",
+        "tags": [
+          "account"
+        ]
+      },
+      "get": {
+        "operationId": "telegram_api_account_telegram_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Telegram",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/telegram/code": {
+      "post": {
+        "description": "The Telegram name a code was sent to, shown before Confirm. A wrong one counts.",
+        "operationId": "check_code_api_account_telegram_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramCode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramMatch"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Code",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/telegram/confirm": {
+      "post": {
+        "description": "Connect the Telegram account the code was sent to. Needs a recent sign-in.",
+        "operationId": "confirm_api_account_telegram_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramCode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/telegram/link": {
+      "delete": {
+        "description": "End the open link, if any: it only takes something away.",
+        "operationId": "cancel_link_api_account_telegram_link_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cancel Link",
+        "tags": [
+          "account"
+        ]
+      },
+      "post": {
+        "description": "A new connect link, which ends any earlier one. Needs a recent sign-in.",
+        "operationId": "make_link_api_account_telegram_link_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramLinkView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Make Link",
         "tags": [
           "account"
         ]
