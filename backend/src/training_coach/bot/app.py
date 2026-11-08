@@ -1,9 +1,10 @@
 """Telegram bot. Long polling only: no inbound port is ever opened (ADR-0009).
 
 Every update meets the sender gate first (``bot.gate``, ADR-0089): only messages and button
-presses in a private chat, from someone linked, get any further. Behind it, every command
-handler is still registered behind ``owner_only`` and button presses check the sender, until
-each handler takes the sessions of the person the gate found.
+presses in a private chat, from someone linked, get any further. ``Handlers``, ``LogHandlers``
+and ``SettingsHandlers`` are registered through ``gate.served`` and use the sessions of the
+person the gate found. The other classes still hold the owner's sessions behind ``owner_only``
+and check the sender by hand: that keeps them the owner's alone until each is converted.
 """
 
 import asyncio
@@ -49,7 +50,7 @@ from training_coach.bot import share as share_ui
 from training_coach.bot import stretching as stretching_ui
 from training_coach.bot import undo as undo_ui
 from training_coach.bot.buttons import edit_quietly
-from training_coach.bot.gate import ALLOWED_UPDATES, ANYWHERE, AWAY_TEXT, Gate
+from training_coach.bot.gate import ALLOWED_UPDATES, ANYWHERE, AWAY_TEXT, Gate, Person
 from training_coach.bot.logging_flow import LogHandlers
 from training_coach.bot.messages import (
     NO_PLAN,
@@ -93,6 +94,7 @@ from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
 
+RECOVER_LINE = "/recover - sign in without your passkey (lost phone); signs out other devices\n"
 HELP_TEXT = (
     "Training Coach\n\n"
     "/today - today's session with targets\n"
@@ -104,7 +106,7 @@ HELP_TEXT = (
     "/undo - take back the last rest day, swap, push or saved log\n"
     "/share - your last 4 weeks as a picture to forward (no body data or photos)\n"
     "/login - sign in to the web app\n"
-    "/recover - sign in without your passkey (lost phone); signs out other devices\n"
+    f"{RECOVER_LINE}"
     "/help - this message\n\n"
     "Log a workout by sending it as a message, like: pull-ups 8 8 7, dips 12 11 10. "
     "For cardio, add what it was if you like: zone 2 walk 60, or moderate cardio 45 min run. "
@@ -130,6 +132,10 @@ RECOVER_TEXT = (
     "again after):"
 )
 LOGIN_OFF = "Web sign-in isn't set up yet: TC_PUBLIC_URL is missing on the server."
+# A member: recovery links are the admin's to make (ADR-0059), so neither text offers /recover.
+MEMBER_HELP_TEXT = HELP_TEXT.replace(RECOVER_LINE, "")
+ASK_ADMIN = "Ask the admin for a recovery link."
+LOGIN_MEMBER = f"Sign in with your fingerprint (your passkey) here:\n{{url}}/signin\n\n{ASK_ADMIN}"
 # The gate's, named here for the API's lifespan (it starts the bot) and the tests that drive it.
 __all__ = ["ALLOWED_UPDATES", "ANYWHERE", "AWAY_TEXT"]
 MORNING_JOB = "morning"
@@ -212,18 +218,18 @@ class Handlers:
 
     def __init__(self, settings: Settings, sessions: sessionmaker[Session]) -> None:
         self.settings = settings
-        self.sessions = sessions
+        self.sessions = sessions  # the owner's: for the scheduled messages only (step 9)
         self.gate: Gate | None = None  # set by build_bot: who each update was let through for
 
     def _local_today(self) -> date:
         return local_date(datetime.now(UTC), self.settings.tz)
 
-    def _today(self) -> tuple[str, InlineKeyboardMarkup | None]:
+    def _today(self, sessions: sessionmaker[Session]) -> tuple[str, InlineKeyboardMarkup | None]:
         """Today's message, with the Start / Rest today / Swap buttons when there is a plan
         and "Open in app" under them (C1): the session, or the Tests page on a test day."""
         url = self.settings.public_url
         on = self._local_today()
-        with session_scope(self.sessions) as session:
+        with session_scope(sessions) as session:
             plan = todays_session(session, on, self.settings.tz)
             if plan is None:
                 return NO_PLAN, None
@@ -256,24 +262,32 @@ class Handlers:
 
         return run
 
-    async def help(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def help(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
         if update.effective_message is not None:
-            await update.effective_message.reply_text(HELP_TEXT)
+            await update.effective_message.reply_text(HELP_TEXT if me.owner else MEMBER_HELP_TEXT)
 
-    async def today(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def today(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
         if update.effective_message is not None:
-            text, markup = self._today()
+            text, markup = self._today(me.sessions)
             await update.effective_message.reply_text(text, reply_markup=markup)
 
-    async def login(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """A one-time sign-in link for the web app (ADR-0036): works once, for 10 minutes."""
+    async def login(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """A one-time sign-in link for the web app (ADR-0036): works once, for 10 minutes.
+        A member only ever gets the pointer to their passkey: a link would sign them in."""
         message = update.effective_message
         if message is None:
             return
         if self.settings.public_url is None:
             await message.reply_text(LOGIN_OFF)
             return
-        with session_scope(self.sessions) as session:
+        if not me.owner:
+            await message.reply_text(
+                LOGIN_MEMBER.format(url=self.settings.public_url),
+                link_preview_options=LinkPreviewOptions(is_disabled=True),
+            )
+            log.info("bot.login_passkey_pointer_sent", member=True)
+            return
+        with session_scope(me.sessions) as session:
             # Once a passkey exists the fingerprint signs in, not a link (ADR-0040).
             keyed = bool(passkeys.keys(session))
             token = None if keyed else auth.create_link(session, datetime.now(UTC))
@@ -290,16 +304,23 @@ class Handlers:
         )
         log.info("bot.login_link_sent")
 
-    async def recover(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def recover(
+        self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person
+    ) -> None:
         """A recovery link (ADR-0040): signs in without a passkey and signs out every other
-        browser; the web app then sends an alert here."""
+        browser; the web app then sends an alert here. The owner's only: a member asks the
+        admin (ADR-0059)."""
         message = update.effective_message
         if message is None:
+            return
+        if not me.owner:
+            await message.reply_text(ASK_ADMIN)
+            log.info("bot.recover_refused", reason="member")
             return
         if self.settings.public_url is None:
             await message.reply_text(LOGIN_OFF)
             return
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             token = auth.create_link(session, datetime.now(UTC), purpose=auth.RECOVER)
         await message.reply_text(
             f"{RECOVER_TEXT}\n{self.settings.public_url}/signin#{token}",
@@ -307,8 +328,8 @@ class Handlers:
         )
         log.info("bot.recover_link_sent")
 
-    async def week(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        with session_scope(self.sessions) as session:
+    async def week(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        with session_scope(me.sessions) as session:
             days = upcoming_week(session, self._local_today(), tz=self.settings.tz)
             text = NO_PLAN if days is None else week_text(days)
         if update.effective_message is not None:
@@ -323,7 +344,7 @@ class Handlers:
                 checked = daily_check.on(session, on) is not None
                 band = health_summary.morning_line(session, on)
                 suggested = health_summary.suggested_sleep(session, on)
-            text, markup = self._today()
+            text, markup = self._today(self.sessions)
         except SQLAlchemyError as exc:
             log.error("bot.morning_failed", error=type(exc).__name__)
             return
@@ -378,14 +399,11 @@ class Handlers:
         except Exception:
             log.exception("bot.ai_comment_failed")
 
-    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """A morning-message button. Strangers get nothing, not even an answer (T1)."""
+    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """A morning-message button, acting on the presser's own queue: an id in forged data
+        names nothing of anyone else's (ADR-0089)."""
         query = update.callback_query
-        if (
-            query is None
-            or update.effective_user is None
-            or update.effective_user.id != self.settings.telegram_allowed_user_id
-        ):
+        if query is None:
             return
         press = buttons.parse(query.data)
         if press is None or not isinstance(query.message, Message):
@@ -411,13 +429,13 @@ class Handlers:
             await edit_quietly(query.edit_message_reply_markup(keep(buttons.morning(tid))))
             return
         if press.action == "pickmenu":
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 markup = buttons.pick(tid, queue_actions.choices(session))
             await query.answer()
             await edit_quietly(query.edit_message_reply_markup(keep(markup)))
             return
         if press.action == "start":
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 block = blocks.current(session, on, self.settings.tz)
                 plan = session_plan(session, tid, block, on=on)
                 shown = guided.at_length(session, on, plan) if plan is not None else None
@@ -426,7 +444,7 @@ class Handlers:
             return
 
         # Actions that change the queue: one transaction, then retire the old buttons.
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             text: str | None
             new_markup: InlineKeyboardMarkup | None = None
             if press.action == "rest":
@@ -560,17 +578,24 @@ def build_bot(
     application = (
         Application.builder().token(settings.telegram_bot_token.get_secret_value()).build()
     )
+    # Classes not yet given the person's sessions stay behind ``owner_only``: they read and
+    # write the owner's rows, so only the owner may reach them (ADR-0089, step 8).
     allowed = owner_only(settings)
+    private = filters.ChatType.PRIVATE  # the gate checks it too; a second look costs nothing
     handlers = Handlers(settings, sessions)
     # Before every other handler: who it's from, and whether to serve them (ADR-0089, ADR-0085).
     gate = Gate(settings, unbound_like(sessions))
     handlers.gate = gate
+    served = gate.served
     application.add_handler(TypeHandler(Update, gate.check), group=-1)
-    application.add_handler(CommandHandler(["start", "help"], handlers.help, filters=allowed))
-    application.add_handler(CommandHandler("today", handlers.today, filters=allowed))
-    application.add_handler(CommandHandler("week", handlers.week, filters=allowed))
-    application.add_handler(CommandHandler("login", handlers.login, filters=allowed))
-    application.add_handler(CommandHandler("recover", handlers.recover, filters=allowed))
+    for names, callback in (
+        (["start", "help"], handlers.help),
+        (["today"], handlers.today),
+        (["week"], handlers.week),
+        (["login"], handlers.login),
+        (["recover"], handlers.recover),
+    ):
+        application.add_handler(CommandHandler(names, served(callback), filters=private))
     progress_handlers = progress_ui.ProgressHandlers(settings, sessions)
     application.add_handler(CommandHandler("progress", progress_handlers.command, filters=allowed))
     application.add_handler(CommandHandler("review", progress_handlers.review, filters=allowed))
@@ -583,7 +608,9 @@ def build_bot(
     application.add_handler(
         CallbackQueryHandler(habit_handlers.button, pattern=rf"^{habits_ui.PREFIX}:")
     )
-    application.add_handler(CallbackQueryHandler(handlers.button, pattern=rf"^{buttons.PREFIX}:"))
+    application.add_handler(
+        CallbackQueryHandler(served(handlers.button), pattern=rf"^{buttons.PREFIX}:")
+    )
     daily_handlers = daily_ui.DailyCheckHandlers(settings, sessions)
     application.add_handler(
         CallbackQueryHandler(daily_handlers.button, pattern=rf"^{daily_ui.PREFIX}:")
@@ -629,11 +656,13 @@ def build_bot(
 
     application.bot_data[RESCHEDULE] = reschedule  # for times changed on the web (C6)
     settings_handlers = settings_ui.SettingsHandlers(
-        settings, sessions, lambda _context, prefs: reschedule(prefs)
+        settings, lambda _context, prefs: reschedule(prefs)
     )
-    application.add_handler(CommandHandler("settings", settings_handlers.command, filters=allowed))
     application.add_handler(
-        CallbackQueryHandler(settings_handlers.button, pattern=rf"^{settings_ui.PREFIX}:")
+        CommandHandler("settings", served(settings_handlers.command), filters=private)
+    )
+    application.add_handler(
+        CallbackQueryHandler(served(settings_handlers.button), pattern=rf"^{settings_ui.PREFIX}:")
     )
     groq = (
         GroqClient(
@@ -644,30 +673,29 @@ def build_bot(
         if groq is None and settings.groq_api_key is not None
         else groq
     )
-    log_handlers = LogHandlers(settings, sessions, groq)
+    log_handlers = LogHandlers(settings, groq)
     application.add_handler(
-        CallbackQueryHandler(log_handlers.button, pattern=rf"^{logging_flow.PREFIX}:")
+        CallbackQueryHandler(served(log_handlers.button), pattern=rf"^{logging_flow.PREFIX}:")
     )
     application.add_handler(
         CallbackQueryHandler(progress_handlers.button, pattern=rf"^{progress_ui.PREFIX}:")
     )
 
-    async def text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def text(update: Update, context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
         """The one handler for plain text: PTB runs only the first match in a group. A pending
         /settings question gets the answer; anything else is a workout log (1-E)."""
-        awaiting = context.user_data.get(settings_ui.AWAITING) if context.user_data else None
         message = update.effective_message
         words = message is not None and any(c.isalpha() for c in message.text or "")
-        if awaiting and words and context.user_data is not None:
-            context.user_data.pop(settings_ui.AWAITING, None)  # a log, not a time: stop asking
-            awaiting = None
-        if awaiting:
-            await settings_handlers.typed_time(update, context)
+        if words:
+            settings_handlers.awaiting.pop(me.user_id, None)  # a log, not a time: stop asking
+        if me.user_id in settings_handlers.awaiting:
+            await settings_handlers.typed_time(update, context, me)
         else:
-            await log_handlers.message(update, context)
+            await log_handlers.message(update, context, me)
 
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & allowed, text))
-    application.add_handler(MessageHandler(filters.VOICE & allowed, log_handlers.voice))
+    text_only = filters.TEXT & ~filters.COMMAND & private
+    application.add_handler(MessageHandler(text_only, served(text)))
+    application.add_handler(MessageHandler(filters.VOICE & private, served(log_handlers.voice)))
 
     application.add_error_handler(handlers.error)
 

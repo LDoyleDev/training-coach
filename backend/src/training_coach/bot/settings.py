@@ -2,6 +2,9 @@
 
 Callback data is ``s:<what>[:<HHMM>]``. A typed time (after "Other time...") is only read
 while the bot is waiting for one; otherwise plain text is left for logging (step 1-E).
+
+Each person changes their own settings. The bot's scheduled messages are still the owner's
+(per-person jobs are step 9), so only the owner's changes move them.
 """
 
 from collections.abc import Callable
@@ -9,11 +12,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, time
 
 import structlog
-from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
 from training_coach.bot.buttons import edit_quietly
+from training_coach.bot.gate import Person
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.clock import parse_hhmm
@@ -38,7 +41,6 @@ PACES = {
     Pace.STANDARD: "about a tenth of the range at a time",
     Pace.FAST: "at least two reps at a time",
 }
-AWAITING = "awaiting_time"  # key in context.user_data: one of ASKS
 BAD_TIME = "That isn't a time like 07:30. Send it again, or /settings to cancel."
 PROTEIN_ASK = (
     "Send your daily protein target in grams, like 165. A guide: 1.6-2.2 g per kg of "
@@ -179,29 +181,29 @@ def _blocks_row(prefs: Prefs) -> list[list[InlineKeyboardButton]]:
 
 
 class SettingsHandlers:
-    def __init__(
-        self, settings: Settings, sessions: sessionmaker[Session], reschedule: Reschedule
-    ) -> None:
+    def __init__(self, settings: Settings, reschedule: Reschedule) -> None:
         self.settings = settings
-        self.sessions = sessions
         self.reschedule = reschedule
+        self.awaiting: dict[int, str] = {}  # user id -> what they were asked to type: of ASKS
 
-    def _is_owner(self, update: Update) -> bool:
-        user = update.effective_user
-        return user is not None and user.id == self.settings.telegram_allowed_user_id
+    def _moved(self, me: Person, context: ContextTypes.DEFAULT_TYPE, prefs: Prefs) -> None:
+        """Move the scheduled messages to new times: they are the owner's until step 9."""
+        if me.owner:
+            self.reschedule(context, prefs)
 
-    async def command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if context.user_data is not None:
-            context.user_data.pop(AWAITING, None)
-        with session_scope(self.sessions) as session:
+    async def command(
+        self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person
+    ) -> None:
+        self.awaiting.pop(me.user_id, None)
+        with session_scope(me.sessions) as session:
             prefs = user_settings.load(session)
         if update.effective_message is not None:
             await update.effective_message.reply_text(text(prefs), reply_markup=keyboard(prefs))
 
-    async def button(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """A /settings button. Strangers get nothing, not even an answer (T1)."""
+    async def button(self, update: Update, context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """A /settings button: the presser's own settings."""
         query = update.callback_query
-        if query is None or not self._is_owner(update):
+        if query is None:
             return
         press = parse(query.data)
         await query.answer()
@@ -209,15 +211,14 @@ class SettingsHandlers:
             return
         if press.what.startswith("ask-"):
             which = press.what.removeprefix("ask-")
-            if context.user_data is not None:
-                context.user_data[AWAITING] = which
+            self.awaiting[me.user_id] = which
             await query.message.reply_text(
                 PROTEIN_ASK
                 if which == "protein"
                 else f"Send the {which} time as HH:MM, for example 07:15."
             )
             return
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             prefs = user_settings.update(
                 session,
                 morning_time=press.at if press.what == "morning" else None,
@@ -231,46 +232,46 @@ class SettingsHandlers:
                 today=local_date(datetime.now(UTC), self.settings.tz),
             )
         if press.what in TIMES:
-            self.reschedule(context, prefs)
+            self._moved(me, context, prefs)
         log.info("bot.settings_changed", what=press.what)
         await edit_quietly(query.edit_message_text(text(prefs), reply_markup=keyboard(prefs)))
 
-    async def typed_time(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Plain text from the owner: a time, if one was asked for."""
+    async def typed_time(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE, me: Person
+    ) -> None:
+        """Plain text: a time, if one was asked for."""
         message = update.effective_message
-        which = context.user_data.get(AWAITING) if context.user_data is not None else None
+        which = self.awaiting.get(me.user_id)
         if message is None or which not in ASKS:
             return
         if which == "protein":
-            await self._typed_protein(message, context)
+            await self._typed_protein(message, me)
             return
         at = parse_hhmm(message.text or "")
         if at is None:
             await message.reply_text(BAD_TIME)
             return
-        assert context.user_data is not None  # noqa: S101 - read above
-        context.user_data.pop(AWAITING, None)
-        with session_scope(self.sessions) as session:
+        self.awaiting.pop(me.user_id, None)
+        with session_scope(me.sessions) as session:
             prefs = user_settings.update(
                 session,
                 morning_time=at if which == "morning" else None,
                 nudge_time=at if which == "nudge" else None,
                 review_time=at if which == "review" else None,
             )
-        self.reschedule(context, prefs)
+        self._moved(me, context, prefs)
         log.info("bot.settings_changed", what=which)
         await message.reply_text(text(prefs), reply_markup=keyboard(prefs))
 
-    async def _typed_protein(self, message: Message, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def _typed_protein(self, message: Message, me: Person) -> None:
         # "0" clears it. A word like "clear" can't be used: text with letters is read as a log.
         cleared = (message.text or "").strip() == "0"
         grams = protein_grams(message.text or "")
         if grams is None and not cleared:
             await message.reply_text(BAD_PROTEIN)
             return
-        assert context.user_data is not None  # noqa: S101 - the caller read it
-        context.user_data.pop(AWAITING, None)
-        with session_scope(self.sessions) as session:
+        self.awaiting.pop(me.user_id, None)
+        with session_scope(me.sessions) as session:
             prefs = user_settings.update(session, protein_g=grams, clear_protein=cleared)
         log.info("bot.settings_changed", what="protein")
         await message.reply_text(text(prefs), reply_markup=keyboard(prefs))
