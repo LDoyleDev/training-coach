@@ -58,3 +58,18 @@ list:
   would have to be from before they left.
 - The list holds ids and two times for up to 42 days. That is personal data, kept only to honour
   the leave.
+
+## Addendum (2026-11-08): user ids are never reused
+
+The options above set AUTOINCREMENT aside, since it doesn't help the left list after a restore.
+It was found to matter for something else: SQLite hands out the highest id plus one, so once the
+newest member left, the next person to join got their id, and with it what is still kept by id
+outside the database. In the bot that meant their pending drafts and questions: a new member's
+first typed date could save the left member's draft into the new account (found while building
+ADR-0089's Telegram for members), and step 9's scheduled jobs are named by id too.
+
+So `users` now has AUTOINCREMENT, and an id is never handed out twice in normal running. The
+migration rebuilds the table on the live database, every row and id kept, and starts the counter
+above anyone in the left list, so an id freed before it isn't reused either. The left list still
+matches by id and join time: a restore puts back the backup's counter, and then only the bot's
+memory, which the restart clears, could hold anything by those ids.
