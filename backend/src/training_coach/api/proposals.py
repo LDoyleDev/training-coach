@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from training_coach.api.auth import Owner
+from training_coach.api.auth import Owner, consented
 from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
@@ -80,10 +80,18 @@ def save(body: ProposalSave, request: Request, user: Owner) -> ProposalSaved:
     ``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason
     when it no longer fits (it is discarded then); 409 with what is saved already when its
     day has its session (it keeps waiting: save it again with the answer, ADR-0060); 422 for
-    a cardio one without zone 2 or moderate picked (it keeps waiting)."""
+    a cardio one without zone 2 or moderate picked (it keeps waiting); 403 with
+    ``consent_needed`` for body data or heart rate a member hasn't said yes to (ADR-0090)."""
     settings: Settings = request.app.state.settings
     answer = resolution(body)
-    with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
+    mine = make_session_factory(request.app.state.engine, user_id=user)
+    with session_scope(mine) as session:
+        needed = proposals.needs(session, body.token, datetime.now(UTC))
+    if needed is not None:
+        # Body data or heart rate: checked again here, not only when the AI proposed, as a yes
+        # to wording that has changed since no longer counts (ADR-0090).
+        consented(request, user, needed)
+    with session_scope(mine) as session:
         result = proposals.save(
             session,
             body.token,

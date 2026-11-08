@@ -89,6 +89,10 @@ test.each([
     { status: 409, body: { detail: "today's session changed" } },
     "Not saved: today's session changed. Ask your AI again if you want it.",
   ],
+  [
+    { status: 403, body: { detail: { consent_needed: 'body' } } },
+    'That needs your yes to body data first. You can give it on Account.',
+  ],
   [{ status: 500 }, "That didn't work. Check your connection and try again."],
 ])('a save answered %o says so', async (reply, text) => {
   const saved = vi.fn()
