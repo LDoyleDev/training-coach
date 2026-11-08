@@ -406,8 +406,8 @@ guards, cheapest first:
    recovery link with ADR-0059's controls: once, 24 hours, only the newest, never opened in an
    admin's browser, the member told when it is made and used, and a notice on Account for 30
    days. **Done (7 Nov 2026).**
-8. **Telegram for members:** connect link, the members filter, a session per update. Designed
-   in [ADR-0089](../adr/0089-telegram-for-members.md) (accepted 8 Nov, after a written plan and
+8. **Done (8 Nov 2026).** **Telegram for members:** connect link, the members filter, a
+   session per update. Designed in [ADR-0089](../adr/0089-telegram-for-members.md) (accepted 8 Nov, after a written plan and
    an independent review; a member's erase dropping the link is done, #609). Build order, each
    safe on `main` because nobody but the owner can be linked until the `/start` PR: the owner's
    messages to the owner's chat from the database, and start-up never taking a member's link
@@ -417,7 +417,8 @@ guards, cheapest first:
    `telegram_links` and `telegram_claims` tables and the Account routes (done:
    `/api/account/telegram`, its link, code, confirm and unlink); `/start <token>` as a pending
    claim (done: the gate answers it with a code, rate limited, and old buttons do nothing);
-   Account's Connect, Confirm and Unlink.
+   Account's Connect, Confirm and Unlink (done: the code box with the warning and the claim
+   count, Confirm off with more than one claim, the Telegram name before Confirm).
 9. **Schedules per person**, and band offers and band data alerts per person (the alert
    state is already per person, on `ingest_keys`).
 10. **Done (7 Nov 2026).** **Groq cap per person:** 20 voice notes or fallback readings a day for

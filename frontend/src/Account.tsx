@@ -13,6 +13,7 @@ import Residence from './account/Residence'
 import WeightSteps from './account/WeightSteps'
 import CopyForAI from './account/CopyForAI'
 import Settings from './account/Settings'
+import Telegram from './account/Telegram'
 import Toast from './components/Toast'
 import Consented from './consent/Consented'
 import { InstallCard } from './pwa/InstallApp'
@@ -173,6 +174,8 @@ export default function Account() {
 
           <Recovered />
           <People />
+
+          <Telegram />
 
           <MyEquipment />
 
