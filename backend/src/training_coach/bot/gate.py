@@ -54,11 +54,6 @@ class Person:
     def owner(self) -> bool:
         return self.user_id == users.OWNER
 
-    @property
-    def health(self) -> bool:
-        """Whether health data is open to them (members are training-only, ADR-0059)."""
-        return users.health_open(self.user_id)
-
 
 class Gate:
     def __init__(self, settings: Settings, shared: sessionmaker[Session]) -> None:
