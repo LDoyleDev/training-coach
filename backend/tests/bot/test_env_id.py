@@ -20,15 +20,6 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("gate::Gate._admit", ENV_ID): "a database error is told to the configured account too",
     ("connect::Connect.claim", ENV_ID): "the owner's configured account can't claim a link",
     ("gate::Person.not_open", OWNERS): "a Person's own sessions, bound to them",
-    # Checks still sent to the owner's account only (step 9's second part).
-    ("band::BandHandlers.announce", OWNERS): "band workouts offered",
-    ("band::BandHandlers.announce", ENV_ID): "band workouts offered",
-    ("band::BandHandlers.watch", OWNERS): "band data stopped or back",
-    ("band::BandHandlers.watch", ENV_ID): "band data stopped or back",
-    ("proposals::ProposalHandlers.announce", OWNERS): "an AI's proposals sent out",
-    ("proposals::ProposalHandlers.announce", ENV_ID): "an AI's proposals sent out",
-    ("notices::NoticeHandlers.tell", OWNERS): "what a release changed in the plan",
-    ("notices::NoticeHandlers.tell", ENV_ID): "what a release changed in the plan",
 }
 
 

@@ -2,25 +2,32 @@
 their own morning message, evening nudge and Sunday review, at their own times, in their own
 chat, from their own data. A member gets nothing with the switch off or while away, no daily
 check in the morning without their yes to it (ADR-0090), and their jobs go when they unlink,
-leave or are erased."""
+leave or are erased. The band offers and alerts, proposals sent out and plan notices go to each
+person too, the band's only with their yes to band data."""
 
 from datetime import UTC, datetime, time, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
+import time_machine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
 from tests.bot.fakes import MEMBER, MULTI, OWNER, SETTINGS
-from tests.bot.test_two_people import _elsewhere, _member_id, _yes
+from tests.bot.test_band import MADE, _secret, _sync, _walk
+from tests.bot.test_two_people import _elsewhere, _member_id, _propose, _yes
+from training_coach.bot import band as band_ui
 from training_coach.bot import daily_check as daily_ui
+from training_coach.bot import notices as notices_ui
+from training_coach.bot import proposals as proposals_ui
 from training_coach.bot import schedules
-from training_coach.bot.app import FORGET, RESCHEDULE, build_bot
+from training_coach.bot.app import ANNOUNCE, FORGET, RESCHEDULE, build_bot
 from training_coach.bot.messages import NUDGE
-from training_coach.db.models import User, Workout
+from training_coach.db.models import PlanNotice, User, Workout
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.band_watch import Notice
 from training_coach.domain.consent import Category
 from training_coach.domain.queue import local_date
 from training_coach.services import erase, user_settings, users
@@ -48,8 +55,13 @@ def _next_run(application: App, kind: str, user_id: int) -> datetime:
 
 async def _fire(application: App, kind: str, user_id: int) -> list[tuple[int, str]]:
     """Run ``user_id``'s job of ``kind`` now; the (chat, text) of each message it sent."""
+    return await _run(application, schedules.name(kind, user_id))
+
+
+async def _run(application: App, name: str) -> list[tuple[int, str]]:
+    """Run the job called ``name`` now; the (chat, text) of each message it sent."""
     assert application.job_queue is not None
-    (job,) = application.job_queue.get_jobs_by_name(schedules.name(kind, user_id))
+    (job,) = application.job_queue.get_jobs_by_name(name)
     send = AsyncMock()
     await job.callback(SimpleNamespace(bot=SimpleNamespace(send_message=send)))  # type: ignore[arg-type]  # fake context
     return [(call.kwargs["chat_id"], call.kwargs["text"]) for call in send.await_args_list]
@@ -233,3 +245,70 @@ async def test_connecting_telegram_makes_their_jobs(seeded: Sessions) -> None:
         shared.get_one(User, theirs).telegram_user_id = MEMBER
     application.bot_data[RESCHEDULE](theirs)
     assert len(_jobs_of(application, theirs)) == len(schedules.KINDS)
+
+
+# ------------------------------------------------------------------ checks for everyone
+
+
+async def test_band_offers_go_to_each_person_with_band_data_open(
+    both: App, seeded: Sessions, member: Sessions
+) -> None:
+    _walk(seeded)
+    _walk(member)
+    owners = await _run(both, band_ui.JOB)
+    assert [chat for chat, _ in owners] == [OWNER]  # no yes from the member: nothing for them
+    _yes(member, Category.BAND)
+    assert [chat for chat, _ in await _run(both, band_ui.JOB)] == [MEMBER]
+
+
+async def test_band_data_alerts_go_to_the_person_whose_band_stopped(
+    both: App, member: Sessions
+) -> None:
+    _secret(member)
+    _sync(member, MADE)
+    with time_machine.travel(MADE + timedelta(hours=25), tick=False):
+        assert await _run(both, band_ui.WATCH_JOB) == []  # band data isn't open to them
+        _yes(member, Category.BAND)
+        told = await _run(both, band_ui.WATCH_JOB)
+    assert told == [(MEMBER, band_ui.NOTICES[Notice.QUIET])]  # the owner has no band: nothing
+
+
+async def test_proposals_go_to_the_person_whose_ai_proposed_them(
+    both: App, seeded: Sessions, member: Sessions
+) -> None:
+    _propose(member, _member_id(member), kind="habits", habits=["protein"])
+    _propose(seeded, users.OWNER, kind="habits", habits=["protein"])
+    send = AsyncMock()
+    with patch.object(type(both.bot), "send_message", send):  # the bot itself can't be set
+        await both.bot_data[ANNOUNCE](_member_id(member))  # from /mcp: only that person's
+    assert [call.kwargs["chat_id"] for call in send.await_args_list] == [MEMBER]
+    assert [chat for chat, _ in await _run(both, proposals_ui.JOB)] == [OWNER]
+
+
+async def test_plan_notices_go_to_each_person_with_their_own(
+    both: App, seeded: Sessions, member: Sessions
+) -> None:
+    for sessions, text in ((seeded, "Mine."), (member, "Theirs.")):
+        with session_scope(sessions) as session:
+            session.add(PlanNotice(text=text))
+    told = await _run(both, notices_ui.JOB)
+    assert told == [
+        (OWNER, notices_ui.message(["Mine."])),
+        (MEMBER, notices_ui.message(["Theirs."])),
+    ]
+
+
+async def test_no_checks_for_a_member_away_or_with_the_switch_off(
+    seeded: Sessions, member: Sessions
+) -> None:
+    _yes(member, Category.BAND)
+    _walk(member)
+    with session_scope(member) as session:
+        session.add(PlanNotice(text="Theirs."))
+    off = build_bot(SETTINGS, seeded)
+    assert await _run(off, band_ui.JOB) == []
+    assert await _run(off, notices_ui.JOB) == []
+    both = build_bot(MULTI, seeded)
+    _away(member, _member_id(member))
+    assert await _run(both, band_ui.JOB) == []
+    assert await _run(both, notices_ui.JOB) == []

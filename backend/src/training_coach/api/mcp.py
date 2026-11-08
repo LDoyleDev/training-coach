@@ -88,7 +88,7 @@ def connection(request: Request) -> Access:
 Connection = Annotated[Access, Depends(connection)]
 # Sends proposals waiting for the person to Telegram (bot.proposals, ADR-0058); None without
 # the bot.
-Announce = Callable[[], Awaitable[None]]
+Announce = Callable[[int], Awaitable[None]]  # a user id: the bot sends their new proposals
 
 
 @router.post(
@@ -119,7 +119,7 @@ async def mcp(request: Request, access: Connection, background: BackgroundTasks)
     result, sent = await run_in_threadpool(answer)  # the summary's queries mustn't block the loop
     announce: Announce | None = getattr(request.app.state, "announce_proposals", None)
     if announce is not None and mcp_server.proposed(message, result):
-        background.add_task(announce)  # Telegram hears of it now, not at the next check
+        background.add_task(announce, access.user_id)  # Telegram hears of it now
     if isinstance(result, mcp_server.NeedsScope):
         challenge = _challenge(request, "insufficient_scope")
         challenge["WWW-Authenticate"] += f', scope="{result.scope}"'

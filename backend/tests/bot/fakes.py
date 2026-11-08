@@ -36,6 +36,11 @@ def scheduled(
     return Person(user_id=user_id, chat=chat, sessions=sessions)
 
 
+def only(sessions: sessionmaker[Session]) -> Callable[[], list[Person]]:
+    """``Gate.everyone`` with only the owner served, with ``sessions``."""
+    return lambda: [scheduled(sessions)]
+
+
 DATE = 1_790_000_000
 NOT_MODIFIED = {
     "ok": False,

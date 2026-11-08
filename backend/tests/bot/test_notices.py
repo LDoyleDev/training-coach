@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 from sqlalchemy import Engine, select
 
+from tests.bot.fakes import scheduled
 from training_coach.bot.notices import NoticeHandlers, message
 from training_coach.config import Settings
 from training_coach.db.models import PlanNotice, User
@@ -23,7 +24,8 @@ def _handlers(engine: Engine, outcome: str) -> tuple[NoticeHandlers, list[tuple[
         sent.append((chat, text))
         return outcome
 
-    return NoticeHandlers(SETTINGS, make_session_factory(engine, user_id=OWNER), send), sent
+    owner = scheduled(make_session_factory(engine, user_id=OWNER), chat=CHAT)
+    return NoticeHandlers(SETTINGS, lambda: [owner], send), sent
 
 
 def _add(engine: Engine, *texts: str) -> None:
@@ -66,7 +68,8 @@ async def test_nothing_to_tell_sends_nothing(engine: Engine) -> None:
 
 
 async def test_only_the_owners_are_told_on_the_owners_chat(engine: Engine) -> None:
-    """The handlers get sessions bound to the owner, so someone else's never reach this chat."""
+    """Each person is told with sessions bound to them, so someone else's never reach this chat
+    (the two-person case: tests/bot/test_schedules.py)."""
     with session_scope(make_session_factory(engine)) as shared:
         shared.add(User(id=2))
     with session_scope(make_session_factory(engine, user_id=2)) as theirs:

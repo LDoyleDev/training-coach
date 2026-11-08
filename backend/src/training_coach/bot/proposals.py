@@ -1,9 +1,10 @@
 """Logs a connected AI proposed, in Telegram (ADR-0058): "From “Claude”: ..." with Save and
 Discard.
 
-Each proposal is sent once: at once after the AI proposes it, and by a check every few minutes
-for any whose send failed because Telegram was unreachable. One Telegram refuses outright is
-not tried again and doesn't hold up the others; it stays on Today in the app.
+Each proposal is sent once, to the person whose AI proposed it: at once after the AI proposes
+it, and by a check every few minutes for any whose send failed because Telegram was unreachable.
+One Telegram refuses outright is not tried again and doesn't hold up the others; it stays on
+Today in the app.
 
 Callback data is ``lp:save:<token>`` or ``lp:discard:<token>``; the service looks the token up,
 so an old or forged button can't save anything that isn't waiting. A cardio one has a button per
@@ -23,14 +24,13 @@ from datetime import UTC, date, datetime, timedelta
 
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, sessionmaker
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
 from training_coach.bot import clash as clash_ui
 from training_coach.bot import links
 from training_coach.bot.buttons import edit_quietly
-from training_coach.bot.gate import Person
+from training_coach.bot.gate import People, Person
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
@@ -106,9 +106,9 @@ def saved_text(saved: proposals.Saved) -> str:
 
 
 class ProposalHandlers:
-    def __init__(self, settings: Settings, sessions: sessionmaker[Session], send: Send) -> None:
+    def __init__(self, settings: Settings, people: People, send: Send) -> None:
         self.settings = settings
-        self.sessions = sessions  # the owner's: for sending them out only (step 9)
+        self.people = people  # whom they are sent out to: each with their own sessions
         self.send = send
         # The check and a fresh proposal can both reach for the same one: one sender at a time,
         # so nothing goes twice.
@@ -129,36 +129,40 @@ class ProposalHandlers:
     async def job(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         await self.announce(context.bot)
 
-    async def announce(self, bot: Bot) -> None:
-        """Send each waiting proposal once. One is marked sent only after Telegram took it, so a
-        failed send is tried again on the next check."""
+    async def announce(self, bot: Bot, user_id: int | None = None) -> None:
+        """Send each person's waiting proposals, or only ``user_id``'s (one just proposed)."""
         async with self.sending:
+            for me in self.people():
+                if user_id is None or me.user_id == user_id:
+                    await self._announce(bot, me)
+
+    async def _announce(self, bot: Bot, me: Person) -> None:
+        """Send each of ``me``'s waiting proposals once. One is marked sent only after Telegram
+        took it, so a failed send is tried again on the next check."""
+        try:
+            with session_scope(me.sessions) as session:
+                found = proposals.pending(session, datetime.now(UTC), unannounced=True)
+        except SQLAlchemyError as exc:
+            log.error("bot.proposal_failed", error=type(exc).__name__)
+            return
+        for one in found:
+            buttons = markup(one.token, cardio=one.kind == proposals.CARDIO)
+            sent = await self.send(bot, me.chat, text(one), reply_markup=buttons)
+            if sent == UNREACHABLE:
+                log.warning("bot.proposal_not_sent")
+                return  # Telegram is unreachable; the rest wait for the next check too
+            mark = proposals.announced if sent == SENT else proposals.announce_refused
             try:
-                with session_scope(self.sessions) as session:
-                    found = proposals.pending(session, datetime.now(UTC), unannounced=True)
+                with session_scope(me.sessions) as session:
+                    mark(session, one.id, datetime.now(UTC))
             except SQLAlchemyError as exc:
-                log.error("bot.proposal_failed", error=type(exc).__name__)
+                # Sent but not marked: this one goes again on the next check, so stop rather
+                # than send the rest unmarked too.
+                log.error("bot.proposal_unmarked", error=type(exc).__name__)
                 return
-            owner = self.settings.telegram_allowed_user_id
-            assert owner is not None  # noqa: S101 - build_bot checks it
-            for one in found:
-                buttons = markup(one.token, cardio=one.kind == proposals.CARDIO)
-                sent = await self.send(bot, owner, text(one), reply_markup=buttons)
-                if sent == UNREACHABLE:
-                    log.warning("bot.proposal_not_sent")
-                    return  # Telegram is unreachable; the rest wait for the next check too
-                mark = proposals.announced if sent == SENT else proposals.announce_refused
-                try:
-                    with session_scope(self.sessions) as session:
-                        mark(session, one.id, datetime.now(UTC))
-                except SQLAlchemyError as exc:
-                    # Sent but not marked: this one goes again on the next check, so stop
-                    # rather than send the rest unmarked too.
-                    log.error("bot.proposal_unmarked", error=type(exc).__name__)
-                    return
-                # Refused for good (blocked, a bad message): logged, never retried, and the
-                # card on Today still shows it; the next one still goes.
-                log.info("bot.proposal_sent" if sent == SENT else "bot.proposal_refused")
+            # Refused for good (blocked, a bad message): logged, never retried, and the card
+            # on Today still shows it; the next one still goes.
+            log.info("bot.proposal_sent" if sent == SENT else "bot.proposal_refused")
 
     async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
         """Save, a kind of cardio, or Discard, on the presser's own proposals."""

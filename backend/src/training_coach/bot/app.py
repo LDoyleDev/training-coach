@@ -2,17 +2,17 @@
 
 Every update meets the sender gate first (``bot.gate``, ADR-0089): only messages and button
 presses in a private chat, from someone linked, get any further. Every handler is registered
-through ``gate.served`` and uses the sessions of the person the gate found. The morning message,
-the evening nudge and Sunday's review are each person's own (``bot.schedules``); the band,
-proposal and plan-notice checks are still the owner's only.
+through ``gate.served`` and uses the sessions of the person the gate found. The scheduled
+messages are each person's own too: the morning message, the evening nudge and Sunday's review
+at their own times (``bot.schedules``), and the band, proposal and plan-notice checks for
+everyone the gate would serve (``Gate.everyone``).
 """
 
 import asyncio
 import warnings
-from collections.abc import Callable, Coroutine, Sequence
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
 
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
@@ -86,7 +86,6 @@ from training_coach.services import (
     queue_actions,
     review,
     user_settings,
-    users,
 )
 from training_coach.services.groq import GroqClient
 from training_coach.services.today import session_plan
@@ -145,7 +144,6 @@ __all__ = ["ALLOWED_UPDATES", "ANYWHERE", "AWAY_TEXT"]
 RESCHEDULE = "reschedule"  # bot_data key: a person's new times, or new link, move their jobs
 ANNOUNCE = "announce_proposals"  # bot_data key: /mcp sends a fresh proposal through this
 FORGET = "forget"  # bot_data key: unlink, leave and erase drop a person's state (ADR-0089)
-Job = Callable[[ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
 
 
 def _retry_seconds(exc: RetryAfter) -> float:
@@ -514,19 +512,6 @@ class Handlers:
             await update.effective_message.reply_text(SOMETHING_WENT_WRONG)
 
 
-def _owners(gate: Gate, job: Job) -> Job:
-    """The band, proposal and plan-notice checks, still the owner's only: skipped whenever a
-    scheduled message to the owner would be (unlinked, or away, ADR-0085)."""
-
-    async def run(context: ContextTypes.DEFAULT_TYPE) -> None:
-        if gate.scheduled(users.OWNER) is not None:
-            await job(context)
-        else:
-            log.info("bot.job_skipped", job="checks")
-
-    return run
-
-
 # PTB's Application takes six type parameters, all fixed by the default builder; spelling them
 # out adds nothing, so the bare generic is deliberate.
 def build_bot(
@@ -579,34 +564,30 @@ def build_bot(
     application.add_handler(
         CallbackQueryHandler(served(daily_handlers.button), pattern=rf"^{daily_ui.PREFIX}:")
     )
-    band_handlers = band_ui.BandHandlers(settings, sessions, send_with_retry)
+    band_handlers = band_ui.BandHandlers(settings, gate.everyone, send_with_retry)
     application.add_handler(
         CallbackQueryHandler(served(band_handlers.button), pattern=band_ui.PATTERN)
     )
     jobs = application.job_queue
     assert jobs is not None  # noqa: S101 - the job-queue extra is a dependency
     # Band workouts to count (ADR-0055): checked every few minutes, each offered once.
-    announce_band = _owners(gate, band_handlers.announce)
-    jobs.run_repeating(announce_band, interval=band_ui.EVERY, name=band_ui.JOB)
+    jobs.run_repeating(band_handlers.announce, interval=band_ui.EVERY, name=band_ui.JOB)
     # And whether band data stopped arriving: checked hourly, told once per gap.
-    watch_band = _owners(gate, band_handlers.watch)
-    jobs.run_repeating(watch_band, interval=band_ui.WATCH_EVERY, name=band_ui.WATCH_JOB)
+    jobs.run_repeating(band_handlers.watch, interval=band_ui.WATCH_EVERY, name=band_ui.WATCH_JOB)
     # Logs a connected AI proposed (ADR-0058): sent as they come, and checked every few
     # minutes for any whose send failed.
-    proposal_handlers = proposals_ui.ProposalHandlers(settings, sessions, send_outcome)
+    proposal_handlers = proposals_ui.ProposalHandlers(settings, gate.everyone, send_outcome)
     application.add_handler(
         CallbackQueryHandler(served(proposal_handlers.button), pattern=proposals_ui.PATTERN)
     )
-    resend = _owners(gate, proposal_handlers.job)
-    jobs.run_repeating(resend, interval=proposals_ui.EVERY, name=proposals_ui.JOB)
+    jobs.run_repeating(proposal_handlers.job, interval=proposals_ui.EVERY, name=proposals_ui.JOB)
 
     # What a release changed in the plan (ADR-0087): told once.
-    notice_handlers = notices_ui.NoticeHandlers(settings, sessions, send_outcome)
-    tell = _owners(gate, notice_handlers.job)
-    jobs.run_repeating(tell, interval=notices_ui.EVERY, name=notices_ui.JOB)
+    notice_handlers = notices_ui.NoticeHandlers(settings, gate.everyone, send_outcome)
+    jobs.run_repeating(notice_handlers.job, interval=notices_ui.EVERY, name=notices_ui.JOB)
 
-    async def announce() -> None:
-        await proposal_handlers.announce(application.bot)
+    async def announce(user_id: int) -> None:
+        await proposal_handlers.announce(application.bot, user_id)
 
     application.bot_data[ANNOUNCE] = announce
     application.add_handler(

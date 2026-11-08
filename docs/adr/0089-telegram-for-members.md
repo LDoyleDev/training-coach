@@ -112,8 +112,16 @@ Each run asks the gate whom it is for (`Gate.scheduled`): someone linked, not cl
 switch and not away (ADR-0085), with the chat read then, so a job left behind can't reach
 anyone; a database error sends nothing. The message is built from their own bound sessions and
 their own settings (paused, nudges, habits), and the morning's daily check, with the band's line,
-comes only with that category open to them (ADR-0090); the owner's are unchanged. The band,
-proposal and plan-notice checks stay the owner's until the next part of step 9.
+comes only with that category open to them (ADR-0090); the owner's are unchanged.
+
+The band, proposal and plan-notice checks stay one repeating job each, as the plan's F section
+has it ("band offers loop over people with Telegram linked"), rather than one per person: each
+run goes through everyone the gate would serve now (`Gate.everyone`), with that person's
+sessions and chat, so one person's blocked chat or failed send doesn't hold up anyone else's.
+Band offers and band data alerts go only to someone with band data open to them; a proposal
+an AI has just made is sent to that person alone. Only start-up's check of the configured
+account, the gate's and the connect claim's still read it (`tests/bot/test_env_id.py`); ops
+alerts (backup, deploy, wind-down counts, the left list) stay the owner's, outside `bot/`.
 
 ## Consequences
 

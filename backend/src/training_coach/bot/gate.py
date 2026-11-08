@@ -85,6 +85,7 @@ class Person:
 
 
 Callback = Callable[[Update, ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
+People = Callable[[], list[Person]]  # everyone a scheduled check goes to now
 Forget = Callable[[int], None]  # drops what a handler class keeps in memory for a user id
 ForPerson = Callable[[Update, ContextTypes.DEFAULT_TYPE, Person], Coroutine[Any, Any, None]]
 
@@ -149,6 +150,17 @@ class Gate:
         if chat is None or not served:
             return None
         return Person(user_id=user_id, chat=chat, sessions=self.sessions_for(user_id))
+
+    def everyone(self) -> list[Person]:
+        """Everyone the band, proposal and plan-notice checks go to now: ``scheduled`` for each
+        person with Telegram linked. A database error sends nothing."""
+        try:
+            with session_scope(self.shared) as session:
+                linked = users.linked(session)
+        except SQLAlchemyError as exc:
+            log.error("bot.job_lookup_failed", error=type(exc).__name__)
+            return []
+        return [me for me in map(self.scheduled, linked) if me is not None]
 
     def person(self, update: object) -> Person | None:
         """Who the gate let ``update`` through for, if anyone (the error handler's question:

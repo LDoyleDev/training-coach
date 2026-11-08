@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
 from tests import oauth_flow as flow
-from tests.bot.fakes import OWNER, SETTINGS, STRANGER, button_data, press, run, texts
+from tests.bot.fakes import OWNER, SETTINGS, STRANGER, button_data, only, press, run, texts
 from training_coach.bot import proposals as proposals_ui
 from training_coach.bot.app import ANNOUNCE
 from training_coach.db.models import HabitCheck, LogProposal, McpConnection, Measurement, Workout
@@ -78,7 +78,7 @@ async def test_each_proposal_is_sent_once_naming_the_app(seeded: Sessions, engin
         sent.append((chat, text, kwargs["reply_markup"]))
         return proposals_ui.SENT
 
-    handlers = proposals_ui.ProposalHandlers(SETTINGS, seeded, send)
+    handlers = proposals_ui.ProposalHandlers(SETTINGS, only(seeded), send)
     await handlers.announce(None)  # type: ignore[arg-type]  # the fake send needs no bot
     await handlers.job(SimpleNamespace(bot=None))  # type: ignore[arg-type]  # fake context
     ((chat, text, markup),) = sent
@@ -94,7 +94,7 @@ async def test_each_proposal_is_sent_once_naming_the_app(seeded: Sessions, engin
 async def test_a_failed_send_is_tried_again(seeded: Sessions, engine: Engine) -> None:
     _propose(seeded, engine)
     send = AsyncMock(side_effect=[proposals_ui.UNREACHABLE, proposals_ui.SENT])
-    handlers = proposals_ui.ProposalHandlers(SETTINGS, seeded, send)
+    handlers = proposals_ui.ProposalHandlers(SETTINGS, only(seeded), send)
     for _ in range(3):
         await handlers.announce(None)  # type: ignore[arg-type]
     assert send.await_count == 2  # failed, then sent; not again after that
@@ -111,7 +111,7 @@ async def test_a_proposal_sent_but_not_marked_stops_the_run(
     _propose(seeded, engine)
     monkeypatch.setattr(proposals_ui.proposals, "announced", _locked)
     send = AsyncMock(return_value=proposals_ui.SENT)
-    await proposals_ui.ProposalHandlers(SETTINGS, seeded, send).announce(None)  # type: ignore[arg-type]
+    await proposals_ui.ProposalHandlers(SETTINGS, only(seeded), send).announce(None)  # type: ignore[arg-type]
     assert send.await_count == 1  # stopped, so nothing goes twice
 
 
@@ -120,7 +120,7 @@ async def test_an_unreadable_database_sends_nothing(
 ) -> None:
     monkeypatch.setattr(proposals_ui.proposals, "pending", _locked)
     send = AsyncMock(return_value=proposals_ui.SENT)
-    await proposals_ui.ProposalHandlers(SETTINGS, seeded, send).announce(None)  # type: ignore[arg-type]
+    await proposals_ui.ProposalHandlers(SETTINGS, only(seeded), send).announce(None)  # type: ignore[arg-type]
     send.assert_not_awaited()
 
 
@@ -154,7 +154,7 @@ async def test_a_cardio_proposal_has_a_button_per_kind_and_names_the_suggestion(
     """Owner, 2026-10-24: the app observes and suggests; the person picks."""
     token = _propose(seeded, engine, **RIDE, avg_hr=139)
     send = AsyncMock(return_value=proposals_ui.SENT)
-    await proposals_ui.ProposalHandlers(SETTINGS, seeded, send).announce(None)  # type: ignore[arg-type]
+    await proposals_ui.ProposalHandlers(SETTINGS, only(seeded), send).announce(None)  # type: ignore[arg-type]
     text, markup = send.await_args.args[2], send.await_args.kwargs["reply_markup"]
     assert text == (
         f"From “Claude”: Cardio, 40 min (bike), HR 139 avg, on {TODAY:%a %d %b}\n"
@@ -173,7 +173,7 @@ async def test_without_a_suggestion_it_says_the_person_picks(
 ) -> None:
     _propose(seeded, engine, kind="cardio", minutes=40)
     send = AsyncMock(return_value=proposals_ui.SENT)
-    await proposals_ui.ProposalHandlers(SETTINGS, seeded, send).announce(None)  # type: ignore[arg-type]
+    await proposals_ui.ProposalHandlers(SETTINGS, only(seeded), send).announce(None)  # type: ignore[arg-type]
     assert "\nZone 2 or moderate. You pick.\n" in send.await_args.args[2]
 
 
@@ -323,7 +323,7 @@ async def test_one_telegram_refuses_does_not_hold_up_the_rest(
     refused = _propose(seeded, engine)
     later = _propose(seeded, engine, kind="habits", habits=["wind_down"])
     send = AsyncMock(side_effect=[proposals_ui.REFUSED, proposals_ui.SENT])
-    handlers = proposals_ui.ProposalHandlers(SETTINGS, seeded, send)
+    handlers = proposals_ui.ProposalHandlers(SETTINGS, only(seeded), send)
     await handlers.announce(None)  # type: ignore[arg-type]  # the fake send needs no bot
     await handlers.announce(None)  # type: ignore[arg-type]
     assert send.await_count == 2  # each once; the refused one isn't tried again
@@ -345,6 +345,6 @@ async def test_a_replaced_measurement_is_named_in_telegram(
         session.commit()
     _propose(seeded, engine, kind="body", measurements={"bodyweight": 82.4})
     send = AsyncMock(return_value=proposals_ui.SENT)
-    await proposals_ui.ProposalHandlers(SETTINGS, seeded, send).announce(None)  # type: ignore[arg-type]
+    await proposals_ui.ProposalHandlers(SETTINGS, only(seeded), send).announce(None)  # type: ignore[arg-type]
     text = send.await_args.args[2]
     assert "Bodyweight 82.4 kg\nReplaces the 78.4 kg saved that day." in text
