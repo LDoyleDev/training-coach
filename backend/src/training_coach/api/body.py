@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.auth import Health
+from training_coach.api.auth import Body
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.measurements import CADENCE, CHECKLIST, SPECS, Kind, how
@@ -49,7 +49,7 @@ class KindView(BaseModel):
 
 
 @router.get("/kinds", response_model=list[KindView])
-def kinds(request: Request, user: Health) -> list[KindView]:
+def kinds(request: Request, user: Body) -> list[KindView]:
     """What can be measured, in order, with units, ranges and how to take each."""
     with session_scope(_bound(request, user)) as session:
         offset = measurements.body_settings(session).thigh_offset_cm
@@ -73,7 +73,7 @@ class GuideView(BaseModel):
 
 
 @router.get("/guide", response_model=GuideView)
-def guide(user: Health) -> GuideView:
+def guide(user: Body) -> GuideView:
     """The "Before you measure" checklist and how often to measure."""
     return GuideView(checklist=list(CHECKLIST), cadence=CADENCE)
 
@@ -84,7 +84,7 @@ class EstimateView(BaseModel):
 
 
 @router.get("/estimates", response_model=list[EstimateView])
-def estimates(request: Request, user: Health) -> list[EstimateView]:
+def estimates(request: Request, user: Body) -> list[EstimateView]:
     """The tape body-fat estimate (%, ±4) for each day with a waist and a neck, newest first;
     empty unless the estimate is turned on and the height is set. Worked out, never stored."""
     with session_scope(_bound(request, user)) as session:
@@ -99,7 +99,7 @@ class AverageView(BaseModel):
 
 
 @router.get("/averages", response_model=list[AverageView])
-def averages(request: Request, user: Health) -> list[AverageView]:
+def averages(request: Request, user: Body) -> list[AverageView]:
     """Bodyweight's 7-day average at each day with a weigh-in, newest first: the first is the
     latest, the rest are its trend."""
     with session_scope(_bound(request, user)) as session:
@@ -114,7 +114,7 @@ class MeasurementView(BaseModel):
 
 
 @router.get("", response_model=list[MeasurementView])
-def history(request: Request, user: Health) -> list[MeasurementView]:
+def history(request: Request, user: Body) -> list[MeasurementView]:
     """Every measurement, newest day first."""
     with session_scope(_bound(request, user)) as session:
         entries = measurements.history(session)
@@ -132,7 +132,7 @@ class MeasureSaved(BaseModel):
 
 
 @router.put("", response_model=MeasureSaved)
-def save(body: MeasureBody, request: Request, user: Health) -> MeasureSaved:
+def save(body: MeasureBody, request: Request, user: Body) -> MeasureSaved:
     """Save a day's measurements (any of them), replacing the same kind that day; with a
     warning for each one far from the last earlier entry of its kind."""
     today = _today(request)
@@ -147,7 +147,7 @@ def save(body: MeasureBody, request: Request, user: Health) -> MeasureSaved:
 
 
 @router.delete("/{on}/{kind}", status_code=status.HTTP_204_NO_CONTENT)
-def remove(on: date, kind: KindName, request: Request, user: Health) -> None:
+def remove(on: date, kind: KindName, request: Request, user: Body) -> None:
     with session_scope(_bound(request, user)) as session:
         removed = measurements.delete(session, on, Kind(kind))
     if not removed:

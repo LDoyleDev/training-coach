@@ -22,7 +22,7 @@ from sqlalchemy import Engine, delete, select
 
 from tests.routes import api_routes
 from training_coach.api.app import create_app
-from training_coach.api.auth import health, owner
+from training_coach.api.auth import HEALTH_GATES, owner
 from training_coach.config import Settings
 from training_coach.db.models import (
     AiComment,
@@ -49,9 +49,10 @@ from training_coach.db.models import (
 )
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain import readiness
+from training_coach.domain.consent import Category
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.habits import Habit
-from training_coach.services import auth, seed, users
+from training_coach.services import auth, consent, seed, users
 
 ORIGIN = "https://coach.example.com"
 NOW = datetime(2026, 10, 12, 10, tzinfo=UTC)  # a Monday
@@ -74,8 +75,8 @@ class Marks:
 
     @property
     def training(self) -> list[str]:
-        """What a member is shown of their own: no measurements or band steps, which are health
-        data, until the lawyer's review (ADR-0059)."""
+        """What a member without consent is shown of their own: no measurements or band steps,
+        which are health data (ADR-0090)."""
         return [self.name, self.day.isoformat(), self.kit]
 
 
@@ -203,7 +204,7 @@ def _reads(
     log_plan = {"day": NOW.date().isoformat(), "template_id": str(my_session)}
     for path, route in api_routes(app):
         calls = {dependency.call for dependency in route.dependant.dependencies}
-        if "GET" not in (route.methods or set()) or not {owner, health} & calls:
+        if "GET" not in (route.methods or set()) or not ({owner} | HEALTH_GATES) & calls:
             continue
         url = path
         if "{" in path:
@@ -227,9 +228,20 @@ def two(engine: Engine) -> Iterator[Engine]:
         yield engine
 
 
-@pytest.mark.parametrize(("me", "other"), [(2, 1), (1, 2)], ids=["member", "owner"])
-def test_signed_in_reads_show_only_my_own_data(two: Engine, me: int, other: int) -> None:
+@pytest.mark.parametrize(
+    ("me", "other", "consented"),
+    [(2, 1, False), (2, 1, True), (1, 2, False)],
+    ids=["member", "member with every consent", "owner"],
+)
+def test_signed_in_reads_show_only_my_own_data(
+    two: Engine, me: int, other: int, consented: bool
+) -> None:
     mine, theirs = (ALPHA, BRAVO) if me == 1 else (BRAVO, ALPHA)
+    if consented:  # every health route then answers the member with their own (ADR-0090)
+        with session_scope(make_session_factory(two, user_id=me)) as bound:
+            for category in Category:
+                consent.give(bound, category, NOW)
+    sees_health = me == 1 or consented
     with make_session_factory(two, user_id=me)() as bound:
         token = auth.create_link(bound, NOW)
         bound.commit()
@@ -264,17 +276,17 @@ def test_signed_in_reads_show_only_my_own_data(two: Engine, me: int, other: int)
 
     assert len(before) >= 30, sorted(before)
     for path in OTHERS:
-        # 404, or 403 where a member is refused health data outright (ADR-0059).
-        refused = (404, 403) if me != 1 else (404,)
+        # 404, or 403 where a member without consent is refused health data (ADR-0090).
+        refused = (404,) if sees_health else (404, 403)
         assert before[path][0] in refused, f"{path} answered with the other person's row"
     for path, (code, _) in before.items():
-        # A member is refused health routes outright, so they read nothing at all (ADR-0059).
-        assert code == 200 or path in OTHERS or (me != 1 and code == 403), f"{path}: {code}"
+        # A member without consent is refused health routes, so reads nothing there (ADR-0090).
+        assert code == 200 or path in OTHERS or (not sees_health and code == 403), f"{path}: {code}"
     everything = b"".join(body for _, body in before.values()).decode("utf-8", "replace")
     for mark in theirs.visible:
         leaks = [p for p, (_, b) in before.items() if mark.encode() in b]
         assert not leaks, f"the other person's {mark!r} shows in {leaks}"
-    for mark in mine.visible if me == 1 else mine.training:
+    for mark in mine.visible if sees_health else mine.training:
         assert mark in everything, f"my own {mark!r} shows nowhere: the canary isn't reached"
     changed = sorted(p for p in before if before[p] != after[p])
     assert not changed, f"deleting the other person changed what I see: {changed}"

@@ -34,6 +34,8 @@ from training_coach.db.base import Base
 from training_coach.db.types import UTCDateTime, utcnow
 from training_coach.domain.band_watch import Feed, Refusal
 from training_coach.domain.blocks import BlockKind
+from training_coach.domain.consent import Answer as ConsentAnswer
+from training_coach.domain.consent import Category as ConsentCategory
 from training_coach.domain.daily_check import Energy, Sleep, Soreness
 from training_coach.domain.enums import (
     CardioActivity,
@@ -848,6 +850,25 @@ class ReadinessCheck(Owned, Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     version: Mapped[int] = mapped_column(Integer)  # which questions (domain.readiness.VERSION)
     answered_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class Consent(Owned, Base):
+    """A person's yes or withdrawal for one category of data (ADR-0090), append-only: the newest
+    row per category is the answer now, and the rows before it show when it was given and to
+    which wording. Leaving or erasing deletes them with everything else."""
+
+    __tablename__ = "consents"
+    __table_args__ = (
+        CheckConstraint(_in("category", ConsentCategory), name="category_valid"),
+        CheckConstraint(_in("answer", ConsentAnswer), name="answer_valid"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    category: Mapped[str] = mapped_column(String(16))
+    answer: Mapped[str] = mapped_column(String(16))
+    version: Mapped[int] = mapped_column(Integer)  # the wording shown (domain.consent.VERSIONS)
+    at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
 class DailyCheck(Owned, Base):

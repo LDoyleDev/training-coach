@@ -293,6 +293,7 @@ def test_every_per_person_table_is_covered() -> None:
         "web_sessions",
         "readiness_checks",
         "daily_checks",
+        "consents",
         "ai_connections",
         "ingest_keys",
         "band_feeds",

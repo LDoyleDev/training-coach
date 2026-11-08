@@ -19,8 +19,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.config import Settings
 from training_coach.db.models import AiComment
-from training_coach.db.session import session_scope
-from training_coach.services import ai_key, ai_summary
+from training_coach.db.session import bound_user, session_scope
+from training_coach.domain.consent import Category
+from training_coach.services import ai_key, ai_summary, consent
 from training_coach.services.groq import GroqClient, GroqUnavailableError
 from training_coach.services.review import week_start
 from training_coach.services.secret_box import SecretBox
@@ -74,7 +75,14 @@ async def weekly(sessions: sessionmaker[Session], settings: Settings, today: dat
         if key is None:  # marked failed just now: tell the person, once
             log.warning("ai.comment_skipped", reason="unreadable_key")
             return KEY_FAILED
-        options = ai_summary.Options(WEEKS, body=status.body, readiness=status.readiness)
+        # A member's health data only with their yes to it as well as the switch (ADR-0090).
+        user = bound_user(session)
+        opened = consent.open_to(session, user) if user is not None else frozenset()
+        options = ai_summary.Options(
+            WEEKS,
+            body=status.body and Category.BODY in opened,
+            readiness=status.readiness and Category.DAILY_CHECK in opened,
+        )
         summary = ai_summary.summary(session, today, options)
     client = GroqClient(key, comment_model=settings.groq_comment_model, attempts=2)
     try:

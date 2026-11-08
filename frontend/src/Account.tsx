@@ -3,6 +3,7 @@ import AiApps from './account/AiApps'
 import AiComments from './account/AiComments'
 import BandImport from './account/BandImport'
 import BodySettings from './account/BodySettings'
+import Consents from './account/Consents'
 import HeartRateZones from './account/HeartRateZones'
 import Leave from './account/Leave'
 import MyEquipment from './account/MyEquipment'
@@ -13,6 +14,7 @@ import WeightSteps from './account/WeightSteps'
 import CopyForAI from './account/CopyForAI'
 import Settings from './account/Settings'
 import Toast from './components/Toast'
+import Consented from './consent/Consented'
 import { InstallCard } from './pwa/InstallApp'
 import { INTENDED_PURPOSE } from './session/safety'
 import { card, danger, primaryInline, secondary } from './ui'
@@ -264,12 +266,21 @@ export default function Account() {
             </button>
           </section>
 
+          <Consents />
+
           <CopyForAI />
           <AiComments />
           <AiApps />
-          <BandImport />
-          <HeartRateZones />
-          <BodySettings />
+          {/* Band import asks a member for consent; the settings wait for it (ADR-0090). */}
+          <Consented category="band">
+            <BandImport />
+          </Consented>
+          <Consented category="band" quiet>
+            <HeartRateZones />
+          </Consented>
+          <Consented category="body" quiet>
+            <BodySettings />
+          </Consented>
 
           <section aria-labelledby="about" className={card}>
             <h2 id="about" className="mb-2 text-xl">

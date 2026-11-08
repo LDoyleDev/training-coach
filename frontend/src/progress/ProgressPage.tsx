@@ -3,6 +3,7 @@ import { fetchProgress, type Standing } from '../api'
 import AppShell from '../components/AppShell'
 import BandSummary from '../components/BandSummary'
 import BodyFatTrend from './BodyFatTrend'
+import Consented from '../consent/Consented'
 import SessionTimes from './SessionTimes'
 import TrendChart from './TrendChart'
 import { local } from './chart'
@@ -77,8 +78,12 @@ function Standings() {
       <a href="/review" className={secondary + ' inline-flex items-center self-start no-underline'}>
         This week's review
       </a>
-      <BandSummary />
-      <BodyFatTrend />
+      <Consented category="band" quiet>
+        <BandSummary />
+      </Consented>
+      <Consented category="body" quiet>
+        <BodyFatTrend />
+      </Consented>
       <SessionTimes />
       <ul className="flex flex-col gap-3">
         {loaded.standings.map((s) => {
