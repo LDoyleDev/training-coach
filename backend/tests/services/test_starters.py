@@ -22,7 +22,7 @@ from training_coach.db.models import (
     TemplateItem,
     User,
 )
-from training_coach.db.session import make_session_factory, session_scope
+from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
 from training_coach.domain import trim
 from training_coach.services import plan_import, users
 from training_coach.services.seed import PlanSeed, apply_seed, bundled_plan
@@ -215,7 +215,7 @@ def _before() -> PlanSeed:
     """plan.toml as it was before the starters: no starters, and the ranges they took over."""
     text = files("training_coach.seed").joinpath("plan.toml").read_text(encoding="utf-8")
     data = copy.deepcopy(tomllib.loads(text))
-    del data["starters"], data["new_people"]
+    del data["starters"], data["new_people"], data["gym_swaps"]
     for exercise in data["exercises"]:
         if exercise["slug"] in OLD_RANGES:
             exercise["range"] = OLD_RANGES[exercise["slug"]]
@@ -249,6 +249,36 @@ def test_seeding_the_starters_over_the_owner_changes_none_of_theirs(engine: Engi
         assert plan_import.preview(mine, bundled_plan(), date(2026, 11, 9)).changes == ()
 
 
+def test_seeding_the_gym_swaps_over_the_owner_changes_none_of_theirs(engine: Engine) -> None:
+    """The release that brings the gym swaps (S1, Decided 5) after the starters: the owner's
+    rows stay as they were, with no notice (ADR-0087) and nothing to import, and so do a
+    member's, whose gym version waits for setup."""
+    text = files("training_coach.seed").joinpath("plan.toml").read_text(encoding="utf-8")
+    data = tomllib.loads(text)
+    del data["gym_swaps"]
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=2))
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, PlanSeed.model_validate(data))
+    before = _owners(engine)
+    with make_session_factory(engine, user_id=2)() as theirs:
+        items = theirs.scalars(select(TemplateItem.id).order_by(TemplateItem.id)).all()
+    with session_scope(make_session_factory(engine)) as shared:
+        assert not apply_seed(shared, bundled_plan()).changed
+    assert _owners(engine) == before
+    with make_session_factory(engine, user_id=2)() as theirs:
+        assert theirs.scalars(select(TemplateItem.id).order_by(TemplateItem.id)).all() == items
+    with make_session_factory(engine)() as shared:
+        assert shared.scalars(select(PlanNotice), execution_options={ALL_USERS: True}).all() == []
+    with make_session_factory(engine, user_id=OWNER)() as mine:
+        assert plan_import.preview(mine, bundled_plan(), date(2026, 11, 9)).changes == ()
+
+
+def _swap(data: dict[str, Any], gym: str) -> dict[str, Any]:
+    found: dict[str, Any] = next(s for s in data["gym_swaps"] if s["gym"] == gym)
+    return found
+
+
 def _exercise(data: dict[str, Any], slug: str) -> dict[str, Any]:
     found: dict[str, Any] = next(e for e in data["exercises"] if e["slug"] == slug)
     return found
@@ -265,8 +295,41 @@ def _exercise(data: dict[str, Any], slug: str) -> dict[str, Any]:
             "unknown exercise nope",
         ),
         (lambda d: _exercise(d, "plank").update(range=[10, 30]), "have a range"),
+        (lambda d: _swap(d, "leg-press").update(from_step="Squat"), "not in its ladder"),
+        (lambda d: _swap(d, "leg-press").update(gym="nope"), "unknown exercise"),
+        (lambda d: _swap(d, "leg-press").update(gym="bulgarian-split-squat"), "not a gym exer"),
+        (
+            lambda d: _swap(d, "leg-press").update(from_step="A lower seat, arms crossed"),
+            "below Leg press's level",
+        ),
+        (
+            lambda d: _swap(d, "lat-pulldown").update(sessions=["two-days-a", "four-days-lower-1"]),
+            "four-days-lower-1 is no starter session with it",
+        ),
+        (lambda d: _swap(d, "lat-pulldown").update(sessions=[]), "two swaps for every session"),
+        (lambda d: d["gym_swaps"].append(_swap(d, "lat-pulldown")), "two-days-b has two swaps"),
+        (
+            lambda d: _swap(d, "leg-press").update(exercise="pull-up", from_step="Strict pull-up"),
+            "no starter uses",
+        ),
+        (lambda d: _swap(d, "leg-press").update(rep_min=16), "rep_max < rep_min"),
     ],
-    ids=["unknown-default", "days", "week", "exercise", "range"],
+    ids=[
+        "unknown-default",
+        "days",
+        "week",
+        "exercise",
+        "range",
+        "swap-step",
+        "swap-gym",
+        "swap-home-exercise",
+        "swap-below",
+        "swap-session",
+        "swap-two-general",
+        "swap-two-named",
+        "swap-unused",
+        "swap-range",
+    ],
 )
 def test_a_starter_is_checked_like_a_session(change: Any, error: str) -> None:
     text = files("training_coach.seed").joinpath("plan.toml").read_text(encoding="utf-8")

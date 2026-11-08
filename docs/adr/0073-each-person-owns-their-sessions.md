@@ -67,3 +67,13 @@ but the owner starts on until setup picks by days a week: the 3-day for now. The
 the `[[sessions]]`, the 7-day cycle, which stays his plan and what the import follows. Someone on
 a starter starts every exercise at the bottom of its ladder; an exercise's `start` stays where the
 owner's cycle starts it, so a new owner (an erase, a fresh install) starts where he always has.
+
+## Addendum (8 Nov 2026): the starters' gym versions
+
+`plan.toml`'s `[[gym_swaps]]` say which starter exercise is done as which gym exercise, from
+which home step (S1's "At the gym, from"), and in which sessions when it differs (the lat
+pulldown and the seated calf raise). A swapped item keeps its sets and pair and takes the gym
+exercise's range from the owner's cycle. The seed refuses a swap from a step below the gym
+exercise's level. `services/gym_version.py` writes a person's gym version from the steps they are
+placed on, as one plan version through the same save as an edit of their own; setup calls it
+(builder step 10). It changes only a starter's sessions, never the owner's cycle.
