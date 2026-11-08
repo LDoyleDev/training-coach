@@ -1608,3 +1608,85 @@ export async function fetchUnlocks(
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as KitUnlocks
 }
+
+// ---------------------------------------------------------------- Telegram for members (ADR-0089)
+
+export type TelegramStatus = Schemas['TelegramView']
+export type TelegramLink = Schemas['TelegramLinkView']
+/** Why a code was refused: not it, the fifth wrong one (the link is gone), no open link, or a
+ *  conflict (more than one claim, or that Telegram account is someone's): load the status. */
+export type CodeRefusal = 'wrong' | 'ended' | 'gone' | 'conflict'
+
+/** Telegram on Account; null when it isn't open to you (signed out, or members closed). */
+export async function fetchTelegram(signal?: AbortSignal): Promise<TelegramStatus | null> {
+  const res = await fetch('/api/account/telegram', { signal, credentials: 'same-origin' })
+  if (res.status === 401 || res.status === 403) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as TelegramStatus
+}
+
+/** A new connect link (needs a recent sign-in): 'off' while the bot isn't running,
+ *  'connected' if Telegram is connected already. */
+export const makeTelegramLink = () => withFreshSignIn(makeTelegramLinkNow)
+
+async function makeTelegramLinkNow(): Promise<TelegramLink | 'off' | 'connected'> {
+  const res = signedIn(
+    await fetch('/api/account/telegram/link', { method: 'POST', credentials: 'same-origin' }),
+  )
+  if (res.status === 403) throw new StaleSignInError()
+  if (res.status === 503) return 'off'
+  if (res.status === 409) return 'connected'
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as TelegramLink
+}
+
+export async function cancelTelegramLink(): Promise<void> {
+  signedIn(
+    await fetch('/api/account/telegram/link', { method: 'DELETE', credentials: 'same-origin' }),
+  )
+}
+
+function codeRefusal(status: number): CodeRefusal {
+  if (status === 400) return 'wrong'
+  if (status === 410) return 'ended'
+  if (status === 404) return 'gone'
+  if (status === 409) return 'conflict'
+  throw new Error(`The server answered ${status}.`)
+}
+
+async function sendCode(path: string, code: string): Promise<Response> {
+  return signedIn(
+    await fetch(path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    }),
+  )
+}
+
+/** The Telegram name the code was sent to, shown before Confirm; or why not. */
+export async function checkTelegramCode(code: string): Promise<{ name: string } | CodeRefusal> {
+  const res = await sendCode('/api/account/telegram/code', code)
+  if (res.ok) return (await res.json()) as Schemas['TelegramMatch']
+  return codeRefusal(res.status)
+}
+
+/** Connect the Telegram account the code was sent to (needs a recent sign-in). */
+export const confirmTelegram = (code: string) => withFreshSignIn(() => confirmTelegramNow(code))
+
+async function confirmTelegramNow(code: string): Promise<'connected' | CodeRefusal> {
+  const res = await sendCode('/api/account/telegram/confirm', code)
+  if (res.status === 403) throw new StaleSignInError()
+  if (res.status === 204) return 'connected'
+  return codeRefusal(res.status)
+}
+
+/** Disconnect Telegram; the bot tells the old chat. */
+export async function unlinkTelegram(): Promise<void> {
+  const res = signedIn(
+    await fetch('/api/account/telegram', { method: 'DELETE', credentials: 'same-origin' }),
+  )
+  if (res.status !== 204 && res.status !== 404)
+    throw new Error(`The server answered ${res.status}.`)
+}
