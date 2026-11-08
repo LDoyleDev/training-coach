@@ -2,8 +2,10 @@
 
 **Drafts, not published and not legal advice.** The site is private (ADR-0041): today only Liam
 uses it, so no privacy notice or Impressum is required yet. Both are needed before anyone else
-signs in. Before launch they are reviewed together with the UG and the lawyer (deferred to
-launch), and published as pages linked from every page footer.
+signs in. The first people are invited family and friends, a private test
+([ADR-0090](../adr/0090-consent-per-category-family-and-friends.md)); before anyone outside
+them, the texts are reviewed together with the UG and the lawyer, and published as pages linked
+from every page footer.
 
 | Draft | For | Open before publishing |
 | --- | --- | --- |
