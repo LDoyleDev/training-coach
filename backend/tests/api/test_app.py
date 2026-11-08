@@ -12,6 +12,7 @@ from structlog.testing import capture_logs
 from training_coach import __version__
 from training_coach.api import app as api_app
 from training_coach.api.app import (
+    _bot_loop,
     _left_back,
     _on_loop,
     _owner_notifier,
@@ -241,6 +242,15 @@ async def test_settings_from_a_worker_thread_reach_the_bot_on_its_loop() -> None
     await asyncio.to_thread(call, OWNER, Prefs(paused=True))  # as a sync route would
     await asyncio.sleep(0)  # let the loop run the scheduled call
     assert seen == [(Prefs(paused=True), asyncio.get_running_loop())]
+
+
+async def test_forgetting_from_a_worker_thread_runs_on_the_bots_loop() -> None:
+    """Unlink, leave and erase are sync routes; the bot's state is touched on its loop only."""
+    seen: list[tuple[int, asyncio.AbstractEventLoop]] = []
+    call = _bot_loop(lambda user: seen.append((user, asyncio.get_running_loop())))
+    await asyncio.to_thread(call, 2)
+    await asyncio.sleep(0)
+    assert seen == [(2, asyncio.get_running_loop())]
 
 
 async def test_only_the_owners_changes_move_the_bots_jobs() -> None:

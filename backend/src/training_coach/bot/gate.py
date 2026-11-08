@@ -84,6 +84,7 @@ class Person:
 
 
 Callback = Callable[[Update, ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
+Forget = Callable[[int], None]  # drops what a handler class keeps in memory for a user id
 ForPerson = Callable[[Update, ContextTypes.DEFAULT_TYPE, Person], Coroutine[Any, Any, None]]
 
 
@@ -95,6 +96,20 @@ class Gate:
         self.found: OrderedDict[int, Person] = OrderedDict()  # update id -> person
         self.bound: dict[int, sessionmaker[Session]] = {}  # user id -> their sessions
         self.connect = Connect(settings, shared)  # a stranger's /start <token> (ADR-0089)
+        self.forgets: list[Forget] = []  # every handler class's in-memory state per person
+
+    def keeps(self, forget: Forget) -> None:
+        """Register a handler class that keeps state by user id: ``forget`` drops a person's."""
+        self.forgets.append(forget)
+
+    def forget(self, user_id: int) -> None:
+        """Drop everything kept in memory for ``user_id`` (ADR-0089): after an unlink, a leave
+        or an erase, so nothing of theirs is waiting when they, or anyone, come back."""
+        for forget in self.forgets:
+            forget(user_id)
+        self.bound.pop(user_id, None)
+        for update_id in [u for u, p in self.found.items() if p.user_id == user_id]:
+            del self.found[update_id]
 
     def served(self, handler: ForPerson) -> Callback:
         """``handler`` with the person this update is from; nothing runs without one. It keeps

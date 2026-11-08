@@ -83,8 +83,8 @@ formats every file you edit (ADR-0021).
 
 - Every bot update meets the sender gate first (`bot/gate.py`, ADR-0089): only people linked in
   `users.telegram_user_id` get past it. Every handler is registered through `gate.served(...)`,
-  uses the sessions of the person it found, keeps in-memory state by their user id and never
-  reads the env id (`tests/bot/test_env_id.py`; only the owner's scheduled messages may). A
+  uses the sessions of the person it found, keeps in-memory state by their user id (registered
+  with `gate.keeps`, so unlink, leave and erase drop it) and never reads the env id (`tests/bot/test_env_id.py`; only the owner's scheduled messages may). A
   member's health buttons check the category's consent first (`Person.not_open`, ADR-0090). Add
   each new handler to `tests/bot/test_two_people.py`, with strangers ignored.
 - LLM output is untrusted data: parse into a Pydantic model, reject anything that does not
