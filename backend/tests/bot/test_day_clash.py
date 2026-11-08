@@ -307,12 +307,15 @@ async def test_a_pick_on_a_token_that_isnt_waiting_is_not_remembered(
     gone = await run(application, press("lp:zone2:" + "ab" * 16, OWNER))
     assert texts(gone) == [proposals_ui.GONE]
     (handlers,) = {
-        h.callback.__self__
+        h.callback.__wrapped__.__self__
         for group in application.handlers.values()
         for h in group
-        if isinstance(getattr(h.callback, "__self__", None), proposals_ui.ProposalHandlers)
+        if isinstance(
+            getattr(getattr(h.callback, "__wrapped__", None), "__self__", None),
+            proposals_ui.ProposalHandlers,
+        )
     }
-    assert handlers.picked == {}
+    assert handlers.picked.get(users.OWNER, {}) == {}
 
 
 async def test_counting_a_band_workout_into_a_day_with_its_session_asks(

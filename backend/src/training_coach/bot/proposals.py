@@ -30,6 +30,7 @@ from telegram.ext import ContextTypes
 from training_coach.bot import clash as clash_ui
 from training_coach.bot import links
 from training_coach.bot.buttons import edit_quietly
+from training_coach.bot.gate import Person
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
@@ -107,16 +108,18 @@ def saved_text(saved: proposals.Saved) -> str:
 class ProposalHandlers:
     def __init__(self, settings: Settings, sessions: sessionmaker[Session], send: Send) -> None:
         self.settings = settings
-        self.sessions = sessions
+        self.sessions = sessions  # the owner's: for sending them out only (step 9)
         self.send = send
         # The check and a fresh proposal can both reach for the same one: one sender at a time,
         # so nothing goes twice.
         self.sending = asyncio.Lock()
-        # Token -> the clash shown for it, and a day to move to found taken (ADR-0060).
-        self.asked: dict[str, tuple[Clash, date | None]] = {}
-        # Token -> the kind of cardio picked, kept while its clash question is answered; only
-        # for a token that matched a waiting proposal. Lost on a restart: then it is asked again.
-        self.picked: dict[str, str] = {}
+        # User id -> token -> the clash shown for it, and a day to move to found taken
+        # (ADR-0060).
+        self.asked: dict[int, dict[str, tuple[Clash, date | None]]] = {}
+        # User id -> token -> the kind of cardio picked, kept while its clash question is
+        # answered; only for a token that matched a waiting proposal. Lost on a restart: then it
+        # is asked again.
+        self.picked: dict[int, dict[str, str]] = {}
 
     async def job(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         await self.announce(context.bot)
@@ -152,11 +155,10 @@ class ProposalHandlers:
                 # card on Today still shows it; the next one still goes.
                 log.info("bot.proposal_sent" if sent == SENT else "bot.proposal_refused")
 
-    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Save, a kind of cardio, or Discard. Strangers get nothing, not even an answer (T1)."""
+    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """Save, a kind of cardio, or Discard, on the presser's own proposals."""
         query = update.callback_query
-        user = update.effective_user
-        if query is None or user is None or user.id != self.settings.telegram_allowed_user_id:
+        if query is None:
             return
         await query.answer()
         press = parse(query.data)
@@ -164,13 +166,15 @@ class ProposalHandlers:
             return
         now = datetime.now(UTC)
         reply_markup = None
-        asked = self.asked.get(press.token)
+        asked_mine = self.asked.setdefault(me.user_id, {})
+        picked = self.picked.setdefault(me.user_id, {})
+        asked = asked_mine.get(press.token)
         pick = PICKS.get(press.action)
         if press.action == "cancel" or (press.action == MOVE and asked is not None):
             await edit_quietly(query.edit_message_reply_markup(None))
             if press.action == "cancel":
-                self.asked.pop(press.token, None)
-                await query.message.reply_text(WAITING, reply_markup=self._waiting(press.token))
+                asked_mine.pop(press.token, None)
+                await query.message.reply_text(WAITING, reply_markup=self._waiting(me, press.token))
             else:
                 assert asked is not None  # noqa: S101 - checked above
                 today = local_date(now, self.settings.tz)
@@ -180,12 +184,19 @@ class ProposalHandlers:
         answer = None
         if press.action not in ACTIONS:  # an answer to the question
             if asked is None:  # never asked, or forgotten in a restart
-                await query.message.reply_text(WAITING, reply_markup=self._waiting(press.token))
+                await query.message.reply_text(WAITING, reply_markup=self._waiting(me, press.token))
                 return
             answer = clash_ui.resolution(press.action, asked[0], local_date(now, self.settings.tz))
+        if press.action != "discard":
+            # Health data in it needs the person's yes (ADR-0090): checked again here, as the
+            # wording a yes was given to may have changed since it was proposed.
+            refused = self._not_open(me, press.token, now)
+            if refused is not None:
+                await query.message.reply_text(refused)
+                return
         result: proposals.Resolved | Clash | Refused
         try:
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 if press.action == "discard":
                     result = proposals.discard(session, press.token, now, "telegram")
                     reply = DISCARDED if isinstance(result, proposals.Discarded) else ""
@@ -197,13 +208,15 @@ class ProposalHandlers:
                         now,
                         "telegram",
                         answer,
-                        cardio=pick or self.picked.get(press.token),
+                        cardio=pick or picked.get(press.token),
                     )
                     reply = ""
                     if isinstance(result, proposals.Unpicked):
                         reply, reply_markup = UNPICKED, markup(press.token, cardio=True)
                     elif isinstance(result, Clash | Refused):
-                        reply, reply_markup = self._ask(press.token, result, answer, now)
+                        reply, reply_markup = self._ask(
+                            asked_mine, press.token, result, answer, now
+                        )
                     elif isinstance(result, proposals.Saved):
                         reply = saved_text(result)
                         reply_markup = links.with_open(None, self.settings.public_url, links.HOME)
@@ -214,10 +227,10 @@ class ProposalHandlers:
             await query.message.reply_text(FAILED)
             return
         if not isinstance(result, Clash | Refused):
-            self.asked.pop(press.token, None)
-            self.picked.pop(press.token, None)
+            asked_mine.pop(press.token, None)
+            picked.pop(press.token, None)
         elif pick is not None:  # it is waiting, for the answer to the question
-            self.picked[press.token] = pick
+            picked[press.token] = pick
         if isinstance(result, proposals.Already):
             reply = ALREADY[result.status]
         elif isinstance(result, proposals.Gone):
@@ -226,31 +239,46 @@ class ProposalHandlers:
         await query.message.reply_text(reply, reply_markup=reply_markup)
         log.info("bot.proposal_answered", action=press.action, outcome=type(result).__name__)
 
-    def _waiting(self, token: str) -> InlineKeyboardMarkup:
+    def _not_open(self, me: Person, token: str, now: datetime) -> str | None:
+        """The line for a proposal whose health data isn't open to ``me``, or None."""
+        if me.owner:
+            return None
+        with session_scope(me.sessions) as session:
+            needs = proposals.needs(session, token, now)
+        return me.not_open(needs) if needs is not None else None
+
+    def _waiting(self, me: Person, token: str) -> InlineKeyboardMarkup:
         """The buttons of one still waiting: a button per kind for cardio, looked up rather than
         remembered, so they come back after a restart."""
         try:
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 kind = proposals.waiting_kind(session, token, datetime.now(UTC))
         except SQLAlchemyError as exc:
             log.error("bot.proposal_failed", error=type(exc).__name__)
             kind = None
-        return markup(token, cardio=kind == proposals.CARDIO or token in self.picked)
+        picked = token in self.picked.get(me.user_id, {})
+        return markup(token, cardio=kind == proposals.CARDIO or picked)
 
     def _ask(
-        self, token: str, result: Clash | Refused, answer: Resolution | None, now: datetime
+        self,
+        mine: dict[str, tuple[Clash, date | None]],
+        token: str,
+        result: Clash | Refused,
+        answer: Resolution | None,
+        now: datetime,
     ) -> tuple[str, InlineKeyboardMarkup]:
-        """The question (again), or the days to move to when the one picked was taken."""
-        shown = self.asked.get(token)
+        """The question (again), or the days to move to when the one picked was taken; ``mine``
+        is the presser's questions."""
+        shown = mine.get(token)
         if shown is not None and (isinstance(result, Refused) or result.moving):
             taken = result.day if isinstance(result, Clash) else shown[1]
-            self.asked[token] = (shown[0], taken)
+            mine[token] = (shown[0], taken)
             today = local_date(now, self.settings.tz)
             days = clash_ui.days_keyboard(PREFIX, token, shown[0], today, taken)
             why = clash_ui.taken_text(result) if isinstance(result, Clash) else result.reason
             return f"{why}\n\n{clash_ui.MOVE_ASK_BUTTONS}", days
         assert isinstance(result, Clash)  # noqa: S101 - a refusal only answers a move
-        self.asked[token] = (result, None)
+        mine[token] = (result, None)
         reply = clash_ui.text(result)
         if answer is not None:
             reply = f"{clash_ui.CHANGED}\n\n{reply}"
