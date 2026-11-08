@@ -4,6 +4,49 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.20.0](https://github.com/LDoyleDev/training-coach/compare/v1.19.0...v1.20.0) (2026-11-08)
+
+
+### Features
+
+* **api:** a member's health data opens per category on consent (ADR-0090) ([#618](https://github.com/LDoyleDev/training-coach/issues/618)) ([9c09889](https://github.com/LDoyleDev/training-coach/commit/9c0988968c9137270d153ff0f078a33f05204807))
+* **api:** connect a member's Telegram with a link and a code (ADR-0089) ([#639](https://github.com/LDoyleDev/training-coach/issues/639)) ([3977b1b](https://github.com/LDoyleDev/training-coach/commit/3977b1bd62bdc157f0fccd503126ee4f32896670))
+* **api:** consent records per category; withdrawing erases (ADR-0090) ([#617](https://github.com/LDoyleDev/training-coach/issues/617)) ([b4d8028](https://github.com/LDoyleDev/training-coach/commit/b4d80282abcf76f795b96c63e0f00c236f26404f))
+* **bot:** a stranger's /start &lt;token&gt; gets the connect code (ADR-0089) ([#643](https://github.com/LDoyleDev/training-coach/issues/643)) ([d150809](https://github.com/LDoyleDev/training-coach/commit/d150809f8d109ae632901df7415b99e178883012))
+* **bot:** band offers and alerts, proposals and plan notices per person ([#654](https://github.com/LDoyleDev/training-coach/issues/654)) ([1f18f68](https://github.com/LDoyleDev/training-coach/commit/1f18f68807adff28957e4a992876515320e93bea))
+* **bot:** band, daily check and proposals use the sender's data and consent ([#634](https://github.com/LDoyleDev/training-coach/issues/634)) ([b34159c](https://github.com/LDoyleDev/training-coach/commit/b34159c56b987c1dd017abe9ff3434a0cc04b6cb))
+* **bot:** morning, nudge and review per person (joining step 9) ([#652](https://github.com/LDoyleDev/training-coach/issues/652)) ([1ccd713](https://github.com/LDoyleDev/training-coach/commit/1ccd713ac6138a71a086d8537816fc5cf64ad735))
+* **bot:** one sender gate before every handler (ADR-0089) ([#615](https://github.com/LDoyleDev/training-coach/issues/615)) ([71cf9b0](https://github.com/LDoyleDev/training-coach/commit/71cf9b035c36938f87f404c3f50316df482156b8))
+* **bot:** progress, habits, stretching, undo and share use the sender's data ([#632](https://github.com/LDoyleDev/training-coach/issues/632)) ([3bc6efb](https://github.com/LDoyleDev/training-coach/commit/3bc6efb0c8509f555ff03e6ed71c510609d46936))
+* **bot:** today, logs, settings and sign-in use the sender's own data ([#624](https://github.com/LDoyleDev/training-coach/issues/624)) ([69e2a12](https://github.com/LDoyleDev/training-coach/commit/69e2a125210815aa416253aa394830cf458f49eb))
+* **bot:** unlink, leave and erase drop the person's in-memory bot state ([#648](https://github.com/LDoyleDev/training-coach/issues/648)) ([0056301](https://github.com/LDoyleDev/training-coach/commit/0056301512050d69656d3e56d44a988c0b43eeb7))
+* **db:** the 2-, 3- and 4-day starters in the seed (any-level S1) ([#628](https://github.com/LDoyleDev/training-coach/issues/628)) ([294089e](https://github.com/LDoyleDev/training-coach/commit/294089eb4fc72e46014bea0c08a1bc43c5f54966))
+* **db:** the starters' gym swaps in the seed, and a writer per person ([#650](https://github.com/LDoyleDev/training-coach/issues/650)) ([1f01418](https://github.com/LDoyleDev/training-coach/commit/1f01418da587579ee9b5fa5912d12006ef9fe888))
+* **domain:** rest places in the queue, as rest days after a session ([#626](https://github.com/LDoyleDev/training-coach/issues/626)) ([41bb03e](https://github.com/LDoyleDev/training-coach/commit/41bb03e47ad015dc72eead80472c2c2ecd0e8a37))
+* **web:** connect Telegram on Account with the bot's code (ADR-0089) ([#644](https://github.com/LDoyleDev/training-coach/issues/644)) ([ecce62d](https://github.com/LDoyleDev/training-coach/commit/ecce62dbdb9f5195328e1089d0427bd6a074ca1f))
+* **web:** joining says it's a private test for family and friends ([#619](https://github.com/LDoyleDev/training-coach/issues/619)) ([f2d8b8e](https://github.com/LDoyleDev/training-coach/commit/f2d8b8ed87ebe912e2847687037c4df864389042))
+* **web:** the consent card and Account's list (ADR-0090) ([#620](https://github.com/LDoyleDev/training-coach/issues/620)) ([a27f79d](https://github.com/LDoyleDev/training-coach/commit/a27f79da8d01b944f45f8a1ef609ed73c83beb14))
+* **web:** the health questions are answered on the device (ADR-0085) ([#612](https://github.com/LDoyleDev/training-coach/issues/612)) ([2a99863](https://github.com/LDoyleDev/training-coach/commit/2a9986360712945d155653f9dcc0a51221a366fe))
+
+
+### Bug Fixes
+
+* **api:** a member's erase drops their Telegram link ([#609](https://github.com/LDoyleDev/training-coach/issues/609)) ([e58836f](https://github.com/LDoyleDev/training-coach/commit/e58836f19ab898bb4494de3c62f14817463a447e))
+* **api:** a waiting health proposal stays hidden while its yes is out of date ([#640](https://github.com/LDoyleDev/training-coach/issues/640)) ([4d8ad3b](https://github.com/LDoyleDev/training-coach/commit/4d8ad3bf7fde2aefeae4c52371055bf46815e001))
+* **api:** saving a body or heart-rate proposal needs a current yes ([#636](https://github.com/LDoyleDev/training-coach/issues/636)) ([ea7337f](https://github.com/LDoyleDev/training-coach/commit/ea7337fde40f0872cf368e489a422e20c4994278))
+* **bot:** start-up never takes a member's link; owner alerts follow it ([#614](https://github.com/LDoyleDev/training-coach/issues/614)) ([de81645](https://github.com/LDoyleDev/training-coach/commit/de8164583318d7201e59cc1505f1d6d1f59f25b4))
+* **db:** users ids are never reused ([#647](https://github.com/LDoyleDev/training-coach/issues/647)) ([3811c9f](https://github.com/LDoyleDev/training-coach/commit/3811c9fdece0f369c5b37d1f52aa91200bcc66a1))
+
+
+### Documentation
+
+* **docs:** a short DPIA draft for the private test ([#622](https://github.com/LDoyleDev/training-coach/issues/622)) ([dd1fe04](https://github.com/LDoyleDev/training-coach/commit/dd1fe04374b4332f711519d19b4244c0a1c1ffd3))
+* **docs:** ADR-0089, Telegram for members ([#613](https://github.com/LDoyleDev/training-coach/issues/613)) ([9799232](https://github.com/LDoyleDev/training-coach/commit/9799232906718e52c0de576c78cca07fe73ea157))
+* **docs:** ADR-0090, consent per category and family and friends first ([#616](https://github.com/LDoyleDev/training-coach/issues/616)) ([260fca8](https://github.com/LDoyleDev/training-coach/commit/260fca827d3c0c15f8fd6e5f01c72ad3bb240d49))
+* **docs:** joining step 6 done; step 8's first two parts done ([#621](https://github.com/LDoyleDev/training-coach/issues/621)) ([d22c1dd](https://github.com/LDoyleDev/training-coach/commit/d22c1ddf81b7005fff83f1df3f4d70a0cb1a1e45))
+* **docs:** session log for 1.19.0, and Liam's 7 Nov answers ([#610](https://github.com/LDoyleDev/training-coach/issues/610)) ([a879ab7](https://github.com/LDoyleDev/training-coach/commit/a879ab761f7e3d6be2df4f6c3763f7763ab2d140))
+* **docs:** the starters by days a week and place, approved ([#588](https://github.com/LDoyleDev/training-coach/issues/588)) ([62b3933](https://github.com/LDoyleDev/training-coach/commit/62b39339c9bbe28fc115361fa971af899d3b2f52))
+
 ## [1.19.0](https://github.com/LDoyleDev/training-coach/compare/v1.18.1...v1.19.0) (2026-11-07)
 
 
