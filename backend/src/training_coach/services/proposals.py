@@ -666,8 +666,11 @@ def _pending(session: Session, row: LogProposal, name: str) -> Pending:
 
 def pending(session: Session, now: datetime, *, unannounced: bool = False) -> list[Pending]:
     """Proposals waiting for the person, oldest first; with ``unannounced``, only those not
-    yet sent to Telegram (the caller marks each one once it is sent)."""
+    yet sent to Telegram (the caller marks each one once it is sent). One holding health data
+    the person's yes doesn't cover now (the wording changed since) is left out until they say
+    yes again (ADR-0090)."""
     sweep(session, now)
+    opened = consent.open_to(session, _user(session))
     query = (
         select(LogProposal, McpConnection.client_name)
         .join(McpConnection, LogProposal.connection_id == McpConnection.id)
@@ -682,7 +685,11 @@ def pending(session: Session, now: datetime, *, unannounced: bool = False) -> li
         query = query.where(
             LogProposal.announced_at.is_(None), LogProposal.announce_refused_at.is_(None)
         )
-    return [_pending(session, row, name) for row, name in list(session.execute(query))]
+    return [
+        _pending(session, row, name)
+        for row, name in list(session.execute(query))
+        if _needs(row) is None or _needs(row) in opened
+    ]
 
 
 def announced(session: Session, proposal_id: int, now: datetime) -> None:
@@ -925,14 +932,19 @@ def waiting_kind(session: Session, token: str, now: datetime) -> str | None:
 def needs(session: Session, token: str, now: datetime) -> Category | None:
     """The health category the proposal waiting under ``token`` holds, as ``check`` asks it of
     a new one (ADR-0090): body for measurements, band for cardio with heart rate. None for any
-    other, or when none waits there."""
+    other, or when none waits there from an app still connected."""
     row = session.scalar(
         select(LogProposal).where(
-            LogProposal.token == token, LogProposal.status == PENDING, LogProposal.expires_at > now
+            LogProposal.token == token,
+            LogProposal.status == PENDING,
+            LogProposal.expires_at > now,
+            LogProposal.connection_id.in_(_live(_user(session), now)),
         )
     )
-    if row is None:
-        return None
+    return None if row is None else _needs(row)
+
+
+def _needs(row: LogProposal) -> Category | None:
     if row.kind == BODY:
         return Category.BODY
     heart_rate = row.payload.get("avg_hr") is not None or row.payload.get("max_hr") is not None

@@ -599,9 +599,17 @@ const postToken = (path: string, token: string, answer?: Answer, picks: Proposal
     credentials: 'same-origin',
   })
 
+const CONSENT_PROBLEM: Record<ConsentCategory, string> = {
+  body: 'That needs your yes to body data first. You can give it on Account.',
+  daily_check: 'That needs your yes to the daily check first. You can give it on Account.',
+  band: 'That needs your yes to band data first. You can give it on Account.',
+  walkthrough: 'That needs your yes first. You can give it on Account.',
+}
+
 /** Save one. 'gone': expired or its app disconnected; 'saved' / 'discarded': already dealt
  * with (here or in Telegram); any other text: why it no longer fits (it was discarded); a
- * clash: its day already has its session, so ask and save again with the answer (it waits).
+ * clash: its day already has its session, so ask and save again with the answer (it waits);
+ * a problem: why it can't be saved as asked, such as health data not consented to (it waits).
  * ``picks`` are how hard a cardio one felt and whether it was zone 2 or moderate, both picked
  * on the card (ADR-0067). */
 export async function saveProposal(
@@ -619,6 +627,14 @@ export async function saveProposal(
 > {
   const res = signedIn(await postToken('/api/proposals/save', token, answer, picks))
   if (res.status === 404) return 'gone'
+  if (res.status === 403) {
+    // Body data or heart rate a member hasn't said yes to, at today's wording (ADR-0090).
+    const found = (await res.json().catch(() => null)) as {
+      detail?: { consent_needed?: ConsentCategory }
+    } | null
+    const category = found?.detail?.consent_needed
+    if (category) return { problem: CONSENT_PROBLEM[category] }
+  }
   if (res.status === 422) {
     const detail = ((await res.json()) as { detail?: unknown }).detail
     return { problem: typeof detail === 'string' ? detail : 'That can’t be saved.' }

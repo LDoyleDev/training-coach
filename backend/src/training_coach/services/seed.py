@@ -20,7 +20,7 @@ from importlib.resources import files
 from typing import Annotated, Literal, Self
 
 import structlog
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -58,6 +58,7 @@ from training_coach.domain.muscles import (
 from training_coach.domain.parser import normalise_name
 from training_coach.domain.step_levels import Mark, StepLevel, first_fall
 from training_coach.domain.stretching import Stretch
+from training_coach.services.users import OWNER
 
 log = structlog.get_logger(__name__)
 
@@ -365,9 +366,44 @@ class VersionSeed(_Strict):
     name: str = Field(min_length=1, max_length=120)
 
 
+WEEK = 7  # a starter's sessions and rest places together (ADR-0091)
+
+
+class StarterSeed(_Strict):
+    """A plan a new person can start on, by days a week (any-level-any-time.md S1, ADR-0073):
+    its sessions in queue order, each with its rest places. It is done the same way away, as
+    every bottom step needs no kit, so each session's away version is its home one."""
+
+    slug: str = Field(pattern=SLUG, max_length=64)
+    name: str = Field(min_length=1, max_length=120)
+    days: int = Field(ge=1, le=WEEK)
+    sessions: list[SessionSeed] = Field(min_length=1)
+
+    @field_validator("sessions")
+    @classmethod
+    def _away_as_home(cls, sessions: list[SessionSeed]) -> list[SessionSeed]:
+        return [s if s.away else s.model_copy(update={"away": list(s.items)}) for s in sessions]
+
+    @model_validator(mode="after")
+    def _week(self) -> Self:
+        slugs = [s.slug for s in self.sessions]
+        if len(slugs) != len(set(slugs)):
+            raise ValueError(f"starter {self.slug}: duplicate session slug")
+        if len(self.sessions) != self.days:
+            raise ValueError(f"starter {self.slug}: {self.days} days but {len(slugs)} sessions")
+        week = sum(1 + s.rest_after for s in self.sessions)
+        if week != WEEK:
+            raise ValueError(f"starter {self.slug}: sessions and rest places make {week} days")
+        return self
+
+
 class PlanSeed(_Strict):
     exercises: list[ExerciseSeed] = Field(min_length=1)
+    # The owner's cycle (ADR-0073): what the owner starts on and the import follows.
     sessions: list[SessionSeed] = Field(min_length=1)
+    # What everyone else starts on: ``new_people`` names the one until setup picks by days.
+    starters: list[StarterSeed] = Field(default_factory=list)
+    new_people: str | None = None
     stretches: list[StretchSeed] = Field(default_factory=list)
     versions: list[VersionSeed] = Field(default_factory=list)  # oldest first
     tests: list[TestSeed] = Field(default_factory=list)
@@ -390,6 +426,11 @@ class PlanSeed(_Strict):
         session_slugs = [s.slug for s in self.sessions]
         if len(session_slugs) != len(set(session_slugs)):
             raise ValueError("duplicate session slug")
+        starters = [s.slug for s in self.starters]
+        if len(starters) != len(set(starters)):
+            raise ValueError("duplicate starter slug")
+        if self.new_people is not None and self.new_people not in starters:
+            raise ValueError(f"new_people names {self.new_people}, which is not a starter")
         owners: dict[str, str] = {}
         for exercise in self.exercises:
             for name in {normalise_name(n) for n in (exercise.name, *exercise.aliases)}:
@@ -415,11 +456,11 @@ class PlanSeed(_Strict):
                     "which must be an exercise counted in minutes"
                 )
         retired = {e.slug for e in self.exercises if e.retired}
-        used = {i.exercise for s in self.sessions for i in s.versions}
+        used = {i.exercise for s in self.every_session for i in s.versions}
         ranged = sorted(e.slug for e in self.exercises if e.range is not None and e.slug in used)
         if ranged:
             raise ValueError(f"{ranged} have a range, but a session sets theirs")
-        for session in self.sessions:
+        for session in self.every_session:
             for item in session.versions:
                 if item.exercise not in known:
                     raise ValueError(f"session {session.slug}: unknown exercise {item.exercise}")
@@ -431,13 +472,29 @@ class PlanSeed(_Strict):
         self._away_needs_no_kit()
         return self
 
+    @property
+    def every_session(self) -> tuple[SessionSeed, ...]:
+        """The owner's sessions and every starter's: the catalogue must hold what each uses."""
+        return (*self.sessions, *(s for starter in self.starters for s in starter.sessions))
+
+    def starter_for(self, user_id: int) -> StarterSeed | None:
+        """The starter a person with no plan starts on: ``new_people``'s for anyone but the
+        owner, who starts on their cycle (as does everyone while there is no starter)."""
+        if user_id == OWNER:
+            return None
+        return next((s for s in self.starters if s.slug == self.new_people), None)
+
+    def first_sessions(self, user_id: int) -> list[SessionSeed]:
+        found = self.starter_for(user_id)
+        return self.sessions if found is None else found.sessions
+
     def _away_needs_no_kit(self) -> None:
         """An away version (ADR-0086) is done with no equipment: each exercise's first step
         needs no kit and takes no load, so there is always a step to train; none of its steps
         takes a gym load (a barbell or a machine); and a step that takes load names its kit, so
         the kit lock passes over it away."""
         exercises = {e.slug: e for e in self.exercises}
-        for session in self.sessions:
+        for session in self.every_session:
             for item in session.away:
                 problem = away_problem(exercises[item.exercise])
                 if problem:
@@ -607,13 +664,13 @@ def _tell_people(session: Session, changes: dict[str, list[str]]) -> None:
 
 def sync_sessions(
     session: Session,
-    plan: PlanSeed,
+    sessions: Sequence[SessionSeed],
     user_id: int,
     exercises: dict[str, Exercise],
     result: SeedResult,
 ) -> None:
-    """Make this person's sessions match ``plan``: a new one's items, or an existing one's by
-    position. Items removed from a session are deleted (nothing else references them)."""
+    """Make this person's sessions match ``sessions``: a new one's items, or an existing one's
+    by position. Items removed from a session are deleted (nothing else references them)."""
     templates = {
         t.slug: t
         for t in session.scalars(
@@ -621,7 +678,7 @@ def sync_sessions(
             execution_options={ALL_USERS: True},
         )
     }
-    wanted = {s.slug: i for i, s in enumerate(plan.sessions)}
+    wanted = {s.slug: i for i, s in enumerate(sessions)}
     current = {t.slug: t.position for t in templates.values()}
     if current != {slug: wanted[slug] for slug in current}:
         # Reordering: park existing positions out of the way so the unique index never
@@ -630,7 +687,7 @@ def sync_sessions(
         for existing in templates.values():
             existing.position += _PARK_OFFSET
         session.flush()
-    for position, seed_session in enumerate(plan.sessions):
+    for position, seed_session in enumerate(sessions):
         template = templates.get(seed_session.slug)
         if template is None:
             template = SessionTemplate(user_id=user_id, slug=seed_session.slug, position=position)
@@ -665,9 +722,10 @@ def _start_plan(
     exercises: dict[str, Exercise],
     result: SeedResult,
 ) -> None:
-    """A person with no sessions (new, or erased) gets the starter, which today is the 7-day
-    cycle (ADR-0073). ``plan.toml``'s versions are the owner's history, so they get one."""
-    sync_sessions(session, plan, user_id, exercises, result)
+    """A person with no sessions (new, or erased) gets a starter: the owner the 7-day cycle,
+    anyone else ``new_people``'s (ADR-0073). ``plan.toml``'s versions are the owner's history,
+    so they get one."""
+    sync_sessions(session, plan.first_sessions(user_id), user_id, exercises, result)
     if plan.versions:
         since = max(v.since for v in plan.versions)
         session.add(PlanVersion(user_id=user_id, since=since, name=STARTING_VERSION))
@@ -758,9 +816,11 @@ def start_person(
     exercises: dict[str, Exercise],
     result: SeedResult,
 ) -> None:
-    """Whatever this person lacks of what everyone starts with: a place on every ladder, a plan
-    (ADR-0073), a place in its queue and their settings. Run by every seed for everyone, and
-    when someone joins (ADR-0059). In an unbound session: every query names the user."""
+    """Whatever this person lacks of what everyone starts with: a place on every ladder (its
+    bottom, for anyone but the owner once there are starters), a plan (ADR-0073), a place in its
+    queue and their settings. Run by
+    every seed for everyone, and when someone joins (ADR-0059). In an unbound session: every
+    query names the user."""
     mine = {ALL_USERS: True}  # the seed names the user itself
     started = set(
         session.scalars(
@@ -768,10 +828,15 @@ def start_person(
             execution_options=mine,
         )
     )
+    # Everyone but the owner starts every exercise at the bottom of its ladder, setup moving them
+    # up (any-level S1, B5), an exercise added later too, whatever plan they have by then;
+    # ``start`` is where the owner's cycle starts each one.
+    bottom = plan.starter_for(user_id) is not None
     for seed in plan.exercises:
         exercise = exercises[seed.slug]
         if exercise.id not in started:
-            start_step = next(s for s in exercise.ladder if s.position == seed.start)
+            at = 0 if bottom else seed.start
+            start_step = next(s for s in exercise.ladder if s.position == at)
             session.add(
                 ExerciseState(
                     user_id=user_id, exercise_id=exercise.id, ladder_step_id=start_step.id
