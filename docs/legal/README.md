@@ -7,7 +7,7 @@ launch), and published as pages linked from every page footer.
 
 | Draft | For | Open before publishing |
 | --- | --- | --- |
-| [privacy-policy.md](privacy-policy.md) | GDPR Art. 13: what is stored, why, where, how long, rights | The UG as controller; postal address; a German version; consent wording for health data (Art. 9) in the sign-up flow; erasing one category when consent is withdrawn; data processing agreements (Art. 28) checked for each service |
+| [privacy-policy.md](privacy-policy.md) | GDPR Art. 13: what is stored, why, where, how long, rights | The UG as controller; postal address; a German version; the consent wording for health data (Art. 9), a draft in the app (ADR-0090); data processing agreements (Art. 28) checked for each service |
 | [impressum.md](impressum.md) | § 5 DDG (who runs the site) | Postal address; the UG's register entry and managing director once it exists |
 
 Keep the drafts true as the app changes: a new external service, data type or retention period
