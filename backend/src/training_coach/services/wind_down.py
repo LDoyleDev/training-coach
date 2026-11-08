@@ -40,6 +40,7 @@ class Told:
 class Report:
     closing: list[Told] = field(default_factory=list)  # given a closing day today
     erased: list[Told] = field(default_factory=list)  # their day came
+    gone: list[int] = field(default_factory=list)  # the user ids erased, for the bot to forget
     reopened: int = 0  # the switch went back on
 
 
@@ -70,6 +71,7 @@ def run(session: Session, multi_user: bool, today: date, left: Path | None) -> R
     for user_id, told in due:
         if leave(session, user_id, left, now):
             report.erased.append(told)
+            report.gone.append(user_id)
     log.info("wind_down.ran", closing=len(report.closing), erased=len(report.erased))
     return report
 

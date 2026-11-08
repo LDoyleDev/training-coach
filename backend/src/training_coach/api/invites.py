@@ -12,7 +12,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.alerts import alert, alert_chat
+from training_coach.api.alerts import alert, alert_chat, forget
 from training_coach.api.auth import Admin, Fresh, set_session_cookie
 from training_coach.api.oauth import limited
 from training_coach.config import Settings
@@ -132,6 +132,7 @@ def remove_member(
         )
     if not gone:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such member")
+    forget(request, member_id)  # nothing of theirs waits in the bot (ADR-0089)
     alert_chat(
         request,
         background,

@@ -157,6 +157,10 @@ class BandHandlers:
         # (ADR-0060). Per person: another's import id finds no question here.
         self.asked: dict[int, dict[int, tuple[Clash, date | None]]] = {}
 
+    def forget(self, user_id: int) -> None:
+        """Drop ``user_id``'s questions (``Gate.forget``)."""
+        self.asked.pop(user_id, None)
+
     def _today(self) -> date:
         return local_date(datetime.now(UTC), self.settings.tz)
 

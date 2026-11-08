@@ -147,6 +147,7 @@ NUDGE_JOB = "nudge"
 REVIEW_JOB = "weekly-review"
 RESCHEDULE = "reschedule"  # bot_data key: the settings page moves the jobs through this
 ANNOUNCE = "announce_proposals"  # bot_data key: /mcp sends a fresh proposal through this
+FORGET = "forget"  # bot_data key: unlink, leave and erase drop a person's state (ADR-0089)
 SUNDAY = 0  # PTB counts days from Sunday (0) to Saturday (6)
 Job = Callable[[ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
 
@@ -682,6 +683,10 @@ def build_bot(
         else groq
     )
     log_handlers = LogHandlers(settings, groq)
+    # Everything kept in memory by user id, dropped on unlink, leave and erase (ADR-0089).
+    for keeper in (log_handlers, band_handlers, proposal_handlers, settings_handlers):
+        gate.keeps(keeper.forget)
+    application.bot_data[FORGET] = gate.forget
     application.add_handler(
         CallbackQueryHandler(served(log_handlers.button), pattern=rf"^{logging_flow.PREFIX}:")
     )

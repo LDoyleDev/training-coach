@@ -61,6 +61,7 @@ def test_on_their_day_everything_of_theirs_goes(members: Engine, tmp_path: Path)
     assert _run(members, False, day - timedelta(days=1), path).erased == []
     report = _run(members, False, day, path)
     assert report.erased == [Told(2222, day), Told(None, day)]
+    assert report.gone == [2, 3]  # for the bot to forget (ADR-0089)
     assert list(_closing(members)) == [users.OWNER]
     assert sorted(e.user_id for e in left_list.read(path)) == [2, 3]  # kept gone after a restore
 

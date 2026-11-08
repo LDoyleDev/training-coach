@@ -8,7 +8,7 @@ import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, func, select
 
-from tests.alerts import capture
+from tests.alerts import capture, forgotten
 from tests.api.test_photos import CLEAN, JPEG
 from training_coach.api.app import create_app
 from training_coach.config import Settings
@@ -168,8 +168,10 @@ def test_erasing_takes_my_workouts_and_session_in_progress(
 
 
 def test_erasing_signs_this_browser_out(signed_in: TestClient) -> None:
+    forgot = forgotten(signed_in)
     assert signed_in.post("/api/account/erase", json=ERASE).status_code == 204
     assert signed_in.get("/api/account/sign-ins").status_code == 401
+    assert forgot == [OWNER]  # the bot's pending drafts and questions go too (ADR-0089)
 
 
 @pytest.mark.parametrize("body", [{}, {"confirm": "yes"}, {"confirm": "ERASE"}])

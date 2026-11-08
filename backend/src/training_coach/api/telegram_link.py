@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.alerts import alert_chat
+from training_coach.api.alerts import alert_chat, forget
 from training_coach.api.auth import Fresh, Owner
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
@@ -150,4 +150,5 @@ def unlink(request: Request, background: BackgroundTasks, user: Owner) -> None:
         chat = telegram_link.unlink(session, user, datetime.now(UTC))
     if chat is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no Telegram connected")
+    forget(request, user)  # what the bot kept for that chat (ADR-0089)
     alert_chat(request, background, chat, "telegram_unlinked", DISCONNECTED)
