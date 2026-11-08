@@ -58,3 +58,12 @@ change another's plan.
   import from `plan.toml` is the owner's alone. A new person starts from a starter, walked through
   setup (builder step 10), and finds their own level.
 - The build and what the review changed: `plans-per-person.md`.
+
+## Addendum (8 Nov 2026): the starters in `plan.toml`
+
+`plan.toml` holds the starters as `[[starters]]` (2, 3 and 4 days a week, `any-level-any-time.md`
+S1), each a week of sessions with their rest places (ADR-0091). `new_people` names the one anyone
+but the owner starts on until setup picks by days a week: the 3-day for now. The owner starts on
+the `[[sessions]]`, the 7-day cycle, which stays his plan and what the import follows. Someone on
+a starter starts every exercise at the bottom of its ladder; an exercise's `start` stays where the
+owner's cycle starts it, so a new owner (an erase, a fresh install) starts where he always has.

@@ -90,7 +90,7 @@ def _reseed(session: Session, plan: PlanSeed) -> SeedResult:
     """The catalogue, then the owner's sessions brought to ``plan`` (what the import does)."""
     result = apply_seed(session, plan)
     exercises = {e.slug: e for e in session.scalars(select(Exercise))}
-    sync_sessions(session, plan, OWNER, exercises, result)
+    sync_sessions(session, plan.sessions, OWNER, exercises, result)
     return result
 
 
@@ -718,7 +718,7 @@ def test_each_question_asks_for_the_bottom_of_its_exercises_range() -> None:
     uses gives its own range (ADR-0083)."""
     plan = load_plan()
     bottoms = {e.slug: e.range[0] for e in plan.exercises if e.range is not None}
-    bottoms |= {i.exercise: i.rep_min for s in plan.sessions for i in s.versions}
+    bottoms |= {i.exercise: i.rep_min for s in plan.every_session for i in s.versions}
     wrong = {
         (e.slug, step): question
         for e in plan.exercises
