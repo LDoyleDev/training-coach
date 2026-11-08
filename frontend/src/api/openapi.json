@@ -11633,7 +11633,7 @@
     },
     "/api/proposals/save": {
       "post": {
-        "description": "Save it. 404 when it has expired or never was; 409 with ``already_saved`` or\n``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason\nwhen it no longer fits (it is discarded then); 409 with what is saved already when its\nday has its session (it keeps waiting: save it again with the answer, ADR-0060); 422 for\na cardio one without zone 2 or moderate picked (it keeps waiting).",
+        "description": "Save it. 404 when it has expired or never was; 409 with ``already_saved`` or\n``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason\nwhen it no longer fits (it is discarded then); 409 with what is saved already when its\nday has its session (it keeps waiting: save it again with the answer, ADR-0060); 422 for\na cardio one without zone 2 or moderate picked (it keeps waiting); 403 with\n``consent_needed`` for body data or heart rate a member hasn't said yes to (ADR-0090).",
         "operationId": "save_api_proposals_save_post",
         "requestBody": {
           "content": {
