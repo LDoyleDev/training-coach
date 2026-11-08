@@ -288,6 +288,8 @@ def test_every_per_person_table_is_covered() -> None:
         "measurements",
         "progress_photos",
         "login_links",
+        "telegram_links",
+        "telegram_claims",
         "passkeys",
         "session_progress",
         "web_sessions",

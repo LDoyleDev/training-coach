@@ -297,6 +297,10 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     telegram_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
+    # When a member connected it (ADR-0089), and the Telegram first name it had then, shown on
+    # Account. None for the owner, whose account is set on the server.
+    telegram_linked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    telegram_name: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     # The country of residence they gave, from the EU and EEA list (ADR-0085); None until asked.
     country: Mapped[str | None] = mapped_column(String(2))
@@ -780,6 +784,46 @@ class LoginLink(Owned, Base):
     # "start": the first sign-in, refused once a passkey exists; "recover": signs in without a
     # passkey and signs out every other browser (ADR-0040).
     purpose: Mapped[str] = mapped_column(String(8), default="start", server_default="start")
+
+
+class TelegramLink(Owned, Base):
+    """A member's link to connect their Telegram (ADR-0089): only the token's SHA-256 is kept,
+    10 minutes, only the newest. Never a ``LoginLink``: a sign-in redeem takes any purpose."""
+
+    __tablename__ = "telegram_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)  # set to now to end it early
+    wrong_codes: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    claims: Mapped[list["TelegramClaim"]] = relationship(
+        back_populates="link", cascade="all, delete-orphan", order_by="TelegramClaim.id"
+    )
+
+
+class TelegramClaim(Owned, Base):
+    """Someone who opened a ``TelegramLink`` in Telegram (``/start <token>``), and the code the
+    bot sent them, stored hashed. Goes with its link. ``user_id`` is the link's member, not the
+    claimer: the claimer is whoever sent it, perhaps a stranger."""
+
+    __tablename__ = "telegram_claims"
+    __table_args__ = (
+        UniqueConstraint("link_id", "telegram_user_id"),
+        UniqueConstraint("link_id", "code_hash"),  # a code names one claim
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    link_id: Mapped[int] = mapped_column(
+        ForeignKey("telegram_links.id", ondelete="CASCADE"), index=True
+    )
+    telegram_user_id: Mapped[int] = mapped_column(BigInteger)
+    name: Mapped[str] = mapped_column(String(64))  # their Telegram first name, as they set it
+    code_hash: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    link: Mapped[TelegramLink] = relationship(back_populates="claims")
 
 
 class WebSession(Owned, Base):

@@ -20,7 +20,7 @@ stores:
 
 | Data | Why | Legal basis |
 | --- | --- | --- |
-| Your Telegram user id and settings (reminder times, habits) | To know it's you on Telegram and send reminders when you asked | Contract (Art. 6(1)(b) GDPR) |
+| Your Telegram user id and settings (reminder times, habits). If you connect Telegram on the Account page: your Telegram first name and when you connected. While you connect: the link (only as a hash; it works for 10 minutes), and the Telegram id, first name and code (only as a hash) of whoever opened it, deleted once the link is used or replaced, or within a day of it expiring | To know it's you on Telegram and send reminders when you asked; showing you which Telegram account you connected, and checking it was yours | Contract (Art. 6(1)(b) GDPR); security (Art. 6(1)(f)) |
 | Workouts, sets, test results, habit check-offs, where you are in the plan | The training itself | Contract (Art. 6(1)(b)) |
 | Body measurements (bodyweight, body fat from a scale, height, waist, neck, chest, upper arm, thigh, resting heart rate; a body-fat estimate worked out from them if you turn it on) and progress photos | Showing your progress. These are **health data** | Your explicit consent (Art. 9(2)(a)), which you give for this kind of data the first time you open it, and can withdraw at any time on the Account page |
 | When you last answered the health questions, and which version of them. Your answers, and the suggestion they lead to, are worked out on your device and never sent to us | Asking the questions again after a year or when they change, and reminding you before hard sessions | Contract (Art. 6(1)(b)) [lawyer: confirm that a date alone isn't health data] |

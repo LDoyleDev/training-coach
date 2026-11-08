@@ -47,6 +47,10 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("services.mcp_tokens::_revoke", ALL): "the tokens of one named connection",
     ("services.mcp_tokens::revoke_all", ALL): "/recover: the named user's connections only",
     ("services.ingest_keys::owner_of", ALL): "whose band secret is this",
+    ("services.telegram_link::claim", ALL): "whose connect link is this (ADR-0089)",
+    ("services.telegram_link::clear_expired", ALL): (
+        "deletes everyone's expired connect links, with their claims (ADR-0089)"
+    ),
     # ADR-0058: the guard refuses bulk updates of per-person rows in a bound session, so these
     # opt out and name the person by hand.
     ("services.proposals::propose", ALL): (
@@ -137,6 +141,8 @@ class _Finder(ast.NodeVisitor):
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if node.attr == "shared_sessions":
             self._hit(SHARED)
+        if node.attr in {"ALL_USERS", "EVERYONE"}:  # auth.EVERYONE counts as EVERYONE
+            self._hit(ALL)
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
@@ -197,7 +203,16 @@ def g(engine, user, message):
     make_session_factory(engine, user)
     message.reply_text("hi")
     text("not sqlalchemy's")
+
+def h(s):
+    s.scalars(q, execution_options=auth.EVERYONE)
 """
     finder = _Finder("m")
     finder.visit(ast.parse(source))
-    assert finder.found == {("m::f", ALL), ("m::f", UNBOUND), ("m::f", SHARED), ("m::f", RAW)}
+    assert finder.found == {
+        ("m::f", ALL),
+        ("m::f", UNBOUND),
+        ("m::f", SHARED),
+        ("m::f", RAW),
+        ("m::h", ALL),
+    }

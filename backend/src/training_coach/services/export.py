@@ -129,7 +129,8 @@ def _reference(session: Session) -> dict[str, Any]:
 
 
 def _account(session: Session) -> dict[str, Any]:
-    """What the users row holds about them (ADR-0085); the Telegram id is in their own chat."""
+    """What the users row holds about them (ADR-0085); the Telegram id is in their own chat.
+    A member's Telegram name and when they connected it (ADR-0089), None for the owner."""
     user = session.get(User, bound_user(session))
     if user is None:
         return {}
@@ -137,6 +138,8 @@ def _account(session: Session) -> dict[str, Any]:
         "country": user.country,
         "last_seen_in_europe": _value(user.last_seen_in_europe),
         "created_at": _value(user.created_at),
+        "telegram_name": user.telegram_name,
+        "telegram_connected_at": _value(user.telegram_linked_at),
     }
 
 

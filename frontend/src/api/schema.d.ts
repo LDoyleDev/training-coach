@@ -395,6 +395,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/telegram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Telegram */
+        get: operations["telegram_api_account_telegram_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Unlink
+         * @description Disconnect Telegram, telling the chat it was. No recent sign-in needed: it only takes
+         *     access away.
+         */
+        delete: operations["unlink_api_account_telegram_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/telegram/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Code
+         * @description The Telegram name a code was sent to, shown before Confirm. A wrong one counts.
+         */
+        post: operations["check_code_api_account_telegram_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/telegram/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm
+         * @description Connect the Telegram account the code was sent to. Needs a recent sign-in.
+         */
+        post: operations["confirm_api_account_telegram_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/telegram/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Link
+         * @description A new connect link, which ends any earlier one. Needs a recent sign-in.
+         */
+        post: operations["make_link_api_account_telegram_link_post"];
+        /**
+         * Cancel Link
+         * @description End the open link, if any: it only takes something away.
+         */
+        delete: operations["cancel_link_api_account_telegram_link_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/me": {
         parameters: {
             query?: never;
@@ -4805,6 +4891,48 @@ export interface components {
             /** Logged */
             logged: boolean;
         };
+        /** TelegramCode */
+        TelegramCode: {
+            /** Code */
+            code: string;
+        };
+        /** TelegramLinkView */
+        TelegramLinkView: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Url */
+            url: string;
+        };
+        /** TelegramMatch */
+        TelegramMatch: {
+            /** Name */
+            name: string;
+        };
+        /** TelegramPending */
+        TelegramPending: {
+            /** Claims */
+            claims: number;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /** TelegramView */
+        TelegramView: {
+            /** Connected */
+            connected: boolean;
+            /** Name */
+            name: string | null;
+            pending: components["schemas"]["TelegramPending"] | null;
+            /** Set On Server */
+            set_on_server: boolean;
+            /** Since */
+            since: string | null;
+        };
         /** TestDayBody */
         TestDayBody: {
             /** Day */
@@ -5718,6 +5846,146 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SignIns"];
                 };
+            };
+        };
+    };
+    telegram_api_account_telegram_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramView"];
+                };
+            };
+        };
+    };
+    unlink_api_account_telegram_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    check_code_api_account_telegram_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelegramCode"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramMatch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_api_account_telegram_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelegramCode"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    make_link_api_account_telegram_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramLinkView"];
+                };
+            };
+        };
+    };
+    cancel_link_api_account_telegram_link_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
