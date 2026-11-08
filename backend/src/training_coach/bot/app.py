@@ -1,10 +1,11 @@
 """Telegram bot. Long polling only: no inbound port is ever opened (ADR-0009).
 
 Every update meets the sender gate first (``bot.gate``, ADR-0089): only messages and button
-presses in a private chat, from someone linked, get any further. ``Handlers``, ``LogHandlers``
-and ``SettingsHandlers`` are registered through ``gate.served`` and use the sessions of the
-person the gate found. The other classes still hold the owner's sessions behind ``owner_only``
-and check the sender by hand: that keeps them the owner's alone until each is converted.
+presses in a private chat, from someone linked, get any further. Most handler classes are
+registered through ``gate.served`` and use the sessions of the person the gate found. The
+button classes not converted yet (band, daily check, proposals, notices) hold the owner's
+sessions and check the sender is the owner's account by hand: that keeps them the owner's alone
+until each is converted.
 """
 
 import asyncio
@@ -148,14 +149,6 @@ RESCHEDULE = "reschedule"  # bot_data key: the settings page moves the jobs thro
 ANNOUNCE = "announce_proposals"  # bot_data key: /mcp sends a fresh proposal through this
 SUNDAY = 0  # PTB counts days from Sunday (0) to Saturday (6)
 Job = Callable[[ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
-
-
-def owner_only(settings: Settings) -> filters.BaseFilter:
-    if settings.telegram_allowed_user_id is None:
-        raise ValueError("TC_TELEGRAM_ALLOWED_USER_ID must be set to run the bot")
-    # Only in the private chat with the owner: in a group, links and logs would be seen by
-    # everyone in it (security review, ADR-0040).
-    return filters.ChatType.PRIVATE & filters.User(user_id=settings.telegram_allowed_user_id)
 
 
 def _retry_seconds(exc: RetryAfter) -> float:
@@ -361,7 +354,7 @@ class Handlers:
                 if suggested is not None:
                     text = f"{text} {daily_ui.suggestion(suggested[0])}"
             markup = daily_ui.with_check(markup, on)
-        assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
+        assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - build_bot checks it
         if await send_with_retry(
             context.bot, self.settings.telegram_allowed_user_id, text, reply_markup=markup
         ):
@@ -380,7 +373,7 @@ class Handlers:
         except SQLAlchemyError as exc:
             log.error("bot.review_failed", error=type(exc).__name__)
             return
-        assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
+        assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - build_bot checks it
         if await send_with_retry(
             context.bot,
             self.settings.telegram_allowed_user_id,
@@ -512,7 +505,7 @@ class Handlers:
         if habit_rows:
             parts.append(habits_ui.evening(prefs.protein_g))
             rows += habit_rows
-        assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - owner_only
+        assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - build_bot checks it
         if await send_with_retry(
             context.bot,
             self.settings.telegram_allowed_user_id,
@@ -581,35 +574,40 @@ def build_bot(
     application = (
         Application.builder().token(settings.telegram_bot_token.get_secret_value()).build()
     )
-    # Classes not yet given the person's sessions stay behind ``owner_only``: they read and
-    # write the owner's rows, so only the owner may reach them (ADR-0089, step 8).
-    allowed = owner_only(settings)
-    private = filters.ChatType.PRIVATE  # the gate checks it too; a second look costs nothing
+    if settings.telegram_allowed_user_id is None:  # the owner's account (users.link_owner)
+        raise ValueError("TC_TELEGRAM_ALLOWED_USER_ID must be set to run the bot")
+    # Only in a private chat: in a group, links and logs would be seen by everyone in it
+    # (ADR-0040). The gate checks it too; a second look costs nothing.
+    private = filters.ChatType.PRIVATE
     handlers = Handlers(settings, sessions)
     # Before every other handler: who it's from, and whether to serve them (ADR-0089, ADR-0085).
     gate = Gate(settings, unbound_like(sessions))
     handlers.gate = gate
     served = gate.served
     application.add_handler(TypeHandler(Update, gate.check), group=-1)
+    progress_handlers = progress_ui.ProgressHandlers(settings)
+    habit_handlers = habits_ui.HabitHandlers(settings)
+    undo_handlers = undo_ui.UndoHandlers(settings)
+    share_handlers = share_ui.ShareHandlers(settings)
     for names, callback in (
         (["start", "help"], handlers.help),
         (["today"], handlers.today),
         (["week"], handlers.week),
         (["login"], handlers.login),
         (["recover"], handlers.recover),
+        (["progress"], progress_handlers.command),
+        (["review"], progress_handlers.review),
+        (["habits"], habit_handlers.command),
+        (["undo"], undo_handlers.command),
+        (["share"], share_handlers.command),
     ):
         application.add_handler(CommandHandler(names, served(callback), filters=private))
-    progress_handlers = progress_ui.ProgressHandlers(settings, sessions)
-    application.add_handler(CommandHandler("progress", progress_handlers.command, filters=allowed))
-    application.add_handler(CommandHandler("review", progress_handlers.review, filters=allowed))
-    stretch_handlers = stretching_ui.StretchHandlers(settings, sessions)
+    stretch_handlers = stretching_ui.StretchHandlers(settings)
     application.add_handler(
-        CallbackQueryHandler(stretch_handlers.button, pattern=rf"^{stretching_ui.PREFIX}:")
+        CallbackQueryHandler(served(stretch_handlers.button), pattern=rf"^{stretching_ui.PREFIX}:")
     )
-    habit_handlers = habits_ui.HabitHandlers(settings, sessions)
-    application.add_handler(CommandHandler("habits", habit_handlers.command, filters=allowed))
     application.add_handler(
-        CallbackQueryHandler(habit_handlers.button, pattern=rf"^{habits_ui.PREFIX}:")
+        CallbackQueryHandler(served(habit_handlers.button), pattern=rf"^{habits_ui.PREFIX}:")
     )
     application.add_handler(
         CallbackQueryHandler(served(handlers.button), pattern=rf"^{buttons.PREFIX}:")
@@ -618,8 +616,6 @@ def build_bot(
     application.add_handler(
         CallbackQueryHandler(daily_handlers.button, pattern=rf"^{daily_ui.PREFIX}:")
     )
-    share_handlers = share_ui.ShareHandlers(settings, sessions)
-    application.add_handler(CommandHandler("share", share_handlers.command, filters=allowed))
     band_handlers = band_ui.BandHandlers(settings, sessions, send_with_retry)
     application.add_handler(CallbackQueryHandler(band_handlers.button, pattern=band_ui.PATTERN))
     jobs = application.job_queue
@@ -648,10 +644,8 @@ def build_bot(
         await proposal_handlers.announce(application.bot)
 
     application.bot_data[ANNOUNCE] = announce
-    undo_handlers = undo_ui.UndoHandlers(settings, sessions)
-    application.add_handler(CommandHandler("undo", undo_handlers.command, filters=allowed))
     application.add_handler(
-        CallbackQueryHandler(undo_handlers.button, pattern=rf"^{undo_ui.PREFIX}:")
+        CallbackQueryHandler(served(undo_handlers.button), pattern=rf"^{undo_ui.PREFIX}:")
     )
 
     def reschedule(prefs: Prefs) -> None:
@@ -681,7 +675,7 @@ def build_bot(
         CallbackQueryHandler(served(log_handlers.button), pattern=rf"^{logging_flow.PREFIX}:")
     )
     application.add_handler(
-        CallbackQueryHandler(progress_handlers.button, pattern=rf"^{progress_ui.PREFIX}:")
+        CallbackQueryHandler(served(progress_handlers.button), pattern=rf"^{progress_ui.PREFIX}:")
     )
 
     async def text(update: Update, context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
