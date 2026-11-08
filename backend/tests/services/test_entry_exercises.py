@@ -177,3 +177,20 @@ def test_balance_rests_like_small_work_and_is_main_work_on_a_short_day() -> None
     """For the older people it is for, balance is kept, not trimmed first (ADR-0082)."""
     assert straight(Kind(Pattern.BALANCE, frozenset())) == SMALL_SECONDS
     assert Pattern.BALANCE not in ACCESSORY
+
+
+def test_the_hip_hinge_climbs_to_a_single_leg_hinge_at_level_5() -> None:
+    """any-level S1, Decided 2: three steps at its top, so it climbs as far as the starters'
+    other exercises; the gym's barbell Romanian deadlift can take over from the first."""
+    hinge = next(e for e in load_plan().exercises if e.slug == "hip-hinge")
+    top = hinge.ladder[3:]
+    assert top == ["Single leg, a hand on the counter", "Single leg, no hands",
+                   "Single leg, holding a bag"]  # fmt: skip
+    assert [hinge.levels[step] for step in top] == [StepLevel.REGULAR, StepLevel.STRONG,
+                                                    StepLevel.STRONG]  # fmt: skip
+    for step in top:
+        assert hinge.marks[step] == [Mark.BALANCE]
+        assert hinge.cues[step]
+        assert "single-leg" in hinge.questions[step]
+        assert "each leg" in hinge.questions[step]
+        assert not hinge.needs.get(step)  # a bag is household: no kit

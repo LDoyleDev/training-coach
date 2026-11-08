@@ -597,7 +597,7 @@ Liam's answer to these questions was "All OK to proceed", so each one is decided
    single leg with no hands (5), single leg holding a bag (5), a bodyweight single-leg Romanian
    deadlift. Steps at the end of a ladder need no migration; they need questions, cues and
    figures. The gym swap can then reach the barbell Romanian deadlift at level 4, which gives the
-   lower back work at the gym again.
+   lower back work at the gym again. Built 8 Nov 2026: the steps, their questions, cues and figures.
 3. **Someone placed at level 1 by the everyday questions gets no split squat** (0 sets, as the
    trim does). The squat still works the legs.
 4. **Each ladder's questions start at the level the age and exercise questions suggest**, walking
