@@ -204,8 +204,9 @@ them, and SQLite's RESTRICT fires at once, even inside a cascade. So erase delet
 - A difference between the owner's rows and `plan.toml` stays until the owner saves it: the Plan
   page shows it, with the import.
 
-**A new person's versions.** `plan.toml` has no starters yet, so the 7-day cycle is the first
-starter. Its `[[versions]]` are the owner's history, so a new person gets one version, "Starting
+**A new person's versions.** `plan.toml` had no starters then, so the 7-day cycle was the first
+starter (since 8 Nov 2026 a new person starts on `new_people`'s starter, ADR-0073's addendum). Its
+`[[versions]]` are the owner's history, so a new person gets one version, "Starting
 plan", dated as the latest of them, so a past day they log still has one.
 
 **The import** (`GET` and `POST /api/plan/import`, the owner's alone, anyone else refused):

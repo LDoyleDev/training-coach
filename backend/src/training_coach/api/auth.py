@@ -90,7 +90,8 @@ def owner(request: Request, response: Response) -> int:
 Owner = Annotated[int, Depends(owner)]
 
 
-def _consented(request: Request, user: int, category: Category) -> int:
+def consented(request: Request, user: int, category: Category) -> int:
+    """``user``, when ``category`` is open to them; 403 with ``consent_needed`` otherwise."""
     with session_scope(_shared(request)) as session:
         allowed = consent.opened(session, user, category)
     if not allowed:
@@ -102,17 +103,17 @@ def _consented(request: Request, user: int, category: Category) -> int:
 def body_open(request: Request, user: Owner) -> int:
     """The signed-in person's id, for a route that reads or keeps body measurements or photos:
     the owner, or a member who has said yes to ``body`` (ADR-0090); 403 for anyone else."""
-    return _consented(request, user, Category.BODY)
+    return consented(request, user, Category.BODY)
 
 
 def daily_check_open(request: Request, user: Owner) -> int:
     """As ``body_open``, for the daily check."""
-    return _consented(request, user, Category.DAILY_CHECK)
+    return consented(request, user, Category.DAILY_CHECK)
 
 
 def band_open(request: Request, user: Owner) -> int:
     """As ``body_open``, for band data and heart rate."""
-    return _consented(request, user, Category.BAND)
+    return consented(request, user, Category.BAND)
 
 
 # One dependency per category of health data. Every health route takes one: a test finds them.
