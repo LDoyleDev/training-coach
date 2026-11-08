@@ -60,14 +60,19 @@ a member. Step 9 makes the scheduled ones per person.
 **Connecting is confirmed on the web.** A member taps "Connect Telegram" on Account (a recent
 sign-in, `Fresh`) and gets a `t.me/<bot>?start=<token>` link: 32 random bytes, stored hashed in
 its own table, `telegram_links`, never in `login_links`; once, 10 minutes, only the newest. The
-bot's `/start <token>` doesn't link: it records the sender as a pending claim on that link and
-replies "Now confirm on the Account page". Account then shows "Telegram account <name> wants to
-connect" with Confirm and Cancel; Confirm (again `Fresh`) sets `telegram_user_id` and
-`telegram_linked_at`, records an event, and the bot says "Connected". A link that was forwarded,
-or seen over someone's shoulder, does nothing without the member's own confirm in their own
-signed-in browser. A Telegram account already linked to anyone is refused, as is the owner's
-configured account; a member already linked must unlink first. The claim and the confirm are
-conditional updates, so two at once can't both win. The connect step runs only with
+bot's `/start <token>` doesn't link: it records the sender as a claim on that link and replies
+with a 6-digit code, "Type this code on the Account page". Account asks for the code; the
+member types the one their own Telegram shows, and Confirm (again `Fresh`) links the account
+that code was sent to: it sets `telegram_user_id` and `telegram_linked_at`, records an event, and
+the bot says "Connected". The Telegram name is shown only after the code matches, as a check,
+never as the thing to confirm, since anyone can set any name. A link can hold several claims, so
+someone who used a forwarded link first can't block or impersonate the member's own claim: their
+code is in their chat, not the member's. Codes are stored hashed with the claim, die with the
+link (10 minutes), and five wrong codes end the link. A link that was forwarded, or seen over
+someone's shoulder, does nothing without the code from the member's own Telegram typed into the
+member's own signed-in browser. A Telegram account already linked to anyone is refused, as is the
+owner's configured account; a member already linked must unlink first. The confirm is a
+conditional update, so two at once can't both win. The connect step runs only with
 `TC_MULTI_USER` on and is rate limited per sender and overall.
 
 **Members and sign-in.** `/recover` stays the owner's (ADR-0059 addendum): a member is told to
@@ -106,7 +111,8 @@ The owner's Account says Telegram is set on the server, with no Connect or Unlin
 | Option | For | Against |
 | --- | --- | --- |
 | `/start <token>` links at once, the name shown on Account | One step fewer | A forwarded link silently moves the member's security alerts; the name can be faked |
-| **A pending claim confirmed on Account** (chosen) | A forwarded link does nothing; the member sees which Telegram account before it counts | One more tap on the web |
+| **A claim confirmed on Account with the code the bot sent** (chosen) | A forwarded link does nothing; a look-alike Telegram name can't be confirmed by mistake | Typing six digits on the web |
+| A claim confirmed on Account by its Telegram name | One tap | The name can be set to anything; a first claim from a leaked link could pass as the member's (review, 8 Nov) |
 | Reuse `login_links` with a new purpose | No new table | `redeem_link` takes any purpose: a connect token could sign in |
 | One `Session` held per update | Simple | Holds SQLite's writer lock across Telegram and Groq calls, up to 45 s |
 | Run handlers concurrently (`block=False`) | A voice note doesn't hold up others | Shared in-memory state isn't safe for it yet |
