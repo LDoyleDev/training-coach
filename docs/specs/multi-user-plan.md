@@ -412,7 +412,8 @@ guards, cheapest first:
    safe on `main` because nobody but the owner can be linked until the `/start` PR: the owner's
    messages to the owner's chat from the database, and start-up never taking a member's link
    (done, #614); the sender gate and the CLAUDE.md rule (done, #615); the handler classes
-   moved to the person's sessions in three PRs; the `telegram_links` table and the Account
+   moved to the person's sessions in three PRs (the first, `/today`, `/week`, the morning
+   buttons, logs, `/settings`, `/login` and `/recover`, done); the `telegram_links` table and the Account
    routes; `/start <token>` as a pending claim; Account's Connect, Confirm and Unlink.
 9. **Schedules per person**, and band offers and band data alerts per person (the alert
    state is already per person, on `ingest_keys`).

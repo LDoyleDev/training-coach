@@ -5,9 +5,11 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
+from tests.bot.fakes import MEMBER as TELEGRAM_MEMBER
+from tests.bot.fakes import MULTI, SETTINGS
 from tests.bot.fakes import OWNER as TELEGRAM_OWNER
-from tests.bot.fakes import SETTINGS
 from training_coach.bot.app import build_bot
+from training_coach.db.models import User
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import users
 from training_coach.services.seed import apply_seed, load_plan
@@ -43,3 +45,22 @@ def seeded(sessions: sessionmaker[Session]) -> sessionmaker[Session]:
 @pytest.fixture
 def application(seeded: sessionmaker[Session]) -> Application:  # type: ignore[type-arg]  # see build_bot
     return build_bot(SETTINGS, seeded)
+
+
+@pytest.fixture
+def member(seeded: sessionmaker[Session]) -> sessionmaker[Session]:
+    """A member's sessions (ADR-0059), linked to Telegram account MEMBER, with their own plan."""
+    engine = seeded.kw["bind"]
+    with session_scope(make_session_factory(engine)) as shared:
+        person = User(role=users.MEMBER, telegram_user_id=TELEGRAM_MEMBER)
+        shared.add(person)
+        shared.flush()
+        person_id = person.id
+        apply_seed(shared, load_plan())  # starts the new person's plan
+    return make_session_factory(engine, user_id=person_id)
+
+
+@pytest.fixture
+def both(seeded: sessionmaker[Session], member: sessionmaker[Session]) -> Application:  # type: ignore[type-arg]  # see build_bot
+    """The bot with TC_MULTI_USER on: the owner and the member are each served."""
+    return build_bot(MULTI, seeded)
