@@ -1,8 +1,9 @@
 """Telegram bot. Long polling only: no inbound port is ever opened (ADR-0009).
 
-Every command handler is registered behind ``owner_only`` so the bot ignores anyone who
-is not ``TC_TELEGRAM_ALLOWED_USER_ID``. Button presses (callback queries) can't take a filter,
-so ``Handlers.button`` checks the sender itself before doing anything.
+Every update meets the sender gate first (``bot.gate``, ADR-0089): only messages and button
+presses in a private chat, from someone linked, get any further. Behind it, every command
+handler is still registered behind ``owner_only`` and button presses check the sender, until
+each handler takes the sessions of the person the gate found.
 """
 
 import asyncio
@@ -27,7 +28,6 @@ from telegram import (
 from telegram.error import NetworkError, RetryAfter, TelegramError
 from telegram.ext import (
     Application,
-    ApplicationHandlerStop,
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
@@ -49,6 +49,7 @@ from training_coach.bot import share as share_ui
 from training_coach.bot import stretching as stretching_ui
 from training_coach.bot import undo as undo_ui
 from training_coach.bot.buttons import edit_quietly
+from training_coach.bot.gate import ALLOWED_UPDATES, ANYWHERE, AWAY_TEXT, Gate
 from training_coach.bot.logging_flow import LogHandlers
 from training_coach.bot.messages import (
     NO_PLAN,
@@ -67,7 +68,7 @@ from training_coach.bot.messages import (
     week_text,
 )
 from training_coach.config import Settings
-from training_coach.db.session import session_scope
+from training_coach.db.session import session_scope, unbound_like
 from training_coach.domain.queue import local_date
 from training_coach.services import (
     ai_comment,
@@ -129,11 +130,8 @@ RECOVER_TEXT = (
     "again after):"
 )
 LOGIN_OFF = "Web sign-in isn't set up yet: TC_PUBLIC_URL is missing on the server."
-AWAY_TEXT = (
-    "Training Coach serves the EU and EEA only. Open the website from there to turn me back on."
-)
-# Still answered when paused: the way back into the website, where a visit from Europe counts.
-ANYWHERE = frozenset({"/login", "/recover"})
+# The gate's, named here for the API's lifespan (it starts the bot) and the tests that drive it.
+__all__ = ["ALLOWED_UPDATES", "ANYWHERE", "AWAY_TEXT"]
 MORNING_JOB = "morning"
 NUDGE_JOB = "nudge"
 REVIEW_JOB = "weekly-review"
@@ -215,6 +213,7 @@ class Handlers:
     def __init__(self, settings: Settings, sessions: sessionmaker[Session]) -> None:
         self.settings = settings
         self.sessions = sessions
+        self.gate: Gate | None = None  # set by build_bot: who each update was let through for
 
     def _local_today(self) -> date:
         return local_date(datetime.now(UTC), self.settings.tz)
@@ -244,29 +243,6 @@ class Handlers:
                 return users.bot_served(session, datetime.now(UTC))
         except SQLAlchemyError:  # the handler meets the same error and says so, once
             return True
-
-    async def away(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Runs before every handler (ADR-0085): the bot can't see where its person is, so it
-        serves them for 30 days after their last visit to the website from the EU or EEA. Then
-        it answers one line and nothing else, except /login and /recover. Strangers pass on
-        untouched, to handlers that ignore them."""
-        user, chat, message = update.effective_user, update.effective_chat, update.effective_message
-        if user is None or user.id != self.settings.telegram_allowed_user_id:
-            return
-        if chat is None or chat.type != chat.PRIVATE or self._served():
-            return
-        if update.message is not None:
-            command = (update.message.text or "").split("@")[0].split(maxsplit=1)
-            if command and command[0] in ANYWHERE:
-                return
-        try:
-            if update.callback_query is not None:
-                await update.callback_query.answer()
-            if message is not None:
-                await message.reply_text(AWAY_TEXT)
-        except TelegramError as exc:  # a stale button, the network: still nothing else runs
-            log.warning("bot.away_reply_failed", error=type(exc).__name__)
-        raise ApplicationHandlerStop
 
     def unless_away(self, job: Job) -> Job:
         """Every scheduled message (morning, nudge, review, band and proposal checks) is
@@ -527,12 +503,13 @@ class Handlers:
             log.error("bot.nudge_failed")
 
     async def error(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Log any handler failure (type only, never the message) and tell the owner."""
+        """Log any handler failure (type only, never the message) and tell the person, if the
+        gate let the update through for someone: never a stranger."""
         log.error("bot.handler_failed", error=type(context.error).__name__)
         if (
             isinstance(update, Update)
-            and update.effective_user is not None
-            and update.effective_user.id == self.settings.telegram_allowed_user_id
+            and self.gate is not None
+            and self.gate.person(update) is not None
             and update.effective_message is not None
         ):
             await update.effective_message.reply_text(SOMETHING_WENT_WRONG)
@@ -585,8 +562,10 @@ def build_bot(
     )
     allowed = owner_only(settings)
     handlers = Handlers(settings, sessions)
-    # Before every other handler: paused 30 days after the last visit from Europe (ADR-0085).
-    application.add_handler(TypeHandler(Update, handlers.away), group=-1)
+    # Before every other handler: who it's from, and whether to serve them (ADR-0089, ADR-0085).
+    gate = Gate(settings, unbound_like(sessions))
+    handlers.gate = gate
+    application.add_handler(TypeHandler(Update, gate.check), group=-1)
     application.add_handler(CommandHandler(["start", "help"], handlers.help, filters=allowed))
     application.add_handler(CommandHandler("today", handlers.today, filters=allowed))
     application.add_handler(CommandHandler("week", handlers.week, filters=allowed))

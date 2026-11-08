@@ -58,7 +58,13 @@ from training_coach.api.security import request_guard, security_headers_middlewa
 from training_coach.api.session import router as session_router
 from training_coach.api.settings import Reschedule
 from training_coach.api.settings import router as settings_router
-from training_coach.bot.app import ANNOUNCE, RESCHEDULE, build_bot, send_with_retry
+from training_coach.bot.app import (
+    ALLOWED_UPDATES,
+    ANNOUNCE,
+    RESCHEDULE,
+    build_bot,
+    send_with_retry,
+)
 from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.domain.rate_limit import RateLimit
@@ -302,7 +308,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await bot.initialize()
             await bot.start()
             assert bot.updater is not None  # noqa: S101 - always set by the default builder
-            await bot.updater.start_polling(drop_pending_updates=False)
+            # Only messages and button presses: nothing else gets past the gate (ADR-0089).
+            await bot.updater.start_polling(
+                drop_pending_updates=False, allowed_updates=list(ALLOWED_UPDATES)
+            )
             log.info("bot.started")
         elif not settings.bot_enabled:
             log.warning("bot.disabled", reason="telegram token or allowed user id not set")
