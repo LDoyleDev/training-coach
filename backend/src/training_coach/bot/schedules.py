@@ -69,24 +69,33 @@ class Schedules:
 
     def person(self, user_id: int) -> None:
         """Make ``user_id``'s jobs again from their settings now, or take them away if they
-        have no Telegram linked or the switch closes the app to them. Settings that can't be
-        read give the default times; each run checks whom it is for anyway."""
-        self.drop(user_id)
+        have no Telegram linked or the switch closes the app to them. If that can't be read,
+        the jobs they have stay as they are (the next change or restart reads it again), and
+        someone with none, at start-up, gets the default times; each run checks whom it is for
+        anyway."""
         if users.closed_to(user_id, self.gate.settings.multi_user):
+            self.drop(user_id)
             return
         try:
             with session_scope(self.gate.shared) as session:
                 chat = users.telegram_chat(session, user_id)
             if chat is None:
+                self.drop(user_id)
                 return
             with session_scope(self.gate.sessions_for(user_id)) as session:
                 prefs = user_settings.load(session)
         except SQLAlchemyError as exc:
             log.error("bot.settings_unreadable", error=type(exc).__name__)
+            if self._has(user_id):
+                return
             prefs = Prefs()
+        self.drop(user_id)
         self._daily(MORNING, user_id, prefs.morning_time, EVERY_DAY)
         self._daily(NUDGE, user_id, prefs.nudge_time, EVERY_DAY)
         self._daily(REVIEW, user_id, prefs.review_time, (SUNDAY,))
+
+    def _has(self, user_id: int) -> bool:
+        return any(self._queue().get_jobs_by_name(name(kind, user_id)) for kind in KINDS)
 
     def drop(self, user_id: int) -> None:
         for kind in KINDS:

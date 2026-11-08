@@ -28,8 +28,6 @@ log = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-# Set by the app's lifespan when the bot runs: moves the person's morning, nudge and review jobs.
-
 
 def _bound(request: Request, user: int) -> sessionmaker[Session]:
     return make_session_factory(request.app.state.engine, user_id=user)

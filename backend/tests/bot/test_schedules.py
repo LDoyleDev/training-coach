@@ -8,6 +8,8 @@ from datetime import UTC, datetime, time, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import pytest
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
@@ -193,6 +195,28 @@ async def test_the_owners_erase_starts_their_jobs_again_at_the_default_times(
         session.commit()
     application.bot_data[FORGET](users.OWNER)
     assert _next_run(application, schedules.MORNING, users.OWNER) == datetime(
+        2026, 10, 7, 5, 30, tzinfo=UTC
+    )
+
+
+async def test_settings_that_cant_be_read_leave_their_jobs_where_they_are(
+    seeded: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A locked database on a change of times mustn't move them to the defaults (review of
+    #652); at start-up, with no jobs yet, the defaults are what there is."""
+    _times(seeded, time(6, 0), time(21, 0), time(18, 0))
+    application = build_bot(SETTINGS, seeded)
+    morning = _next_run(application, schedules.MORNING, users.OWNER)
+    assert morning == datetime(2026, 10, 7, 4, 0, tzinfo=UTC)
+
+    def locked(_session: Session) -> user_settings.Prefs:
+        raise OperationalError("SELECT", {}, Exception("database is locked"))
+
+    monkeypatch.setattr(user_settings, "load", locked)
+    application.bot_data[RESCHEDULE](users.OWNER)
+    assert _next_run(application, schedules.MORNING, users.OWNER) == morning
+    fresh = build_bot(SETTINGS, seeded)
+    assert _next_run(fresh, schedules.MORNING, users.OWNER) == datetime(
         2026, 10, 7, 5, 30, tzinfo=UTC
     )
 
