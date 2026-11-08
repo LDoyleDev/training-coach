@@ -49,14 +49,16 @@ def application(seeded: sessionmaker[Session]) -> Application:  # type: ignore[t
 
 @pytest.fixture
 def member(seeded: sessionmaker[Session]) -> sessionmaker[Session]:
-    """A member's sessions (ADR-0059), linked to Telegram account MEMBER, with their own plan."""
+    """A member's sessions (ADR-0059), linked to Telegram account MEMBER, with their own plan:
+    a copy of the owner's cycle at its starting levels, not a starter (any-level S1), so each
+    test compares like with like and no rest day falls on today."""
     engine = seeded.kw["bind"]
     with session_scope(make_session_factory(engine)) as shared:
         person = User(role=users.MEMBER, telegram_user_id=TELEGRAM_MEMBER)
         shared.add(person)
         shared.flush()
         person_id = person.id
-        apply_seed(shared, load_plan())  # starts the new person's plan
+        apply_seed(shared, load_plan().model_copy(update={"new_people": None}))
     return make_session_factory(engine, user_id=person_id)
 
 

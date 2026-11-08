@@ -582,7 +582,9 @@ chair seat (2), the side plank at a counter (2) and the glute bridge at its stan
 
 **What the seed needs to accept these:** an exercise with a catalogue `range` can't also be used
 by a session, so `range` comes off the squat, hip hinge and balance, and each session item sets
-its own. `start` is 0 for every exercise in a starter.
+its own. `start` is 0 for every exercise in a starter. Built (8 Nov 2026) as `[[starters]]` in
+`plan.toml`, with a new person on the 3-day until setup picks; someone on a starter starts every
+exercise at its bottom step, leaving `start` as the owner's cycle has it (ADR-0073, addendum).
 
 #### Decided (8 Nov 2026)
 
@@ -595,7 +597,7 @@ Liam's answer to these questions was "All OK to proceed", so each one is decided
    single leg with no hands (5), single leg holding a bag (5), a bodyweight single-leg Romanian
    deadlift. Steps at the end of a ladder need no migration; they need questions, cues and
    figures. The gym swap can then reach the barbell Romanian deadlift at level 4, which gives the
-   lower back work at the gym again.
+   lower back work at the gym again. Built 8 Nov 2026: the steps, their questions, cues and figures.
 3. **Someone placed at level 1 by the everyday questions gets no split squat** (0 sets, as the
    trim does). The squat still works the legs.
 4. **Each ladder's questions start at the level the age and exercise questions suggest**, walking

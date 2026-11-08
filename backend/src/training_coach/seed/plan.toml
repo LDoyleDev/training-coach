@@ -50,6 +50,10 @@
 # for; a session item sets its own (ADR-0083). `lengthened = true`: a lengthened-position pick,
 # first in the picker for the muscle it trains (program-builder.md, Decided 5).
 
+# What a new person starts on until setup picks a starter by days a week (any-level-any-time.md S1,
+# ADR-0073); the owner starts on the [[sessions]] below.
+new_people = "three-days"
+
 # Plan versions, oldest first: each is in force from `since` until the next (ADR-0034). Every
 # workout records the version in force on its date. Add a version when the plan changes; a
 # version's date can't change once workouts record it, its name can.
@@ -2064,19 +2068,31 @@ pattern = "hinge"
 stress = ["spine"]
 aliases = ["hip hinges", "counter hinge", "good morning", "good mornings"]
 start = 0
-range = [3, 10]
-ladder = ["Hands on the counter", "Hips back to a wall", "Holding a bag at the chest"]
+ladder = ["Hands on the counter", "Hips back to a wall", "Holding a bag at the chest", "Single leg, a hand on the counter", "Single leg, no hands", "Single leg, holding a bag"]
 [exercises.cues]
 "Hands on the counter" = "An arm's length from the counter, hands on its edge. Hips back until arms and back make one line, then stand."
 "Hips back to a wall" = "A foot's length from a wall, your back to it, hands on your hips. Push your hips back to touch the wall, then stand."
 "Holding a bag at the chest" = "Hug a 3-5 kg bag or backpack to your chest."
+"Single leg, a hand on the counter" = "Facing the counter, one hand on its edge. Standing knee soft, tip forward as the other leg goes back, hips square, then stand. Each leg."
+"Single leg, no hands" = "Arms by your sides. Tip forward on one leg as the other goes back in line with your back, then stand. Each leg."
+"Single leg, holding a bag" = "A 3-5 kg bag in the hand opposite the standing leg, close to the shin as you tip forward."
 [exercises.questions]
 "Hips back to a wall" = "Can you do 3 hip hinges without holding on, touching your hips to a wall behind you?"
 "Holding a bag at the chest" = "Can you do 3 hip hinges hugging a 3-5 kg bag to your chest, back flat?"
+"Single leg, a hand on the counter" = "Can you do 3 single-leg hip hinges on each leg, a hand on the counter, back flat?"
+"Single leg, no hands" = "Can you do 3 single-leg hip hinges on each leg without holding on, back flat?"
+"Single leg, holding a bag" = "Can you do 3 single-leg hip hinges on each leg holding a 3-5 kg bag, back flat?"
 [exercises.levels]
 "Hands on the counter" = 1
 "Hips back to a wall" = 2
 "Holding a bag at the chest" = 3
+"Single leg, a hand on the counter" = 4
+"Single leg, no hands" = 5
+"Single leg, holding a bag" = 5
+[exercises.marks]
+"Single leg, a hand on the counter" = ["balance"]
+"Single leg, no hands" = ["balance"]
+"Single leg, holding a bag" = ["balance"]
 
 [[exercises]]
 slug = "deadlift"
@@ -2294,7 +2310,6 @@ qualities = ["balance"]
 pattern = "balance"
 aliases = ["balancing", "balance hold", "one leg stand", "single leg stand", "heel to toe"]
 start = 0
-range = [3, 10]
 ladder = ["Feet together, holding the counter", "Feet together, hands over the counter", "Half heel-to-toe, beside the counter", "Heel-to-toe, beside the counter", "One leg, a fingertip on the counter", "One leg, beside the counter", "One leg, turning your head", "One leg, eyes closed"]
 [exercises.cues]
 "Feet together, holding the counter" = "Feet side by side and touching, both hands resting on the counter."
@@ -2424,7 +2439,6 @@ pattern = "squat"
 stress = ["spine"]
 aliases = ["squats", "goblet", "goblet squat", "goblet squats", "sit to stand", "sit to stands"]
 start = 8
-range = [3, 10]
 ladder = ["Raised seat, hands push off", "Sit to stand, hands push off", "Sit to stand, hands on thighs", "Sit to stand, arms crossed", "A lower seat, arms crossed", "To a chair, touch and go", "To a chair, holding a backpack", "Full depth", "8 kg, 3 s lowering", "1.5-rep squats, 8 kg", "Heavier kettlebell"]
 [exercises.needs]
 "8 kg, 3 s lowering" = ["kettlebell:8"]
@@ -2717,3 +2731,170 @@ pacing = "Slow reps, with a 2 s squeeze at the top."
 [exercises.needs]
 "Holding 8 kg" = ["kettlebell:8"]
 "Deficit, holding 8 kg" = ["kettlebell:8"]
+
+# ------------------------------------------------------------------ starters
+# The plans a new person starts on, by days a week (any-level-any-time.md S1, approved 8 Nov
+# 2026). Someone on a starter starts every exercise at the bottom of its ladder, whatever its
+# `start` (that is the owner's cycle's), and setup's "Can you do...?" answers move it up; each
+# range is the one its questions ask for the bottom of. Calf raises and balance count both legs
+# together. `rest_after`: the rest places after a session (ADR-0091), so each starter is a week.
+# A session is done the same way away (every bottom step needs no kit) and at the gym until setup
+# writes someone's gym version (S1, Decided 5). The order of the items is the trim's order too:
+# domain.trim drops the later exercise of a group first, which gives S1's "The trim order"
+# (tests/services/test_starters.py).
+[[starters]]
+slug = "two-days"
+name = "2 days a week"
+days = 2
+
+[[starters.sessions]]
+slug = "two-days-a"
+name = "Full body A"
+focus = "Squat, push and pull, hinge, calves, core, shoulders, balance"
+rest_after = 2
+items = [
+  { exercise = "goblet-squat", sets = 3, rep_min = 3, rep_max = 10, pair = 1 },
+  { exercise = "doorway-row", sets = 3, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "push-up", sets = 4, rep_min = 10, rep_max = 18, pair = 2 },
+  { exercise = "hip-hinge", sets = 3, rep_min = 3, rep_max = 10, pair = 2 },
+  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, pair = 3 },
+  { exercise = "plank", sets = 3, rep_min = 10, rep_max = 30, pair = 3 },
+  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 18, pair = 4 },
+  { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 4 },
+  { exercise = "balance", sets = 2, rep_min = 3, rep_max = 10 },
+]
+
+[[starters.sessions]]
+slug = "two-days-b"
+name = "Full body B"
+focus = "Split squat, push and pull, glutes, hinge, shoulders, calves, arms, core, balance"
+rest_after = 3
+items = [
+  { exercise = "bulgarian-split-squat", sets = 3, rep_min = 8, rep_max = 15, per_side = true, pair = 1 },
+  { exercise = "push-up", sets = 4, rep_min = 10, rep_max = 18, pair = 1 },
+  { exercise = "glute-bridge", sets = 3, rep_min = 8, rep_max = 15, pair = 2 },
+  { exercise = "doorway-row", sets = 3, rep_min = 8, rep_max = 15, pair = 2 },
+  { exercise = "hip-hinge", sets = 2, rep_min = 3, rep_max = 10, pair = 3 },
+  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 18, pair = 3 },
+  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, pair = 4 },
+  { exercise = "kb-curl", sets = 2, rep_min = 12, rep_max = 18, pair = 4 },
+  { exercise = "plank", sets = 2, rep_min = 10, rep_max = 30, pair = 5 },
+  { exercise = "balance", sets = 2, rep_min = 3, rep_max = 10, pair = 5 },
+]
+
+[[starters]]
+slug = "three-days"
+name = "3 days a week"
+days = 3
+
+[[starters.sessions]]
+slug = "three-days-a"
+name = "Full body A"
+focus = "Squat, push and pull, hinge, calves, core, shoulders, arms, balance"
+rest_after = 1
+items = [
+  { exercise = "goblet-squat", sets = 3, rep_min = 3, rep_max = 10, pair = 1 },
+  { exercise = "doorway-row", sets = 3, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "push-up", sets = 4, rep_min = 10, rep_max = 18, pair = 2 },
+  { exercise = "hip-hinge", sets = 3, rep_min = 3, rep_max = 10, pair = 2 },
+  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, pair = 3 },
+  { exercise = "plank", sets = 2, rep_min = 10, rep_max = 30, pair = 3 },
+  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 18, pair = 4 },
+  { exercise = "kb-curl", sets = 2, rep_min = 12, rep_max = 18, pair = 4 },
+  { exercise = "balance", sets = 2, rep_min = 3, rep_max = 10 },
+]
+
+[[starters.sessions]]
+slug = "three-days-b"
+name = "Full body B"
+focus = "Split squat, push and pull, glutes, shoulders, core, calves, balance"
+rest_after = 1
+items = [
+  { exercise = "bulgarian-split-squat", sets = 3, rep_min = 8, rep_max = 15, per_side = true, pair = 1 },
+  { exercise = "push-up", sets = 4, rep_min = 10, rep_max = 18, pair = 1 },
+  { exercise = "glute-bridge", sets = 3, rep_min = 8, rep_max = 15, pair = 2 },
+  { exercise = "doorway-row", sets = 3, rep_min = 8, rep_max = 15, pair = 2 },
+  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 18, pair = 3 },
+  { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 3 },
+  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, pair = 4 },
+  { exercise = "balance", sets = 2, rep_min = 3, rep_max = 10, pair = 4 },
+]
+
+[[starters.sessions]]
+slug = "three-days-c"
+name = "Full body C"
+focus = "Squat, push and pull, glutes, hinge, shoulders, calves, core, balance"
+rest_after = 2
+items = [
+  { exercise = "goblet-squat", sets = 3, rep_min = 3, rep_max = 10, pair = 1 },
+  { exercise = "doorway-row", sets = 3, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "push-up", sets = 3, rep_min = 10, rep_max = 18, pair = 2 },
+  { exercise = "glute-bridge", sets = 3, rep_min = 8, rep_max = 15, pair = 2 },
+  { exercise = "hip-hinge", sets = 2, rep_min = 3, rep_max = 10, pair = 3 },
+  { exercise = "lateral-raise", sets = 2, rep_min = 12, rep_max = 18, pair = 3 },
+  { exercise = "calf-raise", sets = 2, rep_min = 12, rep_max = 20, pair = 4 },
+  { exercise = "plank", sets = 2, rep_min = 10, rep_max = 30, pair = 4 },
+  { exercise = "balance", sets = 2, rep_min = 3, rep_max = 10 },
+]
+
+[[starters]]
+slug = "four-days"
+name = "4 days a week"
+days = 4
+
+[[starters.sessions]]
+slug = "four-days-lower-1"
+name = "Lower 1"
+focus = "Squat, hinge, split squat, calves, shins, core, balance"
+rest_after = 0
+items = [
+  { exercise = "goblet-squat", sets = 3, rep_min = 3, rep_max = 10, pair = 1 },
+  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, pair = 1 },
+  { exercise = "hip-hinge", sets = 3, rep_min = 3, rep_max = 10, pair = 2 },
+  { exercise = "plank", sets = 3, rep_min = 10, rep_max = 30, pair = 2 },
+  { exercise = "bulgarian-split-squat", sets = 2, rep_min = 8, rep_max = 15, per_side = true, pair = 3 },
+  { exercise = "tibialis-raise", sets = 2, rep_min = 15, rep_max = 25, pair = 3 },
+  { exercise = "balance", sets = 2, rep_min = 3, rep_max = 10 },
+]
+
+[[starters.sessions]]
+slug = "four-days-upper-1"
+name = "Upper 1"
+focus = "Push and pull, shoulders, arms, core"
+rest_after = 1
+items = [
+  { exercise = "push-up", sets = 4, rep_min = 10, rep_max = 18, pair = 1 },
+  { exercise = "doorway-row", sets = 4, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 18, pair = 2 },
+  { exercise = "kb-curl", sets = 3, rep_min = 12, rep_max = 18, pair = 2 },
+  { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true },
+]
+
+[[starters.sessions]]
+slug = "four-days-lower-2"
+name = "Lower 2"
+focus = "Split squat, glutes, hinge, squat, calves, core, balance"
+rest_after = 0
+items = [
+  { exercise = "bulgarian-split-squat", sets = 3, rep_min = 8, rep_max = 15, per_side = true, pair = 1 },
+  { exercise = "calf-raise", sets = 3, rep_min = 12, rep_max = 20, pair = 1 },
+  { exercise = "glute-bridge", sets = 3, rep_min = 8, rep_max = 15, pair = 2 },
+  { exercise = "side-plank-hip-dip", sets = 2, rep_min = 10, rep_max = 15, per_side = true, pair = 2 },
+  { exercise = "hip-hinge", sets = 2, rep_min = 3, rep_max = 10, pair = 3 },
+  { exercise = "plank", sets = 2, rep_min = 10, rep_max = 30, pair = 3 },
+  { exercise = "goblet-squat", sets = 2, rep_min = 3, rep_max = 10 },
+  { exercise = "balance", sets = 2, rep_min = 3, rep_max = 10 },
+]
+
+[[starters.sessions]]
+slug = "four-days-upper-2"
+name = "Upper 2"
+focus = "Pull and push, shoulders, arms, core"
+rest_after = 2
+items = [
+  { exercise = "doorway-row", sets = 4, rep_min = 8, rep_max = 15, pair = 1 },
+  { exercise = "push-up", sets = 4, rep_min = 10, rep_max = 18, pair = 1 },
+  { exercise = "lateral-raise", sets = 3, rep_min = 12, rep_max = 18, pair = 2 },
+  { exercise = "kb-curl", sets = 3, rep_min = 12, rep_max = 18, pair = 2 },
+  { exercise = "plank", sets = 2, rep_min = 10, rep_max = 30 },
+]
