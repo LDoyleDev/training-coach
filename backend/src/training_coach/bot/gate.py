@@ -10,7 +10,8 @@ nothing, so a chat relinked to someone else can't act with old buttons. Someone 
 Europe for 30 days gets one line (ADR-0085), except for /login and /recover.
 
 A handler registered through ``Gate.served`` gets the ``Person``, with sessions bound to them
-(ADR-0029), and does nothing without one.
+(ADR-0029), and does nothing without one. A scheduled message asks ``Gate.scheduled`` the same
+question for the person it is for.
 
 PTB carries on to the next group when a handler raises anything but ``ApplicationHandlerStop``,
 so the gate catches everything and stops: it fails closed. A database error is told only to a
@@ -123,11 +124,31 @@ class Gate:
 
         return run
 
-    def _sessions(self, user_id: int) -> sessionmaker[Session]:
-        # One factory per person, made once: each handler still opens short sessions with it.
+    def sessions_for(self, user_id: int) -> sessionmaker[Session]:
+        """``user_id``'s sessions. One factory per person, made once: each handler still opens
+        short sessions with it."""
         if user_id not in self.bound:
             self.bound[user_id] = make_session_factory(self.shared.kw["bind"], user_id=user_id)
         return self.bound[user_id]
+
+    def scheduled(self, user_id: int) -> Person | None:
+        """Who a scheduled message for ``user_id`` goes to, or None to send nothing: someone
+        with Telegram linked, not closed out by the switch (ADR-0059) and not away (ADR-0085).
+        The chat is read at each run, so it is always the one they are linked to now. A
+        database error sends nothing."""
+        if users.closed_to(user_id, self.settings.multi_user):
+            return None
+        now = datetime.now(UTC)
+        try:
+            with session_scope(self.shared) as session:
+                chat = users.telegram_chat(session, user_id)
+                served = chat is not None and users.served_remotely(session, user_id, now)
+        except SQLAlchemyError as exc:
+            log.error("bot.job_lookup_failed", error=type(exc).__name__)
+            return None
+        if chat is None or not served:
+            return None
+        return Person(user_id=user_id, chat=chat, sessions=self.sessions_for(user_id))
 
     def person(self, update: object) -> Person | None:
         """Who the gate let ``update`` through for, if anyone (the error handler's question:
@@ -182,7 +203,7 @@ class Gate:
         if not served and not _anywhere(update):
             await self._reply(update, AWAY_TEXT)
             raise ApplicationHandlerStop
-        return Person(user_id=user_id, chat=chat.id, sessions=self._sessions(user_id))
+        return Person(user_id=user_id, chat=chat.id, sessions=self.sessions_for(user_id))
 
     async def _reply(self, update: Update, text: str) -> None:
         try:

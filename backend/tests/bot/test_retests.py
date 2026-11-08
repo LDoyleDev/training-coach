@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from tests.bot.fakes import SETTINGS
+from tests.bot.fakes import SETTINGS, scheduled
 from training_coach.bot.app import Handlers
 from training_coach.db.models import FitnessTestDay
 from training_coach.services import user_settings
@@ -42,13 +42,13 @@ def _buttons(kwargs: dict[str, object]) -> list[tuple[str, str]]:
 async def test_a_test_day_morning_names_the_tests_and_where_to_enter_them(
     seeded: Sessions,
 ) -> None:
-    handlers = Handlers(WITH_URL, seeded)
+    handlers = Handlers(WITH_URL)
     _, before = handlers._today(seeded)
     assert before is not None
     session_id = before.inline_keyboard[0][0].callback_data
     _tested(seeded, 1, 1, handlers)
     context = _context()
-    await handlers.morning(context)  # type: ignore[arg-type]
+    await handlers.morning(context, scheduled(seeded))  # type: ignore[arg-type]
     kwargs = context.bot.send_message.await_args.kwargs  # type: ignore[attr-defined]
     text = kwargs["text"]
     assert text.startswith("Today: Baseline tests, day 2\n")
@@ -65,20 +65,20 @@ async def test_a_test_day_morning_names_the_tests_and_where_to_enter_them(
 
 
 async def test_without_a_public_url_the_tests_page_is_named(seeded: Sessions) -> None:
-    handlers = Handlers(SETTINGS, seeded)
+    handlers = Handlers(SETTINGS)
     _tested(seeded, 1, 1, handlers)
     text, _ = handlers._today(seeded)
     assert "Enter the results in the app: the Tests tab of the Body page" in text
 
 
 async def test_the_nudge_on_a_test_day_points_to_the_tests(seeded: Sessions) -> None:
-    handlers = Handlers(WITH_URL, seeded)
+    handlers = Handlers(WITH_URL)
     _tested(seeded, 1, 1, handlers)
     with seeded() as session:
         user_settings.update(session, habits_enabled=False)
         session.commit()
     context = _context()
-    await handlers.nudge(context)  # type: ignore[arg-type]
+    await handlers.nudge(context, scheduled(seeded))  # type: ignore[arg-type]
     kwargs = context.bot.send_message.await_args.kwargs  # type: ignore[attr-defined]
     assert kwargs["text"] == (
         "Nothing logged today yet. Baseline tests, day 2 is still waiting: "
@@ -88,11 +88,11 @@ async def test_the_nudge_on_a_test_day_points_to_the_tests(seeded: Sessions) -> 
 
 
 async def test_a_test_day_saved_today_silences_the_nudge(seeded: Sessions) -> None:
-    handlers = Handlers(WITH_URL, seeded)
+    handlers = Handlers(WITH_URL)
     _tested(seeded, 0, 1, handlers)
     with seeded() as session:
         user_settings.update(session, habits_enabled=False)
         session.commit()
     context = _context()
-    await handlers.nudge(context)  # type: ignore[arg-type]
+    await handlers.nudge(context, scheduled(seeded))  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()  # type: ignore[attr-defined]

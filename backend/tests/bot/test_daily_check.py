@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application
 
-from tests.bot.fakes import OWNER, SETTINGS, STRANGER, button_data, press, run, texts
+from tests.bot.fakes import OWNER, SETTINGS, STRANGER, button_data, press, run, scheduled, texts
 from training_coach.bot import daily_check as daily_ui
 from training_coach.bot.app import Handlers
 from training_coach.db.models import DailyCheck, PlanState, SleepSession
@@ -72,7 +72,7 @@ def test_each_button_carries_the_answers_so_far() -> None:
 
 async def _morning(sessions: Sessions) -> dict[str, object]:
     bot = AsyncMock()
-    await Handlers(SETTINGS, sessions).morning(type("Ctx", (), {"bot": bot})())  # type: ignore[arg-type]  # fake context
+    await Handlers(SETTINGS).morning(type("Ctx", (), {"bot": bot})(), scheduled(sessions))  # type: ignore[arg-type]  # fake context
     kwargs: dict[str, object] = bot.send_message.await_args.kwargs
     return kwargs
 

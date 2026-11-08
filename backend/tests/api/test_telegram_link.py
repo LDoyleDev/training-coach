@@ -14,7 +14,7 @@ import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 
-from tests.alerts import capture, forgotten
+from tests.alerts import capture, forgotten, rescheduled
 from training_coach.api.app import create_app
 from training_coach.api.telegram_link import CONNECTED, DISCONNECTED
 from training_coach.config import Settings
@@ -109,6 +109,7 @@ def test_a_member_connects_with_the_code_their_telegram_got(
     member: TestClient, engine: Engine
 ) -> None:
     told = capture(member, users.OWNER, chat=CONFIGURED)  # any other chat shows as "to <chat>"
+    moved = rescheduled(member)
     token = _token(member)
     assert _status(member)["pending"]["claims"] == 0
     code = _claim(engine, token)
@@ -118,8 +119,11 @@ def test_a_member_connects_with_the_code_their_telegram_got(
     assert _status(member)["pending"]["claims"] == 1
     assert member.post("/api/account/telegram/code", json={"code": code}).json() == {"name": "Mum"}
     assert _linked(engine, MEMBER) is None  # the name is a check: Confirm still to come
+    wrong = member.post("/api/account/telegram/confirm", json={"code": _unused_code(code)})
+    assert (wrong.status_code, moved) == (400, [])
     assert member.post("/api/account/telegram/confirm", json={"code": code}).status_code == 204
     assert _linked(engine, MEMBER) == THEIRS
+    assert moved == [MEMBER]  # their morning, nudge and review start (step 9)
     status = _status(member)
     assert status["connected"] is True
     assert status["name"] == "Mum"

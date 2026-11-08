@@ -17,12 +17,14 @@ from tests.bot.fakes import (
     command,
     press,
     run,
+    scheduled,
     text_message,
     texts,
 )
 from training_coach.bot import habits as habits_ui
+from training_coach.bot import schedules
 from training_coach.bot import settings as settings_ui
-from training_coach.bot.app import MORNING_JOB, NUDGE_JOB, REVIEW_JOB, Handlers
+from training_coach.bot.app import Handlers
 from training_coach.bot.messages import NUDGE, SOMETHING_WENT_WRONG, progress_text
 from training_coach.db.models import Workout
 from training_coach.db.session import session_scope
@@ -32,6 +34,9 @@ from training_coach.services import ai_comment, ai_key, progress, user_settings
 from training_coach.services.secret_box import SecretBox
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.user_settings import Prefs
+
+# The owner's jobs (step 9: each person's are named by their user id).
+MORNING_JOB, NUDGE_JOB, REVIEW_JOB = (schedules.name(k, 1) for k in schedules.KINDS)
 
 App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
@@ -229,7 +234,7 @@ def _context() -> object:
 
 async def test_nudge_when_nothing_is_logged(seeded: Sessions) -> None:
     context = _context()
-    await Handlers(SETTINGS, seeded).nudge(context)  # type: ignore[arg-type]
+    await Handlers(SETTINGS).nudge(context, scheduled(seeded))  # type: ignore[arg-type]
     kwargs = context.bot.send_message.await_args.kwargs  # type: ignore[attr-defined]
     assert kwargs["chat_id"] == OWNER
     assert kwargs["text"].startswith("Nothing logged today yet.")
@@ -250,7 +255,7 @@ async def test_nudge_when_nothing_is_logged(seeded: Sessions) -> None:
 async def test_nudge_respects_settings(seeded: Sessions, setup: dict[str, bool]) -> None:
     _set(seeded, **setup)
     context = _context()
-    await Handlers(SETTINGS, seeded).nudge(context)  # type: ignore[arg-type]
+    await Handlers(SETTINGS).nudge(context, scheduled(seeded))  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()  # type: ignore[attr-defined]
 
 
@@ -258,13 +263,13 @@ async def test_nudge_respects_settings(seeded: Sessions, setup: dict[str, bool])
 async def test_any_workout_today_silences_the_nudge(
     seeded: Sessions, status: WorkoutStatus
 ) -> None:
-    handlers = Handlers(SETTINGS, seeded)
+    handlers = Handlers(SETTINGS)
     with seeded() as session:
         session.add(Workout(local_date=handlers._local_today(), template_id=None, status=status))
         session.commit()
     _set(seeded, habits_enabled=False)
     context = _context()
-    await handlers.nudge(context)  # type: ignore[arg-type]
+    await handlers.nudge(context, scheduled(seeded))  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()  # type: ignore[attr-defined]
 
 
@@ -275,7 +280,7 @@ async def test_yesterdays_workout_does_not_silence_the_nudge(seeded: Sessions) -
         )
         session.commit()
     context = _context()
-    await Handlers(SETTINGS, seeded).nudge(context)  # type: ignore[arg-type]
+    await Handlers(SETTINGS).nudge(context, scheduled(seeded))  # type: ignore[arg-type]
     context.bot.send_message.assert_awaited_once()  # type: ignore[attr-defined]
 
 
@@ -283,7 +288,7 @@ async def test_habits_alone_when_no_nudge_is_due(seeded: Sessions) -> None:
     """Logged today, or nudges off: the habit buttons still come, on their own (D5)."""
     _set(seeded, nudges_enabled=False)
     context = _context()
-    await Handlers(SETTINGS, seeded).nudge(context)  # type: ignore[arg-type]
+    await Handlers(SETTINGS).nudge(context, scheduled(seeded))  # type: ignore[arg-type]
     kwargs = context.bot.send_message.await_args.kwargs  # type: ignore[attr-defined]
     assert kwargs["text"] == habits_ui.evening()
     assert "not through a window" in kwargs["text"]  # what counts, every evening
@@ -294,7 +299,7 @@ async def test_habits_alone_when_no_nudge_is_due(seeded: Sessions) -> None:
 async def test_no_nudge_without_a_plan(sessions: Sessions) -> None:
     _set(sessions, habits_enabled=False)
     context = _context()
-    await Handlers(SETTINGS, sessions).nudge(context)  # type: ignore[arg-type]
+    await Handlers(SETTINGS).nudge(context, scheduled(sessions))  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()  # type: ignore[attr-defined]
 
 
@@ -363,7 +368,7 @@ async def test_typed_review_time_after_other(application: App, seeded: Sessions)
 
 async def test_the_review_is_sent_to_the_owner(seeded: Sessions) -> None:
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
-    await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    await Handlers(SETTINGS).weekly_review(context, scheduled(seeded))  # type: ignore[arg-type]  # fake
     context.bot.send_message.assert_awaited_once()
     kwargs = context.bot.send_message.await_args.kwargs
     assert kwargs["chat_id"] == OWNER
@@ -380,7 +385,7 @@ async def test_the_ai_comment_follows_the_review(seeded: Sessions) -> None:
     reply = {"choices": [{"message": {"content": "Solid week."}}]}
     respx.post("https://api.groq.com/openai/v1/chat/completions").respond(json=reply)
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
-    await Handlers(settings, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    await Handlers(settings).weekly_review(context, scheduled(seeded))  # type: ignore[arg-type]  # fake
     sent = [call.kwargs["text"] for call in context.bot.send_message.await_args_list]
     assert len(sent) == 2
     assert sent[0].startswith("Week of ")
@@ -390,13 +395,13 @@ async def test_the_ai_comment_follows_the_review(seeded: Sessions) -> None:
 async def test_the_review_is_skipped_while_paused(seeded: Sessions) -> None:
     _set(seeded, paused=True)
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
-    await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    await Handlers(SETTINGS).weekly_review(context, scheduled(seeded))  # type: ignore[arg-type]  # fake
     context.bot.send_message.assert_not_awaited()
 
 
 async def test_the_review_survives_a_database_error(broken: sessionmaker[Session]) -> None:
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
-    await Handlers(SETTINGS, broken).weekly_review(context)  # type: ignore[arg-type]  # fake
+    await Handlers(SETTINGS).weekly_review(context, scheduled(broken))  # type: ignore[arg-type]  # fake
     context.bot.send_message.assert_not_awaited()
 
 
@@ -445,7 +450,7 @@ async def test_protein_target_is_asked_for_and_typed(application: App, seeded: S
 async def test_a_protein_target_names_the_habit_button(seeded: Sessions) -> None:
     _set(seeded, protein_g=165, nudges_enabled=False)
     context = _context()
-    await Handlers(SETTINGS, seeded).nudge(context)  # type: ignore[arg-type]
+    await Handlers(SETTINGS).nudge(context, scheduled(seeded))  # type: ignore[arg-type]
     kwargs = context.bot.send_message.await_args.kwargs  # type: ignore[attr-defined]
     labels = [b.text for row in kwargs["reply_markup"].inline_keyboard for b in row]
     assert "Protein target (165 g)" in labels
@@ -477,7 +482,7 @@ async def test_a_failing_ai_comment_never_fails_the_review(
 
     monkeypatch.setattr(ai_comment, "weekly", boom)
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
-    await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    await Handlers(SETTINGS).weekly_review(context, scheduled(seeded))  # type: ignore[arg-type]  # fake
     context.bot.send_message.assert_awaited_once()
 
 
@@ -490,7 +495,7 @@ async def test_a_failing_comment_send_never_fails_the_review(
     monkeypatch.setattr(ai_comment, "weekly", comment)
     send = AsyncMock(side_effect=[None, RuntimeError("socket gone")])
     context = SimpleNamespace(bot=SimpleNamespace(send_message=send))
-    await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    await Handlers(SETTINGS).weekly_review(context, scheduled(seeded))  # type: ignore[arg-type]  # fake
     assert send.await_count == 2
 
 

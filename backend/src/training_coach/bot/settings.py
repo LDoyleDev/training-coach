@@ -3,8 +3,8 @@
 Callback data is ``s:<what>[:<HHMM>]``. A typed time (after "Other time...") is only read
 while the bot is waiting for one; otherwise plain text is left for logging (step 1-E).
 
-Each person changes their own settings. The bot's scheduled messages are still the owner's
-(per-person jobs are step 9), so only the owner's changes move them.
+Each person changes their own settings, and a new time moves only their own scheduled
+messages (``bot.schedules``).
 """
 
 from collections.abc import Callable
@@ -51,7 +51,7 @@ BAD_PROTEIN = (
     "or /settings to cancel."
 )
 
-Reschedule = Callable[[ContextTypes.DEFAULT_TYPE, Prefs], None]
+Reschedule = Callable[[int], None]  # a user id: their jobs made again from their settings
 
 
 @dataclass(frozen=True)
@@ -190,11 +190,6 @@ class SettingsHandlers:
         """Drop the question ``user_id`` was asked (``Gate.forget``)."""
         self.awaiting.pop(user_id, None)
 
-    def _moved(self, me: Person, context: ContextTypes.DEFAULT_TYPE, prefs: Prefs) -> None:
-        """Move the scheduled messages to new times: they are the owner's until step 9."""
-        if me.owner:
-            self.reschedule(context, prefs)
-
     async def command(
         self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person
     ) -> None:
@@ -204,7 +199,7 @@ class SettingsHandlers:
         if update.effective_message is not None:
             await update.effective_message.reply_text(text(prefs), reply_markup=keyboard(prefs))
 
-    async def button(self, update: Update, context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
         """A /settings button: the presser's own settings."""
         query = update.callback_query
         if query is None:
@@ -236,12 +231,12 @@ class SettingsHandlers:
                 today=local_date(datetime.now(UTC), self.settings.tz),
             )
         if press.what in TIMES:
-            self._moved(me, context, prefs)
+            self.reschedule(me.user_id)
         log.info("bot.settings_changed", what=press.what)
         await edit_quietly(query.edit_message_text(text(prefs), reply_markup=keyboard(prefs)))
 
     async def typed_time(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE, me: Person
+        self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person
     ) -> None:
         """Plain text: a time, if one was asked for."""
         message = update.effective_message
@@ -263,7 +258,7 @@ class SettingsHandlers:
                 nudge_time=at if which == "nudge" else None,
                 review_time=at if which == "review" else None,
             )
-        self._moved(me, context, prefs)
+        self.reschedule(me.user_id)
         log.info("bot.settings_changed", what=which)
         await message.reply_text(text(prefs), reply_markup=keyboard(prefs))
 

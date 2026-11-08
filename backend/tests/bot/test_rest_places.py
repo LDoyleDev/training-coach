@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from tests.bot.fakes import SETTINGS
+from tests.bot.fakes import SETTINGS, scheduled
 from training_coach.bot.app import Handlers
 from training_coach.db.models import PlanState, SessionTemplate, Workout
 from training_coach.domain.enums import WorkoutStatus
@@ -38,7 +38,7 @@ def _rest_today(sessions: Sessions, handlers: Handlers) -> str:
 
 
 async def test_the_morning_of_a_rest_day_says_so(seeded: Sessions) -> None:
-    handlers = Handlers(WITH_URL, seeded)
+    handlers = Handlers(WITH_URL)
     upcoming = _rest_today(seeded, handlers)
     text, markup = handlers._today(seeded)
     assert text == f"Today: rest day. No session planned.\nNext: {upcoming}."
@@ -48,16 +48,16 @@ async def test_the_morning_of_a_rest_day_says_so(seeded: Sessions) -> None:
 
 
 async def test_no_nudge_on_a_rest_day(seeded: Sessions) -> None:
-    handlers = Handlers(WITH_URL, seeded)
+    handlers = Handlers(WITH_URL)
     _rest_today(seeded, handlers)
     context = type("Ctx", (), {"bot": AsyncMock()})()
-    await handlers.nudge(context)  # type: ignore[arg-type]
+    await handlers.nudge(context, scheduled(seeded))  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()  # type: ignore[attr-defined]
 
 
 async def test_a_pick_on_a_rest_day_makes_it_a_training_day(seeded: Sessions) -> None:
     """Train today instead, in the app (a pick): the bot offers the session, as the app does."""
-    handlers = Handlers(WITH_URL, seeded)
+    handlers = Handlers(WITH_URL)
     upcoming = _rest_today(seeded, handlers)
     with seeded() as session:
         pointer = session.scalars(select(PlanState)).one().next_template_id
@@ -67,5 +67,5 @@ async def test_a_pick_on_a_rest_day_makes_it_a_training_day(seeded: Sessions) ->
     text, _ = handlers._today(seeded)
     assert text.startswith(f"Today: {upcoming}\n")
     context = type("Ctx", (), {"bot": AsyncMock()})()
-    await handlers.nudge(context)  # type: ignore[arg-type]
+    await handlers.nudge(context, scheduled(seeded))  # type: ignore[arg-type]
     context.bot.send_message.assert_awaited_once()  # type: ignore[attr-defined]

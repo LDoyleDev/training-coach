@@ -11,8 +11,10 @@ from telegram.error import BadRequest
 from telegram.ext import Application
 
 from tests.bot.fakes import OWNER, SETTINGS, STRANGER, command, press, run, text_message, texts
-from training_coach.bot.app import AWAY_TEXT, LOGIN_OFF, Handlers
+from training_coach.bot.app import AWAY_TEXT, LOGIN_OFF
+from training_coach.bot.gate import Gate
 from training_coach.db.models import User
+from training_coach.db.session import unbound_like
 from training_coach.services import users
 
 
@@ -71,14 +73,13 @@ async def test_strangers_get_nothing_even_while_paused(
 async def test_scheduled_messages_are_skipped_while_paused(
     seeded: sessionmaker[Session],
 ) -> None:
-    job = AsyncMock(return_value=None)
-    paused = Handlers(SETTINGS, seeded).unless_away(job)
+    gate = Gate(SETTINGS, unbound_like(seeded))
     _last_seen(seeded, 31)
-    await paused(AsyncMock())
-    job.assert_not_awaited()
+    assert gate.scheduled(users.OWNER) is None
     _last_seen(seeded, 0)
-    await paused(AsyncMock())
-    job.assert_awaited_once()
+    found = gate.scheduled(users.OWNER)
+    assert found is not None
+    assert (found.user_id, found.chat) == (users.OWNER, OWNER)
 
 
 async def test_a_failed_reply_still_stops_the_update(

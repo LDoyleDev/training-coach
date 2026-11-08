@@ -30,3 +30,10 @@ def forgotten(client: TestClient) -> list[int]:
     asked: list[int] = []
     client.app.state.forget = asked.append  # type: ignore[attr-defined]  # a FastAPI app
     return asked
+
+
+def rescheduled(client: TestClient) -> list[int]:
+    """The user ids whose jobs the bot was asked to make again (step 9), in order."""
+    asked: list[int] = []
+    client.app.state.reschedule = asked.append  # type: ignore[attr-defined]  # a FastAPI app
+    return asked

@@ -14,7 +14,6 @@ from training_coach.api import app as api_app
 from training_coach.api.app import (
     _bot_loop,
     _left_back,
-    _on_loop,
     _owner_notifier,
     _report_death,
     _sender,
@@ -27,8 +26,6 @@ from training_coach.config import Settings
 from training_coach.db.models import User
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import backup, left_list, users
-from training_coach.services.user_settings import Prefs
-from training_coach.services.users import OWNER
 
 
 def test_healthz_reports_ok(client: TestClient) -> None:
@@ -236,32 +233,14 @@ async def test_a_dead_backup_loop_is_reported() -> None:
     assert logs == [{"event": "backup.loop_died", "error": "OSError", "log_level": "error"}]
 
 
-async def test_settings_from_a_worker_thread_reach_the_bot_on_its_loop() -> None:
-    seen: list[tuple[Prefs, asyncio.AbstractEventLoop]] = []
-    call = _on_loop(lambda prefs: seen.append((prefs, asyncio.get_running_loop())), OWNER)
-    await asyncio.to_thread(call, OWNER, Prefs(paused=True))  # as a sync route would
-    await asyncio.sleep(0)  # let the loop run the scheduled call
-    assert seen == [(Prefs(paused=True), asyncio.get_running_loop())]
-
-
 async def test_forgetting_from_a_worker_thread_runs_on_the_bots_loop() -> None:
-    """Unlink, leave and erase are sync routes; the bot's state is touched on its loop only."""
+    """Unlink, leave and erase, and new times or a new link moving a person's jobs, are sync
+    routes; the bot's state and job queue are touched on its loop only."""
     seen: list[tuple[int, asyncio.AbstractEventLoop]] = []
     call = _bot_loop(lambda user: seen.append((user, asyncio.get_running_loop())))
     await asyncio.to_thread(call, 2)
     await asyncio.sleep(0)
     assert seen == [(2, asyncio.get_running_loop())]
-
-
-async def test_only_the_owners_changes_move_the_bots_jobs() -> None:
-    """The bot's jobs are the owner's until each person has their own (multi-user plan step 9):
-    another person's new times never move them."""
-    seen: list[Prefs] = []
-    call = _on_loop(seen.append, OWNER)
-    call(OWNER + 1, Prefs(paused=True))
-    call(OWNER, Prefs(paused=False))
-    await asyncio.sleep(0)
-    assert seen == [Prefs(paused=False)]
 
 
 async def test_alerts_are_sent_to_the_chat_they_name(monkeypatch: pytest.MonkeyPatch) -> None:

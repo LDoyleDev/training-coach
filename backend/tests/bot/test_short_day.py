@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
-from tests.bot.fakes import OWNER, SETTINGS, STRANGER, press, run, texts
+from tests.bot.fakes import OWNER, SETTINGS, STRANGER, press, run, scheduled, texts
 from training_coach.bot.app import Handlers, build_bot
 from training_coach.bot.messages import (
     ANOTHER_LENGTH,
@@ -83,7 +83,7 @@ async def test_the_morning_shows_the_planned_length_and_offers_a_shorter_one(
 ) -> None:
     _at(seeded, "legs")
     context = type("Ctx", (), {"bot": AsyncMock()})()
-    await Handlers(SETTINGS, seeded).morning(context)  # type: ignore[arg-type]
+    await Handlers(SETTINGS).morning(context, scheduled(seeded))  # type: ignore[arg-type]
     text = context.bot.send_message.await_args.kwargs["text"]
     assert f"{LEGS_PLANNED} {SHORT_ON_TIME}" in text.splitlines()
     assert SHORT_ON_TIME == "Short on time? Pick a shorter length in the app before you start."
@@ -93,7 +93,7 @@ async def test_the_morning_shows_the_planned_length_and_offers_a_shorter_one(
 
 async def test_today_follows_a_shorter_day_chosen_in_the_app(seeded: Sessions) -> None:
     _at(seeded, "legs")
-    handlers = Handlers(SETTINGS, seeded)
+    handlers = Handlers(SETTINGS)
     before, _ = handlers._today(seeded)
     _choose(seeded, handlers, 20)
     text, _ = handlers._today(seeded)
@@ -111,7 +111,7 @@ async def test_forty_minutes_keeps_every_exercise_at_two_sets_and_the_warm_up(
     seeded: Sessions,
 ) -> None:
     _at(seeded, "legs")
-    handlers = Handlers(SETTINGS, seeded)
+    handlers = Handlers(SETTINGS)
     _choose(seeded, handlers, 40)
     text, _ = handlers._today(seeded)
     lines = text.splitlines()
@@ -126,7 +126,7 @@ async def test_a_day_that_cannot_get_that_short_says_how_short_it_got(seeded: Se
     """Five exercises pinned with Keep: 20 minutes is out of reach, so the line gives the
     shortest the app could make it (``Trimmed.shortest``), not the minutes chosen."""
     _at(seeded, "legs")
-    handlers = Handlers(SETTINGS, seeded)
+    handlers = Handlers(SETTINGS)
     pinned = ("tibialis-raise", "calf-raise", "hamstring-curl", "pistol-squat", "single-leg-rdl")
     _choose(seeded, handlers, 20, pinned)
     with seeded() as session:
@@ -153,7 +153,7 @@ async def test_a_day_that_cannot_get_that_short_says_how_short_it_got(seeded: Se
 
 async def test_as_planned_again_shows_the_whole_list(seeded: Sessions) -> None:
     _at(seeded, "legs")
-    handlers = Handlers(SETTINGS, seeded)
+    handlers = Handlers(SETTINGS)
     before, _ = handlers._today(seeded)
     _choose(seeded, handlers, 20)
     _choose(seeded, handlers, None)
@@ -163,7 +163,7 @@ async def test_as_planned_again_shows_the_whole_list(seeded: Sessions) -> None:
 
 async def test_no_offer_once_the_session_has_started(seeded: Sessions) -> None:
     _at(seeded, "legs")
-    handlers = Handlers(SETTINGS, seeded)
+    handlers = Handlers(SETTINGS)
     _keep_first_set(seeded, handlers)
     text, _ = handlers._today(seeded)
     assert LEGS_PLANNED in text.splitlines()
@@ -172,7 +172,7 @@ async def test_no_offer_once_the_session_has_started(seeded: Sessions) -> None:
 
 async def test_a_conditioning_session_offers_it_without_a_warm_up(seeded: Sessions) -> None:
     _at(seeded, "moderate-cardio")
-    text, _ = Handlers(SETTINGS, seeded)._today(seeded)
+    text, _ = Handlers(SETTINGS)._today(seeded)
     (line,) = [line for line in text.splitlines() if line.startswith("About ")]
     assert line.endswith(f" minutes. {SHORT_ON_TIME}")
     assert "Warm up" not in text
@@ -180,14 +180,14 @@ async def test_a_conditioning_session_offers_it_without_a_warm_up(seeded: Sessio
 
 async def test_a_session_shorter_than_every_length_is_not_offered_one(seeded: Sessions) -> None:
     _at(seeded, "hiit")
-    text, _ = Handlers(SETTINGS, seeded)._today(seeded)
+    text, _ = Handlers(SETTINGS)._today(seeded)
     assert "About 4 minutes." in text.splitlines()  # 8 rounds of 30 s
     assert SHORT_ON_TIME not in text
 
 
 async def test_a_recovery_session_is_not_offered_shorter(seeded: Sessions) -> None:
     _at(seeded, "recovery")
-    text, _ = Handlers(SETTINGS, seeded)._today(seeded)
+    text, _ = Handlers(SETTINGS)._today(seeded)
     assert SHORT_ON_TIME not in text
     assert "About " not in text
 
@@ -202,7 +202,7 @@ async def test_start_lists_the_shorter_day(
     seeded: Sessions,
 ) -> None:
     tid = _at(seeded, "legs")
-    _choose(seeded, Handlers(SETTINGS, seeded), 20)
+    _choose(seeded, Handlers(SETTINGS), 20)
     (text,) = texts(await run(app, press(f"q:start:{tid}", OWNER)))
     assert DROPPED_AT_20 in text.splitlines()
     assert _listed(text) == {"Jump squat": 2, "Kettlebell swing": 2, "Split squat": 2}
@@ -214,7 +214,7 @@ async def test_a_strangers_start_still_gets_nothing(
     seeded: Sessions,
 ) -> None:
     tid = _at(seeded, "legs")
-    _choose(seeded, Handlers(SETTINGS, seeded), 20)
+    _choose(seeded, Handlers(SETTINGS), 20)
     assert await run(app, press(f"q:start:{tid}", STRANGER)) == {}
 
 
@@ -237,9 +237,9 @@ def _minutes_today(sessions: Sessions, handlers: Handlers) -> int:
 async def test_the_morning_follows_minutes_per_session(seeded: Sessions) -> None:
     _at(seeded, "legs")
     _setting(seeded, 30)
-    handlers = Handlers(SETTINGS, seeded)
+    handlers = Handlers(SETTINGS)
     context = type("Ctx", (), {"bot": AsyncMock()})()
-    await handlers.morning(context)  # type: ignore[arg-type]
+    await handlers.morning(context, scheduled(seeded))  # type: ignore[arg-type]
     text = context.bot.send_message.await_args.kwargs["text"]
     lines = text.splitlines()
     about = _minutes_today(seeded, handlers)
@@ -253,7 +253,7 @@ async def test_the_morning_follows_minutes_per_session(seeded: Sessions) -> None
 async def test_the_work_list_names_what_the_setting_drops(seeded: Sessions) -> None:
     _at(seeded, "legs")
     _setting(seeded, 20)
-    handlers = Handlers(SETTINGS, seeded)
+    handlers = Handlers(SETTINGS)
     text, _ = handlers._today(seeded)
     about = _minutes_today(seeded, handlers)
     assert (
@@ -266,7 +266,7 @@ async def test_the_work_list_names_what_the_setting_drops(seeded: Sessions) -> N
 
 async def test_a_days_as_planned_overrides_the_setting(seeded: Sessions) -> None:
     _at(seeded, "legs")
-    handlers = Handlers(SETTINGS, seeded)
+    handlers = Handlers(SETTINGS)
     planned, _ = handlers._today(seeded)
     _setting(seeded, 20)
     _choose(seeded, handlers, None)
@@ -277,7 +277,7 @@ async def test_a_days_as_planned_overrides_the_setting(seeded: Sessions) -> None
 async def test_no_other_length_is_offered_once_the_session_has_started(seeded: Sessions) -> None:
     _at(seeded, "legs")
     _setting(seeded, 30)
-    handlers = Handlers(SETTINGS, seeded)
+    handlers = Handlers(SETTINGS)
     _keep_first_set(seeded, handlers)
     text, _ = handlers._today(seeded)
     about = _minutes_today(seeded, handlers)
@@ -303,7 +303,7 @@ def test_a_setting_out_of_reach_says_the_shortest_it_gets(seeded: Sessions) -> N
     with seeded() as session:
         shown = session_plan(session, tid, None)
         assert shown is not None
-        cut, length = guided.at_length(session, Handlers(SETTINGS, seeded)._local_today(), shown)
+        cut, length = guided.at_length(session, Handlers(SETTINGS)._local_today(), shown)
     assert length is not None
     out_of_reach = replace(length, trimmed=replace(length.trimmed, minutes=23, fits=False))
     text = session_detail_text(cut, out_of_reach)

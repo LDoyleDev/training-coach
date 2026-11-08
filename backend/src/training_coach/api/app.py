@@ -3,7 +3,7 @@
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,7 +19,7 @@ from telegram import Bot
 from training_coach import __version__
 from training_coach.api.account import router as account_router
 from training_coach.api.ai import router as ai_router
-from training_coach.api.alerts import Forget, Send
+from training_coach.api.alerts import PerPerson, Send
 from training_coach.api.auth import router as auth_router
 from training_coach.api.band import router as band_router
 from training_coach.api.body import router as body_router
@@ -57,7 +57,6 @@ from training_coach.api.residence import router as residence_router
 from training_coach.api.review import router as review_router
 from training_coach.api.security import request_guard, security_headers_middleware
 from training_coach.api.session import router as session_router
-from training_coach.api.settings import Reschedule
 from training_coach.api.settings import router as settings_router
 from training_coach.api.telegram_link import router as telegram_link_router
 from training_coach.bot.app import (
@@ -73,7 +72,6 @@ from training_coach.db.session import make_engine, make_session_factory, session
 from training_coach.domain.rate_limit import RateLimit
 from training_coach.logging import configure_logging
 from training_coach.services import backup, left_list, telegram_link, users, wind_down
-from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
 
@@ -108,29 +106,17 @@ def _owner_notifier(telegram: Bot | None, owner: int | None) -> backup.Notify | 
     return notify
 
 
-def _on_loop(reschedule: Callable[[Prefs], None], jobs_for: int) -> Reschedule:
-    """The settings page moves the bot's jobs on the bot's own event loop: sync routes run in
-    worker threads, and the job queue isn't thread-safe. The bot's jobs are ``jobs_for``'s
-    (the owner's) until each person has their own, so anyone else's change moves nothing."""
-    loop = asyncio.get_running_loop()
-
-    def call(user: int, prefs: Prefs) -> None:
-        if user != jobs_for:
-            return
-        loop.call_soon_threadsafe(reschedule, prefs)
-
-    return call
-
-
-def _bot_loop(forget: Forget) -> Forget:
-    """Forgetting a person runs on the bot's own event loop: sync routes run in worker
-    threads, and the handlers' state isn't locked. It is queued after the route's commit, so
-    an update the bot is already handling for them can still finish, and re-add a draft, in
-    between; with their link or account gone, the gate lets nothing of theirs through again."""
+def _bot_loop(act: PerPerson) -> PerPerson:
+    """Forgetting a person, and moving their jobs (new times on the settings page, Telegram
+    connected), run on the bot's own event loop: sync routes run in worker threads, and
+    neither the handlers' state nor the job queue is locked. Each is queued after the route's
+    commit, so the bot reads the new times. An update the bot is already handling for someone
+    forgotten can still finish, and re-add a draft, in between; with their link or account
+    gone, the gate lets nothing of theirs through again."""
     loop = asyncio.get_running_loop()
 
     def call(user: int) -> None:
-        loop.call_soon_threadsafe(forget, user)
+        loop.call_soon_threadsafe(act, user)
 
     return call
 
@@ -153,7 +139,7 @@ def _start_wind_down(
     shared: sessionmaker[Session],
     send: Send | None,
     notify: backup.Notify | None,
-    forget: Forget | None,
+    forget: PerPerson | None,
 ) -> asyncio.Task[None]:
     """The members' wind-down (ADR-0059), every day whatever the switch says, bot or no bot."""
     left = left_list.for_url(settings.database_url)
@@ -304,7 +290,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         bot = None
         sends_only: Bot | None = None  # the bot off, its alerts still sent (a clash, below)
-        owner = users.OWNER  # whose jobs the bot runs (set again by link_owner)
         owner_chat: int | None = None  # where the owner's own alerts go: their linked chat
         if settings.bot_enabled:
             # bot_enabled means the token and the allowed account are both set.
@@ -337,9 +322,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             log.info("bot.started")
         elif not settings.bot_enabled:
             log.warning("bot.disabled", reason="telegram token or allowed user id not set")
-        app.state.reschedule = (
-            _on_loop(bot.bot_data[RESCHEDULE], owner) if bot is not None else None
-        )
+        app.state.reschedule = _bot_loop(bot.bot_data[RESCHEDULE]) if bot is not None else None
         telegram = bot.bot if bot is not None else sends_only
         app.state.send = _sender(telegram)  # sign-in alerts (ADR-0040)
         # For a member's connect link, t.me/<bot> (ADR-0089): known once the bot has started.

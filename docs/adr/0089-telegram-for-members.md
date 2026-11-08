@@ -96,6 +96,25 @@ help text leaves out both.
 **Unlink** is on Account, without `Fresh` (it only takes access away), and tells the old chat.
 The owner's Account says Telegram is set on the server, with no Connect or Unlink.
 
+## Addendum (2026-11-08): scheduled messages per person (step 9)
+
+The morning message, the evening nudge and Sunday's review are each person's own, as the
+multi-user plan's F1 has it (`bot/schedules.py`). Each person has named jobs, `morning:<user
+id>`, `nudge:<user id>` and `weekly-review:<user id>` (ids are never reused, ADR-0088 addendum),
+at the times in their own settings. They are made at start-up for everyone with Telegram linked
+whom the switch lets in, when a member confirms a link on Account, and when that person changes
+a time in /settings or on the web: the bot reads the times back from the database, so a route
+only says whose. Unlink, leave, removal, erase and the wind-down take them away, on the same
+path as `Gate.forget`; the owner's erase keeps the link, so theirs start again at the default
+times.
+
+Each run asks the gate whom it is for (`Gate.scheduled`): someone linked, not closed out by the
+switch and not away (ADR-0085), with the chat read then, so a job left behind can't reach
+anyone; a database error sends nothing. The message is built from their own bound sessions and
+their own settings (paused, nudges, habits), and the morning's daily check, with the band's line,
+comes only with that category open to them (ADR-0090); the owner's are unchanged. The band,
+proposal and plan-notice checks stay the owner's until the next part of step 9.
+
 ## Consequences
 
 - **The CLAUDE.md rule changes with the gate's PR, not at the end:** the bot serves only people

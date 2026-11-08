@@ -100,6 +100,13 @@ def telegram_chat(session: Session, user_id: int) -> int | None:
     return user.telegram_user_id if user is not None else None
 
 
+def linked(session: Session) -> list[int]:
+    """Everyone with Telegram linked, by user id: whose scheduled messages the bot makes at
+    start-up. Any session may ask: users aren't per-person rows."""
+    found = select(User.id).where(User.telegram_user_id.is_not(None)).order_by(User.id)
+    return list(session.scalars(found))
+
+
 def plan_state(session: Session) -> PlanState | None:
     return session.scalar(select(PlanState))
 
@@ -125,12 +132,6 @@ def served_remotely(session: Session, user_id: int, now: datetime) -> bool:
     visit from Europe. Any session may ask: users aren't per-person rows."""
     user = session.get(User, user_id)
     return user is not None and region.serves_remotely(user.last_seen_in_europe, now)
-
-
-def bot_served(session: Session, now: datetime) -> bool:
-    """``served_remotely`` for the person a session is bound to (the bot's sessions)."""
-    user = bound_user(session)
-    return user is not None and served_remotely(session, user, now)
 
 
 def country(session: Session) -> str | None:
