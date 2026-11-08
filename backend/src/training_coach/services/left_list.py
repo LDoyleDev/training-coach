@@ -6,7 +6,8 @@ copies it each night (``scripts/offsite-backup.sh``), so it outlives the SD card
 holds the person's id, when they joined and when they left, nothing else. Ids are never handed
 out twice in normal running (AUTOINCREMENT), but a restore puts back the backup's counter, so
 a person still in the database matches an entry only by id *and* join time: someone new on a
-left person's id is never touched. An entry is dropped once no backup from before the leave can still exist.
+left person's id is never touched. An entry is dropped once no backup from before the leave can
+still exist.
 """
 
 import json
