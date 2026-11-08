@@ -1,23 +1,31 @@
 import asyncio
 import contextlib
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
+from sqlalchemy import Engine
 from structlog.testing import capture_logs
 
 from training_coach import __version__
 from training_coach.api import app as api_app
 from training_coach.api.app import (
+    _left_back,
     _on_loop,
     _owner_notifier,
     _report_death,
     _sender,
     _start_backups,
+    _tell_wind_down,
     create_app,
 )
 from training_coach.api.security import SECURITY_HEADERS
 from training_coach.config import Settings
+from training_coach.db.models import User
+from training_coach.db.session import make_session_factory, session_scope
+from training_coach.services import backup, left_list, users
 from training_coach.services.user_settings import Prefs
 from training_coach.services.users import OWNER
 
@@ -99,6 +107,99 @@ async def test_backups_start_for_a_database_file_and_stop_cleanly(tmp_path: Path
         await task
 
 
+async def test_people_who_left_and_are_back_are_named_never_deleted(engine: Engine) -> None:
+    """After a restore (ADR-0088): the owner hears of it and deletes them on purpose."""
+    joined = datetime(2026, 11, 1, tzinfo=UTC)
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=4, created_at=joined))
+    source = backup.database_path(str(engine.url))
+    assert source is not None
+    left_list.record(left_list.path_for(source), 4, joined, datetime(2026, 11, 7, tzinfo=UTC))
+    sent: list[str] = []
+
+    async def notify(text: str) -> bool:
+        sent.append(text)
+        return True
+
+    settings = Settings(environment="test", database_url=str(engine.url))
+    with capture_logs() as logs:
+        await _left_back(settings, make_session_factory(engine), notify)
+    assert [entry["users"] for entry in logs if entry["event"] == "left.back"] == [[4]]
+    assert sent == [api_app.LEFT_BACK.format(count="1 person")]
+    with session_scope(make_session_factory(engine)) as shared:
+        assert shared.get(User, 4) is not None
+
+
+@pytest.mark.parametrize("broken", ["not json", '[{"id": 4}]'])
+async def test_a_list_it_cant_read_is_told_and_never_stops_start_up(
+    engine: Engine, broken: str
+) -> None:
+    """Review of #600: just after a restore is when the owner needs the app up most."""
+    source = backup.database_path(str(engine.url))
+    assert source is not None
+    left_list.path_for(source).write_text(broken)
+    sent: list[str] = []
+
+    async def notify(text: str) -> bool:
+        sent.append(text)
+        raise RuntimeError("telegram down")  # a failing message doesn't stop it either
+
+    settings = Settings(environment="test", database_url=str(engine.url))
+    with capture_logs() as logs:
+        await _left_back(settings, make_session_factory(engine), notify)
+    assert "left.check_failed" in [entry["event"] for entry in logs]
+    assert sent == [api_app.LEFT_UNREADABLE]
+
+
+async def test_no_word_when_nobody_who_left_is_back(engine: Engine) -> None:
+    sent: list[str] = []
+
+    async def notify(text: str) -> bool:
+        sent.append(text)
+        return True
+
+    await _left_back(
+        Settings(environment="test", database_url=str(engine.url)),
+        make_session_factory(engine),
+        notify,
+    )
+    memory = Settings(environment="test", database_url="sqlite:///:memory:")
+    await _left_back(memory, make_session_factory(engine), notify)  # no file, so no list
+    assert sent == []
+
+
+async def test_the_wind_down_tells_each_member_and_the_owner_only_a_count() -> None:
+    from datetime import date
+
+    from training_coach.services import wind_down
+    from training_coach.services.wind_down import Report, Told
+
+    on = date(2026, 12, 7)
+    sent: list[tuple[int, str]] = []
+    owner: list[str] = []
+
+    async def send(chat: int, text: str) -> bool:
+        if chat == 2222:
+            raise RuntimeError("blocked the bot")  # the next one is still told
+        sent.append((chat, text))
+        return True
+
+    async def notify(text: str) -> bool:
+        owner.append(text)
+        return True
+
+    report = Report(
+        closing=[Told(2222, on), Told(3333, on), Told(None, on)], erased=[Told(4444, on)]
+    )
+    await _tell_wind_down(report, send, notify)
+    assert sent == [(3333, wind_down.closing_text(on)), (4444, wind_down.ERASED)]
+    assert len(owner) == 1
+    assert "closing to 3 members" in owner[0]
+    assert "7 December 2026" in owner[0]
+    await _tell_wind_down(Report(), send, notify)  # a quiet day: nothing
+    assert len(owner) == 1
+
+
 def test_no_backups_for_an_in_memory_database(settings: Settings) -> None:
     assert _start_backups(settings, notify=None) is None
 
@@ -114,13 +215,12 @@ async def test_backup_failures_are_sent_to_the_owner_only(
 
     monkeypatch.setattr(api_app, "send_with_retry", fake_send)
     telegram = object()
-    owned = settings.model_copy(update={"telegram_allowed_user_id": 4242})
-    notify = _owner_notifier(owned, telegram)  # type: ignore[arg-type]  # a stand-in bot
+    notify = _owner_notifier(telegram, 4242)  # type: ignore[arg-type]  # a stand-in bot
     assert notify is not None
     await notify("backup failed")
     assert sent == [(telegram, 4242, "backup failed")]
-    assert _owner_notifier(settings, telegram) is None  # type: ignore[arg-type]  # no owner
-    assert _owner_notifier(owned, None) is None  # no bot
+    assert _owner_notifier(telegram, None) is None  # type: ignore[arg-type]  # no linked owner
+    assert _owner_notifier(None, 4242) is None  # no bot
 
 
 async def test_a_dead_backup_loop_is_reported() -> None:
@@ -168,3 +268,40 @@ async def test_alerts_are_sent_to_the_chat_they_name(monkeypatch: pytest.MonkeyP
     await send(777, "New sign-in")
     assert sent == [(telegram, 777, "New sign-in")]
     assert _sender(None) is None  # no bot
+
+
+def test_the_bot_stays_off_when_the_configured_account_is_a_members(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Until the bot finds each person from the sender (ADR-0089), it would answer the
+    configured account as the owner: with a member holding it, it doesn't start. The owner's
+    alerts still reach the owner's own linked chat (review of #614)."""
+    with session_scope(make_session_factory(engine)) as shared:
+        users.link_owner(shared, 4242)
+        shared.add(User(id=2, role=users.MEMBER, telegram_user_id=99))
+    sent: list[tuple[int, str]] = []
+
+    async def fake_send(_bot: object, chat_id: int, text: str) -> bool:
+        sent.append((chat_id, text))
+        return True
+
+    monkeypatch.setattr(api_app, "send_with_retry", fake_send)
+
+    def never(*_a: object, **_kw: object) -> None:
+        raise AssertionError("the bot was built for a member's account")
+
+    monkeypatch.setattr(api_app, "build_bot", never)
+    settings = Settings(
+        environment="test",
+        database_url=str(engine.url),
+        telegram_bot_token=SecretStr("123456:TEST-TOKEN"),
+        telegram_allowed_user_id=99,
+    )
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/healthz").status_code == 200
+        notify = client.app.state.notify  # type: ignore[attr-defined]  # a FastAPI app
+        assert notify is not None
+        client.portal.call(notify, "backup failed")  # type: ignore[union-attr]  # a TestClient
+    assert sent == [(4242, "backup failed")]
+    with session_scope(make_session_factory(engine)) as shared:
+        assert shared.get_one(User, 2).telegram_user_id == 99

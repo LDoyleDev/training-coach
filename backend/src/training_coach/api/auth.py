@@ -5,8 +5,8 @@ database stores only hashed. ``test_every_route_is_public_or_owner_only`` keeps 
 access deliberate.
 """
 
-from datetime import UTC, datetime
-from typing import Annotated
+from datetime import UTC, date, datetime
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.alerts import alert, device
 from training_coach.api.region import visitor_country
-from training_coach.db.session import session_scope
+from training_coach.config import Settings
+from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.region import listed
 from training_coach.services import auth, users
 
@@ -22,6 +23,17 @@ from training_coach.services import auth, users
 # same domain can't plant or shadow it (security review, 2026-10-10).
 COOKIE = "__Host-tc_session"
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+# What still answers a member while TC_MULTI_USER is off (ADR-0059): who they are, their export,
+# leaving, and the passkey check those need. Everything else is refused.
+WIND_DOWN = frozenset(
+    {
+        "/api/auth/me",
+        "/api/account/export",
+        "/api/account/leave",
+        "/api/auth/passkeys/confirm/options",
+        "/api/auth/passkeys/confirm",
+    }
+)
 
 
 class Redeem(BaseModel):
@@ -30,6 +42,14 @@ class Redeem(BaseModel):
 
 class Me(BaseModel):
     user_id: int
+    role: Literal["admin", "member"]  # ADR-0059: what Account offers them (People, or leaving)
+    # The app is closed to them (TC_MULTI_USER off, ADR-0059): only export and leave answer,
+    # and their data goes on closing_on (None until the night's wind-down has set it).
+    closed: bool
+    closing_on: date | None
+    # Recovered with an admin's link within the last 30 days: Account says so, and it can't be
+    # dismissed, so an admin who signed in that way can't hide it (ADR-0059).
+    recovered_by_admin_at: datetime | None
 
 
 def _shared(request: Request) -> sessionmaker[Session]:
@@ -41,7 +61,9 @@ def _shared(request: Request) -> sessionmaker[Session]:
 def owner(request: Request, response: Response) -> int:
     """The signed-in user's id; 401 without a live session. When the session is renewed, the
     cookie is sent again so the browser keeps it for the same 30 days as the server. A visit
-    from a listed country is recorded for the bot and MCP's 30 days (ADR-0085)."""
+    from a listed country is recorded for the bot and MCP's 30 days (ADR-0085). With
+    ``TC_MULTI_USER`` off, a member gets 403 on everything but ``WIND_DOWN`` (ADR-0059); their
+    session is refused, not ended, so switching back on lets them straight in again."""
     token = request.cookies.get(COOKIE)
     if token:
         now, country = datetime.now(UTC), visitor_country(request)
@@ -52,6 +74,12 @@ def owner(request: Request, response: Response) -> int:
             if seen is not None and country is not None and listed(country):
                 users.seen_in_europe(session, seen.user_id, now)
         if seen is not None:
+            settings: Settings = request.app.state.settings
+            closed = users.closed_to(seen.user_id, settings.multi_user)
+            if closed and request.url.path not in WIND_DOWN:
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN, "Training Coach is closed to members"
+                )
             if seen.renewed:
                 set_session_cookie(response, token)
             return seen.user_id
@@ -59,6 +87,30 @@ def owner(request: Request, response: Response) -> int:
 
 
 Owner = Annotated[int, Depends(owner)]
+
+
+def health(user: Owner) -> int:
+    """The signed-in person's id, for a route that reads or keeps health data; 403 for a member,
+    who is training-only until the lawyer's review (ADR-0059)."""
+    if not users.health_open(user):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "not available to members yet")
+    return user
+
+
+Health = Annotated[int, Depends(health)]
+
+
+def admin(request: Request, user: Owner) -> int:
+    """The signed-in admin's id (ADR-0059); 403 for anyone else signed in. Admins make and revoke
+    invites and see counts, never a member's data."""
+    with session_scope(_shared(request)) as session:
+        allowed = users.is_admin(session, user)
+    if not allowed:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "for admins only")
+    return user
+
+
+Admin = Annotated[int, Depends(admin)]
 
 
 def set_session_cookie(response: Response, token: str) -> None:
@@ -77,15 +129,36 @@ def set_session_cookie(response: Response, token: str) -> None:
 def redeem(body: Redeem, request: Request, response: Response, background: BackgroundTasks) -> None:
     """Exchange a one-time link from the bot for a session cookie. Once a passkey exists only
     a recovery link does (403 otherwise: use the fingerprint, ADR-0040)."""
-    label = request.headers.get("user-agent", "")
+    label, now = request.headers.get("user-agent", ""), datetime.now(UTC)
     with session_scope(_shared(request)) as session:
-        redeemed = auth.redeem_link(session, body.token, datetime.now(UTC), label)
+        # An admin's link for a member is for the member's own device (ADR-0059): never opened
+        # where an admin is signed in, so an admin can't simply sign in as them here.
+        here = auth.session_user(session, request.cookies.get(COOKIE, ""), now)
+        if (
+            here is not None
+            and users.is_admin(session, here.user_id)
+            and auth.link_purpose(session, body.token, now) == auth.BY_ADMIN
+        ):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "open this link on the member's own device"
+            )
+        redeemed = auth.redeem_link(session, body.token, now, label)
     if redeemed is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "this link has expired or was used")
     if redeemed == auth.NEEDS_PASSKEY or not isinstance(redeemed, auth.Redeemed):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "sign in with your passkey")
     set_session_cookie(response, redeemed.cookie)
-    if redeemed.recovered:
+    if redeemed.by_admin:
+        alert(
+            request,
+            background,
+            redeemed.user_id,
+            "admin_link_used",
+            f"Your Training Coach account was recovered with the admin's link, on "
+            f"{device(request)}. Every other device was signed out and every passkey removed. "
+            "If this wasn't you, tell the admin now.",
+        )
+    elif redeemed.recovered:
         alert(
             request,
             background,
@@ -135,8 +208,19 @@ PasskeyFresh = Annotated[auth.PasskeyProof, Depends(passkey_proved)]
 
 
 @router.get("/me", response_model=Me)
-def me(user: Owner) -> Me:
-    return Me(user_id=user)
+def me(request: Request, user: Owner) -> Me:
+    settings: Settings = request.app.state.settings
+    with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as mine:
+        role = users.role(mine, user)
+        closing = users.closing_on(mine, user)
+        recovered = auth.admin_recovered_on(mine, datetime.now(UTC))
+    return Me(
+        user_id=user,
+        role="admin" if role == users.ADMIN else "member",
+        closed=users.closed_to(user, settings.multi_user),
+        closing_on=closing,
+        recovered_by_admin_at=recovered,
+    )
 
 
 @router.post("/signout", status_code=status.HTTP_204_NO_CONTENT)

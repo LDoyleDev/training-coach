@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.auth import Owner
+from training_coach.api.auth import Health
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.daily_check import (
@@ -91,7 +91,7 @@ def _view(day: str, answers: Answers | None) -> DailyCheckView:
 
 
 @router.get("", response_model=DailyCheckView)
-def get_daily_check(request: Request, user: Owner) -> DailyCheckView:
+def get_daily_check(request: Request, user: Health) -> DailyCheckView:
     settings: Settings = request.app.state.settings
     day = local_date(datetime.now(UTC), settings.tz)
     with session_scope(_bound(request, user)) as session:
@@ -104,7 +104,7 @@ def get_daily_check(request: Request, user: Owner) -> DailyCheckView:
 
 
 @router.put("", response_model=DailyCheckView)
-def put_daily_check(body: CheckAnswers, request: Request, user: Owner) -> DailyCheckView:
+def put_daily_check(body: CheckAnswers, request: Request, user: Health) -> DailyCheckView:
     """Answer today's check; answering again the same day replaces the answers."""
     settings: Settings = request.app.state.settings
     now = datetime.now(UTC)

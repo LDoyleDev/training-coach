@@ -63,7 +63,9 @@ from training_coach.services.seed import bundled_plan
 from training_coach.services.today import ItemPlan, SessionPlan, position, session_plan
 
 SET_SECONDS = 45  # a rough working set, for the time estimate only
-OPTIONS = (40, 30, 20)  # Short on time today (ADR-0082): the minutes offered besides as planned
+HIIT = "hiit"  # the exercise that counts rounds, not reps
+ROUND_SECONDS = 30  # a round of it: 20 s all-out, 10 s easy
+OPTIONS = (40, 30, 20)  # Short on time today (ADR-0082): the lengths there are besides as planned
 TRIMMED = ("strength", "conditioning")  # recovery sessions run as planned (ADR-0082)
 
 
@@ -80,6 +82,7 @@ class Length:
     from_setting: bool = False  # no choice for the day: ``minutes`` is minutes per session
     # Last sets of as many good reps as you can today (ADR-0084); None: the option is locked.
     last_set: bool | None = None
+    options: tuple[int, ...] = OPTIONS  # the lengths on offer: only those shorter than planned
 
 
 @dataclass(frozen=True)
@@ -152,6 +155,11 @@ def _minutes(items: tuple[ItemPlan, ...], order: tuple[GuidedSet, ...], warm_up:
     return round(_seconds(items, order) / 60) + (WARM_UP[WarmUp.FULL] if warm_up else 0)
 
 
+def planned_minutes(items: tuple[ItemPlan, ...], warm_up: bool) -> int:
+    """About how long a list of items would take, for a session not being run: the body map's."""
+    return _minutes(items, _ordered(items, work_groups(items)), warm_up)
+
+
 def _seconds(items: tuple[ItemPlan, ...], order: tuple[GuidedSet, ...]) -> int:
     """Each set's work and the rest after it, warm-up not included."""
     seconds = 0
@@ -160,6 +168,8 @@ def _seconds(items: tuple[ItemPlan, ...], order: tuple[GuidedSet, ...]) -> int:
         sides = 2 if item.per_side else 1
         if item.kind is ExerciseKind.DURATION_MIN:
             seconds += done.target * 60
+        elif item.slug == HIIT:
+            seconds += done.target * ROUND_SECONDS
         elif item.kind is ExerciseKind.SECONDS:
             seconds += done.target * sides
         else:
@@ -305,7 +315,11 @@ def _length(
     estimate = _estimator(items, first, at)
     has_warm_up = plan.kind == "strength"
     planned = trimming.trim(shapes, None, estimate, has_warm_up=has_warm_up)
+    # Only what would be shorter than the session is on offer. A length it already fits is as
+    # planned, whether chosen earlier or from the setting, so nothing is lost to it.
+    options = tuple(m for m in OPTIONS if m < planned.minutes)
     if fixed is None:
+        minutes = minutes if minutes in options else None
         trimmed = trimming.trim(shapes, minutes, estimate, has_warm_up=has_warm_up)
     else:
         minutes, amrap = fixed.minutes, fixed.last_set
@@ -316,7 +330,9 @@ def _length(
     started = row is not None and (row.fixed is not None or bool(row.sets))
     # From the setting while no day's choice was made and the setting hasn't moved since.
     from_setting = not chose and setting is not None and minutes == setting
-    return Length(minutes, keep, planned.minutes, trimmed, at, started, from_setting, amrap)
+    return Length(
+        minutes, keep, planned.minutes, trimmed, at, started, from_setting, amrap, options
+    )
 
 
 def _marked(items: tuple[ItemPlan, ...], length: Length | None) -> tuple[ItemPlan, ...]:
@@ -993,6 +1009,7 @@ def _save_after_run(
 
 
 NOT_TRIMMED = "this session runs as planned"
+NOT_SHORTER = "this session isn't longer than that, so it runs as planned"
 NOT_IN_SESSION = "that exercise isn't in today's session"
 STARTED = "this session has started: its length stays as it is"
 
@@ -1006,8 +1023,8 @@ def choose_length(
     from then on. Nothing changes on a problem."""
     if plan.length is None:
         return NOT_TRIMMED
-    if minutes is not None and minutes not in OPTIONS:
-        return f"choose {', '.join(map(str, OPTIONS))} minutes, or as planned"
+    if minutes is not None and minutes not in plan.length.options:
+        return NOT_SHORTER
     if not set(pinned) <= {item.slug for item in plan.items}:
         return NOT_IN_SESSION
     row = _row(session, plan.day)

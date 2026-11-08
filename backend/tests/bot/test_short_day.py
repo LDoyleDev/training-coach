@@ -86,7 +86,7 @@ async def test_the_morning_shows_the_planned_length_and_offers_a_shorter_one(
     await Handlers(SETTINGS, seeded).morning(context)  # type: ignore[arg-type]
     text = context.bot.send_message.await_args.kwargs["text"]
     assert f"{LEGS_PLANNED} {SHORT_ON_TIME}" in text.splitlines()
-    assert SHORT_ON_TIME == "Short on time? Pick 40, 30 or 20 minutes in the app before you start."
+    assert SHORT_ON_TIME == "Short on time? Pick a shorter length in the app before you start."
     assert WARM_UP in text.splitlines()
     assert _listed(text)["Calf raise"] == 4  # the list as planned
 
@@ -176,6 +176,13 @@ async def test_a_conditioning_session_offers_it_without_a_warm_up(seeded: Sessio
     (line,) = [line for line in text.splitlines() if line.startswith("About ")]
     assert line.endswith(f" minutes. {SHORT_ON_TIME}")
     assert "Warm up" not in text
+
+
+async def test_a_session_shorter_than_every_length_is_not_offered_one(seeded: Sessions) -> None:
+    _at(seeded, "hiit")
+    text, _ = Handlers(SETTINGS, seeded)._today()
+    assert "About 4 minutes." in text.splitlines()  # 8 rounds of 30 s
+    assert SHORT_ON_TIME not in text
 
 
 async def test_a_recovery_session_is_not_offered_shorter(seeded: Sessions) -> None:

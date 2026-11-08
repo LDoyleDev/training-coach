@@ -17,10 +17,10 @@ from tests import oauth_flow as flow
 from tests.oauth_flow import ALL, ORIGIN
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import Event, Exercise, Measurement, ReadinessAnswers, User
+from training_coach.db.models import DailyCheck, Event, Exercise, Measurement, User
 from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
+from training_coach.domain.connections import HEALTH
 from training_coach.domain.queue import local_date
-from training_coach.domain.readiness import KEYS, VERSION
 from training_coach.services import mcp_tokens, mcp_tools, workout_log
 from training_coach.services.ai_summary import GUIDE_VERSION
 from training_coach.services.mcp_tools import MARK, TOOLS
@@ -286,9 +286,11 @@ def _health(engine: Engine, user: int = OWNER) -> None:
     with session_scope(make_session_factory(engine, user_id=user)) as mine:
         mine.add(Measurement(local_date=TODAY, kind="waist", tenths=845))
         mine.add(
-            ReadinessAnswers(
-                version=VERSION,
-                answers={**dict.fromkeys(KEYS, False), "joints": True},
+            DailyCheck(
+                local_date=TODAY,
+                sleep="poor",
+                soreness="a_lot",
+                energy="low",
                 answered_at=datetime.now(UTC),
             )
         )
@@ -298,15 +300,14 @@ def test_health_data_only_with_its_scope(client: TestClient, engine: Engine) -> 
     _health(engine)
     training = text(call(client, flow.mint(engine, ["training:read"]), "get_summary"))
     assert "84.5" not in training
-    assert "Readiness" not in training
+    assert "Daily checks" not in training
     everything = text(call(client, flow.mint(engine, ALL), "get_summary"))
     assert "Waist: 84.5 cm" in everything
-    assert "Readiness answers" in everything
+    assert "sleep poor, soreness a lot, energy low" in everything
     body = text(call(client, flow.mint(engine, ["body:read"]), "get_body"))
     assert "Waist: 84.5 cm" in body
     readiness = text(call(client, flow.mint(engine, ["readiness:read"]), "get_readiness"))
-    assert "joint or muscle problem" in readiness
-    assert "Daily checks" in readiness
+    assert "sleep poor, soreness a lot, energy low" in readiness
     assert "84.5" not in readiness
 
 
@@ -318,7 +319,14 @@ def test_no_tool_reaches_photos_or_sign_in(client: TestClient, engine: Engine) -
             assert word not in answer, (tool.name, word)
 
 
-def test_another_persons_token_never_reads_my_rows(client: TestClient, engine: Engine) -> None:
+def test_another_persons_token_never_reads_my_rows(engine: Engine) -> None:
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        apply_seed(mine, load_plan())
+    with flow.app_client(engine, multi_user=True) as client:  # a second person: switch on
+        _another_persons_token_never_reads_my_rows(client, engine)
+
+
+def _another_persons_token_never_reads_my_rows(client: TestClient, engine: Engine) -> None:
     """Requirement 12: user B's token, all scopes, against user A's data."""
     _health(engine)
     with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
@@ -331,6 +339,9 @@ def test_another_persons_token_never_reads_my_rows(client: TestClient, engine: E
     mine_token = flow.mint(engine, ALL)
     for tool in TOOLS:
         args = ARGUMENTS.get(tool.name, {})
+        if tool.scope in HEALTH:  # a member's token carries no health scope (ADR-0059)
+            assert call(client, theirs, tool.name, **args).status_code == 403, tool.name
+            continue
         answer = text(call(client, theirs, tool.name, **args))
         assert "84.5" not in answer, tool.name
         assert "9 / 8" not in answer, tool.name

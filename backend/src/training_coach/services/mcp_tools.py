@@ -130,7 +130,8 @@ TOOLS = (
     Tool(
         "get_readiness",
         "Readiness",
-        "The readiness answers and the daily checks of the last 4 weeks (health data).",
+        "The daily checks of the last 4 weeks (health data). The health questions' answers "
+        "stay on the person's device.",
         Scope.READINESS,
         _NOTHING,
     ),

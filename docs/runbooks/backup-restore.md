@@ -70,6 +70,17 @@ docker compose up -d --build                               # migrations run on s
 curl -s localhost:8095/healthz && docker compose logs app | grep -E "bot.started|backup"
 ```
 
+Then put back who left (ADR-0088): a backup from before someone left brings them back. The
+app says so at start-up (`left.back` in the log, and a message to you) but deletes nobody itself:
+
+```bash
+docker compose exec app training-coach forget-left           # names who is back, by id
+docker compose exec app training-coach forget-left --apply   # deletes them again
+```
+
+It matches by id and join time, so someone new on a left person's id is never touched. With the
+SD card gone too, restore `left-users.json` first (below), then run it.
+
 Restoring an older backup into a newer release is fine: migrations bring it up to date on
 start. Restoring into an older release than the backup's needs that release's schema; check
 out the matching tag first.
@@ -149,6 +160,8 @@ On any machine with age: download the file from the R2 dashboard (or
 `rclone copy r2:<bucket>/<name> .`), then decrypt with the backup key, e.g. on Windows
 `age -d -i $HOME\.age\training-coach-backups.txt -o training_coach.db <name>.db.age` (or a key
 file restored from the password manager), and restore that file as in "Restore" above.
+Decrypt `left-users.json.age` the same way to `data/left-users.json` (owner `10001`, mode 640)
+before starting the app, so `forget-left` has the list.
 
 ## Rehearsal
 
@@ -174,7 +187,12 @@ which is never stopped or touched:
    counts, and delete the decrypted file.
 6. `docker rm -f tc-drill ...`, `rm -rf ~/tc-drill`.
 
-Last rehearsed: **2026-11-02 on the Pi** (v1.15.0), as above, before plans per person (builder
+Last restored on the Pi: **2026-11-07** (v1.17.0 and the 1.18.0 release image), the plans-per-person
+drill (`docs/sessions/2026-11-07-plans-per-person.md`): backup into separate containers, integrity,
+foreign keys and every table's rows compared, and the migration down again. It didn't repeat the
+photos' round trip through a second backup, or the off-site copy.
+
+Last full rehearsal: **2026-11-02 on the Pi** (v1.15.0), as above, before plans per person (builder
 step 5). The integrity and foreign-key checks, the migration, the row counts of all 40 tables and
 the bytes of the 3 real photos matched after the restore and again after the second round trip;
 the bot stayed off in both drill containers. The 2 Nov off-site copy decrypted with the backup key

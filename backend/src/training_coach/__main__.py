@@ -1,5 +1,5 @@
-"""Entry point: ``training-coach [serve|seed|openapi|backup|notify|rotate-secrets]`` (or
-``python -m training_coach``)."""
+"""Entry point: ``training-coach [serve|seed|openapi|backup|notify|rotate-secrets|forget-left]``
+(or ``python -m training_coach``)."""
 
 import argparse
 import asyncio
@@ -9,16 +9,19 @@ import os
 import sys
 import tomllib
 from datetime import UTC, datetime
+from pathlib import Path
 
 import structlog
 import uvicorn
 from pydantic import ValidationError
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import SQLAlchemyError
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.logging import configure_logging
-from training_coach.services import ai_key
+from training_coach.services import ai_key, erase, left_list, users
 from training_coach.services import backup as backups
 from training_coach.services.secret_box import SecretBox
 from training_coach.services.seed import SeedError, apply_seed, load_plan
@@ -80,7 +83,52 @@ def backup() -> None:
     log.info("backup.created", file=str(path), bytes=path.stat().st_size)
 
 
+def forget_left(apply: bool) -> None:
+    """After a restore (ADR-0088): name the people who left and are in the database again, and
+    with ``--apply`` delete them again. Never anyone the list doesn't match by id and join time."""
+    settings = get_settings()
+    configure_logging(settings)
+    source = backups.database_path(settings.database_url)
+    if source is None:
+        log.error("left.failed", reason="the database is not a SQLite file")
+        raise SystemExit(1)
+    entries = left_list.read(left_list.path_for(source))
+    engine = make_engine(settings.database_url)
+    try:
+        with session_scope(make_session_factory(engine)) as session:
+            back = left_list.back(session, entries)
+            if apply:
+                for user in back:
+                    erase.forget(session, user)
+    finally:
+        engine.dispose()
+    if apply:
+        log.info("left.forgotten", users=back)
+    elif back:
+        log.warning("left.back", users=back, next="run forget-left --apply to delete them")
+    else:
+        log.info("left.none_back", listed=len(entries))
+
+
 NOTIFY_LENGTH = 1000  # one Telegram message, well under its limit
+
+
+def _owner_chat(settings: Settings) -> int | None:
+    """The owner's linked chat, from the database (``users.owner_chat``). If the database can't
+    be read, the configured account: an alert about a broken Pi must still get out."""
+    url = make_url(settings.database_url)
+    if url.get_backend_name() == "sqlite" and not Path(url.database or "").is_file():
+        return settings.telegram_allowed_user_id  # never make an empty database to ask
+    try:
+        engine = make_engine(settings.database_url)
+        try:
+            with session_scope(make_session_factory(engine)) as session:
+                return users.owner_chat(session, settings.telegram_allowed_user_id)
+        finally:
+            engine.dispose()
+    except SQLAlchemyError:
+        log.warning("notify.owner_lookup_failed")
+        return settings.telegram_allowed_user_id
 
 
 def notify(text: str = "") -> None:
@@ -105,9 +153,13 @@ def notify(text: str = "") -> None:
         assert settings.telegram_allowed_user_id is not None  # noqa: S101 - checked above
         # No `async with`: its initialize() makes a request of its own that a network blip
         # would fail outside the retries. send_message needs none of it (review of #168).
+        chat = _owner_chat(settings)
+        if chat is None:
+            log.error("notify.failed", reason="the owner has no Telegram linked")
+            return False
         bot = Bot(settings.telegram_bot_token.get_secret_value())
         try:
-            return await send_with_retry(bot, settings.telegram_allowed_user_id, message)
+            return await send_with_retry(bot, chat, message)
         except TelegramError as exc:  # anything the retries don't absorb is a failed alert
             log.error("notify.failed", reason=type(exc).__name__)
             return False
@@ -162,16 +214,21 @@ def main(argv: list[str] | None = None) -> None:
         "command",
         nargs="?",
         default="serve",
-        choices=["serve", "seed", "openapi", "backup", "notify", "rotate-secrets"],
+        choices=["serve", "seed", "openapi", "backup", "notify", "rotate-secrets", "forget-left"],
         help="serve: API + bot (default). seed: load the training plan (idempotent). "
         "openapi: print the API schema. backup: copy the database to data/backups/ now. "
         "notify TEXT: send TEXT to the owner on Telegram. "
-        "rotate-secrets: re-seal stored keys with the newest TC_SECRETS_KEY.",
+        "rotate-secrets: re-seal stored keys with the newest TC_SECRETS_KEY. "
+        "forget-left: after a restore, name the people who left and are back (ADR-0088).",
     )
+    parser.add_argument("--apply", action="store_true", help="forget-left: delete them again")
     parser.add_argument("text", nargs="?", default="", help="the message, for notify")
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
     if args.command == "notify":
         notify(args.text)
+        return
+    if args.command == "forget-left":
+        forget_left(args.apply)
         return
     commands = {
         "serve": serve,

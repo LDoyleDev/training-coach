@@ -5,7 +5,7 @@ import { card } from '../ui'
 const LABELS: Record<string, string> = {
   'training:read': 'training',
   'body:read': 'body measurements',
-  'readiness:read': 'readiness and daily checks',
+  'readiness:read': 'daily checks',
   'log:propose': 'proposes logs for you to save',
 }
 

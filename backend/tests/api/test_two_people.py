@@ -22,7 +22,7 @@ from sqlalchemy import Engine, delete, select
 
 from tests.routes import api_routes
 from training_coach.api.app import create_app
-from training_coach.api.auth import owner
+from training_coach.api.auth import health, owner
 from training_coach.config import Settings
 from training_coach.db.models import (
     AiComment,
@@ -38,7 +38,7 @@ from training_coach.db.models import (
     Measurement,
     Passkey,
     ProgressPhoto,
-    ReadinessAnswers,
+    ReadinessCheck,
     SessionTemplate,
     SetLog,
     SleepSession,
@@ -71,6 +71,12 @@ class Marks:
         """What the web app shows of these rows somewhere."""
         shown = [self.name, f"{self.tenths / 10:.1f}", str(self.steps), self.day.isoformat()]
         return [*shown, self.kit]
+
+    @property
+    def training(self) -> list[str]:
+        """What a member is shown of their own: no measurements or band steps, which are health
+        data, until the lawyer's review (ADR-0059)."""
+        return [self.name, self.day.isoformat(), self.kit]
 
 
 # Not 6 Oct: that is the first of Home's last 7 days on NOW (ADR-0077), a date every view shows.
@@ -123,11 +129,7 @@ def _give(engine: Engine, user: int, marks: Marks) -> Ids:
                     results=[],
                     token=marks.name.ljust(20, "x"),
                 ),
-                ReadinessAnswers(
-                    version=readiness.VERSION,
-                    answers={q.key: False for q in readiness.QUESTIONS},
-                    answered_at=NOW,
-                ),
+                ReadinessCheck(version=readiness.VERSION, answered_at=NOW),
                 DailyCheck(
                     local_date=NOW.date(),
                     sleep="good",
@@ -201,7 +203,7 @@ def _reads(
     log_plan = {"day": NOW.date().isoformat(), "template_id": str(my_session)}
     for path, route in api_routes(app):
         calls = {dependency.call for dependency in route.dependant.dependencies}
-        if "GET" not in (route.methods or set()) or owner not in calls:
+        if "GET" not in (route.methods or set()) or not {owner, health} & calls:
             continue
         url = path
         if "{" in path:
@@ -231,7 +233,10 @@ def test_signed_in_reads_show_only_my_own_data(two: Engine, me: int, other: int)
     with make_session_factory(two, user_id=me)() as bound:
         token = auth.create_link(bound, NOW)
         bound.commit()
-    settings = Settings(environment="test", database_url=str(two.url), public_url=ORIGIN)
+    # Two people only sign in with TC_MULTI_USER on (ADR-0059).
+    settings = Settings(
+        environment="test", database_url=str(two.url), public_url=ORIGIN, multi_user=True
+    )
     app = create_app(settings)
     with TestClient(app, base_url=ORIGIN) as client:
         # Signed in before the passkeys exist: a start link only works until then.
@@ -259,14 +264,17 @@ def test_signed_in_reads_show_only_my_own_data(two: Engine, me: int, other: int)
 
     assert len(before) >= 30, sorted(before)
     for path in OTHERS:
-        assert before[path][0] == 404, f"{path} answered with the other person's row"
+        # 404, or 403 where a member is refused health data outright (ADR-0059).
+        refused = (404, 403) if me != 1 else (404,)
+        assert before[path][0] in refused, f"{path} answered with the other person's row"
     for path, (code, _) in before.items():
-        assert code == 200 or path in OTHERS, f"{path}: {code}"
+        # A member is refused health routes outright, so they read nothing at all (ADR-0059).
+        assert code == 200 or path in OTHERS or (me != 1 and code == 403), f"{path}: {code}"
     everything = b"".join(body for _, body in before.values()).decode("utf-8", "replace")
     for mark in theirs.visible:
         leaks = [p for p, (_, b) in before.items() if mark.encode() in b]
         assert not leaks, f"the other person's {mark!r} shows in {leaks}"
-    for mark in mine.visible:
+    for mark in mine.visible if me == 1 else mine.training:
         assert mark in everything, f"my own {mark!r} shows nowhere: the canary isn't reached"
     changed = sorted(p for p in before if before[p] != after[p])
     assert not changed, f"deleting the other person changed what I see: {changed}"

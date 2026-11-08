@@ -302,7 +302,7 @@ test('time per session: as planned until one is picked, then saved and shown', a
   const group = (await screen.findByRole('group', { name: 'Time per session' })) as HTMLElement
   expect(
     within(group).getByText(
-      'Every session runs at this length unless you pick another for the day.',
+      'Every session longer than this runs at this length unless you pick another for the day.',
     ),
   ).toBeInTheDocument()
   expect(within(group).getByRole('button', { name: 'As planned' })).toHaveAttribute(

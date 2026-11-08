@@ -1,5 +1,6 @@
 import json
 from collections.abc import Callable
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -12,9 +13,18 @@ from telegram.ext import Application
 
 from tests.bot.fakes import AUDIO, OWNER, SETTINGS, STRANGER, button_data, run, texts, voice
 from training_coach.bot.app import build_bot
-from training_coach.bot.messages import VOICE_FAILED, VOICE_OFF, VOICE_TOO_LONG, heard_text
-from training_coach.db.models import Workout
+from training_coach.bot.messages import (
+    VOICE_CAPPED,
+    VOICE_FAILED,
+    VOICE_OFF,
+    VOICE_TOO_LONG,
+    heard_text,
+)
+from training_coach.db.models import Event, User, Workout
+from training_coach.db.session import make_session_factory, session_scope
+from training_coach.services import groq_quota
 from training_coach.services.groq import BASE_URL, GroqClient
+from training_coach.services.seed import apply_seed, load_plan
 
 App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
@@ -145,3 +155,46 @@ async def test_a_hostile_transcript_only_reaches_the_bounded_parser(
     assert "too long to read" in reply
     assert button_data(calls["sendMessage"][0]) == []  # nothing to save
     assert _workouts(seeded) == 0
+
+
+async def test_a_member_past_todays_voice_notes_is_asked_to_type(seeded: Sessions) -> None:
+    """The shared key's daily cap (ADR-0059, H1): nothing reaches Groq once it's spent."""
+    engine = seeded.kw["bind"]
+    with session_scope(make_session_factory(engine)) as shared:
+        member = User(role="member")
+        shared.add(member)
+        shared.flush()
+        member_id = member.id
+        apply_seed(shared, load_plan())
+    theirs = make_session_factory(engine, user_id=member_id)
+    with session_scope(theirs) as bound:
+        bound.add_all(
+            Event(kind=groq_quota.USED, at=datetime.now(UTC), payload={})
+            for _ in range(groq_quota.MEMBER_CAP)
+        )
+    bot = build_bot(SETTINGS, theirs, GroqClient(SecretStr("gsk_TEST-KEY"), backoff=0))
+    sent: list[respx.Route] = []
+
+    def add(router: respx.Router) -> None:
+        sent.append(router.post(GROQ).mock(return_value=httpx.Response(200, json={"text": "x"})))
+
+    calls = await run(bot, voice(OWNER), routes=add)
+    assert texts(calls) == [VOICE_CAPPED]
+    assert not sent[0].called
+
+
+async def test_a_voice_note_groq_failed_on_spends_none_of_the_day(seeded: Sessions) -> None:
+    engine = seeded.kw["bind"]
+    with session_scope(make_session_factory(engine)) as shared:
+        member = User(role="member")
+        shared.add(member)
+        shared.flush()
+        member_id = member.id
+        apply_seed(shared, load_plan())
+    theirs = make_session_factory(engine, user_id=member_id)
+    bot = build_bot(SETTINGS, theirs, GroqClient(SecretStr("gsk_TEST-KEY"), backoff=0))
+    calls = await run(bot, voice(OWNER), routes=groq_says(httpx.Response(503)))
+    assert texts(calls) == [VOICE_FAILED]
+    with theirs() as bound:
+        used = bound.scalars(select(Event).where(Event.kind == groq_quota.USED)).all()
+    assert used == []

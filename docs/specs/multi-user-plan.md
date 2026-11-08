@@ -41,6 +41,23 @@ options they choose between are below.
 15. **Controller:** the owner personally, as the legal drafts say, until the lawyer advises.
 16. **iPhone members:** band import is Android-only; that is fine.
 
+### Decided (2026-11-07)
+
+The owner's answers on 7 Nov, which change or add to the above:
+
+- **Recovery (changes 10):** members get back in only with the admin's recovery link (step 7,
+  built). `/recover` in the bot stays the owner's, so a forwarded connect link can't become a
+  way into someone's account.
+- **Erasing (settles E):** a member's erase drops their Telegram link too, as E and ADR-0044
+  say; they connect again from Account. The owner's link stays.
+- **Messages:** a member who connects Telegram gets the morning message, the evening nudge and
+  Sunday's review at the default times, which they can change or turn off in Settings (F1).
+- **Readiness:** members answer the readiness questions on their device before a hard session,
+  and nothing is stored (as ADR-0085's safety questions).
+- **Consent (step 6):** build the consent step now: asked at the start of the walk-through, per
+  category, with a record of each. The wording stays a draft until the lawyer's review, which
+  comes before `TC_MULTI_USER` goes on (step 11), so members stay training-only until then.
+
 ## What's true today
 
 ### The data is already scoped
@@ -323,7 +340,8 @@ guards, cheapest first:
 ### M. Consent, notice, DPIA
 
 - **Consent per category**, matching the privacy draft's health rows: body (measurements and
-  photos), readiness answers, daily check, band data, and what the AI comment may see (already
+  photos), daily check, band data, and what the AI comment may see (the health questions'
+  answers stay on the device since ADR-0085's build, so they need none; already
   the `share_body` and `share_readiness` switches). A `consents` table (per person: category,
   notice version, given, withdrawn). A feature asks for its consent the first time it is opened;
   withdrawing erases that category (the privacy draft lists this as needed before launch).
@@ -348,17 +366,39 @@ guards, cheapest first:
    test (L1, L2). Tests only.
 3. **Done (#236).** **Fix the owner leaks** that don't need a second person to fix: alerts to
    the person they're about, settings moving only that person's jobs, drafts per person.
-4. `users.role` and `label`, `TC_MULTI_USER` and `TC_MAX_MEMBERS`, the `Admin` dependency and
-   the route test's fourth kind.
+4. **Done (7 Nov 2026).** `users.role` and `label`, `TC_MULTI_USER` and `TC_MAX_MEMBERS`, the
+   `Admin` dependency and the route test's fourth kind.
 5. **Invites:** table, make and revoke on Account ("People"), `/join` with notice, adult check
-   and passkey.
-6. **Consent records** and per-category withdraw and erase.
+   and passkey. **Done (7 Nov 2026)**, except the notice, which step 11 publishes: the routes
+   (`GET /api/people`, `POST` and `DELETE /api/invites`, `POST /api/join`), People on Account
+   and the `/join` page.
+6. **Consent records** and per-category withdraw and erase. **Training-only first (7 Nov
+   2026):** until the lawyer's review, no member can keep or read health data at all
+   (`users.health_open`, the owner by id): the health routes answer 403 (`api.auth.Health`),
+   their phone's band posts, cardio heart rate and health proposals from their AI are refused,
+   and their AI app's tokens carry no body or readiness scope. Next, the consent step, asked
+   at the start of the walk-through, with draft wording until the lawyer's review (Decided
+   2026-11-07).
 7. **Leave, remove a member, admin recovery link** (ADR succeeding ADR-0044) and the restore
-   runbook step.
+   runbook step. The leave service and the left list are done ([ADR-0088](../adr/0088-leaving-and-the-left-list.md),
+   7 Nov 2026): the list is a file beside the database, copied off-site nightly, matched by id
+   and join time, and put back by `training-coach forget-left` after a restore. The routes too:
+   `POST /api/account/leave` (a member, a recent sign-in and the word typed, whatever the switch
+   says) and `POST /api/people/{id}/remove` (an admin, the same, while the switch is on);
+   `/api/auth/me` gives the role; Leave on Account and Remove on People. Off means off: with the
+   switch off a member gets 403 on everything but who they are, their export and leaving
+   (`api.auth.WIND_DOWN`), on MCP and band import too, decided by the owner's id. The wind-down:
+   a daily job (04:30) gives each member a `closing_on` 30 days on and tells them, erases them on
+   the day, and clears it if the switch goes back on; the closing page in the web app. The admin
+   recovery link with ADR-0059's controls: once, 24 hours, only the newest, never opened in an
+   admin's browser, the member told when it is made and used, and a notice on Account for 30
+   days. **Done (7 Nov 2026).**
 8. **Telegram for members:** connect link, the members filter, a session per update.
 9. **Schedules per person**, and band offers and band data alerts per person (the alert
    state is already per person, on `ingest_keys`).
-10. **Groq cap per person.**
+10. **Done (7 Nov 2026).** **Groq cap per person:** 20 voice notes or fallback readings a day for
+    a member (`services/groq_quota.py`), none for the owner; it bites once members have Telegram
+    (step 8).
 11. **Legal before the first invite:** notice published in the app, DPIA written, then
     `TC_MULTI_USER` on. Members stay training-only until a lawyer has reviewed the notice,
     consent and DPIA (Decided, 14).

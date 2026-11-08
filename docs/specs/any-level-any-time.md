@@ -106,7 +106,7 @@ item, only sets its count to 0. Progress on a shorter day:
 
 | Option | What | For |
 | --- | --- | --- |
-| T1 **Short on time today** | On the session overview and Today: As planned, 40, 30 or 20 minutes. Today only; the plan doesn't change. What's dropped is listed before Start; the guided session, the bot's work list and the time estimate follow it | A busy day |
+| T1 **Short on time today** | On the session overview and Today: As planned, and whichever of 40, 30 or 20 minutes is shorter than the session. Today only; the plan doesn't change. What's dropped is listed before Start; the guided session, the bot's work list and the time estimate follow it | A busy day |
 | T2 **Minutes per session** | On Account and in setup: every session runs at that length unless the day says otherwise. The body map shows the week at that length, with what it costs ("at 30 minutes: chest 6 sets, light green") | Someone who always has 30 minutes |
 
 Recommended: both, T1 first (it helps the owner now and needs no change to how plans are
@@ -304,6 +304,23 @@ Builder H's flow, with what the research adds (Part 3, Implications; Part 2, Scr
    fitness.
 7. **The suggested starter,** shown on the body map at the chosen minutes; the person changes
    anything and saves.
+
+**The owner's answers (7 Nov 2026):**
+
+- **Everything starts at the bottom.** A new plan has every exercise at the lowest step of its
+  ladder; the walk-through then moves each one up to where the person wants to start. The aim is
+  a start that is positively doable and never too hard, for anyone: old or young, fit or unfit.
+- **The order:** the safety questions first (on the device, nothing stored, as 1 above). Then
+  age, and how they exercise now: how often, how hard (out of breath, or able to hold a
+  conversation) and for how long. Then "can you do...?" per movement: any push-ups, and how many?
+  a pull-up? and so on, walking up or down from there (4 above). Take the time it needs.
+- **How much they can do:** days a week, minutes per session, exercises per session, and kit and
+  place.
+- **The plan:** from a small set of starters Liam approves (by days a week and place), fitted to
+  the answers: the starter is picked, each exercise set to its level, and the session trimmed to
+  the minutes and exercise count.
+- **The answers are kept,** apart from the safety questions, with a consent step at the start of
+  the walk-through (`multi-user-plan.md`, Decided 2026-11-07).
 
 ### B6. The first weeks, and stepping down
 

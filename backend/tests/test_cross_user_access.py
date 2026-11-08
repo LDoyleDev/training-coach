@@ -23,16 +23,20 @@ RAW = "raw SQL"  # sqlalchemy text(), .connection(), .connect(), exec_driver_sql
 # (module::function, kind) -> why it may see more than one person.
 ALLOWED: dict[tuple[str, str], str] = {
     ("db.session::<module>", ALL): "defines the option",
-    ("services.erase::erase", ALL): "deletes the named person's workouts and queue row",
+    ("services.erase::_delete", ALL): "deletes the named person's workouts and queue row",
     ("services.seed::_stored_items_preflight", ALL): (
         "what anyone's plan uses, slugs and places only: the catalogue must keep it"
     ),
     ("services.seed::sync_sessions", ALL): "names the user in the query",
+    ("services.seed::_tell_people", ALL): (
+        "who uses a changed exercise, ids and slugs only: each gets their own notice"
+    ),
     ("db.session::_only_this_users_rows", ALL): "the guard itself, reading the option",
     ("db.session::make_engine._begin_before_savepoint", RAW): "BEGIN: touches no rows",
     ("services.auth::<module>", ALL): "EVERYONE: sign-in looks up a token before knowing whose",
     ("services.auth::has_passkeys", ALL): "names the user in the query",
     ("services.auth::redeem_link", ALL): "whose link is this; acts on that user only",
+    ("services.auth::link_purpose", ALL): "what an open link is for; reads nothing else",
     ("services.auth::_live", ALL): "whose session cookie is this",
     ("services.passkeys::<module>", ALL): "EVERYONE: credentials are unique across people",
     ("services.passkeys::sign_in", ALL): "whose passkey is this",
@@ -56,19 +60,29 @@ ALLOWED: dict[tuple[str, str], str] = {
     ),
     ("services.seed::_preflight", ALL): "is this ladder step in anyone's history",
     ("services.seed::_tests_preflight", ALL): "does anyone have results for this test",
-    ("services.seed::apply_seed", ALL): "gives every person their starting rows, by user id",
+    ("services.seed::start_person", ALL): "one person's starting rows, naming them in each query",
     ("services.ai_key::rotate_all", ALL): "re-seals every person's key with a new app key",
     ("api.app::create_app", UNBOUND): "app.state.shared_sessions, for the lookups below",
     ("api.app::create_app", SHARED): "made once here",
-    ("api.app::create_app.lifespan", UNBOUND): "links the owner at start-up (users.link_owner)",
+    ("api.app::create_app.lifespan", UNBOUND): (
+        "links the owner at start-up (users.link_owner) and reads their chat; finds who left and "
+        "is back (ADR-0088)"
+    ),
     ("api.account::erase_my_data", UNBOUND): "erase deletes and recreates the user row (ADR-0044)",
+    ("api.account::leave_training_coach", UNBOUND): "leaving deletes the user row (ADR-0088)",
     ("api.auth::_shared", SHARED): "sign-in: whose cookie or link is this",
+    ("api.invites::_shared", SHARED): "invites and users are shared; labels and join days only",
     ("api.passkeys::_shared", SHARED): "passkey sign-in: whose credential is this",
     ("api.oauth::_shared", SHARED): "OAuth runs before anyone is known",
     ("api.ingest::health_connect", SHARED): "whose band secret is this",
     ("api.mcp::connection", SHARED): "whose bearer token is this",
     ("__main__::seed", UNBOUND): "the seed command: shared plan rows and everyone's start",
     ("__main__::rotate_secrets", UNBOUND): "re-seals every person's AI key",
+    ("__main__::forget_left", UNBOUND): "deletes listed people a restore put back (ADR-0088)",
+    (
+        "__main__::_owner_chat",
+        UNBOUND,
+    ): "the owner's linked chat, for an ops alert (users rows only)",
     ("services.backup::create", RAW): "sqlite3's backup API copies the whole file",
 }
 

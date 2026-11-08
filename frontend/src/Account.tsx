@@ -4,7 +4,10 @@ import AiComments from './account/AiComments'
 import BandImport from './account/BandImport'
 import BodySettings from './account/BodySettings'
 import HeartRateZones from './account/HeartRateZones'
+import Leave from './account/Leave'
 import MyEquipment from './account/MyEquipment'
+import People from './account/People'
+import Recovered from './account/Recovered'
 import Residence from './account/Residence'
 import WeightSteps from './account/WeightSteps'
 import CopyForAI from './account/CopyForAI'
@@ -166,6 +169,9 @@ export default function Account() {
 
           <Residence />
 
+          <Recovered />
+          <People />
+
           <MyEquipment />
 
           <WeightSteps />
@@ -237,7 +243,9 @@ export default function Account() {
             <h2 id="readiness" className="mb-2 text-xl">
               Readiness
             </h2>
-            <p className="mt-0">Seven questions about your health before hard exercise.</p>
+            <p className="mt-0">
+              Ten questions about your health, asked once a year. The answers stay on this device.
+            </p>
             <a href="/readiness" className={`${secondary} inline-flex items-center no-underline`}>
               Answer or update them
             </a>
@@ -269,6 +277,8 @@ export default function Account() {
             </h2>
             <p className="m-0">{INTENDED_PURPOSE}</p>
           </section>
+
+          <Leave />
 
           <section aria-labelledby="erase" className={card}>
             <h2 id="erase" className="mb-2 text-xl">

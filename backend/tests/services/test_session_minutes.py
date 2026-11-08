@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Event, SessionTemplate, Workout
+from training_coach.db.models import Event, SessionProgress, SessionTemplate, Workout
 from training_coach.domain.trim import WarmUp
 from training_coach.services import guided, home, user_settings, users, workout_log
 from training_coach.services.seed import apply_seed, load_plan
@@ -119,6 +119,82 @@ def test_a_recovery_session_runs_as_planned_whatever_the_setting(plan: Session) 
     user_settings.update(plan, session_minutes=20)
     _at(plan, "recovery")
     assert _today(plan).length is None
+
+
+def test_a_hiit_session_counts_its_rounds_and_is_offered_no_length(plan: Session) -> None:
+    _at(plan, "hiit")
+    found = _length(_today(plan))
+    assert found.planned == 4  # 8 rounds of 30 s to start, not one ordinary set
+    assert found.options == ()
+    assert found.minutes is None
+
+
+@pytest.mark.parametrize(
+    ("planned", "offered"),
+    [
+        (49, (40, 30, 20)),
+        (40, (30, 20)),
+        (31, (30, 20)),
+        (30, (20,)),
+        (21, (20,)),
+        (20, ()),
+        (6, ()),
+    ],
+)
+def test_only_lengths_shorter_than_the_session_are_offered(
+    plan: Session, monkeypatch: pytest.MonkeyPatch, planned: int, offered: tuple[int, ...]
+) -> None:
+    _at(plan, "moderate-cardio")  # no warm-up, so the estimate is the whole session
+    monkeypatch.setattr(guided, "_estimator", lambda *_: lambda sets, durations: float(planned))
+    found = _length(_today(plan))
+    assert (found.planned, found.options) == (planned, offered)
+
+
+def test_a_setting_the_session_already_fits_leaves_it_as_planned(plan: Session) -> None:
+    user_settings.update(plan, session_minutes=20)
+    _at(plan, "hiit")
+    found = _length(_today(plan))
+    assert found.minutes is None
+    assert not found.from_setting
+
+
+def test_a_strength_session_that_fits_the_setting_keeps_its_warm_up(
+    plan: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user_settings.update(plan, session_minutes=30)
+    monkeypatch.setattr(guided, "_estimator", lambda *_: lambda sets, durations: 20.0)
+    found = _length(_today(plan))  # Legs, 25 minutes with its 5-minute warm-up
+    assert found.planned == 25
+    assert found.minutes is None
+    assert found.trimmed.warm_up is WarmUp.FULL
+
+
+def test_a_length_chosen_before_the_session_fitted_it_counts_as_planned(plan: Session) -> None:
+    _at(plan, "hiit")
+    assert isinstance(guided.keep(plan, _today(plan), 0, 0, [], []), int)
+    row = plan.scalars(select(SessionProgress)).one()
+    row.length = {"minutes": 20, "keep": []}
+    plan.flush()
+    assert _length(_today(plan)).minutes is None
+
+
+def test_a_length_no_shorter_than_the_session_is_refused(plan: Session) -> None:
+    _at(plan, "hiit")
+    assert guided.choose_length(plan, _today(plan), 0, 20, ()) == guided.NOT_SHORTER
+    assert guided.kept(plan, DAY) is None
+
+
+def test_a_started_session_keeps_the_length_it_was_fixed_at(
+    plan: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    found = _choose(plan, 40)
+    first = found.order[0]
+    done = guided.Done(first.item, first.set_no, first.target)
+    kept = guided.kept(plan, DAY)
+    assert kept is not None
+    assert isinstance(guided.keep(plan, found, kept.revision, 1, [], [done]), int)
+    monkeypatch.setattr(guided, "_estimator", lambda *_: lambda sets, durations: 10.0)
+    assert _length(_today(plan)).minutes == 40
 
 
 def test_a_conditioning_session_follows_the_setting(plan: Session) -> None:

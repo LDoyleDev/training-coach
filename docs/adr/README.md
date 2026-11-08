@@ -91,3 +91,4 @@ Code). Template: [template.md](template.md).
 | [0084](0084-short-days-last-set-and-stepping-down.md) | Progress on a shorter day, an as-many-as-you-can last set, and stepping down | Accepted |
 | [0085](0085-safety-questions-in-europe-and-europe-only.md) | Safety questions fit for Europe, answered on the device; the app serves the EU and EEA only | Accepted |
 | [0086](0086-away-no-equipment-version.md) | Away, no equipment: a third place with a written version of every session | Accepted |
+| [0087](0087-notices-of-background-plan-changes.md) | A release that changes an exercise in someone's plan tells them | Accepted |

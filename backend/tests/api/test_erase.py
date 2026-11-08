@@ -31,7 +31,8 @@ from training_coach.db.models import (
 from training_coach.db.session import ALL_USERS, make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import local_date
-from training_coach.services import auth, user_settings
+from training_coach.services import auth, user_settings, users
+from training_coach.services.erase import erase
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -95,6 +96,7 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
     with session_scope(make_session_factory(engine)) as shared:
         me = shared.get_one(User, OWNER)
         assert me.telegram_user_id == TELEGRAM  # the bot still knows me
+        assert me.role == users.ADMIN  # still the owner (ADR-0059), not a new member
         assert me.country is None  # asked again (ADR-0085)
         # Kept: an erase without a country mustn't restart the bot and MCP's 30 days.
         assert me.last_seen_in_europe == datetime(2026, 1, 1, tzinfo=UTC)
@@ -107,6 +109,44 @@ def test_erasing_removes_my_data_and_keeps_everyone_elses(
         settings = user_settings.load(mine)
     assert kinds == ["account.erased"]  # nothing about what was there
     assert settings.last_set_amrap is False  # back to the default
+
+
+def test_erasing_keeps_a_members_role_and_label(engine: Engine) -> None:
+    """Who they are to the app isn't their data: a member erasing stays a member, under the
+    label the admin knows them by (ADR-0059)."""
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, load_plan())
+        joined = datetime(2026, 11, 1, tzinfo=UTC)
+        shared.add(User(id=2, role=users.MEMBER, label="Mum", created_at=joined))
+    with session_scope(make_session_factory(engine)) as shared:
+        assert erase(shared, 2, load_plan())
+    with session_scope(make_session_factory(engine)) as shared:
+        them = shared.get_one(User, 2)
+        assert (them.role, them.label, them.created_at) == (users.MEMBER, "Mum", joined)
+
+
+def test_a_members_erase_drops_their_telegram_link(engine: Engine) -> None:
+    """A member's link goes with the rest; they connect again from Account (ADR-0059's
+    2026-11-07 addendum). The erase is still told to the chat they had."""
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, load_plan())
+        shared.add(User(id=2, role=users.MEMBER, label="Mum"))
+        shared.flush()
+        apply_seed(shared, load_plan())
+    with make_session_factory(engine, user_id=2)() as bound:
+        token = auth.create_link(bound, datetime.now(UTC))
+        bound.commit()
+    settings = Settings(
+        environment="test", database_url=str(engine.url), public_url=ORIGIN, multi_user=True
+    )
+    with TestClient(create_app(settings), base_url=ORIGIN) as member:
+        assert member.post("/api/auth/redeem", json={"token": token}).status_code == 204
+        told = capture(member, 2, chat=5151)
+        assert member.post("/api/account/erase", json=ERASE).status_code == 204
+    assert told == ["All your Training Coach data was erased. Backups age out within 5 weeks."]
+    with session_scope(make_session_factory(engine)) as shared:
+        assert shared.get_one(User, 2).telegram_user_id is None
+        assert shared.get_one(User, 2).role == users.MEMBER
 
 
 def test_erasing_takes_my_workouts_and_session_in_progress(

@@ -298,6 +298,13 @@ class User(Base):
     # Their last signed-in web visit from a listed country: the bot and MCP serve them for 30
     # days after it (domain.region). A new person starts now, from the visit that made them.
     last_seen_in_europe: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    # admin or member (ADR-0059): the owner is the one admin. Read only with TC_MULTI_USER on.
+    role: Mapped[str] = mapped_column(String(8), default="member", server_default="member")
+    # What the admin's list calls them ("Mum"); it says nothing about their data.
+    label: Mapped[str | None] = mapped_column(String(40))
+    # The day a member's data is erased, set when TC_MULTI_USER goes off with them still here
+    # (ADR-0059's wind-down, 30 days on); cleared if it goes back on. Always None for the owner.
+    closing_on: Mapped[date | None] = mapped_column(Date)
 
 
 # ----------------------------------------------------------------------- state
@@ -737,6 +744,23 @@ class SessionProgress(Owned, Base):
 # ----------------------------------------------------------------- web sign-in
 
 
+class Invite(Base):
+    """A one-time invite to join (ADR-0059). Shared, not per person: it names who made it and,
+    once used, who it became. Only the token's SHA-256 is kept."""
+
+    __tablename__ = "invites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    label: Mapped[str | None] = mapped_column(String(40))  # what the admin's list calls them
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    used_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
 class LoginLink(Owned, Base):
     """A one-time sign-in link sent by the bot (ADR-0036). Only the token's SHA-256 is kept."""
 
@@ -814,16 +838,15 @@ class PasskeyChallenge(Base):
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
-class ReadinessAnswers(Owned, Base):
-    """A person's answers to the readiness questions (ADR-0046): the latest only, one row each.
-    Health data: never logged, never shared."""
+class ReadinessCheck(Owned, Base):
+    """When a person last answered the health questions, and which version (ADR-0085): one row
+    each. Never the answers or the note: those stay on the device."""
 
-    __tablename__ = "readiness_answers"
+    __tablename__ = "readiness_checks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     version: Mapped[int] = mapped_column(Integer)  # which questions (domain.readiness.VERSION)
-    answers: Mapped[dict[str, bool]] = mapped_column(JSON)
     answered_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
@@ -1203,6 +1226,20 @@ class LogProposal(Owned, Base):
     resolved_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
+class PlanNotice(Owned, Base):
+    """What a release changed in a person's plan (ADR-0087): shown until they've seen it, and
+    told on Telegram once. Written by the seed, or a migration that changes a ladder."""
+
+    __tablename__ = "plan_notices"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = _owner()
+    text: Mapped[str] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    read_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    told_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
 class Event(Owned, Base):
     """Audit log. Payloads must never contain secrets, transcripts or measurements.
     ``user_id`` is empty for system events such as ``seed.applied``."""
@@ -1230,6 +1267,7 @@ __all__ = [
     "HeartRateSample",
     "ImportedWorkout",
     "IngestKey",
+    "Invite",
     "LadderStep",
     "LogProposal",
     "LoginLink",

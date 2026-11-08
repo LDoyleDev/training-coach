@@ -11,8 +11,15 @@ vi.mock('./progress/ProgressPage', () => ({ default: () => <p>progress</p> }))
 vi.mock('./home/HomePage', () => ({ default: () => <p>home</p> }))
 vi.mock('./review/ReviewPage', () => ({ default: () => <p>review</p> }))
 vi.mock('./connect/ConnectPage', () => ({ default: () => <p>connect</p> }))
+vi.mock('./JoinPage', () => ({ default: () => <p>join</p> }))
+vi.mock('./Closing', () => ({ Closing: () => <p>closing</p> }))
+const closed = vi.hoisted(() => ({ me: null as null | object }))
+vi.mock('./useClosed', () => ({ default: () => closed.me }))
 
-afterEach(() => window.history.replaceState(null, '', '/'))
+afterEach(() => {
+  window.history.replaceState(null, '', '/')
+  closed.me = null
+})
 
 test.each([
   ['/plan', 'plan'],
@@ -22,6 +29,7 @@ test.each([
   ['/progress', 'progress'],
   ['/review', 'review'],
   ['/connect', 'connect'],
+  ['/join', 'join'],
   ['/', 'home'],
 ])('%s shows %s', (path, text) => {
   window.history.replaceState(null, '', path)
@@ -54,4 +62,18 @@ test('an unknown page says so instead of redirecting', () => {
   )
   expect(replace).not.toHaveBeenCalled()
   vi.unstubAllGlobals()
+})
+
+test.each(['/', '/plan', '/account'])('closed to a member, %s is the closing page', (path) => {
+  closed.me = { user_id: 2, role: 'member', closed: true, closing_on: null }
+  window.history.replaceState(null, '', path)
+  render(<Pages />)
+  expect(screen.getByText('closing')).toBeInTheDocument()
+})
+
+test('closed to a member, sign-in still shows', () => {
+  closed.me = { user_id: 2, role: 'member', closed: true, closing_on: null }
+  window.history.replaceState(null, '', '/signin')
+  render(<Pages />)
+  expect(screen.getByText('sign in')).toBeInTheDocument()
 })

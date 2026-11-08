@@ -5,6 +5,7 @@ import asyncio
 import contextlib
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 
 import structlog
@@ -12,6 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from sqlalchemy.orm import Session, sessionmaker
 from telegram import Bot
 
 from training_coach import __version__
@@ -36,9 +38,11 @@ from training_coach.api.heart_rate import router as heart_rate_router
 from training_coach.api.home import router as home_router
 from training_coach.api.ingest import account_router as ingest_account_router
 from training_coach.api.ingest import router as ingest_router
+from training_coach.api.invites import router as invites_router
 from training_coach.api.log import router as log_router
 from training_coach.api.mcp import PER_CONNECTION
 from training_coach.api.mcp import router as mcp_router
+from training_coach.api.notices import router as notices_router
 from training_coach.api.oauth import PER_ADDRESS
 from training_coach.api.oauth import router as oauth_router
 from training_coach.api.passkeys import router as passkeys_router
@@ -59,7 +63,7 @@ from training_coach.config import Settings, get_settings
 from training_coach.db.session import make_engine, make_session_factory, session_scope
 from training_coach.domain.rate_limit import RateLimit
 from training_coach.logging import configure_logging
-from training_coach.services import backup, users
+from training_coach.services import backup, left_list, users, wind_down
 from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
@@ -84,9 +88,8 @@ def _sender(telegram: Bot | None) -> Send | None:
     return send
 
 
-def _owner_notifier(settings: Settings, telegram: Bot | None) -> backup.Notify | None:
-    """A failed backup is worth a message, to the owner only (ADR-0009)."""
-    owner = settings.telegram_allowed_user_id
+def _owner_notifier(telegram: Bot | None, owner: int | None) -> backup.Notify | None:
+    """A failed backup is worth a message, to the owner's linked chat only (ADR-0009)."""
     if telegram is None or owner is None:
         return None
 
@@ -123,6 +126,99 @@ def _start_backups(settings: Settings, notify: backup.Notify | None) -> asyncio.
     return task
 
 
+def _start_wind_down(
+    settings: Settings,
+    shared: sessionmaker[Session],
+    send: Send | None,
+    notify: backup.Notify | None,
+) -> asyncio.Task[None]:
+    """The members' wind-down (ADR-0059), every day whatever the switch says, bot or no bot."""
+    left = left_list.for_url(settings.database_url)
+
+    def today() -> wind_down.Report:
+        with session_scope(shared) as session:
+            local = datetime.now(UTC).astimezone(settings.tz).date()
+            return wind_down.run(session, settings.multi_user, local, left)
+
+    async def once() -> None:
+        report = await asyncio.to_thread(today)
+        await _tell_wind_down(report, send, notify)
+
+    task = asyncio.create_task(wind_down.run_daily(once, settings.tz), name="wind_down.daily")
+    task.add_done_callback(_report_wind_down_death)
+    return task
+
+
+async def _tell_wind_down(
+    report: wind_down.Report, send: Send | None, notify: backup.Notify | None
+) -> None:
+    """Each member in their own chat; the owner gets the count and the day, never who. A
+    message that can't go out is logged, never stops the rest."""
+    messages = [(t.chat, wind_down.closing_text(t.on)) for t in report.closing]
+    messages += [(t.chat, wind_down.ERASED) for t in report.erased]
+    for chat, text in messages:
+        if send is not None and chat is not None:
+            try:
+                await send(chat, text)
+            except Exception as exc:  # the next member is still told
+                log.warning("wind_down.tell_failed", error=type(exc).__name__)
+    if report.closing and notify is not None:
+        count = len(report.closing)
+        who = "1 member" if count == 1 else f"{count} members"
+        on = wind_down.day(report.closing[0].on)
+        with contextlib.suppress(Exception):
+            await notify(
+                f"TC_MULTI_USER is off: Training Coach is closing to {who} (told on Telegram if "
+                f"linked). Their data is erased on {on} unless you switch it back on before then."
+            )
+
+
+def _report_wind_down_death(task: "asyncio.Task[None]") -> None:
+    if task.cancelled():
+        return
+    error = task.exception()
+    log.error("wind_down.loop_died", error=type(error).__name__ if error else "returned")
+
+
+LEFT_BACK = (
+    "{count} who left Training Coach are back in the database, from a restored backup. Nothing "
+    "was deleted: run `training-coach forget-left --apply` (backup-restore runbook, ADR-0088)."
+)
+
+
+async def _left_back(
+    settings: Settings, shared: sessionmaker[Session], notify: backup.Notify | None
+) -> None:
+    """After a restore, anyone on the left list who is back is named, never deleted here: the
+    owner deletes them again on purpose (ADR-0088). Only a warning, so it never stops the app
+    starting: a list it can't read (malformed, or put back with the wrong owner) is logged and
+    told instead, as the owner needs the app up most just after a restore."""
+    try:
+        path = left_list.for_url(settings.database_url)
+        if path is None:
+            return
+        entries = left_list.read(path)
+        with session_scope(shared) as session:
+            back = left_list.back(session, entries)
+        if not back:
+            return
+        log.error("left.back", users=back)
+        text = LEFT_BACK.format(count=f"{len(back)} people" if len(back) > 1 else "1 person")
+    except Exception as exc:  # a warning step must not stop start-up
+        log.error("left.check_failed", error=type(exc).__name__)
+        text = LEFT_UNREADABLE
+    if notify is not None:
+        with contextlib.suppress(Exception):
+            await notify(text)
+
+
+LEFT_UNREADABLE = (
+    "Training Coach couldn't read its list of people who left (left-users.json), so it can't "
+    "tell whether a restore brought anyone back. Check the file (backup-restore runbook, "
+    "ADR-0088)."
+)
+
+
 def _report_death(task: "asyncio.Task[None]") -> None:
     """The loop never returns or raises on its own; if it does, say so rather than stop
     backing up in silence."""
@@ -141,9 +237,11 @@ SPA_PAGES = (
     "/body",
     "/progress",
     "/plan",
+    "/plan/edit",
     "/readiness",
     "/review",
     "/connect",  # the consent page for connecting an AI app (ADR-0047 C)
+    "/join",  # an invite (ADR-0059); its routes answer 404 while TC_MULTI_USER is off
 )
 
 
@@ -177,7 +275,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         bot = None
+        sends_only: Bot | None = None  # the bot off, its alerts still sent (a clash, below)
         owner = users.OWNER  # whose jobs the bot runs (set again by link_owner)
+        owner_chat: int | None = None  # where the owner's own alerts go: their linked chat
         if settings.bot_enabled:
             # bot_enabled means the token and the allowed account are both set.
             allowed = settings.telegram_allowed_user_id
@@ -186,27 +286,44 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # the bot sessions bound to that user.
             with session_scope(make_session_factory(engine)) as session:
                 owner = users.link_owner(session, allowed)
-            bot = build_bot(settings, make_session_factory(engine, user_id=owner))
+                owner_chat = users.telegram_chat(session, owner)
+            if owner_chat == allowed:
+                bot = build_bot(settings, make_session_factory(engine, user_id=owner))
+            else:
+                # Someone else holds the configured account (logged by link_owner). Until the
+                # bot finds each person from the sender (ADR-0089), it answers that account as
+                # the owner, so it stays off rather than hand a member the owner's data.
+                log.error("bot.disabled", reason="the configured account is someone else's")
+                # Alerts still go out (each to its own person's linked chat), from a Bot that
+                # only sends: no polling, no handlers, nothing to answer.
+                assert settings.telegram_bot_token is not None  # noqa: S101 - bot_enabled
+                sends_only = Bot(settings.telegram_bot_token.get_secret_value())
         if bot is not None:
             await bot.initialize()
             await bot.start()
             assert bot.updater is not None  # noqa: S101 - always set by the default builder
             await bot.updater.start_polling(drop_pending_updates=False)
             log.info("bot.started")
-        else:
+        elif not settings.bot_enabled:
             log.warning("bot.disabled", reason="telegram token or allowed user id not set")
         app.state.reschedule = (
             _on_loop(bot.bot_data[RESCHEDULE], owner) if bot is not None else None
         )
-        app.state.send = _sender(bot.bot if bot else None)  # sign-in alerts (ADR-0040)
+        telegram = bot.bot if bot is not None else sends_only
+        app.state.send = _sender(telegram)  # sign-in alerts (ADR-0040)
         # Proposals from a connected AI go to Telegram as they come (ADR-0058).
         app.state.announce_proposals = bot.bot_data[ANNOUNCE] if bot is not None else None
-        notify = _owner_notifier(settings, bot.bot if bot else None)
+        notify = _owner_notifier(telegram, owner_chat)
         app.state.notify = notify  # ops: a failed backup
         nightly = _start_backups(settings, notify)
+        closing = _start_wind_down(settings, make_session_factory(engine), app.state.send, notify)
+        await _left_back(settings, make_session_factory(engine), notify)
         try:
             yield
         finally:
+            closing.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await closing
             if nightly is not None:
                 nightly.cancel()
                 # A loop that died was logged by its done-callback; never let it stop shutdown.
@@ -218,6 +335,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await bot.stop()
                 await bot.shutdown()
                 log.info("bot.stopped")
+            if sends_only is not None:
+                with contextlib.suppress(Exception):  # it made no requests of its own to close
+                    await sends_only.shutdown()
             engine.dispose()
 
     app = FastAPI(
@@ -247,6 +367,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return Health(status="ok", version=__version__, bot_enabled=settings.bot_enabled)
 
     app.include_router(plan_router)
+    app.include_router(notices_router)
+    app.include_router(invites_router)
     app.include_router(coverage_router)
     app.include_router(equipment_router)
     app.include_router(auth_router)

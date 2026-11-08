@@ -1,17 +1,28 @@
 import Account from './Account'
 import BodyTabs from './body/BodyTabs'
+import { Closing } from './Closing'
 import ConnectPage from './connect/ConnectPage'
 import HomePage from './home/HomePage'
+import JoinPage from './JoinPage'
+import PlanEdit from './plan/PlanEdit'
 import PlanPage from './plan/PlanPage'
 import ProgressPage from './progress/ProgressPage'
 import ReadinessPage from './readiness/ReadinessPage'
 import ReviewPage from './review/ReviewPage'
 import SessionPage from './session/SessionPage'
 import SignIn from './SignIn'
+import useClosed from './useClosed'
 
-/** The web app's pages by path; the server serves index.html for each (SPA_PAGES). */
+/** The web app's pages by path; the server serves index.html for each (SPA_PAGES). While the app
+ * is closed to a member (ADR-0059), every page but sign-in is the closing page. */
 export default function Pages() {
+  const closed = useClosed()
   if (window.location.pathname === '/signin') return <SignIn />
+  if (closed) return <Closing me={closed} />
+  return <Page />
+}
+
+function Page() {
   if (window.location.pathname === '/account') return <Account />
   if (window.location.pathname === '/session') return <SessionPage />
   if (window.location.pathname === '/tests') {
@@ -29,9 +40,11 @@ export default function Pages() {
     return <ProgressPage />
   }
   if (window.location.pathname === '/plan') return <PlanPage />
+  if (window.location.pathname === '/plan/edit') return <PlanEdit />
   if (window.location.pathname === '/readiness') return <ReadinessPage />
   if (window.location.pathname === '/review') return <ReviewPage />
   if (window.location.pathname === '/connect') return <ConnectPage />
+  if (window.location.pathname === '/join') return <JoinPage />
   if (window.location.pathname === '/') return <HomePage />
   return (
     <p className="status">

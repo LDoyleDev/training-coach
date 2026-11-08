@@ -93,7 +93,7 @@ export interface paths {
         /**
          * Ai Summary
          * @description My training as compact Markdown for my own AI (ADR-0047): the last 4 or 12 weeks, or
-         *     everything. Measurements and readiness answers (health data) only when asked for; photos
+         *     everything. Measurements and daily checks (health data) only when asked for; photos
          *     never.
          */
         get: operations["ai_summary_api_account_ai_summary_get"];
@@ -310,6 +310,28 @@ export interface paths {
         post: operations["make_secret_api_account_ingest_post"];
         /** Remove Secret */
         delete: operations["remove_secret_api_account_ingest_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Leave Training Coach
+         * @description A member leaving (ADR-0088): everything of theirs is deleted, the account too, with no
+         *     fresh start. Needs a recent sign-in and the word typed. 403 for the owner, who erases
+         *     instead. Works whatever ``TC_MULTI_USER`` says: leaving is always allowed.
+         */
+        post: operations["leave_training_coach_api_account_leave_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1013,6 +1035,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Invite
+         * @description A one-time link for someone to join, valid 72 hours; 409 when the house is full (open
+         *     invites count).
+         */
+        post: operations["make_invite_api_invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/invites/{invite_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Invite
+         * @description Revoke an open invite; 404 for one that's used, expired, revoked or unknown.
+         */
+        delete: operations["revoke_invite_api_invites__invite_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join
+         * @description Join with an invite: the new member signed in, to add a passkey next. 401 for a link that
+         *     is used, revoked or expired; 422 unless they are an adult; 409 when there's no room.
+         */
+        post: operations["join_api_join_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/log": {
         parameters: {
             query?: never;
@@ -1049,6 +1133,108 @@ export interface paths {
         get: operations["plan_api_log_plan_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Notices */
+        get: operations["get_notices_api_notices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notices/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Notices
+         * @description "Got it": these won't show again.
+         */
+        post: operations["read_notices_api_notices_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get People
+         * @description Members' labels and join days, and the open invites: nothing of anyone's data.
+         */
+        get: operations["get_people_api_people_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/people/{member_id}/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Recovery Link
+         * @description A recovery link for a member who lost their passkey (ADR-0059, I1), for the admin to hand
+         *     them: once, 24 hours, and only the newest works. Using it signs out their other browsers and
+         *     removes their passkeys, like /recover. The member is told now, and again when it is used;
+         *     an admin's own browser can't open it. 404 for anyone who isn't a member.
+         */
+        post: operations["make_recovery_link_api_people__member_id__recovery_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/people/{member_id}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove Member
+         * @description Remove a member (ADR-0059, ADR-0088), once the admin has told them and offered their
+         *     export: everything of theirs is deleted, as if they had left. 404 for anyone who isn't a
+         *     member (an admin can't be removed). Needs a recent sign-in and the word typed.
+         */
+        post: operations["remove_member_api_people__member_id__remove_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1136,6 +1322,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plan/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Plan Changes
+         * @description Save a draft of the person's own plan as one version. A draft of an older plan, or a
+         *     session in progress, is a conflict; what the app couldn't run is refused with the reason.
+         */
+        post: operations["post_plan_changes_api_plan_changes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plan/coverage": {
         parameters: {
             query?: never;
@@ -1150,6 +1357,46 @@ export interface paths {
          *     here changes it, not even the place Today starts at.
          */
         get: operations["get_coverage_api_plan_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan/coverage/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Coverage Draft
+         * @description The map as a draft of the plan would make it, while editing: it saves nothing.
+         */
+        post: operations["post_coverage_draft_api_plan_coverage_draft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Plan Edit
+         * @description The person's sessions with every version, and what they can choose from.
+         */
+        get: operations["get_plan_edit_api_plan_edit_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1399,7 +1646,8 @@ export interface paths {
         get: operations["get_readiness_api_readiness_get"];
         /**
          * Put Readiness
-         * @description Answer every question; the answers replace any earlier ones.
+         * @description Record that the current questions were answered now. 409 if the browser asked an older
+         *     version (a page loaded before a release): it reloads and asks the new ones.
          */
         put: operations["put_readiness_api_readiness_put"];
         post?: never;
@@ -1461,7 +1709,7 @@ export interface paths {
          * @description Run today's session shorter, or as planned again (ADR-0082): the session at that
          *     length. 409 when the session changed, another device moved on since ``revision``
          *     (reload), or a set is kept already (the length is fixed then); 422 for a session that
-         *     always runs as planned, or a Keep for an exercise it doesn't have.
+         *     always runs as planned, a length not on offer, or a Keep for an exercise it doesn't have.
          */
         put: operations["choose_length_api_session_length_put"];
         post?: never;
@@ -1975,12 +2223,10 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** AnswersBody */
-        AnswersBody: {
-            /** Answers */
-            answers: {
-                [key: string]: boolean;
-            };
+        /** AnsweredBody */
+        AnsweredBody: {
+            /** Version */
+            version: number;
         };
         /** ApproveBody */
         ApproveBody: {
@@ -2108,6 +2354,40 @@ export interface components {
             pace_s_per_km: number | null;
             /** Speed Kmh */
             speed_kmh: number | null;
+        };
+        /** CatalogueItemView */
+        CatalogueItemView: {
+            /** First Step */
+            first_step: string;
+            kind: components["schemas"]["ExerciseKind"];
+            /** Lengthened */
+            lengthened: boolean;
+            /** Levels */
+            levels: [
+                number,
+                number
+            ] | null;
+            /** Muscles */
+            muscles: {
+                [key: string]: number;
+            };
+            /** Name */
+            name: string;
+            /** Needs */
+            needs: string[];
+            /** Pattern */
+            pattern: string;
+            /** Per Side */
+            per_side: boolean;
+            /** Places */
+            places: components["schemas"]["Place"][];
+            /** Range */
+            range: [
+                number,
+                number
+            ] | null;
+            /** Slug */
+            slug: string;
         };
         /** ChangeBody */
         ChangeBody: {
@@ -2238,6 +2518,13 @@ export interface components {
             /** Scopes */
             scopes: components["schemas"]["ConsentScopeView"][];
         };
+        /** CoverageDraft */
+        CoverageDraft: {
+            /** @default home */
+            place: components["schemas"]["Place"];
+            /** Versions */
+            versions: components["schemas"]["DraftVersion"][];
+        };
         /** CoverageView */
         CoverageView: {
             /** Back To Back */
@@ -2258,6 +2545,12 @@ export interface components {
             muscles: components["schemas"]["MuscleView"][];
             place: components["schemas"]["Place"];
             places: components["schemas"]["Places"];
+            /** Pull Sets */
+            pull_sets: number;
+            /** Push Sets */
+            push_sets: number;
+            /** Pushing Without Pulling */
+            pushing_without_pulling: boolean;
             /** Session Cap */
             session_cap: number;
             /** Sessions */
@@ -2341,6 +2634,32 @@ export interface components {
             /** Started At */
             started_at?: string | null;
         };
+        /** DraftItem */
+        DraftItem: {
+            /** Exercise */
+            exercise: string;
+            /** Pair */
+            pair?: number | null;
+            /**
+             * Per Side
+             * @default false
+             */
+            per_side: boolean;
+            /** Rep Max */
+            rep_max: number;
+            /** Rep Min */
+            rep_min: number;
+            /** Sets */
+            sets: number;
+        };
+        /** DraftVersion */
+        DraftVersion: {
+            /** Items */
+            items: components["schemas"]["DraftItem"][];
+            place: components["schemas"]["Place"];
+            /** Slug */
+            slug: string;
+        };
         /** EarnedView */
         EarnedView: {
             /** At Top */
@@ -2395,6 +2714,38 @@ export interface components {
             exercise: string;
             /** Step */
             step: string;
+        };
+        /** EditItemView */
+        EditItemView: {
+            /** Exercise */
+            exercise: string;
+            /** Name */
+            name: string;
+            /** Pair */
+            pair: number | null;
+            /** Per Side */
+            per_side: boolean;
+            /** Rep Max */
+            rep_max: number;
+            /** Rep Min */
+            rep_min: number;
+            /** Sets */
+            sets: number;
+        };
+        /** EditSessionView */
+        EditSessionView: {
+            /** Away */
+            away: components["schemas"]["EditItemView"][];
+            /** Focus */
+            focus: string;
+            /** Gym */
+            gym: components["schemas"]["EditItemView"][];
+            /** Home */
+            home: components["schemas"]["EditItemView"][];
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
         };
         /**
          * Energy
@@ -2755,6 +3106,46 @@ export interface components {
             /** Url */
             url: string | null;
         };
+        /** InviteBody */
+        InviteBody: {
+            /** Label */
+            label?: string | null;
+        };
+        /** InviteView */
+        InviteView: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Id */
+            id: number;
+            /** Label */
+            label: string | null;
+        };
+        /** ItemChange */
+        ItemChange: {
+            /** Exercise */
+            exercise: string;
+            /** Pair */
+            pair?: number | null;
+            /**
+             * Per Side
+             * @default false
+             */
+            per_side: boolean;
+            /** Rep Max */
+            rep_max: number;
+            /** Rep Min */
+            rep_min: number;
+            /** Sets */
+            sets: number;
+        };
         /**
          * ItemLevelView
          * @description Changing the level on the set screen (ADR-0080): the step trained today, whether it was
@@ -2817,6 +3208,13 @@ export interface components {
              * @enum {string}
              */
             unit: "reps" | "seconds" | "minutes";
+        };
+        /** JoinBody */
+        JoinBody: {
+            /** Adult */
+            adult: boolean;
+            /** Token */
+            token: string;
         };
         /** KeepBody */
         KeepBody: {
@@ -2942,9 +3340,17 @@ export interface components {
             /** Top */
             top: components["schemas"]["TopView"][];
         };
+        /** LeaveRequest */
+        LeaveRequest: {
+            /**
+             * Confirm
+             * @constant
+             */
+            confirm: "leave";
+        };
         /**
          * LengthBody
-         * @description Short on time today (ADR-0082): as planned (empty) or 40, 30 or 20 minutes, never
+         * @description Short on time today (ADR-0082): as planned (empty) or a length on offer, never
          *     dropping the exercises pinned with ``keep`` (slugs).
          */
         LengthBody: {
@@ -2966,8 +3372,9 @@ export interface components {
         /**
          * LengthView
          * @description Short on time today (ADR-0082): the minutes chosen (empty: as planned), the ones on
-         *     offer, the exercises pinned with Keep, about how long as planned, what the chosen length
-         *     drops (exercise names, in the order they went) and the warm-up it keeps: the 5-minute one,
+         *     offer (only those shorter than as planned, so maybe none), the exercises pinned with Keep,
+         *     about how long as planned, what the chosen length drops (exercise names, in the order they
+         *     went) and the warm-up it keeps: the 5-minute one,
          *     ramp sets (easy sets of the first exercise, not logged) or none. ``shortest``: the
          *     chosen minutes can't be met and this is the shortest the session gets. ``fixed``: a set is
          *     kept, so the length no longer changes. ``from_setting``: the day has no choice, so
@@ -3231,8 +3638,29 @@ export interface components {
             /** Workout Id */
             workout_id: number;
         };
+        /** MadeView */
+        MadeView: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Token */
+            token: string;
+        };
         /** Me */
         Me: {
+            /** Closed */
+            closed: boolean;
+            /** Closing On */
+            closing_on: string | null;
+            /** Recovered By Admin At */
+            recovered_by_admin_at: string | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "admin" | "member";
             /** User Id */
             user_id: number;
         };
@@ -3264,6 +3692,18 @@ export interface components {
             on: string;
             /** Value */
             value: number;
+        };
+        /** MemberView */
+        MemberView: {
+            /** Id */
+            id: number;
+            /**
+             * Joined
+             * Format: date
+             */
+            joined: string;
+            /** Label */
+            label: string | null;
         };
         /** MoveUpBody */
         MoveUpBody: {
@@ -3318,6 +3758,8 @@ export interface components {
         };
         /** MuscleView */
         MuscleView: {
+            /** Adds */
+            adds: string[];
             /** Back To Back */
             back_to_back: string[];
             band: components["schemas"]["Band"];
@@ -3401,6 +3843,13 @@ export interface components {
              */
             start: string;
         };
+        /** NoticeView */
+        NoticeView: {
+            /** Id */
+            id: number;
+            /** Text */
+            text: string;
+        };
         /** OptionView */
         OptionView: {
             /** Label */
@@ -3460,6 +3909,15 @@ export interface components {
             /** Sets */
             sets: number;
         };
+        /** PeopleView */
+        PeopleView: {
+            /** Invites */
+            invites: components["schemas"]["InviteView"][];
+            /** Max Members */
+            max_members: number;
+            /** Members */
+            members: components["schemas"]["MemberView"][];
+        };
         /** PhotoView */
         PhotoView: {
             /** Id */
@@ -3514,12 +3972,37 @@ export interface components {
          * @enum {string}
          */
         Places: "home" | "gym" | "both";
+        /** PlanChanges */
+        PlanChanges: {
+            /** Note */
+            note: string;
+            /** Revision */
+            revision: string;
+            /** Versions */
+            versions: components["schemas"]["VersionChange"][];
+        };
+        /** PlanEditView */
+        PlanEditView: {
+            /** Catalogue */
+            catalogue: components["schemas"]["CatalogueItemView"][];
+            /** Revision */
+            revision: string;
+            /** Sessions */
+            sessions: components["schemas"]["EditSessionView"][];
+        };
         /** PlanImportView */
         PlanImportView: {
             /** Blocked */
             blocked: string | null;
             /** Changes */
             changes: string[];
+            /** Version */
+            version: string | null;
+        };
+        /** PlanSavedView */
+        PlanSavedView: {
+            /** Revision */
+            revision: string;
             /** Version */
             version: string | null;
         };
@@ -3635,13 +4118,6 @@ export interface components {
              */
             warnings: string[];
         };
-        /** QuestionView */
-        QuestionView: {
-            /** Key */
-            key: string;
-            /** Text */
-            text: string;
-        };
         /** QueuedView */
         QueuedView: {
             /** Name */
@@ -3649,34 +4125,24 @@ export interface components {
             /** Template Id */
             template_id: number;
         };
-        /** ReadinessSavedView */
-        ReadinessSavedView: {
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "due" | "clear" | "see_doctor";
+        /** ReadBody */
+        ReadBody: {
+            /** Ids */
+            ids: number[];
         };
         /**
          * ReadinessView
-         * @description The questions, the latest answers if they still count, and what they mean.
+         * @description Which questions the server expects, and when they were last answered, if that counts.
          */
         ReadinessView: {
             /** Answered At */
             answered_at: string | null;
-            /** Answers */
-            answers: {
-                [key: string]: boolean;
-            } | null;
             /** Ask Again After */
             ask_again_after: string | null;
-            /** Questions */
-            questions: components["schemas"]["QuestionView"][];
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "due" | "clear" | "see_doctor";
+            /** Due */
+            due: boolean;
+            /** Version */
+            version: number;
         };
         /**
          * ReadyView
@@ -3707,6 +4173,16 @@ export interface components {
             /** Workout Id */
             workout_id: number;
         };
+        /** RecoveryView */
+        RecoveryView: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Token */
+            token: string;
+        };
         /** Redeem */
         Redeem: {
             /** Token */
@@ -3720,6 +4196,14 @@ export interface components {
          * @enum {string}
          */
         Refusal: "too_large" | "not_json" | "failed" | "skipped";
+        /** RemoveBody */
+        RemoveBody: {
+            /**
+             * Confirm
+             * @constant
+             */
+            confirm: "remove";
+        };
         /** ResidenceBody */
         ResidenceBody: {
             /** Country */
@@ -3934,8 +4418,12 @@ export interface components {
             grip_heavy: boolean;
             /** Grip Sets */
             grip_sets: number;
+            /** Minutes */
+            minutes: number;
             /** Muscles */
             muscles: components["schemas"]["SessionMuscleView"][];
+            /** Over An Hour */
+            over_an_hour: boolean;
             place: components["schemas"]["Place"];
             /** Session */
             session: string;
@@ -4436,6 +4924,14 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VersionChange */
+        VersionChange: {
+            /** Items */
+            items: components["schemas"]["ItemChange"][];
+            place: components["schemas"]["Place"];
+            /** Slug */
+            slug: string;
         };
         /** VolumeView */
         VolumeView: {
@@ -5012,6 +5508,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    leave_training_coach_api_account_leave_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -6083,6 +6610,99 @@ export interface operations {
             };
         };
     };
+    make_invite_api_invites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MadeView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_invite_api_invites__invite_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    join_api_join_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     options_api_log_get: {
         parameters: {
             query?: never;
@@ -6165,6 +6785,141 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LogPlanView"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_notices_api_notices_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoticeView"][];
+                };
+            };
+        };
+    };
+    read_notices_api_notices_read_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_people_api_people_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeopleView"];
+                };
+            };
+        };
+    };
+    make_recovery_link_api_people__member_id__recovery_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_member_api_people__member_id__remove_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemoveBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -6309,6 +7064,39 @@ export interface operations {
             };
         };
     };
+    post_plan_changes_api_plan_changes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanChanges"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanSavedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_coverage_api_plan_coverage_get: {
         parameters: {
             query?: {
@@ -6336,6 +7124,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_coverage_draft_api_plan_coverage_draft_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoverageDraft"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoverageView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_plan_edit_api_plan_edit_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanEditView"];
                 };
             };
         };
@@ -6717,7 +7558,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AnswersBody"];
+                "application/json": components["schemas"]["AnsweredBody"];
             };
         };
         responses: {
@@ -6727,7 +7568,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReadinessSavedView"];
+                    "application/json": components["schemas"]["ReadinessView"];
                 };
             };
             /** @description Validation Error */

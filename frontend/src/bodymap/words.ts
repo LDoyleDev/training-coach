@@ -72,9 +72,16 @@ export function warnings(m: MuscleCoverage, c: Coverage): string[] {
   return found
 }
 
-/** The sessions that load the spine or grip past the rule-of-thumb caps. */
+/** The week's warnings beyond any one muscle: a session over an hour or past the rule-of-thumb caps
+ * on the spine or grip, and pushing without pulling. */
 export function sessionWarnings(c: Coverage): string[] {
-  return c.sessions.flatMap((s) => [
+  const week = c.pushing_without_pulling
+    ? [
+        `${c.push_sets} pushing sets a week and ${c.pull_sets} pulling: a rule of thumb is at least one pulling set for two pushing.`,
+      ]
+    : []
+  const sessions = c.sessions.flatMap((s) => [
+    ...(s.over_an_hour ? [`${s.session}: about ${s.minutes} minutes, over an hour.`] : []),
     ...(s.spine_heavy
       ? [`${s.session}: ${s.spine_sets} spine-loading sets, over ${c.spine_cap} in one session.`]
       : []),
@@ -84,6 +91,7 @@ export function sessionWarnings(c: Coverage): string[] {
         ]
       : []),
   ])
+  return [...sessions, ...week]
 }
 
 /** How hard one exercise works a muscle, on the session map's colours: the main mover (1) worked

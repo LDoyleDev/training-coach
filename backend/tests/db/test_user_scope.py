@@ -226,6 +226,21 @@ def test_link_owner_links_and_follows_a_changed_account(engine: Engine) -> None:
     assert events == [("users.owner_relinked", users.OWNER, {"from": 4242, "to": 99})]
 
 
+def test_link_owner_never_takes_someone_elses_link(engine: Engine) -> None:
+    """The configured account held by a member: their link stays, the owner's is left as it
+    was, and start-up doesn't fail on the unique constraint (ADR-0059)."""
+    sessions = make_session_factory(engine)
+    with session_scope(sessions) as session:
+        users.link_owner(session, 4242)
+        session.add(User(id=2, role=users.MEMBER, telegram_user_id=99))
+    with session_scope(sessions) as session:
+        assert users.link_owner(session, 99) == users.OWNER
+    with sessions() as session:
+        assert session.get_one(User, users.OWNER).telegram_user_id == 4242
+        assert session.get_one(User, 2).telegram_user_id == 99
+        assert users.owner_chat(session, 99) == 4242  # the owner's alerts follow their link
+
+
 def test_link_owner_recreates_a_missing_owner(engine: Engine) -> None:
     sessions = make_session_factory(engine)
     with session_scope(sessions) as session:
@@ -258,6 +273,7 @@ def test_every_per_person_table_is_covered() -> None:
     from training_coach.db.session import owned_models
 
     assert {m.__tablename__ for m in owned_models()} == {  # type: ignore[attr-defined]
+        "plan_notices",
         "plan_versions",
         "session_templates",
         "template_items",
@@ -275,7 +291,7 @@ def test_every_per_person_table_is_covered() -> None:
         "passkeys",
         "session_progress",
         "web_sessions",
-        "readiness_answers",
+        "readiness_checks",
         "daily_checks",
         "ai_connections",
         "ingest_keys",

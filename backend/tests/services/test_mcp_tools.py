@@ -30,7 +30,7 @@ def test_readiness_includes_the_daily_checks_of_the_period(session: Session) -> 
     text = ai_summary.readiness(session, TODAY - timedelta(weeks=4))
     assert "2026-10-10: sleep poor, soreness a lot, energy low" in text
     assert "sleep good" not in text  # older than the period
-    assert "Readiness answers" in text
+    assert "Readiness" not in text  # the health questions stay on the device (ADR-0085)
 
 
 def test_no_daily_checks_says_so(session: Session) -> None:

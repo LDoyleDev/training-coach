@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
-from training_coach.api.auth import Owner
+from training_coach.api.auth import Health
 from training_coach.api.cardio import WeekView, week_view
 from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
 from training_coach.config import Settings
@@ -43,7 +43,7 @@ def _today(request: Request) -> date:
 
 
 @router.get("", response_model=list[BandOfferView])
-def offers(request: Request, user: Owner) -> list[BandOfferView]:
+def offers(request: Request, user: Health) -> list[BandOfferView]:
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         found = band_cardio.offers(session, _today(request))
     return [BandOfferView.model_validate(vars(o)) for o in found]
@@ -51,7 +51,7 @@ def offers(request: Request, user: Owner) -> list[BandOfferView]:
 
 @router.post("/{import_id}/count", response_model=BandCounted, responses=CLASH)
 def count(
-    import_id: int, request: Request, user: Owner, body: ClashReply | None = None
+    import_id: int, request: Request, user: Health, body: ClashReply | None = None
 ) -> BandCounted:
     """Count a band workout as cardio. 404 when it isn't on offer; 409 when today's session
     changed in a way that makes it stale (count it again), or with what is saved already when
@@ -76,7 +76,7 @@ def count(
 
 
 @router.post("/{import_id}/dismiss", status_code=status.HTTP_204_NO_CONTENT)
-def dismiss(import_id: int, request: Request, user: Owner) -> None:
+def dismiss(import_id: int, request: Request, user: Health) -> None:
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         if not band_cardio.dismiss(session, import_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "no such workout")
