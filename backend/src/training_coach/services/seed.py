@@ -817,7 +817,8 @@ def start_person(
     result: SeedResult,
 ) -> None:
     """Whatever this person lacks of what everyone starts with: a place on every ladder (its
-    bottom on a starter), a plan (ADR-0073), a place in its queue and their settings. Run by
+    bottom, for anyone but the owner once there are starters), a plan (ADR-0073), a place in its
+    queue and their settings. Run by
     every seed for everyone, and when someone joins (ADR-0059). In an unbound session: every
     query names the user."""
     mine = {ALL_USERS: True}  # the seed names the user itself
@@ -827,8 +828,9 @@ def start_person(
             execution_options=mine,
         )
     )
-    # On a starter, every exercise starts at the bottom of its ladder (S1); ``start`` is where the
-    # owner's cycle starts each one.
+    # Everyone but the owner starts every exercise at the bottom of its ladder, setup moving them
+    # up (any-level S1, B5), an exercise added later too, whatever plan they have by then;
+    # ``start`` is where the owner's cycle starts each one.
     bottom = plan.starter_for(user_id) is not None
     for seed in plan.exercises:
         exercise = exercises[seed.slug]
