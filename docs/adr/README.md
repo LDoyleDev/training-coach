@@ -92,3 +92,6 @@ Code). Template: [template.md](template.md).
 | [0085](0085-safety-questions-in-europe-and-europe-only.md) | Safety questions fit for Europe, answered on the device; the app serves the EU and EEA only | Accepted |
 | [0086](0086-away-no-equipment-version.md) | Away, no equipment: a third place with a written version of every session | Accepted |
 | [0087](0087-notices-of-background-plan-changes.md) | A release that changes an exercise in someone's plan tells them | Accepted |
+| [0088](0088-leaving-and-the-left-list.md) | Leaving deletes a member outright, and a list outside the database keeps them gone | Accepted |
+| [0089](0089-telegram-for-members.md) | Telegram for members: one sender gate, and a connection confirmed on the web | Accepted |
+| [0090](0090-consent-per-category-family-and-friends.md) | Consent per category, and a private test with invited family and friends first | Accepted |
