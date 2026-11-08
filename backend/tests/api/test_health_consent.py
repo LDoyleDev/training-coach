@@ -199,3 +199,32 @@ def test_saving_a_body_or_heart_rate_proposal_needs_a_yes_to_the_wording_now(
     assert member.post("/api/proposals/discard", json={"token": walk}).status_code == 204
     _consent(two, Category.BODY)  # a yes to the wording shown now
     assert member.post("/api/proposals/save", json={"token": body}).status_code == 200
+
+
+def test_a_waiting_health_proposal_is_not_listed_while_its_yes_is_out_of_date(
+    member: TestClient, two: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Saving was refused after the wording changed, but the list still showed the proposal's
+    summary: health data the member hadn't said yes to under the wording shown now."""
+    _consent(two, Category.BODY, Category.BAND)
+    body = _proposal(two, kind="body", measurements={"bodyweight": 80})
+    walk = _proposal(two, kind="cardio", minutes=30, avg_hr=120)
+    habits = _proposal(two, kind="habits", habits=["protein"])
+    monkeypatch.setitem(VERSIONS, Category.BODY, 2)
+    monkeypatch.setitem(VERSIONS, Category.BAND, 2)
+    assert [p["token"] for p in member.get("/api/proposals").json()] == [habits]
+    _consent(two, Category.BODY)
+    assert [p["token"] for p in member.get("/api/proposals").json()] == [body, habits]
+    assert walk not in [p["token"] for p in member.get("/api/proposals").json()]
+
+
+def test_a_proposal_from_an_app_since_disconnected_has_gone_rather_than_needing_a_yes(
+    member: TestClient, two: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _consent(two, Category.BODY)
+    body = _proposal(two, kind="body", measurements={"bodyweight": 80})
+    monkeypatch.setitem(VERSIONS, Category.BODY, 2)
+    with session_scope(make_session_factory(two, user_id=MEMBER)) as bound:
+        for connection in bound.scalars(select(McpConnection)):
+            connection.revoked_at = datetime.now(UTC)
+    assert member.post("/api/proposals/save", json={"token": body}).status_code == 404
