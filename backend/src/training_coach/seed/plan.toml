@@ -2898,3 +2898,83 @@ items = [
   { exercise = "kb-curl", sets = 3, rep_min = 12, rep_max = 18, pair = 2 },
   { exercise = "plank", sets = 2, rep_min = 10, rep_max = 30 },
 ]
+
+# ------------------------------------------------------------- the starters' gym versions
+# At the gym an exercise placed high enough is done as a gym exercise (any-level-any-time.md S1,
+# "How far each exercise climbs" and Decided 2 and 5). `from_step`: the home step from which it
+# swaps, the first at or above the gym exercise's level, so nobody starts a machine or a barbell
+# lift lower. Each swap keeps the item's sets and pair and takes the gym exercise's range, as the
+# owner's cycle has it. `sessions`: only in these starter sessions; without it, in every other.
+# Setup writes each person's gym version from where they are placed (services/gym_version.py).
+# The split squat, plank, side plank hip dip, balance and tibialis raise stay as they are.
+[[gym_swaps]]
+exercise = "goblet-squat"
+from_step = "To a chair, touch and go"
+gym = "leg-press"
+rep_min = 10
+rep_max = 15
+
+[[gym_swaps]]
+exercise = "push-up"
+from_step = "Standard"
+gym = "db-bench-press"
+rep_min = 6
+rep_max = 10
+
+[[gym_swaps]]
+exercise = "doorway-row"
+from_step = "Leaning back, half a step in"
+gym = "chest-supported-row"
+rep_min = 8
+rep_max = 12
+
+[[gym_swaps]]
+exercise = "doorway-row"
+from_step = "Leaning back, half a step in"
+gym = "lat-pulldown"
+rep_min = 8
+rep_max = 12
+sessions = ["two-days-b", "three-days-b", "four-days-upper-2"]
+
+[[gym_swaps]]
+exercise = "hip-hinge"
+from_step = "Single leg, a hand on the counter"
+gym = "barbell-rdl"
+rep_min = 6
+rep_max = 10
+
+[[gym_swaps]]
+exercise = "glute-bridge"
+from_step = "Single leg, on the floor"
+gym = "hip-thrust"
+rep_min = 8
+rep_max = 12
+
+[[gym_swaps]]
+exercise = "calf-raise"
+from_step = "Bodyweight on a step"
+gym = "standing-calf-raise"
+rep_min = 10
+rep_max = 15
+
+[[gym_swaps]]
+exercise = "calf-raise"
+from_step = "Bodyweight on a step"
+gym = "seated-calf-raise"
+rep_min = 10
+rep_max = 15
+sessions = ["two-days-b", "three-days-b", "four-days-lower-2"]
+
+[[gym_swaps]]
+exercise = "lateral-raise"
+from_step = "Lean-away single-arm"
+gym = "cable-lateral-raise"
+rep_min = 12
+rep_max = 18
+
+[[gym_swaps]]
+exercise = "kb-curl"
+from_step = "8 kg"
+gym = "incline-db-curl"
+rep_min = 10
+rep_max = 15

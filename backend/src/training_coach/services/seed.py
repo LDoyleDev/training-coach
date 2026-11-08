@@ -397,6 +397,25 @@ class StarterSeed(_Strict):
         return self
 
 
+class GymSwapSeed(_Strict):
+    """A starter exercise done as a gym exercise from one of its home steps up (S1, Decided 5):
+    the item keeps its sets and pair and takes this range. ``sessions``: only in these starter
+    sessions; empty, in every other."""
+
+    exercise: str
+    from_step: str = Field(min_length=1)
+    gym: str
+    rep_min: int = Field(ge=1)
+    rep_max: int = Field(ge=1)
+    sessions: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _range(self) -> Self:
+        if self.rep_max < self.rep_min:
+            raise ValueError(f"gym swap {self.exercise} to {self.gym}: rep_max < rep_min")
+        return self
+
+
 class PlanSeed(_Strict):
     exercises: list[ExerciseSeed] = Field(min_length=1)
     # The owner's cycle (ADR-0073): what the owner starts on and the import follows.
@@ -404,6 +423,8 @@ class PlanSeed(_Strict):
     # What everyone else starts on: ``new_people`` names the one until setup picks by days.
     starters: list[StarterSeed] = Field(default_factory=list)
     new_people: str | None = None
+    # The starters' gym versions, written per person from where they are placed (S1).
+    gym_swaps: list[GymSwapSeed] = Field(default_factory=list)
     stretches: list[StretchSeed] = Field(default_factory=list)
     versions: list[VersionSeed] = Field(default_factory=list)  # oldest first
     tests: list[TestSeed] = Field(default_factory=list)
@@ -457,6 +478,7 @@ class PlanSeed(_Strict):
                 )
         retired = {e.slug for e in self.exercises if e.retired}
         used = {i.exercise for s in self.every_session for i in s.versions}
+        used |= {s.gym for s in self.gym_swaps}
         ranged = sorted(e.slug for e in self.exercises if e.range is not None and e.slug in used)
         if ranged:
             raise ValueError(f"{ranged} have a range, but a session sets theirs")
@@ -470,6 +492,7 @@ class PlanSeed(_Strict):
                         "un-retire it or take it out of the session"
                     )
         self._away_needs_no_kit()
+        self._gym_swaps()
         return self
 
     @property
@@ -499,6 +522,41 @@ class PlanSeed(_Strict):
                 problem = away_problem(exercises[item.exercise])
                 if problem:
                     raise ValueError(f"session {session.slug}: away, {item.exercise}{problem}")
+
+    def _gym_swaps(self) -> None:
+        """A swap turns a starter exercise into a gym exercise (one step that takes load,
+        ADR-0072) from a home step at or above the gym exercise's level (S1), in sessions that
+        use it; each exercise has at most one swap for every session, and one per session."""
+        exercises = {e.slug: e for e in self.exercises}
+        starter = {s.slug: s for st in self.starters for s in st.sessions}
+        general: set[str] = set()
+        named: set[tuple[str, str]] = set()
+        for swap in self.gym_swaps:
+            where = f"gym swap {swap.exercise} to {swap.gym}"
+            home, gym = exercises.get(swap.exercise), exercises.get(swap.gym)
+            if home is None or gym is None or home.retired or gym.retired:
+                raise ValueError(f"{where}: unknown exercise")
+            if swap.from_step not in home.ladder:
+                raise ValueError(f"{where}: {swap.from_step!r} is not in its ladder")
+            if len(gym.ladder) != 1 or gym.ladder[0] not in gym.loads:
+                raise ValueError(f"{where}: {swap.gym} is not a gym exercise")
+            if home.levels[swap.from_step] < gym.levels[gym.ladder[0]]:
+                raise ValueError(f"{where}: {swap.from_step!r} is below {gym.name}'s level")
+            using = {
+                slug for slug, s in starter.items() if home.slug in {i.exercise for i in s.items}
+            }
+            if not using:
+                raise ValueError(f"{where}: no starter uses {home.slug}")
+            if not swap.sessions:
+                if home.slug in general:
+                    raise ValueError(f"{where}: {home.slug} has two swaps for every session")
+                general.add(home.slug)
+            for slug in swap.sessions:
+                if slug not in using:
+                    raise ValueError(f"{where}: {slug} is no starter session with it")
+                if (home.slug, slug) in named:
+                    raise ValueError(f"{where}: {slug} has two swaps for it")
+                named.add((home.slug, slug))
 
 
 def load_plan(text: str | None = None) -> PlanSeed:

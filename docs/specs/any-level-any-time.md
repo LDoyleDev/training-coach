@@ -498,11 +498,13 @@ being green, but not from being light green.
   2- and 3-day starters. **At 20 minutes** most main muscles keep 4-12, while the triceps,
   biceps and calves drop under 4 on the 2- and 3-day starters, and the 2-day's side delts drop to
   none. The map shows that honestly.
-- **At the gym, with every swap made,** the numbers are the same apart from these: the glutes
-  9-15, the rear delts 2-4 (amber) and the 2-day's adductors 3 (amber). They were worked out with
-  the seated leg curl in the hip hinge's place, which also cut the hamstrings to 5 and the lower
-  back to none; with the Romanian deadlift instead (Decided 2), both keep their home numbers. The
-  sums get rerun when the seed takes the starters.
+- **At the gym, with every swap made,** the numbers are the same apart from these (rerun on 8
+  Nov 2026 with the seed's gym swaps, `[[gym_swaps]]`): the hamstrings 5 on all three, as the hip
+  thrust works only the glutes; the lower back 2.5 (amber), as the Romanian deadlift counts it
+  half; the upper back 4.5 (one day), 7.5 and 6, and the rear delts 2-4 (amber on all three), as
+  the lat pulldown counts each half; the adductors 3 (amber) on the 2-day and 4.5 and 5 on the
+  others, as the leg press counts them half; and the forearms 3-4, from the Romanian deadlift's
+  grip. The glutes and the minutes keep their home numbers.
 - **Back to back:** with the 2- and 3-day sessions queued without rest days, the map warns that
   the glutes and chest are worked on two days running (A then B). Rest places in the queue (Decided 9)
   keep them apart.
