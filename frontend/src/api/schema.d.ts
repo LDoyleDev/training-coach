@@ -4925,6 +4925,7 @@ export interface components {
             progress?: components["schemas"]["ProgressView"] | null;
             /** Readiness Note */
             readiness_note?: string | null;
+            rest_day?: components["schemas"]["QueuedView"] | null;
             session: components["schemas"]["GuidedView"] | null;
             test_day?: components["schemas"]["TestDayDueView"] | null;
         };

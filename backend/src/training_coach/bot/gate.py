@@ -32,7 +32,8 @@ from telegram.ext import ApplicationHandlerStop, ContextTypes
 from training_coach.bot.messages import SOMETHING_WENT_WRONG
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.services import users
+from training_coach.domain.consent import Category
+from training_coach.services import consent, users
 
 log = structlog.get_logger(__name__)
 
@@ -47,6 +48,13 @@ ANYWHERE = frozenset({"/login", "/recover"})
 # time (no concurrent_updates, ADR-0089), so no other update passes the gate while a handler
 # runs, and a long one (a voice note) can't lose its entry before its error is answered.
 REMEMBERED = 256
+# What a member is told when a button needs health data they haven't said yes to (ADR-0090).
+NOT_OPEN = "That needs your yes to {what} first. You can give it on Account in the app."
+WHAT = {
+    Category.BODY: "body data",
+    Category.DAILY_CHECK: "the daily check",
+    Category.BAND: "band data",
+}
 
 
 @dataclass(frozen=True)
@@ -60,6 +68,15 @@ class Person:
     @property
     def owner(self) -> bool:
         return self.user_id == users.OWNER
+
+    def not_open(self, category: Category) -> str | None:
+        """The line to send when ``category`` isn't open to this person (ADR-0090), or None
+        when it is. The owner's categories are always open."""
+        if self.owner:
+            return None
+        with session_scope(self.sessions) as session:
+            opened = consent.opened(session, self.user_id, category)
+        return None if opened else NOT_OPEN.format(what=WHAT[category])
 
 
 Callback = Callable[[Update, ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]

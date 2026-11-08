@@ -7,6 +7,11 @@ the order is kept and everything later shifts back by a day.
 
 A swap queues sessions ahead of the cycle: when the pointer moves it takes the first queued
 session, and the cycle resumes once the queue is empty.
+
+Rest places (ADR-0091) are kept as a count on the session before them. The pointer never
+stops on one: once a session is done, its rest places are the days after it, one each, and the
+pointer's session is offered from the day after the last. Nothing moves a rest place on: the
+days pass. A missed session still waits, so everything after it shifts back a day.
 """
 
 from collections.abc import Iterable, Sequence
@@ -116,6 +121,16 @@ def swap_with_next(order: Sequence[int], position: Position) -> Position:
     upcoming_session = advance(order, position)
     after = upcoming_session.queued or (next_in_cycle(order, upcoming_session.pointer),)
     return Position(upcoming_session.pointer, (position.pointer, *after))
+
+
+def rest_days_left(rest_after: int, done_on: date, on: date) -> int:
+    """The rest places still to come on ``on`` and after it, once a session with ``rest_after``
+    rest places was done on ``done_on`` (ADR-0091). 0: ``on`` is a day for the next session, or
+    the day the session was done."""
+    gone = (on - done_on).days
+    if gone < 1:
+        return 0
+    return max(0, rest_after - gone + 1)
 
 
 def upcoming(order: Sequence[int], position: Position, days: int) -> list[int]:

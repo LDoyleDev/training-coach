@@ -1,11 +1,10 @@
 """Telegram bot. Long polling only: no inbound port is ever opened (ADR-0009).
 
 Every update meets the sender gate first (``bot.gate``, ADR-0089): only messages and button
-presses in a private chat, from someone linked, get any further. Most handler classes are
-registered through ``gate.served`` and use the sessions of the person the gate found. The
-button classes not converted yet (band, daily check, proposals, notices) hold the owner's
-sessions and check the sender is the owner's account by hand: that keeps them the owner's alone
-until each is converted.
+presses in a private chat, from someone linked, get any further. Every handler is registered
+through ``gate.served`` and uses the sessions of the person the gate found. Only the scheduled
+messages still use the owner's sessions and the owner's account, until each person has their
+own (step 9).
 """
 
 import asyncio
@@ -61,6 +60,7 @@ from training_coach.bot.messages import (
     STALE,
     picked_text,
     pushed_text,
+    rest_day_text,
     rest_text,
     review_text,
     session_detail_text,
@@ -233,6 +233,8 @@ class Handlers:
                 instead = buttons.instead(plan.session.template_id, plan.session.name)
                 text = test_day_text(plan, tests_where(url))
                 return text, links.with_open(instead, url, links.TESTS)
+            if plan.rest_day:  # no buttons: there is nothing to start, rest or swap
+                return rest_day_text(plan), links.with_open(None, url, links.SESSION)
             # The day's length chosen in the app, if any (ADR-0082).
             shown, length = guided.at_length(session, on, plan.session)
             markup = buttons.morning(plan.session.template_id)
@@ -467,7 +469,8 @@ class Handlers:
 
     async def nudge(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """The evening message, unless paused: the nudge when it's on and nothing is logged
-        today, and the habit buttons when they're on (D5). Both go in one message."""
+        today (not on a rest day, ADR-0091), and the habit buttons when they're on (D5). Both go
+        in one message."""
         today = self._local_today()
         try:
             with session_scope(self.sessions) as session:
@@ -478,7 +481,13 @@ class Handlers:
         except SQLAlchemyError as exc:
             log.error("bot.nudge_failed", error=type(exc).__name__)
             return
-        nudge = not prefs.paused and prefs.nudges_enabled and not logged and plan is not None
+        nudge = (
+            not prefs.paused
+            and prefs.nudges_enabled
+            and not logged
+            and plan is not None
+            and (plan.test_day is not None or not plan.rest_day)
+        )
         habit_rows = (
             habits_ui.rows(today, ticked, prefs.protein_g)
             if prefs.habits_enabled and not prefs.paused
@@ -612,12 +621,14 @@ def build_bot(
     application.add_handler(
         CallbackQueryHandler(served(handlers.button), pattern=rf"^{buttons.PREFIX}:")
     )
-    daily_handlers = daily_ui.DailyCheckHandlers(settings, sessions)
+    daily_handlers = daily_ui.DailyCheckHandlers(settings)
     application.add_handler(
-        CallbackQueryHandler(daily_handlers.button, pattern=rf"^{daily_ui.PREFIX}:")
+        CallbackQueryHandler(served(daily_handlers.button), pattern=rf"^{daily_ui.PREFIX}:")
     )
     band_handlers = band_ui.BandHandlers(settings, sessions, send_with_retry)
-    application.add_handler(CallbackQueryHandler(band_handlers.button, pattern=band_ui.PATTERN))
+    application.add_handler(
+        CallbackQueryHandler(served(band_handlers.button), pattern=band_ui.PATTERN)
+    )
     jobs = application.job_queue
     assert jobs is not None  # noqa: S101 - the job-queue extra is a dependency
     # Band workouts to count (ADR-0055): checked every few minutes, each offered once.
@@ -630,7 +641,7 @@ def build_bot(
     # minutes for any whose send failed.
     proposal_handlers = proposals_ui.ProposalHandlers(settings, sessions, send_outcome)
     application.add_handler(
-        CallbackQueryHandler(proposal_handlers.button, pattern=proposals_ui.PATTERN)
+        CallbackQueryHandler(served(proposal_handlers.button), pattern=proposals_ui.PATTERN)
     )
     resend = handlers.unless_away(proposal_handlers.job)
     jobs.run_repeating(resend, interval=proposals_ui.EVERY, name=proposals_ui.JOB)
@@ -703,5 +714,5 @@ def build_bot(
         log.error("bot.settings_unreadable", error=type(exc).__name__)
         prefs = Prefs()
     schedule_jobs(application, handlers, prefs)
-    log.info("bot.built", allowed_user_id=settings.telegram_allowed_user_id)
+    log.info("bot.built")  # no Telegram id in the logs
     return application
