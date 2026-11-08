@@ -12,7 +12,10 @@ from training_coach.db.models import (
     Event,
     HealthDay,
     IngestKey,
+    LogProposal,
+    McpConnection,
     Measurement,
+    OAuthClient,
     User,
     UserSettings,
     Workout,
@@ -115,3 +118,47 @@ def test_a_withdrawal_counts_even_when_the_clock_stepped_back(people: Engine) ->
         consent.give(theirs, Category.BODY, NOW + timedelta(hours=1))
         consent.withdraw(theirs, Category.BODY, NOW)  # written later, stamped earlier
         assert not consent.opened(theirs, MEMBER, Category.BODY)
+
+
+def test_withdrawing_body_deletes_an_ai_apps_body_proposals_even_saved(people: Engine) -> None:
+    with session_scope(make_session_factory(people)) as shared:
+        app = OAuthClient(
+            client_id="app", name="An app", redirect_uris=[], client_hash="h" * 64, expires_at=NOW
+        )
+        shared.add(app)
+        shared.flush()
+        app_id = app.id
+    with session_scope(make_session_factory(people, user_id=MEMBER)) as theirs:
+        connection = McpConnection(
+            client_id=app_id, client_name="An app", redirect_uri="x", scopes=[], ends_at=NOW
+        )
+        theirs.add(connection)
+        theirs.flush()
+        for status, token in (("saved", "a" * 32), ("pending", "b" * 32)):
+            theirs.add(
+                LogProposal(
+                    connection_id=connection.id,
+                    token=token,
+                    kind="body",
+                    local_date=DAY,
+                    payload={"waist": 80},
+                    summary="Waist 80 cm",
+                    status=status,
+                    expires_at=NOW,
+                )
+            )
+        theirs.add(
+            LogProposal(
+                connection_id=connection.id,
+                token="c" * 32,
+                kind="strength",
+                local_date=DAY,
+                payload={},
+                summary="Squat",
+                status="saved",
+                expires_at=NOW,
+            )
+        )
+    with session_scope(make_session_factory(people, user_id=MEMBER)) as theirs:
+        consent.withdraw(theirs, Category.BODY, NOW)
+        assert theirs.scalars(select(LogProposal.kind)).all() == ["strength"]
