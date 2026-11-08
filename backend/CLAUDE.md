@@ -61,5 +61,7 @@ tests/        mirrors src/: tests/api/, tests/bot/, tests/db/, tests/domain/, te
   who the update was for.
 - A PTB `CommandHandler` only matches once the bot knows its username, so handler tests call
   `application.initialize()` with respx faking `getMe`. See `tests/bot/test_app.py`.
+- `users.id` is AUTOINCREMENT, so an id is never handed out twice (ADR-0088 addendum). Keep it
+  so: anything kept by user id outside the database must never reach someone new.
 - `training-coach openapi` pins `info.version`, so a version bump never makes the dashboard
   types stale. Keep it that way.

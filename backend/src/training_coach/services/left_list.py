@@ -3,10 +3,10 @@
 Restoring a backup puts back a database from before someone left, and them with it. This list
 is a file next to the database, not in it, so a restore doesn't roll it back; the off-site job
 copies it each night (``scripts/offsite-backup.sh``), so it outlives the SD card too. An entry
-holds the person's id, when they joined and when they left, nothing else. Ids can be used again
-(SQLite hands out the highest id plus one, and a restore resets that), so a person still in the
-database matches an entry only by id *and* join time: someone new on a left person's id is never
-touched. An entry is dropped once no backup from before the leave can still exist.
+holds the person's id, when they joined and when they left, nothing else. Ids are never handed
+out twice in normal running (AUTOINCREMENT), but a restore puts back the backup's counter, so
+a person still in the database matches an entry only by id *and* join time: someone new on a
+left person's id is never touched. An entry is dropped once no backup from before the leave can still exist.
 """
 
 import json
