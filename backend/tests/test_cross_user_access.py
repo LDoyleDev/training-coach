@@ -69,7 +69,8 @@ ALLOWED: dict[tuple[str, str], str] = {
     ): "the bot's sender gate: whose Telegram account (users only)",
     ("api.app::create_app", SHARED): "made once here",
     ("api.app::create_app.lifespan", UNBOUND): (
-        "links the owner at start-up (users.link_owner); finds who left and is back (ADR-0088)"
+        "links the owner at start-up (users.link_owner) and reads their chat; finds who left and "
+        "is back (ADR-0088)"
     ),
     ("api.account::erase_my_data", UNBOUND): "erase deletes and recreates the user row (ADR-0044)",
     ("api.account::leave_training_coach", UNBOUND): "leaving deletes the user row (ADR-0088)",
@@ -82,6 +83,10 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("__main__::seed", UNBOUND): "the seed command: shared plan rows and everyone's start",
     ("__main__::rotate_secrets", UNBOUND): "re-seals every person's AI key",
     ("__main__::forget_left", UNBOUND): "deletes listed people a restore put back (ADR-0088)",
+    (
+        "__main__::_owner_chat",
+        UNBOUND,
+    ): "the owner's linked chat, for an ops alert (users rows only)",
     ("services.backup::create", RAW): "sqlite3's backup API copies the whole file",
 }
 

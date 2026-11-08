@@ -5,10 +5,14 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
+from sqlalchemy import Engine
 
 from training_coach import __main__ as cli
 from training_coach.bot import app as bot_app
 from training_coach.config import get_settings
+from training_coach.db.models import User
+from training_coach.db.session import make_session_factory, session_scope
+from training_coach.services import users
 
 OWNER = 42
 
@@ -23,7 +27,7 @@ class FakeBot:
 
 
 @pytest.fixture
-def sent(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[tuple[int, str]]]:
+def sent(monkeypatch: pytest.MonkeyPatch, engine: Engine) -> Iterator[list[tuple[int, str]]]:
     calls: list[tuple[int, str]] = []
 
     async def send(_bot: Any, chat_id: int, text: str, **_kw: Any) -> bool:
@@ -35,6 +39,9 @@ def sent(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[tuple[int, str]]]:
     monkeypatch.setenv("TC_ENVIRONMENT", "test")
     monkeypatch.setenv("TC_TELEGRAM_BOT_TOKEN", "123456:TEST-TOKEN")
     monkeypatch.setenv("TC_TELEGRAM_ALLOWED_USER_ID", str(OWNER))
+    monkeypatch.setenv("TC_DATABASE_URL", str(engine.url))
+    with session_scope(make_session_factory(engine)) as shared:
+        users.link_owner(shared, OWNER)
     get_settings.cache_clear()
     yield calls
     get_settings.cache_clear()
@@ -92,3 +99,38 @@ def test_a_network_failure_is_a_failed_alert_not_a_crash(
     with pytest.raises(SystemExit) as stop:
         cli.main(["notify", "Backup failed."])
     assert stop.value.code == 1
+
+
+def test_it_goes_to_the_owners_linked_chat_not_the_configured_one(
+    sent: list[tuple[int, str]], engine: Engine
+) -> None:
+    """After a clash the configured account can be a member's (ADR-0059): the owner's own
+    alerts follow the owner's link in the database."""
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.get_one(User, users.OWNER).telegram_user_id = 77
+    cli.main(["notify", "Backup failed."])
+    assert sent == [(77, "Backup failed.")]
+
+
+def test_with_no_link_for_the_owner_nothing_goes_to_anyone(
+    sent: list[tuple[int, str]], engine: Engine
+) -> None:
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.get_one(User, users.OWNER).telegram_user_id = None
+        shared.flush()
+        shared.add(User(id=2, role=users.MEMBER, telegram_user_id=OWNER))
+    with pytest.raises(SystemExit) as stop:
+        cli.main(["notify", "Backup failed."])
+    assert stop.value.code == 1
+    assert sent == []
+
+
+def test_without_a_database_it_falls_back_to_the_configured_account(
+    sent: list[tuple[int, str]], monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    missing = tmp_path / "gone.db"
+    monkeypatch.setenv("TC_DATABASE_URL", f"sqlite:///{missing.as_posix()}")
+    get_settings.cache_clear()
+    cli.main(["notify", "The Pi's disk failed."])
+    assert sent == [(OWNER, "The Pi's disk failed.")]
+    assert not missing.exists()  # it never makes one to ask
