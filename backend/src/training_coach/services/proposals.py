@@ -922,6 +922,23 @@ def waiting_kind(session: Session, token: str, now: datetime) -> str | None:
     )
 
 
+def needs(session: Session, token: str, now: datetime) -> Category | None:
+    """The health category the proposal waiting under ``token`` holds, as ``check`` asks it of
+    a new one (ADR-0090): body for measurements, band for cardio with heart rate. None for any
+    other, or when none waits there."""
+    row = session.scalar(
+        select(LogProposal).where(
+            LogProposal.token == token, LogProposal.status == PENDING, LogProposal.expires_at > now
+        )
+    )
+    if row is None:
+        return None
+    if row.kind == BODY:
+        return Category.BODY
+    heart_rate = row.payload.get("avg_hr") is not None or row.payload.get("max_hr") is not None
+    return Category.BAND if row.kind == CARDIO and heart_rate else None
+
+
 def discard(session: Session, token: str, now: datetime, by: str) -> Discarded | Already | Gone:
     row = _claim(session, token, DISCARDED, now)
     if not isinstance(row, LogProposal):

@@ -24,10 +24,12 @@ from telegram.ext import ContextTypes
 from training_coach.bot import clash as clash_ui
 from training_coach.bot import links
 from training_coach.bot.buttons import edit_quietly, row_id
+from training_coach.bot.gate import Person
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain import band_watch
 from training_coach.domain.band_watch import Feed, FeedNotices, Notice
+from training_coach.domain.consent import Category
 from training_coach.domain.queue import local_date
 from training_coach.services import band_cardio, cardio, ingest_keys, user_settings, workout_log
 from training_coach.services.day_clash import MOVE, Clash, Refused, Resolution
@@ -149,10 +151,11 @@ def counted_text(week: cardio.Week, planned: bool) -> str:
 class BandHandlers:
     def __init__(self, settings: Settings, sessions: sessionmaker[Session], send: Send) -> None:
         self.settings = settings
-        self.sessions = sessions
+        self.sessions = sessions  # the owner's: for the two jobs only (step 9)
         self.send = send
-        # Import id -> the clash shown for it, and a day to move to found taken (ADR-0060).
-        self.asked: dict[int, tuple[Clash, date | None]] = {}
+        # User id -> import id -> the clash shown for it, and a day to move to found taken
+        # (ADR-0060). Per person: another's import id finds no question here.
+        self.asked: dict[int, dict[int, tuple[Clash, date | None]]] = {}
 
     def _today(self) -> date:
         return local_date(datetime.now(UTC), self.settings.tz)
@@ -224,20 +227,25 @@ class BandHandlers:
             return
         log.info("bot.band_watch_sent", notice=kind)
 
-    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Count it or Not this one. Strangers get nothing, not even an answer (T1)."""
+    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """Count it or Not this one, on the presser's own band workouts: a member needs band
+        data open to them (ADR-0090)."""
         query = update.callback_query
-        user = update.effective_user
-        if query is None or user is None or user.id != self.settings.telegram_allowed_user_id:
+        if query is None:
             return
         pressed = parse(query.data)
         if pressed is None or not isinstance(query.message, Message):
             await query.answer()
             return
         await query.answer()
+        refused = me.not_open(Category.BAND)
+        if refused is not None:  # one line, and nothing counted or turned down
+            await query.message.reply_text(refused)
+            return
         action, import_id = pressed
         today = self._today()
-        asked = self.asked.get(import_id)
+        mine = self.asked.setdefault(me.user_id, {})
+        asked = mine.get(import_id)
         keyboard: InlineKeyboardMarkup | None = None
         if action in ("cancel", MOVE) or (action not in (COUNT, SKIP) and asked is None):
             await edit_quietly(query.edit_message_reply_markup(None))
@@ -245,15 +253,14 @@ class BandHandlers:
                 days = clash_ui.days_keyboard(ANSWER, str(import_id), asked[0], today, asked[1])
                 await query.message.reply_text(clash_ui.MOVE_ASK_BUTTONS, reply_markup=days)
             else:  # Cancel, or an answer to a question asked before a restart
-                self.asked.pop(import_id, None)
+                mine.pop(import_id, None)
                 await query.message.reply_text(NOT_COUNTED, reply_markup=markup(import_id))
             return
         answer = clash_ui.resolution(action, asked[0], today) if asked is not None else None
         try:
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 if action == SKIP:
-                    band_cardio.dismiss(session, import_id)
-                    reply = SKIPPED
+                    reply = SKIPPED if band_cardio.dismiss(session, import_id) else GONE
                 else:
                     result = band_cardio.count(session, import_id, today, self.settings.tz, answer)
                     if isinstance(result, band_cardio.Gone):
@@ -261,7 +268,7 @@ class BandHandlers:
                     elif isinstance(result, workout_log.Stale):
                         reply = STALE
                     elif isinstance(result, Clash | Refused):
-                        reply, keyboard = self._ask(import_id, result, answer, today)
+                        reply, keyboard = self._ask(mine, import_id, result, answer, today)
                     else:
                         reply = counted_text(cardio.week(session, today), result.planned)
         except SQLAlchemyError as exc:  # keep the buttons, so it can be pressed again
@@ -269,25 +276,31 @@ class BandHandlers:
             await query.message.reply_text(FAILED)
             return
         if keyboard is None:
-            self.asked.pop(import_id, None)
+            mine.pop(import_id, None)
         await edit_quietly(query.edit_message_reply_markup(None))
         await query.message.reply_text(reply, reply_markup=keyboard)
         log.info("bot.band_offer_answered", action=action)
 
     def _ask(
-        self, import_id: int, result: Clash | Refused, answer: Resolution | None, today: date
+        self,
+        mine: dict[int, tuple[Clash, date | None]],
+        import_id: int,
+        result: Clash | Refused,
+        answer: Resolution | None,
+        today: date,
     ) -> tuple[str, InlineKeyboardMarkup]:
-        """The question (again), or the days to move to when the one picked was taken."""
-        shown = self.asked.get(import_id)
+        """The question (again), or the days to move to when the one picked was taken; ``mine``
+        is the presser's questions."""
+        shown = mine.get(import_id)
         ref = str(import_id)
         if shown is not None and (isinstance(result, Refused) or result.moving):
             taken = result.day if isinstance(result, Clash) else shown[1]
-            self.asked[import_id] = (shown[0], taken)
+            mine[import_id] = (shown[0], taken)
             days = clash_ui.days_keyboard(ANSWER, ref, shown[0], today, taken)
             why = clash_ui.taken_text(result) if isinstance(result, Clash) else result.reason
             return f"{why}\n\n{clash_ui.MOVE_ASK_BUTTONS}", days
         assert isinstance(result, Clash)  # noqa: S101 - a refusal only answers a move
-        self.asked[import_id] = (result, None)
+        mine[import_id] = (result, None)
         reply = clash_ui.text(result)
         if answer is not None:
             reply = f"{clash_ui.CHANGED}\n\n{reply}"

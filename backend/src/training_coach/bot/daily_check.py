@@ -12,14 +12,15 @@ from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 
 import structlog
-from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
 from training_coach.bot import buttons
 from training_coach.bot.buttons import edit_quietly, merged
+from training_coach.bot.gate import Person
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
+from training_coach.domain.consent import Category
 from training_coach.domain.daily_check import (
     TEXTS,
     Advice,
@@ -124,22 +125,28 @@ def _complete(tap: Tap) -> Answers | None:
 
 
 class DailyCheckHandlers:
-    def __init__(self, settings: Settings, sessions: sessionmaker[Session]) -> None:
+    """Each tap is the presser's, saved in their own sessions; a member needs the daily check
+    open to them (ADR-0090)."""
+
+    def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.sessions = sessions
 
     def _today(self) -> date:
         return local_date(datetime.now(UTC), self.settings.tz)
 
-    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """A daily-check button. Strangers get nothing, not even an answer (T1)."""
+    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """A daily-check button."""
         query = update.callback_query
-        user = update.effective_user
-        if query is None or user is None or user.id != self.settings.telegram_allowed_user_id:
+        if query is None:
             return
         tap = parse(query.data)
         if tap is None or not isinstance(query.message, Message):
             await query.answer()
+            return
+        refused = me.not_open(Category.DAILY_CHECK)
+        if refused is not None:  # one line, and nothing kept
+            await query.answer()
+            await query.message.reply_text(refused)
             return
         current = query.message.reply_markup
         if tap.day != self._today():
@@ -153,7 +160,7 @@ class DailyCheckHandlers:
             return
         advice = advise(answers)
         rest = None
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             daily_check.save(session, tap.day, answers, datetime.now(UTC))
             if advice is Advice.REST:
                 plan = todays_session(session, tap.day, self.settings.tz)

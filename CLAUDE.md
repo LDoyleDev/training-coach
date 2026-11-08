@@ -82,10 +82,11 @@ formats every file you edit (ADR-0021).
 ## Security rules (non-negotiable; see threat model)
 
 - Every bot update meets the sender gate first (`bot/gate.py`, ADR-0089): only people linked in
-  `users.telegram_user_id` get past it. A handler registered through `gate.served(...)` uses the
-  sessions of the person it found and never compares the sender with the env id; the button
-  classes not converted yet check the sender by hand and stay the owner's alone. Add each new
-  handler to `tests/bot/test_two_people.py`, with strangers ignored.
+  `users.telegram_user_id` get past it. Every handler is registered through `gate.served(...)`,
+  uses the sessions of the person it found, keeps in-memory state by their user id and never
+  reads the env id (`tests/bot/test_env_id.py`; only the owner's scheduled messages may). A
+  member's health buttons check the category's consent first (`Person.not_open`, ADR-0090). Add
+  each new handler to `tests/bot/test_two_people.py`, with strangers ignored.
 - LLM output is untrusted data: parse into a Pydantic model, reject anything that does not
   validate, and show it to the user for confirmation before saving. LLMs never get tools and
   never trigger actions directly. (An outside AI the person connects over MCP gets read tools
