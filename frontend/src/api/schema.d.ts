@@ -1668,7 +1668,8 @@ export interface paths {
          *     ``already_discarded`` when it was dealt with (here or in Telegram); 409 with the reason
          *     when it no longer fits (it is discarded then); 409 with what is saved already when its
          *     day has its session (it keeps waiting: save it again with the answer, ADR-0060); 422 for
-         *     a cardio one without zone 2 or moderate picked (it keeps waiting).
+         *     a cardio one without zone 2 or moderate picked (it keeps waiting); 403 with
+         *     ``consent_needed`` for body data or heart rate a member hasn't said yes to (ADR-0090).
          */
         post: operations["save_api_proposals_save_post"];
         delete?: never;
