@@ -394,7 +394,7 @@ guards, cheapest first:
    admin's browser, the member told when it is made and used, and a notice on Account for 30
    days. **Done (7 Nov 2026).**
 8. **Telegram for members:** connect link, the members filter, a session per update. Designed
-   in [ADR-0089](../adr/0089-telegram-for-members.md) (proposed 8 Nov, after a written plan and
+   in [ADR-0089](../adr/0089-telegram-for-members.md) (accepted 8 Nov, after a written plan and
    an independent review; a member's erase dropping the link is done, #609). Build order, each
    safe on `main` because nobody but the owner can be linked until the `/start` PR: the owner's
    messages to the owner's chat from the database, and start-up never taking a member's link;

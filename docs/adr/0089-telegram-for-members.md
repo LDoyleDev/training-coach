@@ -1,6 +1,6 @@
 # ADR-0089: Telegram for members: one sender gate, and a connection confirmed on the web
 
-- Status: Proposed (2026-11-08), for Liam's review before the build (joining step 8)
+- Status: Accepted (2026-11-08, Liam: a member confirms a connection on their Account page)
 - Date: 2026-11-08
 - Deciders: Liam (ADR-0059 and its 2026-11-07 addendum; `docs/specs/multi-user-plan.md` E and
   Decided 2026-11-07); the details here follow from a written plan and an independent review
