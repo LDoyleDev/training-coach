@@ -78,6 +78,13 @@ def by_telegram(session: Session, telegram_user_id: int) -> int | None:
     return session.scalar(select(User.id).where(User.telegram_user_id == telegram_user_id))
 
 
+def telegram_linked_at(session: Session, user_id: int) -> datetime | None:
+    """When a member connected their Telegram (ADR-0089); None for the owner, whose account is
+    set on the server. Any session may ask: users aren't per-person rows."""
+    user = session.get(User, user_id)
+    return user.telegram_linked_at if user is not None else None
+
+
 def owner_chat(session: Session, configured: int | None) -> int | None:
     """Where the owner's own messages go (ops alerts, a failed backup or deploy): the chat the
     owner is linked to, never simply the configured account, which could be a member's after a
