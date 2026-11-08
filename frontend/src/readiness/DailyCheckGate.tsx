@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   changeToday,
+  ConsentNeededError,
   fetchDailyCheck,
   fetchToday,
   saveDailyCheck,
@@ -9,6 +10,7 @@ import {
   type DailyCheckAnswers,
 } from '../api'
 import { hours } from '../components/duration'
+import { ConsentCard } from '../consent/Consented'
 import { primary, secondary } from '../ui'
 
 /** Pages that open without the check: signing in, and the readiness questions' own page. */
@@ -19,6 +21,7 @@ const WAIT_MS = 4000
 type Step =
   | { kind: 'checking' }
   | { kind: 'through' }
+  | { kind: 'consent' } // a member who hasn't said yes to the daily check (ADR-0090)
   | { kind: 'asking'; check: DailyCheck; index: number }
   | { kind: 'saving'; check: DailyCheck }
   | { kind: 'failed'; check: DailyCheck }
@@ -31,9 +34,34 @@ const answer = 'min-h-16 w-full rounded-2xl border-2 border-[var(--ink)] text-xl
 const suggestedAnswer =
   'min-h-16 w-full rounded-2xl border-2 border-[var(--bell-ink)] bg-[var(--bell-ink)] text-xl font-bold text-[var(--chalk)]'
 
+/** The first question, or straight through when there's nothing to ask. */
+function first(check: DailyCheck | null): Step {
+  return check && !check.answers && check.questions.length > 0
+    ? { kind: 'asking', check, index: 0 }
+    : { kind: 'through' }
+}
+
 /** The option the band suggests for a question, if any (only sleep, from last night). */
 function suggested(check: DailyCheck, key: string): string | null {
   return key === 'sleep' ? (check.suggested_sleep ?? null) : null
+}
+
+/** "Not now" to the daily check's consent card puts it off on this device until tomorrow. */
+const LATER_KEY = 'consent-later:daily_check'
+const today = () => new Date().toLocaleDateString('en-CA')
+function putOffToday(): boolean {
+  try {
+    return localStorage.getItem(LATER_KEY) === today()
+  } catch {
+    return false // storage blocked: ask
+  }
+}
+function putOff() {
+  try {
+    localStorage.setItem(LATER_KEY, today())
+  } catch {
+    // storage blocked: asked again next time
+  }
 }
 
 /** Rest today's session (the same rest as on Today, ADR-0052): what happened, in words. */
@@ -53,7 +81,9 @@ async function restToday(): Promise<string> {
  * the way: how you slept, how sore you are, your energy, one tap each, then what that means
  * for today. On "Take a rest day" it offers Rest today. "Not now" lets you through for this
  * visit only; once answered it isn't asked again today. Signed out, an error or a slow
- * answer: straight through, the page handles it.
+ * answer: straight through, the page handles it. A member who hasn't said yes to keeping it
+ * gets the consent card first (ADR-0090); "Not now" there lets them through and doesn't ask
+ * again today.
  */
 export default function DailyCheckGate({ children }: { children: React.ReactNode }) {
   const unchecked = UNCHECKED.includes(window.location.pathname)
@@ -67,15 +97,12 @@ export default function DailyCheckGate({ children }: { children: React.ReactNode
     const timer = window.setTimeout(() => ctrl.abort(), WAIT_MS)
     fetchDailyCheck(ctrl.signal)
       .then((check) => {
-        if (gone) return
-        setStep(
-          check && !check.answers && check.questions.length > 0
-            ? { kind: 'asking', check, index: 0 }
-            : { kind: 'through' },
-        )
+        if (!gone) setStep(first(check))
       })
-      .catch(() => {
-        if (!gone) setStep({ kind: 'through' })
+      .catch((error: unknown) => {
+        if (gone) return
+        const ask = error instanceof ConsentNeededError && !putOffToday()
+        setStep({ kind: ask ? 'consent' : 'through' })
       })
       .finally(() => window.clearTimeout(timer))
     return () => {
@@ -88,6 +115,12 @@ export default function DailyCheckGate({ children }: { children: React.ReactNode
   if (step.kind === 'through') return children
 
   const through = () => setStep({ kind: 'through' })
+  const given = () => {
+    setStep({ kind: 'checking' })
+    fetchDailyCheck()
+      .then((check) => setStep(first(check)))
+      .catch(through)
+  }
   const save = async (check: DailyCheck, all: Record<string, string>) => {
     setStep({ kind: 'saving', check })
     try {
@@ -123,6 +156,16 @@ export default function DailyCheckGate({ children }: { children: React.ReactNode
     <div className="page">
       <main className="mt-4 flex flex-col gap-4">
         {step.kind === 'checking' && <p className="status">Loading…</p>}
+        {step.kind === 'consent' && (
+          <ConsentCard
+            category="daily_check"
+            onGiven={given}
+            onNotNow={() => {
+              putOff()
+              through()
+            }}
+          />
+        )}
         {step.kind === 'asking' && (
           <>
             <h1 className="text-2xl">How's today?</h1>

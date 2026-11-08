@@ -13,6 +13,7 @@ import {
 import HiitTimer from '../hiit/HiitTimer'
 import { DEFAULT_SOUND, type Sound, playSessionEnd, unlockAudio } from '../hiit/sounds'
 import SignedOutNotice from '../components/SignedOutNotice'
+import Consented from '../consent/Consented'
 import CardioWeek from './CardioWeek'
 import Undo from './Undo'
 import { actions, card, primary, primaryInline, secondary } from '../ui'
@@ -338,8 +339,11 @@ export default function Cardio({
                 className="min-h-11 text-lg"
               />
             </label>
-            <Detail label="Average heart rate" value={avgHr} onChange={setAvgHr} />
-            <Detail label="Highest heart rate" value={maxHr} onChange={setMaxHr} />
+            {/* Heart rate is band data: kept only with consent to it (ADR-0090). */}
+            <Consented category="band" quiet>
+              <Detail label="Average heart rate" value={avgHr} onChange={setAvgHr} />
+              <Detail label="Highest heart rate" value={maxHr} onChange={setMaxHr} />
+            </Consented>
           </div>
           {typed(distance) && value > 0 ? (
             <p className="m-0 mt-2" role="status">

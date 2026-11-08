@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchHome, type Home } from '../api'
 import AppShell from '../components/AppShell'
 import BandSummary from '../components/BandSummary'
+import Consented from '../consent/Consented'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { moveButton, moveHref } from '../plan/ladder'
 import PlanNotices from '../plan/PlanNotices'
@@ -166,7 +167,9 @@ export default function HomePage() {
         )}
       </section>
 
-      <BandSummary />
+      <Consented category="band" quiet>
+        <BandSummary />
+      </Consented>
 
       <InstallHint />
 
