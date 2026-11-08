@@ -83,9 +83,9 @@ formats every file you edit (ADR-0021).
 
 - Every bot update meets the sender gate first (`bot/gate.py`, ADR-0089): only people linked in
   `users.telegram_user_id` get past it. A handler registered through `gate.served(...)` uses the
-  sessions of the person it found and never compares the sender with the env id; the classes not
-  converted yet keep `owner_only` (buttons: a check by hand) and stay the owner's alone. Add each
-  new handler to `tests/bot/test_two_people.py`, with strangers ignored.
+  sessions of the person it found and never compares the sender with the env id; the button
+  classes not converted yet check the sender by hand and stay the owner's alone. Add each new
+  handler to `tests/bot/test_two_people.py`, with strangers ignored.
 - LLM output is untrusted data: parse into a Pydantic model, reject anything that does not
   validate, and show it to the user for confirmation before saving. LLMs never get tools and
   never trigger actions directly. (An outside AI the person connects over MCP gets read tools

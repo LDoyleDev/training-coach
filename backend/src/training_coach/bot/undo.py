@@ -7,11 +7,11 @@ id is still the last change, so a button from an older /undo can't take back a n
 from datetime import UTC, datetime
 
 import structlog
-from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
 from training_coach.bot.buttons import edit_quietly, row_id
+from training_coach.bot.gate import Person
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.services import undo
@@ -55,14 +55,17 @@ def undone_text(done: undo.Undone) -> str:
 
 
 class UndoHandlers:
-    def __init__(self, settings: Settings, sessions: sessionmaker[Session]) -> None:
-        self.settings = settings
-        self.sessions = sessions
+    """Each handler gets the person the gate found and works in their sessions only."""
 
-    async def command(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+
+    async def command(
+        self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person
+    ) -> None:
         if update.effective_message is None:
             return
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             found = undo.last(session, datetime.now(UTC))
         if isinstance(found, undo.Blocked):
             await update.effective_message.reply_text(REFUSED[found.reason])
@@ -70,11 +73,10 @@ class UndoHandlers:
         text, markup = confirm(found)
         await update.effective_message.reply_text(text, reply_markup=markup)
 
-    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """A confirm button. Strangers get nothing, not even an answer (T1)."""
+    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """A confirm button: the id names one of the presser's own changes, or nothing."""
         query = update.callback_query
-        user = update.effective_user
-        if query is None or user is None or user.id != self.settings.telegram_allowed_user_id:
+        if query is None:
             return
         event_id = parse(query.data)
         if event_id is None or not isinstance(query.message, Message):
@@ -85,7 +87,7 @@ class UndoHandlers:
         if event_id == 0:
             await query.message.reply_text(KEPT)
             return
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             result = undo.apply(session, event_id, datetime.now(UTC))
         if isinstance(result, undo.Blocked):
             await query.message.reply_text(REFUSED[result.reason])

@@ -3,17 +3,17 @@
 The "Saved" reply to a resistance log offers 10, 20 or 30 minutes. A choice sends the routine
 with a Done button, and Done logs the minutes on that workout. Callback data is
 ``st:<workout id>:<minutes>`` for a choice and ``st:done:<workout id>:<minutes>`` for Done;
-the service re-checks the workout is the owner's saved resistance session.
+the service re-checks the workout is the presser's own saved resistance session.
 """
 
 from dataclasses import dataclass
 
 import structlog
-from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
 from training_coach.bot.buttons import edit_quietly, row_id
+from training_coach.bot.gate import Person
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.stretching import CHOICES, HOLD_SECONDS
@@ -76,22 +76,22 @@ def text(routine: Routine) -> str:
 
 
 class StretchHandlers:
-    def __init__(self, settings: Settings, sessions: sessionmaker[Session]) -> None:
-        self.settings = settings
-        self.sessions = sessions
+    """Each handler gets the person the gate found and works in their sessions only."""
 
-    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """A stretching button. Strangers get nothing, not even an answer (T1)."""
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+
+    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """A stretching button, for one of the presser's own workouts."""
         query = update.callback_query
-        user = update.effective_user
-        if query is None or user is None or user.id != self.settings.telegram_allowed_user_id:
+        if query is None:
             return
         press = parse(query.data)
         await query.answer()
         if press is None or not isinstance(query.message, Message):
             return
         if not press.done:
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 routine = stretching.for_workout(session, press.workout_id, press.minutes)
             if routine is None:
                 await query.message.reply_text(GONE)
@@ -104,7 +104,7 @@ class StretchHandlers:
             )
             log.info("bot.stretching_shown", minutes=press.minutes, stretches=len(routine.steps))
             return
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             logged = stretching.log(session, press.workout_id, press.minutes)
         await edit_quietly(query.edit_message_reply_markup(None))
         if logged is None:

@@ -132,7 +132,7 @@ class ProposalHandlers:
                 log.error("bot.proposal_failed", error=type(exc).__name__)
                 return
             owner = self.settings.telegram_allowed_user_id
-            assert owner is not None  # noqa: S101 - owner_only
+            assert owner is not None  # noqa: S101 - build_bot checks it
             for one in found:
                 buttons = markup(one.token, cardio=one.kind == proposals.CARDIO)
                 sent = await self.send(bot, owner, text(one), reply_markup=buttons)
