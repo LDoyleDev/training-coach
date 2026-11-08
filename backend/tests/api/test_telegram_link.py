@@ -14,7 +14,7 @@ import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 
-from tests.alerts import capture
+from tests.alerts import capture, forgotten
 from training_coach.api.app import create_app
 from training_coach.api.telegram_link import CONNECTED, DISCONNECTED
 from training_coach.config import Settings
@@ -281,8 +281,10 @@ def test_unlinking_tells_the_old_chat(member: TestClient, engine: Engine) -> Non
     code = _claim(engine, _token(member))
     assert member.post("/api/account/telegram/confirm", json={"code": code}).status_code == 204
     told = capture(member, users.OWNER, chat=CONFIGURED)
+    forgot = forgotten(member)
     assert member.delete("/api/account/telegram").status_code == 204
     assert told == [f"to {THEIRS}: {DISCONNECTED}"]
+    assert forgot == [MEMBER]  # what the bot kept for that chat goes (ADR-0089)
     assert _linked(engine, MEMBER) is None
     status = _status(member)
     assert (status["connected"], status["name"], status["since"]) == (False, None, None)

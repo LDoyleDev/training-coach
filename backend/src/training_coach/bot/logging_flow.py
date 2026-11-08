@@ -127,6 +127,11 @@ class LogHandlers:
         self.asked: dict[int, dict[str, tuple[Clash, date | None]]] = {}
         self.moving: dict[int, str] = {}
 
+    def forget(self, user_id: int) -> None:
+        """Drop ``user_id``'s drafts and questions (``Gate.forget``)."""
+        for kept in (self.drafts, self.asked, self.moving):
+            kept.pop(user_id, None)
+
     def _today(self) -> date:
         return local_date(datetime.now(UTC), self.settings.tz)
 

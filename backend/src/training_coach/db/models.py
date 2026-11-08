@@ -294,6 +294,9 @@ class User(Base):
     plan above does not. Phase 1 has one user, linked to the allowed Telegram account."""
 
     __tablename__ = "users"
+    # Never hand out an id twice (ADR-0088 addendum): a new person must not inherit what is
+    # still kept by a left person's id outside the database.
+    __table_args__ = ({"sqlite_autoincrement": True},)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     telegram_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)

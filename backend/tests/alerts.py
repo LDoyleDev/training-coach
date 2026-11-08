@@ -23,3 +23,10 @@ def capture(client: TestClient, user: int = OWNER, chat: int = CHAT) -> list[str
 
     app.state.send = send  # type: ignore[attr-defined]  # a FastAPI app
     return sent
+
+
+def forgotten(client: TestClient) -> list[int]:
+    """The user ids the bot was asked to forget (ADR-0089), in order."""
+    asked: list[int] = []
+    client.app.state.forget = asked.append  # type: ignore[attr-defined]  # a FastAPI app
+    return asked

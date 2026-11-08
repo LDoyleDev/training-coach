@@ -121,6 +121,11 @@ class ProposalHandlers:
         # is asked again.
         self.picked: dict[int, dict[str, str]] = {}
 
+    def forget(self, user_id: int) -> None:
+        """Drop ``user_id``'s questions and picks (``Gate.forget``)."""
+        self.asked.pop(user_id, None)
+        self.picked.pop(user_id, None)
+
     async def job(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         await self.announce(context.bot)
 

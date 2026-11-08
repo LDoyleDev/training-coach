@@ -9,7 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.alerts import alert, alert_chat
+from training_coach.api.alerts import alert, alert_chat, forget
 from training_coach.api.auth import COOKIE, Fresh, Owner
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
@@ -165,6 +165,7 @@ def erase_my_data(
         chat = users.telegram_chat(session, user)  # now: a member's erase unlinks it
         if not erase(session, user, load_plan()):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "no such person")
+    forget(request, user)  # pending drafts and questions go with the rest (ADR-0089)
     response.delete_cookie(COOKIE, path="/", secure=True, httponly=True, samesite="strict")
     alert_chat(
         request,
@@ -197,6 +198,7 @@ def leave_training_coach(
         left = leave(session, user, left_list.for_url(settings.database_url), datetime.now(UTC))
     if not left:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "the owner erases instead of leaving")
+    forget(request, user)
     response.delete_cookie(COOKIE, path="/", secure=True, httponly=True, samesite="strict")
     alert_chat(
         request,

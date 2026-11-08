@@ -186,6 +186,10 @@ class SettingsHandlers:
         self.reschedule = reschedule
         self.awaiting: dict[int, str] = {}  # user id -> what they were asked to type: of ASKS
 
+    def forget(self, user_id: int) -> None:
+        """Drop the question ``user_id`` was asked (``Gate.forget``)."""
+        self.awaiting.pop(user_id, None)
+
     def _moved(self, me: Person, context: ContextTypes.DEFAULT_TYPE, prefs: Prefs) -> None:
         """Move the scheduled messages to new times: they are the owner's until step 9."""
         if me.owner:

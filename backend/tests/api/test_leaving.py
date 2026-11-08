@@ -9,7 +9,7 @@ import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
-from tests.alerts import capture
+from tests.alerts import capture, forgotten
 from training_coach.api.app import create_app
 from training_coach.config import Settings
 from training_coach.db.models import Measurement, User
@@ -74,11 +74,13 @@ def _listed(engine: Engine) -> list[int]:
 
 def test_a_member_leaves_with_everything_theirs(member: TestClient, engine: Engine) -> None:
     told = capture(member, MEMBER, chat=7777)
+    forgot = forgotten(member)
     assert member.post("/api/account/leave", json=LEAVE).status_code == 204
     assert not _here(engine, MEMBER)
     assert _here(engine, users.OWNER)
     assert _listed(engine) == [MEMBER]  # kept gone after a restore
     assert member.get("/api/auth/me").status_code == 401  # signed out, and no account to sign in
+    assert forgot == [MEMBER]  # nothing of theirs waits in the bot (ADR-0089)
     assert told == [
         "You left Training Coach and everything of yours was deleted. Backups age out within "
         "5 weeks."
@@ -118,12 +120,14 @@ def test_leaving_works_with_multi_user_off(app: Settings, engine: Engine) -> Non
 
 def test_the_admin_removes_a_member_who_is_told(admin: TestClient, engine: Engine) -> None:
     told = capture(admin, MEMBER, chat=7777)
+    forgot = forgotten(admin)
     members = admin.get("/api/people").json()["members"]
     assert [m["id"] for m in members] == [MEMBER]
     assert admin.post(f"/api/people/{MEMBER}/remove", json=REMOVE).status_code == 204
     assert not _here(engine, MEMBER)
     assert _listed(engine) == [MEMBER]
     assert admin.get("/api/people").json()["members"] == []
+    assert forgot == [MEMBER]
     assert told == [
         "The admin removed you from Training Coach, and everything of yours was deleted. "
         "Backups age out within 5 weeks."

@@ -19,7 +19,7 @@ from telegram import Bot
 from training_coach import __version__
 from training_coach.api.account import router as account_router
 from training_coach.api.ai import router as ai_router
-from training_coach.api.alerts import Send
+from training_coach.api.alerts import Forget, Send
 from training_coach.api.auth import router as auth_router
 from training_coach.api.band import router as band_router
 from training_coach.api.body import router as body_router
@@ -63,6 +63,7 @@ from training_coach.api.telegram_link import router as telegram_link_router
 from training_coach.bot.app import (
     ALLOWED_UPDATES,
     ANNOUNCE,
+    FORGET,
     RESCHEDULE,
     build_bot,
     send_with_retry,
@@ -121,6 +122,19 @@ def _on_loop(reschedule: Callable[[Prefs], None], jobs_for: int) -> Reschedule:
     return call
 
 
+def _bot_loop(forget: Forget) -> Forget:
+    """Forgetting a person runs on the bot's own event loop: sync routes run in worker
+    threads, and the handlers' state isn't locked. It is queued after the route's commit, so
+    an update the bot is already handling for them can still finish, and re-add a draft, in
+    between; with their link or account gone, the gate lets nothing of theirs through again."""
+    loop = asyncio.get_running_loop()
+
+    def call(user: int) -> None:
+        loop.call_soon_threadsafe(forget, user)
+
+    return call
+
+
 def _start_backups(settings: Settings, notify: backup.Notify | None) -> asyncio.Task[None] | None:
     """Nightly backups (ADR-0010) run whenever the database is a file, bot or no bot."""
     source = backup.database_path(settings.database_url)
@@ -139,6 +153,7 @@ def _start_wind_down(
     shared: sessionmaker[Session],
     send: Send | None,
     notify: backup.Notify | None,
+    forget: Forget | None,
 ) -> asyncio.Task[None]:
     """The members' wind-down (ADR-0059), every day whatever the switch says, bot or no bot."""
     left = left_list.for_url(settings.database_url)
@@ -152,6 +167,9 @@ def _start_wind_down(
 
     async def once() -> None:
         report = await asyncio.to_thread(today)
+        if forget is not None:
+            for user in report.gone:
+                forget(user)  # nothing of theirs waits in the bot (ADR-0089)
         await _tell_wind_down(report, send, notify)
 
     task = asyncio.create_task(wind_down.run_daily(once, settings.tz), name="wind_down.daily")
@@ -328,10 +346,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.bot_username = bot.bot.username if bot is not None else None
         # Proposals from a connected AI go to Telegram as they come (ADR-0058).
         app.state.announce_proposals = bot.bot_data[ANNOUNCE] if bot is not None else None
+        app.state.forget = _bot_loop(bot.bot_data[FORGET]) if bot is not None else None
         notify = _owner_notifier(telegram, owner_chat)
         app.state.notify = notify  # ops: a failed backup
         nightly = _start_backups(settings, notify)
-        closing = _start_wind_down(settings, make_session_factory(engine), app.state.send, notify)
+        closing = _start_wind_down(
+            settings, make_session_factory(engine), app.state.send, notify, app.state.forget
+        )
         await _left_back(settings, make_session_factory(engine), notify)
         try:
             yield
