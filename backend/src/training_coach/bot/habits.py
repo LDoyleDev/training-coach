@@ -8,11 +8,11 @@ The rows can share a message with the morning buttons (``buttons.merged``).
 from datetime import UTC, date, datetime
 
 import structlog
-from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
 from training_coach.bot.buttons import edit_quietly, merged
+from training_coach.bot.gate import Person
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.habits import Habit, hint, label
@@ -78,16 +78,19 @@ def text(day: date, protein_g: int | None = None) -> str:
 
 
 class HabitHandlers:
-    def __init__(self, settings: Settings, sessions: sessionmaker[Session]) -> None:
+    """Each handler gets the person the gate found and works in their sessions only."""
+
+    def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.sessions = sessions
 
     def _today(self) -> date:
         return local_date(datetime.now(UTC), self.settings.tz)
 
-    async def command(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def command(
+        self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person
+    ) -> None:
         today = self._today()
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             done = habits.checked(session, today)
             protein_g = user_settings.load(session).protein_g
         if update.effective_message is not None:
@@ -96,18 +99,17 @@ class HabitHandlers:
                 reply_markup=InlineKeyboardMarkup(rows(today, done, protein_g)),
             )
 
-    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """A habit button. Strangers get nothing, not even an answer (T1)."""
+    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """A habit button: ticks the presser's own habit for that day."""
         query = update.callback_query
-        user = update.effective_user
-        if query is None or user is None or user.id != self.settings.telegram_allowed_user_id:
+        if query is None:
             return
         pressed = parse(query.data)
         if pressed is None or not isinstance(query.message, Message):
             await query.answer()
             return
         day, habit = pressed
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             state = habits.toggle(session, day, habit, self._today())
             done = habits.checked(session, day)
             protein_g = user_settings.load(session).protein_g

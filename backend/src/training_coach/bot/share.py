@@ -5,10 +5,10 @@ import asyncio
 from datetime import UTC, datetime
 
 import structlog
-from sqlalchemy.orm import Session, sessionmaker
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from training_coach.bot.gate import Person
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
@@ -23,15 +23,18 @@ CAPTION = (
 
 
 class ShareHandlers:
-    def __init__(self, settings: Settings, sessions: sessionmaker[Session]) -> None:
-        self.settings = settings
-        self.sessions = sessions
+    """Each handler gets the person the gate found and works in their sessions only."""
 
-    async def command(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+
+    async def command(
+        self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person
+    ) -> None:
         if update.effective_message is None:
             return
         today = local_date(datetime.now(UTC), self.settings.tz)
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             card = share_card.facts(session, today)
         # Drawing is CPU work: off the event loop the API and bot share.
         image = await asyncio.to_thread(share_card.render, card)
