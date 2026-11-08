@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
-from training_coach.api.auth import Health
+from training_coach.api.auth import Band
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
@@ -50,7 +50,7 @@ def _view(found: zones.HeartRate) -> HeartRateView:
 
 
 @router.get("", response_model=HeartRateView)
-def get_heart_rate(request: Request, user: Health) -> HeartRateView:
+def get_heart_rate(request: Request, user: Band) -> HeartRateView:
     settings: Settings = request.app.state.settings
     today = local_date(datetime.now(UTC), settings.tz)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
@@ -58,7 +58,7 @@ def get_heart_rate(request: Request, user: Health) -> HeartRateView:
 
 
 @router.put("", response_model=HeartRateView)
-def set_heart_rate(body: HeartRateBody, request: Request, user: Health) -> HeartRateView:
+def set_heart_rate(body: HeartRateBody, request: Request, user: Band) -> HeartRateView:
     """Save the birth year and own max (either empty), and count recent zone minutes again."""
     settings: Settings = request.app.state.settings
     now = datetime.now(UTC)

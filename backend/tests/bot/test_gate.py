@@ -160,19 +160,14 @@ async def test_with_the_switch_on_a_member_is_let_through_as_themselves(engine: 
     assert await _check(gate, update)
     person = gate.person(Update.de_json(update, None))
     assert person is not None
-    assert (person.user_id, person.chat, person.owner, person.health) == (
-        2,
-        MEMBER_TELEGRAM,
-        False,
-        False,
-    )
+    assert (person.user_id, person.chat, person.owner) == (2, MEMBER_TELEGRAM, False)
     owner = command("/today", OWNER) | {"update_id": 20}
     with session_scope(make_session_factory(engine)) as shared:
         users.link_owner(shared, OWNER)
     assert await _check(gate, owner)
     found = gate.person(Update.de_json(owner, None))
     assert found is not None
-    assert (found.owner, found.health) == (True, True)
+    assert found.owner
 
 
 async def test_a_crash_in_the_gate_lets_nothing_through(

@@ -27,14 +27,16 @@ from training_coach.db.models import (
     UserSettings,
     Workout,
 )
+from training_coach.db.session import ALL_USERS
 from training_coach.domain.consent import VERSIONS, Answer, Category, Entry, is_open, latest
 from training_coach.domain.measurements import BodyFatEstimate
-from training_coach.services.proposals import BODY, CARDIO
 from training_coach.services.users import OWNER
 
 log = structlog.get_logger(__name__)
 
 DEFAULT_THIGH_OFFSET_CM = 15  # the column's default (models.UserSettings)
+# proposals.BODY and proposals.CARDIO: that module asks this one, so it can't be imported here.
+BODY, CARDIO = "body", "cardio"
 
 
 def answers(session: Session) -> dict[Category, Entry]:
@@ -43,10 +45,23 @@ def answers(session: Session) -> dict[Category, Entry]:
     return latest([Entry(Category(r.category), Answer(r.answer), r.version, r.at) for r in rows])
 
 
+def open_to(session: Session, user_id: int) -> frozenset[Category]:
+    """The categories ``user_id`` may keep and see: all of them for the owner, and for a member
+    those they've said yes to at the wording shown now. Works in any session, bound or not:
+    the token check and the phone's posts read it before they know whose session to open."""
+    if user_id == OWNER:
+        return frozenset(Category)
+    rows = session.scalars(
+        select(Consent).where(Consent.user_id == user_id).order_by(Consent.id),
+        execution_options={ALL_USERS: True},
+    ).all()
+    found = latest([Entry(Category(r.category), Answer(r.answer), r.version, r.at) for r in rows])
+    return frozenset(c for c in Category if is_open(found.get(c)))
+
+
 def opened(session: Session, user_id: int, category: Category) -> bool:
-    """Whether ``user_id`` may keep and see ``category``: the owner always, a member once they've
-    said yes to the wording shown now."""
-    return user_id == OWNER or is_open(answers(session).get(category))
+    """Whether ``user_id`` may keep and see ``category``."""
+    return category in open_to(session, user_id)
 
 
 def give(session: Session, category: Category, now: datetime) -> None:

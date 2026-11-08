@@ -6,7 +6,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
-from training_coach.api.auth import Health
+from training_coach.api.auth import Body
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.measurements import (
     DEFAULT_THIGH_OFFSET_CM,
@@ -41,13 +41,13 @@ def _view(found: measurements.BodySettings) -> BodySettingsView:
 
 
 @router.get("", response_model=BodySettingsView)
-def get_body_settings(request: Request, user: Health) -> BodySettingsView:
+def get_body_settings(request: Request, user: Body) -> BodySettingsView:
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         return _view(measurements.body_settings(session))
 
 
 @router.put("", response_model=BodySettingsView)
-def set_body_settings(body: BodySettingsBody, request: Request, user: Health) -> BodySettingsView:
+def set_body_settings(body: BodySettingsBody, request: Request, user: Body) -> BodySettingsView:
     """Save all three (the height may be empty)."""
     if (problem := settings_problem(body.height_cm, body.thigh_offset_cm)) is not None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, problem)

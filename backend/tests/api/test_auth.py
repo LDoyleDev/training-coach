@@ -11,7 +11,7 @@ from sqlalchemy import Engine
 
 from tests.routes import api_routes
 from training_coach.api.app import create_app
-from training_coach.api.auth import COOKIE, Admin, admin, health, owner
+from training_coach.api.auth import COOKIE, HEALTH_GATES, Admin, admin, owner
 from training_coach.api.mcp import connection
 from training_coach.api.region import exempt
 from training_coach.config import Settings
@@ -107,8 +107,8 @@ def test_every_route_is_public_or_owner_only(engine: Engine) -> None:
     assert len(routes) > 50  # the routers' routes, not just the app's own
     for path, route in routes:
         calls = {dep.call for dep in route.dependant.dependencies}
-        # health is owner-kind (ADR-0059): the signed-in person, and not a member yet.
-        kinds = [kind for kind in (owner, admin, connection, health) if kind in calls]
+        # A health gate is owner-kind (ADR-0090): the signed-in person, with consent if a member.
+        kinds = [kind for kind in (owner, admin, connection, *HEALTH_GATES) if kind in calls]
         guarded = bool(kinds)
         assert path in PUBLIC or guarded, f"{path} declares no access"
         assert not (path in PUBLIC and guarded), f"{path} is listed as public"

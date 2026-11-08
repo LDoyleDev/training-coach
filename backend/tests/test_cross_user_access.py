@@ -88,6 +88,10 @@ ALLOWED: dict[tuple[str, str], str] = {
         UNBOUND,
     ): "the owner's linked chat, for an ops alert (users rows only)",
     ("services.backup::create", RAW): "sqlite3's backup API copies the whole file",
+    (
+        "services.consent::open_to",
+        ALL,
+    ): "one person's consents, by id, before their session is open (token check, phone)",
 }
 
 

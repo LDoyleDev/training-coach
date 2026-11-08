@@ -13,9 +13,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.config import Settings
-from training_coach.db.models import AiComment
+from training_coach.db.models import AiComment, User
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.services import ai_comment, ai_key
+from training_coach.domain.consent import Category
+from training_coach.services import ai_comment, ai_key, consent, users
 from training_coach.services.secret_box import SecretBox
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
@@ -74,6 +75,29 @@ async def test_health_data_goes_only_when_ticked(keyed: sessionmaker[Session]) -
     await ai_comment.weekly(keyed, SETTINGS, TODAY)
     user = json.loads(groq.calls.last.request.content)["messages"][1]["content"]
     assert "Daily checks" in user
+
+
+@respx.mock
+@pytest.mark.parametrize("consented", [False, True])
+async def test_a_members_health_data_goes_only_with_their_consent_too(
+    engine: Engine, consented: bool
+) -> None:
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, load_plan())
+        shared.add(User(id=2, role=users.MEMBER))
+        shared.flush()
+        apply_seed(shared, load_plan())
+    theirs = make_session_factory(engine, user_id=2)
+    with session_scope(theirs) as session:
+        ai_key.store(session, SecretBox(SecretStr(SECRETS)), KEY)
+        ai_key.options(session, enabled=True, body=True, readiness=True)
+        if consented:
+            consent.give(session, Category.DAILY_CHECK, datetime.now(UTC))
+    groq = respx.post(CHAT).respond(json=_reply("ok"))
+    await ai_comment.weekly(theirs, SETTINGS, TODAY)
+    user = json.loads(groq.calls.last.request.content)["messages"][1]["content"]
+    assert ("Daily checks" in user) is consented
+    assert "## Body" not in user  # no yes to body either way
 
 
 @respx.mock
