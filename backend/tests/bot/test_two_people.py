@@ -41,12 +41,13 @@ from training_coach.db.models import (
 )
 from training_coach.db.session import bound_user
 from training_coach.domain.queue import local_date
-from training_coach.services import share_card, user_settings
+from training_coach.services import share_card, user_settings, users
 
 App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
 URL = "https://coach.example.com"
 LOG = "pull ups 8 8 7, dips 12 11"
+PUSH = "push-up"  # in both the owner's cycle and the member's starter
 
 
 def _next(sessions: Sessions) -> int:
@@ -196,20 +197,27 @@ async def _saved(both: App, sender: int, sessions: Sessions) -> tuple[int, list[
 async def test_progress_and_its_buttons_are_each_persons_own(
     both: App, seeded: Sessions, member: Sessions
 ) -> None:
-    _top_session(member, days_ago=3)
-    _top_session(member, days_ago=1)
-    exercise_id, step_id = _pull_up(member)
-    up = f"p:up:{exercise_id}:{step_id}"
+    # Push-ups, which both plans have (the member's starter has no pull-ups, any-level S1). The
+    # member is placed on the owner's step, as setup would, so the button's ids fit both.
+    exercise_id, owner_step_id = _pull_up(seeded, PUSH)
+    with member() as session:
+        state = users.exercise_state(session, exercise_id)
+        assert state is not None
+        state.ladder_step_id = owner_step_id
+        session.commit()
+    for days_ago in (3, 1):  # the top of 10-18 on every set, twice (ADR-0078)
+        _top_session(member, days_ago, value=18, slug=PUSH)
+    up = f"p:up:{exercise_id}:{owner_step_id}"
     assert up in button_data((await run(both, command("/progress", MEMBER)))["sendMessage"][0])
     assert up not in button_data((await run(both, command("/progress", OWNER)))["sendMessage"][0])
-    owner_step, member_step = _step_name(seeded), _step_name(member)
+    owner_step, member_step = _step_name(seeded, PUSH), _step_name(member, PUSH)
     # The ids are the catalogue's: the owner's press acts on the owner's own place, not ready.
     assert texts(await run(both, press(up, OWNER))) == [
-        "Pull-up doesn't meet the rule any more. Keep going."
+        "Push-up doesn't meet the rule any more. Keep going."
     ]
-    assert (_step_name(seeded), _step_name(member)) == (owner_step, member_step)
+    assert (_step_name(seeded, PUSH), _step_name(member, PUSH)) == (owner_step, member_step)
     await run(both, press(up, MEMBER))
-    assert (_step_name(seeded), _step_name(member)) == (owner_step, "Pause at top")
+    assert (_step_name(seeded, PUSH), _step_name(member, PUSH)) == (owner_step, "Feet elevated")
 
 
 async def test_review_is_each_persons_own(both: App, seeded: Sessions, member: Sessions) -> None:
