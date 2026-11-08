@@ -116,7 +116,7 @@ The owner's answers on 7 Nov, which change or add to the above:
 | Sender checks in button and error handlers: `bot/app.py` (2), `band.py`, `daily_check.py`, `habits.py`, `logging_flow.py`, `progress.py`, `settings.py`, `stretching.py`, `undo.py` | Each compares the sender with `telegram_allowed_user_id` | Find the user by the sender's Telegram id |
 | `api/app.py` lifespan, `users.link_owner` | The bot gets **one** sessionmaker bound to the owner at start-up; every handler class holds it | A session bound per update, to whoever sent it |
 | `bot/app.py::schedule_jobs` | One `morning`, `nudge` and `weekly-review` job, from the owner's settings, sent to `telegram_allowed_user_id` | Jobs per person, sent to that person's chat (done in step 9: `bot/schedules.py`) |
-| `bot/band.py::announce` | Band workouts are offered to the owner's chat only | Loop over people with Telegram linked |
+| `bot/band.py::announce` | Band workouts are offered to the owner's chat only | Loop over people with Telegram linked (done in step 9: `Gate.everyone`) |
 | `services/erase.py` | Erase means a fresh start under the same id and Telegram link (ADR-0044) | Members can also leave: delete without recreating (ADR-0044 expects a successor) |
 | `services/users.py::link_owner` | Moves the owner to whatever Telegram id is configured; a member holding that id would make start-up fail on the unique constraint (ADR-0029 says the invites ADR must settle it) | Bootstrap only; never take a member's link |
 | `seed/plan.toml`, `session_templates.position` and `.slug` unique | One plan for everyone; each person has their own place in it and their own ladder steps | See D |
@@ -420,14 +420,17 @@ guards, cheapest first:
    claim (done: the gate answers it with a code, rate limited, and old buttons do nothing);
    Account's Connect, Confirm and Unlink (done: the code box with the warning and the claim
    count, Confirm off with more than one claim, the Telegram name before Confirm).
-9. **Schedules per person**, and band offers and band data alerts per person (the alert
-   state is already per person, on `ingest_keys`). The morning message, the evening nudge and
-   Sunday's review are done (8 Nov 2026, ADR-0089 addendum): named jobs per person
+9. **Done (8 Nov 2026).** **Schedules per person**, and band offers and band data alerts per
+   person (the alert state is already per person, on `ingest_keys`). ADR-0089's addendum. The
+   morning message, the evening nudge and Sunday's review: named jobs per person
    (`morning:<user id>`), made at start-up for everyone linked whom the switch lets in, when a
    member connects, and when that person changes a time in /settings or on the web; each run
    asks the gate whom it is for, so nothing goes to someone unlinked, closed out or away; the
    morning's daily check only with that category open; unlink, leave, removal and erase take
-   the jobs away. Band offers and alerts, proposals sent out and plan notices per person next.
+   the jobs away. The band offers and band data alerts, the proposals sent out and the plan
+   notices: one check each, for everyone the gate would serve (`Gate.everyone`), each with their
+   own sessions and to their own chat, the band's only with band data open to them; a proposal
+   just made goes to that person only.
 10. **Done (7 Nov 2026).** **Groq cap per person:** 20 voice notes or fallback readings a day for
     a member (`services/groq_quota.py`), none for the owner; it bites once members have Telegram
     (step 8).

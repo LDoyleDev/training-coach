@@ -827,16 +827,16 @@ def test_the_app_name_is_shown_as_a_capped_claim(
 
 
 def test_telegram_hears_of_a_proposal_at_once(client: TestClient, token: str) -> None:
-    told: list[str] = []
+    told: list[int] = []
 
-    async def announce() -> None:
-        told.append("sent")
+    async def announce(user: int) -> None:
+        told.append(user)  # the bot sends that person's new proposals (step 9)
 
     client.app.state.announce_proposals = announce  # type: ignore[attr-defined]  # a FastAPI app
     proposed(client, token, kind="habits", habits=["protein"])
     refused(client, token, kind="habits", habits=[])
     rpc(client, token, "tools/list")
-    assert told == ["sent"]  # review of #234: only a proposal made, not a refusal or a list
+    assert told == [OWNER]  # review of #234: only a proposal made, not a refusal or a list
 
 
 def test_a_proposal_too_big_to_show_is_refused(

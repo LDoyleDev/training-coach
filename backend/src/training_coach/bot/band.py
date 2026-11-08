@@ -1,15 +1,16 @@
 """Workouts from the band, offered in Telegram (ADR-0055): "Walk, 46 min, 38 in zone 2 - count
 it?" with Count it / Not this one.
 
-A job looks for new offers every few minutes and sends each once. Callback data is
-``bc:<import id>`` to count it or ``bx:<import id>`` to turn it down; the service re-checks the
-import, so an old or forged button can't count anything that isn't offered. Counting one that
-would complete a session on a day that already has one asks first (ADR-0060, ``bot.clash``),
-with ``ba:<answer>:<import id>`` buttons.
+A job looks for new offers every few minutes and sends each once, to the person whose band it
+came from, if band data is open to them (ADR-0090). Callback data is ``bc:<import id>`` to count
+it or ``bx:<import id>`` to turn it down; the service re-checks the import, so an old or forged
+button can't count anything that isn't offered. Counting one that would complete a session on a
+day that already has one asks first (ADR-0060, ``bot.clash``), with ``ba:<answer>:<import id>``
+buttons.
 
-A second job tells the person when band data stops arriving for a day, once per gap, and when
-it arrives again; and, while it flows, when steps, sleep or heart rate alone stop for two days
-(``domain.band_watch``). The messages carry no health values.
+A second job tells each person when their band data stops arriving for a day, once per gap,
+and when it arrives again; and, while it flows, when steps, sleep or heart rate alone stop for
+two days (``domain.band_watch``). The messages carry no health values.
 """
 
 from collections.abc import Awaitable, Callable
@@ -17,14 +18,13 @@ from datetime import UTC, date, datetime, timedelta
 
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, sessionmaker
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
 from training_coach.bot import clash as clash_ui
 from training_coach.bot import links
 from training_coach.bot.buttons import edit_quietly, row_id
-from training_coach.bot.gate import Person
+from training_coach.bot.gate import People, Person
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
 from training_coach.domain import band_watch
@@ -149,9 +149,9 @@ def counted_text(week: cardio.Week, planned: bool) -> str:
 
 
 class BandHandlers:
-    def __init__(self, settings: Settings, sessions: sessionmaker[Session], send: Send) -> None:
+    def __init__(self, settings: Settings, people: People, send: Send) -> None:
         self.settings = settings
-        self.sessions = sessions  # the owner's: for the two jobs only (step 9)
+        self.people = people  # whom the two jobs go to: each with their own sessions
         self.send = send
         # User id -> import id -> the clash shown for it, and a day to move to found taken
         # (ADR-0060). Per person: another's import id finds no question here.
@@ -165,25 +165,29 @@ class BandHandlers:
         return local_date(datetime.now(UTC), self.settings.tz)
 
     async def announce(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send each new offer once, unless paused. An offer is marked sent only after Telegram
-        took it, so a failed send is tried again on the next run (review of #226)."""
+        """Each person's new offers, if band data is open to them."""
+        for me in self.people():
+            if me.not_open(Category.BAND) is None:
+                await self._announce(context.bot, me)
+
+    async def _announce(self, bot: Bot, me: Person) -> None:
+        """Send each of ``me``'s new offers once, unless paused. An offer is marked sent only
+        after Telegram took it, so a failed send is tried again on the next run (review of
+        #226)."""
         try:
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 if user_settings.load(session).paused:
                     return
                 found = band_cardio.unannounced(session, self._today())
         except SQLAlchemyError as exc:
             log.error("bot.band_offer_failed", error=type(exc).__name__)
             return
-        owner = self.settings.telegram_allowed_user_id
-        assert owner is not None  # noqa: S101 - build_bot checks it
-        bot: Bot = context.bot
         for offer in found:
-            if not await self.send(bot, owner, offer.text, reply_markup=markup(offer)):
+            if not await self.send(bot, me.chat, offer.text, reply_markup=markup(offer)):
                 log.warning("bot.band_offer_not_sent")
                 return  # Telegram is unreachable; the rest wait for the next run too
             try:
-                with session_scope(self.sessions) as session:
+                with session_scope(me.sessions) as session:
                     band_cardio.announced(session, offer.id, datetime.now(UTC))
             except SQLAlchemyError as exc:  # sent but not marked: stop, so nothing goes twice
                 log.error("bot.band_offer_unmarked", error=type(exc).__name__)
@@ -191,14 +195,21 @@ class BandHandlers:
             log.info("bot.band_offer_sent")
 
     async def watch(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Tell the person when band data stopped a day ago, or one kind of it two days ago,
-        or arrives again after that: in the day only (08:00-21:00 local), never while paused,
-        and noted only after Telegram took it, so a failed send is tried again next run."""
+        """Each person's band data alerts, in the day only (08:00-21:00 local), if band data is
+        open to them: about their own band, in their own chat."""
         now = datetime.now(UTC)
         if not band_watch.daytime(now, self.settings.tz):
             return
+        for me in self.people():
+            if me.not_open(Category.BAND) is None:
+                await self._watch(context.bot, me, now)
+
+    async def _watch(self, bot: Bot, me: Person, now: datetime) -> None:
+        """Tell ``me`` when their band data stopped a day ago, or one kind of it two days ago,
+        or arrives again after that: never while paused, and noted only after Telegram took
+        it, so a failed send is tried again next run."""
         try:
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 if user_settings.load(session).paused:
                     return
                 notice = ingest_keys.watch(session, now)
@@ -214,14 +225,12 @@ class BandHandlers:
             text, stopped, kind = feeds_text(feeds, from_webhook), bool(feeds.stopped), "feeds"
         else:
             return
-        owner = self.settings.telegram_allowed_user_id
-        assert owner is not None  # noqa: S101 - build_bot checks it
         account = links.with_open(None, self.settings.public_url, links.ACCOUNT)
-        if not await self.send(context.bot, owner, text, reply_markup=account if stopped else None):
+        if not await self.send(bot, me.chat, text, reply_markup=account if stopped else None):
             log.warning("bot.band_watch_not_sent", notice=kind)
             return
         try:
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 if notice is not None:
                     ingest_keys.told(session, notice, now)
                 else:
