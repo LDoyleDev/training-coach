@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from training_coach.api.alerts import alert_chat, forget
+from training_coach.api.alerts import alert_chat, forget, reschedule
 from training_coach.api.auth import Fresh, Owner
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
@@ -138,6 +138,7 @@ def confirm(
         done = telegram_link.TAKEN
     if not isinstance(done, telegram_link.Linked):
         raise HTTPException(*REFUSED[done])
+    reschedule(request, user)  # their morning, nudge and review start (step 9)
     alert_chat(request, background, done.chat, "telegram_linked", CONNECTED)
 
 

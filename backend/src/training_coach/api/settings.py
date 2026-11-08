@@ -2,7 +2,6 @@
 same rules. Owner-only. Times are local wall-clock in ``settings.tz``; changing one moves the
 bot's jobs straight away, as a /settings button does."""
 
-from collections.abc import Callable
 from datetime import UTC, datetime, time
 from typing import Annotated, Literal
 
@@ -11,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import AfterValidator, BaseModel, Field
 from sqlalchemy.orm import Session, sessionmaker
 
+from training_coach.api.alerts import reschedule
 from training_coach.api.auth import Owner
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
@@ -29,7 +29,6 @@ log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 # Set by the app's lifespan when the bot runs: moves the person's morning, nudge and review jobs.
-Reschedule = Callable[[int, Prefs], None]
 
 
 def _bound(request: Request, user: int) -> sessionmaker[Session]:
@@ -239,8 +238,7 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             today=today,
         )
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)
-    reschedule: Reschedule | None = getattr(request.app.state, "reschedule", None)
-    if moved and reschedule is not None:
-        reschedule(user, prefs)
+    if moved:
+        reschedule(request, user)  # only this person's jobs (step 9)
     log.info("api.settings_changed", what=sorted(body.model_dump(exclude_none=True)))
     return _view(prefs, settings, locked)

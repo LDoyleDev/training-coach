@@ -35,13 +35,13 @@ def signed_in(engine: Engine) -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def moved(signed_in: TestClient) -> list[Prefs]:
-    """The settings the bot's jobs were moved to, as the lifespan's hook would."""
-    calls: list[Prefs] = []
+def moved(signed_in: TestClient) -> list[int]:
+    """Whose jobs the bot was asked to move, as the lifespan's hook would; it reads their new
+    times from the database itself."""
+    calls: list[int] = []
 
-    def reschedule(user: int, prefs: Prefs) -> None:
-        assert user == OWNER  # whoever is signed in: here the owner
-        calls.append(prefs)
+    def reschedule(user: int) -> None:
+        calls.append(user)
 
     signed_in.app.state.reschedule = reschedule  # type: ignore[attr-defined]  # Starlette app
     return calls
@@ -87,18 +87,17 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
 
 
 def test_a_new_time_is_saved_and_moves_the_bots_jobs(
-    signed_in: TestClient, moved: list[Prefs], engine: Engine
+    signed_in: TestClient, moved: list[int], engine: Engine
 ) -> None:
     view = signed_in.patch("/api/settings", json={"morning_time": "6.45"}).json()
     assert view["morning_time"] == "06:45"
     assert view["nudge_time"] == "20:00"  # untouched
-    (prefs,) = moved
-    assert prefs.morning_time.isoformat() == "06:45:00"
-    assert _stored(engine).morning_time == prefs.morning_time
+    assert moved == [OWNER]  # whoever is signed in: here the owner
+    assert _stored(engine).morning_time == time(6, 45)
 
 
 def test_a_switch_leaves_the_jobs_where_they_are(
-    signed_in: TestClient, moved: list[Prefs], engine: Engine
+    signed_in: TestClient, moved: list[int], engine: Engine
 ) -> None:
     view = signed_in.patch("/api/settings", json={"nudges_enabled": False, "paused": True}).json()
     assert (view["nudges_enabled"], view["paused"]) == (False, True)
@@ -119,17 +118,16 @@ def test_a_second_persons_new_time_moves_only_their_own_jobs(engine: Engine) -> 
     )
     with TestClient(create_app(settings), base_url=ORIGIN) as other:
         assert other.post("/api/auth/redeem", json={"token": token}).status_code == 204
-        calls: list[tuple[int, Prefs]] = []
-        other.app.state.reschedule = lambda user, prefs: calls.append((user, prefs))  # type: ignore[attr-defined]  # Starlette app
+        calls: list[int] = []
+        other.app.state.reschedule = calls.append  # type: ignore[attr-defined]  # Starlette app
         assert other.patch("/api/settings", json={"morning_time": "05:00"}).status_code == 200
-    ((user, prefs),) = calls
-    assert (user, prefs.morning_time) == (OTHER, time(5))
+    assert calls == [OTHER]
     assert _stored(engine).morning_time == time(7, 30)  # the owner's is untouched
 
 
 @pytest.mark.parametrize("bad", ["7:5", "24:00", "07:60", "seven", ""])
 def test_a_time_the_bot_would_refuse_is_refused(
-    signed_in: TestClient, moved: list[Prefs], bad: str
+    signed_in: TestClient, moved: list[int], bad: str
 ) -> None:
     assert signed_in.patch("/api/settings", json={"nudge_time": bad}).status_code == 422
     assert moved == []

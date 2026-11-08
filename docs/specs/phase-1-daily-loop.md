@@ -78,7 +78,8 @@ belongs to the same exercise. Migrations never import application code.
 - CI enforces 100% coverage of `domain/` and a test forbids framework/I/O imports there.
 
 ### 1-D Morning message, nudge and settings
-- JobQueue daily job at `settings.morning_time` (Europe/Berlin), rescheduled when changed.
+- JobQueue daily job at `settings.morning_time` (Europe/Berlin), rescheduled when changed
+  (one per person since multi-user step 9, `bot/schedules.py`).
 - Message: session name, exercises with ladder step and targets; buttons Start / Rest today / Swap.
 - Evening nudge at `nudge_time` only if nothing logged and nudges enabled.
 - `/settings`: change morning time (buttons for common times + free entry `HH:MM`), nudge

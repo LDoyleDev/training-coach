@@ -21,7 +21,7 @@ log = structlog.get_logger(__name__)
 
 Notify = Callable[[str], Awaitable[object]]
 Send = Callable[[int, str], Awaitable[object]]  # a Telegram chat id, the text
-Forget = Callable[[int], None]  # a user id: the bot drops what it keeps in memory for them
+PerPerson = Callable[[int], None]  # a user id: the bot forgets them, or moves their jobs
 DEVICE_LENGTH = 80  # the browser as it names itself; plain text in Telegram, so harmless
 
 
@@ -53,7 +53,15 @@ def alert_chat(
 def forget(request: Request, user: int) -> None:
     """Have the bot drop what it keeps in memory for ``user`` (drafts, questions; ADR-0089):
     after an unlink, a leave or an erase. Nothing to do while the bot is off."""
-    found: Forget | None = getattr(request.app.state, "forget", None)
+    found: PerPerson | None = getattr(request.app.state, "forget", None)
+    if found is not None:
+        found(user)
+
+
+def reschedule(request: Request, user: int) -> None:
+    """Have the bot make ``user``'s scheduled messages again from their settings (step 9):
+    after they change a time, or connect Telegram. Nothing to do while the bot is off."""
+    found: PerPerson | None = getattr(request.app.state, "reschedule", None)
     if found is not None:
         found(user)
 

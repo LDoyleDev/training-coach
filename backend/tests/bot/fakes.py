@@ -7,10 +7,13 @@ from urllib.parse import parse_qs
 
 import respx
 from pydantic import SecretStr
+from sqlalchemy.orm import Session, sessionmaker
 from telegram import Update
 from telegram.ext import Application
 
+from training_coach.bot.gate import Person
 from training_coach.config import Settings
+from training_coach.services import users
 
 TELEGRAM = r"https://api\.telegram\.org/bot[^/]+/"
 FILES = r"https://api\.telegram\.org/file/bot[^/]+/"
@@ -24,6 +27,15 @@ SETTINGS = Settings(
     telegram_allowed_user_id=OWNER,
 )
 MULTI = SETTINGS.model_copy(update={"multi_user": True})  # members served (ADR-0059)
+
+
+def scheduled(
+    sessions: sessionmaker[Session], user_id: int = users.OWNER, chat: int = OWNER
+) -> Person:
+    """Whom a scheduled message goes to, as ``Gate.scheduled`` finds them: the owner by default."""
+    return Person(user_id=user_id, chat=chat, sessions=sessions)
+
+
 DATE = 1_790_000_000
 NOT_MODIFIED = {
     "ok": False,

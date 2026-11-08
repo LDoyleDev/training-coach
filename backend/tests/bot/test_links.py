@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application
 
-from tests.bot.fakes import OWNER, SETTINGS, command, press, run, text_message
+from tests.bot.fakes import OWNER, SETTINGS, command, press, run, scheduled, text_message
 from training_coach.bot import buttons, links
 from training_coach.bot.app import Handlers, build_bot
 from training_coach.config import Settings
@@ -123,7 +123,7 @@ async def test_today_has_no_link_without_an_https_address(
 
 async def test_the_morning_message_links_to_the_session(seeded: Sessions) -> None:
     context = _context()
-    await Handlers(LINKED, seeded).morning(context)  # type: ignore[arg-type]  # fake context
+    await Handlers(LINKED).morning(context, scheduled(seeded))  # type: ignore[arg-type]  # fake context
     markup = context.bot.send_message.await_args.kwargs["reply_markup"]
     assert [b.text for b in markup.inline_keyboard[0]] == ["Start", "Rest today", "Swap"]
     assert _urls(markup) == [f"{WEB}/session"]
@@ -131,19 +131,19 @@ async def test_the_morning_message_links_to_the_session(seeded: Sessions) -> Non
 
 async def test_the_morning_message_has_no_link_without_an_address(seeded: Sessions) -> None:
     context = _context()
-    await Handlers(SETTINGS, seeded).morning(context)  # type: ignore[arg-type]  # fake context
+    await Handlers(SETTINGS).morning(context, scheduled(seeded))  # type: ignore[arg-type]  # fake context
     assert _urls(context.bot.send_message.await_args.kwargs["reply_markup"]) == []
 
 
 async def test_the_weekly_review_links_to_the_review_page(seeded: Sessions) -> None:
     context = _context()
-    await Handlers(LINKED, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    await Handlers(LINKED).weekly_review(context, scheduled(seeded))  # type: ignore[arg-type]  # fake
     assert _urls(context.bot.send_message.await_args.kwargs["reply_markup"]) == [f"{WEB}/review"]
 
 
 async def test_the_weekly_review_has_no_buttons_without_an_address(seeded: Sessions) -> None:
     context = _context()
-    await Handlers(SETTINGS, seeded).weekly_review(context)  # type: ignore[arg-type]  # fake
+    await Handlers(SETTINGS).weekly_review(context, scheduled(seeded))  # type: ignore[arg-type]  # fake
     assert context.bot.send_message.await_args.kwargs["reply_markup"] is None
 
 

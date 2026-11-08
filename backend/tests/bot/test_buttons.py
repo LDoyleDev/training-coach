@@ -7,7 +7,17 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
 from telegram.ext import Application
 
-from tests.bot.fakes import OWNER, SETTINGS, STRANGER, button_data, command, press, run, texts
+from tests.bot.fakes import (
+    OWNER,
+    SETTINGS,
+    STRANGER,
+    button_data,
+    command,
+    press,
+    run,
+    scheduled,
+    texts,
+)
 from training_coach.bot import buttons
 from training_coach.bot.app import Handlers
 from training_coach.bot.messages import SOMETHING_WENT_WRONG, STALE
@@ -89,7 +99,7 @@ async def test_today_carries_the_buttons(application: App, seeded: Sessions) -> 
 
 async def test_morning_message_carries_the_buttons(seeded: Sessions) -> None:
     bot = AsyncMock()
-    await Handlers(SETTINGS, seeded).morning(type("Ctx", (), {"bot": bot})())  # type: ignore[arg-type]
+    await Handlers(SETTINGS).morning(type("Ctx", (), {"bot": bot})(), scheduled(seeded))  # type: ignore[arg-type]
     markup = bot.send_message.await_args.kwargs["reply_markup"]
     # The daily check's rows follow until it's answered (ADR-0053, tests/bot/test_daily_check.py).
     assert markup.inline_keyboard[0] == buttons.morning(_pointer(seeded)).inline_keyboard[0]

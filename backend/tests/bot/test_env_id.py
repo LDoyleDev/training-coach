@@ -1,7 +1,7 @@
 """Nothing in ``bot/`` that answers a person reads the owner's configured Telegram account or the
 owner's sessions (ADR-0089). Handlers get the person from the gate (``gate.served``, checked in
-test_app.py) and use that person's sessions. Only the scheduled messages, which are the owner's
-until each person has their own (step 9), and the places listed below may. Like
+test_app.py) and use that person's sessions, and so do the scheduled messages, from the gate
+(``Gate.scheduled``). Only the places listed below may. Like
 tests/test_cross_user_access.py, a new site fails until it is listed with a reason, and a
 listed site that is gone fails too."""
 
@@ -20,14 +20,7 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("gate::Gate._admit", ENV_ID): "a database error is told to the configured account too",
     ("connect::Connect.claim", ENV_ID): "the owner's configured account can't claim a link",
     ("gate::Person.not_open", OWNERS): "a Person's own sessions, bound to them",
-    # Scheduled messages: the owner's, sent to the owner's account (step 9).
-    ("app::Handlers._served", OWNERS): "whether the owner is away, for their jobs",
-    ("app::Handlers.morning", OWNERS): "the morning message",
-    ("app::Handlers.morning", ENV_ID): "the morning message",
-    ("app::Handlers.weekly_review", OWNERS): "Sunday's review",
-    ("app::Handlers.weekly_review", ENV_ID): "Sunday's review",
-    ("app::Handlers.nudge", OWNERS): "the evening nudge",
-    ("app::Handlers.nudge", ENV_ID): "the evening nudge",
+    # Checks still sent to the owner's account only (step 9's second part).
     ("band::BandHandlers.announce", OWNERS): "band workouts offered",
     ("band::BandHandlers.announce", ENV_ID): "band workouts offered",
     ("band::BandHandlers.watch", OWNERS): "band data stopped or back",

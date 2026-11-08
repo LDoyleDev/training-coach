@@ -17,20 +17,20 @@ from telegram.ext import (
 )
 from telegram.warnings import PTBDeprecationWarning
 
-from tests.bot.fakes import OWNER, SETTINGS, STRANGER, command, run, texts
+from tests.bot.fakes import OWNER, SETTINGS, STRANGER, command, run, scheduled, texts
 from training_coach.bot.app import (
-    MORNING_JOB,
     RESCHEDULE,
     Handlers,
     build_bot,
-    schedule_morning,
     send_outcome,
     send_with_retry,
 )
 from training_coach.bot.messages import NO_PLAN, SOMETHING_WENT_WRONG
+from training_coach.bot.schedules import MORNING, name
 from training_coach.config import Settings
 from training_coach.db.models import ReplacedWorkout, UserSettings
-from training_coach.services.user_settings import Prefs
+from training_coach.services import user_settings
+from training_coach.services.users import OWNER as OWNER_ID
 
 
 def test_build_bot_requires_the_owners_account(sessions: sessionmaker[Session]) -> None:
@@ -123,7 +123,7 @@ async def test_today_without_a_plan_says_so(sessions: sessionmaker[Session]) -> 
 
 def _next_run(application: Application, after: datetime) -> datetime:  # type: ignore[type-arg]
     assert application.job_queue is not None
-    (job,) = application.job_queue.get_jobs_by_name(MORNING_JOB)
+    (job,) = application.job_queue.get_jobs_by_name(name(MORNING, OWNER_ID))
     fire: datetime = job.job.trigger.get_next_fire_time(None, after)
     return fire.astimezone(UTC)
 
@@ -157,15 +157,22 @@ def test_morning_uses_the_saved_time_and_reschedules(
     after = datetime(2026, 10, 6, 12, 0, tzinfo=UTC)
     assert _next_run(application, after) == datetime(2026, 10, 7, 4, 15, tzinfo=UTC)
 
-    schedule_morning(application, Handlers(SETTINGS, seeded), time(8, 0))
+    with seeded() as session:
+        user_settings.update(session, morning_time=time(8, 0))
+        session.commit()
+    application.bot_data[RESCHEDULE](OWNER_ID)
     assert _next_run(application, after) == datetime(2026, 10, 7, 6, 0, tzinfo=UTC)
 
 
 def test_the_settings_page_moves_the_jobs_through_bot_data(
     sessions: sessionmaker[Session],
 ) -> None:
+    """The route saves the times first; the bot reads them back for that person."""
     application = build_bot(SETTINGS, sessions)
-    application.bot_data[RESCHEDULE](Prefs(morning_time=time(9, 0)))
+    with sessions() as session:
+        user_settings.update(session, morning_time=time(9, 0))
+        session.commit()
+    application.bot_data[RESCHEDULE](OWNER_ID)
     after = datetime(2026, 10, 6, 12, 0, tzinfo=UTC)
     assert _next_run(application, after) == datetime(2026, 10, 7, 7, 0, tzinfo=UTC)
 
@@ -176,7 +183,7 @@ def _context() -> SimpleNamespace:
 
 async def test_morning_sends_today_to_the_owner(seeded: sessionmaker[Session]) -> None:
     context = _context()
-    await Handlers(SETTINGS, seeded).morning(context)  # type: ignore[arg-type]  # fake context
+    await Handlers(SETTINGS).morning(context, scheduled(seeded))  # type: ignore[arg-type]  # fake context
     context.bot.send_message.assert_awaited_once()
     kwargs = context.bot.send_message.await_args.kwargs
     assert kwargs["chat_id"] == OWNER
@@ -196,14 +203,14 @@ async def test_morning_forgets_replaced_workouts_past_the_undo_window(
             )
         )
         session.commit()
-    await Handlers(SETTINGS, seeded).morning(_context())  # type: ignore[arg-type]
+    await Handlers(SETTINGS).morning(_context(), scheduled(seeded))  # type: ignore[arg-type]
     with seeded() as session:
         assert session.scalars(select(ReplacedWorkout)).all() == []
 
 
 async def test_morning_without_a_plan_says_so(sessions: sessionmaker[Session]) -> None:
     context = _context()
-    await Handlers(SETTINGS, sessions).morning(context)  # type: ignore[arg-type]
+    await Handlers(SETTINGS).morning(context, scheduled(sessions))  # type: ignore[arg-type]
     assert context.bot.send_message.await_args.kwargs["text"] == NO_PLAN
 
 
@@ -214,7 +221,7 @@ async def test_morning_is_skipped_while_paused(seeded: sessionmaker[Session]) ->
         prefs.paused = True
         session.commit()
     context = _context()
-    await Handlers(SETTINGS, seeded).morning(context)  # type: ignore[arg-type]
+    await Handlers(SETTINGS).morning(context, scheduled(seeded))  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()
 
 
@@ -259,7 +266,7 @@ async def test_morning_survives_a_database_error(
 ) -> None:
     """No tables: the read fails, nothing is sent and the job does not raise."""
     context = _context()
-    await Handlers(SETTINGS, broken).morning(context)  # type: ignore[arg-type]
+    await Handlers(SETTINGS).morning(context, scheduled(broken))  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()
 
 

@@ -2,18 +2,17 @@
 
 Every update meets the sender gate first (``bot.gate``, ADR-0089): only messages and button
 presses in a private chat, from someone linked, get any further. Every handler is registered
-through ``gate.served`` and uses the sessions of the person the gate found. Only the scheduled
-messages still use the owner's sessions and the owner's account, until each person has their
-own (step 9).
+through ``gate.served`` and uses the sessions of the person the gate found. The morning message,
+the evening nudge and Sunday's review are each person's own (``bot.schedules``); the band,
+proposal and plan-notice checks are still the owner's only.
 """
 
 import asyncio
 import warnings
 from collections.abc import Callable, Coroutine, Sequence
 from dataclasses import replace
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
@@ -45,6 +44,7 @@ from training_coach.bot import habits as habits_ui
 from training_coach.bot import notices as notices_ui
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import proposals as proposals_ui
+from training_coach.bot import schedules as schedules_ui
 from training_coach.bot import settings as settings_ui
 from training_coach.bot import share as share_ui
 from training_coach.bot import stretching as stretching_ui
@@ -71,6 +71,7 @@ from training_coach.bot.messages import (
 )
 from training_coach.config import Settings
 from training_coach.db.session import session_scope, unbound_like
+from training_coach.domain.consent import Category
 from training_coach.domain.queue import local_date
 from training_coach.services import (
     ai_comment,
@@ -91,7 +92,6 @@ from training_coach.services.groq import GroqClient
 from training_coach.services.today import session_plan
 from training_coach.services.today import today as todays_session
 from training_coach.services.today import week as upcoming_week
-from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
 
@@ -142,13 +142,9 @@ ASK_ADMIN = "Ask the admin for a recovery link."
 LOGIN_MEMBER = f"Sign in with your fingerprint (your passkey) here:\n{{url}}/signin\n\n{ASK_ADMIN}"
 # The gate's, named here for the API's lifespan (it starts the bot) and the tests that drive it.
 __all__ = ["ALLOWED_UPDATES", "ANYWHERE", "AWAY_TEXT"]
-MORNING_JOB = "morning"
-NUDGE_JOB = "nudge"
-REVIEW_JOB = "weekly-review"
-RESCHEDULE = "reschedule"  # bot_data key: the settings page moves the jobs through this
+RESCHEDULE = "reschedule"  # bot_data key: a person's new times, or new link, move their jobs
 ANNOUNCE = "announce_proposals"  # bot_data key: /mcp sends a fresh proposal through this
 FORGET = "forget"  # bot_data key: unlink, leave and erase drop a person's state (ADR-0089)
-SUNDAY = 0  # PTB counts days from Sunday (0) to Saturday (6)
 Job = Callable[[ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
 
 
@@ -213,9 +209,8 @@ async def send_outcome(
 class Handlers:
     """Thin adapters: read through ``services``, format with ``messages``, reply."""
 
-    def __init__(self, settings: Settings, sessions: sessionmaker[Session]) -> None:
+    def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.sessions = sessions  # the owner's: for the scheduled messages only (step 9)
         self.gate: Gate | None = None  # set by build_bot: who each update was let through for
 
     def _local_today(self) -> date:
@@ -241,25 +236,6 @@ class Handlers:
             markup = buttons.morning(plan.session.template_id)
             text = today_text(replace(plan, session=shown), length)
             return text, links.with_open(markup, url, links.SESSION)
-
-    def _served(self) -> bool:
-        try:
-            with session_scope(self.sessions) as session:
-                return users.bot_served(session, datetime.now(UTC))
-        except SQLAlchemyError:  # the handler meets the same error and says so, once
-            return True
-
-    def unless_away(self, job: Job) -> Job:
-        """Every scheduled message (morning, nudge, review, band and proposal checks) is
-        skipped while the bot is paused."""
-
-        async def run(context: ContextTypes.DEFAULT_TYPE) -> None:
-            if self._served():
-                await job(context)
-            else:
-                log.info("bot.job_paused_away")
-
-        return run
 
     async def help(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
         if update.effective_message is not None:
@@ -334,41 +310,44 @@ class Handlers:
         if update.effective_message is not None:
             await update.effective_message.reply_text(text)
 
-    async def morning(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def morning(self, context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """The day's session, to ``me``'s chat from ``me``'s data. The daily check comes with
+        it only for someone it is open to, and the band's line only with band data (ADR-0090)."""
         on = self._local_today()
         try:
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 day_clash.sweep(session, datetime.now(UTC))  # also on days with no save
                 paused = user_settings.load(session).paused
                 checked = daily_check.on(session, on) is not None
                 band = health_summary.morning_line(session, on)
                 suggested = health_summary.suggested_sleep(session, on)
-            text, markup = self._today(self.sessions)
+            asks = me.not_open(Category.DAILY_CHECK) is None
+            if me.not_open(Category.BAND) is not None:
+                band = None
+            text, markup = self._today(me.sessions)
         except SQLAlchemyError as exc:
             log.error("bot.morning_failed", error=type(exc).__name__)
             return
         if paused:
             log.info("bot.morning_skipped", reason="paused")
             return
-        if markup is not None and not checked:  # the daily check, until answered (ADR-0053)
+        if markup is not None and asks and not checked:  # until answered (ADR-0053)
             text = f"{text}\n\n{daily_ui.ASK}"
             if band is not None:  # what the band saw, as words only: the tap is theirs (ADR-0055)
                 text = f"{text}\n{band}"
                 if suggested is not None:
                     text = f"{text} {daily_ui.suggestion(suggested[0])}"
             markup = daily_ui.with_check(markup, on)
-        assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - build_bot checks it
-        if await send_with_retry(
-            context.bot, self.settings.telegram_allowed_user_id, text, reply_markup=markup
-        ):
+        if await send_with_retry(context.bot, me.chat, text, reply_markup=markup):
             log.info("bot.morning_sent")
         else:
             log.error("bot.morning_failed")
 
-    async def weekly_review(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Sunday's review of the week (#73), unless paused."""
+    async def weekly_review(self, context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """Sunday's review of the week (#73), unless paused, and the AI comment from ``me``'s
+        own key (ADR-0047 B)."""
         try:
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 if user_settings.load(session).paused:
                     log.info("bot.review_skipped", reason="paused")
                     return
@@ -376,10 +355,9 @@ class Handlers:
         except SQLAlchemyError as exc:
             log.error("bot.review_failed", error=type(exc).__name__)
             return
-        assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - build_bot checks it
         if await send_with_retry(
             context.bot,
-            self.settings.telegram_allowed_user_id,
+            me.chat,
             text,
             reply_markup=links.with_open(None, self.settings.public_url, links.REVIEW),
         ):
@@ -390,10 +368,8 @@ class Handlers:
         # The review went out; the comment is an extra and never fails the job. A lost "key
         # stopped working" notice isn't sent again, but the Account page still shows it.
         try:
-            comment = await ai_comment.weekly(self.sessions, self.settings, self._local_today())
-            if comment is not None and not await send_with_retry(
-                context.bot, self.settings.telegram_allowed_user_id, comment
-            ):
+            comment = await ai_comment.weekly(me.sessions, self.settings, self._local_today())
+            if comment is not None and not await send_with_retry(context.bot, me.chat, comment):
                 log.warning("bot.ai_comment_not_sent")
         except Exception:
             log.exception("bot.ai_comment_failed")
@@ -468,13 +444,13 @@ class Handlers:
         await reply(STALE if text is None else text, reply_markup=new_markup)
         log.info("bot.button", action=press.action, stale=text is None)
 
-    async def nudge(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def nudge(self, context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
         """The evening message, unless paused: the nudge when it's on and nothing is logged
         today (not on a rest day, ADR-0091), and the habit buttons when they're on (D5). Both go
         in one message."""
         today = self._local_today()
         try:
-            with session_scope(self.sessions) as session:
+            with session_scope(me.sessions) as session:
                 prefs = user_settings.load(session)
                 logged = user_settings.anything_logged(session, today)
                 plan = todays_session(session, today, self.settings.tz)
@@ -515,10 +491,9 @@ class Handlers:
         if habit_rows:
             parts.append(habits_ui.evening(prefs.protein_g))
             rows += habit_rows
-        assert self.settings.telegram_allowed_user_id is not None  # noqa: S101 - build_bot checks it
         if await send_with_retry(
             context.bot,
-            self.settings.telegram_allowed_user_id,
+            me.chat,
             "\n\n".join(parts),
             reply_markup=InlineKeyboardMarkup(rows),
         ):
@@ -539,39 +514,17 @@ class Handlers:
             await update.effective_message.reply_text(SOMETHING_WENT_WRONG)
 
 
-def _schedule_daily(
-    application: Application,  # type: ignore[type-arg]  # see build_bot
-    name: str,
-    callback: Job,
-    at: time,
-    tz: ZoneInfo,
-    days: tuple[int, ...] = tuple(range(7)),
-) -> None:
-    """(Re)schedule a job at local wall-clock time ``at`` on ``days`` (PTB: 0 is Sunday).
+def _owners(gate: Gate, job: Job) -> Job:
+    """The band, proposal and plan-notice checks, still the owner's only: skipped whenever a
+    scheduled message to the owner would be (unlinked, or away, ADR-0085)."""
 
-    The time carries the user's timezone, so the job follows DST: 07:30 stays 07:30 local.
-    """
-    job_queue = application.job_queue
-    assert job_queue is not None  # noqa: S101 - the job-queue extra is a dependency
-    for job in job_queue.get_jobs_by_name(name):
-        job.schedule_removal()
-    job_queue.run_daily(callback, time=at.replace(tzinfo=tz), days=days, name=name)
-    log.info("bot.job_scheduled", job=name, at=at.isoformat())
+    async def run(context: ContextTypes.DEFAULT_TYPE) -> None:
+        if gate.scheduled(users.OWNER) is not None:
+            await job(context)
+        else:
+            log.info("bot.job_skipped", job="checks")
 
-
-def schedule_morning(application: Application, handlers: Handlers, at: time) -> None:  # type: ignore[type-arg]  # see build_bot
-    morning = handlers.unless_away(handlers.morning)
-    _schedule_daily(application, MORNING_JOB, morning, at, handlers.settings.tz)
-
-
-def schedule_jobs(application: Application, handlers: Handlers, prefs: Prefs) -> None:  # type: ignore[type-arg]  # see build_bot
-    """Schedule the morning message, the evening nudge and Sunday's review from the settings."""
-    tz = handlers.settings.tz
-    schedule_morning(application, handlers, prefs.morning_time)
-    nudge = handlers.unless_away(handlers.nudge)
-    weekly = handlers.unless_away(handlers.weekly_review)
-    _schedule_daily(application, NUDGE_JOB, nudge, prefs.nudge_time, tz)
-    _schedule_daily(application, REVIEW_JOB, weekly, prefs.review_time, tz, days=(SUNDAY,))
+    return run
 
 
 # PTB's Application takes six type parameters, all fixed by the default builder; spelling them
@@ -589,7 +542,7 @@ def build_bot(
     # Only in a private chat: in a group, links and logs would be seen by everyone in it
     # (ADR-0040). The gate checks it too; a second look costs nothing.
     private = filters.ChatType.PRIVATE
-    handlers = Handlers(settings, sessions)
+    handlers = Handlers(settings)
     # Before every other handler: who it's from, and whether to serve them (ADR-0089, ADR-0085).
     gate = Gate(settings, unbound_like(sessions))
     handlers.gate = gate
@@ -633,10 +586,10 @@ def build_bot(
     jobs = application.job_queue
     assert jobs is not None  # noqa: S101 - the job-queue extra is a dependency
     # Band workouts to count (ADR-0055): checked every few minutes, each offered once.
-    announce_band = handlers.unless_away(band_handlers.announce)
+    announce_band = _owners(gate, band_handlers.announce)
     jobs.run_repeating(announce_band, interval=band_ui.EVERY, name=band_ui.JOB)
     # And whether band data stopped arriving: checked hourly, told once per gap.
-    watch_band = handlers.unless_away(band_handlers.watch)
+    watch_band = _owners(gate, band_handlers.watch)
     jobs.run_repeating(watch_band, interval=band_ui.WATCH_EVERY, name=band_ui.WATCH_JOB)
     # Logs a connected AI proposed (ADR-0058): sent as they come, and checked every few
     # minutes for any whose send failed.
@@ -644,12 +597,12 @@ def build_bot(
     application.add_handler(
         CallbackQueryHandler(served(proposal_handlers.button), pattern=proposals_ui.PATTERN)
     )
-    resend = handlers.unless_away(proposal_handlers.job)
+    resend = _owners(gate, proposal_handlers.job)
     jobs.run_repeating(resend, interval=proposals_ui.EVERY, name=proposals_ui.JOB)
 
     # What a release changed in the plan (ADR-0087): told once.
     notice_handlers = notices_ui.NoticeHandlers(settings, sessions, send_outcome)
-    tell = handlers.unless_away(notice_handlers.job)
+    tell = _owners(gate, notice_handlers.job)
     jobs.run_repeating(tell, interval=notices_ui.EVERY, name=notices_ui.JOB)
 
     async def announce() -> None:
@@ -660,13 +613,19 @@ def build_bot(
         CallbackQueryHandler(served(undo_handlers.button), pattern=rf"^{undo_ui.PREFIX}:")
     )
 
-    def reschedule(prefs: Prefs) -> None:
-        schedule_jobs(application, handlers, prefs)
-
-    application.bot_data[RESCHEDULE] = reschedule  # for times changed on the web (C6)
-    settings_handlers = settings_ui.SettingsHandlers(
-        settings, lambda _context, prefs: reschedule(prefs)
+    # Each person's morning, nudge and review, at their own times (step 9).
+    schedules = schedules_ui.Schedules(
+        application,
+        gate,
+        {
+            schedules_ui.MORNING: handlers.morning,
+            schedules_ui.NUDGE: handlers.nudge,
+            schedules_ui.REVIEW: handlers.weekly_review,
+        },
     )
+    # For times changed on the web (C6) and a member's Telegram connected (ADR-0089).
+    application.bot_data[RESCHEDULE] = schedules.person
+    settings_handlers = settings_ui.SettingsHandlers(settings, schedules.person)
     application.add_handler(
         CommandHandler("settings", served(settings_handlers.command), filters=private)
     )
@@ -686,7 +645,14 @@ def build_bot(
     # Everything kept in memory by user id, dropped on unlink, leave and erase (ADR-0089).
     for keeper in (log_handlers, band_handlers, proposal_handlers, settings_handlers):
         gate.keeps(keeper.forget)
-    application.bot_data[FORGET] = gate.forget
+
+    def forget(user_id: int) -> None:
+        """Their state, and their jobs: gone with their link, or back at the default times
+        after the owner's erase, which keeps it."""
+        gate.forget(user_id)
+        schedules.person(user_id)
+
+    application.bot_data[FORGET] = forget
     application.add_handler(
         CallbackQueryHandler(served(log_handlers.button), pattern=rf"^{logging_flow.PREFIX}:")
     )
@@ -712,12 +678,6 @@ def build_bot(
 
     application.add_error_handler(handlers.error)
 
-    try:
-        with session_scope(sessions) as session:
-            prefs = user_settings.load(session)
-    except SQLAlchemyError as exc:  # don't block startup (ADR-0015 spirit); use the defaults
-        log.error("bot.settings_unreadable", error=type(exc).__name__)
-        prefs = Prefs()
-    schedule_jobs(application, handlers, prefs)
+    schedules.everyone()
     log.info("bot.built")  # no Telegram id in the logs
     return application

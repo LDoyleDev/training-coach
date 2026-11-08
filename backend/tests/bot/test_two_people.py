@@ -30,9 +30,10 @@ from tests.bot.test_band import _walk
 from tests.bot.test_progress import _pull_up, _step_name, _top_session
 from training_coach.bot import band as band_ui
 from training_coach.bot import proposals as proposals_ui
+from training_coach.bot import schedules
 from training_coach.bot import stretching as stretching_ui
 from training_coach.bot import undo as undo_ui
-from training_coach.bot.app import ASK_ADMIN, HELP_TEXT, MEMBER_HELP_TEXT, MORNING_JOB, build_bot
+from training_coach.bot.app import ASK_ADMIN, HELP_TEXT, MEMBER_HELP_TEXT, build_bot
 from training_coach.bot.gate import NOT_OPEN, WHAT
 from training_coach.bot.messages import LOG_EXPIRED, STALE
 from training_coach.db.models import (
@@ -177,10 +178,11 @@ async def test_logs_are_saved_for_the_sender_and_drafts_are_their_own(
     assert (_count(seeded, Workout), _count(member, Workout)) == (0, 1)
 
 
-async def test_a_members_settings_leave_the_owners_and_their_job_times(
+async def test_a_members_settings_move_only_their_own_jobs(
     both: App, seeded: Sessions, member: Sessions
 ) -> None:
-    before = _next_run(both, MORNING_JOB)
+    owners, theirs = (schedules.name(schedules.MORNING, u) for u in (1, _member_id(member)))
+    before = _next_run(both, owners)
     calls = await run(both, press("s:morning:0630", MEMBER))
     assert "Morning message: 06:30" in calls["editMessageText"][0]["text"]
     await run(both, press("s:ask-morning", MEMBER))
@@ -190,9 +192,11 @@ async def test_a_members_settings_leave_the_owners_and_their_job_times(
     await run(both, press("s:ask-morning", MEMBER))
     assert "Morning message: 06:45" in texts(await run(both, text_message("06:45", MEMBER)))[0]
     assert (_morning(member), _morning(seeded)) == (time(6, 45), time(7, 30))
-    assert _next_run(both, MORNING_JOB) == before  # the jobs are the owner's until step 9
+    assert _next_run(both, owners) == before
+    assert _next_run(both, theirs) == datetime(2026, 10, 7, 4, 45, tzinfo=UTC)  # 06:45 CEST
     await run(both, press("s:morning:0700", OWNER))
-    assert _next_run(both, MORNING_JOB) != before
+    assert _next_run(both, owners) != before
+    assert _next_run(both, theirs) == datetime(2026, 10, 7, 4, 45, tzinfo=UTC)
 
 
 async def _saved(both: App, sender: int, sessions: Sessions) -> tuple[int, list[str]]:
