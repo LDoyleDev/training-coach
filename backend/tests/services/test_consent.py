@@ -1,7 +1,7 @@
 """Consent per category (ADR-0090): a record of every yes and withdrawal, a member's category open
 only after a yes, and a withdrawal erasing that category's data, nobody else's."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlalchemy import Engine, func, select
@@ -108,3 +108,10 @@ def test_withdrawing_band_erases_band_data_and_heart_rate_but_keeps_the_workout(
         assert theirs.scalars(select(UserSettings)).one().max_hr is None
     with session_scope(make_session_factory(people, user_id=users.OWNER)) as owners:
         assert owners.scalars(select(Workout)).one().avg_hr == 140
+
+
+def test_a_withdrawal_counts_even_when_the_clock_stepped_back(people: Engine) -> None:
+    with session_scope(make_session_factory(people, user_id=MEMBER)) as theirs:
+        consent.give(theirs, Category.BODY, NOW + timedelta(hours=1))
+        consent.withdraw(theirs, Category.BODY, NOW)  # written later, stamped earlier
+        assert not consent.opened(theirs, MEMBER, Category.BODY)
