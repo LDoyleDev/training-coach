@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from sqlalchemy import Engine
 from structlog.testing import capture_logs
 
@@ -24,7 +25,7 @@ from training_coach.api.security import SECURITY_HEADERS
 from training_coach.config import Settings
 from training_coach.db.models import User
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.services import backup, left_list
+from training_coach.services import backup, left_list, users
 from training_coach.services.user_settings import Prefs
 from training_coach.services.users import OWNER
 
@@ -214,13 +215,12 @@ async def test_backup_failures_are_sent_to_the_owner_only(
 
     monkeypatch.setattr(api_app, "send_with_retry", fake_send)
     telegram = object()
-    owned = settings.model_copy(update={"telegram_allowed_user_id": 4242})
-    notify = _owner_notifier(owned, telegram)  # type: ignore[arg-type]  # a stand-in bot
+    notify = _owner_notifier(telegram, 4242)  # type: ignore[arg-type]  # a stand-in bot
     assert notify is not None
     await notify("backup failed")
     assert sent == [(telegram, 4242, "backup failed")]
-    assert _owner_notifier(settings, telegram) is None  # type: ignore[arg-type]  # no owner
-    assert _owner_notifier(owned, None) is None  # no bot
+    assert _owner_notifier(telegram, None) is None  # type: ignore[arg-type]  # no linked owner
+    assert _owner_notifier(None, 4242) is None  # no bot
 
 
 async def test_a_dead_backup_loop_is_reported() -> None:
@@ -268,3 +268,40 @@ async def test_alerts_are_sent_to_the_chat_they_name(monkeypatch: pytest.MonkeyP
     await send(777, "New sign-in")
     assert sent == [(telegram, 777, "New sign-in")]
     assert _sender(None) is None  # no bot
+
+
+def test_the_bot_stays_off_when_the_configured_account_is_a_members(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Until the bot finds each person from the sender (ADR-0089), it would answer the
+    configured account as the owner: with a member holding it, it doesn't start. The owner's
+    alerts still reach the owner's own linked chat (review of #614)."""
+    with session_scope(make_session_factory(engine)) as shared:
+        users.link_owner(shared, 4242)
+        shared.add(User(id=2, role=users.MEMBER, telegram_user_id=99))
+    sent: list[tuple[int, str]] = []
+
+    async def fake_send(_bot: object, chat_id: int, text: str) -> bool:
+        sent.append((chat_id, text))
+        return True
+
+    monkeypatch.setattr(api_app, "send_with_retry", fake_send)
+
+    def never(*_a: object, **_kw: object) -> None:
+        raise AssertionError("the bot was built for a member's account")
+
+    monkeypatch.setattr(api_app, "build_bot", never)
+    settings = Settings(
+        environment="test",
+        database_url=str(engine.url),
+        telegram_bot_token=SecretStr("123456:TEST-TOKEN"),
+        telegram_allowed_user_id=99,
+    )
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/healthz").status_code == 200
+        notify = client.app.state.notify  # type: ignore[attr-defined]  # a FastAPI app
+        assert notify is not None
+        client.portal.call(notify, "backup failed")  # type: ignore[union-attr]  # a TestClient
+    assert sent == [(4242, "backup failed")]
+    with session_scope(make_session_factory(engine)) as shared:
+        assert shared.get_one(User, 2).telegram_user_id == 99

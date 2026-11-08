@@ -1,62 +1,47 @@
+import re
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
-from training_coach.domain.readiness import (
-    DOCTOR_NOTE,
-    DUE_NOTE,
-    KEYS,
-    QUESTIONS,
-    RENEW,
-    VERSION,
-    Status,
-    note,
-    status,
-)
+from training_coach.domain.readiness import DUE_NOTE, HARD_NOTE, RENEW, VERSION, due, note
 
 NOW = datetime(2026, 10, 10, 12, tzinfo=UTC)
-ALL_NO = dict.fromkeys(KEYS, False)
+QUESTIONS_TS = Path(__file__).resolve().parents[3] / "frontend/src/readiness/questions.ts"
 
 
-def test_the_questions_have_unique_keys_and_are_questions() -> None:
-    assert len(KEYS) == len(QUESTIONS) == 7
-    assert all(q.text.endswith("?") for q in QUESTIONS)
-
-
-def test_all_no_is_clear_and_any_yes_means_see_a_doctor() -> None:
-    assert status(ALL_NO, VERSION, NOW, NOW) is Status.CLEAR
-    assert status({**ALL_NO, "joints": True}, VERSION, NOW, NOW) is Status.SEE_DOCTOR
+def test_answered_this_year_with_these_questions_isnt_due() -> None:
+    assert not due(VERSION, NOW - RENEW + timedelta(seconds=1), NOW)
 
 
 @pytest.mark.parametrize(
-    ("answers", "version", "answered"),
+    ("version", "answered"),
     [
-        (None, None, None),  # never answered
-        (ALL_NO, VERSION, NOW - RENEW - timedelta(seconds=1)),  # about 6 months ago
-        (ALL_NO, VERSION - 1, NOW),  # the questions changed since
+        (None, None),  # never answered
+        (VERSION, NOW - RENEW),  # a year ago
+        (VERSION - 1, NOW),  # the questions changed since (ADR-0046's seven)
     ],
 )
 def test_answers_that_no_longer_count_are_due_again(
-    answers: dict[str, bool] | None, version: int | None, answered: datetime | None
+    version: int | None, answered: datetime | None
 ) -> None:
-    assert status(answers, version, answered, NOW) is Status.DUE
+    assert due(version, answered, NOW)
 
 
-def test_answers_still_count_on_the_last_day() -> None:
-    assert status(ALL_NO, VERSION, NOW - RENEW, NOW) is Status.CLEAR
+def test_only_a_hard_day_has_a_note_and_it_never_names_an_answer() -> None:
+    assert note(is_due=True, hard=False) is None
+    assert note(is_due=False, hard=False) is None
+    assert note(is_due=True, hard=True) == DUE_NOTE
+    assert note(is_due=False, hard=True) == HARD_NOTE
+    for text in (DUE_NOTE, HARD_NOTE):  # ADR-0085's words
+        assert not re.search(r"cleared|safe for you|risk|screening|clearance", text, re.I)
 
 
-@pytest.mark.parametrize(
-    ("current", "hard", "expected"),
-    [
-        (Status.SEE_DOCTOR, True, DOCTOR_NOTE),
-        (Status.DUE, True, DUE_NOTE),
-        (Status.CLEAR, True, None),
-        (Status.SEE_DOCTOR, False, None),  # an easy day: nothing to say
-        (Status.DUE, False, None),
-    ],
-)
-def test_today_says_something_only_on_hard_days(
-    current: Status, hard: bool, expected: str | None
-) -> None:
-    assert note(current, hard) == expected
+def test_the_web_asks_this_version_of_the_questions() -> None:
+    """The questions live in the browser; bumping them there must bump VERSION here, or
+    nobody is asked the new ones."""
+    source = QUESTIONS_TS.read_text(encoding="utf-8")
+    found = re.search(r"export const VERSION = (\d+)", source)
+    assert found is not None
+    assert int(found.group(1)) == VERSION
+    assert len(re.findall(r"\bkey: '", source)) == 10  # the ten questions

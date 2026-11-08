@@ -25,8 +25,9 @@ def closed_to(user_id: int, multi_user: bool) -> bool:
 
 
 def health_open(user_id: int) -> bool:
-    """Whether ``user_id`` may keep health data: body measurements and photos, readiness
-    answers, daily checks, heart rate and band data. Members are training-only until a lawyer
+    """Whether ``user_id`` may keep health data: body measurements and photos, daily
+    checks, heart rate and band data (the health questions' answers never reach the server,
+    ADR-0085). Members are training-only until a lawyer
     has reviewed the privacy notice, the consent step and a DPIA (ADR-0059, Decided 14), so only
     the owner, by id, until then."""
     return user_id == OWNER
@@ -52,11 +53,19 @@ def closing_on(session: Session, user_id: int) -> date | None:
 
 def link_owner(session: Session, telegram_user_id: int) -> int:
     """The owner's user id, linked to the allowed Telegram account (ADR-0009). Run in an
-    unbound session at start-up. If the allowed account changed, the owner moves with it."""
+    unbound session at start-up. If the allowed account changed, the owner moves with it,
+    unless someone else holds that account: then their link stays, the owner's is left as it
+    was, and the error is logged (ADR-0059). Start-up never takes a member's link."""
     owner = session.get(User, OWNER)
     if owner is None:  # a database created before the users migration can't get here
         owner = User(id=OWNER, role=ADMIN)
         session.add(owner)
+    taken = session.scalar(
+        select(User.id).where(User.telegram_user_id == telegram_user_id, User.id != OWNER)
+    )
+    if taken is not None:
+        log.error("users.owner_link_taken")  # no ids: whose it is is in the database
+        return owner.id
     if owner.telegram_user_id != telegram_user_id:
         if owner.telegram_user_id is not None:
             log.warning("users.owner_relinked")
@@ -70,6 +79,14 @@ def link_owner(session: Session, telegram_user_id: int) -> int:
             )
         owner.telegram_user_id = telegram_user_id
     return owner.id
+
+
+def owner_chat(session: Session, configured: int | None) -> int | None:
+    """Where the owner's own messages go (ops alerts, a failed backup or deploy): the chat the
+    owner is linked to, never simply the configured account, which could be a member's after a
+    clash (``link_owner``). ``configured`` only before there is an owner at all."""
+    owner = session.get(User, OWNER)
+    return configured if owner is None else owner.telegram_user_id
 
 
 def telegram_chat(session: Session, user_id: int) -> int | None:

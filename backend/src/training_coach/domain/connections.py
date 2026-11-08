@@ -24,7 +24,7 @@ OPT_IN = HEALTH | {Scope.PROPOSE}
 LABELS = {
     Scope.TRAINING: "Your plan, workouts, sets, test days, habits and progress",
     Scope.BODY: "Your body measurements (health data)",
-    Scope.READINESS: "Your readiness answers and daily checks (health data)",
+    Scope.READINESS: "Your daily checks (health data)",
     Scope.PROPOSE: (
         "Suggest workouts, cardio, habits and measurements to log. Nothing is saved until you "
         "tap Save"

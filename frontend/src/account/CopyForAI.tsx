@@ -80,7 +80,7 @@ export default function CopyForAI() {
           checked={readiness}
           onChange={(e) => setReadiness(e.target.checked)}
         />
-        Include readiness answers (health data)
+        Include daily checks (health data)
       </label>
       <p>
         <button type="button" onClick={() => void copy()} className={primaryInline}>
