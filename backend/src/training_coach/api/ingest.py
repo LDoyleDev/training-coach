@@ -21,12 +21,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
 from training_coach.api.alerts import alert
-from training_coach.api.auth import Fresh, Health, Owner
+from training_coach.api.auth import Band, Fresh, Owner
 from training_coach.api.passkeys import _client
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.band_watch import Refusal
-from training_coach.services import health_import, ingest_keys, users
+from training_coach.domain.consent import Category
+from training_coach.services import consent, health_import, ingest_keys, users
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 account_router = APIRouter(prefix="/api/account/ingest", tags=["account"])
@@ -185,10 +186,12 @@ async def health_connect(request: Request, background: BackgroundTasks) -> Inges
         limiter.failed(address, clock)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "unknown ingest secret")
     settings: Settings = request.app.state.settings
-    if users.closed_to(user, settings.multi_user) or not users.health_open(user):
+    with session_scope(shared) as session:
+        consented = consent.opened(session, user, Category.BAND)
+    if users.closed_to(user, settings.multi_user) or not consented:
         # A good secret, so not a failure: a member's phone on the owner's Wi-Fi mustn't lock
         # the owner's uploads out (ADR-0059, review of the joining plan). Band data is health
-        # data, so members are refused it until the lawyer's review even with the switch on.
+        # data, so a member needs to have said yes to it, even with the switch on (ADR-0090).
         raise HTTPException(status.HTTP_403_FORBIDDEN, "closed to members")
     # Busy is checked before the body is read and before the post counts against the secret,
     # and again once it is read; a post turned away then is refunded (review of #324). The
@@ -300,7 +303,7 @@ def _view(request: Request, found: ingest_keys.Status) -> IngestView:
 
 
 @account_router.get("", response_model=IngestView)
-def get_ingest(request: Request, user: Health) -> IngestView:
+def get_ingest(request: Request, user: Band) -> IngestView:
     with session_scope(_bound(request, user)) as session:
         found = ingest_keys.status(session)
     return _view(request, found)
@@ -308,7 +311,7 @@ def get_ingest(request: Request, user: Health) -> IngestView:
 
 @account_router.post("", response_model=NewSecret)
 def make_secret(
-    request: Request, background: BackgroundTasks, user: Health, _fresh: Fresh
+    request: Request, background: BackgroundTasks, user: Band, _fresh: Fresh
 ) -> NewSecret:
     """A new secret for the phone, replacing any earlier one. Needs a recent sign-in and is
     alerted: whoever holds it can add health data."""

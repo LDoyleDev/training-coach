@@ -1051,6 +1051,7 @@ export type DailyCheckAnswers = Schemas['CheckAnswers']
 export async function fetchDailyCheck(signal?: AbortSignal): Promise<DailyCheck | null> {
   const res = await fetch('/api/daily-check', { signal, credentials: 'same-origin' })
   if (res.status === 401) return null
+  await consentNeeded(res) // a member who hasn't said yes to it (ADR-0090)
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as DailyCheck
 }
@@ -1485,6 +1486,71 @@ export async function removeBandSecret(): Promise<void> {
   )
   if (res.status !== 204 && res.status !== 404)
     throw new Error(`The server answered ${res.status}.`)
+}
+
+// ------------------------------------------------------ consent per category (ADR-0090)
+
+export type Consents = Schemas['ConsentsView']
+export type ConsentCategory = Schemas['Category']
+export type CategoryConsent = Schemas['CategoryView']
+
+/** What you've said yes to, per category; null when not signed in. The owner isn't asked:
+ *  ``asked`` is false and every category is open. */
+export async function fetchConsents(signal?: AbortSignal): Promise<Consents | null> {
+  const res = await fetch('/api/consents', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Consents
+}
+
+/** The wording changed since the page loaded (a release meanwhile): reload to read it. */
+export class StaleWordingError extends Error {}
+
+/** A member hasn't said yes to this category yet: a health route answered 403 with
+ *  ``consent_needed``, so the page asks instead of showing an error. */
+export class ConsentNeededError extends Error {
+  readonly category: ConsentCategory
+  constructor(category: ConsentCategory) {
+    super(`Consent needed for ${category}.`)
+    this.category = category
+  }
+}
+
+async function consentNeeded(res: Response): Promise<void> {
+  if (res.status !== 403) return
+  const found = (await res.json().catch(() => null)) as {
+    detail?: { consent_needed?: ConsentCategory }
+  } | null
+  const category = found?.detail?.consent_needed
+  if (category) throw new ConsentNeededError(category)
+}
+
+/** Yes to a category, at the wording version this page shows. */
+export async function giveConsent(category: ConsentCategory, version: number): Promise<Consents> {
+  const res = signedIn(
+    await fetch(`/api/consents/${category}`, {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ version }),
+      credentials: 'same-origin',
+    }),
+  )
+  if (res.status === 409) throw new StaleWordingError()
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Consents
+}
+
+/** Withdraw a category, which deletes its data at once. Needs a recent sign-in. */
+export const withdrawConsent = (category: ConsentCategory) =>
+  withFreshSignIn(() => withdrawNow(category))
+
+async function withdrawNow(category: ConsentCategory): Promise<Consents> {
+  const res = signedIn(
+    await fetch(`/api/consents/${category}`, { method: 'DELETE', credentials: 'same-origin' }),
+  )
+  if (res.status === 403) throw new StaleSignInError()
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Consents
 }
 
 // ------------------------------------------------------------ my equipment (ADR-0071)

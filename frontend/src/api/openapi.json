@@ -87,7 +87,7 @@
         "title": "AiView",
         "type": "object"
       },
-      "Answer": {
+      "Answer-Input": {
         "description": "The browser's answer to a ceremony: WebAuthn JSON, checked by the library.",
         "properties": {
           "credential": {
@@ -102,6 +102,14 @@
         ],
         "title": "Answer",
         "type": "object"
+      },
+      "Answer-Output": {
+        "enum": [
+          "given",
+          "withdrawn"
+        ],
+        "title": "Answer",
+        "type": "string"
       },
       "AnsweredBody": {
         "properties": {
@@ -600,6 +608,62 @@
         "title": "CatalogueItemView",
         "type": "object"
       },
+      "Category": {
+        "enum": [
+          "body",
+          "daily_check",
+          "band",
+          "walkthrough"
+        ],
+        "title": "Category",
+        "type": "string"
+      },
+      "CategoryView": {
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Answer-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "open": {
+            "title": "Open",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "category",
+          "version",
+          "open",
+          "answer",
+          "at"
+        ],
+        "title": "CategoryView",
+        "type": "object"
+      },
       "ChangeBody": {
         "properties": {
           "template_id": {
@@ -945,6 +1009,27 @@
           "scopes"
         ],
         "title": "ConsentView",
+        "type": "object"
+      },
+      "ConsentsView": {
+        "properties": {
+          "asked": {
+            "title": "Asked",
+            "type": "boolean"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryView"
+            },
+            "title": "Categories",
+            "type": "array"
+          }
+        },
+        "required": [
+          "asked",
+          "categories"
+        ],
+        "title": "ConsentsView",
         "type": "object"
       },
       "CoverageDraft": {
@@ -1832,6 +1917,19 @@
           "moves"
         ],
         "title": "FlowView",
+        "type": "object"
+      },
+      "GiveBody": {
+        "properties": {
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "GiveBody",
         "type": "object"
       },
       "GoTo": {
@@ -9060,7 +9158,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Answer"
+                "$ref": "#/components/schemas/Answer-Input"
               }
             }
           },
@@ -9114,7 +9212,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Answer"
+                "$ref": "#/components/schemas/Answer-Input"
               }
             }
           },
@@ -9168,7 +9266,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Answer"
+                "$ref": "#/components/schemas/Answer-Input"
               }
             }
           },
@@ -9845,6 +9943,119 @@
         "summary": "Consent Details",
         "tags": [
           "oauth"
+        ]
+      }
+    },
+    "/api/consents": {
+      "get": {
+        "operationId": "get_consents_api_consents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Consents",
+        "tags": [
+          "consents"
+        ]
+      }
+    },
+    "/api/consents/{category}": {
+      "delete": {
+        "description": "Withdraw, and erase what the category kept. A recent sign-in, as it deletes data.",
+        "operationId": "withdraw_api_consents__category__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Category"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw",
+        "tags": [
+          "consents"
+        ]
+      },
+      "put": {
+        "description": "A yes to the wording shown. 409 if the browser showed an older one (a page loaded before\na release): it reloads and shows the new wording.",
+        "operationId": "give_api_consents__category__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Category"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GiveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Give",
+        "tags": [
+          "consents"
         ]
       }
     },

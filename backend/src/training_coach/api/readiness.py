@@ -1,6 +1,6 @@
 """The health questions for the web app (ADR-0085). The browser asks them, works out the note
 and keeps the answers on the device; this only says whether they're due and records that they
-were answered. Not health data, so members use it too (ADR-0059's training-only rule)."""
+were answered. Not health data, so members use it with no consent asked (ADR-0090)."""
 
 from datetime import UTC, datetime
 

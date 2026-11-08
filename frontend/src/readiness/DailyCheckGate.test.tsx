@@ -241,3 +241,54 @@ test('last night on the band pre-selects the sleep answer, still one tap to conf
   await screen.findByRole('heading', { name: 'Go as planned' })
   expect(sent).toEqual([{ sleep: 'good', soreness: 'none', energy: 'high' }])
 })
+
+// ADR-0090: a member who hasn't said yes to keeping the daily check.
+function serveConsent(given: 'ok' | number = 'ok') {
+  const asked: string[] = []
+  let open = false
+  const fetch = vi.fn(async (path: string, init?: RequestInit) => {
+    asked.push(`${init?.method ?? 'GET'} ${path}`)
+    if (path === '/api/consents/daily_check') {
+      if (typeof given === 'number') return new Response(null, { status: given })
+      open = true
+      return Response.json({ asked: true, categories: [] })
+    }
+    if (path === '/api/daily-check' && !open)
+      return Response.json({ detail: { consent_needed: 'daily_check' } }, { status: 403 })
+    return Response.json(OPEN)
+  })
+  vi.stubGlobal('fetch', fetch)
+  return asked
+}
+
+test('without consent the card comes first; a yes then asks the questions', async () => {
+  localStorage.clear()
+  const asked = serveConsent()
+  show()
+  expect(await screen.findByRole('heading', { name: 'Keep your daily check?' })).toBeInTheDocument()
+  expect(screen.queryByText('the page')).not.toBeInTheDocument()
+  tap('Yes, keep it')
+  expect(await screen.findByText('How did you sleep?')).toBeInTheDocument()
+  expect(asked).toContain('PUT /api/consents/daily_check')
+})
+
+test('“Not now” on the card lets you through and isn’t asked again today', async () => {
+  localStorage.clear()
+  serveConsent()
+  const first = show()
+  fireEvent.click(await screen.findByRole('button', { name: 'Not now' }))
+  expect(screen.getByText('the page')).toBeInTheDocument()
+  first.unmount()
+  show()
+  expect(await screen.findByText('the page')).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Keep your daily check?' })).not.toBeInTheDocument()
+  localStorage.clear()
+})
+
+test('a yes that fails says so on the card', async () => {
+  localStorage.clear()
+  serveConsent(500)
+  show()
+  fireEvent.click(await screen.findByRole('button', { name: 'Yes, keep it' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(/check your connection/i)
+})

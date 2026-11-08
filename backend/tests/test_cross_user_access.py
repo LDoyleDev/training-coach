@@ -63,6 +63,10 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("services.seed::start_person", ALL): "one person's starting rows, naming them in each query",
     ("services.ai_key::rotate_all", ALL): "re-seals every person's key with a new app key",
     ("api.app::create_app", UNBOUND): "app.state.shared_sessions, for the lookups below",
+    (
+        "db.session::unbound_like",
+        UNBOUND,
+    ): "the bot's sender gate: whose Telegram account (users only)",
     ("api.app::create_app", SHARED): "made once here",
     ("api.app::create_app.lifespan", UNBOUND): (
         "links the owner at start-up (users.link_owner) and reads their chat; finds who left and "
@@ -84,6 +88,10 @@ ALLOWED: dict[tuple[str, str], str] = {
         UNBOUND,
     ): "the owner's linked chat, for an ops alert (users rows only)",
     ("services.backup::create", RAW): "sqlite3's backup API copies the whole file",
+    (
+        "services.consent::open_to",
+        ALL,
+    ): "one person's consents, by id, before their session is open (token check, phone)",
 }
 
 

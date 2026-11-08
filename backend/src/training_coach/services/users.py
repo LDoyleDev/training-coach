@@ -24,15 +24,6 @@ def closed_to(user_id: int, multi_user: bool) -> bool:
     return not multi_user and user_id != OWNER
 
 
-def health_open(user_id: int) -> bool:
-    """Whether ``user_id`` may keep health data: body measurements and photos, daily
-    checks, heart rate and band data (the health questions' answers never reach the server,
-    ADR-0085). Members are training-only until a lawyer
-    has reviewed the privacy notice, the consent step and a DPIA (ADR-0059, Decided 14), so only
-    the owner, by id, until then."""
-    return user_id == OWNER
-
-
 def is_admin(session: Session, user_id: int) -> bool:
     """Whether ``user_id`` is an admin. Run in an unbound session (``users`` is shared)."""
     found = session.get(User, user_id)
@@ -79,6 +70,12 @@ def link_owner(session: Session, telegram_user_id: int) -> int:
             )
         owner.telegram_user_id = telegram_user_id
     return owner.id
+
+
+def by_telegram(session: Session, telegram_user_id: int) -> int | None:
+    """Whose Telegram account this is: the user id linked to it, or None for a stranger (the
+    bot's sender gate, ADR-0089). Any session may ask: users aren't per-person rows."""
+    return session.scalar(select(User.id).where(User.telegram_user_id == telegram_user_id))
 
 
 def owner_chat(session: Session, configured: int | None) -> int | None:

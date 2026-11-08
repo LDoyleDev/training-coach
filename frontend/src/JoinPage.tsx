@@ -49,6 +49,10 @@ export default function JoinPage() {
       </header>
       <main className="flex flex-col gap-3">
         <h1 className="text-3xl font-extrabold">Join Training Coach</h1>
+        <p className="m-0">
+          This is a private test for invited family and friends. It isn't open to anyone else, and
+          you can leave and delete everything at any time on Account.
+        </p>
         {!token && <p>This link has no invite in it. Open the link you were sent.</p>}
         {token && state !== 'joined' && (
           <>
