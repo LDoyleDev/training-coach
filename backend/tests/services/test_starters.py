@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from sqlalchemy import Engine, select
 
 from training_coach.db.models import (
+    Exercise,
     ExerciseState,
     LadderStep,
     PlanNotice,
@@ -185,6 +186,29 @@ def test_a_new_person_starts_on_the_three_day_starter_at_the_bottom(engine: Engi
     ]
     assert len(steps) == len(bundled_plan().exercises)
     assert set(steps) == {0}
+
+
+def test_an_exercise_added_later_starts_at_the_bottom_for_all_but_the_owner(engine: Engine) -> None:
+    """Whatever plan a member has by then: setup's answers move them up, not the catalogue."""
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=2))
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, bundled_plan())
+    data = tomllib.loads(files("training_coach.seed").joinpath("plan.toml").read_text("utf-8"))
+    added = copy.deepcopy(_exercise(data, "pull-up"))
+    added.update(slug="pull-up-2", name="Pull-up again", aliases=[], start=2)
+    data["exercises"].append(added)
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, PlanSeed.model_validate(data))
+    for user_id, position in ((OWNER, 2), (2, 0)):
+        with make_session_factory(engine, user_id=user_id)() as mine:
+            found = mine.scalar(
+                select(LadderStep.position)
+                .join(ExerciseState, ExerciseState.ladder_step_id == LadderStep.id)
+                .join(Exercise, Exercise.id == ExerciseState.exercise_id)
+                .where(Exercise.slug == "pull-up-2")
+            )
+        assert found == position, user_id
 
 
 def _before() -> PlanSeed:
