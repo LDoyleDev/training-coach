@@ -582,7 +582,9 @@ chair seat (2), the side plank at a counter (2) and the glute bridge at its stan
 
 **What the seed needs to accept these:** an exercise with a catalogue `range` can't also be used
 by a session, so `range` comes off the squat, hip hinge and balance, and each session item sets
-its own. `start` is 0 for every exercise in a starter.
+its own. `start` is 0 for every exercise in a starter. Built (8 Nov 2026) as `[[starters]]` in
+`plan.toml`, with a new person on the 3-day until setup picks; someone on a starter starts every
+exercise at its bottom step, leaving `start` as the owner's cycle has it (ADR-0073, addendum).
 
 #### Decided (8 Nov 2026)
 

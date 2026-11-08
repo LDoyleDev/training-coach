@@ -114,11 +114,12 @@ def _today(client: TestClient) -> object:
 
 
 def _move_through_the_plan(client: TestClient, engine: Engine, user: int) -> None:
-    """Log yesterday's planned session at its targets, push today's, change a level."""
-    yesterday = TODAY - timedelta(days=1)
+    """Log a planned session two days ago at its targets, push today's, change a level. Two
+    days: a member's starter rests a day after a session (ADR-0091), so today has the next."""
+    earlier = TODAY - timedelta(days=2)
     first = _first_session(engine, user)
     plan = client.get(
-        "/api/log/plan", params={"day": yesterday.isoformat(), "template_id": first}
+        "/api/log/plan", params={"day": earlier.isoformat(), "template_id": first}
     ).json()
     sets = [
         {"item": i, "set_no": n + 1, "left": target}
@@ -127,7 +128,7 @@ def _move_through_the_plan(client: TestClient, engine: Engine, user: int) -> Non
     ]
     body = {
         "token": "ab" * 16,
-        "day": yesterday.isoformat(),
+        "day": earlier.isoformat(),
         "what": "session",
         "template_id": first,
         "sets": sets,

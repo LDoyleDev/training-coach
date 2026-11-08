@@ -43,10 +43,10 @@ def test_a_range_runs_low_to_high_and_only_where_no_session_sets_one() -> None:
 
 
 def test_every_exercise_that_asks_can_you_do_it_has_a_range() -> None:
-    """Its questions ask for the bottom of the range: a session's, or its own when no session
-    uses it. A one-step gym exercise no session uses asks nothing."""
+    """Its questions ask for the bottom of the range: a session's (a starter's too), or its own
+    when no session uses it. A one-step gym exercise no session uses asks nothing."""
     plan = load_plan()
-    used = {i.exercise for s in plan.sessions for i in s.versions}
+    used = {i.exercise for s in plan.every_session for i in s.versions}
     unranged = [
         e.slug for e in plan.exercises if e.questions and e.slug not in used and e.range is None
     ]
@@ -164,7 +164,9 @@ def test_balance_counts_seconds_and_marks_every_step_without_a_hold() -> None:
     counter (ADR-0083)."""
     balance = next(e for e in load_plan().exercises if e.slug == "balance")
     assert balance.kind is ExerciseKind.SECONDS
-    assert balance.range == (3, 10)
+    ranges = {(i.rep_min, i.rep_max) for s in load_plan().every_session for i in s.versions
+              if i.exercise == "balance"}  # fmt: skip
+    assert ranges == {(3, 10)}  # the starters' (any-level S1)
     assert balance.qualities == ["balance"]
     assert all(Mark.BALANCE in balance.marks[step] for step in balance.ladder[1:])
     low = [step for step in balance.ladder if balance.levels[step] <= StepLevel.BUILDING]

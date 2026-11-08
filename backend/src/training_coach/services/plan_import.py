@@ -144,7 +144,7 @@ def save(session: Session, plan: PlanSeed, today: date) -> Preview:
         return found
     result = SeedResult()
     exercises = {e.slug: e for e in session.scalars(select(Exercise))}
-    sync_sessions(session, plan, OWNER, exercises, result)
+    sync_sessions(session, plan.sessions, OWNER, exercises, result)
     name = found.version or "Imported from plan.toml"
     version = session.scalar(select(PlanVersion).where(PlanVersion.since == today))
     if version is None:
