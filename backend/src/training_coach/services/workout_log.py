@@ -10,7 +10,7 @@ import re
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -43,7 +43,7 @@ from training_coach.services import blocks, day_clash, undo, user_settings, user
 from training_coach.services.blocks import load_kit, loadable
 from training_coach.services.day_clash import Clash, Refused, Resolution, Resolved
 from training_coach.services.groq import Rewrite
-from training_coach.services.today import away_on, position
+from training_coach.services.today import away_on, picked_today, position
 
 EXTRA = "Extra session"
 REST_WORD = re.compile(r"\brest\b", re.IGNORECASE)
@@ -101,10 +101,6 @@ class Stale:
     log) or it names an exercise that is gone. Nothing was written; ask for the log again."""
 
 
-def _day_start_utc(on: date, tz: ZoneInfo) -> datetime:
-    return datetime.combine(on, time(0), tzinfo=tz).astimezone(UTC)
-
-
 def target(session: Session, on: date, tz: ZoneInfo) -> SessionTemplate | None:
     """The planned session a log on ``on`` belongs to, or None for an extra (ADR-0014).
 
@@ -120,18 +116,8 @@ def target(session: Session, on: date, tz: ZoneInfo) -> SessionTemplate | None:
     )
     if done_today is not None:
         return None
-    picked = session.scalar(
-        select(Event.payload)
-        .where(
-            Event.kind == "queue.picked",
-            Event.at >= _day_start_utc(on, tz),
-            Event.at < _day_start_utc(on + timedelta(days=1), tz),
-        )
-        .order_by(Event.id.desc())
-        .limit(1)
-    )
-    picked_id = picked.get("picked") if isinstance(picked, dict) else None
-    if isinstance(picked_id, int):
+    picked_id = picked_today(session, on, tz)
+    if picked_id is not None:
         template = session.get(SessionTemplate, picked_id)
         if template is not None:
             return template

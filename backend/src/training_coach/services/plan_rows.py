@@ -38,6 +38,7 @@ class PlannedSession:
     optional: bool
     items: tuple[PlannedItem, ...]  # the home version
     gym: tuple[PlannedItem, ...]  # empty: done the same way at the gym
+    rest_after: int = 0  # rest places after it in the queue (ADR-0091)
 
 
 def session_in_progress(session: Session, today: date) -> bool:
@@ -112,6 +113,7 @@ def planned_sessions(session: Session) -> list[PlannedSession]:
             optional=template.is_rest_optional,
             items=_items(template.items, known),
             gym=_items(template.gym_items, known),
+            rest_after=template.rest_after,
         )
         for template in found
     ]

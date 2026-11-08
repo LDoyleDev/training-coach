@@ -171,6 +171,7 @@ class SessionTemplate(Owned, Base):
         UniqueConstraint("user_id", "id"),
         CheckConstraint("position >= 0", name="position_non_negative"),
         CheckConstraint("kind IN ('strength', 'conditioning', 'recovery')", name="kind_valid"),
+        CheckConstraint("rest_after BETWEEN 0 AND 6", name="rest_after_range"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -183,6 +184,8 @@ class SessionTemplate(Owned, Base):
     # strength | conditioning | recovery (plan.toml): strength sessions get the warm-up prompt
     # and, in a strength block, the strength prescription (ADR-0028).
     kind: Mapped[str] = mapped_column(String(16), server_default="strength")
+    # The queue's rest places after it (ADR-0091): days with no session once it is done.
+    rest_after: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
 
     # The home version (ADR-0071): what every reader of the plan sees unless it asks for a place.
     items: Mapped[list["TemplateItem"]] = relationship(

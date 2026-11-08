@@ -176,6 +176,11 @@ def tests_where(public_url: str | None) -> str:
     return f"{public_url}/body?tab=tests" if public_url else "the Tests tab of the Body page"
 
 
+def rest_day_text(today: Today) -> str:
+    """A rest place's day (ADR-0091): no session, and the one that comes next."""
+    return f"Today: rest day. No session planned.\nNext: {today.session.name}."
+
+
 def test_day_text(today: Today, where: str) -> str:
     """A test day in place of the session (ADR-0038): the tests, where to enter them, and that
     the session waits."""

@@ -2,8 +2,9 @@
 
 Which session today is follows the same rule as a typed log (``workout_log.target``): the one
 picked today, else the one at the queue's pointer; once a planned session is done or rested
-today, or held for tomorrow (Rest today or Push), there is none. Sets come in work order
-(ADR-0031), with any pair swapped to start with its second exercise.
+today, held for tomorrow (Rest today or Push), or the day is a rest place (ADR-0091), there
+is none. Sets come in work order (ADR-0031), with any pair swapped to start with its second
+exercise.
 
 The exception is a conditioning session with more than its cardio (ADR-0066): once the cardio is
 logged, however it was logged, the rest of that session stays open until the day ends, and its
@@ -60,7 +61,13 @@ from training_coach.services import (
 )
 from training_coach.services.day_clash import Clash, Refused, Resolution
 from training_coach.services.seed import bundled_plan
-from training_coach.services.today import ItemPlan, SessionPlan, position, session_plan
+from training_coach.services.today import (
+    ItemPlan,
+    SessionPlan,
+    position,
+    rest_day,
+    session_plan,
+)
 
 SET_SECONDS = 45  # a rough working set, for the time estimate only
 HIIT = "hiit"  # the exercise that counts rounds, not reps
@@ -369,7 +376,7 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
     template = workout_log.target(session, on, tz)
     if template is None:
         return _after_run(session, on, tz, first)
-    if held_today(session, on):
+    if held_today(session, on) or rest_day(session, on, tz):
         return None
     block = blocks.current(session, on, tz)
     plan = session_plan(session, template.id, block, chosen(session, on, template.id, False), on=on)

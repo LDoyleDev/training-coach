@@ -124,6 +124,15 @@ def test_back_to_back_wraps_round_the_week() -> None:
     assert coverage(spaced).muscles[0].back_to_back is None
 
 
+def test_a_rest_place_between_two_sessions_is_a_day_off() -> None:
+    """ADR-0091: A, rest, B is no longer two days running; B then A (the wrap) still is."""
+    a, b = _item(4, {Q: 1}), _item(5, {Q: 1})
+    rested = [Day("A", [a], rest_after=1), Day("B", [b])]
+    assert coverage(rested).muscles[0].back_to_back == ("B", "A")
+    both = [Day("A", [a], rest_after=1), Day("B", [b], rest_after=2)]
+    assert coverage(both).muscles[0].back_to_back is None
+
+
 def test_a_part_is_flagged_until_an_exercise_reaches_it() -> None:
     pressing = Day("A", [_item(6, {T: 0.5})])
     assert coverage([pressing]).muscles[6].missing_parts == (Part.TRICEPS_LONG_HEAD,)

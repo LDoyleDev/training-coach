@@ -164,7 +164,7 @@ class DailyCheckHandlers:
             daily_check.save(session, tap.day, answers, datetime.now(UTC))
             if advice is Advice.REST:
                 plan = todays_session(session, tap.day, self.settings.tz)
-                if plan is not None and plan.test_day is None:
+                if plan is not None and plan.test_day is None and not plan.rest_day:
                     rest = plan.session.template_id
         await query.answer()
         await edit_quietly(query.edit_message_reply_markup(merged(current, PREFIX, [])))

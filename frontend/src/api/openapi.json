@@ -7942,6 +7942,16 @@
             ],
             "title": "Readiness Note"
           },
+          "rest_day": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QueuedView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "session": {
             "anyOf": [
               {

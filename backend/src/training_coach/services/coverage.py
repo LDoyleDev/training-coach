@@ -107,5 +107,14 @@ def plan_coverage(
                 )
             )
         minutes = _minutes(version, exercises, planned.kind)
-        week.append(domain.Day(planned.name, items, slug=planned.slug, place=at, minutes=minutes))
+        week.append(
+            domain.Day(
+                planned.name,
+                items,
+                slug=planned.slug,
+                place=at,
+                minutes=minutes,
+                rest_after=planned.rest_after,
+            )
+        )
     return domain.coverage(week)

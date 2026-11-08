@@ -611,7 +611,8 @@ Liam's answer to these questions was "All OK to proceed", so each one is decided
    place every day, a missed session still moves everything back a day, and the map counts days
    correctly. The days tapped in the walk-through set where the queue starts. The other option,
    offering sessions only on the tapped days, was turned down: it adds a second rule beside the
-   queue, and a missed Monday would wait until Wednesday.
+   queue, and a missed Monday would wait until Wednesday. Built as rest days after a session
+   (ADR-0091).
 
 ## In the code, in outline
 
