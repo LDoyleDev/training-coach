@@ -43,7 +43,7 @@ async def test_a_test_day_morning_names_the_tests_and_where_to_enter_them(
     seeded: Sessions,
 ) -> None:
     handlers = Handlers(WITH_URL, seeded)
-    _, before = handlers._today()
+    _, before = handlers._today(seeded)
     assert before is not None
     session_id = before.inline_keyboard[0][0].callback_data
     _tested(seeded, 1, 1, handlers)
@@ -67,7 +67,7 @@ async def test_a_test_day_morning_names_the_tests_and_where_to_enter_them(
 async def test_without_a_public_url_the_tests_page_is_named(seeded: Sessions) -> None:
     handlers = Handlers(SETTINGS, seeded)
     _tested(seeded, 1, 1, handlers)
-    text, _ = handlers._today()
+    text, _ = handlers._today(seeded)
     assert "Enter the results in the app: the Tests tab of the Body page" in text
 
 

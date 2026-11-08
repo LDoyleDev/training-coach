@@ -94,9 +94,9 @@ async def test_the_morning_shows_the_planned_length_and_offers_a_shorter_one(
 async def test_today_follows_a_shorter_day_chosen_in_the_app(seeded: Sessions) -> None:
     _at(seeded, "legs")
     handlers = Handlers(SETTINGS, seeded)
-    before, _ = handlers._today()
+    before, _ = handlers._today(seeded)
     _choose(seeded, handlers, 20)
-    text, _ = handlers._today()
+    text, _ = handlers._today(seeded)
     lines = text.splitlines()
     assert DROPPED_AT_20 in lines
     assert SHORT_ON_TIME not in text
@@ -113,7 +113,7 @@ async def test_forty_minutes_keeps_every_exercise_at_two_sets_and_the_warm_up(
     _at(seeded, "legs")
     handlers = Handlers(SETTINGS, seeded)
     _choose(seeded, handlers, 40)
-    text, _ = handlers._today()
+    text, _ = handlers._today(seeded)
     lines = text.splitlines()
     assert "Shortened to 40 minutes in the app." in lines
     assert WARM_UP in lines
@@ -136,7 +136,7 @@ async def test_a_day_that_cannot_get_that_short_says_how_short_it_got(seeded: Se
         shortest = plan.length.trimmed.shortest
     assert shortest is not None
     assert shortest > 20
-    text, _ = handlers._today()
+    text, _ = handlers._today(seeded)
     assert (
         f"Shortened as far as it goes in the app: about {shortest} minutes; dropped: "
         "Split squat, Kettlebell swing, Jump squat."
@@ -154,10 +154,10 @@ async def test_a_day_that_cannot_get_that_short_says_how_short_it_got(seeded: Se
 async def test_as_planned_again_shows_the_whole_list(seeded: Sessions) -> None:
     _at(seeded, "legs")
     handlers = Handlers(SETTINGS, seeded)
-    before, _ = handlers._today()
+    before, _ = handlers._today(seeded)
     _choose(seeded, handlers, 20)
     _choose(seeded, handlers, None)
-    text, _ = handlers._today()
+    text, _ = handlers._today(seeded)
     assert text == before
 
 
@@ -165,14 +165,14 @@ async def test_no_offer_once_the_session_has_started(seeded: Sessions) -> None:
     _at(seeded, "legs")
     handlers = Handlers(SETTINGS, seeded)
     _keep_first_set(seeded, handlers)
-    text, _ = handlers._today()
+    text, _ = handlers._today(seeded)
     assert LEGS_PLANNED in text.splitlines()
     assert SHORT_ON_TIME not in text
 
 
 async def test_a_conditioning_session_offers_it_without_a_warm_up(seeded: Sessions) -> None:
     _at(seeded, "moderate-cardio")
-    text, _ = Handlers(SETTINGS, seeded)._today()
+    text, _ = Handlers(SETTINGS, seeded)._today(seeded)
     (line,) = [line for line in text.splitlines() if line.startswith("About ")]
     assert line.endswith(f" minutes. {SHORT_ON_TIME}")
     assert "Warm up" not in text
@@ -180,14 +180,14 @@ async def test_a_conditioning_session_offers_it_without_a_warm_up(seeded: Sessio
 
 async def test_a_session_shorter_than_every_length_is_not_offered_one(seeded: Sessions) -> None:
     _at(seeded, "hiit")
-    text, _ = Handlers(SETTINGS, seeded)._today()
+    text, _ = Handlers(SETTINGS, seeded)._today(seeded)
     assert "About 4 minutes." in text.splitlines()  # 8 rounds of 30 s
     assert SHORT_ON_TIME not in text
 
 
 async def test_a_recovery_session_is_not_offered_shorter(seeded: Sessions) -> None:
     _at(seeded, "recovery")
-    text, _ = Handlers(SETTINGS, seeded)._today()
+    text, _ = Handlers(SETTINGS, seeded)._today(seeded)
     assert SHORT_ON_TIME not in text
     assert "About " not in text
 
@@ -254,7 +254,7 @@ async def test_the_work_list_names_what_the_setting_drops(seeded: Sessions) -> N
     _at(seeded, "legs")
     _setting(seeded, 20)
     handlers = Handlers(SETTINGS, seeded)
-    text, _ = handlers._today()
+    text, _ = handlers._today(seeded)
     about = _minutes_today(seeded, handlers)
     assert (
         f"About {about} minutes at your 20-minute setting; dropped: Hamstring curl, "
@@ -267,10 +267,10 @@ async def test_the_work_list_names_what_the_setting_drops(seeded: Sessions) -> N
 async def test_a_days_as_planned_overrides_the_setting(seeded: Sessions) -> None:
     _at(seeded, "legs")
     handlers = Handlers(SETTINGS, seeded)
-    planned, _ = handlers._today()
+    planned, _ = handlers._today(seeded)
     _setting(seeded, 20)
     _choose(seeded, handlers, None)
-    text, _ = handlers._today()
+    text, _ = handlers._today(seeded)
     assert text == planned
 
 
@@ -279,7 +279,7 @@ async def test_no_other_length_is_offered_once_the_session_has_started(seeded: S
     _setting(seeded, 30)
     handlers = Handlers(SETTINGS, seeded)
     _keep_first_set(seeded, handlers)
-    text, _ = handlers._today()
+    text, _ = handlers._today(seeded)
     about = _minutes_today(seeded, handlers)
     assert f"About {about} minutes at your 30-minute setting." in text.splitlines()
     assert ANOTHER_LENGTH not in text

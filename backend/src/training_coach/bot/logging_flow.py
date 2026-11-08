@@ -1,6 +1,6 @@
 """Typed workout logs: parse, confirm, save (step 1-E; ADR-0007).
 
-Drafts stay in the bot's memory, kept per person (their Telegram id) and keyed by their random
+Drafts stay in the bot's memory, kept per person (their user id) and keyed by their random
 token; buttons carry only ``l:<action>:<token>``, never ids, so a forged press can at most name
 a draft that exists, and only among the presser's own.
 A restart forgets drafts: the user is asked to send the log again.
@@ -17,7 +17,7 @@ from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import structlog
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update, Voice
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
@@ -28,6 +28,7 @@ from training_coach.bot import links
 from training_coach.bot import progress as progress_ui
 from training_coach.bot import stretching as stretching_ui
 from training_coach.bot.buttons import edit_quietly
+from training_coach.bot.gate import Person
 from training_coach.bot.messages import (
     LOG_CANCELLED,
     LOG_EDIT,
@@ -114,15 +115,14 @@ def keyboard(token: str) -> InlineKeyboardMarkup:
 
 
 class LogHandlers:
-    def __init__(
-        self, settings: Settings, sessions: sessionmaker[Session], groq: GroqClient | None = None
-    ) -> None:
+    """Each handler gets the person the gate found and works in their sessions only."""
+
+    def __init__(self, settings: Settings, groq: GroqClient | None = None) -> None:
         self.settings = settings
-        self.sessions = sessions
         self.groq = groq  # None until TC_GROQ_API_KEY is set: voice notes get the typed fallback
-        # Telegram id -> that person's drafts: one person's logs never push out another's.
+        # User id -> that person's drafts: one person's logs never push out another's.
         self.drafts: dict[int, OrderedDict[str, Draft]] = {}
-        # Telegram id -> draft token -> the clash shown for it, and a day to move to that was
+        # User id -> draft token -> the clash shown for it, and a day to move to that was
         # found taken (ADR-0060); and the draft waiting for a typed date after Move.
         self.asked: dict[int, dict[str, tuple[Clash, date | None]]] = {}
         self.moving: dict[int, str] = {}
@@ -130,26 +130,27 @@ class LogHandlers:
     def _today(self) -> date:
         return local_date(datetime.now(UTC), self.settings.tz)
 
-    def _remember(self, author: int, draft: Draft) -> None:
+    def _remember(self, author: int, draft: Draft) -> None:  # author: a user id
         mine = self.drafts.setdefault(author, OrderedDict())
         mine[draft.token] = draft
         while len(mine) > MAX_DRAFTS:
             gone, _ = mine.popitem(last=False)
             self.asked.get(author, {}).pop(gone, None)
 
-    async def message(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Plain text from the owner (the handler's filter already checked the sender)."""
+    async def message(
+        self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person
+    ) -> None:
+        """Plain text from someone the gate let through."""
         message = update.effective_message
         if message is None or not message.text:
             return
-        if message.from_user is not None and await self._typed_move(
-            message, message.from_user.id, message.text
-        ):
+        if await self._typed_move(message, me, message.text):
             return
-        await self._draft_and_confirm(message, message.text)
+        await self._draft_and_confirm(message, me, message.text)
 
-    async def _typed_move(self, message: Message, author: int, text: str) -> bool:
+    async def _typed_move(self, message: Message, me: Person, text: str) -> bool:
         """A date sent after Move answers the question; anything else is a new log."""
+        author = me.user_id
         token = self.moving.pop(author, None)
         if token is None:
             return False
@@ -164,15 +165,15 @@ class LogHandlers:
             self.moving[author] = token  # still waiting for a date
             await message.reply_text(f"{found}. Send another date, or tap a day.")
             return True
-        reply, markup = self._save(author, draft, found)
+        reply, markup = self._save(me, draft, found)
         await message.reply_text(reply, reply_markup=markup)
         return True
 
-    async def voice(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """A voice note from the owner: transcribe, then the same confirm flow as text.
+    async def voice(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """A voice note: transcribe, then the same confirm flow as text.
 
         The audio is downloaded into memory only, never to disk, and the transcript is shown
-        to the owner but never logged (ADR-0008, threat model).
+        to the person but never logged (ADR-0008, threat model).
         """
         message = update.effective_message
         if message is None or message.voice is None:
@@ -185,7 +186,7 @@ class LogHandlers:
         if seconds > MAX_VOICE_SECONDS or (voice.file_size or 0) > MAX_VOICE_BYTES:
             await message.reply_text(VOICE_TOO_LONG)
             return
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             vocabulary = workout_log.exercise_names(session)
             allowed = groq_quota.left(session, datetime.now(UTC), self.settings.tz)
         if not allowed:
@@ -204,7 +205,7 @@ class LogHandlers:
             log.warning("bot.voice_failed", error=type(exc).__name__)
             await message.reply_text(VOICE_FAILED)
             return
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             # Groq answered: one of today's uses. Two notes at once can both pass the check
             # before either counts, so the cap can be passed by a note or two: fine for fairness.
             groq_quota.count(session, datetime.now(UTC))
@@ -212,12 +213,12 @@ class LogHandlers:
             await message.reply_text(VOICE_FAILED)
             return
         log.info("bot.voice_transcribed", seconds=seconds)
-        await self._draft_and_confirm(message, heard, heard=heard)
+        await self._draft_and_confirm(message, me, heard, heard=heard)
 
     async def _draft_and_confirm(
-        self, message: Message, text: str, heard: str | None = None
+        self, message: Message, me: Person, text: str, heard: str | None = None
     ) -> None:
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             draft = workout_log.draft(session, text, self._today(), self.settings.tz)
             names = workout_log.exercise_labels(session)
         assisted = False
@@ -225,7 +226,7 @@ class LogHandlers:
         # put back under the same line. A refused date isn't sent at all (#104).
         first, _, body = text.partition("\n")
         dated = date_line(first, self._today())
-        with session_scope(self.sessions) as session:  # a date or a session's name on top
+        with session_scope(me.sessions) as session:  # a date or a session's name on top
             head = workout_log.heading(session, first, self._today())
         if (
             draft.problems
@@ -234,6 +235,7 @@ class LogHandlers:
             and not isinstance(dated, str)
         ):
             model_draft = await self._model_reading(
+                me,
                 body if head else text,
                 [name for name, _ in names.values()],
                 heading=first if head else None,
@@ -246,8 +248,8 @@ class LogHandlers:
             ):
                 draft, assisted = model_draft, True
         markup = None
-        if message.from_user is not None and (draft.entries or (draft.rest and not draft.problems)):
-            self._remember(message.from_user.id, draft)
+        if draft.entries or (draft.rest and not draft.problems):
+            self._remember(me.user_id, draft)
             markup = keyboard(draft.token)
         log.info(
             "bot.log_drafted",
@@ -263,16 +265,16 @@ class LogHandlers:
         await message.reply_text(reply, reply_markup=markup)
 
     async def _model_reading(
-        self, text: str, names: list[str], heading: str | None = None
+        self, me: Person, text: str, names: list[str], heading: str | None = None
     ) -> Draft | None:
         """The language model's reading, used only when it reads cleanly (ADR-0007, 0008).
 
         Its output is never data: it becomes plain log text, which the same rule parser must
-        accept with no problems at all, and the owner still confirms before anything is saved.
+        accept with no problems at all, and the person still confirms before anything is saved.
         """
         if self.groq is None:
             return None
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             allowed = groq_quota.left(session, datetime.now(UTC), self.settings.tz)
         if not allowed:  # today's uses of the shared key are spent: the rule parser's reading
             return None
@@ -281,12 +283,12 @@ class LogHandlers:
         except GroqUnavailableError as exc:
             log.warning("bot.model_fallback_failed", reason=exc.reason)
             return None
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             groq_quota.count(session, datetime.now(UTC))
         model_text = workout_log.rewrite_text(rewrite)
         if not model_text:
             return None
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             reread_text = f"{heading}\n{model_text}" if heading is not None else model_text
             reread = workout_log.draft(session, reread_text, self._today(), self.settings.tz)
         if not reread.entries or reread.problems:
@@ -302,33 +304,33 @@ class LogHandlers:
             return replace(reread, problems=(note,))
         return reread
 
-    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Save / Edit / Cancel. Strangers get nothing, not even an answer (T1)."""
+    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """Save / Edit / Cancel, on the presser's own drafts only."""
         query = update.callback_query
-        user = update.effective_user
-        if query is None or user is None or user.id != self.settings.telegram_allowed_user_id:
+        if query is None:
             return
+        author = me.user_id
         press = parse(query.data)
         await query.answer()
         if press is None or not isinstance(query.message, Message):
             return
         # Saved drafts stay (bounded by MAX_DRAFTS) so a second Save tap answers "already
         # saved" from the database instead of "expired", which would invite a duplicate.
-        mine = self.drafts.get(user.id, OrderedDict())
+        mine = self.drafts.get(author, OrderedDict())
         draft = mine.get(press.token)
         markup = None
         if press.action == "save":
-            reply, markup = (LOG_EXPIRED, None) if draft is None else self._save(user.id, draft)
+            reply, markup = (LOG_EXPIRED, None) if draft is None else self._save(me, draft)
         elif press.action != "cancel" and clash_ui.is_answer(press.action):
-            found = self.asked.get(user.id, {}).get(press.token)
+            found = self.asked.get(author, {}).get(press.token)
             if draft is None or found is None:
                 reply = LOG_EXPIRED
             else:
-                reply, markup = self._answer(user.id, draft, press.action, found)
+                reply, markup = self._answer(me, draft, press.action, found)
         else:
-            self.moving.pop(user.id, None)
+            self.moving.pop(author, None)
             mine.pop(press.token, None)
-            self.asked.get(user.id, {}).pop(press.token, None)
+            self.asked.get(author, {}).pop(press.token, None)
             reply = LOG_CANCELLED if press.action == "cancel" else LOG_EDIT
         # Act first, then retire the buttons: if the edit fails, the outcome already stands
         # and a retry answers "already saved".
@@ -336,16 +338,16 @@ class LogHandlers:
         await query.message.reply_text(reply, reply_markup=markup)
 
     def _answer(
-        self, author: int, draft: Draft, action: str, found: tuple[Clash, date | None]
+        self, me: Person, draft: Draft, action: str, found: tuple[Clash, date | None]
     ) -> tuple[str, InlineKeyboardMarkup | None]:
         """An answer to the question: Move shows the days to pick; the rest save with it."""
         clash, taken = found
         if action == MOVE:
-            self.moving[author] = draft.token
+            self.moving[me.user_id] = draft.token
             keyboard = clash_ui.days_keyboard(PREFIX, draft.token, clash, self._today(), taken)
             return clash_ui.MOVE_ASK, keyboard
         answer = clash_ui.resolution(action, clash, self._today())
-        return self._save(author, draft, answer)
+        return self._save(me, draft, answer)
 
     def _asked(
         self, author: int, draft: Draft, result: Clash | Refused, answer: Resolution | None
@@ -369,12 +371,13 @@ class LogHandlers:
         return reply, clash_ui.keyboard(PREFIX, draft.token, one)
 
     def _save(
-        self, author: int, draft: Draft, answer: Resolution | None = None
+        self, me: Person, draft: Draft, answer: Resolution | None = None
     ) -> tuple[str, InlineKeyboardMarkup | None]:
         """The saved reply, with bests, any "ready to progress" prompts (1-G) and "Open in
         app" (C1); or the question, when the day already has its session (ADR-0060)."""
+        author = me.user_id
         markup: InlineKeyboardMarkup | None = None
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             result = workout_log.save(session, draft, self.settings.tz, answer)
             if isinstance(result, Clash | Refused):
                 text, markup = self._asked(author, draft, result, answer)

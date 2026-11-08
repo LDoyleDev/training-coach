@@ -6,15 +6,21 @@ someone linked in ``users.telegram_user_id``. Strangers, groups, channels and ev
 update stop here without a reply, and so does a member while ``TC_MULTI_USER`` is off (ADR-0059).
 Someone away from Europe for 30 days gets one line (ADR-0085), except for /login and /recover.
 
+A handler registered through ``Gate.served`` gets the ``Person``, with sessions bound to them
+(ADR-0029), and does nothing without one.
+
 PTB carries on to the next group when a handler raises anything but ``ApplicationHandlerStop``,
 so the gate catches everything and stops: it fails closed. A database error is told only to a
 sender it has served before in this process, or to the configured owner account, never to a
 stranger.
 """
 
+import functools
 from collections import OrderedDict
-from dataclasses import dataclass
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
@@ -25,7 +31,7 @@ from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 from training_coach.bot.messages import SOMETHING_WENT_WRONG
 from training_coach.config import Settings
-from training_coach.db.session import session_scope
+from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import users
 
 log = structlog.get_logger(__name__)
@@ -49,10 +55,15 @@ class Person:
 
     user_id: int
     chat: int  # their private chat, which is their Telegram user id
+    sessions: sessionmaker[Session] = field(compare=False, repr=False)  # bound to user_id
 
     @property
     def owner(self) -> bool:
         return self.user_id == users.OWNER
+
+
+Callback = Callable[[Update, ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
+ForPerson = Callable[[Update, ContextTypes.DEFAULT_TYPE, Person], Coroutine[Any, Any, None]]
 
 
 class Gate:
@@ -61,6 +72,25 @@ class Gate:
         self.shared = shared  # unbound: users is a shared table
         self.seen: set[int] = set()  # Telegram ids served since start-up
         self.found: OrderedDict[int, Person] = OrderedDict()  # update id -> person
+        self.bound: dict[int, sessionmaker[Session]] = {}  # user id -> their sessions
+
+    def served(self, handler: ForPerson) -> Callback:
+        """``handler`` with the person this update is from; nothing runs without one. It keeps
+        ``handler`` as ``__wrapped__``, so a test can tell a served callback from the rest."""
+
+        @functools.wraps(handler)
+        async def run(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            me = self.person(update)
+            if me is not None:
+                await handler(update, context, me)
+
+        return run
+
+    def _sessions(self, user_id: int) -> sessionmaker[Session]:
+        # One factory per person, made once: each handler still opens short sessions with it.
+        if user_id not in self.bound:
+            self.bound[user_id] = make_session_factory(self.shared.kw["bind"], user_id=user_id)
+        return self.bound[user_id]
 
     def person(self, update: object) -> Person | None:
         """Who the gate let ``update`` through for, if anyone (the error handler's question:
@@ -105,7 +135,7 @@ class Gate:
         if not served and not _anywhere(update):
             await self._reply(update, AWAY_TEXT)
             raise ApplicationHandlerStop
-        return Person(user_id=user_id, chat=chat.id)
+        return Person(user_id=user_id, chat=chat.id, sessions=self._sessions(user_id))
 
     async def _reply(self, update: Update, text: str) -> None:
         try:

@@ -28,6 +28,7 @@ from training_coach.bot.app import build_bot
 from training_coach.bot.messages import LOG_CANCELLED, LOG_EXPIRED
 from training_coach.db.models import LogProposal, PlanState, SessionTemplate, Workout
 from training_coach.domain.queue import local_date
+from training_coach.services import users
 from training_coach.services.day_clash import Clash, Recorded, Resolution
 
 App = Application  # type: ignore[type-arg]  # see build_bot
@@ -185,17 +186,20 @@ async def test_cancel_saves_nothing_and_an_unknown_question_has_expired(
 async def test_cancel_forgets_the_question_too(application: App, seeded: Sessions) -> None:
     """Review of #242: Cancel dropped the draft but kept its question until a restart."""
     handlers = next(
-        h.callback.__self__
+        h.callback.__wrapped__.__self__
         for group in application.handlers.values()
         for h in group
-        if isinstance(getattr(h.callback, "__self__", None), logging_flow.LogHandlers)
+        if isinstance(
+            getattr(getattr(h.callback, "__wrapped__", None), "__self__", None),
+            logging_flow.LogHandlers,
+        )
     )
     await _log(application, "yesterday " + LEGS)
     asked = await _log(application, "yesterday rest")
     token = _answers(asked)[0].split(":")[2]
-    assert token in handlers.asked[OWNER]
+    assert token in handlers.asked[users.OWNER]
     await run(application, press(f"l:cancel:{token}", OWNER))
-    assert token not in handlers.asked[OWNER]
+    assert token not in handlers.asked[users.OWNER]
 
 
 def test_answers_read_from_buttons_and_typed_dates() -> None:

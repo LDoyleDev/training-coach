@@ -44,7 +44,12 @@ def test_build_bot_requires_token(sessions: sessionmaker[Session]) -> None:
         build_bot(Settings(environment="test", telegram_allowed_user_id=1), sessions)
 
 
-def test_every_command_is_restricted_to_owner(application: Application) -> None:  # type: ignore[type-arg]
+SERVED = {"start", "help", "today", "week", "login", "recover", "settings"}  # ADR-0089, step 8
+
+
+def test_every_command_is_served_per_person_or_restricted_to_owner(
+    application: Application,  # type: ignore[type-arg]  # see build_bot
+) -> None:
     handlers = [h for group in application.handlers.values() for h in group]
     commands = [h for h in handlers if isinstance(h, CommandHandler)]
     assert {c for h in commands for c in h.commands} == {
@@ -62,7 +67,12 @@ def test_every_command_is_restricted_to_owner(application: Application) -> None:
         "share",
     }
     for handler in commands:
-        # The owner, and only in the private chat with the bot (ADR-0040).
+        if handler.commands <= SERVED:
+            # The person the gate found, and still only in a private chat (ADR-0040).
+            assert hasattr(handler.callback, "__wrapped__")  # through gate.served
+            assert handler.filters == filters.ChatType.PRIVATE
+            continue
+        # Not converted yet: the owner, and only in the private chat with the bot.
         merged = handler.filters  # PTB's private _MergedFilter: base AND other
         parts = (getattr(merged, "base_filter", None), getattr(merged, "and_filter", None))
         assert any(isinstance(p, filters.User) and OWNER in p.user_ids for p in parts)
