@@ -358,6 +358,261 @@ pull-ups, Nordics, reverse Nordic, ab rollout, HIIT) need replacing. Options:
 | S1 **"Starting" versions** (recommended) | A 2-day and a 3-day full-body starter written for levels 1-3: squat, glute bridge or step-up, push-up from the wall up, doorframe row, plank, balance, calf raise, a walk. Written and checked like N | Reviewable, like every starter so far | Two more starters in `plan.toml` |
 | S2 Swap at run time | Each exercise names its entry exercise; below its bottom level the session uses that one | One starter per day count | Generated sessions are harder to review; the picker (step 7) is where swapping belongs |
 
+### S1: the starters, by days a week and place (approved 8 Nov 2026)
+
+Liam approved this on 8 Nov 2026 with the answers below (Decided). It replaces the 7 Nov draft
+of the 2- and 3-day starters, after Liam's answers in B5: everything starts at the bottom of its ladder, the
+walk-through moves each exercise up, and the session is trimmed to the person's minutes and
+number of exercises.
+
+**The short version.**
+
+- **Three starters: 2, 3 and 4 days a week.** The same starter serves home and the gym; at the
+  gym, an exercise someone is placed high on becomes a machine or a free-weight lift (Gym, below).
+  There is no 1-day or 5-day starter (below).
+- **One set for everyone.** Because every exercise starts at its lowest step, the same list has
+  to suit a frail 80-year-old and a fit 30-year-old. So the exercises are ones whose ladders run from
+  level 1 or 2 up to level 4-6 with no kit. The hip hinge, which stopped at level 3, gets three
+  steps at its top (Decided, 2).
+- **Every main muscle gets at least 4 sets a week** (the least shown to grow muscle) on all three,
+  most of them on two days, except the rear delts on the 2-day (3, amber; judgment calls,
+  below). The 3- and 4-day starters reach the full target for a few muscles.
+- **Sessions are 32-42 minutes on the 2- and 3-day starters (3-day C is the short one) and 26-35
+  on the 4-day**, so the 40, 30 and 20-minute versions have something to cut, and the trim cuts
+  what matters least first.
+
+**What changed since the 7 Nov draft.**
+
+- Out: the seated press, standing hamstring curl and seated toe lift, whose ladders end at level
+  2-3, and the step-up, which ends at 3 without a kettlebell. The split squat takes the step-up's
+  place: it ends at level 4 with no kit and 6 with a kettlebell.
+- No walk inside a session. The trim (ADR-0082) keeps cardio until the end, so at 20 minutes a
+  walk would fill half the session. Cardio stays separate (Part A's note), and the easy start's
+  5-10 minutes of walking (B6) still sits on top.
+- The rep ranges are the ones the "Can you do...?" questions ask about (push-ups 10-18, because
+  the questions ask for 10), so a yes means the person can do the bottom of the range on that step.
+- New: a 4-day starter, the gym versions, and the order each session is cut in.
+
+**How a starter becomes someone's plan.** The days a week pick the starter. Every exercise starts
+on its bottom step, and the "Can you do...?" answers move each one up. The minutes per session
+and the number of exercises then trim each session, in the order given below. At the gym, an
+exercise placed high enough is swapped for its gym version.
+
+**How the numbers were got, and how to read them.** Each draft was run through the seed in a scratch
+database, with every exercise on its bottom step, and took the numbers the app itself gives:
+`plan_coverage` for the sets, the guided estimate for the minutes, and `domain/trim.py` for the
+shorter versions. (This method gives the 7 Nov draft's 35 minutes for its 2-day A.)
+
+- **Sets a week** are what the body map counts. A set counts 1 for a muscle the exercise mainly
+  works and 0.5 for one that helps, so a push-up set is 1 for the chest and 0.5 for the triceps.
+- **The colours:** amber is under 4 sets a week, the least shown to grow muscle (Iversen 2021);
+  light green is 4 up to the target; green is the target, which for the big muscles is 10-20 sets
+  on two days or more. Some smaller muscles have their own, lower targets (calves and side delts
+  8, abs 6, lower back and adductors 4).
+- **Minutes** are the app's estimate: 45 seconds a set, the rests the guided session uses, both
+  sides counted for one-sided exercises, and the 5-minute warm-up. It runs high for short sets;
+  once someone has done a session, their own time replaces it (ADR-0061).
+
+#### The sessions
+
+"a + b" means the two are done in turn, set by set. The minutes are as planned and in the
+shorter versions; "Short on time today" only offers lengths shorter than the session.
+
+**2-day full body:** A and B.
+
+| Session | Exercises, in order (sets) | As planned | At 40 / 30 / 20 min |
+| --- | --- | --- | --- |
+| A | squat 3 + door-frame row 3; push-up 4 + hip hinge 3; calf raise 3 + plank 3; lateral raise 3 + side plank hip dip 2 a side; balance 2 | 26 sets, 40 min | as planned / 25 min, 18 sets / 18 min, 14 sets |
+| B | split squat 3 a side + push-up 4; glute bridge 3 + door-frame row 3; hip hinge 2 + lateral raise 3; calf raise 3 + curl 2; plank 2 + balance 2 | 27 sets, 42 min | 40 min, 26 sets / 27 min, 20 sets / 20 min, 12 sets |
+
+**3-day full body:** A, B and C.
+
+| Session | Exercises, in order (sets) | As planned | At 40 / 30 / 20 min |
+| --- | --- | --- | --- |
+| A | squat 3 + door-frame row 3; push-up 4 + hip hinge 3; calf raise 3 + plank 2; lateral raise 3 + curl 2; balance 2 | 25 sets, 38 min | as planned / 24 min, 18 sets / 18 min, 14 sets |
+| B | split squat 3 a side + push-up 4; glute bridge 3 + door-frame row 3; lateral raise 3 + side plank hip dip 2 a side; calf raise 3 + balance 2 | 23 sets, 40 min | as planned / 25 min, 16 sets / 19 min, 12 sets |
+| C | squat 3 + door-frame row 3; push-up 3 + glute bridge 3; hip hinge 2 + lateral raise 2; calf raise 2 + plank 2; balance 2 | 22 sets, 32 min | as planned / 29 min, 22 sets / 20 min, 14 sets |
+
+**4-day upper and lower:** Lower 1, Upper 1, Lower 2, Upper 2.
+
+| Session | Exercises, in order (sets) | As planned | At 30 / 20 min |
+| --- | --- | --- | --- |
+| Lower 1 | squat 3 + calf raise 3; hip hinge 3 + plank 3; split squat 2 a side + tibialis raise 2; balance 2 | 18 sets, 28 min | as planned / 20 min, 14 sets |
+| Upper 1 | push-up 4 + door-frame row 4; lateral raise 3 + curl 3; side plank hip dip 2 a side | 16 sets, 28 min | as planned / 17 min, 10 sets |
+| Lower 2 | split squat 3 a side + calf raise 3; glute bridge 3 + side plank hip dip 2 a side; hip hinge 2 + plank 2; squat 2; balance 2 | 19 sets, 35 min | 26 min, 16 sets / 18 min, 8 sets |
+| Upper 2 | door-frame row 4 + push-up 4; lateral raise 3 + curl 3; plank 2 | 16 sets, 26 min | as planned / 20 min, 14 sets |
+
+The shorter times assume the person's first exercise is above level 3, so ramp sets replace the
+warm-up at 30 minutes or less. For someone whose first exercise is at level 3 or below, the
+5-minute warm-up stays (ADR-0082), and a 20-minute session keeps 6-10 sets instead of 8-14.
+
+#### The trim order
+
+When a session is too long for the person's minutes, the trim (ADR-0082) takes off every fourth
+set, then every third set (each exercise keeps two), then whole exercises, one at a time, in the
+order below. For "how many exercises", the same order is used, so there is one list to check.
+
+| Session | Goes first ... kept longest |
+| --- | --- |
+| 2-day A | side plank hip dip, lateral raise, plank, calf raise, balance, hip hinge, push-up, door-frame row; squat |
+| 2-day B | plank, curl, calf raise, lateral raise, glute bridge, balance, hip hinge, door-frame row; split squat and push-up |
+| 3-day A | curl, lateral raise, plank, calf raise, balance, hip hinge, push-up, door-frame row; squat |
+| 3-day B | calf raise, side plank hip dip, lateral raise, glute bridge, balance, door-frame row; split squat and push-up |
+| 3-day C | plank, calf raise, lateral raise, glute bridge, balance, hip hinge, push-up, door-frame row; squat |
+| Lower 1 | tibialis raise, plank, calf raise, split squat, balance, hip hinge; squat |
+| Upper 1 | side plank hip dip, curl, lateral raise, door-frame row; push-up |
+| Lower 2 | plank, side plank hip dip, calf raise, glute bridge, split squat, balance, squat; hip hinge |
+| Upper 2 | plank, curl, lateral raise, push-up; door-frame row |
+
+The order comes from the trim's rule, not from the list: small exercises go first, starting with
+those whose muscles another exercise in the session still works, and big movements that nothing
+else covers go last. Within a group, the one later in the list goes first. Each list is ordered so
+that rule removes what matters least. At the gym the order is the same.
+
+#### Sets a week, as the map counts them (home)
+
+| Muscle | 2-day | 3-day | 4-day |
+| --- | --- | --- | --- |
+| Quads | 6, light green | 9, light green | 10, green |
+| Glutes | 11.5, green | 17.5, green | 15.5, green |
+| Hamstrings | 6.5, light green | 8, light green | 6.5, light green |
+| Chest | 8, light green | 11, green | 8, light green |
+| Lats | 6, light green | 9, light green | 8, light green |
+| Upper back | 6, light green | 9, light green | 8, light green |
+| Triceps | 4, light green | 5.5, light green | 4, light green |
+| Biceps | 5, light green (one day) | 6.5, light green (one day) | 10, green |
+| Side delts | 6, light green | 8, green | 6, light green |
+| Calves | 6, light green | 8, green | 6, light green |
+| Rear delts | 3, **amber** | 4.5, light green | 4, light green |
+| Abs | 5.5, light green | 4.5, light green | 8, green |
+| Obliques | 4.5, green | 4, green | 7.5, green |
+| Lower back | 5, green | 5, green | 5, green |
+| Adductors | 4.5, green | 7.5, green | 7.5, green |
+| All sets a week | 53 | 70 | 69 |
+
+Forearms are amber everywhere (0.5-1.5) and tibialis is only in the 4-day (2, green), as in the
+7 Nov draft. "One day" means only one session gives that muscle 2 sets or more. That keeps it from
+being green, but not from being light green.
+
+- **At 30 minutes** every main muscle stays at 4 sets or more, except the triceps (2-3.5) on the
+  2- and 3-day starters. **At 20 minutes** most main muscles keep 4-12, while the triceps,
+  biceps and calves drop under 4 on the 2- and 3-day starters, and the 2-day's side delts drop to
+  none. The map shows that honestly.
+- **At the gym, with every swap made,** the numbers are the same apart from these: the glutes
+  9-15, the rear delts 2-4 (amber) and the 2-day's adductors 3 (amber). They were worked out with
+  the seated leg curl in the hip hinge's place, which also cut the hamstrings to 5 and the lower
+  back to none; with the Romanian deadlift instead (Decided 2), both keep their home numbers. The
+  sums get rerun when the seed takes the starters.
+- **Back to back:** with the 2- and 3-day sessions queued without rest days, the map warns that
+  the glutes and chest are worked on two days running (A then B). Rest places in the queue (Decided 9)
+  keep them apart.
+
+#### How far each exercise climbs
+
+| Exercise | Bottom step (level) | Top step with no kit | With a kettlebell | At the gym, from |
+| --- | --- | --- | --- | --- |
+| Squat | raised seat, hands push off (1) | full depth (4) | 16 kg (5) | leg press, from "to a chair, touch and go" (3) |
+| Split squat | holding a chair, short range (2) | back foot on a chair (4) | 16 kg + 8 kg (6) | stays |
+| Push-up | hands on a wall (1) | archer (6) | | dumbbell bench press, from "standard" (4) |
+| Door-frame row | upright, a step back (2) | one arm (6) | | chest-supported row, or the lat pulldown in 2-day B, 3-day B and Upper 2, from "leaning back, half a step in" (3) |
+| Glute bridge | standing, at the counter (1) | single leg, shoulders on the sofa (5) | | barbell hip thrust, from "single leg, on the floor" (4) |
+| Hip hinge | hands on the counter (1) | single leg, holding a bag (5; Decided 2) | | barbell Romanian deadlift, from "single leg, hand on the counter" (4) |
+| Calf raise | both legs, hands on a wall (1) | one leg on a step (3) | 8 kg, pause at the top (5) | standing calf raise machine (seated in 2-day B, 3-day B and Lower 2), from one leg on a step (3) |
+| Plank | hands on a counter (1) | full plank, arm reach (5) | | stays |
+| Side plank hip dip | side lean on a wall (1) | top leg raised (5) | 8 kg on the hip (6) | stays |
+| Lateral raise | seated, water bottles (1) | lean-away, one arm (4) | | cable lateral raise, from lean-away (4) |
+| Curl | water bottles (1) | a bag, 2-4 kg (2) | 16 kg, slow (6) | incline dumbbell curl, from 8 kg (3) |
+| Balance | feet together, holding the counter (1) | one leg, eyes closed (5) | | stays |
+| Tibialis raise | back against a wall (2) | single leg (4) | 8 kg (5) | stays |
+
+Nothing needs kit at its bottom step: a wall, a counter, a chair, a stair, a door frame and two
+water bottles. With "Keep me off the floor", the push-up stops at a stair (level 3), the plank at a
+chair seat (2), the side plank at a counter (2) and the glute bridge at its standing step (1).
+
+#### Gym, Away, and 1 or 5 days
+
+- **The gym starters are the home starters.** Machines start at level 3 and the barbell lifts
+  and dumbbell presses at 4 (the catalogue's levels), so for anyone placed lower they would be too
+  much on day one. Each exercise becomes its gym version (the table above) once the walk-through
+  places the person on a home step at or above the gym exercise's level. Above that, a machine
+  climbs by weight (ADR-0072). The walk-through writes each person's gym version when it makes their
+  plan (Decided 5), since plans are per person now, so no new rule is needed when a session runs. The barbell
+  back squat stays in the picker, as it needs coaching more than a machine does. The Romanian
+  deadlift is the hip hinge's gym version from level 4, where the person can already do a
+  single-leg hinge (Decided 2). The catalogue has no seated cable row: the chest-supported row ("machine or dumbbells") is
+  the nearest, and the lat pulldown takes the row in one session a week.
+- **Away is the same list.** Every bottom step needs no kit, and away already stops each exercise
+  at its last step with no kit (ADR-0086). A hotel room has a door frame.
+- **1 day a week: no starter of its own.** Two days is the WHO minimum for strength, and one
+  session a week gives about three quarters of the strength gain of two (Pelland 2026: +12.7% vs
+  +17.3%). Someone who can only manage one day could run the 2-day starter once a week, A one week
+  and B the next. That gives each main muscle about half the 2-day's sets (2-6, mostly amber),
+  which the map would show.
+- **5 days: no starter either.** The 4-day already works every main muscle on two days. With the
+  weekly sets equal, more days add little growth (Pelland 2026; Iversen 2021: "weekly training
+  volume is more important than training frequency"), and a new person needs the rest days. A
+  fifth day is better spent on the cardio the WHO also asks for (150 minutes a week; walking
+  counts). The 7-day cycle stays for people training at levels 4-6, like Liam.
+
+#### Where these are a judgment call
+
+- **The 2-day is at the low end.** Quads, lats, upper back, side delts and calves get 6 sets,
+  inside Part A's 5-7 for two short sessions but under the 7-10 for two 40-minute ones. More sets
+  would push the sessions past 40 minutes, so the 40-minute version would have to cut every third
+  set.
+- **The rear delts are amber on the 2-day** (3 sets from the row). A band pull-apart would fix it
+  but needs a band at its bottom step, so it is left to the picker.
+- **The triceps only get push-ups** (0.5 a set). The armchair press-up stops at level 3 and dips
+  start at 4, so neither works as a one-ladder exercise for everyone.
+- **The curl stops at a 2-4 kg bag without a kettlebell.** It's a small exercise and the first to
+  go when trimmed. With no kit, the picker's door-frame curl (levels 3-5) climbs further.
+- **Two exercises start at level 2:** the split squat and the door-frame row (and the tibialis
+  raise in the 4-day). For someone at level 1 the row is barely a pull, but a split squat holding
+  a chair may be too much (question 3).
+- **Balance is in every session and is kept until near the end.** It works no muscle on the map
+  and isn't a small exercise, so the trim treats it as a big movement. That suits an older person
+  (WHO: balance 3 days a week from 65); for a fit 30-year-old it costs about 3 minutes.
+- **Calf raise and balance** turn one-legged partway up their ladders, but they are counted as both
+  legs together (not "a side"), as their bottom steps are. Logging each side would need a change
+  per step.
+- **No neck work, HIIT, jumps or heavy loading**, as before. The 65-and-over balance and
+  sit-to-stand "snack" is still the walk-through's suggestion, not part of these lists.
+- **The easy start (B6) sits on top:** for the first two weeks, one or two sets of three or four of
+  these exercises, with 5-10 minutes of walking.
+
+**What the seed needs to accept these:** an exercise with a catalogue `range` can't also be used
+by a session, so `range` comes off the squat, hip hinge and balance, and each session item sets
+its own. `start` is 0 for every exercise in a starter.
+
+#### Decided (8 Nov 2026)
+
+Liam's answer to these questions was "All OK to proceed", so each one is decided as proposed.
+
+1. **One set of starters for every level.** These replace builder N's 3- and 4-day starters for
+   new people, since N's start at level 4 (pistols, jump squats, swings). The 7-day cycle stays
+   as Liam's own plan.
+2. **The hip hinge gets three steps at its top:** single leg with a hand on the counter (4),
+   single leg with no hands (5), single leg holding a bag (5), a bodyweight single-leg Romanian
+   deadlift. Steps at the end of a ladder need no migration; they need questions, cues and
+   figures. The gym swap can then reach the barbell Romanian deadlift at level 4, which gives the
+   lower back work at the gym again.
+3. **Someone placed at level 1 by the everyday questions gets no split squat** (0 sets, as the
+   trim does). The squat still works the legs.
+4. **Each ladder's questions start at the level the age and exercise questions suggest**, walking
+   up or down from there (B5 step 4). The bottom step stays the default if they skip.
+5. **The gym swaps are written into each person's gym version** when the walk-through makes
+   their plan, from where they are placed.
+6. **No 1-day or 5-day starter.**
+7. **4 days as upper and lower**, as builder N has it.
+8. **Balance is kept late in the trim for everyone.**
+9. **Rest days are places in the queue** (builder N's last point): A, rest, B, rest, C, rest,
+   rest for the 3-day; A, rest, rest, B, rest, rest, rest for the 2-day; Lower 1, Upper 1, rest,
+   Lower 2, Upper 2, rest, rest for the 4-day. It keeps ADR-0006: the queue offers its next
+   place every day, a missed session still moves everything back a day, and the map counts days
+   correctly. The days tapped in the walk-through set where the queue starts. The other option,
+   offering sessions only on the tapped days, was turned down: it adds a second rule beside the
+   queue, and a missed Monday would wait until Wednesday.
+
 ## In the code, in outline
 
 - **`plan.toml`:** `[exercises.levels]` per step, step marks, `failure_ok` per exercise, the

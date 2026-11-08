@@ -584,7 +584,8 @@ one): 56 sets on the 3-day, 52 on the 4-day, sessions of 22-41 minutes, the main
 - **Rest days need a place in the queue.** The queue offers its next session every day
   (ADR-0006); a queue of A, B, C alone would offer B the day after A, and the map would count
   A, B, C as three days running, so every main muscle would show the back-to-back warning. Step
-  10 needs a rest day the queue passes, which doesn't exist yet.
+  10 needs a rest day the queue passes, which doesn't exist yet. Decided 8 Nov 2026: rest
+  places in the queue (`any-level-any-time.md`, S1, Decided 9).
 
 ## API, in outline
 
