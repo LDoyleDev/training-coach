@@ -6,7 +6,7 @@ example a failed seed on a fresh install, ADR-0015), which callers must tell the
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from functools import lru_cache
 from zoneinfo import ZoneInfo
 
@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import (
+    Event,
     FitnessTestDay,
     LadderStep,
     SessionProgress,
@@ -150,6 +151,28 @@ def rest_days(session: Session, on: date) -> int:
         .limit(1)
     ).first()
     return rest_days_left(last[1], last[0], on) if last is not None else 0
+
+
+def picked_today(session: Session, on: date, tz: ZoneInfo) -> int | None:
+    """The session last picked for ``on`` with "Pick another" (ADR-0022), if any."""
+    start, end = (
+        datetime.combine(d, time(0), tzinfo=tz).astimezone(UTC)
+        for d in (on, on + timedelta(days=1))
+    )
+    picked = session.scalar(
+        select(Event.payload)
+        .where(Event.kind == "queue.picked", Event.at >= start, Event.at < end)
+        .order_by(Event.id.desc())
+        .limit(1)
+    )
+    found = picked.get("picked") if isinstance(picked, dict) else None
+    return found if isinstance(found, int) else None
+
+
+def rest_day(session: Session, on: date, tz: ZoneInfo) -> bool:
+    """A rest place's day (ADR-0091) offers no session, unless one was picked for it: the
+    person chose to train ("Train today instead", or Pick another)."""
+    return rest_days(session, on) > 0 and picked_today(session, on, tz) is None
 
 
 def summary(slug: str) -> str | None:
@@ -329,7 +352,7 @@ def today(session: Session, on: date, tz: ZoneInfo | None = None) -> Today | Non
         ),
         block=block,
         test_day=retests.due(session, on, tz) if tz is not None else None,
-        rest_day=rest_days(session, on) > 0,
+        rest_day=rest_day(session, on, tz) if tz is not None else rest_days(session, on) > 0,
     )
 
 

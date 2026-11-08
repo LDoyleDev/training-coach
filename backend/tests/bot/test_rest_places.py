@@ -1,5 +1,5 @@
 """Rest places in the bot (ADR-0091): the morning message says it's a rest day and offers no
-buttons; the evening nudge stays quiet."""
+buttons, and the evening nudge stays quiet, unless a session was picked for the day."""
 
 from datetime import timedelta
 from unittest.mock import AsyncMock
@@ -11,7 +11,7 @@ from tests.bot.fakes import SETTINGS
 from training_coach.bot.app import Handlers
 from training_coach.db.models import PlanState, SessionTemplate, Workout
 from training_coach.domain.enums import WorkoutStatus
-from training_coach.services import user_settings
+from training_coach.services import queue_actions, user_settings
 
 Sessions = sessionmaker[Session]
 WITH_URL = SETTINGS.model_copy(update={"public_url": "https://coach.example.com"})
@@ -53,3 +53,19 @@ async def test_no_nudge_on_a_rest_day(seeded: Sessions) -> None:
     context = type("Ctx", (), {"bot": AsyncMock()})()
     await handlers.nudge(context)  # type: ignore[arg-type]
     context.bot.send_message.assert_not_awaited()  # type: ignore[attr-defined]
+
+
+async def test_a_pick_on_a_rest_day_makes_it_a_training_day(seeded: Sessions) -> None:
+    """Train today instead, in the app (a pick): the bot offers the session, as the app does."""
+    handlers = Handlers(WITH_URL, seeded)
+    upcoming = _rest_today(seeded, handlers)
+    with seeded() as session:
+        pointer = session.scalars(select(PlanState)).one().next_template_id
+        assert pointer is not None
+        queue_actions.pick(session, pointer, pointer)
+        session.commit()
+    text, _ = handlers._today()
+    assert text.startswith(f"Today: {upcoming}\n")
+    context = type("Ctx", (), {"bot": AsyncMock()})()
+    await handlers.nudge(context)  # type: ignore[arg-type]
+    context.bot.send_message.assert_awaited_once()  # type: ignore[attr-defined]

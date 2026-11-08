@@ -19,7 +19,7 @@ from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
 from training_coach.services import blocks, guided, queue_actions, undo
-from training_coach.services.today import position
+from training_coach.services.today import position, rest_day
 
 router = APIRouter(prefix="/api/today", tags=["today"])
 
@@ -110,7 +110,7 @@ def _planned(
     current = position(session)
     if plan is None and picked and current is not None:
         # A rest day shows no session but names the next: picking it trains today (ADR-0091).
-        resting = guided.rest_day(session, on, settings.tz)
+        resting = rest_day(session, on, settings.tz)
         return current.pointer if resting and current.pointer == shown else None
     if plan is None or plan.template_id != shown or current is None:
         return None

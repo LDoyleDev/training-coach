@@ -37,7 +37,7 @@ from training_coach.services import (
 )
 from training_coach.services import progress as feedback
 from training_coach.services.day_clash import Clash, Refused
-from training_coach.services.today import ItemPlan, position
+from training_coach.services.today import ItemPlan, position, rest_day
 
 router = APIRouter(prefix="/api/session", tags=["session"])
 
@@ -329,7 +329,7 @@ class QueuedView(BaseModel):
 def rest_day_view(session: Session, on: date, settings: Settings) -> QueuedView | None:
     """The next session, when ``on`` is a rest place's day (ADR-0091)."""
     queue = position(session)
-    if queue is None or not guided.rest_day(session, on, settings.tz):
+    if queue is None or not rest_day(session, on, settings.tz):
         return None
     name = dict(queue_actions.choices(session)).get(queue.pointer)
     return QueuedView(template_id=queue.pointer, name=name) if name else None

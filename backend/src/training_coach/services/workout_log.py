@@ -10,7 +10,7 @@ import re
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -43,7 +43,7 @@ from training_coach.services import blocks, day_clash, undo, user_settings, user
 from training_coach.services.blocks import load_kit, loadable
 from training_coach.services.day_clash import Clash, Refused, Resolution, Resolved
 from training_coach.services.groq import Rewrite
-from training_coach.services.today import away_on, position
+from training_coach.services.today import away_on, picked_today, position
 
 EXTRA = "Extra session"
 REST_WORD = re.compile(r"\brest\b", re.IGNORECASE)
@@ -101,10 +101,6 @@ class Stale:
     log) or it names an exercise that is gone. Nothing was written; ask for the log again."""
 
 
-def _day_start_utc(on: date, tz: ZoneInfo) -> datetime:
-    return datetime.combine(on, time(0), tzinfo=tz).astimezone(UTC)
-
-
 def target(session: Session, on: date, tz: ZoneInfo) -> SessionTemplate | None:
     """The planned session a log on ``on`` belongs to, or None for an extra (ADR-0014).
 
@@ -127,22 +123,6 @@ def target(session: Session, on: date, tz: ZoneInfo) -> SessionTemplate | None:
             return template
     current = position(session)
     return session.get(SessionTemplate, current.pointer) if current is not None else None
-
-
-def picked_today(session: Session, on: date, tz: ZoneInfo) -> int | None:
-    """The session last picked for ``on`` with "Pick another" (ADR-0022), if any."""
-    picked = session.scalar(
-        select(Event.payload)
-        .where(
-            Event.kind == "queue.picked",
-            Event.at >= _day_start_utc(on, tz),
-            Event.at < _day_start_utc(on + timedelta(days=1), tz),
-        )
-        .order_by(Event.id.desc())
-        .limit(1)
-    )
-    found = picked.get("picked") if isinstance(picked, dict) else None
-    return found if isinstance(found, int) else None
 
 
 def catalogue(session: Session, template: SessionTemplate | None) -> list[Known]:
