@@ -74,7 +74,9 @@ def edits(session: Session, plan: PlanSeed) -> list[VersionEdit]:
 
 def write(session: Session, plan: PlanSeed, today: date) -> Saved | str:
     """Save ``edits`` as one plan version, as an edit of their own is (``plan_edit.save``):
-    nothing changes when every gym version is already so, or for someone on no starter."""
+    nothing changes when every gym version is already so, or for someone on no starter. It
+    replaces a gym version they edited themselves, so anything but setup's first run shows what
+    would change and saves on their yes."""
     return plan_edit.save(
         session, edits(session, plan), NOTE, plan_edit.revision(session), plan, today
     )
