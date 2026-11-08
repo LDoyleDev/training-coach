@@ -1640,10 +1640,12 @@ async function makeTelegramLinkNow(): Promise<TelegramLink | 'off' | 'connected'
   return (await res.json()) as TelegramLink
 }
 
+/** End the open link: a failure throws, so nobody believes a live link is gone. */
 export async function cancelTelegramLink(): Promise<void> {
-  signedIn(
+  const res = signedIn(
     await fetch('/api/account/telegram/link', { method: 'DELETE', credentials: 'same-origin' }),
   )
+  if (res.status !== 204) throw new Error(`The server answered ${res.status}.`)
 }
 
 function codeRefusal(status: number): CodeRefusal {

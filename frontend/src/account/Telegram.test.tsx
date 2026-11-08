@@ -179,3 +179,11 @@ test('a failed unlink says so', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Unlink Telegram' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('Your sign-in ended.')
 })
+
+test('a failed cancel says so and keeps the link showing', async () => {
+  serve({ [`GET ${STATUS}`]: pending(1), [`DELETE ${STATUS}/link`]: { status: 500 } })
+  render(<Telegram />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent("That didn't work.")
+  expect(screen.getByRole('textbox', { name: 'Code from the bot' })).toBeVisible()
+})
