@@ -8,6 +8,8 @@ unticked on the consent page, so each connection opts in to them.
 from collections.abc import Iterable
 from enum import StrEnum
 
+from training_coach.domain.consent import Category
+
 
 class Scope(StrEnum):
     TRAINING = "training:read"
@@ -17,6 +19,9 @@ class Scope(StrEnum):
 
 
 HEALTH = frozenset({Scope.BODY, Scope.READINESS})
+# The consent each health scope needs from a member (ADR-0090): readiness:read reads the daily
+# check.
+HEALTH_NEEDS = {Scope.BODY: Category.BODY, Scope.READINESS: Category.DAILY_CHECK}
 # Unticked on the consent page until the person ticks them.
 OPT_IN = HEALTH | {Scope.PROPOSE}
 

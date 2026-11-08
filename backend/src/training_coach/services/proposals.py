@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import Event, LogProposal, McpConnection
 from training_coach.db.session import ALL_USERS, bound_user
 from training_coach.domain import cardio as details
+from training_coach.domain.consent import Category
 from training_coach.domain.dates import MAX_DAYS_BACK
 from training_coach.domain.enums import CardioActivity, ExerciseKind, Side
 from training_coach.domain.habits import LABELS as HABIT_LABELS
@@ -50,11 +51,11 @@ from training_coach.domain.parser import LOAD, Entry, sets_text
 from training_coach.domain.queue import local_date
 from training_coach.services import (
     cardio,
+    consent,
     day_clash,
     habits,
     measurements,
     user_settings,
-    users,
     workout_log,
 )
 from training_coach.services import zones as heart
@@ -456,14 +457,13 @@ def check(
         found = _PROPOSAL.validate_python(dict(arguments))
     except ValidationError as error:
         return Refused(_reason(error))
-    if not users.health_open(_user(session)) and (
-        isinstance(found, BodyProposal)
-        or (
-            isinstance(found, CardioProposal)
-            and (found.avg_hr is not None or found.max_hr is not None)
-        )
+    opened = consent.open_to(session, _user(session))
+    if (isinstance(found, BodyProposal) and Category.BODY not in opened) or (
+        isinstance(found, CardioProposal)
+        and (found.avg_hr is not None or found.max_hr is not None)
+        and Category.BAND not in opened
     ):
-        # Health data: members are training-only for now (ADR-0059).
+        # Health data: a member needs to have said yes to it (ADR-0090).
         return Refused("body measurements and heart rate aren't available to this person yet")
     today = local_date(now, tz)
     day = found.day or today

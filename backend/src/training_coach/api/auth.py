@@ -16,8 +16,9 @@ from training_coach.api.alerts import alert, device
 from training_coach.api.region import visitor_country
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.consent import Category
 from training_coach.domain.region import listed
-from training_coach.services import auth, users
+from training_coach.services import auth, consent, users
 
 # __Host-: only this exact host may set it, with Path=/ and Secure, so a sibling site on the
 # same domain can't plant or shadow it (security review, 2026-10-10).
@@ -89,15 +90,36 @@ def owner(request: Request, response: Response) -> int:
 Owner = Annotated[int, Depends(owner)]
 
 
-def health(user: Owner) -> int:
-    """The signed-in person's id, for a route that reads or keeps health data; 403 for a member,
-    who is training-only until the lawyer's review (ADR-0059)."""
-    if not users.health_open(user):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "not available to members yet")
+def _consented(request: Request, user: int, category: Category) -> int:
+    with session_scope(_shared(request)) as session:
+        allowed = consent.opened(session, user, category)
+    if not allowed:
+        # The web shows the consent card for this category instead of an error (ADR-0090).
+        raise HTTPException(status.HTTP_403_FORBIDDEN, {"consent_needed": category.value})
     return user
 
 
-Health = Annotated[int, Depends(health)]
+def body_open(request: Request, user: Owner) -> int:
+    """The signed-in person's id, for a route that reads or keeps body measurements or photos:
+    the owner, or a member who has said yes to ``body`` (ADR-0090); 403 for anyone else."""
+    return _consented(request, user, Category.BODY)
+
+
+def daily_check_open(request: Request, user: Owner) -> int:
+    """As ``body_open``, for the daily check."""
+    return _consented(request, user, Category.DAILY_CHECK)
+
+
+def band_open(request: Request, user: Owner) -> int:
+    """As ``body_open``, for band data and heart rate."""
+    return _consented(request, user, Category.BAND)
+
+
+# One dependency per category of health data. Every health route takes one: a test finds them.
+Body = Annotated[int, Depends(body_open)]
+DailyCheckData = Annotated[int, Depends(daily_check_open)]
+Band = Annotated[int, Depends(band_open)]
+HEALTH_GATES = frozenset({body_open, daily_check_open, band_open})
 
 
 def admin(request: Request, user: Owner) -> int:
