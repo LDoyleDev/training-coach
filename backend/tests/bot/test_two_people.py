@@ -23,6 +23,7 @@ from tests.bot.fakes import (
     run,
     text_message,
     texts,
+    voice,
 )
 from training_coach.bot.app import ASK_ADMIN, HELP_TEXT, MEMBER_HELP_TEXT, MORNING_JOB, build_bot
 from training_coach.bot.messages import LOG_EXPIRED, STALE
@@ -170,6 +171,7 @@ async def test_a_members_settings_leave_the_owners_and_their_job_times(
 # ------------------------------------------------------------------ nobody else
 
 UPDATES = {
+    "/start": command("/start", 0),
     "/help": command("/help", 0),
     "/today": command("/today", 0),
     "/week": command("/week", 0),
@@ -177,6 +179,7 @@ UPDATES = {
     "/recover": command("/recover", 0),
     "/settings": command("/settings", 0),
     "a log": text_message(LOG, 0),
+    "a voice note": voice(0),
     "a morning button": press("q:rest:1", 0),
     "a log button": press("l:save:" + "ab" * 16, 0),
     "a settings button": press("s:morning:0630", 0),
