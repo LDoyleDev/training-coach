@@ -5,10 +5,11 @@ asked."""
 
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
 
 from tests import oauth_flow as flow
 from tests.api.test_mcp import rpc
@@ -16,10 +17,10 @@ from tests.routes import api_routes
 from training_coach.api.app import create_app
 from training_coach.api.auth import HEALTH_GATES
 from training_coach.config import Settings
-from training_coach.db.models import User
+from training_coach.db.models import LogProposal, McpConnection, User
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.domain.consent import Category
-from training_coach.services import auth, consent, ingest_keys, users
+from training_coach.domain.consent import VERSIONS, Category
+from training_coach.services import auth, consent, ingest_keys, proposals, users
 from training_coach.services.seed import apply_seed, load_plan
 
 MEMBER = 2
@@ -161,3 +162,69 @@ def test_a_members_phone_is_let_in_with_band_consent(member: TestClient, two: En
     _consent(two, Category.BAND)
     headers = {"Authorization": f"Bearer {secret}"}
     assert member.post("/api/ingest/health-connect", json={}, headers=headers).status_code != 403
+
+
+def _proposal(engine: Engine, **arguments: object) -> str:
+    """A proposal from a fresh connection of the member's AI app; its token."""
+    flow.mint(engine, ["log:propose"], user=MEMBER)
+    with session_scope(make_session_factory(engine, user_id=MEMBER)) as bound:
+        connection = bound.scalars(select(McpConnection.id).order_by(McpConnection.id.desc()))
+        found = proposals.propose(
+            bound, connection.first() or 0, arguments, ZoneInfo("Europe/Berlin"), datetime.now(UTC)
+        )
+        assert isinstance(found, proposals.Proposed), found
+        return bound.get_one(LogProposal, found.id).token
+
+
+def _waiting(engine: Engine) -> list[str]:
+    with session_scope(make_session_factory(engine, user_id=MEMBER)) as bound:
+        return list(bound.scalars(select(LogProposal.status)))
+
+
+def test_saving_a_body_or_heart_rate_proposal_needs_a_yes_to_the_wording_now(
+    member: TestClient, two: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Consent was checked only when the AI proposed: after the wording changed, a member's
+    waiting body or heart-rate proposal still saved without a new yes."""
+    _consent(two, Category.BODY, Category.BAND)
+    body = _proposal(two, kind="body", measurements={"bodyweight": 80})
+    walk = _proposal(two, kind="cardio", minutes=30, avg_hr=120)
+    monkeypatch.setitem(VERSIONS, Category.BODY, 2)
+    monkeypatch.setitem(VERSIONS, Category.BAND, 2)
+    refused = member.post("/api/proposals/save", json={"token": body})
+    assert (refused.status_code, refused.json()["detail"]) == (403, {"consent_needed": "body"})
+    refused = member.post("/api/proposals/save", json={"token": walk, "cardio": "zone2"})
+    assert (refused.status_code, refused.json()["detail"]) == (403, {"consent_needed": "band"})
+    assert _waiting(two) == [proposals.PENDING, proposals.PENDING]
+    assert member.post("/api/proposals/discard", json={"token": walk}).status_code == 204
+    _consent(two, Category.BODY)  # a yes to the wording shown now
+    assert member.post("/api/proposals/save", json={"token": body}).status_code == 200
+
+
+def test_a_waiting_health_proposal_is_not_listed_while_its_yes_is_out_of_date(
+    member: TestClient, two: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Saving was refused after the wording changed, but the list still showed the proposal's
+    summary: health data the member hadn't said yes to under the wording shown now."""
+    _consent(two, Category.BODY, Category.BAND)
+    body = _proposal(two, kind="body", measurements={"bodyweight": 80})
+    walk = _proposal(two, kind="cardio", minutes=30, avg_hr=120)
+    habits = _proposal(two, kind="habits", habits=["protein"])
+    monkeypatch.setitem(VERSIONS, Category.BODY, 2)
+    monkeypatch.setitem(VERSIONS, Category.BAND, 2)
+    assert [p["token"] for p in member.get("/api/proposals").json()] == [habits]
+    _consent(two, Category.BODY)
+    assert [p["token"] for p in member.get("/api/proposals").json()] == [body, habits]
+    assert walk not in [p["token"] for p in member.get("/api/proposals").json()]
+
+
+def test_a_proposal_from_an_app_since_disconnected_has_gone_rather_than_needing_a_yes(
+    member: TestClient, two: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _consent(two, Category.BODY)
+    body = _proposal(two, kind="body", measurements={"bodyweight": 80})
+    monkeypatch.setitem(VERSIONS, Category.BODY, 2)
+    with session_scope(make_session_factory(two, user_id=MEMBER)) as bound:
+        for connection in bound.scalars(select(McpConnection)):
+            connection.revoked_at = datetime.now(UTC)
+    assert member.post("/api/proposals/save", json={"token": body}).status_code == 404

@@ -435,6 +435,29 @@ const hugged = (pose: Pose): Pose => ({
   armF: { at: [20, 20.5], from: 'waist' },
 })
 
+/** The hip hinge's single-leg steps (any-level S1, Decided 2): the single-leg Romanian deadlift's
+ * figure with no bell, the back leg going back in line with the back. */
+const RDL = FIGURES['single-leg-rdl']
+const ONE_LEG_FRAMES: Figure['frames'] = [
+  'On one leg, the other foot just off the floor',
+  'Tipped forward, the back leg in line with the back',
+]
+/** A hand on the counter's edge in front: the hinge stops short of the counter. */
+const ONE_LEG_COUNTER: Change = {
+  ...RDL,
+  frames: ['On one leg, a hand on the counter', ONE_LEG_FRAMES[1]],
+  props: counter(36),
+  order: ['armF', 'legF', 'torso', 'head', 'legN', 'armN'],
+  start: { ...RDL.start, lean: 8, armN: { at: [38, 92] } },
+  end: {
+    ...RDL.end,
+    lean: 55,
+    legN: { at: [-77.3, 38.1], angle: -55 },
+    armN: { at: [38, 92] },
+  },
+}
+const handsDown = (pose: Pose): Pose => ({ ...pose, armF: { dir: -89, reach: 0.995 } })
+
 const DRAWN: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
   'pull-up': LOADED(VEST, FIGURES['pull-up']),
   'chin-up': LOADED(VEST, FIGURES['chin-up']),
@@ -705,6 +728,20 @@ const DRAWN: Readonly<Record<string, Readonly<Record<string, Change>>>> = {
       order: ['armF', 'legF', 'torso', 'head', 'legN', 'bell', 'armN'],
       start: hugged(FIGURES['hip-hinge'].start),
       end: hugged(FIGURES['hip-hinge'].end),
+    },
+    'Single leg, a hand on the counter': ONE_LEG_COUNTER,
+    'Single leg, no hands': {
+      ...RDL,
+      frames: ONE_LEG_FRAMES,
+      props: {},
+      order: undefined,
+      start: handsDown(RDL.start),
+      end: handsDown(RDL.end),
+    },
+    'Single leg, holding a bag': {
+      ...RDL,
+      frames: ['On one leg, a bag in the other hand', ONE_LEG_FRAMES[1]],
+      props: { bag: 'near' },
     },
   },
   ...AWAY_STEPS,

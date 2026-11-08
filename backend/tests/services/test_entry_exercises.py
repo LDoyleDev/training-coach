@@ -43,10 +43,10 @@ def test_a_range_runs_low_to_high_and_only_where_no_session_sets_one() -> None:
 
 
 def test_every_exercise_that_asks_can_you_do_it_has_a_range() -> None:
-    """Its questions ask for the bottom of the range: a session's, or its own when no session
-    uses it. A one-step gym exercise no session uses asks nothing."""
+    """Its questions ask for the bottom of the range: a session's (a starter's too), or its own
+    when no session uses it. A one-step gym exercise no session uses asks nothing."""
     plan = load_plan()
-    used = {i.exercise for s in plan.sessions for i in s.versions}
+    used = {i.exercise for s in plan.every_session for i in s.versions}
     unranged = [
         e.slug for e in plan.exercises if e.questions and e.slug not in used and e.range is None
     ]
@@ -164,7 +164,9 @@ def test_balance_counts_seconds_and_marks_every_step_without_a_hold() -> None:
     counter (ADR-0083)."""
     balance = next(e for e in load_plan().exercises if e.slug == "balance")
     assert balance.kind is ExerciseKind.SECONDS
-    assert balance.range == (3, 10)
+    ranges = {(i.rep_min, i.rep_max) for s in load_plan().every_session for i in s.versions
+              if i.exercise == "balance"}  # fmt: skip
+    assert ranges == {(3, 10)}  # the starters' (any-level S1)
     assert balance.qualities == ["balance"]
     assert all(Mark.BALANCE in balance.marks[step] for step in balance.ladder[1:])
     low = [step for step in balance.ladder if balance.levels[step] <= StepLevel.BUILDING]
@@ -175,3 +177,20 @@ def test_balance_rests_like_small_work_and_is_main_work_on_a_short_day() -> None
     """For the older people it is for, balance is kept, not trimmed first (ADR-0082)."""
     assert straight(Kind(Pattern.BALANCE, frozenset())) == SMALL_SECONDS
     assert Pattern.BALANCE not in ACCESSORY
+
+
+def test_the_hip_hinge_climbs_to_a_single_leg_hinge_at_level_5() -> None:
+    """any-level S1, Decided 2: three steps at its top, so it climbs as far as the starters'
+    other exercises; the gym's barbell Romanian deadlift can take over from the first."""
+    hinge = next(e for e in load_plan().exercises if e.slug == "hip-hinge")
+    top = hinge.ladder[3:]
+    assert top == ["Single leg, a hand on the counter", "Single leg, no hands",
+                   "Single leg, holding a bag"]  # fmt: skip
+    assert [hinge.levels[step] for step in top] == [StepLevel.REGULAR, StepLevel.STRONG,
+                                                    StepLevel.STRONG]  # fmt: skip
+    for step in top:
+        assert hinge.marks[step] == [Mark.BALANCE]
+        assert hinge.cues[step]
+        assert "single-leg" in hinge.questions[step]
+        assert "each leg" in hinge.questions[step]
+        assert not hinge.needs.get(step)  # a bag is household: no kit

@@ -130,8 +130,8 @@ def test_another_persons_workout_is_not_there(engine: Engine) -> None:
         shared.add(User(id=2))
         apply_seed(shared, load_plan())
     with session_scope(make_session_factory(engine, user_id=2)) as theirs:
-        legs = theirs.scalars(select(SessionTemplate.id).where(SessionTemplate.slug == "legs"))
-        workout = Workout(local_date=date(2026, 10, 8), template_id=legs.one(), status="done")
+        first = theirs.scalars(select(SessionTemplate.id).order_by(SessionTemplate.position))
+        workout = Workout(local_date=date(2026, 10, 8), template_id=first.first(), status="done")
         theirs.add(workout)
         theirs.flush()
         their_id = workout.id

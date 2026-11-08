@@ -706,3 +706,23 @@ test('a bag hugged in the hinge is held at the hands, and a hip thrust lifts off
     50,
   )
 })
+
+test("the hip hinge's single-leg steps stand on one leg, the back leg rising in line with the back", () => {
+  const counter = figureFor('hip-hinge', 'Single leg, a hand on the counter')!
+  const [x0, x1, top] = [counter.props!.wall!.x0, counter.props!.wall!.x1, counter.props!.wall!.top]
+  for (const t of ALONG) {
+    const j = solve(blend(counter.start, counter.end, t))
+    const hand = j.armN.wrist
+    expect(hand[0]).toBeGreaterThan(x0) // on the counter's edge all the way down
+    expect(hand[0]).toBeLessThan(x1)
+    expect(hand[1] - top).toBeLessThan(4)
+    expect(j.head.c[1]).toBeGreaterThan(top + 15) // the hinge stops short of the counter
+  }
+  for (const step of ['Single leg, no hands', 'Single leg, holding a bag']) {
+    const figure = figureFor('hip-hinge', step)!
+    const end = solve(figure.end)
+    expect(end.legN.ball[1], step).toBeGreaterThan(40) // the back foot well off the floor
+    expect(figure.props?.bell, step).toBeUndefined() // no kit: a bag at most
+  }
+  expect(figureFor('hip-hinge', 'Single leg, holding a bag')!.props).toEqual({ bag: 'near' })
+})
