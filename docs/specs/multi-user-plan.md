@@ -416,7 +416,8 @@ guards, cheapest first:
    buttons behind their consent; the scheduled messages stay the owner's until step 9); the
    `telegram_links` and `telegram_claims` tables and the Account routes (done:
    `/api/account/telegram`, its link, code, confirm and unlink); `/start <token>` as a pending
-   claim; Account's Connect, Confirm and Unlink.
+   claim (done: the gate answers it with a code, rate limited, and old buttons do nothing);
+   Account's Connect, Confirm and Unlink.
 9. **Schedules per person**, and band offers and band data alerts per person (the alert
    state is already per person, on `ingest_keys`).
 10. **Done (7 Nov 2026).** **Groq cap per person:** 20 voice notes or fallback readings a day for

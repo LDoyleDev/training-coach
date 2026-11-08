@@ -4,7 +4,10 @@ One handler in group -1 decides who an update is from before any other handler r
 through only a message or a button press, in a private chat whose id is the sender's, from
 someone linked in ``users.telegram_user_id``. Strangers, groups, channels and every other kind of
 update stop here without a reply, and so does a member while ``TC_MULTI_USER`` is off (ADR-0059).
-Someone away from Europe for 30 days gets one line (ADR-0085), except for /login and /recover.
+With it on, a stranger's ``/start <token>`` is the one exception: the gate answers it itself
+(``bot.connect``) and still stops it. A button on a message older than the person's link does
+nothing, so a chat relinked to someone else can't act with old buttons. Someone away from
+Europe for 30 days gets one line (ADR-0085), except for /login and /recover.
 
 A handler registered through ``Gate.served`` gets the ``Person``, with sessions bound to them
 (ADR-0029), and does nothing without one.
@@ -29,6 +32,7 @@ from telegram import Update
 from telegram.error import TelegramError
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
+from training_coach.bot.connect import Connect, start_token
 from training_coach.bot.messages import SOMETHING_WENT_WRONG
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
@@ -90,6 +94,7 @@ class Gate:
         self.seen: set[int] = set()  # Telegram ids served since start-up
         self.found: OrderedDict[int, Person] = OrderedDict()  # update id -> person
         self.bound: dict[int, sessionmaker[Session]] = {}  # user id -> their sessions
+        self.connect = Connect(settings, shared)  # a stranger's /start <token> (ADR-0089)
 
     def served(self, handler: ForPerson) -> Callback:
         """``handler`` with the person this update is from; nothing runs without one. It keeps
@@ -141,13 +146,23 @@ class Gate:
             with session_scope(self.shared) as session:
                 user_id = users.by_telegram(session, sender.id)
                 served = user_id is not None and users.served_remotely(session, user_id, now)
+                linked = None if user_id is None else users.telegram_linked_at(session, user_id)
         except SQLAlchemyError as exc:
             log.error("bot.gate_lookup_failed", error=type(exc).__name__)
             if sender.id in self.seen or sender.id == self.settings.telegram_allowed_user_id:
                 await self._reply(update, SOMETHING_WENT_WRONG)
             raise ApplicationHandlerStop from None
-        if user_id is None or users.closed_to(user_id, self.settings.multi_user):
-            raise ApplicationHandlerStop  # a stranger, or a member while the switch is off
+        if user_id is None:
+            token = start_token(update) if self.settings.multi_user else None
+            if token is not None:  # someone connecting their Telegram: a code, nothing more
+                text = self.connect.claim(sender.id, sender.first_name, token)
+                if text is not None:
+                    await self._reply(update, text)
+            raise ApplicationHandlerStop  # a stranger
+        if users.closed_to(user_id, self.settings.multi_user):
+            raise ApplicationHandlerStop  # a member while the switch is off
+        if _older_than(update, linked):
+            raise ApplicationHandlerStop  # an old button, from before this person's link
         self.seen.add(sender.id)
         if not served and not _anywhere(update):
             await self._reply(update, AWAY_TEXT)
@@ -162,6 +177,15 @@ class Gate:
                 await update.effective_message.reply_text(text)
         except TelegramError as exc:  # a stale button, the network: the update still stops
             log.warning("bot.gate_reply_failed", error=type(exc).__name__)
+
+
+def _older_than(update: Update, linked: datetime | None) -> bool:
+    """Whether ``update`` is a press on a message sent before ``linked`` (Telegram dates are
+    whole seconds). A message Telegram no longer shows has date 0, so it counts as older."""
+    press = update.callback_query
+    if press is None or linked is None:
+        return False
+    return press.message is None or press.message.date < linked.replace(microsecond=0)
 
 
 def _anywhere(update: Update) -> bool:

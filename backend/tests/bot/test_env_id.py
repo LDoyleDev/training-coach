@@ -18,6 +18,7 @@ OWNERS = "self.sessions"  # a handler class's own sessions: the owner's
 ALLOWED: dict[tuple[str, str], str] = {
     ("app::build_bot", ENV_ID): "refuses to start without the owner's account",
     ("gate::Gate._admit", ENV_ID): "a database error is told to the configured account too",
+    ("connect::Connect.claim", ENV_ID): "the owner's configured account can't claim a link",
     ("gate::Person.not_open", OWNERS): "a Person's own sessions, bound to them",
     # Scheduled messages: the owner's, sent to the owner's account (step 9).
     ("app::Handlers._served", OWNERS): "whether the owner is away, for their jobs",
