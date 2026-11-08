@@ -35,9 +35,9 @@ options they choose between are below.
     export, then erase it.
 13. **Time zone:** Europe/Berlin for everyone; per-person time zones only if someone lives
     elsewhere.
-14. **Legal** (changed 8 Nov, below): no one else's health data before a lawyer has reviewed the notice, consent and
-    DPIA. Members start training-only: the health categories (body, readiness, daily check,
-    band) are off for members until then.
+14. **Legal** (changed 8 Nov, below): ~~no one else's health data before a lawyer has reviewed
+    the notice, consent and DPIA~~. Now: family and friends on consent per category; the lawyer
+    before anyone outside them (Decided 2026-11-08).
 15. **Controller:** the owner personally, as the legal drafts say, until the lawyer advises.
 16. **iPhone members:** band import is Android-only; that is fine.
 
@@ -384,15 +384,14 @@ guards, cheapest first:
    and passkey. **Done (7 Nov 2026)**, except the notice, which step 11 publishes: the routes
    (`GET /api/people`, `POST` and `DELETE /api/invites`, `POST /api/join`), People on Account
    and the `/join` page.
-6. **Consent records** and per-category withdraw and erase. **Training-only first (7 Nov
-   2026):** until the lawyer's review, no member can keep or read health data at all
-   (`users.health_open`, the owner by id): the health routes answer 403 (`api.auth.Health`),
-   their phone's band posts, cardio heart rate and health proposals from their AI are refused,
-   and their AI app's tokens carry no body or readiness scope. Next, the consent step
+6. **Done (8 Nov 2026).** **Consent records** and per-category withdraw and erase
    ([ADR-0090](../adr/0090-consent-per-category-family-and-friends.md), Decided 2026-11-08):
-   the `consents` table and routes with withdrawal erasing; then the health routes, MCP scopes,
-   proposals and band posts per category; then the consent card and Account's list; then the
-   "private test" wording.
+   the `consents` table and `/api/consents` (#617), withdrawal erasing the category; the health
+   routes (`api.auth.Body`, `DailyCheckData`, `Band`), MCP scopes, proposals, band posts and
+   the AI comment per category, with a consented member in the two-person canary (#618); the
+   consent card and Account's "What you've agreed to" (#620); "a private test for invited
+   family and friends" on `/join` and in the notice (#619). The walk-through's own answers come
+   with the walk-through. Training-only (7 Nov) came first and is now replaced.
 7. **Leave, remove a member, admin recovery link** (ADR succeeding ADR-0044) and the restore
    runbook step. The leave service and the left list are done ([ADR-0088](../adr/0088-leaving-and-the-left-list.md),
    7 Nov 2026): the list is a file beside the database, copied off-site nightly, matched by id
@@ -411,8 +410,8 @@ guards, cheapest first:
    in [ADR-0089](../adr/0089-telegram-for-members.md) (accepted 8 Nov, after a written plan and
    an independent review; a member's erase dropping the link is done, #609). Build order, each
    safe on `main` because nobody but the owner can be linked until the `/start` PR: the owner's
-   messages to the owner's chat from the database, and start-up never taking a member's link;
-   the sender gate with the bot's two-person canary and the CLAUDE.md rule; the handler classes
+   messages to the owner's chat from the database, and start-up never taking a member's link
+   (done, #614); the sender gate and the CLAUDE.md rule (done, #615); the handler classes
    moved to the person's sessions in three PRs; the `telegram_links` table and the Account
    routes; `/start <token>` as a pending claim; Account's Connect, Confirm and Unlink.
 9. **Schedules per person**, and band offers and band data alerts per person (the alert
