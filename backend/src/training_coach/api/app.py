@@ -27,6 +27,7 @@ from training_coach.api.body_settings import router as body_settings_router
 from training_coach.api.cardio import router as cardio_router
 from training_coach.api.change import router as change_router
 from training_coach.api.connections import router as connections_router
+from training_coach.api.consents import router as consents_router
 from training_coach.api.coverage import router as coverage_router
 from training_coach.api.daily_check import router as daily_check_router
 from training_coach.api.day import router as day_router
@@ -397,6 +398,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(home_router)
     app.include_router(progress_router)
     app.include_router(readiness_router)
+    app.include_router(consents_router)
     app.include_router(daily_check_router)
     app.include_router(ingest_router)
     app.include_router(ingest_account_router)
