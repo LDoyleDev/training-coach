@@ -39,8 +39,10 @@ the web page says "Rest day. No session planned today. Next: B.", the home butto
 Rest day", the morning message says "Today: rest day. No session planned. Next: B." with no Start,
 Rest or Swap buttons, the evening nudge stays quiet, the daily check offers no "Rest today", the
 week ahead gives each rest place its day, and the AI summary adds "Today is a rest day." The
-person can still train: a session picked for today, or a typed log, counts as usual, and doing the
-pointer's session on a rest day moves the queue on.
+person can still train: the web page's "Train today instead" picks the next session for today
+(a pick, ADR-0022, so the day is no longer a rest day), and a typed log counts as usual. Doing the
+pointer's session on a rest day moves the queue on. The bot's messages show the queue's day, as
+they always have, so after a pick they still say it's a rest day.
 
 **The body map counts a rest place as a day with no training:** two sessions with a rest place
 between them aren't "two days running" for the back-to-back warning.

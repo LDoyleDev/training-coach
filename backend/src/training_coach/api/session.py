@@ -326,10 +326,10 @@ class QueuedView(BaseModel):
     name: str
 
 
-def rest_day_view(session: Session, on: date) -> QueuedView | None:
+def rest_day_view(session: Session, on: date, settings: Settings) -> QueuedView | None:
     """The next session, when ``on`` is a rest place's day (ADR-0091)."""
     queue = position(session)
-    if queue is None or not guided.rest_day(session, on, queue.pointer):
+    if queue is None or not guided.rest_day(session, on, settings.tz):
         return None
     name = dict(queue_actions.choices(session)).get(queue.pointer)
     return QueuedView(template_id=queue.pointer, name=name) if name else None
@@ -484,7 +484,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
             test_day=test_day,
             readiness_note=caution,
             daily_check=daily,
-            rest_day=rest_day_view(session, on),
+            rest_day=rest_day_view(session, on, settings),
         )
     ladders = session_levels.ladders(
         session, (i.slug for i in plan.items), away=plan.place is Place.AWAY

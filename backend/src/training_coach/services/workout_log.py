@@ -120,6 +120,17 @@ def target(session: Session, on: date, tz: ZoneInfo) -> SessionTemplate | None:
     )
     if done_today is not None:
         return None
+    picked_id = picked_today(session, on, tz)
+    if picked_id is not None:
+        template = session.get(SessionTemplate, picked_id)
+        if template is not None:
+            return template
+    current = position(session)
+    return session.get(SessionTemplate, current.pointer) if current is not None else None
+
+
+def picked_today(session: Session, on: date, tz: ZoneInfo) -> int | None:
+    """The session last picked for ``on`` with "Pick another" (ADR-0022), if any."""
     picked = session.scalar(
         select(Event.payload)
         .where(
@@ -130,13 +141,8 @@ def target(session: Session, on: date, tz: ZoneInfo) -> SessionTemplate | None:
         .order_by(Event.id.desc())
         .limit(1)
     )
-    picked_id = picked.get("picked") if isinstance(picked, dict) else None
-    if isinstance(picked_id, int):
-        template = session.get(SessionTemplate, picked_id)
-        if template is not None:
-            return template
-    current = position(session)
-    return session.get(SessionTemplate, current.pointer) if current is not None else None
+    found = picked.get("picked") if isinstance(picked, dict) else None
+    return found if isinstance(found, int) else None
 
 
 def catalogue(session: Session, template: SessionTemplate | None) -> list[Known]:

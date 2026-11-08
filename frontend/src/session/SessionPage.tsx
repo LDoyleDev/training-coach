@@ -9,6 +9,7 @@ import {
   fetchSettings,
   fetchToday,
   keepProgress,
+  pickToday,
   saveSession,
   saveSettings,
   SignedOutError,
@@ -86,7 +87,7 @@ type Loaded =
   | { status: 'loading' }
   | { status: 'signed-out' }
   | { status: 'error' }
-  | { status: 'none'; next?: string | null } // nothing planned left today; next: a rest day's
+  | { status: 'none'; next?: Queued | null } // nothing planned left today; next: a rest day's
   | { status: 'ready'; session: Guided }
 
 /**
@@ -232,7 +233,7 @@ export default function SessionPage() {
     // An empty order can't be guided; treat it like nothing planned.
     if (!today.session || today.session.order.length === 0)
       // A rest place's day (ADR-0091) names the session that comes next.
-      return setLoaded({ status: 'none', next: today.rest_day?.name ?? null })
+      return setLoaded({ status: 'none', next: today.rest_day ?? null })
     setLoaded({ status: 'ready', session: today.session })
     const kept = fromKept(today.progress)
     setValues(kept)
@@ -290,6 +291,18 @@ export default function SessionPage() {
     if (change === 'undone' || onward) load()
   }
 
+  /** Train on a rest day after all (ADR-0091): the next session, picked for today. */
+  const trainToday = async (next: Queued) => {
+    try {
+      const result = await pickToday(next.template_id, next.template_id)
+      if (result === 'stale') return stale()
+      changed(result.today, `${next.name} is on for today.`, result.undo)
+    } catch (error) {
+      if (error instanceof SignedOutError) setLoaded({ status: 'signed-out' })
+      else setNote("Couldn't change today. Check your connection and try again.")
+    }
+  }
+
   const counted = (text: string) => {
     setNote(text)
     refreshUndo()
@@ -321,7 +334,7 @@ export default function SessionPage() {
         {loaded.status === 'none' && dailyLine}
         {loaded.status === 'none' && readinessNote && <ReadinessNotice text={readinessNote} />}
         {loaded.status === 'none' && testDay && <TestDayNotice due={testDay} />}
-        <Status loaded={loaded} />
+        <Status loaded={loaded} onTrain={trainToday} />
         {loaded.status === 'none' && <DayCard refresh={undoKey} />}
         {loaded.status === 'none' && bandOffers}
         {loaded.status === 'none' && undoBar}
@@ -1121,7 +1134,13 @@ function afterRun(session: Guided): string[] {
   return session.items.filter((item) => !CARDIO.includes(item.slug)).map((item) => item.name)
 }
 
-function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
+function Status({
+  loaded,
+  onTrain,
+}: {
+  loaded: Exclude<Loaded, { status: 'ready' }>
+  onTrain: (next: Queued) => void
+}) {
   if (loaded.status === 'loading')
     return (
       <p className="status" role="status">
@@ -1146,7 +1165,14 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
         {loaded.next ? (
           <>
             <h1 className="text-3xl font-extrabold">Rest day</h1>
-            <p className="m-0">No session planned today. Next: {loaded.next}.</p>
+            <p className="m-0">No session planned today. Next: {loaded.next.name}.</p>
+            <button
+              type="button"
+              className={`${secondary} self-start`}
+              onClick={() => loaded.next && onTrain(loaded.next)}
+            >
+              Train today instead
+            </button>
           </>
         ) : (
           <>

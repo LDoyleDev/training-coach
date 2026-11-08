@@ -832,3 +832,9 @@ def test_a_rest_day_has_no_session_and_names_the_next_one(
         upcoming = {"template_id": second.id, "name": second.name}
     body = signed_in.get("/api/session/today").json()
     assert (body["session"], body["rest_day"], body["planned"]) == (None, upcoming, None)
+    # "Train today instead" picks the next session for today: the person decides.
+    pick = {"template_id": second.id, "picked_id": second.id}
+    picked = signed_in.post("/api/today/pick", json=pick).json()["today"]
+    assert (picked["session"]["template_id"], picked["rest_day"]) == (second.id, None)
+    other = {"template_id": first.id, "picked_id": first.id}  # not the session on offer
+    assert signed_in.post("/api/today/pick", json=other).status_code == 409

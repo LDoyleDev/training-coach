@@ -108,6 +108,10 @@ def _planned(
     """
     plan = guided.today(session, on, settings.tz)
     current = position(session)
+    if plan is None and picked and current is not None:
+        # A rest day shows no session but names the next: picking it trains today (ADR-0091).
+        resting = guided.rest_day(session, on, settings.tz)
+        return current.pointer if resting and current.pointer == shown else None
     if plan is None or plan.template_id != shown or current is None:
         return None
     if not picked and current.pointer != shown:

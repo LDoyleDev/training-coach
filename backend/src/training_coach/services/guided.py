@@ -376,7 +376,7 @@ def today(session: Session, on: date, tz: ZoneInfo, first: Collection[int] = ())
     template = workout_log.target(session, on, tz)
     if template is None:
         return _after_run(session, on, tz, first)
-    if held_today(session, on) or rest_day(session, on, template.id):
+    if held_today(session, on) or rest_day(session, on, tz):
         return None
     block = blocks.current(session, on, tz)
     plan = session_plan(session, template.id, block, chosen(session, on, template.id, False), on=on)
@@ -521,11 +521,10 @@ def held_today(session: Session, on: date) -> bool:
     return session.scalar(query.limit(1)) is not None
 
 
-def rest_day(session: Session, on: date, template_id: int) -> bool:
-    """A rest place's day (ADR-0091) offers no session: ``template_id`` is the queue's own,
-    not one picked for today."""
-    current = position(session)
-    return current is not None and current.pointer == template_id and rest_days(session, on) > 0
+def rest_day(session: Session, on: date, tz: ZoneInfo) -> bool:
+    """A rest place's day (ADR-0091) offers no session, unless one was picked for it: the
+    person chose to train ("Train today", or Pick another)."""
+    return rest_days(session, on) > 0 and workout_log.picked_today(session, on, tz) is None
 
 
 # ---------------------------------------------------------------- progress and saving
