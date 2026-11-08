@@ -59,6 +59,7 @@ import PlaceSwitch from './PlaceSwitch'
 import DayCard from './DayCard'
 import Undo from './Undo'
 import BandOffers from './BandOffers'
+import Consented from '../consent/Consented'
 import Proposals from './Proposals'
 import LogDay from './LogDay'
 import LevelChange from './LevelChange'
@@ -295,7 +296,9 @@ export default function SessionPage() {
   const bandOffers = (
     <>
       <Proposals onSaved={counted} talkTest={talkTest} />
-      <BandOffers onCounted={counted} />
+      <Consented category="band" quiet>
+        <BandOffers onCounted={counted} />
+      </Consented>
     </>
   )
 

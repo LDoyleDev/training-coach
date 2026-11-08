@@ -6,6 +6,9 @@ vi.mock('./SignIn', () => ({ default: () => <p>sign in</p> }))
 vi.mock('./Account', () => ({ default: () => <p>account</p> }))
 vi.mock('./tests/TestsPage', () => ({ default: () => <p>tests</p> }))
 vi.mock('./body/BodyPage', () => ({ default: () => <p>body</p> }))
+vi.mock('./consent/Consented', () => ({
+  default: ({ children }: { children: unknown }) => children,
+}))
 vi.mock('./plan/PlanPage', () => ({ default: () => <p>plan</p> }))
 vi.mock('./progress/ProgressPage', () => ({ default: () => <p>progress</p> }))
 vi.mock('./home/HomePage', () => ({ default: () => <p>home</p> }))

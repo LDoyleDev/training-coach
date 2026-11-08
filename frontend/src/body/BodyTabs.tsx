@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AppShell from '../components/AppShell'
+import Consented from '../consent/Consented'
 import TestsPage from '../tests/TestsPage'
 import BodyPage from './BodyPage'
 
@@ -14,7 +15,8 @@ const tab =
   'min-h-11 flex-1 rounded-xl border-2 border-[var(--ink)] px-3 font-bold text-[var(--ink)] aria-selected:bg-[var(--ink)] aria-selected:text-[var(--chalk)]'
 
 /** /body: measurements and photos, and the fitness tests as its second tab (ADR-0069; /tests
- * opens it as ?tab=tests). */
+ * opens it as ?tab=tests). Measurements ask a member for consent first (ADR-0090); the tests
+ * are training, so they don't. */
 export default function BodyTabs() {
   const [shown, setShown] = useState<Tab>(() =>
     new URLSearchParams(window.location.search).get('tab') === 'tests' ? 'tests' : 'body',
@@ -41,7 +43,13 @@ export default function BodyTabs() {
         ))}
       </div>
       <div role="tabpanel" className="flex flex-col gap-4">
-        {shown === 'tests' ? <TestsPage embedded /> : <BodyPage embedded />}
+        {shown === 'tests' ? (
+          <TestsPage embedded />
+        ) : (
+          <Consented category="body">
+            <BodyPage embedded />
+          </Consented>
+        )}
       </div>
     </AppShell>
   )

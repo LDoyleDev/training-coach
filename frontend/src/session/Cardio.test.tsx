@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { CardioLogged, CardioOptions } from '../api'
 import type { HiitTimerProps } from '../hiit/HiitTimer'
@@ -384,6 +384,22 @@ test('a ride shows its speed, not its pace', async () => {
   expect(await screen.findByText('effort 5/10 · 36.4 km · 24.3 km/h')).toBeInTheDocument()
 })
 
+test('a member who hasn’t said yes to band data isn’t asked for heart rate', async () => {
+  const band = { category: 'band', version: 1, open: false, answer: null, at: null }
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (path: string) =>
+      Response.json(path === '/api/consents' ? { asked: true, categories: [band] } : ZONE2_DAY),
+    ),
+  )
+  render(<Cardio featured />)
+  fireEvent.click(await screen.findByRole('button', { name: /different minutes/ }))
+  expect(await screen.findByLabelText('Distance (km)')).toBeInTheDocument()
+  await act(() => new Promise((r) => setTimeout(r, 0))) // the consents have answered
+  expect(screen.queryByLabelText('Average heart rate')).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('Highest heart rate')).not.toBeInTheDocument()
+})
+
 test('details from a watch: distance gives the pace, and they are sent and shown', async () => {
   const sent = serve({ log: { ...LOGGED, planned: false, pace: 354 } })
   render(<Cardio featured />)
@@ -393,7 +409,9 @@ test('details from a watch: distance gives the pace, and they are sent and shown
   click('Effort 6')
   fireEvent.change(screen.getByLabelText('Distance (km)'), { target: { value: '7,29' } })
   expect(screen.getByText('Pace 5:54 /km')).toBeInTheDocument()
-  fireEvent.change(screen.getByLabelText('Average heart rate'), { target: { value: '139' } })
+  fireEvent.change(await screen.findByLabelText('Average heart rate'), {
+    target: { value: '139' },
+  })
   fireEvent.change(screen.getByLabelText('Highest heart rate'), { target: { value: '160' } })
   fireEvent.change(screen.getByLabelText('Started at'), { target: { value: '16:26' } })
   click('Save 43 min')
