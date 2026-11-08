@@ -2068,18 +2068,31 @@ pattern = "hinge"
 stress = ["spine"]
 aliases = ["hip hinges", "counter hinge", "good morning", "good mornings"]
 start = 0
-ladder = ["Hands on the counter", "Hips back to a wall", "Holding a bag at the chest"]
+ladder = ["Hands on the counter", "Hips back to a wall", "Holding a bag at the chest", "Single leg, a hand on the counter", "Single leg, no hands", "Single leg, holding a bag"]
 [exercises.cues]
 "Hands on the counter" = "An arm's length from the counter, hands on its edge. Hips back until arms and back make one line, then stand."
 "Hips back to a wall" = "A foot's length from a wall, your back to it, hands on your hips. Push your hips back to touch the wall, then stand."
 "Holding a bag at the chest" = "Hug a 3-5 kg bag or backpack to your chest."
+"Single leg, a hand on the counter" = "Facing the counter, one hand on its edge. Standing knee soft, tip forward as the other leg goes back, hips square, then stand. Each leg."
+"Single leg, no hands" = "Arms by your sides. Tip forward on one leg as the other goes back in line with your back, then stand. Each leg."
+"Single leg, holding a bag" = "A 3-5 kg bag in the hand opposite the standing leg, close to the shin as you tip forward."
 [exercises.questions]
 "Hips back to a wall" = "Can you do 3 hip hinges without holding on, touching your hips to a wall behind you?"
 "Holding a bag at the chest" = "Can you do 3 hip hinges hugging a 3-5 kg bag to your chest, back flat?"
+"Single leg, a hand on the counter" = "Can you do 3 single-leg hip hinges on each leg, a hand on the counter, back flat?"
+"Single leg, no hands" = "Can you do 3 single-leg hip hinges on each leg without holding on, back flat?"
+"Single leg, holding a bag" = "Can you do 3 single-leg hip hinges on each leg holding a 3-5 kg bag, back flat?"
 [exercises.levels]
 "Hands on the counter" = 1
 "Hips back to a wall" = 2
 "Holding a bag at the chest" = 3
+"Single leg, a hand on the counter" = 4
+"Single leg, no hands" = 5
+"Single leg, holding a bag" = 5
+[exercises.marks]
+"Single leg, a hand on the counter" = ["balance"]
+"Single leg, no hands" = ["balance"]
+"Single leg, holding a bag" = ["balance"]
 
 [[exercises]]
 slug = "deadlift"
