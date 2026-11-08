@@ -375,9 +375,11 @@ number of exercises.
   level 1 or 2 up to level 4-6 with no kit. The hip hinge, which stopped at level 3, gets three
   steps at its top (Decided, 2).
 - **Every main muscle gets at least 4 sets a week** (the least shown to grow muscle) on all three,
-  most of them on two days, except the rear delts on the 2-day (3, amber; judgment calls, below). The 3- and 4-day starters reach the full target for a few muscles.
-- **Sessions are 38-42 minutes on the 2- and 3-day starters and 26-35 on the 4-day**, so the 40,
-  30 and 20-minute versions have something to cut, and the trim cuts what matters least first.
+  most of them on two days, except the rear delts on the 2-day (3, amber; judgment calls,
+  below). The 3- and 4-day starters reach the full target for a few muscles.
+- **Sessions are 32-42 minutes on the 2- and 3-day starters (3-day C is the short one) and 26-35
+  on the 4-day**, so the 40, 30 and 20-minute versions have something to cut, and the trim cuts
+  what matters least first.
 
 **What changed since the 7 Nov draft.**
 
