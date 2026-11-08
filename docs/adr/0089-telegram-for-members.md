@@ -66,8 +66,9 @@ member types the one their own Telegram shows, and Confirm (again `Fresh`) links
 that code was sent to: it sets `telegram_user_id` and `telegram_linked_at`, records an event, and
 the bot says "Connected". The Telegram name is shown only after the code matches, as a check,
 never as the thing to confirm, since anyone can set any name. A link can hold several claims, so
-someone who used a forwarded link first can't block or impersonate the member's own claim: their
-code is in their chat, not the member's. A link takes at most 3 claims, and its codes are
+someone who used a forwarded link first can't impersonate the member's own claim: their
+code is in their chat, not the member's. At worst they force a new link (below), which fails
+closed. A link takes at most 3 claims, and its codes are
 unique within it (drawn again on a clash), so a code names one claim. Codes are stored hashed
 with the claim and die with the link (10 minutes). Five wrong codes end the link; only the
 member's own signed-in browser can type one, so someone else can't use that to end it.
@@ -77,7 +78,9 @@ code and say "type this to verify". So Account says, beside the code field, "Typ
 the bot sent you after you tapped the link yourself. Never type a code someone sends you. If you
 didn't open the bot just now, tap Cancel", and shows how many claims the link has. With more
 than one, it says "Someone else used this link too: cancel it and make a new one", and Confirm
-is off. Once a code matches, the Telegram name is shown with Confirm, as a last check. The
+is off: a second claim means the link has leaked, so it is safer to start again than to pick
+one. Someone who keeps seeing new links can keep forcing restarts, but never connect; the
+member then asks the admin. Once a code matches, the Telegram name is shown with Confirm, as a last check. The
 threat-model row for a forwarded connect link records this gap. A link that was forwarded, or seen over
 someone's shoulder, does nothing without the code from the member's own Telegram typed into the
 member's own signed-in browser. A Telegram account already linked to anyone is refused, as is the
