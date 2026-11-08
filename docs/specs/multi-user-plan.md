@@ -412,14 +412,16 @@ guards, cheapest first:
    safe on `main` because nobody but the owner can be linked until the `/start` PR: the owner's
    messages to the owner's chat from the database, and start-up never taking a member's link
    (done, #614); the sender gate and the CLAUDE.md rule (done, #615); the handler classes
-   moved to the person's sessions in three PRs; the `telegram_links` table and the Account
+   moved to the person's sessions in three PRs (the first, `/today`, `/week`, the morning
+   buttons, logs, `/settings`, `/login` and `/recover`, done); the `telegram_links` table and the Account
    routes; `/start <token>` as a pending claim; Account's Connect, Confirm and Unlink.
 9. **Schedules per person**, and band offers and band data alerts per person (the alert
    state is already per person, on `ingest_keys`).
 10. **Done (7 Nov 2026).** **Groq cap per person:** 20 voice notes or fallback readings a day for
     a member (`services/groq_quota.py`), none for the owner; it bites once members have Telegram
     (step 8).
-11. **Legal before the first invite:** notice published in the app, DPIA written, then
+11. **Legal before the first invite:** notice published in the app, DPIA written (draft in
+    `docs/legal/dpia.md`, 8 Nov, with its open items), then
     `TC_MULTI_USER` on for invited family and friends (Decided 2026-11-08). A lawyer reviews
     the notice, consent and DPIA before anyone outside them.
 

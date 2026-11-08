@@ -17,11 +17,13 @@ FILES = r"https://api\.telegram\.org/file/bot[^/]+/"
 AUDIO = b"OggS-fake-voice"
 BOT_USER = {"id": 1, "is_bot": True, "first_name": "Coach", "username": "coach_bot"}
 OWNER, STRANGER = 42, 99
+MEMBER = 77  # a member's Telegram account (the ``member`` fixture links it)
 SETTINGS = Settings(
     environment="test",
     telegram_bot_token=SecretStr("123456:TEST-TOKEN"),
     telegram_allowed_user_id=OWNER,
 )
+MULTI = SETTINGS.model_copy(update={"multi_user": True})  # members served (ADR-0059)
 DATE = 1_790_000_000
 NOT_MODIFIED = {
     "ok": False,

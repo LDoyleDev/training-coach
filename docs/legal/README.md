@@ -10,6 +10,7 @@ from every page footer.
 | Draft | For | Open before publishing |
 | --- | --- | --- |
 | [privacy-policy.md](privacy-policy.md) | GDPR Art. 13: what is stored, why, where, how long, rights | The UG as controller; postal address; a German version; the consent wording for health data (Art. 9), a draft in the app (ADR-0090); data processing agreements (Art. 28) checked for each service |
+| [dpia.md](dpia.md) | Art. 35: the risks of the private test and the measures against them | The open items it lists; the lawyer's view on whether it is required and on Art. 36 |
 | [impressum.md](impressum.md) | § 5 DDG (who runs the site) | Postal address; the UG's register entry and managing director once it exists |
 
 Keep the drafts true as the app changes: a new external service, data type or retention period

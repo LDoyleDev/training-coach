@@ -40,7 +40,7 @@ def _rest_today(sessions: Sessions, handlers: Handlers) -> str:
 async def test_the_morning_of_a_rest_day_says_so(seeded: Sessions) -> None:
     handlers = Handlers(WITH_URL, seeded)
     upcoming = _rest_today(seeded, handlers)
-    text, markup = handlers._today()
+    text, markup = handlers._today(seeded)
     assert text == f"Today: rest day. No session planned.\nNext: {upcoming}."
     assert markup is not None
     rows = [(b.text, b.url) for row in markup.inline_keyboard for b in row]
@@ -64,7 +64,7 @@ async def test_a_pick_on_a_rest_day_makes_it_a_training_day(seeded: Sessions) ->
         assert pointer is not None
         queue_actions.pick(session, pointer, pointer)
         session.commit()
-    text, _ = handlers._today()
+    text, _ = handlers._today(seeded)
     assert text.startswith(f"Today: {upcoming}\n")
     context = type("Ctx", (), {"bot": AsyncMock()})()
     await handlers.nudge(context)  # type: ignore[arg-type]

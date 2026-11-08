@@ -16,15 +16,14 @@ from sqlalchemy.orm import Session, sessionmaker
 from structlog.testing import capture_logs
 from telegram.ext import Application
 
-from tests.bot.fakes import OWNER, SETTINGS, button_data, run, text_message, texts
+from tests.bot.fakes import MEMBER, MULTI, OWNER, SETTINGS, button_data, run, text_message, texts
 from training_coach.bot.app import build_bot
 from training_coach.bot.messages import MODEL_ASSISTED
-from training_coach.db.models import Event, User, Workout
-from training_coach.db.session import make_session_factory, session_scope
+from training_coach.db.models import Event, Workout
+from training_coach.db.session import session_scope
 from training_coach.domain.queue import local_date
 from training_coach.services import groq_quota
 from training_coach.services.groq import BASE_URL, GroqClient
-from training_coach.services.seed import apply_seed, load_plan
 
 App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
@@ -238,21 +237,12 @@ async def test_the_models_reading_keeps_the_past_day(assisted: App, seeded: Sess
     assert "yesterday" not in json.loads(asked[0].content)["messages"][-1]["content"]
 
 
-def _member(seeded: Sessions, used: int) -> Sessions:
-    """A member's sessions (ADR-0059) with ``used`` of today's shared-key uses spent."""
-    engine = seeded.kw["bind"]
-    with session_scope(make_session_factory(engine)) as shared:
-        person = User(role="member")
-        shared.add(person)
-        shared.flush()
-        person_id = person.id
-        apply_seed(shared, load_plan())
-    theirs = make_session_factory(engine, user_id=person_id)
-    with session_scope(theirs) as bound:
+def _spent(member: Sessions, used: int) -> None:
+    """``used`` of the member's uses of the shared key today (ADR-0059)."""
+    with session_scope(member) as bound:
         bound.add_all(
             Event(kind=groq_quota.USED, at=datetime.now(UTC), payload={}) for _ in range(used)
         )
-    return theirs
 
 
 def _uses(sessions: Sessions) -> int:
@@ -260,21 +250,25 @@ def _uses(sessions: Sessions) -> int:
         return len(bound.scalars(select(Event).where(Event.kind == groq_quota.USED)).all())
 
 
-async def test_a_member_past_the_cap_gets_the_rules_reading_and_no_model(seeded: Sessions) -> None:
-    theirs = _member(seeded, groq_quota.MEMBER_CAP)
-    bot = build_bot(SETTINGS, theirs, GroqClient(SecretStr("gsk_TEST-KEY"), backoff=0))
+async def test_a_member_past_the_cap_gets_the_rules_reading_and_no_model(
+    seeded: Sessions, member: Sessions
+) -> None:
+    theirs = member
+    _spent(theirs, groq_quota.MEMBER_CAP)
+    bot = build_bot(MULTI, seeded, GroqClient(SecretStr("gsk_TEST-KEY"), backoff=0))
     asked: list[httpx.Request] = []
-    calls = await run(bot, text_message(WORDS, OWNER), routes=model_says({"lines": []}, asked))
+    calls = await run(bot, text_message(WORDS, MEMBER), routes=model_says({"lines": []}, asked))
     assert asked == []
     (reply,) = texts(calls)
     assert not reply.startswith(MODEL_ASSISTED)
     assert _uses(theirs) == groq_quota.MEMBER_CAP
 
 
-async def test_a_members_answered_reading_counts_one_use(seeded: Sessions) -> None:
-    theirs = _member(seeded, 0)
-    bot = build_bot(SETTINGS, theirs, GroqClient(SecretStr("gsk_TEST-KEY"), backoff=0))
+async def test_a_members_answered_reading_counts_one_use(
+    seeded: Sessions, member: Sessions
+) -> None:
+    bot = build_bot(MULTI, seeded, GroqClient(SecretStr("gsk_TEST-KEY"), backoff=0))
     content = {"lines": [line("Pull-up", [8]), line("Dip (chairs)", [12])]}
-    calls = await run(bot, text_message(WORDS, OWNER), routes=model_says(content))
+    calls = await run(bot, text_message(WORDS, MEMBER), routes=model_says(content))
     assert texts(calls)[0].startswith(MODEL_ASSISTED)
-    assert _uses(theirs) == 1
+    assert (_uses(member), _uses(seeded)) == (1, 0)
