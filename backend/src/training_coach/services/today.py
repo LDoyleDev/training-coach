@@ -142,7 +142,8 @@ REST_DAY = "Rest day"
 
 def rest_days(session: Session, on: date) -> int:
     """The rest places still to come on ``on`` and after it (ADR-0091): the days after the
-    planned session done last, one for each rest place after it. 0: ``on`` offers a session."""
+    planned session done or rested last (a planned rest counts as done, ADR-0006), one for each
+    rest place after it. 0: ``on`` offers a session."""
     last = session.execute(
         select(Workout.local_date, SessionTemplate.rest_after)
         .join(SessionTemplate, SessionTemplate.id == Workout.template_id)

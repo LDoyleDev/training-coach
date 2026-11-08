@@ -28,8 +28,11 @@ Upper 2 (2). In `plan.toml` a session says `rest_after = N`. Every existing sess
 
 **The pointer never stops on a rest place.** It names a session, as before, and moves only when
 that session is done or rested (ADR-0006). The rest days are read from the calendar: after the
-planned session done last (by date, then by when it was logged), the next `rest_after` days are
-rest days, and the pointer's session is offered from the day after them. If it isn't done that
+planned session done or rested last (by date, then by when it was logged), the next `rest_after`
+days are rest days, and the pointer's session is offered from the day after them. A rested session
+counts, as it does for the pointer: a planned rest counts as done (ADR-0006), so the week keeps
+its shape. In practice that is the optional session: "Rest today" holds any other as `skipped`,
+which starts no rest days, and none of the starters' sessions is optional. If it isn't done that
 day, it is offered again the next, so a missed session still shifts everything after it. Nothing
 is written when a rest day passes. The rule is `domain.queue.rest_days_left`.
 
