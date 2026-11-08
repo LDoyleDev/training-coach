@@ -80,11 +80,13 @@ def _elsewhere(member: Sessions, owner: Sessions) -> str:
 # ------------------------------------------------------------------ commands
 
 
-async def test_help_leaves_recover_out_for_a_member(both: App) -> None:
+async def test_help_leaves_login_and_recover_out_for_a_member(both: App) -> None:
     assert texts(await run(both, command("/help", OWNER))) == [HELP_TEXT]
     assert texts(await run(both, command("/help", MEMBER))) == [MEMBER_HELP_TEXT]
-    assert "/recover" not in MEMBER_HELP_TEXT
-    assert "/recover" in HELP_TEXT
+    for name in ("/login", "/recover"):
+        assert name not in MEMBER_HELP_TEXT
+        assert name in HELP_TEXT
+    assert "/today" in MEMBER_HELP_TEXT
 
 
 async def test_today_and_week_are_each_persons_own(

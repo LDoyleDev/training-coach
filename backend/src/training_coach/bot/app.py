@@ -94,7 +94,10 @@ from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
 
-RECOVER_LINE = "/recover - sign in without your passkey (lost phone); signs out other devices\n"
+SIGN_IN_LINES = (
+    "/login - sign in to the web app\n"
+    "/recover - sign in without your passkey (lost phone); signs out other devices\n"
+)
 HELP_TEXT = (
     "Training Coach\n\n"
     "/today - today's session with targets\n"
@@ -105,8 +108,7 @@ HELP_TEXT = (
     "/settings - message times, nudges, habits, pause\n"
     "/undo - take back the last rest day, swap, push or saved log\n"
     "/share - your last 4 weeks as a picture to forward (no body data or photos)\n"
-    "/login - sign in to the web app\n"
-    f"{RECOVER_LINE}"
+    f"{SIGN_IN_LINES}"
     "/help - this message\n\n"
     "Log a workout by sending it as a message, like: pull-ups 8 8 7, dips 12 11 10. "
     "For cardio, add what it was if you like: zone 2 walk 60, or moderate cardio 45 min run. "
@@ -132,8 +134,9 @@ RECOVER_TEXT = (
     "again after):"
 )
 LOGIN_OFF = "Web sign-in isn't set up yet: TC_PUBLIC_URL is missing on the server."
-# A member: recovery links are the admin's to make (ADR-0059), so neither text offers /recover.
-MEMBER_HELP_TEXT = HELP_TEXT.replace(RECOVER_LINE, "")
+# A member's help leaves out /login and /recover (ADR-0089): /login only points to their
+# passkey, and recovery links are the admin's to make (ADR-0059).
+MEMBER_HELP_TEXT = HELP_TEXT.replace(SIGN_IN_LINES, "")
 ASK_ADMIN = "Ask the admin for a recovery link."
 LOGIN_MEMBER = f"Sign in with your fingerprint (your passkey) here:\n{{url}}/signin\n\n{ASK_ADMIN}"
 # The gate's, named here for the API's lifespan (it starts the bot) and the tests that drive it.
