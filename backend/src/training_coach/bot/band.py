@@ -169,7 +169,7 @@ class BandHandlers:
             log.error("bot.band_offer_failed", error=type(exc).__name__)
             return
         owner = self.settings.telegram_allowed_user_id
-        assert owner is not None  # noqa: S101 - owner_only
+        assert owner is not None  # noqa: S101 - build_bot checks it
         bot: Bot = context.bot
         for offer in found:
             if not await self.send(bot, owner, offer.text, reply_markup=markup(offer)):
@@ -208,7 +208,7 @@ class BandHandlers:
         else:
             return
         owner = self.settings.telegram_allowed_user_id
-        assert owner is not None  # noqa: S101 - owner_only
+        assert owner is not None  # noqa: S101 - build_bot checks it
         account = links.with_open(None, self.settings.public_url, links.ACCOUNT)
         if not await self.send(context.bot, owner, text, reply_markup=account if stopped else None):
             log.warning("bot.band_watch_not_sent", notice=kind)

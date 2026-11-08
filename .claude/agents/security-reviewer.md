@@ -15,8 +15,9 @@ read-only commands.
 
 Check every item and report only real findings:
 
-1. **Owner only.** Every new Telegram handler uses `owner_only`, and a test proves a stranger
-   gets no reply.
+1. **The sender's own data.** Every new Telegram handler is registered through
+   `gate.served` (ADR-0089), uses the person's sessions, never compares the sender with the env
+   id, and is in `tests/bot/test_two_people.py`, where a stranger gets no reply.
 2. **LLM output is untrusted.** It is parsed into a Pydantic model, invalid output is rejected,
    the user confirms before anything is saved, and the LLM gets no tools and triggers nothing.
 3. **Secrets.** No tokens, keys or `.env` values in code, tests, fixtures, logs, docs or

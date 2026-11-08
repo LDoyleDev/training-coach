@@ -3,19 +3,21 @@ step down suggested when the bottom of the range is out of reach: Step down / No
 
 Buttons carry ``p:<up|no|dn|nd>:<exercise id>:<step id>``: up and no answer Move up, dn and nd
 a step down. The service checks everything again on a press, so a stale or forged press can at
-most get an "already moved" answer.
+most get an "already moved" answer. The ids are the catalogue's, so a press acts on the
+presser's own place on that ladder.
 """
 
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
 from training_coach.bot import links
 from training_coach.bot.buttons import edit_quietly, row_id
+from training_coach.bot.gate import Person
 from training_coach.bot.messages import progress_text, review_text
 from training_coach.config import Settings
 from training_coach.db.session import session_scope
@@ -131,14 +133,17 @@ def reply(outcome: progress.Move | None) -> str:
 
 
 class ProgressHandlers:
-    def __init__(self, settings: Settings, sessions: sessionmaker[Session]) -> None:
-        self.settings = settings
-        self.sessions = sessions
+    """Each handler gets the person the gate found and works in their sessions only."""
 
-    async def command(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+
+    async def command(
+        self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person
+    ) -> None:
         """/progress: where every exercise stands, with Move up for any that are ready (not
         during a strength block, ADR-0028)."""
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             standings = progress.overview(session)
             strength = self._in_strength_block(session)
         if update.effective_message is not None:
@@ -155,26 +160,25 @@ class ProgressHandlers:
         block = blocks.current(session, today, self.settings.tz)
         return block is not None and block.kind is BlockKind.STRENGTH
 
-    async def review(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def review(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
         """/review: this week so far (Monday to today), as in Sunday's review."""
         today = local_date(datetime.now(UTC), self.settings.tz)
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             text = review_text(reviews.weekly(session, today, self.settings.tz))
         if update.effective_message is not None:
             markup = links.with_open(None, self.settings.public_url, links.REVIEW)
             await update.effective_message.reply_text(text, reply_markup=markup)
 
-    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Move up / Not yet. Strangers get nothing, not even an answer (T1)."""
+    async def button(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
+        """Move up / Not yet, or Step down / Not yet, on the presser's own plan."""
         query = update.callback_query
-        user = update.effective_user
-        if query is None or user is None or user.id != self.settings.telegram_allowed_user_id:
+        if query is None:
             return
         press = parse(query.data)
         await query.answer()
         if press is None or not isinstance(query.message, Message):
             return
-        with session_scope(self.sessions) as session:
+        with session_scope(me.sessions) as session:
             if press.action == "up":
                 text = reply(
                     progress.move_up(

@@ -23,7 +23,6 @@ from training_coach.bot.app import (
     RESCHEDULE,
     Handlers,
     build_bot,
-    owner_only,
     schedule_morning,
     send_outcome,
     send_with_retry,
@@ -34,9 +33,11 @@ from training_coach.db.models import ReplacedWorkout, UserSettings
 from training_coach.services.user_settings import Prefs
 
 
-def test_owner_only_requires_configured_user() -> None:
+def test_build_bot_requires_the_owners_account(sessions: sessionmaker[Session]) -> None:
     with pytest.raises(ValueError, match="ALLOWED_USER_ID"):
-        owner_only(Settings(environment="test"))
+        build_bot(
+            Settings(environment="test", telegram_bot_token=SETTINGS.telegram_bot_token), sessions
+        )
 
 
 def test_build_bot_requires_token(sessions: sessionmaker[Session]) -> None:
@@ -44,10 +45,11 @@ def test_build_bot_requires_token(sessions: sessionmaker[Session]) -> None:
         build_bot(Settings(environment="test", telegram_allowed_user_id=1), sessions)
 
 
-SERVED = {"start", "help", "today", "week", "login", "recover", "settings"}  # ADR-0089, step 8
+def _served(callback: object) -> bool:
+    return hasattr(callback, "__wrapped__")  # registered through gate.served (ADR-0089)
 
 
-def test_every_command_is_served_per_person_or_restricted_to_owner(
+def test_every_command_and_message_is_served_per_person_in_a_private_chat(
     application: Application,  # type: ignore[type-arg]  # see build_bot
 ) -> None:
     handlers = [h for group in application.handlers.values() for h in group]
@@ -67,23 +69,20 @@ def test_every_command_is_served_per_person_or_restricted_to_owner(
         "share",
     }
     for handler in commands:
-        if handler.commands <= SERVED:
-            # The person the gate found, and still only in a private chat (ADR-0040).
-            assert hasattr(handler.callback, "__wrapped__")  # through gate.served
-            assert handler.filters == filters.ChatType.PRIVATE
-            continue
-        # Not converted yet: the owner, and only in the private chat with the bot.
-        merged = handler.filters  # PTB's private _MergedFilter: base AND other
-        parts = (getattr(merged, "base_filter", None), getattr(merged, "and_filter", None))
-        assert any(isinstance(p, filters.User) and OWNER in p.user_ids for p in parts)
-        assert filters.ChatType.PRIVATE in parts
-    # Button presses can't carry a filter and typed text combines filters; test_buttons.py,
-    # test_settings.py, test_logging_flow.py, test_progress.py, test_habits.py,
-    # test_stretching.py, test_undo.py, test_daily_check.py, test_band.py and
-    # test_proposals.py prove strangers are ignored by behaviour instead.
-    others = [type(h) for h in handlers if not isinstance(h, CommandHandler)]
-    # The pause outside Europe (ADR-0085) sees every update first: test_away.py.
-    assert others == [TypeHandler] + [CallbackQueryHandler] * 10 + [MessageHandler] * 2
+        # The person the gate found, and only in a private chat (ADR-0040).
+        assert _served(handler.callback)
+        assert handler.filters == filters.ChatType.PRIVATE
+    messages = [h for h in handlers if isinstance(h, MessageHandler)]
+    assert len(messages) == 2  # text and voice
+    assert all(_served(h.callback) for h in messages)
+    # Button presses can't carry a filter. The classes not converted yet (band, daily check,
+    # proposals) check the sender by hand; test_two_people.py and their own tests prove
+    # strangers are ignored by behaviour.
+    presses = [h for h in handlers if isinstance(h, CallbackQueryHandler)]
+    assert sum(_served(h.callback) for h in presses) == 7
+    assert len(presses) == 10
+    # The sender gate sees every update first: test_gate.py.
+    assert [type(h) for h in application.handlers[-1]] == [TypeHandler]
 
 
 async def _replies(application: Application, text: str, sender: int) -> list[str]:  # type: ignore[type-arg]
