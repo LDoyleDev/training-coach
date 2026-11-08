@@ -41,8 +41,8 @@ Rest or Swap buttons, the evening nudge stays quiet, the daily check offers no "
 week ahead gives each rest place its day, and the AI summary adds "Today is a rest day." The
 person can still train: the web page's "Train today instead" picks the next session for today
 (a pick, ADR-0022, so the day is no longer a rest day), and a typed log counts as usual. Doing the
-pointer's session on a rest day moves the queue on. The bot's messages show the queue's day, as
-they always have, so after a pick they still say it's a rest day.
+pointer's session on a rest day moves the queue on. The bot follows the same rule, so after a
+pick its morning message and nudge offer that day's session (`today.rest_day`).
 
 **The body map counts a rest place as a day with no training:** two sessions with a rest place
 between them aren't "two days running" for the back-to-back warning.

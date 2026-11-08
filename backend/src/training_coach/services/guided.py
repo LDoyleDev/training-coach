@@ -65,7 +65,7 @@ from training_coach.services.today import (
     ItemPlan,
     SessionPlan,
     position,
-    rest_days,
+    rest_day,
     session_plan,
 )
 
@@ -519,12 +519,6 @@ def held_today(session: Session, on: date) -> bool:
         Workout.template_id == current.pointer,
     )
     return session.scalar(query.limit(1)) is not None
-
-
-def rest_day(session: Session, on: date, tz: ZoneInfo) -> bool:
-    """A rest place's day (ADR-0091) offers no session, unless one was picked for it: the
-    person chose to train ("Train today", or Pick another)."""
-    return rest_days(session, on) > 0 and workout_log.picked_today(session, on, tz) is None
 
 
 # ---------------------------------------------------------------- progress and saving
