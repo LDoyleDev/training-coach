@@ -86,7 +86,7 @@ type Loaded =
   | { status: 'loading' }
   | { status: 'signed-out' }
   | { status: 'error' }
-  | { status: 'none' } // nothing planned left today
+  | { status: 'none'; next?: string | null } // nothing planned left today; next: a rest day's
   | { status: 'ready'; session: Guided }
 
 /**
@@ -230,7 +230,9 @@ export default function SessionPage() {
     setDailyCheck(today.daily_check ?? null)
     setPlanned(today.planned ?? null)
     // An empty order can't be guided; treat it like nothing planned.
-    if (!today.session || today.session.order.length === 0) return setLoaded({ status: 'none' })
+    if (!today.session || today.session.order.length === 0)
+      // A rest place's day (ADR-0091) names the session that comes next.
+      return setLoaded({ status: 'none', next: today.rest_day?.name ?? null })
     setLoaded({ status: 'ready', session: today.session })
     const kept = fromKept(today.progress)
     setValues(kept)
@@ -1141,8 +1143,17 @@ function Status({ loaded }: { loaded: Exclude<Loaded, { status: 'ready' }> }) {
   if (loaded.status === 'none')
     return (
       <div className={`${card} flex flex-col gap-3`}>
-        <h1 className="text-3xl font-extrabold">Nothing left today</h1>
-        <p className="m-0">Today's training is done or rested. Enjoy the rest.</p>
+        {loaded.next ? (
+          <>
+            <h1 className="text-3xl font-extrabold">Rest day</h1>
+            <p className="m-0">No session planned today. Next: {loaded.next}.</p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-3xl font-extrabold">Nothing left today</h1>
+            <p className="m-0">Today's training is done or rested. Enjoy the rest.</p>
+          </>
+        )}
         <div className="flex flex-wrap gap-2">
           <a href="/progress" className={`${primaryInline} inline-flex items-center no-underline`}>
             See my progress

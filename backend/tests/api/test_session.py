@@ -107,6 +107,7 @@ def test_nothing_to_guide_once_today_is_done(signed_in: TestClient, engine: Engi
         "test_day": None,
         "readiness_note": None,
         "daily_check": None,
+        "rest_day": None,
     }
 
 
@@ -281,6 +282,7 @@ def test_saving_logs_the_sets_once_and_moves_the_queue(
         "test_day": None,
         "readiness_note": None,
         "daily_check": None,
+        "rest_day": None,
     }
 
 
@@ -811,3 +813,22 @@ def test_only_the_owner_can_choose_away(signed_in_away: TestClient, engine: Engi
         assert answer.status_code == 401
     today = signed_in_away.get("/api/session/today").json()["session"]
     assert today["place"] == "home"
+
+
+def test_a_rest_day_has_no_session_and_names_the_next_one(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0091: the day after a session with a rest place after it."""
+    yesterday = local_date(datetime.now(UTC), Settings().tz) - timedelta(days=1)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as session:
+        first, second = session.scalars(
+            select(SessionTemplate).order_by(SessionTemplate.position).limit(2)
+        )
+        first.rest_after = 1
+        session.add(Workout(local_date=yesterday, template_id=first.id, status=WorkoutStatus.DONE))
+        state = users.plan_state(session)
+        assert state is not None
+        state.next_template_id = second.id
+        upcoming = {"template_id": second.id, "name": second.name}
+    body = signed_in.get("/api/session/today").json()
+    assert (body["session"], body["rest_day"], body["planned"]) == (None, upcoming, None)

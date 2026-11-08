@@ -59,6 +59,7 @@ from training_coach.bot.messages import (
     STALE,
     picked_text,
     pushed_text,
+    rest_day_text,
     rest_text,
     review_text,
     session_detail_text,
@@ -231,6 +232,8 @@ class Handlers:
                 instead = buttons.instead(plan.session.template_id, plan.session.name)
                 text = test_day_text(plan, tests_where(url))
                 return text, links.with_open(instead, url, links.TESTS)
+            if plan.rest_day:  # no buttons: there is nothing to start, rest or swap
+                return rest_day_text(plan), links.with_open(None, url, links.SESSION)
             # The day's length chosen in the app, if any (ADR-0082).
             shown, length = guided.at_length(session, on, plan.session)
             markup = buttons.morning(plan.session.template_id)
@@ -453,7 +456,8 @@ class Handlers:
 
     async def nudge(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """The evening message, unless paused: the nudge when it's on and nothing is logged
-        today, and the habit buttons when they're on (D5). Both go in one message."""
+        today (not on a rest day, ADR-0091), and the habit buttons when they're on (D5). Both go
+        in one message."""
         today = self._local_today()
         try:
             with session_scope(self.sessions) as session:
@@ -464,7 +468,13 @@ class Handlers:
         except SQLAlchemyError as exc:
             log.error("bot.nudge_failed", error=type(exc).__name__)
             return
-        nudge = not prefs.paused and prefs.nudges_enabled and not logged and plan is not None
+        nudge = (
+            not prefs.paused
+            and prefs.nudges_enabled
+            and not logged
+            and plan is not None
+            and (plan.test_day is not None or not plan.rest_day)
+        )
         habit_rows = (
             habits_ui.rows(today, ticked, prefs.protein_g)
             if prefs.habits_enabled and not prefs.paused

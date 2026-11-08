@@ -80,8 +80,12 @@ def test_the_preview_says_what_would_change_and_changes_nothing(
             lambda t: t.replace('focus = "Strength"', 'focus = "Power"', 1),
             "Upper: its focus or kind",
         ),
+        (
+            lambda t: t.replace('slug = "upper"\n', 'slug = "upper"\nrest_after = 2\n', 1),
+            "Upper: rest days after it, 0 becomes 2",  # ADR-0091
+        ),
     ],
-    ids=["renamed", "swapped", "added", "focus"],
+    ids=["renamed", "swapped", "added", "focus", "rest"],
 )
 def test_each_kind_of_change_is_said(session: Session, plan: PlanSeed, edit, line: str) -> None:  # type: ignore[no-untyped-def]  # a lambda per case
     assert line in plan_import.preview(session, load_plan(edit(MINI_PLAN)), TODAY).changes

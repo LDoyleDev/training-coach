@@ -765,6 +765,15 @@ test('a test day shows even with nothing left to train', async () => {
   expect(screen.getByText(/Nothing left today/)).toBeInTheDocument()
 })
 
+test('a rest day says so and names the next session (ADR-0091)', async () => {
+  const next = { template_id: 2, name: 'Zone 2' }
+  serve({ today: { session: null, progress: null, rest_day: next } })
+  render(<SessionPage />)
+  expect(await screen.findByRole('heading', { name: 'Rest day' })).toBeInTheDocument()
+  expect(screen.getByText('No session planned today. Next: Zone 2.')).toBeInTheDocument()
+  expect(screen.queryByText(/Nothing left today/)).not.toBeInTheDocument()
+})
+
 test('a hard day shows the readiness advice, linking to the questions', async () => {
   const advice = 'Your readiness answers say to check with a doctor before hard efforts.'
   serve({ today: { session: SESSION, progress: null, readiness_note: advice } })

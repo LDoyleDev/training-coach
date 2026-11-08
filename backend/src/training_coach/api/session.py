@@ -326,6 +326,15 @@ class QueuedView(BaseModel):
     name: str
 
 
+def rest_day_view(session: Session, on: date) -> QueuedView | None:
+    """The next session, when ``on`` is a rest place's day (ADR-0091)."""
+    queue = position(session)
+    if queue is None or not guided.rest_day(session, on, queue.pointer):
+        return None
+    name = dict(queue_actions.choices(session)).get(queue.pointer)
+    return QueuedView(template_id=queue.pointer, name=name) if name else None
+
+
 class TodayView(BaseModel):
     """``session`` is empty when nothing planned is left today (done or rested); ``progress``
     is where the person left off, to resume."""
@@ -340,6 +349,8 @@ class TodayView(BaseModel):
     readiness_note: str | None = None
     # Today's daily check, once answered (ADR-0053): "Slept OK, ...: go lighter today".
     daily_check: str | None = None
+    # A rest place's day (ADR-0091): no session today, and this is the next one.
+    rest_day: QueuedView | None = None
 
 
 class KeepBody(BaseModel):
@@ -468,7 +479,13 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
     answers = daily_check.on(session, on)
     daily = daily_summary(answers) if answers is not None else None
     if plan is None:
-        return TodayView(session=None, test_day=test_day, readiness_note=caution, daily_check=daily)
+        return TodayView(
+            session=None,
+            test_day=test_day,
+            readiness_note=caution,
+            daily_check=daily,
+            rest_day=rest_day_view(session, on),
+        )
     ladders = session_levels.ladders(
         session, (i.slug for i in plan.items), away=plan.place is Place.AWAY
     )

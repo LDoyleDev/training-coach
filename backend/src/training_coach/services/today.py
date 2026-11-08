@@ -35,7 +35,7 @@ from training_coach.domain.load import (
 )
 from training_coach.domain.muscles import Muscle, Part, ranked
 from training_coach.domain.places import choices, day_place
-from training_coach.domain.queue import ADVANCING, Position, advance
+from training_coach.domain.queue import ADVANCING, Position, advance, rest_days_left
 from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
 from training_coach.services import blocks, equipment, retests, user_settings, users
@@ -111,6 +111,8 @@ class Today:
     block: Block | None = None  # the training block, when blocks are on (ADR-0028)
     # A test day due today (ADR-0038): it comes first, and the session waits a day.
     test_day: retests.TestDayDue | None = None
+    # A rest place's day (ADR-0091): no session today; ``session`` is the next one.
+    rest_day: bool = False
 
 
 @dataclass(frozen=True)
@@ -132,6 +134,22 @@ def position(session: Session) -> Position | None:
     # Queued ids have no foreign key; drop any whose session has left the plan.
     known = set(session.scalars(select(SessionTemplate.id)))
     return Position(state.next_template_id, tuple(t for t in state.queued if t in known))
+
+
+REST_DAY = "Rest day"
+
+
+def rest_days(session: Session, on: date) -> int:
+    """The rest places still to come on ``on`` and after it (ADR-0091): the days after the
+    planned session done last, one for each rest place after it. 0: ``on`` offers a session."""
+    last = session.execute(
+        select(Workout.local_date, SessionTemplate.rest_after)
+        .join(SessionTemplate, SessionTemplate.id == Workout.template_id)
+        .where(Workout.status.in_(ADVANCING))
+        .order_by(Workout.local_date.desc(), Workout.id.desc())
+        .limit(1)
+    ).first()
+    return rest_days_left(last[1], last[0], on) if last is not None else 0
 
 
 def summary(slug: str) -> str | None:
@@ -311,6 +329,7 @@ def today(session: Session, on: date, tz: ZoneInfo | None = None) -> Today | Non
         ),
         block=block,
         test_day=retests.due(session, on, tz) if tz is not None else None,
+        rest_day=rest_days(session, on) > 0,
     )
 
 
@@ -319,7 +338,7 @@ def week(session: Session, on: date, days: int = 7, tz: ZoneInfo | None = None) 
     ``tz``, test days that fall due take their day and the sessions wait (ADR-0038).
 
     Starts tomorrow when today's planned session is already done or rested, or a test day was
-    saved today.
+    saved today. A rest place takes its day (ADR-0091), as a test day does.
     """
     current = position(session)
     order = _order(session)
@@ -339,6 +358,8 @@ def week(session: Session, on: date, days: int = 7, tz: ZoneInfo | None = None) 
     done_today = advanced_today is not None or tested_today is not None
     start = on + timedelta(days=1) if done_today else on
     names = {t.id: t.name for t in order}
+    rests = {t.id: t.rest_after for t in order}
+    resting = rest_days(session, start)
     planned = retests.done(session) if tz is not None else []
     result: list[Day] = []
     for n in range(days):
@@ -347,7 +368,13 @@ def week(session: Session, on: date, days: int = 7, tz: ZoneInfo | None = None) 
         if test is not None:
             result.append(Day(date=day, session=test.name))
             planned.append(PastTest(day, test.day))  # as if done on its day
+            resting = max(0, resting - 1)  # rest days pass by the calendar
+            continue
+        if resting:
+            result.append(Day(date=day, session=REST_DAY))
+            resting -= 1
             continue
         result.append(Day(date=day, session=names[current.pointer]))
+        resting = rests[current.pointer]
         current = advance(ids, current)
     return result

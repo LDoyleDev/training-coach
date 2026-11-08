@@ -150,6 +150,7 @@ class Day:
     slug: str = ""  # the session template's, so a page can match its own list
     place: Place = Place.HOME  # the version counted: its gym one, or the one done at both
     minutes: int = 0  # about how long as planned, warm-up included
+    rest_after: int = 0  # the rest places after it in the queue: days with no training (ADR-0091)
 
 
 @dataclass(frozen=True)
@@ -305,11 +306,12 @@ def _muscle(
 
 def _back_to_back(week: Sequence[Day], daily: Sequence[float]) -> tuple[str, str] | None:
     """The first two sessions running, the last wrapping to the first (the cycle repeats),
-    that both give the muscle BACK_TO_BACK sets or more."""
+    that both give the muscle BACK_TO_BACK sets or more. A rest place between them is a day
+    with no training, so they aren't running (ADR-0091)."""
     if len(week) < 2:
         return None
     for i, n in enumerate(daily):
         j = (i + 1) % len(week)
-        if n >= BACK_TO_BACK and daily[j] >= BACK_TO_BACK:
+        if n >= BACK_TO_BACK and daily[j] >= BACK_TO_BACK and not week[i].rest_after:
             return week[i].name, week[j].name
     return None

@@ -25,6 +25,7 @@ from training_coach.services import (
     session_times,
 )
 from training_coach.services.progress import Ready, Top
+from training_coach.services.today import REST_DAY, rest_days
 
 MOVED_UP = "progress.moved_up"  # written by progress.move_up
 
@@ -74,7 +75,9 @@ class Home:
     week: Week
     progress: Ladder
     recent: list[Recent]  # done in the last 7 days, newest first
-    today: str | None  # today's session (or a test day due today); None when done or rested
+    # Today's session, a test day due today, or "Rest day" on a rest place (ADR-0091); None
+    # when done or rested
+    today: str | None
     today_minutes: int | None  # about how long, from the plan; None for a test day
     today_usual_minutes: int | None  # how long it usually takes, once timed (ADR-0061)
 
@@ -141,7 +144,7 @@ def _today(session: Session, on: date, tz: ZoneInfo) -> tuple[str | None, int | 
         return test_day.name, None, None
     plan = guided.today(session, on, tz)
     if plan is None:
-        return None, None, None
+        return (REST_DAY if rest_days(session, on) else None), None, None
     if plan.after_run:  # the rest of the day's session after its cardio (ADR-0066)
         return f"{plan.name}, after your run", plan.minutes, None
     if plan.length is not None and plan.length.minutes is not None:
