@@ -124,7 +124,9 @@ def _on_loop(reschedule: Callable[[Prefs], None], jobs_for: int) -> Reschedule:
 
 def _bot_loop(forget: Forget) -> Forget:
     """Forgetting a person runs on the bot's own event loop: sync routes run in worker
-    threads, and the handlers' state isn't locked."""
+    threads, and the handlers' state isn't locked. It is queued after the route's commit, so
+    an update the bot is already handling for them can still finish, and re-add a draft, in
+    between; with their link or account gone, the gate lets nothing of theirs through again."""
     loop = asyncio.get_running_loop()
 
     def call(user: int) -> None:

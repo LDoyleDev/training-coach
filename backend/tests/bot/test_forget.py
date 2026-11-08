@@ -26,14 +26,20 @@ def _gate(application: Application) -> Gate:  # type: ignore[type-arg]  # see bu
     return gate
 
 
+# How state kept by user id is declared: by the convention the bot follows, the outer key or
+# member is the user id. Anything keyed by user id in another shape needs adding here.
+BY_ID = ("dict[int,", "OrderedDict[int,", "set[int]", "defaultdict[int,")
+
+
 def _dicts_by_id(node: ast.AST) -> list[str]:
-    """The attributes declared ``self.x: dict[int, ...]`` in ``node``: kept by user id."""
+    """The attributes declared ``self.x: dict[int, ...]`` (or another shape in ``BY_ID``) in
+    ``node``: kept by user id."""
     return [
         n.target.attr
         for n in ast.walk(node)
         if isinstance(n, ast.AnnAssign)
         and isinstance(n.target, ast.Attribute)
-        and ast.unparse(n.annotation).startswith("dict[int,")
+        and ast.unparse(n.annotation).startswith(BY_ID)
     ]
 
 
