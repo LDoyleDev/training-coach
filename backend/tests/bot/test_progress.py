@@ -40,17 +40,17 @@ def _progress_buttons(calls: dict[str, list[dict[str, str]]]) -> list[str]:
     return [d for d in button_data(calls["sendMessage"][0]) if d.startswith("p:")]
 
 
-def _pull_up(sessions: Sessions, slug: str = "pull-up") -> tuple[int, int]:
-    """(exercise id, current step id) for Pull-up, or the exercise ``slug``."""
+def _pull_up(sessions: Sessions) -> tuple[int, int]:
+    """(exercise id, current step id) for Pull-up."""
     with sessions() as session:
-        exercise = session.scalars(select(Exercise).where(Exercise.slug == slug)).one()
+        exercise = session.scalars(select(Exercise).where(Exercise.slug == "pull-up")).one()
         state = users.exercise_state(session, exercise.id)
         assert state is not None
         return exercise.id, state.ladder_step_id
 
 
-def _top_session(sessions: Sessions, days_ago: int, value: int = 12, slug: str = "pull-up") -> None:
-    exercise_id, step_id = _pull_up(sessions, slug)
+def _top_session(sessions: Sessions, days_ago: int, value: int = 12) -> None:
+    exercise_id, step_id = _pull_up(sessions)
     with sessions() as session:
         workout = Workout(
             local_date=datetime.now(UTC).date() - timedelta(days=days_ago),
@@ -71,8 +71,8 @@ def _top_session(sessions: Sessions, days_ago: int, value: int = 12, slug: str =
         session.commit()
 
 
-def _step_name(sessions: Sessions, slug: str = "pull-up") -> str:
-    _, step_id = _pull_up(sessions, slug)
+def _step_name(sessions: Sessions) -> str:
+    _, step_id = _pull_up(sessions)
     with sessions() as session:
         step = session.get(LadderStep, step_id)
         assert step is not None

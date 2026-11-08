@@ -49,7 +49,7 @@ def _served(callback: object) -> bool:
     return hasattr(callback, "__wrapped__")  # registered through gate.served (ADR-0089)
 
 
-def test_every_command_and_message_is_served_per_person_in_a_private_chat(
+def test_every_handler_is_served_per_person(
     application: Application,  # type: ignore[type-arg]  # see build_bot
 ) -> None:
     handlers = [h for group in application.handlers.values() for h in group]
@@ -75,12 +75,13 @@ def test_every_command_and_message_is_served_per_person_in_a_private_chat(
     messages = [h for h in handlers if isinstance(h, MessageHandler)]
     assert len(messages) == 2  # text and voice
     assert all(_served(h.callback) for h in messages)
-    # Button presses can't carry a filter. The classes not converted yet (band, daily check,
-    # proposals) check the sender by hand; test_two_people.py and their own tests prove
-    # strangers are ignored by behaviour.
+    # Button presses can't carry a filter: the gate is their check, and test_two_people.py
+    # proves strangers are ignored by behaviour.
     presses = [h for h in handlers if isinstance(h, CallbackQueryHandler)]
-    assert sum(_served(h.callback) for h in presses) == 7
     assert len(presses) == 10
+    assert all(_served(h.callback) for h in presses)
+    # Nothing else is registered, so nothing else can run without a person.
+    assert len(handlers) == len(commands) + len(messages) + len(presses) + 1
     # The sender gate sees every update first: test_gate.py.
     assert [type(h) for h in application.handlers[-1]] == [TypeHandler]
 

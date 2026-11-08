@@ -1,7 +1,7 @@
 """Two people on one bot (ADR-0089, step 8): the owner (Telegram 42) and a member (77), with
 TC_MULTI_USER on. Each converted command and button sees and changes only the sender's own rows;
 a forged id names nothing of the other's. Strangers, and a member while the switch is off, get
-nothing. The button classes not converted yet are the owner's alone (a check by hand)."""
+nothing. A member's health buttons need that category open to them (ADR-0090)."""
 
 import copy
 from datetime import UTC, datetime, time
@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
+from tests import oauth_flow as flow
 from tests.bot.fakes import (
     MEMBER,
     MULTI,
@@ -25,29 +26,39 @@ from tests.bot.fakes import (
     texts,
     voice,
 )
+from tests.bot.test_band import _walk
 from tests.bot.test_progress import _pull_up, _step_name, _top_session
+from training_coach.bot import band as band_ui
+from training_coach.bot import proposals as proposals_ui
 from training_coach.bot import stretching as stretching_ui
 from training_coach.bot import undo as undo_ui
 from training_coach.bot.app import ASK_ADMIN, HELP_TEXT, MEMBER_HELP_TEXT, MORNING_JOB, build_bot
+from training_coach.bot.gate import NOT_OPEN, WHAT
 from training_coach.bot.messages import LOG_EXPIRED, STALE
 from training_coach.db.models import (
+    DailyCheck,
     Event,
     HabitCheck,
+    ImportedWorkout,
     LoginLink,
+    LogProposal,
+    McpConnection,
+    Measurement,
     PlanState,
     SessionTemplate,
     SetLog,
     Workout,
 )
 from training_coach.db.session import bound_user
+from training_coach.domain import consent as consent_rules
+from training_coach.domain.consent import Category
 from training_coach.domain.queue import local_date
-from training_coach.services import share_card, user_settings, users
+from training_coach.services import consent, proposals, share_card, user_settings
 
 App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
 URL = "https://coach.example.com"
 LOG = "pull ups 8 8 7, dips 12 11"
-PUSH = "push-up"  # in both the owner's cycle and the member's starter
 
 
 def _next(sessions: Sessions) -> int:
@@ -197,27 +208,20 @@ async def _saved(both: App, sender: int, sessions: Sessions) -> tuple[int, list[
 async def test_progress_and_its_buttons_are_each_persons_own(
     both: App, seeded: Sessions, member: Sessions
 ) -> None:
-    # Push-ups, which both plans have (the member's starter has no pull-ups, any-level S1). The
-    # member is placed on the owner's step, as setup would, so the button's ids fit both.
-    exercise_id, owner_step_id = _pull_up(seeded, PUSH)
-    with member() as session:
-        state = users.exercise_state(session, exercise_id)
-        assert state is not None
-        state.ladder_step_id = owner_step_id
-        session.commit()
-    for days_ago in (3, 1):  # the top of 10-18 on every set, twice (ADR-0078)
-        _top_session(member, days_ago, value=18, slug=PUSH)
-    up = f"p:up:{exercise_id}:{owner_step_id}"
+    _top_session(member, days_ago=3)
+    _top_session(member, days_ago=1)
+    exercise_id, step_id = _pull_up(member)
+    up = f"p:up:{exercise_id}:{step_id}"
     assert up in button_data((await run(both, command("/progress", MEMBER)))["sendMessage"][0])
     assert up not in button_data((await run(both, command("/progress", OWNER)))["sendMessage"][0])
-    owner_step, member_step = _step_name(seeded, PUSH), _step_name(member, PUSH)
+    owner_step, member_step = _step_name(seeded), _step_name(member)
     # The ids are the catalogue's: the owner's press acts on the owner's own place, not ready.
     assert texts(await run(both, press(up, OWNER))) == [
-        "Push-up doesn't meet the rule any more. Keep going."
+        "Pull-up doesn't meet the rule any more. Keep going."
     ]
-    assert (_step_name(seeded, PUSH), _step_name(member, PUSH)) == (owner_step, member_step)
+    assert (_step_name(seeded), _step_name(member)) == (owner_step, member_step)
     await run(both, press(up, MEMBER))
-    assert (_step_name(seeded, PUSH), _step_name(member, PUSH)) == (owner_step, "Feet elevated")
+    assert (_step_name(seeded), _step_name(member)) == (owner_step, "Pause at top")
 
 
 async def test_review_is_each_persons_own(both: App, seeded: Sessions, member: Sessions) -> None:
@@ -289,6 +293,127 @@ async def test_share_draws_the_senders_own_weeks(
         assert drawn == [bound_user(session), 1]
 
 
+# ------------------------------------------------------------------ health buttons
+
+
+def _yes(member: Sessions, *categories: Category) -> None:
+    with member() as session:
+        for category in categories:
+            consent.give(session, category, datetime.now(UTC))
+        session.commit()
+
+
+def _clash_today(sessions: Sessions) -> None:
+    """Today is rested and zone 2 is next: counting a walk asks first (ADR-0060)."""
+    with sessions() as session:
+        zone2 = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "zone2"))
+        session.scalars(select(PlanState)).one().next_template_id = zone2.one().id
+        session.add(Workout(local_date=local_date(datetime.now(UTC), MULTI.tz), status="rest"))
+        session.commit()
+
+
+def _member_id(member: Sessions) -> int:
+    with member() as session:
+        found = bound_user(session)
+    assert found is not None
+    return found
+
+
+def _propose(sessions: Sessions, user: int, **arguments: Any) -> str:
+    """A proposal from a fresh connection of ``user``'s; its token."""
+    flow.mint(sessions.kw["bind"], ["log:propose"], user=user)
+    with sessions() as session:
+        connection = session.scalars(select(McpConnection.id).order_by(McpConnection.id.desc()))
+        found = proposals.propose(
+            session, connection.first() or 0, arguments, MULTI.tz, datetime.now(UTC)
+        )
+        assert isinstance(found, proposals.Proposed), found
+        session.commit()
+        return session.get_one(LogProposal, found.id).token
+
+
+def _closed(category: Category) -> list[str]:
+    return [NOT_OPEN.format(what=WHAT[category])]
+
+
+async def test_band_buttons_need_band_data_open_to_a_member(both: App, member: Sessions) -> None:
+    walk = _walk(member)
+    for data in (f"bc:{walk}", f"bx:{walk}", f"ba:add:{walk}"):
+        assert texts(await run(both, press(data, MEMBER))) == _closed(Category.BAND)
+    assert _count(member, Workout) == 0
+    with member() as session:
+        assert session.get_one(ImportedWorkout, walk).status != "dismissed"
+
+
+async def test_band_offers_and_questions_are_each_persons_own(
+    both: App, seeded: Sessions, member: Sessions
+) -> None:
+    _yes(member, Category.BAND)
+    _clash_today(member)
+    walk = _walk(member)
+    asked = await run(both, press(f"bc:{walk}", MEMBER))  # the member is asked first
+    assert any(d.startswith("ba:") for d in button_data(asked["sendMessage"][0]))
+    # The owner's forged presses: the member's question isn't the owner's to see or answer.
+    moved = await run(both, press(f"ba:move:{walk}", OWNER))
+    assert texts(moved) == [band_ui.NOT_COUNTED]
+    assert button_data(moved["sendMessage"][0]) == [f"bc:{walk}", f"bx:{walk}"]
+    assert texts(await run(both, press(f"ba:add:{walk}", OWNER))) == [band_ui.NOT_COUNTED]
+    assert texts(await run(both, press(f"bc:{walk}", OWNER))) == [band_ui.GONE]
+    assert texts(await run(both, press(f"bx:{walk}", OWNER))) == [band_ui.GONE]
+    with member() as session:
+        assert session.get_one(ImportedWorkout, walk).status != "dismissed"
+    assert (_count(seeded, Workout), _count(member, Workout)) == (0, 1)  # the member's rest
+    added = await run(both, press(f"ba:add:{walk}", MEMBER))
+    assert texts(added)[0].startswith("Counted")
+    assert (_count(seeded, Workout), _count(member, Workout)) == (0, 2)
+
+
+async def test_the_daily_check_needs_it_open_and_is_saved_for_the_presser(
+    both: App, seeded: Sessions, member: Sessions
+) -> None:
+    today = local_date(datetime.now(UTC), MULTI.tz)
+    last = f"d:{today:%Y%m%d}:good:none:high"
+    for data in (f"d:{today:%Y%m%d}:good:-:-", last):
+        assert texts(await run(both, press(data, MEMBER))) == _closed(Category.DAILY_CHECK)
+    assert _count(member, DailyCheck) == 0
+    _yes(member, Category.DAILY_CHECK)
+    await run(both, press(last, MEMBER))
+    assert (_count(seeded, DailyCheck), _count(member, DailyCheck)) == (0, 1)
+
+
+async def test_proposals_are_each_persons_own(
+    both: App, seeded: Sessions, member: Sessions
+) -> None:
+    _clash_today(member)
+    token = _propose(member, _member_id(member), kind="cardio", minutes=40)
+    asked = await run(both, press(f"lp:zone2:{token}", MEMBER))  # the member is asked first
+    assert any(d.startswith(f"lp:add:{token}") for d in button_data(asked["sendMessage"][0]))
+    # The owner's forged presses find nothing of the member's: no question, no days, no save.
+    moved = await run(both, press(f"lp:move:{token}", OWNER))
+    assert texts(moved) == [proposals_ui.WAITING]
+    assert button_data(moved["sendMessage"][0]) == [f"lp:save:{token}", f"lp:discard:{token}"]
+    for action in ("zone2", "add", "discard"):
+        assert texts(await run(both, press(f"lp:{action}:{token}", OWNER))) != []
+    with member() as session:
+        assert session.scalars(select(LogProposal.status)).one() == proposals.PENDING
+    added = await run(both, press(f"lp:add:{token}", MEMBER))  # the member's pick was kept
+    assert texts(added)[0].startswith("Saved: Zone 2")
+    assert (_count(seeded, Workout), _count(member, Workout)) == (0, 2)
+
+
+async def test_a_body_proposal_needs_body_data_open_when_it_is_saved(
+    both: App, member: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _yes(member, Category.BODY)
+    token = _propose(member, _member_id(member), kind="body", measurements={"bodyweight": 80})
+    # The wording changed since the yes: it isn't open until the member says yes again.
+    monkeypatch.setitem(consent_rules.VERSIONS, Category.BODY, 2)
+    assert texts(await run(both, press(f"lp:save:{token}", MEMBER))) == _closed(Category.BODY)
+    assert _count(member, Measurement) == 0
+    discarded = await run(both, press(f"lp:discard:{token}", MEMBER))  # always allowed
+    assert texts(discarded) == [proposals_ui.DISCARDED]
+
+
 # ------------------------------------------------------------------ nobody else
 
 UPDATES = {
@@ -314,6 +439,10 @@ UPDATES = {
     "a habit button": press("h:20261108:protein", 0),
     "a stretching button": press("st:1:10", 0),
     "an undo button": press("u:1", 0),
+    "a band button": press("bc:1", 0),
+    "a band question": press("ba:move:1", 0),
+    "a daily check button": press("d:20261108:good:none:high", 0),
+    "a proposal button": press("lp:save:" + "ab" * 16, 0),
 }
 
 
