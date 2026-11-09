@@ -128,10 +128,15 @@ export function after(id: string, known: Known, draft: Draft): string | null {
   if (on) {
     const { next, asked } = walked(on.ladder, draft)
     if (next !== null) return `ladder:${on.ladder.slug}:${asked.length}`
-    const later = firstQuestion(known, draft, known.ladders.indexOf(on.ladder) + 1)
+  }
+  const ladder = id.startsWith('ladder:')
+  if (ladder) {
+    // Even a ladder screen that no longer asks anything moves on to the ladders after it.
+    const slug = id.split(':')[1]
+    const later = firstQuestion(known, draft, known.ladders.findIndex((l) => l.slug === slug) + 1)
     if (later) return later
   }
-  const at = ORDER.findIndex((s) => s.id === (on ? 'ladders' : id))
+  const at = ORDER.findIndex((s) => s.id === (ladder ? 'ladders' : id))
   for (const s of ORDER.slice(at + 1)) {
     if (s.id === 'ladders') {
       const first = firstQuestion(known, draft, 0)
