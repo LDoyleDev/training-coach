@@ -14,6 +14,7 @@ type TimeKey = 'morning_time' | 'nudge_time' | 'review_time'
 type Pace = MessageSettings['pace']
 type Places = MessageSettings['places']
 type SessionMinutes = MessageSettings['session_minutes']
+type SessionExercises = MessageSettings['session_exercises']
 type Note = { at: string; text: string }
 
 const TIMES: { key: TimeKey; label: string }[] = [
@@ -54,6 +55,14 @@ const LENGTHS: { minutes: SessionMinutes; label: string }[] = [
   { minutes: 40, label: '40 min' },
   { minutes: 30, label: '30 min' },
   { minutes: 20, label: '20 min' },
+]
+
+/** Exercises per session (ADR-0082 addendum): the most a session keeps, before the minutes. */
+const COUNTS: { count: SessionExercises; label: string }[] = [
+  { count: null, label: 'As planned' },
+  { count: 4, label: '4' },
+  { count: 6, label: '6' },
+  { count: 8, label: '8' },
 ]
 
 /**
@@ -416,6 +425,37 @@ export default function Settings() {
           ))}
         </div>
         {noteAt('minutes')}
+      </fieldset>
+
+      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend className="mb-2 font-bold">Exercises per session</legend>
+        <p className="m-0 text-sm text-[var(--slate)]">
+          A session with more exercises keeps this many. The ones left out are named before you
+          start.
+        </p>
+        <div className="grid grid-cols-4 gap-2">
+          {COUNTS.map(({ count, label }) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={prefs.session_exercises === count}
+              className={choice(prefs.session_exercises === count)}
+              disabled={busy}
+              onClick={() =>
+                prefs.session_exercises !== count &&
+                save(
+                  'exercises',
+                  { session_exercises: count },
+                  `Exercises per session: ${count === null ? 'as planned' : count}.`,
+                  "That couldn't be saved.",
+                )
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {noteAt('exercises')}
       </fieldset>
 
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">

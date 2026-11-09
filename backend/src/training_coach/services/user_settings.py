@@ -58,6 +58,7 @@ class Prefs:
 
     session_minutes: int | None = None  # every session's length (ADR-0082); None: as planned
     last_set_amrap: bool = False  # last set: as many good reps as you can (ADR-0084)
+    session_exercises: int | None = None  # the most a session keeps (ADR-0082 addendum)
 
 
 def _increments(old: Increments, change: Mapping[LoadKit, float]) -> Increments:
@@ -109,6 +110,7 @@ def load(session: Session) -> Prefs:
         row.avoid_knees,
         row.session_minutes,
         row.last_set_amrap,
+        row.session_exercises,
     )
 
 
@@ -139,13 +141,16 @@ def update(
     avoid_knees: bool | None = None,
     session_minutes: int | None = None,
     clear_session_minutes: bool = False,
+    session_exercises: int | None = None,
+    clear_session_exercises: bool = False,
     last_set_amrap: bool | None = None,
     today: date | None = None,
 ) -> Prefs:
     """Change the given settings (creating the row if needed) and log what changed.
     ``increments``: the kits whose weight step changes, each to a valid step (the caller checks).
     ``session_minutes``: 40, 30 or 20 (the caller checks); ``clear_session_minutes`` sets it
-    back to as planned.
+    back to as planned. ``session_exercises``: 4, 6 or 8 (the caller checks), and
+    ``clear_session_exercises`` the same.
 
     ``blocks=True`` starts training blocks on ``today`` unless they are already on (so a
     repeated press never restarts them); ``blocks=False`` turns them off."""
@@ -185,6 +190,11 @@ def update(
         if session_minutes is None
         else session_minutes,
         last_set_amrap=old.last_set_amrap if last_set_amrap is None else last_set_amrap,
+        session_exercises=None
+        if clear_session_exercises
+        else old.session_exercises
+        if session_exercises is None
+        else session_exercises,
     )
     changes: dict[str, str | bool | int | float] = {}
     if morning_time is not None:
@@ -227,6 +237,8 @@ def update(
     changes |= {name: on for name, on in avoided.items() if on is not None}
     if session_minutes is not None or clear_session_minutes:
         changes["session_minutes"] = session_minutes or 0  # 0: as planned
+    if session_exercises is not None or clear_session_exercises:
+        changes["session_exercises"] = session_exercises or 0  # 0: as planned
     if last_set_amrap is not None:
         changes["last_set_amrap"] = last_set_amrap
     for kit, kg in (increments or {}).items():
@@ -261,6 +273,7 @@ def update(
     row.avoid_knees = prefs.avoid_knees
     row.session_minutes = prefs.session_minutes
     row.last_set_amrap = prefs.last_set_amrap
+    row.session_exercises = prefs.session_exercises
     if prefs != old:  # a repeated press changes nothing and logs nothing
         session.add(Event(kind="settings.changed", payload=changes))
     return prefs

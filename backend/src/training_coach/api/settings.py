@@ -103,6 +103,9 @@ class SettingsView(BaseModel):
     avoid_knees: bool  # "Easy on my knees" (#540)
     # Every session's length unless the day picks another (ADR-0082); empty: as planned.
     session_minutes: Literal[40, 30, 20] | None
+    # The most exercises a session keeps (ADR-0082 addendum), before the minutes; empty: as
+    # planned.
+    session_exercises: Literal[4, 6, 8] | None
     # Last set: as many good reps as you can, where it's safe (ADR-0084); locked while the
     # person is new ("Available after your first 8 weeks"), when it can't be turned on.
     last_set_amrap: bool
@@ -135,6 +138,7 @@ class SettingsChange(BaseModel):
     avoid_knees: bool | None = None
     # Sent as null: back to as planned (only the fields sent change).
     session_minutes: Literal[40, 30, 20] | None = None
+    session_exercises: Literal[4, 6, 8] | None = None  # null too: as planned
     last_set_amrap: bool | None = None  # true is refused with 409 while locked
     paused: bool | None = None
 
@@ -182,6 +186,7 @@ def _view(prefs: Prefs, settings: Settings, locked: bool) -> SettingsView:
         avoid_hanging=prefs.avoid_hanging,
         avoid_knees=prefs.avoid_knees,
         session_minutes=prefs.session_minutes,
+        session_exercises=prefs.session_exercises,
         last_set_amrap=prefs.last_set_amrap,
         last_set_locked=locked,
         paused=prefs.paused,
@@ -232,6 +237,9 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             session_minutes=body.session_minutes,
             clear_session_minutes="session_minutes" in body.model_fields_set
             and body.session_minutes is None,
+            session_exercises=body.session_exercises,
+            clear_session_exercises="session_exercises" in body.model_fields_set
+            and body.session_exercises is None,
             last_set_amrap=body.last_set_amrap,
             today=today,
         )

@@ -9,6 +9,7 @@ from training_coach.domain.queue import (
     Position,
     caught_up,
     complete,
+    days_to_start,
     latest,
     local_date,
     next_in_cycle,
@@ -240,3 +241,12 @@ def test_rest_places_are_the_days_after_a_session(rest_after: int, gone: int, le
     """ADR-0091: one day per rest place after the session's day; then the next session waits."""
     done = date(2026, 11, 1)
     assert rest_days_left(rest_after, done, done + timedelta(days=gone)) == left
+
+
+@pytest.mark.parametrize(
+    ("starts", "left"),
+    [(None, 0), (date(2026, 11, 12), 3), (date(2026, 11, 10), 1), (date(2026, 11, 9), 0)],
+)
+def test_days_to_start_counts_every_day_before_it(starts: date | None, left: int) -> None:
+    assert days_to_start(starts, date(2026, 11, 9)) == left
+    assert days_to_start(date(2026, 11, 1), date(2026, 11, 9)) == 0  # long started

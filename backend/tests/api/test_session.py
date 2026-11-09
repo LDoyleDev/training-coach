@@ -815,6 +815,24 @@ def test_only_the_owner_can_choose_away(signed_in_away: TestClient, engine: Engi
     assert today["place"] == "home"
 
 
+def test_before_the_plan_starts_today_is_a_rest_day_naming_the_first_session(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0091 addendum: the start day the walk-through sets, with nothing done yet."""
+    starts = local_date(datetime.now(UTC), Settings().tz) + timedelta(days=2)
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as session:
+        state = users.plan_state(session)
+        assert state is not None
+        state.starts_on = starts
+        pointer = state.next_template_id
+    body = signed_in.get("/api/session/today").json()
+    assert body["session"] is None
+    assert body["rest_day"]["first_on"] == starts.isoformat()
+    pick = {"template_id": pointer, "picked_id": pointer}  # "Train today instead" still works
+    picked = signed_in.post("/api/today/pick", json=pick).json()["today"]
+    assert (picked["session"]["template_id"], picked["rest_day"]) == (pointer, None)
+
+
 def test_a_rest_day_has_no_session_and_names_the_next_one(
     signed_in: TestClient, engine: Engine
 ) -> None:
@@ -829,7 +847,7 @@ def test_a_rest_day_has_no_session_and_names_the_next_one(
         state = users.plan_state(session)
         assert state is not None
         state.next_template_id = second.id
-        upcoming = {"template_id": second.id, "name": second.name}
+        upcoming = {"template_id": second.id, "name": second.name, "first_on": None}
     body = signed_in.get("/api/session/today").json()
     assert (body["session"], body["rest_day"], body["planned"]) == (None, upcoming, None)
     # "Train today instead" picks the next session for today: the person decides.

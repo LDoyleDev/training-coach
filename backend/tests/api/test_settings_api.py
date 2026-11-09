@@ -79,6 +79,7 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "avoid_hanging": False,
         "avoid_knees": False,
         "session_minutes": None,
+        "session_exercises": None,
         "last_set_amrap": False,
         "last_set_locked": True,  # nothing logged yet (ADR-0084)
         "paused": False,
@@ -299,6 +300,7 @@ def test_signed_out_gets_nothing(client: TestClient) -> None:
         {"talk_test": True},
         {"stop_signs_seen": True},
         {"session_minutes": 30},
+        {"session_exercises": 4},
         {"last_set_amrap": False},
     )
     for change in owner_only:  # spec B7, ADR-0082, ADR-0084
@@ -316,6 +318,30 @@ def test_minutes_per_session_is_set_kept_and_cleared(signed_in: TestClient, engi
     view = signed_in.patch("/api/settings", json={"session_minutes": None}).json()
     assert view["session_minutes"] is None
     assert _stored(engine).session_minutes is None
+
+
+def test_exercises_per_session_is_set_kept_and_cleared(
+    signed_in: TestClient, engine: Engine
+) -> None:
+    """ADR-0082 addendum: 4, 6 or 8, or null for as planned; a change elsewhere leaves it."""
+    view = signed_in.patch("/api/settings", json={"session_exercises": 6}).json()
+    assert view["session_exercises"] == 6
+    assert _stored(engine).session_exercises == 6
+    assert (
+        signed_in.patch("/api/settings", json={"session_minutes": 30}).json()["session_exercises"]
+        == 6
+    )
+    view = signed_in.patch("/api/settings", json={"session_exercises": None}).json()
+    assert view["session_exercises"] is None
+    assert _stored(engine).session_exercises is None
+
+
+@pytest.mark.parametrize("count", [5, 0, 10, "6", -4])
+def test_exercises_per_session_other_than_the_options_are_refused(
+    signed_in: TestClient, engine: Engine, count: object
+) -> None:
+    assert signed_in.patch("/api/settings", json={"session_exercises": count}).status_code == 422
+    assert _stored(engine).session_exercises is None
 
 
 @pytest.mark.parametrize("minutes", [25, 0, 60, "30", "half an hour", -20])

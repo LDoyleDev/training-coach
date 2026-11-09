@@ -4397,6 +4397,18 @@ export interface components {
             /** Scopes Supported */
             scopes_supported: string[];
         };
+        /**
+         * RestDayView
+         * @description The next session on a rest day (ADR-0091).
+         */
+        RestDayView: {
+            /** First On */
+            first_on?: string | null;
+            /** Name */
+            name: string;
+            /** Template Id */
+            template_id: number;
+        };
         /** ReviewBestView */
         ReviewBestView: {
             /** Best Set */
@@ -4701,6 +4713,8 @@ export interface components {
             protein_g?: number | null;
             /** Review Time */
             review_time?: string | null;
+            /** Session Exercises */
+            session_exercises?: (4 | 6 | 8) | null;
             /** Session Minutes */
             session_minutes?: (40 | 30 | 20) | null;
             sound?: components["schemas"]["Sound"] | null;
@@ -4747,6 +4761,8 @@ export interface components {
             protein_g: number | null;
             /** Review Time */
             review_time: string;
+            /** Session Exercises */
+            session_exercises: (4 | 6 | 8) | null;
             /** Session Minutes */
             session_minutes: (40 | 30 | 20) | null;
             sound: components["schemas"]["Sound"];
@@ -5053,7 +5069,7 @@ export interface components {
             progress?: components["schemas"]["ProgressView"] | null;
             /** Readiness Note */
             readiness_note?: string | null;
-            rest_day?: components["schemas"]["QueuedView"] | null;
+            rest_day?: components["schemas"]["RestDayView"] | null;
             session: components["schemas"]["GuidedView"] | null;
             test_day?: components["schemas"]["TestDayDueView"] | null;
         };

@@ -37,7 +37,7 @@ from training_coach.services import (
 )
 from training_coach.services import progress as feedback
 from training_coach.services.day_clash import Clash, Refused
-from training_coach.services.today import ItemPlan, position, rest_day
+from training_coach.services.today import ItemPlan, first_on, position, rest_day
 
 router = APIRouter(prefix="/api/session", tags=["session"])
 
@@ -326,13 +326,22 @@ class QueuedView(BaseModel):
     name: str
 
 
-def rest_day_view(session: Session, on: date, settings: Settings) -> QueuedView | None:
+class RestDayView(QueuedView):
+    """The next session on a rest day (ADR-0091)."""
+
+    # Before the plan starts (its addendum): the day of the first session.
+    first_on: date | None = None
+
+
+def rest_day_view(session: Session, on: date, settings: Settings) -> RestDayView | None:
     """The next session, when ``on`` is a rest place's day (ADR-0091)."""
     queue = position(session)
     if queue is None or not rest_day(session, on, settings.tz):
         return None
     name = dict(queue_actions.choices(session)).get(queue.pointer)
-    return QueuedView(template_id=queue.pointer, name=name) if name else None
+    if not name:
+        return None
+    return RestDayView(template_id=queue.pointer, name=name, first_on=first_on(session, on))
 
 
 class TodayView(BaseModel):
@@ -350,7 +359,7 @@ class TodayView(BaseModel):
     # Today's daily check, once answered (ADR-0053): "Slept OK, ...: go lighter today".
     daily_check: str | None = None
     # A rest place's day (ADR-0091): no session today, and this is the next one.
-    rest_day: QueuedView | None = None
+    rest_day: RestDayView | None = None
 
 
 class KeepBody(BaseModel):

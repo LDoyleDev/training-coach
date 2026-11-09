@@ -100,3 +100,53 @@ def test_without_rest_places_nothing_changes(session: Session) -> None:
     assert found is not None
     assert found.rest_day is False
     assert [t.rest_after for t in session.scalars(select(SessionTemplate))] == [0, 0, 0]
+
+
+@pytest.fixture
+def starting(session: Session) -> Session:
+    """A plan that starts in three days (ADR-0091 addendum), nothing done yet."""
+    apply_seed(session, load_plan(RESTED))
+    session.scalars(select(PlanState)).one().starts_on = NOW + timedelta(days=3)
+    session.flush()
+    return session
+
+
+def test_before_the_start_every_day_is_a_rest_day_that_names_the_first(
+    starting: Session,
+) -> None:
+    for n in range(3):
+        found = today(starting, NOW + timedelta(days=n))
+        assert found is not None
+        assert (found.rest_day, found.starts_on) == (True, NOW + timedelta(days=3))
+    first = today(starting, NOW + timedelta(days=3))
+    assert first is not None
+    assert (first.rest_day, first.starts_on, first.session.name) == (False, None, "Upper")
+    days = week(starting, NOW)
+    assert days is not None
+    assert [d.session for d in days][:5] == [REST_DAY, REST_DAY, REST_DAY, "Upper", REST_DAY]
+
+
+def test_before_the_start_the_person_can_still_train(starting: Session) -> None:
+    """Train today instead (a pick), and once a planned session is done the start day no longer
+    matters: the rest places count from it, as before."""
+    assert guided.today(starting, NOW, BERLIN) is None
+    upper = _id(starting, "upper")
+    queue_actions.pick(starting, upper, upper)
+    picked = guided.today(starting, NOW, BERLIN)
+    assert picked is not None
+    assert picked.name == "Upper"
+    starting.add(Workout(local_date=NOW, template_id=upper, status=WorkoutStatus.DONE))
+    state = starting.scalars(select(PlanState)).one()
+    state.next_template_id = _id(starting, "zone2")
+    starting.flush()
+    later = today(starting, NOW + timedelta(days=2))
+    assert later is not None
+    assert (later.rest_day, later.starts_on, later.session.name) == (False, None, "Zone 2")
+
+
+def test_a_start_day_today_or_past_changes_nothing(starting: Session) -> None:
+    starting.scalars(select(PlanState)).one().starts_on = NOW
+    starting.flush()
+    found = today(starting, NOW)
+    assert found is not None
+    assert (found.rest_day, found.starts_on) == (False, None)
