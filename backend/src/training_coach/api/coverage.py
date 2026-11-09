@@ -111,7 +111,7 @@ def get_coverage(request: Request, user: Owner, place: Place | None = None) -> C
         places, day = service.map_place(session)
         at = day if place is None else place
         found = service.plan_coverage(session, at)
-    return _view(found, at, places)
+    return coverage_view(found, at, places)
 
 
 @router.post("/coverage/draft", response_model=CoverageView)
@@ -127,10 +127,10 @@ def post_coverage_draft(request: Request, user: Owner, body: CoverageDraft) -> C
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         places, _ = service.map_place(session)
         found = service.plan_coverage(session, body.place, draft)
-    return _view(found, body.place, places)
+    return coverage_view(found, body.place, places)
 
 
-def _view(found: domain.Coverage, at: Place, places: Places) -> CoverageView:
+def coverage_view(found: domain.Coverage, at: Place, places: Places) -> CoverageView:
     adds = service.would_add(found, at)
     return CoverageView(
         place=at,

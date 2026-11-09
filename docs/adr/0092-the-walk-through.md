@@ -226,3 +226,18 @@ recommendation says:
   to the person and in their export.
 - The everyday and exercise-habit questions need a clinician's check before the public release
   (#556); the DPIA and the privacy draft gain the answers' row.
+
+## Addendum (9 Nov 2026): the save and the API as built
+
+- **The start day and the starter are picked in the browser.** The tapped days are answers
+  (ADR-0090 addendum), so without consent they never reach the server; Save and the preview send
+  the starter and `starts_on` (today to 6 days on). `domain.walkthrough`'s `starter_days` and
+  `start_day` are the rule, and the web's copy follows them.
+- **"Starting plan" is dated at `plan.toml`'s newest version**, not the day someone joins, so the
+  save's "Set up with the walk-through" usually comes after it rather than replacing it; it
+  renames a version dated today when there is one.
+- **A workout logged** is any workout, extras included: it closes the walk-through.
+- **No figure field:** a step's figure is the web's own, found by the ladder's slug and the step's
+  name, as everywhere else.
+- **The lock cases** both copies of the rule are tested on: `frontend/src/walkthrough/lock-cases.json`
+  (`backend/tests/domain/test_lock_cases.py` runs `domain.locks` against it).

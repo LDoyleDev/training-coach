@@ -1,0 +1,345 @@
+{
+  "_about": "Lock cases for domain.locks' rule (ADR-0071, ADR-0083), shared by the backend test tests/domain/test_lock_cases.py and the web's copy of the rule (ADR-0092, Decided 19). kit null: not listed yet (or at a gym), so kit locks nothing. missing: the needs in words; avoided: the marks avoided, in Account's order.",
+  "cases": [
+    {
+      "case": "nothing needed, nothing listed yet",
+      "needs": [],
+      "marks": [],
+      "kit": null,
+      "avoid": [],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "nothing needed, bodyweight only",
+      "needs": [],
+      "marks": [],
+      "kit": [],
+      "avoid": [],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "a kit not listed yet locks nothing",
+      "needs": ["kettlebell:8"],
+      "marks": [],
+      "kit": null,
+      "avoid": [],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "a kettlebell missing",
+      "needs": ["kettlebell:8"],
+      "marks": [],
+      "kit": [],
+      "avoid": [],
+      "open": false,
+      "missing": ["an 8 kg kettlebell"],
+      "avoided": []
+    },
+    {
+      "case": "a kettlebell of that weight",
+      "needs": ["kettlebell:8"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "kettlebell",
+          "kg": 8
+        }
+      ],
+      "avoid": [],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "each kettlebell weight is owned apart",
+      "needs": ["kettlebell:8"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "kettlebell",
+          "kg": 16
+        }
+      ],
+      "avoid": [],
+      "open": false,
+      "missing": ["an 8 kg kettlebell"],
+      "avoided": []
+    },
+    {
+      "case": "two kettlebells, one owned",
+      "needs": ["kettlebell:8", "kettlebell:16"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "kettlebell",
+          "kg": 8
+        }
+      ],
+      "avoid": [],
+      "open": false,
+      "missing": ["a 16 kg kettlebell"],
+      "avoided": []
+    },
+    {
+      "case": "a dumbbell pair of that weight",
+      "needs": ["dumbbells:12"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "dumbbells",
+          "kg": 12
+        }
+      ],
+      "avoid": [],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "a dumbbell pair of another weight",
+      "needs": ["dumbbells:12"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "dumbbells",
+          "kg": 10
+        }
+      ],
+      "avoid": [],
+      "open": false,
+      "missing": ["12 kg dumbbells"],
+      "avoided": []
+    },
+    {
+      "case": "an adjustable set whose range covers it",
+      "needs": ["dumbbells:12"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "dumbbells",
+          "kg": 24,
+          "min_kg": 2
+        }
+      ],
+      "avoid": [],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "an adjustable set whose range stops short",
+      "needs": ["dumbbells:12"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "dumbbells",
+          "kg": 10,
+          "min_kg": 2
+        }
+      ],
+      "avoid": [],
+      "open": false,
+      "missing": ["12 kg dumbbells"],
+      "avoided": []
+    },
+    {
+      "case": "dumbbells of any weight",
+      "needs": ["dumbbells"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "dumbbells",
+          "kg": 4
+        }
+      ],
+      "avoid": [],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "a vest that loads at least that far",
+      "needs": ["backpack:10"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "backpack",
+          "kg": 15
+        }
+      ],
+      "avoid": [],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "a vest that loads less",
+      "needs": ["backpack:10"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "backpack",
+          "kg": 5
+        }
+      ],
+      "avoid": [],
+      "open": false,
+      "missing": ["a weighted vest or backpack of 10 kg"],
+      "avoided": []
+    },
+    {
+      "case": "a stronger band than needed",
+      "needs": ["band:medium"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "band",
+          "resistance": "heavy"
+        }
+      ],
+      "avoid": [],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "a weaker band than needed",
+      "needs": ["band:medium"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "band",
+          "resistance": "light"
+        }
+      ],
+      "avoid": [],
+      "open": false,
+      "missing": ["a medium band"],
+      "avoided": []
+    },
+    {
+      "case": "any band",
+      "needs": ["band"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "band",
+          "resistance": "light"
+        }
+      ],
+      "avoid": [],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "other kit: any one of it",
+      "needs": ["pull-up bar"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "pull-up bar"
+        }
+      ],
+      "avoid": [],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "other kit missing",
+      "needs": ["dip bars"],
+      "marks": [],
+      "kit": [
+        {
+          "kit": "pull-up bar"
+        }
+      ],
+      "avoid": [],
+      "open": false,
+      "missing": ["a dip bars or two chairs"],
+      "avoided": []
+    },
+    {
+      "case": "a mark avoided",
+      "needs": [],
+      "marks": ["floor"],
+      "kit": [],
+      "avoid": ["floor"],
+      "open": false,
+      "missing": [],
+      "avoided": ["floor"]
+    },
+    {
+      "case": "a mark not avoided",
+      "needs": [],
+      "marks": ["floor"],
+      "kit": [],
+      "avoid": ["knees"],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "two marks, one avoided",
+      "needs": [],
+      "marks": ["floor", "kneeling"],
+      "kit": [],
+      "avoid": ["kneeling"],
+      "open": false,
+      "missing": [],
+      "avoided": ["kneeling"]
+    },
+    {
+      "case": "balance has no switch",
+      "needs": [],
+      "marks": ["balance"],
+      "kit": [],
+      "avoid": ["floor", "kneeling", "impact", "hanging", "knees"],
+      "open": true,
+      "missing": [],
+      "avoided": []
+    },
+    {
+      "case": "every switch, in Account's order",
+      "needs": [],
+      "marks": ["knees", "hanging", "impact", "kneeling", "floor"],
+      "kit": [],
+      "avoid": ["knees", "floor", "impact", "hanging", "kneeling"],
+      "open": false,
+      "missing": [],
+      "avoided": ["floor", "kneeling", "impact", "hanging", "knees"]
+    },
+    {
+      "case": "kit missing and a mark avoided",
+      "needs": ["kettlebell:16"],
+      "marks": ["knees"],
+      "kit": [
+        {
+          "kit": "kettlebell",
+          "kg": 8
+        }
+      ],
+      "avoid": ["knees"],
+      "open": false,
+      "missing": ["a 16 kg kettlebell"],
+      "avoided": ["knees"]
+    },
+    {
+      "case": "at a gym: every kit, but what they avoid goes with them",
+      "needs": ["kettlebell:16"],
+      "marks": ["knees"],
+      "kit": null,
+      "avoid": ["knees"],
+      "open": false,
+      "missing": [],
+      "avoided": ["knees"]
+    }
+  ]
+}
