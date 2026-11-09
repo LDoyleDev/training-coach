@@ -167,6 +167,20 @@ def planned_minutes(items: tuple[ItemPlan, ...], warm_up: bool) -> int:
     return _minutes(items, _ordered(items, work_groups(items)), warm_up)
 
 
+def fitted(
+    items: tuple[ItemPlan, ...], kind: str, minutes: int | None, count: int | None
+) -> trimming.Trimmed | None:
+    """A session not being run, cut to ``count`` exercises and then ``minutes`` at the plain
+    pace, as a preview shows it (ADR-0092 screen 13); None for one that isn't trimmed."""
+    if kind not in TRIMMED:
+        return None
+    estimate = _estimator(items, (), 1.0)
+    has_warm_up = kind == "strength"
+    return trimming.trim(
+        _shapes(items, ()), minutes, estimate, has_warm_up=has_warm_up, exercises=count
+    )
+
+
 def _seconds(items: tuple[ItemPlan, ...], order: tuple[GuidedSet, ...]) -> int:
     """Each set's work and the rest after it, warm-up not included."""
     seconds = 0
