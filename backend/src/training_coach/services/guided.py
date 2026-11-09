@@ -330,7 +330,7 @@ def _length(
     if fixed is None:
         minutes = minutes if minutes in options else None
         trimmed = trimming.trim(shapes, minutes, estimate, has_warm_up=has_warm_up, exercises=count)
-    else:
+    else:  # a started session keeps its sets, whatever the minutes or count since (ADR-0082)
         minutes, amrap = fixed.minutes, fixed.last_set
         how = trimming.warm_up(shapes, fixed.sets, minutes) if has_warm_up else WarmUp.NONE
         total = round(estimate(fixed.sets, fixed.durations)) + WARM_UP[how]
