@@ -10,6 +10,7 @@ import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 
+from tests.services.test_walkthrough_apply import _rows
 from training_coach.api.app import create_app
 from training_coach.config import Settings
 from training_coach.db.models import Exercise, LadderStep, User, Workout
@@ -125,9 +126,12 @@ def test_the_preview_saves_nothing_and_the_owner_gets_one_too(
     owner: TestClient, member: TestClient, engine: Engine
 ) -> None:
     before = member.get("/api/walkthrough").json()
-    assert owner.post("/api/walkthrough/preview", json=_body(engine)).status_code == 200
-    assert member.post("/api/walkthrough/preview", json=_body(engine)).status_code == 200
+    rows = {user: _rows(engine, user) for user in (MEMBER, users.OWNER)}
+    body = _body(engine, places="both", kit=[], avoid=["floor"], session_minutes=20)
+    assert owner.post("/api/walkthrough/preview", json=body).status_code == 200
+    assert member.post("/api/walkthrough/preview", json=body).status_code == 200
     assert member.get("/api/walkthrough").json() == before
+    assert {user: _rows(engine, user) for user in (MEMBER, users.OWNER)} == rows
 
 
 def test_a_locked_step_is_refused_with_the_reason(member: TestClient, engine: Engine) -> None:
