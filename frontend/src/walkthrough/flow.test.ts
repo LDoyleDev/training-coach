@@ -50,6 +50,8 @@ const NEW: Draft = {
   days: [],
   minutes: null,
   count: null,
+  chosen: {},
+  putBack: false,
 }
 const ALL: Known = { consent: true, residence: true, safety: true, ladders: LADDERS }
 const NONE: Known = { consent: false, residence: false, safety: false, ladders: LADDERS }
@@ -108,7 +110,7 @@ test('each screen carries its ADR number for the progress line', () => {
   expect(numberOf('days')).toBe(10)
   expect(numberOf('count')).toBe(12)
   expect(numberOf('nowhere')).toBe(0)
-  expect(after('next', ALL, NEW)).toBeNull()
+  expect(after('plan', ALL, NEW)).toBeNull()
 })
 
 test('each ladder asks from the suggested level, up on a yes, until its walk is done', () => {
@@ -150,7 +152,7 @@ test('after the last ladder come the days, the minutes and the count', () => {
   expect(after('ladder:swing:0', NONE, { ...NEW, placement: { swing: ['yes'] } })).toBe('days')
   expect(after('days', NONE, NEW)).toBe('minutes')
   expect(after('minutes', NONE, NEW)).toBe('count')
-  expect(after('count', NONE, NEW)).toBe('next')
+  expect(after('count', NONE, NEW)).toBe('plan')
 })
 
 test('a step with no level is never where a walk starts, but is asked on the way', () => {

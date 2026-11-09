@@ -52,6 +52,18 @@ const PUSH_UP: WalkLadder = {
   ],
 }
 
+const STARTER = {
+  slug: 'three-days',
+  name: '3 days a week',
+  days: 3,
+  sessions: [{ slug: 'a', name: 'Full body A', focus: '', rest_after: 6, items: [] }],
+}
+const PREVIEW = {
+  sessions: [],
+  week: [{ date: '2026-11-12', session: 'a' }],
+  coverage: [],
+}
+
 interface Server {
   role?: 'admin' | 'member'
   consent?: boolean // the walkthrough category is open
@@ -76,6 +88,7 @@ function serve({
   vi.stubGlobal(
     'fetch',
     vi.fn(async (path: string, init?: RequestInit) => {
+      if (path === '/api/walkthrough/preview') return Response.json(PREVIEW) // saves nothing
       if (init?.method) {
         writes.push([init.method, path, init.body ? JSON.parse(String(init.body)) : null])
         if (path === '/api/readiness' && told !== 200) return new Response(null, { status: told })
@@ -97,7 +110,7 @@ function serve({
             ask_again_after: null,
           },
           ladders: [PUSH_UP],
-          starters: [],
+          starters: [STARTER],
         },
         '/api/account/residence': { choices: ['DE', 'IE'], country },
         '/api/settings': SETTINGS,
@@ -185,7 +198,7 @@ test('a new member: every screen in order, with Back, and only the health versio
   tap('30 minutes')
   expect(screen.getByText('12 of 12')).toBeInTheDocument()
   tap('6')
-  expect(screen.getByRole('heading', { name: 'Next: your plan' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Your plan' })).toBeInTheDocument()
   tap('Back')
   expect(screen.getByRole('button', { name: '6' })).toHaveAttribute('aria-pressed', 'true')
 
@@ -248,7 +261,7 @@ test('a change to what the walk depends on starts its answers again', async () =
   tap('Next')
   tap('Skip') // minutes: as Account has them
   tap('Skip') // count
-  expect(screen.getByRole('heading', { name: 'Next: your plan' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Your plan' })).toBeInTheDocument()
 })
 
 test('the owner gets a try-out, and screens the server already has are skipped', async () => {

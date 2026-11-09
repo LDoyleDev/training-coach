@@ -27,6 +27,7 @@ import {
   WALKED_FROM,
 } from './flow'
 import { NOTHING_ANSWERED } from './level'
+import { PlanScreen } from './PlanScreen'
 import {
   AvoidScreen,
   ChoiceScreen,
@@ -42,6 +43,7 @@ import {
 interface Ready {
   who: Walkthrough['who'] // the owner's is a try-out: nothing changes his plan (ADR-0092)
   known: Known
+  starters: Walkthrough['starters']
   answeredAt: string | null // when the health questions were last answered
   kinds: Equipment['kinds']
   draft: Draft
@@ -72,6 +74,7 @@ async function load(signal: AbortSignal): Promise<Ready | null> {
       safety: readiness.due,
       ladders: walkthrough.ladders,
     },
+    starters: walkthrough.starters,
     answeredAt: readiness.answered_at,
     kinds: equipment.kinds,
     draft: {
@@ -92,6 +95,8 @@ async function load(signal: AbortSignal): Promise<Ready | null> {
       // What Account holds now, so Save keeps them unless they're changed here.
       minutes: settings.session_minutes,
       count: settings.session_exercises,
+      chosen: {},
+      putBack: false,
     },
   }
 }
@@ -175,14 +180,14 @@ export default function StartPage() {
       </div>,
     )
 
-  const { who, known, answeredAt, kinds } = loaded.ready
+  const { who, known, answeredAt, kinds, starters } = loaded.ready
   const owner = who === 'owner_try_out'
   /** A change to what the ladder walk depends on starts its answers again; the same answer
    * given again (a new object, the same values) keeps them. */
   const change = (part: Partial<Draft>): Draft => {
     const same = (key: keyof Draft) => JSON.stringify(part[key]) === JSON.stringify(draft[key])
     const restart = WALKED_FROM.some((key) => key in part && !same(key))
-    return { ...draft, ...part, ...(restart && { placement: {} }) }
+    return { ...draft, ...part, ...(restart && { placement: {}, chosen: {} }) }
   }
   const go = (next: Draft = draft) => {
     const to = after(here, known, next)
@@ -312,13 +317,8 @@ export default function StartPage() {
           onSkip={() => go()}
         />
       )}
-      {here === 'next' && (
-        <>
-          <h1 className="m-0 text-2xl">Next: your plan</h1>
-          <p className="m-0">
-            Your plan, made from these answers, comes in the next version. Nothing was saved.
-          </p>
-        </>
+      {here === 'plan' && (
+        <PlanScreen who={who} known={known} starters={starters} draft={draft} onChange={setDraft} />
       )}
       {trail.length > 1 && (
         <button type="button" className={`${secondary} self-start`} onClick={back}>

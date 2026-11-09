@@ -1724,3 +1724,28 @@ export async function fetchWalkthrough(signal?: AbortSignal): Promise<Walkthroug
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Walkthrough
 }
+
+export type Outcomes = Schemas['Outcomes']
+export type Preview = Schemas['PreviewView']
+export type Fitted = Schemas['FittedView']
+export type FittedSession = Schemas['FittedSessionView']
+
+/** The plan these choices would make: its sessions trimmed, the week and the body map. It saves
+ * nothing. ``{ problem }``: why it can't be saved (a locked step, say), in words. */
+export async function previewWalkthrough(
+  body: Outcomes,
+  signal?: AbortSignal,
+): Promise<Preview | { problem: string }> {
+  const res = signedIn(
+    await fetch('/api/walkthrough/preview', {
+      method: 'POST',
+      signal,
+      credentials: 'same-origin',
+      headers: json,
+      body: JSON.stringify(body),
+    }),
+  )
+  if (res.status === 422) return { problem: await reason(res, 'That can’t be saved as it is.') }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Preview
+}
