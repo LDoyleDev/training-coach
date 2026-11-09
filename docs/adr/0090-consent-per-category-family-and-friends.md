@@ -43,7 +43,7 @@ The privacy draft already names the basis for each kind of data: training on the
 | `body` | Measurements (resting heart rate typed in too), photos, body settings | `measurements`, `progress_photos` and their files |
 | `daily_check` | The daily check | `daily_checks` |
 | `band` | Band import and its data, heart rate on cardio, heart-rate settings | `health_days`, `heart_rate_samples`, `sleep_sessions`, `imported_workouts`, `band_feeds`, the phone's key; cardio heart rates and the max heart rate set to empty |
-| `walkthrough` | The walk-through's answers (age, how you exercise now, what you can do, days, minutes, kit) | Those answers; the plan made from them stays |
+| `walkthrough` | The walk-through's answers (age, how you exercise now, what you can do, days, minutes, kit; narrowed in the 9 Nov addendum) | Those answers; the plan made from them stays |
 
 The safety questions' answers never reach the server (ADR-0085), so they need no consent.
 Training data (workouts, sets, the plan) runs on the contract.
@@ -99,3 +99,14 @@ a wrong secret. The AI comment sees health data only with both the category and 
   training-only row is rewritten.
 - `docs/legal/README.md` and the privacy draft say the consent step exists and what the private
   test is.
+
+## Addendum (9 Nov 2026): what the walk-through's category holds (ADR-0092)
+
+The table's `walkthrough` row listed "days, minutes, kit". Minutes, kit and places are ordinary
+settings, kept on Account without consent as training data, so the walk-through writes them there
+and they stay on withdrawal, like the plan (ADR-0092, Decided 2). The category holds the
+walk-through's own answers: the age band, how they exercise now (how often, how hard, how long),
+the four everyday answers, the tapped days and the "can you do...?" answers. They are kept in
+`walkthrough_answers`, one row per person, and withdrawing deletes the row; the plan, the levels
+and the settings made from them stay. The consent wording says so and goes to version 2; nobody
+had given version 1.
