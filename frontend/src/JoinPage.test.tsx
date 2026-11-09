@@ -46,6 +46,7 @@ test('joining signs in and offers a passkey', async () => {
   fireEvent.click(screen.getByRole('checkbox', { name: "I'm 18 or over" }))
   fireEvent.click(screen.getByRole('button', { name: 'Join' }))
   expect(await screen.findByText("You're in.")).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Set up your plan' })).toHaveAttribute('href', '/start')
   expect(sent).toEqual([{ token: 'tok123', adult: true }])
   fireEvent.click(screen.getByRole('button', { name: 'Add a passkey' }))
   expect(await screen.findByText('Passkey added.')).toBeInTheDocument()

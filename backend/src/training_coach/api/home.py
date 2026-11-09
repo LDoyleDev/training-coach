@@ -1,6 +1,7 @@
 """The home screen for the web app (B1): what has been done, then today. Owner-only."""
 
 from datetime import UTC, date, datetime
+from typing import Literal
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
@@ -13,6 +14,7 @@ from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.cardio import left
 from training_coach.domain.queue import local_date
 from training_coach.services import home as service
+from training_coach.services import walkthrough_preview
 
 router = APIRouter(prefix="/api/home", tags=["home"])
 
@@ -63,6 +65,9 @@ class HomeView(BaseModel):
     today: str | None  # today's session; empty when done or rested
     today_minutes: int | None  # about how long, from the plan; empty for a test day
     today_usual_minutes: int | None  # how long it usually takes, once timed (ADR-0061)
+    # Who the walk-through is for, as GET /api/walkthrough says it: a member sees the set-up
+    # card until it's done or closed (ADR-0092).
+    walkthrough: Literal["member", "owner_try_out", "done", "closed"]
 
 
 def _week(found: service.Week) -> HomeWeekView:
@@ -92,6 +97,7 @@ def home(request: Request, user: Owner) -> HomeView:
     on = local_date(datetime.now(UTC), settings.tz)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         found = service.home(session, on, settings.tz)
+        who = walkthrough_preview.who(session)
     return HomeView(
         totals=TotalsView(**vars(found.totals)),
         week=_week(found.week),
@@ -105,4 +111,5 @@ def home(request: Request, user: Owner) -> HomeView:
         today=found.today,
         today_minutes=found.today_minutes,
         today_usual_minutes=found.today_usual_minutes,
+        walkthrough=who,
     )
