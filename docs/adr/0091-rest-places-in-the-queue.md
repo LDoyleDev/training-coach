@@ -68,3 +68,13 @@ between them aren't "two days running" for the back-to-back warning.
   sessions and rest places together, is 7 days.
 - Follow-ups: the starters in the seed with their rest places (S1); the walk-through may need a
   start date so a queue can begin on a rest day.
+
+## Addendum (9 Nov 2026): a start date (ADR-0092)
+
+The follow-up above: the walk-through sets the day the plan starts, from the days tapped
+(ADR-0092, Decided 6 and 10), and a queue can't start on a rest place. So `plan_state.starts_on`,
+nullable: before it, while no planned session has been done or rested, every day is a rest day
+that says when the first session is ("Rest day. Your first session is on Monday."), and the bot
+is quiet the same way. "Train today instead" still works; once a planned session is done, the
+rest places count from it as before and `starts_on` no longer matters. Empty, as for the owner
+and everyone before the walk-through, changes nothing.

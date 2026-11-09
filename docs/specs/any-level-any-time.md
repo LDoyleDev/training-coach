@@ -6,8 +6,9 @@ the Suggested order: 1 (ADRs, #495); 2, "Short on time today" (#501, #502, #509,
 (#506), the entry exercises (#518-#520, #523), the four preferences and "Easy on my knees"
 locking steps (#531, #541), the ladders' downward migration built and dry-run (#534, released
 alone); 5: minutes per session (#529), the map at that length open; 6: the step-down suggestion
-and "Ease back in" (#530, #532, #533), the optional last set (#536), the easy start waits for
-placement; 7 (setup, the starting starters) waits for builder step 5. Added 1 Nov: Away, no
+and "Ease back in" (#530, #532, #533), the optional last set (#536), the easy start a follow-up
+to the walk-through (ADR-0092, Decided 12); 7: the starters (S1) built, the walk-through decided
+9 Nov 2026 (ADR-0092) and being built. Added 1 Nov: Away, no
 equipment (#538, #539, ADR-0086). The Europe gate: layer 1, the Cloudflare rule (2-3 Nov);
 layer 2 (#513); layer 3 on Account until sign-up (#515) and layer 4 (#514), released in
 1.16.0. The evidence, with every
@@ -279,6 +280,11 @@ a diagnosis or stores one. The evidence for obesity-specific positions is practi
 
 ### B5. Placement: setup, extended
 
+Status (9 Nov 2026): **decided**, as the walk-through in
+[ADR-0092](../adr/0092-the-walk-through.md), which settles the order, the suggested-level rule,
+the ladder walk and what's kept; being built (#577, stage 5). Not in it: the goal (6) and the
+quick checks (3) (ADR-0092, Decided 11).
+
 Builder H's flow, with what the research adds (Part 3, Implications; Part 2, Screening):
 
 1. **Safety questions,** our own, modelled on the ACSM 2015 screening (PAR-Q+'s licence forbids
@@ -323,6 +329,10 @@ Builder H's flow, with what the research adds (Part 3, Implications; Part 2, Scr
   the walk-through (`multi-user-plan.md`, Decided 2026-11-07).
 
 ### B6. The first weeks, and stepping down
+
+Status (9 Nov 2026): the step-down suggestion is built (#530); the easy start and the re-check are
+follow-ups to the walk-through, which will offer the easy start as a switch (ADR-0092, Decided 12
+and 13).
 
 - **An easy start for a new person:** two weeks of one or two sets of three or four exercises,
   well short of failure, and 5-10 minutes of cardio (ICFSR 2021). An easy first bout protects

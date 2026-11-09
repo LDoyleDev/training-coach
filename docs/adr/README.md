@@ -86,7 +86,7 @@ Code). Template: [template.md](template.md).
 | [0079](0079-cardio-total-zones-and-targets.md) | All cardio counts, split by heart-rate zone, against targets from the plan | Accepted |
 | [0080](0080-change-level-during-a-session.md) | Change an exercise's level during a session, for today or from now on | Accepted |
 | [0081](0081-sqlite-savepoints-open-the-transaction.md) | A SQLite savepoint opens the transaction first, so releasing it doesn't commit | Accepted |
-| [0082](0082-shorter-sessions-time-budget.md) | Shorter sessions: short on time today, and minutes per session | Accepted |
+| [0082](0082-shorter-sessions-time-budget.md) | Shorter sessions: short on time today, and minutes per session | Accepted; exercises per session added by 0092 |
 | [0083](0083-levels-from-supported-and-preferences.md) | Every step has a level from "supported" up, with an open top, and four preferences | Accepted |
 | [0084](0084-short-days-last-set-and-stepping-down.md) | Progress on a shorter day, an as-many-as-you-can last set, and stepping down | Accepted |
 | [0085](0085-safety-questions-in-europe-and-europe-only.md) | Safety questions fit for Europe, answered on the device; the app serves the EU and EEA only | Accepted |
@@ -94,5 +94,6 @@ Code). Template: [template.md](template.md).
 | [0087](0087-notices-of-background-plan-changes.md) | A release that changes an exercise in someone's plan tells them | Accepted |
 | [0088](0088-leaving-and-the-left-list.md) | Leaving deletes a member outright, and a list outside the database keeps them gone | Accepted |
 | [0089](0089-telegram-for-members.md) | Telegram for members: one sender gate, and a connection confirmed on the web | Accepted |
-| [0090](0090-consent-per-category-family-and-friends.md) | Consent per category, and a private test with invited family and friends first | Accepted |
-| [0091](0091-rest-places-in-the-queue.md) | Rest places in the queue, kept as rest days after a session | Accepted |
+| [0090](0090-consent-per-category-family-and-friends.md) | Consent per category, and a private test with invited family and friends first | Accepted; the walk-through's category narrowed by 0092 |
+| [0091](0091-rest-places-in-the-queue.md) | Rest places in the queue, kept as rest days after a session | Accepted; a start date added by 0092 |
+| [0092](0092-the-walk-through.md) | The walk-through: a new person's plan from their answers, saved in one tap | Accepted |
