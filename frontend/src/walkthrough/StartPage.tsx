@@ -187,7 +187,7 @@ export default function StartPage() {
   const change = (part: Partial<Draft>): Draft => {
     const same = (key: keyof Draft) => JSON.stringify(part[key]) === JSON.stringify(draft[key])
     const restart = WALKED_FROM.some((key) => key in part && !same(key))
-    return { ...draft, ...part, ...(restart && { placement: {}, chosen: {} }) }
+    return { ...draft, ...part, ...(restart && { placement: {}, chosen: {}, putBack: false }) }
   }
   const go = (next: Draft = draft) => {
     const to = after(here, known, next)
