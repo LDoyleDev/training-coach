@@ -120,7 +120,7 @@ def _open(session: Session) -> bool:
 NOTE = "Set up with the walk-through"  # the plan version it makes
 PLACED = "level.placed"  # one event per exercise moved; its payload holds no answer
 APPLIED = "walkthrough.applied"
-CLOSED = "closed"  # a workout is logged: the starter can't be swapped any more (Decided 13)
+CLOSED = "closed"  # a planned session is logged: the starter can't be swapped (Decided 13)
 STALE, IN_PROGRESS = plan_edit.STALE, plan_edit.IN_PROGRESS
 MINUTES = (40, 30, 20)  # as Short on time today's (ADR-0082); None: as planned
 EXERCISES = (4, 6, 8)  # the ADR-0082 addendum's; None: as planned
@@ -161,8 +161,11 @@ def ladders(plan: PlanSeed) -> list[str]:
 
 
 def closed(session: Session) -> bool:
-    """A workout is logged: it holds its session, so the starter can't be swapped (Decided 13)."""
-    return session.scalar(select(Workout.id).limit(1)) is not None
+    """A workout of a planned session is logged, done or rested: it holds that session in place
+    (workouts restrict their session), so the starter can't be swapped (Decided 13). A walk or
+    an extra names no session and holds nothing, so it doesn't close the walk-through."""
+    planned = select(Workout.id).where(Workout.template_id.is_not(None)).limit(1)
+    return session.scalar(planned) is not None
 
 
 def apply(
