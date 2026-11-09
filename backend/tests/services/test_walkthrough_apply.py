@@ -220,12 +220,27 @@ def test_what_cant_be_saved_is_refused_in_words(
     assert _rows(two, MEMBER) == before
 
 
-def test_once_a_workout_is_logged_it_is_closed(two: Engine) -> None:
+@pytest.mark.parametrize("status", ["done", "rest", "skipped"])
+def test_once_a_planned_session_is_logged_it_is_closed(two: Engine, status: str) -> None:
     with session_scope(make_session_factory(two, user_id=MEMBER)) as mine:
-        mine.add(Workout(local_date=TODAY, status="done", template_id=None))
+        first = plan_edit.templates(mine)[0].id
+        mine.add(Workout(local_date=date(2026, 11, 8), status=status, template_id=first))
     assert _apply(two, _setup(two)) == walkthrough.CLOSED
     with make_session_factory(two, user_id=OTHER)() as theirs:
         assert walkthrough.closed(theirs) is False
+
+
+def test_a_walk_or_an_extra_leaves_it_open_and_the_starter_still_swaps(two: Engine) -> None:
+    """They name no session, so nothing holds the 3-day's sessions in place (Decided 13)."""
+    with session_scope(make_session_factory(two, user_id=MEMBER)) as mine:
+        mine.add(Workout(local_date=date(2026, 11, 7), status="done", activity="walk"))
+        mine.add(Workout(local_date=date(2026, 11, 8), status="done"))  # an extra
+    assert isinstance(_apply(two, _setup(two)), Applied)
+    with session_scope(make_session_factory(two, user_id=MEMBER)) as mine:
+        assert list(_items(mine)) == ["two-days-a", "two-days-b"]
+        kept = mine.scalars(select(Workout.activity).order_by(Workout.local_date))
+        assert list(kept) == ["walk", None]
+        assert walkthrough.closed(mine) is False
 
 
 def test_a_session_in_progress_waits(two: Engine) -> None:
