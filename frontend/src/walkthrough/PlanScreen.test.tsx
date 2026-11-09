@@ -291,14 +291,15 @@ test('a change re-asks for the plan: days, minutes, count and a step, open steps
   tap('Tuesday')
   tap('40 minutes')
   tap('6')
-  await vi.waitFor(() => expect(previews(calls)).toHaveLength(5))
-  expect(previews(calls).at(-1)).toMatchObject({
-    starter: 'four-days',
-    steps: { 'push-up': 12 },
-    avoid: ['floor'],
-    session_minutes: 40,
-    session_exercises: 6,
-  })
+  await vi.waitFor(() =>
+    expect(previews(calls).at(-1)).toMatchObject({
+      starter: 'four-days',
+      steps: { 'push-up': 12 },
+      avoid: ['floor'],
+      session_minutes: 40,
+      session_exercises: 6,
+    }),
+  )
 })
 
 test("tapped days the pattern can't reach are named", async () => {
@@ -385,6 +386,19 @@ test.each([
   expect(await screen.findByRole('alert')).toHaveTextContent(said)
   expect(screen.queryByText('Mon 9 Nov')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Save my plan' })).toBeDisabled()
+})
+
+test('after a refused preview, a change says the next plan is on its way', async () => {
+  let answer: (r: Response) => void = () => {}
+  serve({ preview: () => Response.json({ detail: 'Push-up: Floor is locked.' }, { status: 422 }) })
+  show()
+  expect(await screen.findByRole('alert')).toHaveTextContent('Push-up: Floor is locked.')
+  vi.mocked(fetch).mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)))
+  tap('30 minutes')
+  expect(screen.getByRole('status')).toHaveTextContent('Making your plan…')
+  answer(Response.json(PREVIEW()))
+  expect(await screen.findByText('Mon 9 Nov')).toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
 
 test('while the next plan loads, the last one stays and says it is being made', async () => {

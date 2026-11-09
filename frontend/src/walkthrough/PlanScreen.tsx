@@ -39,8 +39,8 @@ const REFUSED = {
 type Shown =
   | { status: 'loading' }
   | { status: 'ready'; preview: Preview; for: string } // `for`: the choices it was made from
-  | { status: 'problem'; text: string }
-  | { status: 'error' }
+  | { status: 'problem'; text: string; for: string }
+  | { status: 'error'; for: string }
 
 /** One session's version, trimmed: each exercise at its step, and what the trim drops. */
 function Version({ fitted, label }: { fitted: Fitted; label?: string }) {
@@ -104,12 +104,12 @@ export function PlanScreen({
       .then((found) =>
         setShown(
           'problem' in found
-            ? { status: 'problem', text: found.problem }
+            ? { status: 'problem', text: found.problem, for: asked }
             : { status: 'ready', preview: found, for: asked },
         ),
       )
       .catch(() => {
-        if (!ctrl.signal.aborted) setShown({ status: 'error' })
+        if (!ctrl.signal.aborted) setShown({ status: 'error', for: asked })
       })
     return () => ctrl.abort()
   }, [asked])
@@ -149,7 +149,7 @@ export function PlanScreen({
   const mine = new Set(starter.sessions.flatMap((s) => s.items.map((i) => i.exercise)))
   const ladders = known.ladders.filter((l) => mine.has(l.slug))
   const preview = shown.status === 'ready' ? shown.preview : null // the last, while the next loads
-  const current = shown.status === 'ready' && shown.for === asked
+  const waiting = shown.status === 'loading' || shown.for !== asked // the next is on its way
   const names = new Map(starter.sessions.map((s) => [s.slug, s.name]))
   const landed = new Set(preview?.week.flatMap((d) => (d.session ? [weekday(local(d.date))] : [])))
   const missed = draft.days.filter((d) => !landed.has(d)).map((d) => WEEKDAYS[d])
@@ -264,7 +264,7 @@ export function PlanScreen({
         </div>
       ))}
 
-      {(shown.status === 'loading' || (preview && !current)) && (
+      {waiting && (
         <p className="status" role="status">
           Making your plan…
         </p>
