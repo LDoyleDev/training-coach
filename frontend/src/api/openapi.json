@@ -37,6 +37,17 @@
         "title": "AdviceView",
         "type": "object"
       },
+      "AgeBand": {
+        "enum": [
+          "18-34",
+          "35-49",
+          "50-64",
+          "65-74",
+          "75+"
+        ],
+        "title": "AgeBand",
+        "type": "string"
+      },
       "AiView": {
         "properties": {
           "available": {
@@ -124,6 +135,122 @@
         "title": "AnsweredBody",
         "type": "object"
       },
+      "AnswersBody": {
+        "description": "The walk-through's answers (ADR-0090 addendum): sent only with consent. Any can be empty.",
+        "properties": {
+          "age_band": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgeBand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chair": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chair"
+          },
+          "effort": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Effort"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "floor": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor"
+          },
+          "how_long": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HowLong"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "often": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Often"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "placement": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/Asked"
+              },
+              "maxItems": 12,
+              "type": "array"
+            },
+            "maxProperties": 13,
+            "propertyNames": {
+              "maxLength": 64
+            },
+            "title": "Placement",
+            "type": "object"
+          },
+          "stairs": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stairs"
+          },
+          "walk": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Walk"
+          },
+          "weekdays": {
+            "items": {
+              "maximum": 6.0,
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "maxItems": 7,
+            "title": "Weekdays",
+            "type": "array"
+          }
+        },
+        "title": "AnswersBody",
+        "type": "object"
+      },
       "ApproveBody": {
         "properties": {
           "client_id": {
@@ -158,6 +285,23 @@
           "scopes"
         ],
         "title": "ApproveBody",
+        "type": "object"
+      },
+      "Asked": {
+        "properties": {
+          "answer": {
+            "$ref": "#/components/schemas/CanDo"
+          },
+          "step": {
+            "title": "Step",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step",
+          "answer"
+        ],
+        "title": "Asked",
         "type": "object"
       },
       "AverageView": {
@@ -401,6 +545,17 @@
         ],
         "title": "BodySettingsView",
         "type": "object"
+      },
+      "CanDo": {
+        "description": "An answer to one step's \"Can you do...?\" question.",
+        "enum": [
+          "yes",
+          "no",
+          "not_sure",
+          "skip"
+        ],
+        "title": "CanDo",
+        "type": "string"
       },
       "CardioActivity": {
         "description": "What a logged cardio session was (ux-flow-plan A1). Optional on a workout.",
@@ -1696,6 +1851,15 @@
         "title": "EditSessionView",
         "type": "object"
       },
+      "Effort": {
+        "description": "How hard: able to talk in sentences, or sometimes out of breath.",
+        "enum": [
+          "talk",
+          "breathless"
+        ],
+        "title": "Effort",
+        "type": "string"
+      },
       "Energy": {
         "enum": [
           "high",
@@ -1891,6 +2055,153 @@
           "start_step"
         ],
         "title": "ExerciseView",
+        "type": "object"
+      },
+      "FittedItemView": {
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "kept": {
+            "title": "Kept",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pair": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "rep_max": {
+            "title": "Rep Max",
+            "type": "integer"
+          },
+          "rep_min": {
+            "title": "Rep Min",
+            "type": "integer"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "integer"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exercise",
+          "name",
+          "step",
+          "sets",
+          "kept",
+          "rep_min",
+          "rep_max",
+          "per_side",
+          "pair"
+        ],
+        "title": "FittedItemView",
+        "type": "object"
+      },
+      "FittedSessionView": {
+        "properties": {
+          "focus": {
+            "title": "Focus",
+            "type": "string"
+          },
+          "gym": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FittedView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "home": {
+            "$ref": "#/components/schemas/FittedView"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "rest_after": {
+            "title": "Rest After",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "focus",
+          "rest_after",
+          "on",
+          "home",
+          "gym"
+        ],
+        "title": "FittedSessionView",
+        "type": "object"
+      },
+      "FittedView": {
+        "properties": {
+          "dropped": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dropped",
+            "type": "array"
+          },
+          "fits": {
+            "title": "Fits",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FittedItemView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "place": {
+            "$ref": "#/components/schemas/Place"
+          }
+        },
+        "required": [
+          "place",
+          "items",
+          "minutes",
+          "fits",
+          "dropped"
+        ],
+        "title": "FittedView",
         "type": "object"
       },
       "FlowView": {
@@ -2586,6 +2897,15 @@
         ],
         "title": "HomeWeekView",
         "type": "object"
+      },
+      "HowLong": {
+        "enum": [
+          "under_10",
+          "10_30",
+          "over_30"
+        ],
+        "title": "HowLong",
+        "type": "string"
       },
       "IncrementsChange": {
         "description": "Only the kits sent change; the default value goes back to the default.",
@@ -5042,6 +5362,17 @@
         "title": "NoticeView",
         "type": "object"
       },
+      "Often": {
+        "description": "How often they exercise now.",
+        "enum": [
+          "not_now",
+          "under_weekly",
+          "one_two",
+          "three_plus"
+        ],
+        "title": "Often",
+        "type": "string"
+      },
       "OptionView": {
         "properties": {
           "label": {
@@ -5113,6 +5444,114 @@
           "week"
         ],
         "title": "OptionsView",
+        "type": "object"
+      },
+      "Outcomes": {
+        "description": "What the person chose, as Save sends it: no answers.",
+        "properties": {
+          "avoid": {
+            "items": {
+              "enum": [
+                "floor",
+                "kneeling",
+                "impact",
+                "hanging",
+                "knees"
+              ],
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Avoid",
+            "type": "array"
+          },
+          "kit": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/KitItemBody"
+                },
+                "maxItems": 60,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kit"
+          },
+          "left_out": {
+            "items": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "maxItems": 13,
+            "title": "Left Out",
+            "type": "array"
+          },
+          "places": {
+            "$ref": "#/components/schemas/Places",
+            "default": "home"
+          },
+          "session_exercises": {
+            "anyOf": [
+              {
+                "enum": [
+                  4,
+                  6,
+                  8
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Exercises"
+          },
+          "session_minutes": {
+            "anyOf": [
+              {
+                "enum": [
+                  40,
+                  30,
+                  20
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Minutes"
+          },
+          "starter": {
+            "maxLength": 64,
+            "title": "Starter",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          },
+          "steps": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "maxProperties": 13,
+            "propertyNames": {
+              "maxLength": 64
+            },
+            "title": "Steps",
+            "type": "object"
+          }
+        },
+        "required": [
+          "starter",
+          "steps",
+          "starts_on"
+        ],
+        "title": "Outcomes",
         "type": "object"
       },
       "Pace": {
@@ -5538,6 +5977,38 @@
           "step_number"
         ],
         "title": "PointView",
+        "type": "object"
+      },
+      "PreviewView": {
+        "properties": {
+          "coverage": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageView"
+            },
+            "title": "Coverage",
+            "type": "array"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/FittedSessionView"
+            },
+            "title": "Sessions",
+            "type": "array"
+          },
+          "week": {
+            "items": {
+              "$ref": "#/components/schemas/WeekDayView"
+            },
+            "title": "Week",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessions",
+          "week",
+          "coverage"
+        ],
+        "title": "PreviewView",
         "type": "object"
       },
       "ProgressView": {
@@ -7583,6 +8054,123 @@
         "title": "StandingsView",
         "type": "object"
       },
+      "StarterItemView": {
+        "properties": {
+          "exercise": {
+            "title": "Exercise",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pair": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair"
+          },
+          "per_side": {
+            "title": "Per Side",
+            "type": "boolean"
+          },
+          "rep_max": {
+            "title": "Rep Max",
+            "type": "integer"
+          },
+          "rep_min": {
+            "title": "Rep Min",
+            "type": "integer"
+          },
+          "sets": {
+            "title": "Sets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "exercise",
+          "name",
+          "sets",
+          "rep_min",
+          "rep_max",
+          "per_side",
+          "pair"
+        ],
+        "title": "StarterItemView",
+        "type": "object"
+      },
+      "StarterSessionView": {
+        "properties": {
+          "focus": {
+            "title": "Focus",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StarterItemView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rest_after": {
+            "title": "Rest After",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "focus",
+          "rest_after",
+          "items"
+        ],
+        "title": "StarterSessionView",
+        "type": "object"
+      },
+      "StarterView": {
+        "properties": {
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/StarterSessionView"
+            },
+            "title": "Sessions",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "days",
+          "sessions"
+        ],
+        "title": "StarterView",
+        "type": "object"
+      },
       "StepBody": {
         "properties": {
           "step_id": {
@@ -8420,6 +9008,361 @@
           "sets"
         ],
         "title": "VolumeView",
+        "type": "object"
+      },
+      "WalkthroughLadderView": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/WalkthroughStepView"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "on",
+          "steps"
+        ],
+        "title": "WalkthroughLadderView",
+        "type": "object"
+      },
+      "WalkthroughSaveBody": {
+        "properties": {
+          "answers": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnswersBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "avoid": {
+            "items": {
+              "enum": [
+                "floor",
+                "kneeling",
+                "impact",
+                "hanging",
+                "knees"
+              ],
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Avoid",
+            "type": "array"
+          },
+          "kit": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/KitItemBody"
+                },
+                "maxItems": 60,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kit"
+          },
+          "left_out": {
+            "items": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "maxItems": 13,
+            "title": "Left Out",
+            "type": "array"
+          },
+          "places": {
+            "$ref": "#/components/schemas/Places",
+            "default": "home"
+          },
+          "revision": {
+            "maxLength": 64,
+            "title": "Revision",
+            "type": "string"
+          },
+          "session_exercises": {
+            "anyOf": [
+              {
+                "enum": [
+                  4,
+                  6,
+                  8
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Exercises"
+          },
+          "session_minutes": {
+            "anyOf": [
+              {
+                "enum": [
+                  40,
+                  30,
+                  20
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Minutes"
+          },
+          "starter": {
+            "maxLength": 64,
+            "title": "Starter",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          },
+          "steps": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "maxProperties": 13,
+            "propertyNames": {
+              "maxLength": 64
+            },
+            "title": "Steps",
+            "type": "object"
+          }
+        },
+        "required": [
+          "starter",
+          "steps",
+          "starts_on",
+          "revision"
+        ],
+        "title": "WalkthroughSaveBody",
+        "type": "object"
+      },
+      "WalkthroughSavedView": {
+        "properties": {
+          "kept": {
+            "title": "Kept",
+            "type": "boolean"
+          },
+          "moved": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Moved",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "kept",
+          "starts_on",
+          "moved"
+        ],
+        "title": "WalkthroughSavedView",
+        "type": "object"
+      },
+      "WalkthroughStepView": {
+        "properties": {
+          "cue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cue"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "marks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Needs",
+            "type": "array"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "name",
+          "level",
+          "question",
+          "cue",
+          "needs",
+          "marks"
+        ],
+        "title": "WalkthroughStepView",
+        "type": "object"
+      },
+      "WalkthroughView": {
+        "properties": {
+          "consent_open": {
+            "title": "Consent Open",
+            "type": "boolean"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "ladders": {
+            "items": {
+              "$ref": "#/components/schemas/WalkthroughLadderView"
+            },
+            "title": "Ladders",
+            "type": "array"
+          },
+          "readiness": {
+            "$ref": "#/components/schemas/ReadinessView"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "starters": {
+            "items": {
+              "$ref": "#/components/schemas/StarterView"
+            },
+            "title": "Starters",
+            "type": "array"
+          },
+          "who": {
+            "enum": [
+              "member",
+              "owner_try_out",
+              "done",
+              "closed"
+            ],
+            "title": "Who",
+            "type": "string"
+          }
+        },
+        "required": [
+          "who",
+          "revision",
+          "consent_open",
+          "ladders",
+          "starters",
+          "readiness",
+          "country"
+        ],
+        "title": "WalkthroughView",
+        "type": "object"
+      },
+      "WeekDayView": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          }
+        },
+        "required": [
+          "date",
+          "session"
+        ],
+        "title": "WeekDayView",
         "type": "object"
       },
       "WeekView": {
@@ -12977,6 +13920,109 @@
         "summary": "Undo Change",
         "tags": [
           "today"
+        ]
+      }
+    },
+    "/api/walkthrough": {
+      "get": {
+        "operationId": "get_walkthrough_api_walkthrough_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalkthroughView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Walkthrough",
+        "tags": [
+          "walkthrough"
+        ]
+      },
+      "post": {
+        "description": "Save the plan in one go (``walkthrough.apply``). The owner's plan isn't made here: 403.\nAnswers without consent: 403 ``consent_needed``. A workout logged, a session in progress or a\nplan changed since: 409. What can't be saved: 422 with the reason.",
+        "operationId": "post_walkthrough_api_walkthrough_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalkthroughSaveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalkthroughSavedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Walkthrough",
+        "tags": [
+          "walkthrough"
+        ]
+      }
+    },
+    "/api/walkthrough/preview": {
+      "post": {
+        "description": "The plan these choices would make, for the last screen; it saves nothing, so the owner's\ntry-out gets it too. What can't be saved (a locked step, say) is refused with the reason.",
+        "operationId": "post_preview_api_walkthrough_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Outcomes"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Preview",
+        "tags": [
+          "walkthrough"
         ]
       }
     },
