@@ -2207,6 +2207,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/walkthrough": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Walkthrough */
+        get: operations["get_walkthrough_api_walkthrough_get"];
+        put?: never;
+        /**
+         * Post Walkthrough
+         * @description Save the plan in one go (``walkthrough.apply``). The owner's plan isn't made here: 403.
+         *     Answers without consent: 403 ``consent_needed``. A workout logged, a session in progress or a
+         *     plan changed since: 409. What can't be saved: 422 with the reason.
+         */
+        post: operations["post_walkthrough_api_walkthrough_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/walkthrough/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Preview
+         * @description The plan these choices would make, for the last screen; it saves nothing, so the owner's
+         *     try-out gets it too. What can't be saved (a locked step, say) is refused with the reason.
+         */
+        post: operations["post_preview_api_walkthrough_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -2325,6 +2369,11 @@ export interface components {
             /** Title */
             title: string;
         };
+        /**
+         * AgeBand
+         * @enum {string}
+         */
+        AgeBand: "18-34" | "35-49" | "50-64" | "65-74" | "75+";
         /** AiView */
         AiView: {
             /** Available */
@@ -2362,6 +2411,30 @@ export interface components {
             /** Version */
             version: number;
         };
+        /**
+         * AnswersBody
+         * @description The walk-through's answers (ADR-0090 addendum): sent only with consent. Any can be empty.
+         */
+        AnswersBody: {
+            age_band?: components["schemas"]["AgeBand"] | null;
+            /** Chair */
+            chair?: boolean | null;
+            effort?: components["schemas"]["Effort"] | null;
+            /** Floor */
+            floor?: boolean | null;
+            how_long?: components["schemas"]["HowLong"] | null;
+            often?: components["schemas"]["Often"] | null;
+            /** Placement */
+            placement?: {
+                [key: string]: components["schemas"]["Asked"][];
+            };
+            /** Stairs */
+            stairs?: boolean | null;
+            /** Walk */
+            walk?: boolean | null;
+            /** Weekdays */
+            weekdays?: number[];
+        };
         /** ApproveBody */
         ApproveBody: {
             /** Client Id */
@@ -2372,6 +2445,12 @@ export interface components {
             redirect_uri: string;
             /** Scopes */
             scopes: string[];
+        };
+        /** Asked */
+        Asked: {
+            answer: components["schemas"]["CanDo"];
+            /** Step */
+            step: number;
         };
         /** AverageView */
         AverageView: {
@@ -2468,6 +2547,12 @@ export interface components {
             /** Thigh Offset Cm */
             thigh_offset_cm: number;
         };
+        /**
+         * CanDo
+         * @description An answer to one step's "Can you do...?" question.
+         * @enum {string}
+         */
+        CanDo: "yes" | "no" | "not_sure" | "skip";
         /**
          * CardioActivity
          * @description What a logged cardio session was (ux-flow-plan A1). Optional on a workout.
@@ -2905,6 +2990,12 @@ export interface components {
             slug: string;
         };
         /**
+         * Effort
+         * @description How hard: able to talk in sentences, or sometimes out of breath.
+         * @enum {string}
+         */
+        Effort: "talk" | "breathless";
+        /**
          * Energy
          * @enum {string}
          */
@@ -2982,6 +3073,57 @@ export interface components {
             slug: string;
             /** Start Step */
             start_step: number;
+        };
+        /** FittedItemView */
+        FittedItemView: {
+            /** Exercise */
+            exercise: string;
+            /** Kept */
+            kept: number;
+            /** Name */
+            name: string;
+            /** Pair */
+            pair: number | null;
+            /** Per Side */
+            per_side: boolean;
+            /** Rep Max */
+            rep_max: number;
+            /** Rep Min */
+            rep_min: number;
+            /** Sets */
+            sets: number;
+            /** Step */
+            step: string;
+        };
+        /** FittedSessionView */
+        FittedSessionView: {
+            /** Focus */
+            focus: string;
+            gym: components["schemas"]["FittedView"] | null;
+            home: components["schemas"]["FittedView"];
+            /** Name */
+            name: string;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Rest After */
+            rest_after: number;
+            /** Slug */
+            slug: string;
+        };
+        /** FittedView */
+        FittedView: {
+            /** Dropped */
+            dropped: string[];
+            /** Fits */
+            fits: boolean;
+            /** Items */
+            items: components["schemas"]["FittedItemView"][];
+            /** Minutes */
+            minutes: number;
+            place: components["schemas"]["Place"];
         };
         /** FlowView */
         FlowView: {
@@ -3198,6 +3340,11 @@ export interface components {
             ] | null;
             zones: components["schemas"]["ZonesView"];
         };
+        /**
+         * HowLong
+         * @enum {string}
+         */
+        HowLong: "under_10" | "10_30" | "over_30";
         /**
          * IncrementsChange
          * @description Only the kits sent change; the default value goes back to the default.
@@ -4012,6 +4159,12 @@ export interface components {
             /** Text */
             text: string;
         };
+        /**
+         * Often
+         * @description How often they exercise now.
+         * @enum {string}
+         */
+        Often: "not_now" | "under_weekly" | "one_two" | "three_plus";
         /** OptionView */
         OptionView: {
             /** Label */
@@ -4038,6 +4191,35 @@ export interface components {
             activities: components["schemas"]["CardioActivity"][];
             planned: components["schemas"]["PlannedView"] | null;
             week: components["schemas"]["WeekView"];
+        };
+        /**
+         * Outcomes
+         * @description What the person chose, as Save sends it: no answers.
+         */
+        Outcomes: {
+            /** Avoid */
+            avoid?: ("floor" | "kneeling" | "impact" | "hanging" | "knees")[];
+            /** Kit */
+            kit?: components["schemas"]["KitItemBody"][] | null;
+            /** Left Out */
+            left_out?: string[];
+            /** @default home */
+            places: components["schemas"]["Places"];
+            /** Session Exercises */
+            session_exercises?: (4 | 6 | 8) | null;
+            /** Session Minutes */
+            session_minutes?: (40 | 30 | 20) | null;
+            /** Starter */
+            starter: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+            /** Steps */
+            steps: {
+                [key: string]: number;
+            };
         };
         /**
          * Pace
@@ -4204,6 +4386,15 @@ export interface components {
             kg?: number | null;
             /** Step Number */
             step_number: number;
+        };
+        /** PreviewView */
+        PreviewView: {
+            /** Coverage */
+            coverage: components["schemas"]["CoverageView"][];
+            /** Sessions */
+            sessions: components["schemas"]["FittedSessionView"][];
+            /** Week */
+            week: components["schemas"]["WeekDayView"][];
         };
         /** ProgressView */
         ProgressView: {
@@ -4864,6 +5055,47 @@ export interface components {
              */
             today: string;
         };
+        /** StarterItemView */
+        StarterItemView: {
+            /** Exercise */
+            exercise: string;
+            /** Name */
+            name: string;
+            /** Pair */
+            pair: number | null;
+            /** Per Side */
+            per_side: boolean;
+            /** Rep Max */
+            rep_max: number;
+            /** Rep Min */
+            rep_min: number;
+            /** Sets */
+            sets: number;
+        };
+        /** StarterSessionView */
+        StarterSessionView: {
+            /** Focus */
+            focus: string;
+            /** Items */
+            items: components["schemas"]["StarterItemView"][];
+            /** Name */
+            name: string;
+            /** Rest After */
+            rest_after: number;
+            /** Slug */
+            slug: string;
+        };
+        /** StarterView */
+        StarterView: {
+            /** Days */
+            days: number;
+            /** Name */
+            name: string;
+            /** Sessions */
+            sessions: components["schemas"]["StarterSessionView"][];
+            /** Slug */
+            slug: string;
+        };
         /** StepBody */
         StepBody: {
             /** Step Id */
@@ -5160,6 +5392,108 @@ export interface components {
             group: string;
             /** Sets */
             sets: number;
+        };
+        /** WalkthroughLadderView */
+        WalkthroughLadderView: {
+            /** Name */
+            name: string;
+            /** On */
+            on: number | null;
+            /** Slug */
+            slug: string;
+            /** Steps */
+            steps: components["schemas"]["WalkthroughStepView"][];
+        };
+        /** WalkthroughSaveBody */
+        WalkthroughSaveBody: {
+            answers?: components["schemas"]["AnswersBody"] | null;
+            /** Avoid */
+            avoid?: ("floor" | "kneeling" | "impact" | "hanging" | "knees")[];
+            /** Kit */
+            kit?: components["schemas"]["KitItemBody"][] | null;
+            /** Left Out */
+            left_out?: string[];
+            /** @default home */
+            places: components["schemas"]["Places"];
+            /** Revision */
+            revision: string;
+            /** Session Exercises */
+            session_exercises?: (4 | 6 | 8) | null;
+            /** Session Minutes */
+            session_minutes?: (40 | 30 | 20) | null;
+            /** Starter */
+            starter: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+            /** Steps */
+            steps: {
+                [key: string]: number;
+            };
+        };
+        /** WalkthroughSavedView */
+        WalkthroughSavedView: {
+            /** Kept */
+            kept: boolean;
+            /** Moved */
+            moved: string[];
+            /** Revision */
+            revision: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+        };
+        /** WalkthroughStepView */
+        WalkthroughStepView: {
+            /** Cue */
+            cue: string | null;
+            /** Id */
+            id: number;
+            /** Level */
+            level: number | null;
+            /** Marks */
+            marks: string[];
+            /** Name */
+            name: string;
+            /** Needs */
+            needs: string[];
+            /** Position */
+            position: number;
+            /** Question */
+            question: string | null;
+        };
+        /** WalkthroughView */
+        WalkthroughView: {
+            /** Consent Open */
+            consent_open: boolean;
+            /** Country */
+            country: string | null;
+            /** Ladders */
+            ladders: components["schemas"]["WalkthroughLadderView"][];
+            readiness: components["schemas"]["ReadinessView"];
+            /** Revision */
+            revision: string;
+            /** Starters */
+            starters: components["schemas"]["StarterView"][];
+            /**
+             * Who
+             * @enum {string}
+             */
+            who: "member" | "owner_try_out" | "done" | "closed";
+        };
+        /** WeekDayView */
+        WeekDayView: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Session */
+            session: string | null;
         };
         /**
          * WeekView
@@ -8722,6 +9056,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UndoneView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_walkthrough_api_walkthrough_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WalkthroughView"];
+                };
+            };
+        };
+    };
+    post_walkthrough_api_walkthrough_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WalkthroughSaveBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WalkthroughSavedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_preview_api_walkthrough_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Outcomes"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewView"];
                 };
             };
             /** @description Validation Error */
