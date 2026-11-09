@@ -3,9 +3,8 @@
  * screen, each with the number of the ADR's screen it belongs to, for the progress line. Every
  * answer is held in memory only; a reload starts again.
  */
-import type { KitItemBody, MessageSettings } from '../api'
+import type { KitItemBody, MessageSettings, WalkLadder, WalkStep } from '../api'
 import { type Answer, QUESTIONS } from '../readiness/questions'
-import type { WalkLadder, WalkStep } from './api'
 import { type About, suggestedLevel } from './level'
 import { isOpen } from './locks'
 import { type CanDo, type Rung, walk } from './walk'

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import type { WalkLadder } from './api'
+import type { WalkLadder } from '../api'
 import { after, type Draft, type Known, ladderAt, numberOf, ORDER, rungsOf, SAFETY } from './flow'
 import { NOTHING_ANSWERED } from './level'
 

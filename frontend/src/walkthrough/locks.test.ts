@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import cases from './lock-cases.json?raw'
 import { AVOIDABLE, avoided, isOpen, missing, type Limits } from './locks'
 
 // The same cases as backend/tests/domain/test_kit.py and test_locks.py.
@@ -85,4 +86,32 @@ test('kit and marks lock together, and nothing listed or avoided locks nothing',
   expect(isOpen(asks, { kit: [KB16], avoid: new Set() })).toBe(true)
   expect(isOpen(asks, { kit: [KB8], avoid: new Set() })).toBe(false)
   expect(isOpen(asks, { kit: [KB16], avoid: new Set(['floor']) })).toBe(false)
+})
+
+interface Case {
+  case: string
+  needs: string[]
+  marks: string[]
+  kit: NonNullable<Limits['kit']> | null
+  avoid: string[]
+  open: boolean
+  missing: string[] // in words on the server; here only how many
+  avoided: string[]
+}
+
+// The cases backend/tests/domain/test_lock_cases.py runs domain.locks against (Decided 19).
+const SHARED = (JSON.parse(cases) as { cases: Case[] }).cases.map((c) => ({
+  ...c,
+  kit: c.kit?.map((i) => ({ kg: null, min_kg: null, resistance: null, ...i })) ?? null,
+}))
+
+test.each(SHARED)('shared case: $case', (c) => {
+  const limits: Limits = { kit: c.kit, avoid: new Set(c.avoid) }
+  expect(isOpen(c, limits)).toBe(c.open)
+  expect(missing(c.kit, c.needs)).toHaveLength(c.missing.length)
+  expect(avoided(c.marks, limits.avoid)).toEqual(c.avoided)
+})
+
+test('the shared cases are all there', () => {
+  expect(SHARED.length).toBeGreaterThanOrEqual(26)
 })
