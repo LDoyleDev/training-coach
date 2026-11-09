@@ -496,6 +496,20 @@ test('a plan changed elsewhere: said, and the next Save sends the new revision',
   await vi.waitFor(() => expect(saves(calls).map((b) => b.revision)).toEqual(['r1', 'r2']))
 })
 
+test("a plan changed elsewhere says so even when the new revision can't be fetched", async () => {
+  serve({ save: [Response.json({ detail: 'stale' }, { status: 409 })] })
+  const answer = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation((path, init) =>
+    path === '/api/walkthrough' && !init?.method
+      ? Promise.reject(new Error('offline'))
+      : answer(path, init),
+  )
+  show()
+  await screen.findByText('Mon 9 Nov')
+  tap('Save my plan')
+  expect(await screen.findByRole('alert')).toHaveTextContent(/changed somewhere else/)
+})
+
 test('a Save that fails to connect says so', async () => {
   serve({ save: [new Response(null, { status: 500 })] })
   show()

@@ -132,7 +132,8 @@ export function PlanScreen({
       } else if (typeof found === 'object') setSaid(found.problem)
       else {
         if (found === 'stale') {
-          const now = await fetchWalkthrough()
+          // The revision now, so the next tap saves over it; failing that, the next tap asks again.
+          const now = await fetchWalkthrough().catch(() => null)
           if (now) setPlan(now.revision)
         }
         setSaid(REFUSED[found])
@@ -150,6 +151,7 @@ export function PlanScreen({
   const ladders = known.ladders.filter((l) => mine.has(l.slug))
   const preview = shown.status === 'ready' ? shown.preview : null // the last, while the next loads
   const waiting = shown.status === 'loading' || shown.for !== asked // the next is on its way
+  const current = shown.status === 'ready' && !waiting
   const names = new Map(starter.sessions.map((s) => [s.slug, s.name]))
   const landed = new Set(preview?.week.flatMap((d) => (d.session ? [weekday(local(d.date))] : [])))
   const missed = draft.days.filter((d) => !landed.has(d)).map((d) => WEEKDAYS[d])
