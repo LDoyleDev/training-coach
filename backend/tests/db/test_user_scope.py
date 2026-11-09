@@ -296,6 +296,7 @@ def test_every_per_person_table_is_covered() -> None:
         "readiness_checks",
         "daily_checks",
         "consents",
+        "walkthrough_answers",
         "ai_connections",
         "ingest_keys",
         "band_feeds",
