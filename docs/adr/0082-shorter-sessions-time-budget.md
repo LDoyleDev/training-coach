@@ -98,3 +98,18 @@ or a choice made earlier: the setting doesn't apply and the full warm-up stays, 
 minutes it would otherwise give way to ramp sets. A session already started keeps the length it
 was fixed at. Choosing a length not on offer is refused. Which lengths are on offer is worked out
 from the person's pace, as the estimate is.
+
+## Addendum (9 Nov 2026): exercises per session (ADR-0092)
+
+The walk-through asks how many exercises a session should have (Liam's 7 Nov answers, B5;
+ADR-0092, Decided 9). It is a setting beside minutes per session, `settings.session_exercises`:
+4, 6, 8, or empty for as planned, on Account as "Exercises per session" and set by the
+walk-through. It isn't written into the plan, which would break pairs and lose the exercises for
+good.
+
+The trim applies it first: while more exercises are left than the count, whole exercises go one
+at a time by rule 4's drop key (a pinned Keep still never goes, and neither does the last
+exercise). Then the minutes apply to what's left, rules 1 to 5 as before. Short on time today
+trims on top, in the same way. Recovery sessions and test days aren't trimmed, as for the
+minutes. A session with the count or fewer is as planned. The count dropped is named before
+Start, as the minutes' are.

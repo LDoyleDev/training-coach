@@ -2,6 +2,7 @@
 
 from datetime import date
 
+import pytest
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
@@ -15,9 +16,13 @@ from training_coach.db.models import (
     User,
 )
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain.coverage import Band
+from training_coach.domain.enums import Place
+from training_coach.domain.muscles import Muscle
 from training_coach.services import gym_version, plan_edit
+from training_coach.services.coverage import plan_coverage
 from training_coach.services.plan_edit import Saved
-from training_coach.services.seed import apply_seed, bundled_plan
+from training_coach.services.seed import PlanSeed, apply_seed, bundled_plan
 from training_coach.services.users import OWNER
 
 DAY = date(2026, 11, 9)
@@ -111,6 +116,39 @@ def test_writing_it_again_changes_nothing(engine: Engine) -> None:
         assert isinstance(first, Saved)
         assert again == Saved(first.revision, None)
         assert ("barbell-rdl", 3, 6, 10, 2) in _gym(mine)["three-days-a"]
+
+
+@pytest.mark.parametrize(
+    ("starter", "back_extension"),
+    [
+        ("two-days", "two-days-b"),
+        ("three-days", "three-days-b"),
+        ("four-days", "four-days-lower-2"),
+    ],
+)
+def test_with_every_swap_made_the_lower_back_keeps_4_sets_at_the_gym(
+    engine: Engine, starter: str, back_extension: str
+) -> None:
+    """S1, Decided 10: the Romanian deadlift counts the lower back half, so the 45° back
+    extension takes the glute bridge's place once a week; the minutes stay the home ones."""
+    plan = PlanSeed.model_validate({**bundled_plan().model_dump(), "new_people": starter})
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=MEMBER))
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, plan)
+    with session_scope(make_session_factory(engine, user_id=MEMBER)) as mine:
+        _place(mine, {e.slug: e.ladder[-1] for e in plan.exercises})  # every one at its top
+        assert isinstance(gym_version.write(mine, plan, DAY), Saved)
+        home, gym = plan_coverage(mine), plan_coverage(mine, Place.GYM)
+        found = _gym(mine)
+    lower = [
+        next((m.sets, m.band) for m in c.muscles if m.muscle is Muscle.LOWER_BACK)
+        for c in (home, gym)
+    ]
+    assert lower == [(5, Band.GREEN), (4, Band.GREEN)]  # 2.5, amber, with the deadlift alone
+    with_it = [s for s, items in found.items() if "back-extension-45" in {i[0] for i in items}]
+    assert with_it == [back_extension]
+    assert [d.minutes for d in gym.days] == [d.minutes for d in home.days]
 
 
 def test_the_owners_cycle_is_never_touched(engine: Engine) -> None:

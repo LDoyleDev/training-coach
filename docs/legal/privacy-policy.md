@@ -26,6 +26,7 @@ stores:
 | When you last answered the health questions, and which version of them. Your answers, and the suggestion they lead to, are worked out on your device and never sent to us | Asking the questions again after a year or when they change, and reminding you before hard sessions | Contract (Art. 6(1)(b)) [lawyer: confirm that a date alone isn't health data] |
 | The daily check (how you slept, how sore you are, your energy), kept for a year | Advising you to train as planned, lighter or rest that day. **Health data** | Your explicit consent (Art. 9(2)(a)) |
 | Band data you choose to send from your phone (Health Connect): workouts with heart rate, sleep times and stages, daily steps, resting heart rate, weight; per-minute heart rate kept 8 days, the rest until you delete it | Counting cardio (after you confirm), heart-rate zones, sleep and steps on your dashboard. **Health data** | Your explicit consent (Art. 9(2)(a)) |
+| If you say yes when the walk-through starts: your walk-through answers, which are your age band, how often, how hard and how long you exercise now, the everyday questions (standing up from a chair without your hands, a flight of stairs, walking 10 minutes, getting down to the floor and up), the days you tapped, and your answers to "Can you do...?". Your plan, levels, minutes, exercises per session, kit and places are kept as training data, whatever you answer. The safety questions' answers are never sent to us | Keeping what your plan was made from, to adjust it later. Some of it is **health data** | Your explicit consent (Art. 9(2)(a)), which you give at the start of the walk-through, and can withdraw at any time on the Account page |
 | If you turn on AI comments with your own Groq key: the weekly AI comment, kept 7 days. It can mention measurements or daily checks only if you let the comment see them | Showing the comment under that week's review on the website as well as on Telegram | Contract (Art. 6(1)(b)); for health data in it, the consent you gave for that data (Art. 9(2)(a)) |
 | Passkeys (the public half only), signed-in browsers (a label and when last seen), sign-in links (stored only as a hash) | Signing you in securely, letting you sign out lost devices | Contract (Art. 6(1)(b)); security (Art. 6(1)(f)) |
 | A record of each consent you give or withdraw: which kind of data, which wording you were shown, and when | Showing that you agreed, and to what | Legal obligation to show consent (Art. 7(1), Art. 6(1)(c)) [lawyer: basis] |
@@ -71,7 +72,7 @@ You can, at any time:
 - restrict or object to its use (Art. 18, 21);
 - withdraw your consent for health data, without affecting what was done before (Art. 7(3));
   withdrawing on the Account page erases that kind of data at once: body measurements and
-  photos, daily checks, or band data and heart rate;
+  photos, daily checks, band data and heart rate, or your walk-through answers;
 - complain to a data protection authority, for example [the authority for our address].
 
 ## Security

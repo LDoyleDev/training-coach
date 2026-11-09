@@ -660,6 +660,7 @@ one): 56 sets on the 3-day, 52 on the 4-day, sessions of 22-41 minutes, the main
    home or gym view (`?place=`, Home | Gym on Plan for someone at both), which the exercise
    lists follow.
 10. **Setup flow** (H), the 3- and 4-day starters (accepted 1 Nov 2026: N above), and the level questions (G1).
+    Decided 9 Nov 2026 as the walk-through ([ADR-0092](../adr/0092-the-walk-through.md)); being built.
     Proposed 31 Oct 2026: setup also asks the minutes a session has, places people from far below
     today's ladders, and offers starting starters ([any-level-any-time.md](any-level-any-time.md)).
     It also asks the country of residence from the EU and EEA list and refuses "Somewhere else"

@@ -392,7 +392,7 @@ guards, cheapest first:
    the AI comment per category, with a consented member in the two-person canary (#618); the
    consent card and Account's "What you've agreed to" (#620); "a private test for invited
    family and friends" on `/join` and in the notice (#619). The walk-through's own answers come
-   with the walk-through. Training-only (7 Nov) came first and is now replaced.
+   with the walk-through ([ADR-0092](../adr/0092-the-walk-through.md), decided 9 Nov 2026). Training-only (7 Nov) came first and is now replaced.
 7. **Leave, remove a member, admin recovery link** (ADR succeeding ADR-0044) and the restore
    runbook step. The leave service and the left list are done ([ADR-0088](../adr/0088-leaving-and-the-left-list.md),
    7 Nov 2026): the list is a file beside the database, copied off-site nightly, matched by id
