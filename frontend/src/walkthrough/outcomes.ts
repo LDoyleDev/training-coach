@@ -1,10 +1,10 @@
 /**
- * What the plan screen previews and Save sends (ADR-0092, "What runs in the browser"): the
- * outcomes, worked out here. The starter and the start day come from the tapped days on
+ * What Save sends (ADR-0092, "What runs in the browser"): the outcomes always, worked out here,
+ * and the answers only with consent. The starter and the start day come from the tapped days on
  * this device, so without consent the days never leave it.
  */
-import type { Outcomes, Walkthrough } from '../api'
-import { avoided, type Draft, type Known, walked } from './flow'
+import type { Outcomes, WalkAnswers, Walkthrough } from '../api'
+import { avoided, type Draft, type Known, shown, walked } from './flow'
 import { suggestedLevel } from './level'
 import { type Start, startDay, starterDays } from './days'
 
@@ -63,5 +63,31 @@ export function pick(known: Known, starters: Starter[], draft: Draft, today: Dat
       session_exercises: draft.count as Outcomes['session_exercises'],
       left_out: leftOut,
     },
+  }
+}
+
+/** The answers as given on the screens still asked: an answer on a screen later skipped (how
+ * hard, once "not at the moment") and a ladder answer past where its walk now ends are left
+ * out, as they no longer count. */
+export function answersOf(known: Known, draft: Draft): WalkAnswers {
+  const a = draft.about
+  const asked = (id: string) => shown(id, known, draft)
+  const placement = Object.fromEntries(
+    known.ladders.flatMap((l) => {
+      const found = walked(l, draft).asked
+      return found.length ? [[l.slug, found.map(([step, answer]) => ({ step, answer }))]] : []
+    }),
+  )
+  return {
+    age_band: a.age,
+    often: a.often,
+    effort: asked('effort') ? a.effort : null,
+    how_long: asked('howLong') ? a.howLong : null,
+    chair: a.chair,
+    stairs: a.stairs,
+    walk: a.walk,
+    floor: a.floor,
+    weekdays: draft.days,
+    placement,
   }
 }

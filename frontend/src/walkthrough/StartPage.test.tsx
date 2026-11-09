@@ -89,6 +89,10 @@ function serve({
     'fetch',
     vi.fn(async (path: string, init?: RequestInit) => {
       if (path === '/api/walkthrough/preview') return Response.json(PREVIEW) // saves nothing
+      if (path === '/api/walkthrough' && init?.method === 'POST') {
+        writes.push([init.method, path, JSON.parse(String(init.body))])
+        return Response.json({ revision: 'r2', kept: true, starts_on: '2026-11-12', moved: [] })
+      }
       if (init?.method) {
         writes.push([init.method, path, init.body ? JSON.parse(String(init.body)) : null])
         if (path === '/api/readiness' && told !== 200) return new Response(null, { status: told })
@@ -326,4 +330,41 @@ test('signed out, it asks to sign in; an error offers to try again', async () =>
   serve({ status: 500 })
   render(<StartPage />)
   expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the walk-through.")
+})
+
+test('Save makes the plan, with the answers after a yes, and Done follows', async () => {
+  const writes = serve({ country: 'IE', due: false })
+  render(<StartPage />)
+  await screen.findByRole('button', { name: 'Start' })
+  tap('Start')
+  tap('Yes, keep it')
+  await screen.findByRole('heading', { name: 'How old are you?' })
+  tap('35 to 49')
+  for (let i = 0; i < 7; i++) tap('Skip')
+  tap('Next') // avoid
+  tap(/Gym/)
+  tap('Yes') // Standard, the top
+  tap('Thursday')
+  tap('Next')
+  tap('Skip') // minutes
+  tap('Skip') // count
+  expect(await screen.findByText('Full body A')).toBeInTheDocument()
+  tap('Save my plan')
+  expect(
+    await screen.findByRole('heading', { name: /Your first session is on Thursday 12 November/ }),
+  ).toHaveFocus()
+  expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument()
+  const [, , saved] = writes.find(([, path]) => path === '/api/walkthrough')!
+  expect(saved).toMatchObject({
+    revision: 'r1',
+    starter: 'three-days',
+    steps: { 'push-up': 4 },
+    places: 'gym',
+    kit: null,
+    answers: {
+      age_band: '35-49',
+      weekdays: [3],
+      placement: { 'push-up': [{ step: 4, answer: 'yes' }] },
+    },
+  })
 })

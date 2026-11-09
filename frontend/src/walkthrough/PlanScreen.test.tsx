@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Coverage, FittedSession, Preview, WalkLadder, Walkthrough } from '../api'
 import type { Draft, Known } from './flow'
 import { NOTHING_ANSWERED } from './level'
-import { PlanScreen } from './PlanScreen'
+import { DoneScreen, PlanScreen } from './PlanScreen'
 
 const step = (
   id: number,
@@ -180,36 +180,56 @@ const PREVIEW = (place: 'home' | 'gym' = 'home'): Preview => ({
 })
 
 type Call = [string, Record<string, unknown>]
-function serve({ preview = () => Response.json(PREVIEW()) }: { preview?: () => Response } = {}) {
+interface Answers {
+  preview?: () => Response
+  save?: Response[] // in turn
+}
+function serve({ preview = () => Response.json(PREVIEW()), save = [] }: Answers = {}) {
   const calls: Call[] = []
   vi.stubGlobal(
     'fetch',
     vi.fn(async (path: string, init?: RequestInit) => {
+      if (path === '/api/walkthrough' && !init?.method)
+        return Response.json({ revision: 'r2' } as Walkthrough)
       calls.push([path, JSON.parse(String(init?.body))])
-      return preview()
+      if (path === '/api/walkthrough/preview') return preview()
+      return (
+        save.shift() ??
+        Response.json({ revision: 'r3', kept: false, starts_on: '2026-11-09', moved: [] })
+      )
     }),
   )
   return calls
 }
 const previews = (calls: Call[]) =>
   calls.filter(([p]) => p === '/api/walkthrough/preview').map(([, b]) => b)
+const saves = (calls: Call[]) => calls.filter(([p]) => p === '/api/walkthrough').map(([, b]) => b)
 
-/** The screen, its draft changed as StartPage changes it. */
-function show({ draft = DRAFT, who = 'member' }: { draft?: Draft; who?: Walkthrough['who'] } = {}) {
+/** The screen, its draft changed as StartPage changes it; what Save calls back. */
+function show({
+  draft = DRAFT,
+  who = 'member',
+  consented = false,
+}: { draft?: Draft; who?: Walkthrough['who']; consented?: boolean } = {}) {
+  const onSaved = vi.fn()
   let current = draft
   const view = () => (
     <PlanScreen
       who={who}
       known={KNOWN}
       starters={STARTERS}
+      revision="r1"
+      consented={consented}
       draft={current}
       onChange={(next) => {
         current = next
         rerender(view())
       }}
+      onSaved={onSaved}
     />
   )
   const { rerender } = render(view())
+  return onSaved
 }
 
 beforeEach(() => {
@@ -345,14 +365,12 @@ test('gym only: the gym version, and no home kit sent', async () => {
   expect(previews(calls)[0].kit).toBeNull()
 })
 
-test.each([
-  ['owner_try_out', "This is a try-out: your plan won't change."],
-  ['member', 'Saving it comes in the next version. Nothing was saved.'],
-] as const)('%s: the plan, and nothing saved', async (who, said) => {
+test("the owner's try-out: the plan, and no Save", async () => {
   serve()
-  show({ who })
+  show({ who: 'owner_try_out' })
   await screen.findByText('Mon 9 Nov')
-  expect(screen.getByText(said)).toBeInTheDocument()
+  expect(screen.getByText("This is a try-out: your plan won't change.")).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Save my plan' })).not.toBeInTheDocument()
 })
 
 test.each([
@@ -366,6 +384,7 @@ test.each([
   show()
   expect(await screen.findByRole('alert')).toHaveTextContent(said)
   expect(screen.queryByText('Mon 9 Nov')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save my plan' })).toBeDisabled()
 })
 
 test('while the next plan loads, the last one stays and says it is being made', async () => {
@@ -383,6 +402,103 @@ test('while the next plan loads, the last one stays and says it is being made', 
   tap('30 minutes')
   expect(screen.getByRole('status')).toHaveTextContent('Making your plan…')
   expect(screen.getByText('Mon 9 Nov')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save my plan' })).toBeDisabled() // not this plan yet
   answer(Response.json(PREVIEW()))
   await vi.waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
+})
+
+test('Save sends the outcomes and the revision; without consent, no answers', async () => {
+  const calls = serve()
+  const onSaved = show({ draft: { ...DRAFT, about: { ...NOTHING_ANSWERED, age: '50-64' } } })
+  await screen.findByText('Mon 9 Nov')
+  tap('Save my plan')
+  await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith('2026-11-09'))
+  expect(saves(calls)).toEqual([{ ...previews(calls)[0], revision: 'r1' }])
+})
+
+test('with consent, the answers of the screens still asked go too', async () => {
+  const calls = serve()
+  const draft: Draft = {
+    ...DRAFT,
+    // How hard was answered, then "not at the moment": no longer asked, so not sent.
+    about: { ...NOTHING_ANSWERED, age: '35-49', often: 'not_now', effort: 'talk', chair: true },
+    placement: { 'push-up': ['yes', 'no', 'yes'] }, // the last is past the end of the walk
+  }
+  show({ draft, consented: true })
+  await screen.findByText('Mon 9 Nov')
+  tap('Save my plan')
+  await vi.waitFor(() => expect(saves(calls)).toHaveLength(1))
+  expect(saves(calls)[0].answers).toEqual({
+    age_band: '35-49',
+    often: 'not_now',
+    effort: null,
+    how_long: null,
+    chair: true,
+    stairs: null,
+    walk: null,
+    floor: null,
+    weekdays: [0, 2, 4],
+    placement: {
+      'push-up': [
+        { step: 11, answer: 'yes' },
+        { step: 12, answer: 'no' },
+      ],
+    },
+  })
+})
+
+test('consent taken back meanwhile: said, and the next Save goes without the answers', async () => {
+  const calls = serve({
+    save: [Response.json({ detail: { consent_needed: 'walkthrough' } }, { status: 403 })],
+  })
+  const onSaved = show({ consented: true })
+  await screen.findByText('Mon 9 Nov')
+  tap('Save my plan')
+  expect(await screen.findByRole('alert')).toHaveTextContent(/weren't sent. Save again/)
+  tap('Save my plan')
+  await vi.waitFor(() => expect(onSaved).toHaveBeenCalled())
+  expect(saves(calls).map((b) => 'answers' in b)).toEqual([true, false])
+})
+
+test.each([
+  [409, 'closed', /logged a workout since this opened/],
+  [409, 'in-progress', /A session is under way/],
+  [422, 'Push-up: Floor is locked.', /Push-up: Floor is locked./],
+])('a refused Save (%i %s) says why', async (status, detail, said) => {
+  serve({ save: [Response.json({ detail }, { status })] })
+  show()
+  await screen.findByText('Mon 9 Nov')
+  tap('Save my plan')
+  expect(await screen.findByRole('alert')).toHaveTextContent(said)
+})
+
+test('a plan changed elsewhere: said, and the next Save sends the new revision', async () => {
+  const calls = serve({ save: [Response.json({ detail: 'stale' }, { status: 409 })] })
+  show()
+  await screen.findByText('Mon 9 Nov')
+  tap('Save my plan')
+  expect(await screen.findByRole('alert')).toHaveTextContent(/changed somewhere else/)
+  tap('Save my plan')
+  await vi.waitFor(() => expect(saves(calls).map((b) => b.revision)).toEqual(['r1', 'r2']))
+})
+
+test('a Save that fails to connect says so', async () => {
+  serve({ save: [new Response(null, { status: 500 })] })
+  show()
+  await screen.findByText('Mon 9 Nov')
+  tap('Save my plan')
+  expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save.")
+})
+
+test('done: the first session, Today and the stop signs', () => {
+  vi.setSystemTime(new Date(2026, 10, 9, 10, 0))
+  const { unmount } = render(<DoneScreen startsOn="2026-11-11" />)
+  expect(
+    screen.getByRole('heading', { name: 'Your first session is on Wednesday 11 November' }),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Go to today' })).toHaveAttribute('href', '/session')
+  expect(screen.getByText('All stop signs')).toBeInTheDocument()
+  unmount()
+  render(<DoneScreen startsOn="2026-11-09" />)
+  expect(screen.getByRole('heading', { name: 'Your first session is today' })).toBeInTheDocument()
 })
