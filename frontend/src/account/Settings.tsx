@@ -95,6 +95,10 @@ const choice = (on: boolean) =>
     ? 'border-[var(--bell-ink)] bg-[var(--bell-ink)] text-[var(--chalk)]'
     : 'border-[var(--ink)] text-[var(--ink)]')
 
+/** A choice with a second line under its name. (Not Tailwind's `block`: index.css has its own
+ * `.block`, a page section with a rule above it.) */
+const lines = ' flex flex-col items-start justify-center'
+
 const field = 'min-h-11 rounded-xl border-2 border-[var(--line)] px-3'
 const row = 'flex flex-wrap items-center gap-2'
 
@@ -275,7 +279,7 @@ export default function Settings() {
             key={key}
             type="button"
             aria-pressed={prefs[key]}
-            className={choice(prefs[key])}
+            className={choice(prefs[key]) + lines}
             disabled={busy}
             onClick={() =>
               save(
@@ -287,7 +291,7 @@ export default function Settings() {
             }
           >
             {label}
-            <span className="block font-normal">{prefs[key] ? 'On' : 'Off'}</span>
+            <span className="font-normal">{prefs[key] ? 'On' : 'Off'}</span>
           </button>
         ))}
         {noteAt('avoid')}
@@ -378,7 +382,7 @@ export default function Settings() {
             key={places}
             type="button"
             aria-pressed={prefs.places === places}
-            className={choice(prefs.places === places)}
+            className={choice(prefs.places === places) + lines}
             disabled={busy}
             onClick={() =>
               prefs.places !== places &&
@@ -391,7 +395,7 @@ export default function Settings() {
             }
           >
             {label}
-            <span className="block font-normal">{line}</span>
+            <span className="font-normal">{line}</span>
           </button>
         ))}
         {noteAt('places')}
@@ -465,7 +469,7 @@ export default function Settings() {
             key={pace}
             type="button"
             aria-pressed={prefs.pace === pace}
-            className={choice(prefs.pace === pace)}
+            className={choice(prefs.pace === pace) + lines}
             disabled={busy}
             onClick={() =>
               prefs.pace !== pace &&
@@ -473,7 +477,7 @@ export default function Settings() {
             }
           >
             {label}
-            <span className="block font-normal">{line}</span>
+            <span className="font-normal">{line}</span>
           </button>
         ))}
         {noteAt('pace')}
