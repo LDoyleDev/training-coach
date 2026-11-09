@@ -2950,6 +2950,16 @@ gym = "hip-thrust"
 rep_min = 8
 rep_max = 12
 
+# The Romanian deadlift counts the lower back half, so in one session of each starter the bridge
+# becomes the 45° back extension, which keeps it at 4 sets a week at the gym (S1, Decided 10).
+[[gym_swaps]]
+exercise = "glute-bridge"
+from_step = "Single leg, on the floor"
+gym = "back-extension-45"
+rep_min = 10
+rep_max = 15
+sessions = ["two-days-b", "three-days-b", "four-days-lower-2"]
+
 [[gym_swaps]]
 exercise = "calf-raise"
 from_step = "Bodyweight on a step"

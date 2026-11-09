@@ -77,3 +77,11 @@ exercise's range from the owner's cycle. The seed refuses a swap from a step bel
 exercise's level. `services/gym_version.py` writes a person's gym version from the steps they are
 placed on, as one plan version through the same save as an edit of their own; setup calls it
 (builder step 10). It changes only a starter's sessions, never the owner's cycle.
+
+## Addendum (9 Nov 2026): a swap to the 45° back extension
+
+A swap may name any exercise of ADR-0072's gym catalogue: its last step takes load and no step
+names kit. That lets in the 45° back extension (bodyweight, then holding a plate), which the
+glute bridge becomes in 2-day B, 3-day B and Lower 2 so the lower back stays at 4 sets at the
+gym (any-level-any-time.md S1, Decided 10). Someone swapped to it starts on its bodyweight
+step, as on every exercise of a starter. A swap still replaces one item; nothing is added.

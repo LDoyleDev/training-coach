@@ -298,6 +298,7 @@ def _exercise(data: dict[str, Any], slug: str) -> dict[str, Any]:
         (lambda d: _swap(d, "leg-press").update(from_step="Squat"), "not in its ladder"),
         (lambda d: _swap(d, "leg-press").update(gym="nope"), "unknown exercise"),
         (lambda d: _swap(d, "leg-press").update(gym="bulgarian-split-squat"), "not a gym exer"),
+        (lambda d: _exercise(d, "back-extension-45").update(loads={}), "not a gym exer"),
         (
             lambda d: _swap(d, "leg-press").update(from_step="A lower seat, arms crossed"),
             "below Leg press's level",
@@ -323,6 +324,7 @@ def _exercise(data: dict[str, Any], slug: str) -> dict[str, Any]:
         "swap-step",
         "swap-gym",
         "swap-home-exercise",
+        "swap-gym-no-load",
         "swap-below",
         "swap-session",
         "swap-two-general",
