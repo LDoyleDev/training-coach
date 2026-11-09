@@ -173,9 +173,11 @@ export default function StartPage() {
     return frame(<RetryCard text="Couldn't load the walk-through. Check your connection." />)
 
   const { owner, known, answeredAt, kinds } = loaded.ready
-  /** A change to what the ladder walk depends on starts its answers again. */
+  /** A change to what the ladder walk depends on starts its answers again; the same answer
+   * given again (a new object, the same values) keeps them. */
   const change = (part: Partial<Draft>): Draft => {
-    const restart = WALKED_FROM.some((key) => key in part && part[key] !== draft[key])
+    const same = (key: keyof Draft) => JSON.stringify(part[key]) === JSON.stringify(draft[key])
+    const restart = WALKED_FROM.some((key) => key in part && !same(key))
     return { ...draft, ...part, ...(restart && { placement: {} }) }
   }
   const go = (next: Draft = draft) => {

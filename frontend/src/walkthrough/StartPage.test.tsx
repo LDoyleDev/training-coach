@@ -225,6 +225,16 @@ test('a change to what the walk depends on starts its answers again', async () =
   tap(/Gym/) // the same answer keeps them
   expect(screen.getByRole('button', { name: 'Yes' })).toHaveAttribute('aria-pressed', 'true')
   tap('Back')
+  tap('Back')
+  tap('Next') // the switches as they were
+  tap(/Gym/)
+  expect(screen.getByRole('button', { name: 'Yes' })).toHaveAttribute('aria-pressed', 'true')
+  for (let i = 0; i < 3; i++) tap('Back') // to the floor question, skipped before
+  tap('Skip') // skipped again: the same answers
+  tap('Next')
+  tap(/Gym/)
+  expect(screen.getByRole('button', { name: 'Yes' })).toHaveAttribute('aria-pressed', 'true')
+  tap('Back')
   tap(/Both/)
   tap('Next') // the kit
   expect(screen.getByRole('button', { name: 'Yes' })).toHaveAttribute('aria-pressed', 'false')
