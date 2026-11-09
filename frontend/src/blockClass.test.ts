@@ -15,8 +15,11 @@ const sources = readdirSync('src', { recursive: true })
  * over Tailwind's `block` utility. So `block` belongs only on a section on its own: anything
  * else (a choice's second line, say) would sit far below a rule. */
 test.each(sources)("%s uses index.css's block only for a page section", (path) => {
-  const misused = [...readFileSync(`src/${path}`, 'utf8').matchAll(/className="([^"]*)"/g)]
-    .map((m) => m[1])
+  // Plain class lists and template literals; a class list built elsewhere (a helper such as
+  // a choice's) isn't seen here.
+  const source = readFileSync(`src/${path}`, 'utf8')
+  const misused = [...source.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\})/g)]
+    .map((m) => (m[1] ?? m[2]).replace(/\$\{[^}]*\}/g, ' ').trim())
     .filter((names) => names.split(/\s+/).includes('block') && names !== 'block')
   expect(misused).toEqual([])
 })
