@@ -18,6 +18,7 @@ import {
   type Guided,
   type Pending,
   type Queued,
+  type RestDay,
   type Saved,
   type TestDayDue,
   type Timing,
@@ -88,7 +89,7 @@ type Loaded =
   | { status: 'loading' }
   | { status: 'signed-out' }
   | { status: 'error' }
-  | { status: 'none'; next?: Queued | null } // nothing planned left today; next: a rest day's
+  | { status: 'none'; next?: RestDay | null } // nothing planned left today; next: a rest day's
   | { status: 'ready'; session: Guided }
 
 /**

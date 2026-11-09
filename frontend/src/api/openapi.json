@@ -5767,18 +5767,6 @@
       },
       "QueuedView": {
         "properties": {
-          "first_on": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "First On"
-          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -6070,6 +6058,37 @@
           "resource_name"
         ],
         "title": "ResourceMetadata",
+        "type": "object"
+      },
+      "RestDayView": {
+        "description": "The next session on a rest day (ADR-0091).",
+        "properties": {
+          "first_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First On"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "name"
+        ],
+        "title": "RestDayView",
         "type": "object"
       },
       "ReviewBestView": {
@@ -8109,7 +8128,7 @@
           "rest_day": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/QueuedView"
+                "$ref": "#/components/schemas/RestDayView"
               },
               {
                 "type": "null"

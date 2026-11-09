@@ -659,6 +659,7 @@ export async function discardProposal(token: string): Promise<void> {
 export type Changed = Schemas['ChangedView']
 export type Choices = Schemas['ChoicesView']
 export type Queued = Schemas['QueuedView']
+export type RestDay = Schemas['RestDayView']
 export type UndoOffer = Schemas['UndoOfferView']
 export type UndoState = Schemas['UndoView']
 export type Undone = Schemas['UndoneView']
