@@ -3,8 +3,13 @@ import type { WalkLadder } from './api'
 import { after, type Draft, type Known, ladderAt, numberOf, ORDER, rungsOf, SAFETY } from './flow'
 import { NOTHING_ANSWERED } from './level'
 
-const step = (id: number, level: number, more: { needs?: string[]; marks?: string[] } = {}) => ({
+const step = (
+  id: number,
+  level: number | null,
+  more: { needs?: string[]; marks?: string[] } = {},
+) => ({
   id,
+  position: id % 10,
   name: `Step ${id}`,
   level,
   question: id % 10 === 0 ? null : `Can you do 10 of step ${id}?`, // the bottom has none
@@ -17,12 +22,14 @@ const step = (id: number, level: number, more: { needs?: string[]; marks?: strin
 const PUSH: WalkLadder = {
   slug: 'push-up',
   name: 'Push-up',
+  on: null,
   steps: [step(10, 1), step(11, 2), step(12, 3), step(13, 4, { marks: ['floor'] }), step(14, 5)],
 }
 // A bottom step, then a 16 kg kettlebell.
 const SWING: WalkLadder = {
   slug: 'swing',
   name: 'Swing',
+  on: null,
   steps: [step(20, 2), step(21, 4, { needs: ['kettlebell:16'] })],
 }
 const LADDERS = [PUSH, SWING]
@@ -144,4 +151,13 @@ test('after the last ladder come the days, the minutes and the count', () => {
   expect(after('days', NONE, NEW)).toBe('minutes')
   expect(after('minutes', NONE, NEW)).toBe('count')
   expect(after('count', NONE, NEW)).toBe('next')
+})
+
+test('a step with no level is never where a walk starts, but is asked on the way', () => {
+  const ladder: WalkLadder = { ...PUSH, steps: [step(10, 1), step(11, null), step(12, 3)] }
+  const known = { ...NONE, ladders: [ladder] }
+  const at = (k: number, answers: Draft['placement']) =>
+    ladderAt(`ladder:push-up:${k}`, known, { ...NEW, placement: answers })?.step.id
+  expect(at(0, {})).toBe(12) // level 4: the nearest below with a level
+  expect(at(1, { 'push-up': ['no'] })).toBe(11)
 })

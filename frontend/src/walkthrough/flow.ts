@@ -80,7 +80,7 @@ export function rungsOf(ladder: WalkLadder, draft: Draft): Rung[] {
   const limits = { kit: draft.places === 'gym' ? null : draft.kit, avoid }
   return ladder.steps.map((step) => ({
     id: step.id,
-    level: step.level,
+    level: step.level ?? Infinity, // no level: never where a walk starts, still asked on the way
     open: step.question !== null && isOpen(step, limits),
   }))
 }

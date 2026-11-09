@@ -1,14 +1,16 @@
 /**
  * GET /api/walkthrough's ladders (ADR-0092, API). A STUB until that route's generated types
- * exist (#678): the shape is the ADR's outline, and only the part screen 9 reads. Swap these for
- * `Schemas[...]` from `../api` once the route lands; nothing else here changes.
+ * are on main (#685): the part screen 9 reads, field for field as #685's
+ * `WalkthroughStepView` and `WalkthroughLadderView`. Swap these for `Schemas[...]` from `../api`
+ * once it lands; nothing else here changes.
  */
 
 /** One ladder step, easiest first: the bottom one has no question, as everyone starts there. */
 export interface WalkStep {
   id: number
+  position: number
   name: string // its figure is drawn from the exercise and this name
-  level: number
+  level: number | null // null: no level given in the catalogue
   question: string | null
   cue: string | null
   needs: string[] // the catalogue's, as `domain.kit` reads them: "kettlebell:16"
@@ -18,6 +20,7 @@ export interface WalkStep {
 export interface WalkLadder {
   slug: string
   name: string
+  on: number | null // the step the person is on now
   steps: WalkStep[]
 }
 

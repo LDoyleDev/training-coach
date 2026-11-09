@@ -25,6 +25,7 @@ const KIT: Equipment = {
 const ANSWERED = '2026-11-03T09:00:00Z'
 const step = (id: number, name: string, level: number, question: string | null, marks = []) => ({
   id,
+  position: id - 1,
   name,
   level,
   question,
@@ -35,6 +36,7 @@ const step = (id: number, name: string, level: number, question: string | null, 
 const PUSH_UP: WalkLadder = {
   slug: 'push-up',
   name: 'Push-up',
+  on: null,
   steps: [
     step(1, 'Hands on a wall', 1, null),
     step(
