@@ -25,6 +25,7 @@ from training_coach.db.models import (
     ProgressPhoto,
     SleepSession,
     UserSettings,
+    WalkthroughAnswers,
     Workout,
 )
 from training_coach.db.session import ALL_USERS
@@ -118,7 +119,9 @@ def _erase(session: Session, category: Category) -> None:
         for found in session.scalars(select(UserSettings)):
             found.max_hr = None
         _drop_proposals(session, CARDIO)
-    # The walk-through's answers are kept by the walk-through, which erases its own (ADR-0090).
+    elif category is Category.WALKTHROUGH:
+        # The answers only; the plan, levels and settings made from them stay (ADR-0090 addendum).
+        session.execute(delete(WalkthroughAnswers))
 
 
 def _no_ai_sight(session: Session, *, body: bool) -> None:

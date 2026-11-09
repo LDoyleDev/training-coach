@@ -23,8 +23,9 @@ class Answer(StrEnum):
 
 
 # The wording version for each category, which the web shows. Bump one when its wording
-# changes: everyone who gave it is asked again.
-VERSIONS: dict[Category, int] = dict.fromkeys(Category, 1)
+# changes: everyone who gave it is asked again. The walk-through's 2: minutes, kit and places
+# became settings, not answers (ADR-0090 addendum, 9 Nov 2026).
+VERSIONS: dict[Category, int] = {**dict.fromkeys(Category, 1), Category.WALKTHROUGH: 2}
 
 
 @dataclass(frozen=True)

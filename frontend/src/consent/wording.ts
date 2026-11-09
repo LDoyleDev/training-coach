@@ -3,13 +3,14 @@ import type { ConsentCategory } from '../api'
 /**
  * The wording version of each category (ADR-0090). It must match ``VERSIONS`` in the backend's
  * ``domain/consent.py`` (a backend test checks): bump both when a category's wording changes,
- * and everyone who said yes is asked again.
+ * and everyone who said yes is asked again. The walk-through is at 2: minutes, kit and places
+ * became settings, not answers (ADR-0090 addendum).
  */
 export const VERSIONS = {
   body: 1,
   daily_check: 1,
   band: 1,
-  walkthrough: 1,
+  walkthrough: 2,
 } satisfies Record<ConsentCategory, number>
 
 /** Under every card while the app is a private test (ADR-0090). */
@@ -70,11 +71,13 @@ export const WORDING: Record<ConsentCategory, Wording> = {
     name: 'Walk-through answers',
     title: 'Keep your walk-through answers?',
     text:
-      'The walk-through asks your age, how you exercise now, what you can do, and your days, ' +
-      'minutes and kit, to build your plan. Training Coach keeps the answers to adjust it ' +
-      'later. Some are health data, so they’re only kept if you say yes. You can withdraw at ' +
-      'any time on Account, and withdrawing deletes the answers; the plan made from them stays.',
-    off: 'Your walk-through answers aren’t kept.',
-    deletes: 'your walk-through answers. The plan made from them stays',
+      'The walk-through asks your age, how you exercise now, a few everyday questions, which ' +
+      'days suit you and what you can do, to build your plan. Training Coach keeps those ' +
+      'answers to adjust your plan later. Some are health data, so they’re only kept if you ' +
+      'say yes. Your plan, and the minutes, kit and places you choose, are kept either way. ' +
+      'You can withdraw at any time on Account, and withdrawing deletes the answers; the plan ' +
+      'made from them stays.',
+    off: 'Your walk-through answers aren’t kept. Your plan is still made.',
+    deletes: 'your walk-through answers. The plan and settings made from them stay',
   },
 }

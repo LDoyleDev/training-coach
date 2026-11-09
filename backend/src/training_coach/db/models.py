@@ -55,6 +55,7 @@ from training_coach.domain.measurements import Kind as MeasurementKind
 from training_coach.domain.muscles import Kit
 from training_coach.domain.photos import Pose
 from training_coach.domain.targets import Pace
+from training_coach.domain.walkthrough import AgeBand, Effort, HowLong, Often
 
 # The bounds in domain/cardio.py, kept by the database too (ADR-0067).
 CARDIO_DETAILS_VALID = (
@@ -362,6 +363,9 @@ class PlanState(Owned, Base):
     next_template_id: Mapped[int | None] = mapped_column(Integer)
     # Template ids served after the pointer before the cycle resumes (a swap, ADR-0022).
     queued: Mapped[list[int]] = mapped_column(JSON, default=list, server_default="[]")
+    # The day the plan starts (ADR-0091 addendum): before it, until a planned session is done,
+    # every day is a rest day. Set by the walk-through (ADR-0092); empty starts at once.
+    starts_on: Mapped[date | None] = mapped_column(Date)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 
@@ -388,6 +392,10 @@ class UserSettings(Owned, Base):
         CheckConstraint(
             "session_minutes IS NULL OR session_minutes IN (40, 30, 20)",
             name="session_minutes_valid",
+        ),
+        CheckConstraint(
+            "session_exercises IS NULL OR session_exercises IN (4, 6, 8)",
+            name="session_exercises_valid",
         ),
         CheckConstraint(_in("places", Places), name="places_valid"),
         # The place Today starts at is never away: an away day is an exception (ADR-0086).
@@ -460,6 +468,12 @@ class UserSettings(Owned, Base):
     # Minutes per session (ADR-0082): every trimmable session runs at this length unless the
     # day picks another; empty means as planned. The same 40, 30 or 20 as Short on time today.
     session_minutes: Mapped[int | None] = mapped_column(Integer)
+    # Exercises per session (ADR-0082 addendum): the trim keeps at most this many, before the
+    # minutes; empty means as planned. 4, 6 or 8.
+    session_exercises: Mapped[int | None] = mapped_column(Integer)
+    # The day the walk-through was saved (ADR-0092): Home's "Set up your plan" card is done.
+    # Holds no answer; empty for anyone who hasn't run it.
+    set_up_on: Mapped[date | None] = mapped_column(Date)
     # Last set: as many good reps as you can, where it's safe (ADR-0084). Off unless turned on.
     last_set_amrap: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
@@ -919,6 +933,45 @@ class Consent(Owned, Base):
     answer: Mapped[str] = mapped_column(String(16))
     version: Mapped[int] = mapped_column(Integer)  # the wording shown (domain.consent.VERSIONS)
     at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class WalkthroughAnswers(Owned, Base):
+    """A person's walk-through answers (ADR-0092), kept only with ``walkthrough`` consent
+    (ADR-0090): one row each, replaced by a re-run, deleted when the consent is withdrawn. Never
+    the safety answers, the suggested level, or the minutes, kit and places (settings hold
+    those). Health data: never logged, and not on Telegram, MCP, the AI summary or the share
+    card. Every answer can be skipped, so each column may be empty."""
+
+    __tablename__ = "walkthrough_answers"
+    __table_args__ = (
+        CheckConstraint(f"age_band IS NULL OR {_in('age_band', AgeBand)}", name="age_band_valid"),
+        CheckConstraint(f"often IS NULL OR {_in('often', Often)}", name="often_valid"),
+        CheckConstraint(f"effort IS NULL OR {_in('effort', Effort)}", name="effort_valid"),
+        CheckConstraint(f"how_long IS NULL OR {_in('how_long', HowLong)}", name="how_long_valid"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    version: Mapped[int] = mapped_column(Integer)  # the consent wording (domain.consent.VERSIONS)
+    answered_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    age_band: Mapped[str | None] = mapped_column(String(8))
+    # How they exercise now: how often, how hard, how long.
+    often: Mapped[str | None] = mapped_column(String(16))
+    effort: Mapped[str | None] = mapped_column(String(16))
+    how_long: Mapped[str | None] = mapped_column(String(16))
+    # The everyday questions (any-level B5.2): a chair without hands, a flight of stairs, a
+    # 10-minute walk, down to the floor and up.
+    chair: Mapped[bool | None] = mapped_column(Boolean)
+    stairs: Mapped[bool | None] = mapped_column(Boolean)
+    walk: Mapped[bool | None] = mapped_column(Boolean)
+    floor: Mapped[bool | None] = mapped_column(Boolean)
+    # The weekdays tapped, 0 Monday to 6 Sunday.
+    weekdays: Mapped[list[int]] = mapped_column(JSON, default=list, server_default="[]")
+    # Per exercise slug, the steps asked in order: [[ladder step id, answer], ...]
+    # (domain.walkthrough.placement_json).
+    placement: Mapped[dict[str, list[list[int | str]]]] = mapped_column(
+        JSON, default=dict, server_default="{}"
+    )
 
 
 class DailyCheck(Owned, Base):

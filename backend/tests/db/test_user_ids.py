@@ -141,8 +141,12 @@ def _counts(database: Path) -> dict[str, int]:
 
 def test_the_rebuild_keeps_every_row_and_the_cascades(before: tuple[Config, Path]) -> None:
     """On a database with people and their rows: the same rows after, nothing dangling, leaving
-    still takes everything of theirs, and erase can still put its person back on their id."""
+    still takes everything of theirs, and erase can still put its person back on their id.
+
+    The rows are written by today's models at head and taken back to before: written at before,
+    a column added since (``plan_state.starts_on``) would be in their inserts."""
     cfg, database = before
+    command.upgrade(cfg, "head")
     engine = make_engine(f"sqlite:///{database}")
     now = datetime.now(UTC)
     with session_scope(make_session_factory(engine)) as shared:
@@ -156,9 +160,10 @@ def test_the_rebuild_keeps_every_row_and_the_cascades(before: tuple[Config, Path
             auth.create_link(theirs, now)
             telegram_link.make(theirs, now)
     engine.dispose()
+    command.downgrade(cfg, BEFORE)
     rows = _counts(database)
     command.upgrade(cfg, "head")
-    assert _counts(database) == rows
+    assert {table: n for table, n in _counts(database).items() if table in rows} == rows
     with sqlite3.connect(database) as raw:
         assert raw.execute("PRAGMA foreign_key_check").fetchall() == []
     engine = make_engine(f"sqlite:///{database}")

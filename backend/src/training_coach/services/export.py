@@ -48,6 +48,7 @@ from training_coach.db.models import (
     TemplateItem,
     User,
     UserSettings,
+    WalkthroughAnswers,
     WebSession,
     Workout,
 )
@@ -67,6 +68,7 @@ TABLES: dict[str, type] = {
     "readiness_checks": ReadinessCheck,
     "consents": Consent,  # every yes and withdrawal (ADR-0090)
     "daily_checks": DailyCheck,
+    "walkthrough_answers": WalkthroughAnswers,  # only with consent (ADR-0092)
     "health_days": HealthDay,
     "sleep_sessions": SleepSession,
     "imported_workouts": ImportedWorkout,

@@ -19,7 +19,8 @@ from training_coach.config import Settings
 from training_coach.db.models import AiComment, Event, Measurement, Passkey, User
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import auth
+from training_coach.domain.walkthrough import AgeBand, Answers
+from training_coach.services import auth, walkthrough
 from training_coach.services.export import TABLES, secret
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
@@ -64,6 +65,7 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
         mine.add(
             AiComment(week=date(2026, 10, 5), text="Sleep more.", created_at=datetime.now(UTC))
         )
+        walkthrough.keep(mine, OWNER, Answers(age_band=AgeBand.UNDER_50), datetime.now(UTC))
 
     signed_in.patch("/api/settings", json={"talk_test": True})  # a preference (ADR-0083)
     signed_in.patch("/api/settings", json={"avoid_kneeling": True})  # and another
@@ -90,6 +92,8 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
     assert tables["signed_in_browsers"][0]["label"]
     assert all("token_hash" not in row for row in tables["signed_in_browsers"])
     assert all("jpeg" not in row for row in tables["progress_photos"])
+    (answers,) = tables["walkthrough_answers"]  # ADR-0092
+    assert answers["age_band"] == "35-49"
     (comment,) = tables["ai_comments"]
     assert (comment["week"], comment["text"]) == ("2026-10-05", "Sleep more.")
     assert "Pull-up" in {e["name"] for e in data["reference"]["exercises"].values()}
