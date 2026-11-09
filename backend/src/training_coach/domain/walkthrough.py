@@ -8,8 +8,9 @@ be worked out again from these), or the minutes, kit and places (settings hold t
 Every answer can be skipped, so each may be empty.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 from enum import StrEnum
 
 WEEKDAYS = range(7)  # 0 is Monday, as date.weekday()
@@ -92,3 +93,60 @@ def placement_from_json(stored: Mapping[str, Sequence[Sequence[int | str]]]) -> 
         slug: tuple((int(step), CanDo(str(answer))) for step, answer in asked)
         for slug, asked in stored.items()
     }
+
+
+def placement_problem(placement: Placement, ladders: Mapping[str, Collection[int]]) -> str | None:
+    """Why the placement answers can't be kept, or None: each names one of the walk-through's
+    ladders (``ladders``: slug -> its step ids) and asks only its steps, at most once a step."""
+    for slug, asked in placement.items():
+        steps = ladders.get(slug)
+        if steps is None:
+            return f"{slug} isn't one of the walk-through's exercises"
+        if len(asked) > len(steps) or not {step for step, _ in asked} <= set(steps):
+            return f"{slug}: only the steps of its ladder, each asked once"
+    return None
+
+
+# ------------------------------------------------------------------- the starter and its start
+
+
+def starter_days(tapped: int) -> int:
+    """The days a week of the starter for ``tapped`` weekdays (ADR-0092, How the plan is made 3):
+    1 or 2 the 2-day, 3 the 3-day, 4 or more the 4-day; none the 3-day, starting tomorrow."""
+    if tapped == 0:
+        return 3
+    return min(max(tapped, 2), 4)
+
+
+def landing(start: date, rest_after: Sequence[int]) -> tuple[date, ...]:
+    """The day each of a starter's sessions lands on, the first on ``start`` and each next one
+    after the rest places before it (ADR-0091). A starter is a week, so the pattern repeats."""
+    days, day = [], start
+    for rest in rest_after:
+        days.append(day)
+        day += timedelta(days=1 + rest)
+    return tuple(days)
+
+
+@dataclass(frozen=True)
+class Start:
+    on: date
+    missed: tuple[int, ...]  # tapped weekdays no session lands on, Monday first
+
+
+def start_day(today: date, weekdays: Collection[int], rest_after: Sequence[int]) -> Start:
+    """The day the plan starts (ADR-0092, How the plan is made 8): of the next week's tapped
+    days, today included, the first from which the starter's rest places land the most sessions
+    on tapped days; with the tapped days no session lands on. None tapped: tomorrow."""
+    if not weekdays:
+        return Start(today + timedelta(days=1), ())
+    tapped = set(weekdays)
+    week = (today + timedelta(days=k) for k in range(7))
+    candidates = [day for day in week if day.weekday() in tapped]
+
+    def hits(start: date) -> int:
+        return sum(day.weekday() in tapped for day in landing(start, rest_after))
+
+    best = max(candidates, key=hits)  # the earliest of equals
+    landed = {day.weekday() for day in landing(best, rest_after)}
+    return Start(best, tuple(sorted(tapped - landed)))
