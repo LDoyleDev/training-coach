@@ -69,3 +69,22 @@ async def test_a_pick_on_a_rest_day_makes_it_a_training_day(seeded: Sessions) ->
     context = type("Ctx", (), {"bot": AsyncMock()})()
     await handlers.nudge(context, scheduled(seeded))  # type: ignore[arg-type]
     context.bot.send_message.assert_awaited_once()  # type: ignore[attr-defined]
+
+
+async def test_before_the_plan_starts_the_morning_names_the_first_session(seeded: Sessions) -> None:
+    """ADR-0091 addendum: every day before the start is a rest day, and the nudge is quiet."""
+    handlers = Handlers(WITH_URL)
+    starts = handlers._local_today() + timedelta(days=2)
+    with seeded() as session:
+        session.scalars(select(PlanState)).one().starts_on = starts
+        user_settings.update(session, habits_enabled=False)
+        first = session.scalars(select(SessionTemplate).order_by(SessionTemplate.position)).first()
+        assert first is not None
+        session.commit()
+    text, _ = handlers._today(seeded)
+    assert text == (
+        f"Today: rest day. Your first session is on {starts:%a %d %b}.\nNext: {first.name}."
+    )
+    context = type("Ctx", (), {"bot": AsyncMock()})()
+    await handlers.nudge(context, scheduled(seeded))  # type: ignore[arg-type]
+    context.bot.send_message.assert_not_awaited()  # type: ignore[attr-defined]

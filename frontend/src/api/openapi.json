@@ -5767,6 +5767,18 @@
       },
       "QueuedView": {
         "properties": {
+          "first_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First On"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -7049,6 +7061,22 @@
             ],
             "title": "Review Time"
           },
+          "session_exercises": {
+            "anyOf": [
+              {
+                "enum": [
+                  4,
+                  6,
+                  8
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Exercises"
+          },
           "session_minutes": {
             "anyOf": [
               {
@@ -7193,6 +7221,22 @@
             "title": "Review Time",
             "type": "string"
           },
+          "session_exercises": {
+            "anyOf": [
+              {
+                "enum": [
+                  4,
+                  6,
+                  8
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Exercises"
+          },
           "session_minutes": {
             "anyOf": [
               {
@@ -7247,6 +7291,7 @@
           "avoid_hanging",
           "avoid_knees",
           "session_minutes",
+          "session_exercises",
           "last_set_amrap",
           "last_set_locked",
           "paused",

@@ -774,6 +774,15 @@ test('a rest day says so and names the next session (ADR-0091)', async () => {
   expect(screen.queryByText(/Nothing left today/)).not.toBeInTheDocument()
 })
 
+test('before the plan starts a rest day names the first session (ADR-0091 addendum)', async () => {
+  const next = { template_id: 2, name: 'Zone 2', first_on: '2026-11-16' }
+  serve({ today: { session: null, progress: null, rest_day: next } })
+  render(<SessionPage />)
+  expect(await screen.findByRole('heading', { name: 'Rest day' })).toBeInTheDocument()
+  expect(screen.getByText('Your first session is on Mon 16 Nov. Next: Zone 2.')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Train today instead' })).toBeInTheDocument()
+})
+
 test('a rest day can still be trained: the next session is picked for today', async () => {
   const next = { template_id: 2, name: 'Zone 2' }
   serve({ today: { session: null, progress: null, rest_day: next } })

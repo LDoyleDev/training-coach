@@ -36,7 +36,13 @@ from training_coach.domain.load import (
 )
 from training_coach.domain.muscles import Muscle, Part, ranked
 from training_coach.domain.places import choices, day_place
-from training_coach.domain.queue import ADVANCING, Position, advance, rest_days_left
+from training_coach.domain.queue import (
+    ADVANCING,
+    Position,
+    advance,
+    days_to_start,
+    rest_days_left,
+)
 from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
 from training_coach.services import blocks, equipment, retests, user_settings, users
@@ -114,6 +120,8 @@ class Today:
     test_day: retests.TestDayDue | None = None
     # A rest place's day (ADR-0091): no session today; ``session`` is the next one.
     rest_day: bool = False
+    # Before the plan starts (ADR-0091 addendum): the day of the first session.
+    starts_on: date | None = None
 
 
 @dataclass(frozen=True)
@@ -143,15 +151,38 @@ REST_DAY = "Rest day"
 def rest_days(session: Session, on: date) -> int:
     """The rest places still to come on ``on`` and after it (ADR-0091): the days after the
     planned session done or rested last (a planned rest counts as done, ADR-0006), one for each
-    rest place after it. 0: ``on`` offers a session."""
-    last = session.execute(
+    rest place after it. Before any is, every day before the plan's start day (its addendum).
+    0: ``on`` offers a session."""
+    last = _last_advanced(session)
+    if last is None:
+        return days_to_start(_starts_on(session), on)
+    return rest_days_left(last[1], last[0], on)
+
+
+def _last_advanced(session: Session) -> tuple[date, int] | None:
+    """The day and rest places of the planned session done or rested last."""
+    found = session.execute(
         select(Workout.local_date, SessionTemplate.rest_after)
         .join(SessionTemplate, SessionTemplate.id == Workout.template_id)
         .where(Workout.status.in_(ADVANCING))
         .order_by(Workout.local_date.desc(), Workout.id.desc())
         .limit(1)
     ).first()
-    return rest_days_left(last[1], last[0], on) if last is not None else 0
+    return (found[0], found[1]) if found is not None else None
+
+
+def _starts_on(session: Session) -> date | None:
+    state = users.plan_state(session)
+    return state.starts_on if state is not None else None
+
+
+def first_on(session: Session, on: date) -> date | None:
+    """The day of the first session, while ``on`` is before the plan's start and no planned
+    session has been done or rested (ADR-0091 addendum); None otherwise."""
+    starts = _starts_on(session)
+    if days_to_start(starts, on) == 0 or _last_advanced(session) is not None:
+        return None
+    return starts
 
 
 def picked_today(session: Session, on: date, tz: ZoneInfo) -> int | None:
@@ -354,6 +385,7 @@ def today(session: Session, on: date, tz: ZoneInfo | None = None) -> Today | Non
         block=block,
         test_day=retests.due(session, on, tz) if tz is not None else None,
         rest_day=rest_day(session, on, tz) if tz is not None else rest_days(session, on) > 0,
+        starts_on=first_on(session, on),
     )
 
 

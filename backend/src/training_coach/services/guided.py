@@ -310,7 +310,8 @@ def _length(
     ``amrap``: the last-set option as it stands (``last_set.live``), until fixed (ADR-0084)."""
     if plan.kind not in TRIMMED:
         return None
-    setting = user_settings.load(session).session_minutes
+    prefs = user_settings.load(session)
+    setting, count = prefs.session_minutes, prefs.session_exercises
     minutes, keep = _choice(row, setting)
     chose = row is not None and isinstance(row.length, dict)  # As planned included
     shapes = _shapes(items, keep)
@@ -321,13 +322,14 @@ def _length(
         at = _pace(session, plan, shapes, _estimator(items, first, 1.0), after_run)
     estimate = _estimator(items, first, at)
     has_warm_up = plan.kind == "strength"
-    planned = trimming.trim(shapes, None, estimate, has_warm_up=has_warm_up)
+    # Exercises per session is part of the plan as this person runs it (ADR-0082 addendum).
+    planned = trimming.trim(shapes, None, estimate, has_warm_up=has_warm_up, exercises=count)
     # Only what would be shorter than the session is on offer. A length it already fits is as
     # planned, whether chosen earlier or from the setting, so nothing is lost to it.
     options = tuple(m for m in OPTIONS if m < planned.minutes)
     if fixed is None:
         minutes = minutes if minutes in options else None
-        trimmed = trimming.trim(shapes, minutes, estimate, has_warm_up=has_warm_up)
+        trimmed = trimming.trim(shapes, minutes, estimate, has_warm_up=has_warm_up, exercises=count)
     else:
         minutes, amrap = fixed.minutes, fixed.last_set
         how = trimming.warm_up(shapes, fixed.sets, minutes) if has_warm_up else WarmUp.NONE

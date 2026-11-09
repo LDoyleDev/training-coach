@@ -177,7 +177,13 @@ def tests_where(public_url: str | None) -> str:
 
 
 def rest_day_text(today: Today) -> str:
-    """A rest place's day (ADR-0091): no session, and the one that comes next."""
+    """A rest place's day (ADR-0091): no session, and the one that comes next; before the plan
+    starts, the day of the first (its addendum)."""
+    if today.starts_on is not None:
+        return (
+            f"Today: rest day. Your first session is on {today.starts_on:%a %d %b}.\n"
+            f"Next: {today.session.name}."
+        )
     return f"Today: rest day. No session planned.\nNext: {today.session.name}."
 
 

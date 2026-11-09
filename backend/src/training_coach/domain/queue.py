@@ -133,6 +133,15 @@ def rest_days_left(rest_after: int, done_on: date, on: date) -> int:
     return max(0, rest_after - gone + 1)
 
 
+def days_to_start(starts_on: date | None, on: date) -> int:
+    """The rest days still to come on ``on`` and after it before a plan that starts on
+    ``starts_on`` (ADR-0091 addendum): every day before it. 0: ``on`` is the start or after it,
+    or there is no start day."""
+    if starts_on is None:
+        return 0
+    return max(0, (starts_on - on).days)
+
+
 def upcoming(order: Sequence[int], position: Position, days: int) -> list[int]:
     """The sessions for the next ``days`` days if every one is completed on its day."""
     if days < 0:

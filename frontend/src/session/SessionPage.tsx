@@ -42,6 +42,7 @@ import {
   stepOf,
   summary,
   chosenIn,
+  dayText,
   shown,
   timed,
   toDone,
@@ -1165,7 +1166,12 @@ function Status({
         {loaded.next ? (
           <>
             <h1 className="text-3xl font-extrabold">Rest day</h1>
-            <p className="m-0">No session planned today. Next: {loaded.next.name}.</p>
+            <p className="m-0">
+              {loaded.next.first_on
+                ? `Your first session is on ${dayText(loaded.next.first_on)}. `
+                : 'No session planned today. '}
+              Next: {loaded.next.name}.
+            </p>
             <button
               type="button"
               className={`${secondary} self-start`}

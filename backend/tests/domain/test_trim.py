@@ -219,3 +219,37 @@ def test_it_fits_by_the_estimate_rounded_as_the_overview_shows_it() -> None:
     assert trimmed.fits
     assert trimmed.sets == (4,)
     assert trimmed.minutes == 40
+
+
+SIX = [SQUAT, ROW, HINGE, PUSH, CURL, CALF]  # 17 sets of 5 minutes and the warm-up: 90 minutes
+
+
+@pytest.mark.parametrize(
+    ("exercises", "sets", "dropped"),
+    [
+        (None, (4, 2, 3, 2, 3, 3), ()),  # as planned
+        (6, (4, 2, 3, 2, 3, 3), ()),  # it has six already
+        (5, (4, 2, 3, 2, 0, 3), (4,)),  # the curl: the hinge trains hamstrings
+        (4, (4, 2, 3, 2, 0, 0), (4, 5)),  # then the calf raise, which nothing else trains
+    ],
+)
+def test_exercises_per_session_drops_whole_exercises_by_the_key(
+    exercises: int | None, sets: tuple[int, ...], dropped: tuple[int, ...]
+) -> None:
+    trimmed = trim(SIX, None, per_set(), exercises=exercises)
+    assert (trimmed.sets, trimmed.dropped, trimmed.fits) == (sets, dropped, True)
+
+
+def test_the_count_comes_before_the_minutes() -> None:
+    """Four exercises left (11 sets, 60 minutes), then the minutes take the fourth sets."""
+    trimmed = trim(SIX, 55, per_set(), exercises=4)
+    assert trimmed.sets == (3, 2, 3, 2, 0, 0)
+    assert trimmed.dropped == (4, 5)
+    assert (trimmed.minutes, trimmed.fits) == (55, True)
+
+
+def test_the_count_keeps_a_pinned_exercise_and_stops_when_only_pins_are_left() -> None:
+    kept = [replace(item, keep=True) for item in SIX]
+    assert trim(kept, None, per_set(), exercises=4).dropped == ()
+    pinned = [*SIX[:4], replace(CURL, keep=True), CALF]
+    assert trim(pinned, None, per_set(), exercises=4).dropped == (5, 2)  # the hinge: covered

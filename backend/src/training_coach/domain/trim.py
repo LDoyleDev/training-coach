@@ -3,8 +3,11 @@
 The estimate lives in services (each set's work and the rest after it, by the rules the session
 runs), so the trim takes it as a callable: the minutes of work, without the warm-up, for given
 set counts and duration minutes. A session fits when that estimate, rounded as the overview
-shows it, plus the warm-up is no more than the minutes. Each rule applies only while the
-session still doesn't fit, in this order:
+shows it, plus the warm-up is no more than the minutes.
+
+Exercises per session comes first (ADR-0082 addendum): while more exercises are left than the
+count, whole exercises go by rule 4's key below. Then each rule applies only while the session
+still doesn't fit the minutes, in this order:
 
 1. fourth and later sets go, from every exercise at once;
 2. third sets go, from every exercise at once, so every exercise keeps two;
@@ -124,9 +127,12 @@ def trim(
     estimate: Estimate,
     *,
     has_warm_up: bool = True,
+    exercises: int | None = None,
 ) -> Trimmed:
-    """``items`` trimmed to fit ``minutes``, warm-up included; ``minutes`` None is as planned
-    and changes nothing. ``has_warm_up`` is False for a session without one (conditioning).
+    """``items`` cut to at most ``exercises`` exercises, then trimmed to fit ``minutes``, warm-up
+    included; None for either is as planned, and both None change nothing. ``has_warm_up`` is
+    False for a session without one (conditioning). A pinned Keep and the last exercise stay
+    whatever the count.
 
     When even the floor doesn't fit, the result says so (``fits`` False) and how long the floor
     is (``shortest``), which the overview offers instead."""
@@ -140,6 +146,12 @@ def trim(
         fits = minutes is None or total <= minutes
         return Trimmed(tuple(sets), tuple(durations), tuple(dropped), how, total, fits)
 
+    while exercises is not None and sum(n > 0 for n in sets) > exercises:  # the count first
+        i = _next_drop(items, sets)
+        if i is None:
+            break
+        sets[i] = 0
+        dropped.append(i)
     result = now()
     for most in MOST_SETS:  # rules 1 and 2
         if result.fits:

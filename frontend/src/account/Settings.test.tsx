@@ -28,6 +28,7 @@ const PREFS: MessageSettings = {
   avoid_hanging: false,
   avoid_knees: false,
   session_minutes: null,
+  session_exercises: null,
   last_set_amrap: false,
   last_set_locked: false,
   paused: false,
@@ -318,6 +319,35 @@ test('time per session: as planned until one is picked, then saved and shown', a
   )
   fireEvent.click(within(group).getByRole('button', { name: '30 min' })) // already set
   expect(sent).toHaveLength(1)
+})
+
+test('exercises per session is chosen beside the time', async () => {
+  const sent = serve()
+  render(<Settings />)
+  const group = (await screen.findByRole('group', {
+    name: 'Exercises per session',
+  })) as HTMLElement
+  expect(within(group).getByRole('button', { name: 'As planned' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  fireEvent.click(within(group).getByRole('button', { name: '6' }))
+  expect(await within(group).findByText('Exercises per session: 6.')).toBeInTheDocument()
+  expect(sent).toEqual([{ session_exercises: 6 }])
+  fireEvent.click(within(group).getByRole('button', { name: '6' })) // already set
+  expect(sent).toHaveLength(1)
+})
+
+test('exercises per session goes back to as planned with null', async () => {
+  const sent = serve({ ...PREFS, session_exercises: 4 })
+  render(<Settings />)
+  const group = (await screen.findByRole('group', {
+    name: 'Exercises per session',
+  })) as HTMLElement
+  expect(within(group).getByRole('button', { name: '4' })).toHaveAttribute('aria-pressed', 'true')
+  fireEvent.click(within(group).getByRole('button', { name: 'As planned' }))
+  expect(await within(group).findByText('Exercises per session: as planned.')).toBeInTheDocument()
+  expect(sent).toEqual([{ session_exercises: null }])
 })
 
 test('time per session goes back to as planned with null', async () => {

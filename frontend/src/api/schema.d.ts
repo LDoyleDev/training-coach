@@ -4282,6 +4282,8 @@ export interface components {
         };
         /** QueuedView */
         QueuedView: {
+            /** First On */
+            first_on?: string | null;
             /** Name */
             name: string;
             /** Template Id */
@@ -4701,6 +4703,8 @@ export interface components {
             protein_g?: number | null;
             /** Review Time */
             review_time?: string | null;
+            /** Session Exercises */
+            session_exercises?: (4 | 6 | 8) | null;
             /** Session Minutes */
             session_minutes?: (40 | 30 | 20) | null;
             sound?: components["schemas"]["Sound"] | null;
@@ -4747,6 +4751,8 @@ export interface components {
             protein_g: number | null;
             /** Review Time */
             review_time: string;
+            /** Session Exercises */
+            session_exercises: (4 | 6 | 8) | null;
             /** Session Minutes */
             session_minutes: (40 | 30 | 20) | null;
             sound: components["schemas"]["Sound"];
