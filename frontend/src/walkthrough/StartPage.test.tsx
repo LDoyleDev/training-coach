@@ -1,8 +1,26 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { Equipment, MessageSettings } from '../api'
 import { QUESTIONS, VERSION } from '../readiness/questions'
 import StartPage from './StartPage'
 
+const SETTINGS = {
+  places: 'home',
+  avoid_floor: false,
+  avoid_kneeling: false,
+  avoid_impact: false,
+  avoid_hanging: false,
+  avoid_knees: false,
+} as MessageSettings
+const KIT: Equipment = {
+  items: [],
+  kinds: [
+    { kit: 'kettlebell', name: 'kettlebell' },
+    { kit: 'mat', name: 'mat' },
+  ],
+  listed: false,
+  saved_at: null,
+}
 const ANSWERED = '2026-11-03T09:00:00Z'
 
 interface Server {
@@ -42,6 +60,8 @@ function serve({
           categories: [{ category: 'walkthrough', open: consent, version: 2 }],
         },
         '/api/account/residence': { choices: ['DE', 'IE'], country },
+        '/api/settings': SETTINGS,
+        '/api/equipment': KIT,
         '/api/readiness': {
           version: VERSION,
           due,
@@ -83,13 +103,55 @@ test('a new member: every screen in order, with Back, and only the health versio
   expect(await screen.findByText('Start easy and build up')).toBeInTheDocument()
   tap('Next')
 
-  expect(screen.getByRole('heading', { name: 'Next: about you' })).toHaveFocus()
+  expect(screen.getByText('4 of 12')).toBeInTheDocument()
+  tap('50 to 64')
   tap('Back')
+  expect(screen.getByRole('button', { name: '50 to 64' })).toHaveAttribute('aria-pressed', 'true')
+  tap('50 to 64')
+  tap('Not at the moment') // how hard and how long are then not asked
+  expect(screen.getByText('6 of 12')).toBeInTheDocument()
+  tap('Yes') // chair
+  tap('Skip') // stairs
+  tap('Yes') // walk
+  tap('No') // floor
+
+  expect(screen.getByText('7 of 12')).toBeInTheDocument()
+  const floor = screen.getByRole('button', { name: /Keep me off the floor/ })
+  expect(floor).toHaveTextContent('Off · Suggested')
+  expect(floor).toHaveAttribute('aria-pressed', 'false') // a suggestion, off until tapped
+  fireEvent.click(floor)
+  expect(floor).toHaveAttribute('aria-pressed', 'true')
+  tap('Next')
+
+  expect(screen.getByText('8 of 12')).toBeInTheDocument()
+  tap(/Gym/) // the home kit isn't asked
+  expect(screen.getByRole('heading', { name: 'Next: what you can do' })).toBeInTheDocument()
   tap('Back')
-  expect(screen.getByRole('button', { name: 'No' })).toHaveAttribute('aria-pressed', 'true')
+  tap(/Home/)
+  expect(screen.getByRole('heading', { name: 'What do you have at home?' })).toBeInTheDocument()
 
   // Only that the health questions were answered (the version) and nothing else.
   expect(writes).toEqual([['PUT', '/api/readiness', { version: VERSION }]])
+})
+
+test('the home kit is held in memory until Save', async () => {
+  const writes = serve({ consent: true, country: 'IE', due: false })
+  render(<StartPage />)
+  await screen.findByRole('button', { name: 'Start' })
+  tap('Start')
+  for (const answer of ['Skip', 'Skip', 'Skip', 'Skip', 'Skip', 'Skip', 'Skip', 'Skip']) tap(answer)
+  tap('Next') // avoid
+  tap(/Home/)
+  expect(screen.getByText(/No kit listed: nothing is locked/)).toBeInTheDocument()
+  tap('+ mat')
+  tap('Add to my kit')
+  expect(screen.getByText('mat')).toBeInTheDocument()
+  expect(screen.queryByText(/Checking what it unlocks/)).not.toBeInTheDocument()
+  tap('Next')
+  expect(screen.getByRole('heading', { name: 'Next: what you can do' })).toBeInTheDocument()
+  tap('Back')
+  expect(screen.getByText('mat')).toBeInTheDocument() // kept while going back and forth
+  expect(writes).toEqual([])
 })
 
 test('the owner gets a try-out, and screens the server already has are skipped', async () => {
@@ -98,7 +160,8 @@ test('the owner gets a try-out, and screens the server already has are skipped',
   expect(await screen.findByText("This is a try-out: your plan won't change.")).toBeInTheDocument()
   tap('Start')
   expect(screen.getByText('You answered the health questions on 3 Nov 2026.')).toBeInTheDocument()
-  expect(screen.getByRole('heading', { name: 'Next: about you' })).toHaveFocus()
+  expect(screen.getByText('4 of 12')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'How old are you?' })).toHaveFocus()
 })
 
 test('the health questions can be put off: nothing is told, and they come back next time', async () => {
@@ -107,7 +170,7 @@ test('the health questions can be put off: nothing is told, and they come back n
   await screen.findByRole('button', { name: 'Start' })
   tap('Start')
   tap('Not now')
-  expect(screen.getByRole('heading', { name: 'Next: about you' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'How old are you?' })).toBeInTheDocument()
   expect(screen.queryByText(/You answered the health questions/)).not.toBeInTheDocument()
   tap('Back')
   expect(screen.getByRole('heading', { name: QUESTIONS[0].text })).toBeInTheDocument()
@@ -120,7 +183,7 @@ test('a yes to keeping the answers gives the walkthrough consent at its wording 
   await screen.findByRole('button', { name: 'Start' })
   tap('Start')
   tap('Yes, keep it')
-  expect(await screen.findByRole('heading', { name: 'Next: about you' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: 'How old are you?' })).toBeInTheDocument()
   expect(writes).toEqual([['PUT', '/api/consents/walkthrough', { version: 2 }]])
 })
 

@@ -1,17 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { answeredReadiness, fetchConsents, fetchMe, fetchReadiness, fetchResidence } from '../api'
+import {
+  answeredReadiness,
+  type Equipment,
+  fetchConsents,
+  fetchEquipment,
+  fetchMe,
+  fetchReadiness,
+  fetchResidence,
+  fetchSettings,
+} from '../api'
+import { bodyFromItem } from '../account/kit'
 import Residence from '../account/Residence'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { ConsentCard } from '../consent/Consented'
 import { QUESTIONS, VERSION } from '../readiness/questions'
 import { card, primary, secondary } from '../ui'
-import { after, type Draft, type Known, LAST, numberOf, SAFETY } from './flow'
-import { SafetyNote, SafetyQuestion, Welcome } from './Screens'
+import { after, CHOICES, type Draft, type Known, LAST, numberOf, SAFETY } from './flow'
+import { NOTHING_ANSWERED } from './level'
+import {
+  AvoidScreen,
+  ChoiceScreen,
+  KitScreen,
+  PlacesScreen,
+  SafetyNote,
+  SafetyQuestion,
+  Welcome,
+} from './Screens'
 
 interface Ready {
   owner: boolean // the owner's try-out: nothing changes his plan (ADR-0092)
   known: Known
   answeredAt: string | null // when the health questions were last answered
+  kinds: Equipment['kinds']
   draft: Draft
 }
 
@@ -25,13 +45,15 @@ const day = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
 async function load(signal: AbortSignal): Promise<Ready | null> {
-  const [me, consents, residence, readiness] = await Promise.all([
+  const [me, consents, residence, readiness, settings, equipment] = await Promise.all([
     fetchMe(signal),
     fetchConsents(signal),
     fetchResidence(signal),
     fetchReadiness(signal),
+    fetchSettings(signal),
+    fetchEquipment(signal),
   ])
-  if (!me || !consents || !residence || !readiness) return null
+  if (!me || !consents || !residence || !readiness || !settings || !equipment) return null
   const walkthrough = consents.categories.find((c) => c.category === 'walkthrough')
   return {
     owner: me.role === 'admin',
@@ -41,7 +63,21 @@ async function load(signal: AbortSignal): Promise<Ready | null> {
       safety: readiness.due,
     },
     answeredAt: readiness.answered_at,
-    draft: { safety: {} },
+    kinds: equipment.kinds,
+    draft: {
+      about: NOTHING_ANSWERED,
+      safety: {},
+      // What Account holds now: off for someone new, until tapped.
+      avoid: {
+        avoid_floor: settings.avoid_floor,
+        avoid_kneeling: settings.avoid_kneeling,
+        avoid_impact: settings.avoid_impact,
+        avoid_hanging: settings.avoid_hanging,
+        avoid_knees: settings.avoid_knees,
+      },
+      places: settings.places,
+      kit: equipment.listed ? equipment.items.map(bodyFromItem) : null,
+    },
   }
 }
 
@@ -113,7 +149,7 @@ export default function StartPage() {
   if (loaded.status === 'error' || !draft)
     return frame(<RetryCard text="Couldn't load the walk-through. Check your connection." />)
 
-  const { owner, known, answeredAt } = loaded.ready
+  const { owner, known, answeredAt, kinds } = loaded.ready
   const go = (next: Draft = draft) => {
     const to = after(here, known, next)
     setDraft(next)
@@ -126,6 +162,7 @@ export default function StartPage() {
   }
   const n = numberOf(here)
   const safety = SAFETY.indexOf(here)
+  const question = CHOICES[here]
 
   return frame(
     <>
@@ -174,11 +211,36 @@ export default function StartPage() {
       {here === 'safety-note' && (
         <SafetyNote answers={draft.safety} tell={tell} onNext={() => go()} />
       )}
+      {question && (
+        <ChoiceScreen
+          question={question}
+          value={draft.about[question.key]}
+          onAnswer={(value) => go({ ...draft, about: { ...draft.about, [question.key]: value } })}
+        />
+      )}
+      {here === 'avoid' && (
+        <AvoidScreen
+          draft={draft}
+          onChange={(avoid) => setDraft({ ...draft, avoid })}
+          onNext={() => go()}
+        />
+      )}
+      {here === 'places' && (
+        <PlacesScreen value={draft.places} onAnswer={(places) => go({ ...draft, places })} />
+      )}
+      {here === 'kit' && (
+        <KitScreen
+          kinds={kinds}
+          kit={draft.kit}
+          onChange={(kit) => setDraft({ ...draft, kit })}
+          onNext={() => go()}
+        />
+      )}
       {here === 'next' && (
         <>
-          <h1 className="m-0 text-2xl">Next: about you</h1>
+          <h1 className="m-0 text-2xl">Next: what you can do</h1>
           <p className="m-0">
-            The questions about you and what you can do come in the next version. Nothing was saved.
+            The questions about each exercise come in the next version. Nothing was saved.
           </p>
         </>
       )}
