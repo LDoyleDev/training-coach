@@ -47,7 +47,7 @@ def _kept(engine: Engine, user: int) -> int:
 
 def test_without_consent_nothing_is_kept(member: Engine) -> None:
     with session_scope(make_session_factory(member, user_id=MEMBER)) as theirs:
-        assert walkthrough.keep(theirs, MEMBER, ANSWERS, NOW) is False
+        assert walkthrough.keep(theirs, ANSWERS, NOW) is False
         assert walkthrough.kept(theirs) is None
     assert _kept(member, MEMBER) == 0
 
@@ -55,7 +55,7 @@ def test_without_consent_nothing_is_kept(member: Engine) -> None:
 def test_with_consent_the_answers_are_kept_at_the_wording_version(member: Engine) -> None:
     with session_scope(make_session_factory(member, user_id=MEMBER)) as theirs:
         consent.give(theirs, Category.WALKTHROUGH, NOW)
-        assert walkthrough.keep(theirs, MEMBER, ANSWERS, NOW)
+        assert walkthrough.keep(theirs, ANSWERS, NOW)
     with session_scope(make_session_factory(member, user_id=MEMBER)) as theirs:
         assert walkthrough.kept(theirs) == replace(ANSWERS, weekdays=(0, 2, 4))
         row = theirs.scalars(select(WalkthroughAnswers)).one()
@@ -66,25 +66,25 @@ def test_with_consent_the_answers_are_kept_at_the_wording_version(member: Engine
 def test_a_re_run_replaces_the_answers(member: Engine) -> None:
     with session_scope(make_session_factory(member, user_id=MEMBER)) as theirs:
         consent.give(theirs, Category.WALKTHROUGH, NOW)
-        walkthrough.keep(theirs, MEMBER, ANSWERS, NOW)
-        walkthrough.keep(theirs, MEMBER, Answers(weekdays=(5,)), NOW)
+        walkthrough.keep(theirs, ANSWERS, NOW)
+        walkthrough.keep(theirs, Answers(weekdays=(5,)), NOW)
         assert walkthrough.kept(theirs) == Answers(weekdays=(5,))  # skipped ones are empty
     assert _kept(member, MEMBER) == 1
 
 
 def test_the_owner_is_never_asked(member: Engine) -> None:
     with session_scope(make_session_factory(member, user_id=users.OWNER)) as mine:
-        assert walkthrough.keep(mine, users.OWNER, ANSWERS, NOW)
+        assert walkthrough.keep(mine, ANSWERS, NOW)
     assert _kept(member, users.OWNER) == 1
 
 
 def test_withdrawing_deletes_the_answers_only_and_only_theirs(member: Engine) -> None:
     with session_scope(make_session_factory(member, user_id=users.OWNER)) as mine:
-        walkthrough.keep(mine, users.OWNER, ANSWERS, NOW)
+        walkthrough.keep(mine, ANSWERS, NOW)
     with session_scope(make_session_factory(member, user_id=MEMBER)) as theirs:
         theirs.add(UserSettings(session_minutes=30, session_exercises=6, set_up_on=NOW.date()))
         consent.give(theirs, Category.WALKTHROUGH, NOW)
-        walkthrough.keep(theirs, MEMBER, ANSWERS, NOW)
+        walkthrough.keep(theirs, ANSWERS, NOW)
         consent.withdraw(theirs, Category.WALKTHROUGH, NOW)
         assert walkthrough.kept(theirs) is None
         found = theirs.scalars(select(UserSettings)).one()  # settings are training data
@@ -99,13 +99,35 @@ def test_a_yes_to_older_wording_keeps_nothing(
     with session_scope(make_session_factory(member, user_id=MEMBER)) as theirs:
         consent.give(theirs, Category.WALKTHROUGH, NOW)
         monkeypatch.setitem(VERSIONS, Category.WALKTHROUGH, 3)
-        assert walkthrough.keep(theirs, MEMBER, ANSWERS, NOW) is False
+        assert walkthrough.keep(theirs, ANSWERS, NOW) is False
+
+
+def test_a_yes_to_older_wording_no_longer_reads_them_back(
+    member: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with session_scope(make_session_factory(member, user_id=MEMBER)) as theirs:
+        consent.give(theirs, Category.WALKTHROUGH, NOW)
+        walkthrough.keep(theirs, ANSWERS, NOW)
+        monkeypatch.setitem(VERSIONS, Category.WALKTHROUGH, 3)
+        assert walkthrough.kept(theirs) is None
+
+
+def test_the_consent_checked_is_always_the_bound_persons(member: Engine) -> None:
+    """The owner is always open, but a member's session keeps nothing on that (security review);
+    and an unbound session has no person to ask about."""
+    with session_scope(make_session_factory(member, user_id=MEMBER)) as theirs:
+        assert walkthrough.keep(theirs, ANSWERS, NOW) is False
+    with (
+        pytest.raises(PermissionError),
+        session_scope(make_session_factory(member)) as shared,
+    ):
+        walkthrough.keep(shared, ANSWERS, NOW)
 
 
 def test_leaving_takes_the_answers(member: Engine, tmp_path: Path) -> None:
     with session_scope(make_session_factory(member, user_id=MEMBER)) as theirs:
         consent.give(theirs, Category.WALKTHROUGH, NOW)
-        walkthrough.keep(theirs, MEMBER, ANSWERS, NOW)
+        walkthrough.keep(theirs, ANSWERS, NOW)
     with session_scope(make_session_factory(member)) as shared:
         assert erase.leave(shared, MEMBER, tmp_path / left_list.NAME, NOW)
     assert _kept(member, MEMBER) == 0

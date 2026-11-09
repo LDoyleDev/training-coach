@@ -65,7 +65,7 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
         mine.add(
             AiComment(week=date(2026, 10, 5), text="Sleep more.", created_at=datetime.now(UTC))
         )
-        walkthrough.keep(mine, OWNER, Answers(age_band=AgeBand.UNDER_50), datetime.now(UTC))
+        walkthrough.keep(mine, Answers(age_band=AgeBand.UNDER_50), datetime.now(UTC))
 
     signed_in.patch("/api/settings", json={"talk_test": True})  # a preference (ADR-0083)
     signed_in.patch("/api/settings", json={"avoid_kneeling": True})  # and another

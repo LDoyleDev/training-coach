@@ -1,7 +1,7 @@
 """The walk-through's answers (ADR-0092): kept only with ``walkthrough`` consent (ADR-0090), one
 row per person, replaced by a re-run, and deleted when the consent is withdrawn
-(``consent.withdraw``). Callers pass a session bound to the person (ADR-0029). Health data:
-the answers are never logged."""
+(``consent.withdraw``). Callers pass a session bound to the person (ADR-0029), whose consent
+is the one checked. Health data: the answers are never logged."""
 
 from datetime import datetime
 
@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import WalkthroughAnswers
+from training_coach.db.session import bound_user
 from training_coach.domain.consent import VERSIONS, Category
 from training_coach.domain.walkthrough import (
     AgeBand,
@@ -26,9 +27,10 @@ log = structlog.get_logger(__name__)
 
 
 def kept(session: Session) -> Answers | None:
-    """The person's answers, or None when none are kept."""
+    """The person's answers, or None when none are kept or the category isn't open to them now
+    (a yes to older wording no longer counts, though only a withdrawal erases)."""
     row = session.scalar(select(WalkthroughAnswers))
-    if row is None:
+    if row is None or not _open(session):
         return None
     return Answers(
         age_band=AgeBand(row.age_band) if row.age_band else None,
@@ -44,10 +46,10 @@ def kept(session: Session) -> Answers | None:
     )
 
 
-def keep(session: Session, user_id: int, answers: Answers, now: datetime) -> bool:
-    """Keep ``answers`` in place of any kept before, if ``user_id`` has the category open; False,
+def keep(session: Session, answers: Answers, now: datetime) -> bool:
+    """Keep ``answers`` in place of any kept before, if the person has the category open; False,
     keeping nothing, if not."""
-    if not consent.opened(session, user_id, Category.WALKTHROUGH):
+    if not _open(session):
         return False
     row = session.scalar(select(WalkthroughAnswers))
     if row is None:
@@ -70,3 +72,12 @@ def keep(session: Session, user_id: int, answers: Answers, now: datetime) -> boo
     session.flush()
     log.info("walkthrough.answers_kept")  # never the answers themselves
     return True
+
+
+def _open(session: Session) -> bool:
+    """Whether the person the session is bound to has ``walkthrough`` open: by the session, so
+    the consent checked is always the person whose row is read or written (security review)."""
+    user_id = bound_user(session)
+    if user_id is None:
+        raise PermissionError("the walk-through's answers need a session bound to the person")
+    return consent.opened(session, user_id, Category.WALKTHROUGH)

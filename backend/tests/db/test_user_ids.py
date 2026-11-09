@@ -160,10 +160,14 @@ def test_the_rebuild_keeps_every_row_and_the_cascades(before: tuple[Config, Path
             auth.create_link(theirs, now)
             telegram_link.make(theirs, now)
     engine.dispose()
+    seeded = _counts(database)
     command.downgrade(cfg, BEFORE)
     rows = _counts(database)
+    assert rows == {
+        table: n for table, n in seeded.items() if table in rows
+    }  # none lost going down
     command.upgrade(cfg, "head")
-    assert {table: n for table, n in _counts(database).items() if table in rows} == rows
+    assert _counts(database) == seeded
     with sqlite3.connect(database) as raw:
         assert raw.execute("PRAGMA foreign_key_check").fetchall() == []
     engine = make_engine(f"sqlite:///{database}")
