@@ -93,3 +93,16 @@ export function placeholder(kit: KitKind): string {
   if (kit === 'box') return 'the bottom stair'
   return 'optional'
 }
+
+/** An item in plain words, as the server's label says it (`domain/kit.label`): "16 kg
+ * kettlebell", "light band". For a list held in memory before it's saved (the walk-through).
+ * `name` is the kind's name from the equipment list. */
+export function label(body: KitItemBody, name: string): string {
+  const { kg, min_kg: minKg, resistance } = body
+  if (body.kit === 'backpack' && typeof kg === 'number') return `${name}, up to ${kg} kg`
+  if (body.kit === 'dumbbells' && typeof minKg === 'number' && typeof kg === 'number')
+    return `adjustable dumbbells, ${minKg}-${kg} kg`
+  if (typeof kg === 'number') return `${kg} kg ${name}`
+  if (resistance) return `${resistance} ${name}`
+  return name
+}
