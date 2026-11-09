@@ -5,6 +5,7 @@ The walk-through's save (``walkthrough.apply``, ADR-0092) writes it when it make
 the person's own tap, from the steps they were placed on. It changes only sessions that are
 a starter's, so the owner's cycle and its written gym versions are never touched."""
 
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from datetime import date
 
@@ -36,7 +37,7 @@ def swaps(plan: PlanSeed) -> tuple[Swap, ...]:
     )
 
 
-def _placed(session: Session) -> dict[str, int]:
+def placed(session: Session) -> dict[str, int]:
     """Exercise slug -> the ladder position this person is on."""
     return dict(
         session.execute(
@@ -55,19 +56,26 @@ def _gym(item: ItemEdit, swap: Swap | None) -> ItemEdit:
     )
 
 
+def version(
+    found: Sequence[Swap], slug: str, home: Sequence[ItemEdit], placed: Mapping[str, int]
+) -> tuple[ItemEdit, ...]:
+    """Session ``slug``'s gym version from its ``home`` items, each exercise on the ladder
+    position ``placed`` says (none: its bottom): the home version when nothing swaps."""
+    return tuple(
+        _gym(i, swap_for(found, slug, i.exercise, placed.get(i.exercise, 0))) for i in home
+    )
+
+
 def edits(session: Session, plan: PlanSeed) -> list[VersionEdit]:
     """The gym version of each of this person's starter sessions, from their home version and
     where they are placed now: empty, done the same way at the gym, when nothing is swapped."""
     starter = {s.slug for st in plan.starters for s in st.sessions}
-    found, placed = swaps(plan), _placed(session)
+    found, on = swaps(plan), placed(session)
     out = []
     for mine in plan_edit.editable(session):
         if mine.slug not in starter:
             continue
-        gym = tuple(
-            _gym(i, swap_for(found, mine.slug, i.exercise, placed.get(i.exercise, 0)))
-            for i in mine.home
-        )
+        gym = version(found, mine.slug, mine.home, on)
         out.append(VersionEdit(mine.slug, Place.GYM, () if gym == mine.home else gym))
     return out
 

@@ -21,7 +21,12 @@ from training_coach.domain.muscles import step_stress
 from training_coach.domain.places import day_place
 from training_coach.services import guided, user_settings
 from training_coach.services.plan_edit import places_for
-from training_coach.services.plan_rows import PlannedItem, planned_sessions, with_draft
+from training_coach.services.plan_rows import (
+    PlannedItem,
+    PlannedSession,
+    planned_sessions,
+    with_draft,
+)
 from training_coach.services.seed import ExerciseSeed, bundled_plan
 from training_coach.services.today import ItemPlan
 
@@ -83,13 +88,19 @@ def plan_coverage(
     session: Session,
     place: Place = Place.HOME,
     draft: Mapping[tuple[str, Place], Sequence[PlannedItem]] | None = None,
+    *,
+    sessions: Sequence[PlannedSession] | None = None,
+    steps: Mapping[str, str] | None = None,
 ) -> domain.Coverage:
     """The week with each session's version at ``place``, and with ``draft``'s versions in place
-    of the saved ones, for the map as a plan is edited (program-builder.md F). Nothing is saved."""
+    of the saved ones, for the map as a plan is edited (program-builder.md F). ``sessions`` in
+    place of the whole plan and ``steps`` (slug -> step name) over the person's own: a plan not
+    saved yet, as the walk-through previews it (ADR-0092). Nothing is saved."""
     exercises = {e.slug: e for e in bundled_plan().exercises}
-    steps = trained_steps(session)
+    steps = {**trained_steps(session), **(steps or {})}
     week = []
-    for planned in with_draft(planned_sessions(session), draft or {}):
+    mine = planned_sessions(session) if sessions is None else list(sessions)
+    for planned in with_draft(mine, draft or {}):
         at = Place.GYM if place is Place.GYM and planned.gym else Place.HOME
         items = []
         version = planned.gym if at is Place.GYM else planned.items

@@ -29,7 +29,7 @@ class ReadinessView(BaseModel):
     ask_again_after: datetime | None
 
 
-def _view(version: int | None, answered: datetime | None, now: datetime) -> ReadinessView:
+def readiness_view(version: int | None, answered: datetime | None, now: datetime) -> ReadinessView:
     is_due = due(version, answered, now)
     counts = not is_due and answered is not None
     return ReadinessView(
@@ -45,7 +45,7 @@ def get_readiness(request: Request, user: Owner) -> ReadinessView:
     with session_scope(_bound(request, user)) as session:
         row = readiness.latest(session)
         version, answered = (row.version, row.answered_at) if row else (None, None)
-    return _view(version, answered, datetime.now(UTC))
+    return readiness_view(version, answered, datetime.now(UTC))
 
 
 class AnsweredBody(BaseModel):
@@ -62,4 +62,4 @@ def put_readiness(body: AnsweredBody, request: Request, user: Owner) -> Readines
     with session_scope(_bound(request, user)) as session:
         row = readiness.answered(session, now)
         version, answered = row.version, row.answered_at
-    return _view(version, answered, now)
+    return readiness_view(version, answered, now)

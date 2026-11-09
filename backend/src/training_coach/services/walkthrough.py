@@ -181,11 +181,9 @@ def apply(
         return IN_PROGRESS
     if plan_edit.revision(session) != draft_of:
         return STALE
-    starter = next((s for s in plan.starters if s.slug == setup.starter), None)
-    if starter is None:
-        return f"{setup.starter} isn't a starter."
-    if (problem := _problem(session, plan, starter, setup, today)) is not None:
-        return problem
+    starter = checked(session, plan, setup, today)
+    if isinstance(starter, str):
+        return starter
     user_settings.update(
         session,
         places=setup.places,
@@ -223,6 +221,15 @@ def apply(
     session.expire_all()
     log.info("walkthrough.applied", starter=starter.slug, moved=len(moved), kept=kept)
     return Applied(plan_edit.revision(session), kept, moved)
+
+
+def checked(session: Session, plan: PlanSeed, setup: Setup, today: date) -> StarterSeed | str:
+    """The starter ``setup`` names, or why it can't be saved, in words (``apply``)."""
+    starter = next((s for s in plan.starters if s.slug == setup.starter), None)
+    if starter is None:
+        return f"{setup.starter} isn't a starter."
+    problem = _problem(session, plan, starter, setup, today)
+    return starter if problem is None else problem
 
 
 def _problem(
@@ -285,7 +292,7 @@ def _place(session: Session, steps: Mapping[str, int]) -> tuple[str, ...]:
     return tuple(moved)
 
 
-def _without(items: Sequence[ItemSeed], left_out: frozenset[str]) -> list[ItemSeed]:
+def without(items: Sequence[ItemSeed], left_out: frozenset[str]) -> list[ItemSeed]:
     """The items but the left-out ones; a pair that loses one of its two is no pair (#97)."""
     kept = [i for i in items if i.exercise not in left_out]
     pairs = [i.pair for i in kept]
@@ -312,7 +319,7 @@ def _swap(session: Session, starter: StarterSeed, left_out: frozenset[str]) -> N
     exercises = {e.slug: e for e in session.scalars(select(Exercise))}
     sessions = [
         s.model_copy(
-            update={"items": _without(s.items, left_out), "away": _without(s.away, left_out)}
+            update={"items": without(s.items, left_out), "away": without(s.away, left_out)}
         )
         for s in starter.sessions
     ]
