@@ -14,6 +14,10 @@ const choice = (on: boolean) =>
     ? 'border-[var(--bell-ink)] bg-[var(--bell-ink)] text-[var(--chalk)]'
     : 'border-[var(--ink)] text-[var(--ink)]')
 
+/** A choice with a second line under its name. (Not Tailwind's `block`: index.css has its own
+ * `.block`, a page section with a rule above it.) */
+const lines = ' flex flex-col items-start justify-center'
+
 export function Welcome({ onStart }: { onStart: () => void }) {
   return (
     <>
@@ -183,11 +187,11 @@ export function AvoidScreen({
               key={key}
               type="button"
               aria-pressed={on}
-              className={choice(on)}
+              className={choice(on) + lines}
               onClick={() => onChange({ ...draft.avoid, [key]: !on })}
             >
               {label}
-              <span className="block font-normal">
+              <span className="font-normal">
                 {on ? 'On' : 'Off'}
                 {suggested && ' · Suggested'}
               </span>
@@ -225,11 +229,11 @@ export function PlacesScreen({
             key={places}
             type="button"
             aria-pressed={value === places}
-            className={choice(value === places)}
+            className={choice(value === places) + lines}
             onClick={() => onAnswer(places)}
           >
             {label}
-            <span className="block font-normal">{line}</span>
+            <span className="font-normal">{line}</span>
           </button>
         ))}
       </div>
