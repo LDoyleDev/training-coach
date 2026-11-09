@@ -257,6 +257,7 @@ SPA_PAGES = (
     "/review",
     "/connect",  # the consent page for connecting an AI app (ADR-0047 C)
     "/join",  # an invite (ADR-0059); its routes answer 404 while TC_MULTI_USER is off
+    "/start",  # the walk-through (ADR-0092), linked from /join's last step and Home
 )
 
 

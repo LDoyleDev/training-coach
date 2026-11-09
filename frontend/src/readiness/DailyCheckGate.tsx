@@ -13,8 +13,9 @@ import { hours } from '../components/duration'
 import { ConsentCard } from '../consent/Consented'
 import { primary, secondary } from '../ui'
 
-/** Pages that open without the check: signing in, and the readiness questions' own page. */
-const UNCHECKED = ['/signin', '/readiness']
+/** Pages that open without the check: signing in, the readiness questions' own page, and
+ * the walk-through, which sets up the plan before any training. */
+const UNCHECKED = ['/signin', '/readiness', '/start']
 /** A slow or hung server never holds the app back for longer than this. */
 const WAIT_MS = 4000
 
