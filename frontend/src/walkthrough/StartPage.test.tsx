@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Equipment, MessageSettings } from '../api'
 import { QUESTIONS, VERSION } from '../readiness/questions'
+import type { WalkLadder } from './api'
 import StartPage from './StartPage'
 
 const SETTINGS = {
@@ -22,6 +23,33 @@ const KIT: Equipment = {
   saved_at: null,
 }
 const ANSWERED = '2026-11-03T09:00:00Z'
+const step = (id: number, name: string, level: number, question: string | null, marks = []) => ({
+  id,
+  name,
+  level,
+  question,
+  cue: `The cue for ${name}.`,
+  needs: [],
+  marks,
+})
+const PUSH_UP: WalkLadder = {
+  slug: 'push-up',
+  name: 'Push-up',
+  steps: [
+    step(1, 'Hands on a wall', 1, null),
+    step(
+      2,
+      'Hands on a counter',
+      2,
+      'Can you do 10 push-ups with your hands on a kitchen counter?',
+    ),
+    step(3, 'Hands on a table', 3, 'Can you do 10 push-ups with your hands on a table?'),
+    {
+      ...step(4, 'Standard', 4, 'Can you do 10 push-ups from the floor, body straight?'),
+      marks: ['floor'],
+    },
+  ],
+}
 
 interface Server {
   role?: 'admin' | 'member'
@@ -62,6 +90,7 @@ function serve({
         '/api/account/residence': { choices: ['DE', 'IE'], country },
         '/api/settings': SETTINGS,
         '/api/equipment': KIT,
+        '/api/walkthrough': { ladders: [PUSH_UP] },
         '/api/readiness': {
           version: VERSION,
           due,
@@ -125,10 +154,35 @@ test('a new member: every screen in order, with Back, and only the health versio
 
   expect(screen.getByText('8 of 12')).toBeInTheDocument()
   tap(/Gym/) // the home kit isn't asked
-  expect(screen.getByRole('heading', { name: 'Next: what you can do' })).toBeInTheDocument()
+
+  // Level 2 (not exercising now): the counter first. Off the floor: Standard is never asked.
+  expect(screen.getByText('9 of 12')).toBeInTheDocument()
+  expect(screen.getByText('Push-up, exercise 1 of 1')).toBeInTheDocument()
+  expect(screen.getByText('The cue for Hands on a counter.')).toBeInTheDocument()
+  expect(screen.getByText('Not sure? Try one now, holding a counter.')).toBeInTheDocument()
+  tap('Yes')
+  expect(screen.getByRole('heading', { name: /hands on a table/ })).toHaveFocus()
   tap('Back')
-  tap(/Home/)
-  expect(screen.getByRole('heading', { name: 'What do you have at home?' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: /kitchen counter/ })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Yes' })).toHaveAttribute('aria-pressed', 'true')
+  tap('Yes')
+  tap('Not sure') // the table: counted as No, so the counter it is
+
+  expect(screen.getByText('10 of 12')).toBeInTheDocument()
+  tap('Monday')
+  tap('Thursday')
+  tap('Monday')
+  tap('Wednesday')
+  expect(screen.getByRole('button', { name: 'Monday' })).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByRole('button', { name: 'Wednesday' })).toHaveAttribute('aria-pressed', 'true')
+  tap('Next')
+  expect(screen.getByText('11 of 12')).toBeInTheDocument()
+  tap('30 minutes')
+  expect(screen.getByText('12 of 12')).toBeInTheDocument()
+  tap('6')
+  expect(screen.getByRole('heading', { name: 'Next: your plan' })).toBeInTheDocument()
+  tap('Back')
+  expect(screen.getByRole('button', { name: '6' })).toHaveAttribute('aria-pressed', 'true')
 
   // Only that the health questions were answered (the version) and nothing else.
   expect(writes).toEqual([['PUT', '/api/readiness', { version: VERSION }]])
@@ -148,10 +202,38 @@ test('the home kit is held in memory until Save', async () => {
   expect(screen.getByText('mat')).toBeInTheDocument()
   expect(screen.queryByText(/Checking what it unlocks/)).not.toBeInTheDocument()
   tap('Next')
-  expect(screen.getByRole('heading', { name: 'Next: what you can do' })).toBeInTheDocument()
+  // Nothing answered: level 4, and the floor is open.
+  expect(screen.getByRole('heading', { name: /from the floor/ })).toBeInTheDocument()
   tap('Back')
   expect(screen.getByText('mat')).toBeInTheDocument() // kept while going back and forth
   expect(writes).toEqual([])
+})
+
+test('a change to what the walk depends on starts its answers again', async () => {
+  serve({ consent: true, country: 'IE', due: false })
+  render(<StartPage />)
+  await screen.findByRole('button', { name: 'Start' })
+  tap('Start')
+  for (const answer of ['Skip', 'Skip', 'Skip', 'Skip', 'Skip', 'Skip', 'Skip', 'Skip']) tap(answer)
+  tap('Next') // avoid
+  tap(/Gym/)
+  tap('Yes') // Standard, the top: done
+  expect(screen.getByText('10 of 12')).toBeInTheDocument()
+  tap('Back')
+  expect(screen.getByRole('button', { name: 'Yes' })).toHaveAttribute('aria-pressed', 'true')
+  tap('Back')
+  tap(/Gym/) // the same answer keeps them
+  expect(screen.getByRole('button', { name: 'Yes' })).toHaveAttribute('aria-pressed', 'true')
+  tap('Back')
+  tap(/Both/)
+  tap('Next') // the kit
+  expect(screen.getByRole('button', { name: 'Yes' })).toHaveAttribute('aria-pressed', 'false')
+  tap('Skip this one')
+  expect(screen.getByText('10 of 12')).toBeInTheDocument()
+  tap('Next')
+  tap('Skip') // minutes: as Account has them
+  tap('Skip') // count
+  expect(screen.getByRole('heading', { name: 'Next: your plan' })).toBeInTheDocument()
 })
 
 test('the owner gets a try-out, and screens the server already has are skipped', async () => {

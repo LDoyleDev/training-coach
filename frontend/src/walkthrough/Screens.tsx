@@ -5,7 +5,10 @@ import { type Editing, KitList } from '../account/MyEquipment'
 import NoteCard from '../readiness/NoteCard'
 import { ANSWER_LABELS, INTRO, noteFor, QUESTIONS } from '../readiness/questions'
 import { primary, secondary } from '../ui'
-import type { AvoidKey, Choice, Draft, Places } from './flow'
+import Figure from '../figures/Figure'
+import type { WalkLadder, WalkStep } from './api'
+import { type AvoidKey, type Draft, type Places, WEEKDAYS } from './flow'
+import type { CanDo } from './walk'
 
 /** A one-tap answer, pressed when it's the one chosen (as Account's switches). */
 const choice = (on: boolean) =>
@@ -36,15 +39,17 @@ export function Welcome({ onStart }: { onStart: () => void }) {
   )
 }
 
-/** One question, one tap: the answer moves on. Skip leaves it empty. */
-export function ChoiceScreen({
+/** One question, one tap: the answer moves on. Skip moves on without one. */
+export function ChoiceScreen<T>({
   question,
   value,
   onAnswer,
+  onSkip,
 }: {
-  question: Choice
-  value: unknown
-  onAnswer: (value: Choice['options'][number]['value']) => void
+  question: { title: string; hint?: string; options: { value: T; label: string }[] }
+  value: T
+  onAnswer: (value: T) => void
+  onSkip: () => void
 }) {
   return (
     <>
@@ -63,7 +68,7 @@ export function ChoiceScreen({
           </button>
         ))}
       </div>
-      <button type="button" className={`${secondary} self-start`} onClick={() => onAnswer(null)}>
+      <button type="button" className={`${secondary} self-start`} onClick={onSkip}>
         Skip
       </button>
     </>
@@ -275,6 +280,102 @@ export function KitScreen({
           setEditing(null)
         }}
       />
+      <button type="button" className={primary} onClick={onNext}>
+        Next
+      </button>
+    </>
+  )
+}
+
+const CAN_DO: { answer: Exclude<CanDo, 'skip'>; label: string }[] = [
+  { answer: 'yes', label: 'Yes' },
+  { answer: 'no', label: 'No' },
+  { answer: 'not_sure', label: 'Not sure' },
+]
+
+/** One "Can you do...?" question (ADR-0092, screen 9): the step's figure and cue, then Yes, No,
+ * Not sure (counted as No) or Skip this one (the exercise starts at its bottom step). */
+export function LadderScreen({
+  ladder,
+  step,
+  index,
+  of,
+  value,
+  onAnswer,
+}: {
+  ladder: WalkLadder
+  step: WalkStep
+  index: number // which exercise of the ladders
+  of: number
+  value: CanDo | undefined
+  onAnswer: (answer: CanDo) => void
+}) {
+  return (
+    <>
+      <p className="m-0 text-sm text-[var(--slate)]">
+        {ladder.name}, exercise {index + 1} of {of}
+      </p>
+      <h1 className="m-0 text-2xl">{step.question}</h1>
+      <Figure slug={ladder.slug} name={step.name} step={step.name} />
+      {step.cue && <p className="m-0">{step.cue}</p>}
+      <p className="m-0 text-[var(--slate)]">Not sure? Try one now, holding a counter.</p>
+      <div className="grid grid-cols-3 gap-3">
+        {CAN_DO.map(({ answer, label }) => (
+          <button
+            key={answer}
+            type="button"
+            aria-pressed={value === answer}
+            className={choice(value === answer) + ' text-center'}
+            onClick={() => onAnswer(answer)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        aria-pressed={value === 'skip'}
+        className={`${secondary} self-start`}
+        onClick={() => onAnswer('skip')}
+      >
+        Skip this one
+      </button>
+    </>
+  )
+}
+
+/** Screen 10: the weekdays that suit, tapped on and off. The plan screen works out the starter
+ * and the start day from them (ADR-0092, How the plan is made 3 and 8). */
+export function DaysScreen({
+  days,
+  onChange,
+  onNext,
+}: {
+  days: number[]
+  onChange: (days: number[]) => void
+  onNext: () => void
+}) {
+  const toggle = (day: number) =>
+    onChange(
+      days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort((a, b) => a - b),
+    )
+  return (
+    <>
+      <h1 className="m-0 text-2xl">Which days suit you to train?</h1>
+      <p className="m-0 text-[var(--slate)]">Tap each one. You can change them later.</p>
+      <div className="flex flex-col gap-2">
+        {WEEKDAYS.map((name, day) => (
+          <button
+            key={name}
+            type="button"
+            aria-pressed={days.includes(day)}
+            className={choice(days.includes(day))}
+            onClick={() => toggle(day)}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
       <button type="button" className={primary} onClick={onNext}>
         Next
       </button>

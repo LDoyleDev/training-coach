@@ -5,7 +5,10 @@
  */
 import type { KitItemBody, MessageSettings } from '../api'
 import { type Answer, QUESTIONS } from '../readiness/questions'
-import type { About } from './level'
+import type { WalkLadder, WalkStep } from './api'
+import { type About, suggestedLevel } from './level'
+import { isOpen } from './locks'
+import { type CanDo, type Rung, walk } from './walk'
 
 export type AvoidKey =
   'avoid_floor' | 'avoid_kneeling' | 'avoid_impact' | 'avoid_hanging' | 'avoid_knees'
@@ -18,13 +21,21 @@ export interface Draft {
   avoid: Record<AvoidKey, boolean>
   places: Places
   kit: KitItemBody[] | null // null: no kit listed, so kit locks nothing
+  placement: Record<string, CanDo[]> // per exercise, the "can you do...?" answers in order
+  days: number[] // the weekdays tapped, 0 Monday
+  minutes: number | null // per session; null as long as it takes
+  count: number | null // exercises per session; null as planned
 }
+
+/** What the ladder walk depends on: a change to any of these starts the answers again. */
+export const WALKED_FROM: (keyof Draft)[] = ['about', 'avoid', 'places', 'kit']
 
 /** What the server already has, read as the walk-through opens: those screens are skipped. */
 export interface Known {
   consent: boolean // the walkthrough category isn't open yet
   residence: boolean // no country yet
   safety: boolean // the health questions are due
+  ladders: WalkLadder[] // the exercises to walk, in order
 }
 
 /** The last screen of the progress line ("4 of 12"). */
@@ -50,10 +61,55 @@ export const ORDER: { id: string; n: number }[] = [
   { id: 'avoid', n: 7 },
   { id: 'places', n: 8 },
   { id: 'kit', n: 8 },
-  { id: 'next', n: 9 },
+  { id: 'ladders', n: 9 }, // one screen per question: `ladder:<slug>:<k>`, the k-th asked
+  { id: 'days', n: 10 },
+  { id: 'minutes', n: 11 },
+  { id: 'count', n: 12 },
+  { id: 'next', n: 13 },
 ]
 
-export const numberOf = (id: string) => ORDER.find((s) => s.id === id)?.n ?? 0
+export const numberOf = (id: string) =>
+  id.startsWith('ladder:') ? 9 : (ORDER.find((s) => s.id === id)?.n ?? 0)
+
+/** A ladder's steps for this person: open unless a lock or a missing question rules it out. A
+ * gym has every kit (ADR-0071); at home, or at both, the home kit locks. */
+export function rungsOf(ladder: WalkLadder, draft: Draft): Rung[] {
+  const avoid = new Set(
+    Object.entries(draft.avoid).flatMap(([key, on]) => (on ? [key.slice('avoid_'.length)] : [])),
+  )
+  const limits = { kit: draft.places === 'gym' ? null : draft.kit, avoid }
+  return ladder.steps.map((step) => ({
+    id: step.id,
+    level: step.level,
+    open: step.question !== null && isOpen(step, limits),
+  }))
+}
+
+/** Where one ladder's answers so far leave its walk. */
+export const walked = (ladder: WalkLadder, draft: Draft) =>
+  walk(rungsOf(ladder, draft), suggestedLevel(draft.about), draft.placement[ladder.slug] ?? [])
+
+/** A ladder question's screen: which exercise, which question of its walk (`k`, from 0) and
+ * the step it asks about, from the answers before it. */
+export function ladderAt(
+  id: string,
+  known: Known,
+  draft: Draft,
+): { ladder: WalkLadder; k: number; step: WalkStep } | null {
+  const [kind, slug, k] = id.split(':')
+  const ladder = known.ladders.find((l) => l.slug === slug)
+  if (kind !== 'ladder' || !ladder) return null
+  const before = (draft.placement[slug] ?? []).slice(0, Number(k))
+  const { next } = walked(ladder, { ...draft, placement: { [slug]: before } })
+  return next === null ? null : { ladder, k: Number(k), step: ladder.steps[next] }
+}
+
+/** The first question of the first ladder from `from` on that has one to ask. */
+function firstQuestion(known: Known, draft: Draft, from: number): string | null {
+  const blank = { ...draft, placement: {} }
+  const ladder = known.ladders.slice(from).find((l) => walked(l, blank).next !== null)
+  return ladder ? `ladder:${ladder.slug}:0` : null
+}
 
 /** Whether a screen is asked: the server's screens only when needed, how hard and how long
  * only for someone who exercises now, and the home kit only for someone who trains at home. */
@@ -66,10 +122,24 @@ export function shown(id: string, known: Known, draft: Draft): boolean {
   return true
 }
 
-/** The next screen asked after `id`, or null at the end. */
+/** The next screen asked after `id`, or null at the end. A ladder asks its next step until its
+ * walk is done, then the next ladder with something to ask. */
 export function after(id: string, known: Known, draft: Draft): string | null {
-  const at = ORDER.findIndex((s) => s.id === id)
-  return ORDER.slice(at + 1).find((s) => shown(s.id, known, draft))?.id ?? null
+  const on = ladderAt(id, known, draft)
+  if (on) {
+    const { next, asked } = walked(on.ladder, draft)
+    if (next !== null) return `ladder:${on.ladder.slug}:${asked.length}`
+    const later = firstQuestion(known, draft, known.ladders.indexOf(on.ladder) + 1)
+    if (later) return later
+  }
+  const at = ORDER.findIndex((s) => s.id === (on ? 'ladders' : id))
+  for (const s of ORDER.slice(at + 1)) {
+    if (s.id === 'ladders') {
+      const first = firstQuestion(known, draft, 0)
+      if (first) return first
+    } else if (shown(s.id, known, draft)) return s.id
+  }
+  return null
 }
 
 type Option<T> = { value: T; label: string }
@@ -140,3 +210,27 @@ export const CHOICES: Record<string, Choice> = {
   walk: { key: 'walk', title: 'Can you walk for 10 minutes without stopping?', options: YES_NO },
   floor: { key: 'floor', title: 'Can you get down to the floor and up again?', options: YES_NO },
 }
+
+/** Minutes per session (ADR-0082) and exercises per session (its addendum), as Save sets them. */
+export const MINUTES: Option<number | null>[] = [
+  { value: 20, label: '20 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 40, label: '40 minutes' },
+  { value: null, label: 'As long as it takes' },
+]
+export const COUNTS: Option<number | null>[] = [
+  { value: 4, label: '4' },
+  { value: 6, label: '6' },
+  { value: 8, label: '8' },
+  { value: null, label: 'As planned' },
+]
+
+export const WEEKDAYS = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+]
