@@ -310,7 +310,7 @@ test("tapped days the pattern can't reach are named", async () => {
 })
 
 test.each([
-  [[0], /One day a week gets the 2-day plan/],
+  [[0], /One day a week gets the 2-day plan.*you do A one week and B the next/],
   [[0, 1, 2, 3, 4], /5 days a week get the 4-day plan.*150 minutes a week/],
 ])('the notes for %j', async (days, note) => {
   serve()
