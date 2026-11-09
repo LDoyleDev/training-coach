@@ -15,6 +15,7 @@ vi.mock('./home/HomePage', () => ({ default: () => <p>home</p> }))
 vi.mock('./review/ReviewPage', () => ({ default: () => <p>review</p> }))
 vi.mock('./connect/ConnectPage', () => ({ default: () => <p>connect</p> }))
 vi.mock('./JoinPage', () => ({ default: () => <p>join</p> }))
+vi.mock('./walkthrough/StartPage', () => ({ default: () => <p>walk-through</p> }))
 vi.mock('./Closing', () => ({ Closing: () => <p>closing</p> }))
 const closed = vi.hoisted(() => ({ me: null as null | object }))
 vi.mock('./useClosed', () => ({ default: () => closed.me }))
@@ -33,6 +34,7 @@ test.each([
   ['/review', 'review'],
   ['/connect', 'connect'],
   ['/join', 'join'],
+  ['/start', 'walk-through'],
   ['/', 'home'],
 ])('%s shows %s', (path, text) => {
   window.history.replaceState(null, '', path)

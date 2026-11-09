@@ -195,7 +195,7 @@ test('a server that never answers lets you through after a few seconds', async (
   expect(screen.getByText('the page')).toBeInTheDocument()
 })
 
-test.each(['/signin', '/readiness'])('%s opens without the check', (path) => {
+test.each(['/signin', '/readiness', '/start'])('%s opens without the check', (path) => {
   open(path)
   const { fetch } = serve(OPEN)
   show()

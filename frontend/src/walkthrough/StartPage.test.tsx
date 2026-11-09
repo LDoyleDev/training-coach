@@ -1,0 +1,148 @@
+import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, expect, test, vi } from 'vitest'
+import { QUESTIONS, VERSION } from '../readiness/questions'
+import StartPage from './StartPage'
+
+const ANSWERED = '2026-11-03T09:00:00Z'
+
+interface Server {
+  role?: 'admin' | 'member'
+  consent?: boolean // the walkthrough category is open
+  country?: string | null
+  due?: boolean
+  status?: number // every GET answers this instead
+  told?: number // what telling the server the health questions were answered answers
+}
+
+/** A fake API by path; every request with a method is kept, to show what was written. */
+function serve({
+  role = 'member',
+  consent = false,
+  country = null,
+  due = true,
+  status,
+  told = 200,
+}: Server) {
+  const writes: [string, string, unknown][] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method) {
+        writes.push([init.method, path, init.body ? JSON.parse(String(init.body)) : null])
+        if (path === '/api/readiness' && told !== 200) return new Response(null, { status: told })
+        if (path === '/api/readiness')
+          return Response.json({ version: VERSION, due: false, answered_at: ANSWERED })
+        return Response.json({ asked: true, categories: [] })
+      }
+      if (status) return new Response(null, { status })
+      const body: Record<string, unknown> = {
+        '/api/auth/me': { role, user_id: 2, closed: false },
+        '/api/consents': {
+          asked: true,
+          categories: [{ category: 'walkthrough', open: consent, version: 2 }],
+        },
+        '/api/account/residence': { choices: ['DE', 'IE'], country },
+        '/api/readiness': {
+          version: VERSION,
+          due,
+          answered_at: due ? null : ANSWERED,
+          ask_again_after: null,
+        },
+      }
+      return Response.json(body[path])
+    }),
+  )
+  return writes
+}
+
+afterEach(() => vi.unstubAllGlobals())
+
+const tap = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }))
+
+test('a new member: every screen in order, with Back, and only the health version told', async () => {
+  const writes = serve({})
+  render(<StartPage />)
+  expect(await screen.findByRole('heading', { name: 'Set up your plan' })).toBeInTheDocument()
+  expect(screen.queryByText(/try-out/)).not.toBeInTheDocument()
+  tap('Start')
+
+  expect(screen.getByText('1 of 12')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Keep your walk-through answers?' })).toHaveFocus()
+  tap('Not now')
+
+  expect(screen.getByText('2 of 12')).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: 'Where you live' })).toBeInTheDocument()
+  tap('Next')
+
+  expect(screen.getByText('3 of 12')).toBeInTheDocument()
+  expect(screen.getByText(/Your answers stay on this device/)).toBeInTheDocument()
+  QUESTIONS.forEach((q, i) => {
+    expect(screen.getByRole('heading', { name: q.text })).toBeInTheDocument()
+    tap(i === 0 ? 'Yes' : 'No')
+  })
+  expect(await screen.findByText('Start easy and build up')).toBeInTheDocument()
+  tap('Next')
+
+  expect(screen.getByRole('heading', { name: 'Next: about you' })).toHaveFocus()
+  tap('Back')
+  tap('Back')
+  expect(screen.getByRole('button', { name: 'No' })).toHaveAttribute('aria-pressed', 'true')
+
+  // Only that the health questions were answered (the version) and nothing else.
+  expect(writes).toEqual([['PUT', '/api/readiness', { version: VERSION }]])
+})
+
+test('the owner gets a try-out, and screens the server already has are skipped', async () => {
+  serve({ role: 'admin', consent: true, country: 'DE', due: false })
+  render(<StartPage />)
+  expect(await screen.findByText("This is a try-out: your plan won't change.")).toBeInTheDocument()
+  tap('Start')
+  expect(screen.getByText('You answered the health questions on 3 Nov 2026.')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Next: about you' })).toHaveFocus()
+})
+
+test('the health questions can be put off: nothing is told, and they come back next time', async () => {
+  const writes = serve({ consent: true, country: 'IE' })
+  render(<StartPage />)
+  await screen.findByRole('button', { name: 'Start' })
+  tap('Start')
+  tap('Not now')
+  expect(screen.getByRole('heading', { name: 'Next: about you' })).toBeInTheDocument()
+  expect(screen.queryByText(/You answered the health questions/)).not.toBeInTheDocument()
+  tap('Back')
+  expect(screen.getByRole('heading', { name: QUESTIONS[0].text })).toBeInTheDocument()
+  expect(writes).toEqual([])
+})
+
+test('a yes to keeping the answers gives the walkthrough consent at its wording version', async () => {
+  const writes = serve({ country: 'IE', due: false })
+  render(<StartPage />)
+  await screen.findByRole('button', { name: 'Start' })
+  tap('Start')
+  tap('Yes, keep it')
+  expect(await screen.findByRole('heading', { name: 'Next: about you' })).toBeInTheDocument()
+  expect(writes).toEqual([['PUT', '/api/consents/walkthrough', { version: 2 }]])
+})
+
+test.each([
+  [409, 'The questions have changed since this page loaded.'],
+  [500, "Couldn't save that you answered, so we'll ask again next time."],
+])('the note still shows when telling the server fails (%i)', async (told, said) => {
+  serve({ consent: true, country: 'IE', told })
+  render(<StartPage />)
+  await screen.findByRole('button', { name: 'Start' })
+  tap('Start')
+  QUESTIONS.forEach(() => tap('Not sure'))
+  expect(await screen.findByRole('alert')).toHaveTextContent(said)
+  expect(screen.getByText('Talk to a doctor before you start')).toBeInTheDocument()
+})
+
+test('signed out, it asks to sign in; an error offers to try again', async () => {
+  serve({ status: 401 })
+  const { unmount } = render(<StartPage />)
+  expect(await screen.findByText('Sign in to set up your plan.')).toBeInTheDocument()
+  unmount()
+  serve({ status: 500 })
+  render(<StartPage />)
+  expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the walk-through.")
+})
