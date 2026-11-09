@@ -161,3 +161,11 @@ test('a step with no level is never where a walk starts, but is asked on the way
   expect(at(0, {})).toBe(12) // level 4: the nearest below with a level
   expect(at(1, { 'push-up': ['no'] })).toBe(11)
 })
+
+test('a ladder screen that no longer asks anything still moves forward', () => {
+  // Stale: the push-up's walk is done, or an exercise no longer in the list.
+  const done = { ...NEW, placement: { 'push-up': ['skip' as const] } }
+  expect(after('ladder:push-up:3', NONE, done)).toBe('ladder:swing:0')
+  expect(after('ladder:rows:0', NONE, NEW)).toBe('ladder:push-up:0')
+  expect(after('ladder:swing:1', NONE, { ...NEW, placement: { swing: ['yes'] } })).toBe('days')
+})
