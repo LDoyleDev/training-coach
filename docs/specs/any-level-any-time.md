@@ -477,7 +477,11 @@ order below. For "how many exercises", the same order is used, so there is one l
 The order comes from the trim's rule, not from the list: small exercises go first, starting with
 those whose muscles another exercise in the session still works, and big movements that nothing
 else covers go last. Within a group, the one later in the list goes first. Each list is ordered so
-that rule removes what matters least. At the gym the order is the same.
+that rule removes what matters least. At the gym the order is the same, except where the 45°
+back extension takes the glute bridge's place. As the last exercise left for the hamstrings, it
+is kept until just before the push-up (2-day B, 3-day B) or the split squat (Lower 2), and in
+2-day B and Lower 2 the Romanian deadlift goes just before balance. In Lower 2 the leg press
+goes fourth, so the split squat is kept longest.
 
 #### Sets a week, as the map counts them (home)
 
@@ -508,13 +512,17 @@ being green, but not from being light green.
   2- and 3-day starters. **At 20 minutes** most main muscles keep 4-12, while the triceps,
   biceps and calves drop under 4 on the 2- and 3-day starters, and the 2-day's side delts drop to
   none. The map shows that honestly.
-- **At the gym, with every swap made,** the numbers are the same apart from these (rerun on 8
-  Nov 2026 with the seed's gym swaps, `[[gym_swaps]]`): the hamstrings 5 on all three, as the hip
-  thrust works only the glutes; the lower back 2.5 (amber), as the Romanian deadlift counts it
-  half; the upper back 4.5 (one day), 7.5 and 6, and the rear delts 2-4 (amber on all three), as
-  the lat pulldown counts each half; the adductors 3 (amber) on the 2-day and 4.5 and 5 on the
-  others, as the leg press counts them half; and the forearms 3-4, from the Romanian deadlift's
-  grip. The glutes and the minutes keep their home numbers.
+- **At the gym, with every swap made,** the numbers are the same apart from these (rerun on 9
+  Nov 2026 with the seed's gym swaps, `[[gym_swaps]]`): the lower back 4 (green) on all three,
+  where the Romanian deadlift alone would leave 2.5 (amber), as it counts it half; the 45° back
+  extension in place of the glute bridge in 2-day B, 3-day B and Lower 2 makes up the rest
+  (Decided 10). The hamstrings 8 on all three, from the back extension, and the glutes 10, 16
+  and 14 (still green), as it counts them half where the hip thrust counts 1. The upper back 4.5 (one day), 7.5 and
+  6, and the rear delts 2-4 (amber on all three), as the lat pulldown counts each half; the
+  adductors 3 (amber) on the 2-day and 4.5 and 5 on the others, as the leg press counts them
+  half; and the forearms 3-4, from the Romanian deadlift's grip. The minutes keep their home
+  numbers, the shorter versions too. 2-day B and Lower 2 reach 8 spine-loading sets, the map's
+  cap, without going over.
 - **Back to back:** with the 2- and 3-day sessions queued without rest days, the map warns that
   the glutes and chest are worked on two days running (A then B). Rest places in the queue (Decided 9)
   keep them apart.
@@ -527,7 +535,7 @@ being green, but not from being light green.
 | Split squat | holding a chair, short range (2) | back foot on a chair (4) | 16 kg + 8 kg (6) | stays |
 | Push-up | hands on a wall (1) | archer (6) | | dumbbell bench press, from "standard" (4) |
 | Door-frame row | upright, a step back (2) | one arm (6) | | chest-supported row, or the lat pulldown in 2-day B, 3-day B and Upper 2, from "leaning back, half a step in" (3) |
-| Glute bridge | standing, at the counter (1) | single leg, shoulders on the sofa (5) | | barbell hip thrust, from "single leg, on the floor" (4) |
+| Glute bridge | standing, at the counter (1) | single leg, shoulders on the sofa (5) | | barbell hip thrust, or the 45° back extension in 2-day B, 3-day B and Lower 2 (Decided 10), from "single leg, on the floor" (4) |
 | Hip hinge | hands on the counter (1) | single leg, holding a bag (5; Decided 2) | | barbell Romanian deadlift, from "single leg, hand on the counter" (4) |
 | Calf raise | both legs, hands on a wall (1) | one leg on a step (3) | 8 kg, pause at the top (5) | standing calf raise machine (seated in 2-day B, 3-day B and Lower 2), from one leg on a step (3) |
 | Plank | hands on a counter (1) | full plank, arm reach (5) | | stays |
@@ -627,6 +635,10 @@ Liam's answer to these questions was "All OK to proceed", so each one is decided
    offering sessions only on the tapped days, was turned down: it adds a second rule beside the
    queue, and a missed Monday would wait until Wednesday. Built as rest days after a session
    (ADR-0091).
+10. **The lower back at the gym** (Liam, 9 Nov 2026: "add a back exercise at the gym"): the 45°
+    back extension takes the glute bridge's place in 2-day B, 3-day B and Lower 2, from the step
+    where the bridge would become the hip thrust. The lower back is 4 at the gym, with no added
+    minutes; a swap rather than an added exercise, as three more sets would add 6-7 minutes.
 
 ## In the code, in outline
 

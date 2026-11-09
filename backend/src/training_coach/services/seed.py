@@ -524,9 +524,10 @@ class PlanSeed(_Strict):
                     raise ValueError(f"session {session.slug}: away, {item.exercise}{problem}")
 
     def _gym_swaps(self) -> None:
-        """A swap turns a starter exercise into a gym exercise (one step that takes load,
-        ADR-0072) from a home step at or above the gym exercise's level (S1), in sessions that
-        use it; each exercise has at most one swap for every session, and one per session."""
+        """A swap turns a starter exercise into a gym exercise (ADR-0072: its last step takes
+        load and no step names kit, so one step, or the 45° back extension's bodyweight then a
+        plate) from a home step at or above the gym exercise's level (S1), in sessions that use
+        it; each exercise has at most one swap for every session, and one per session."""
         exercises = {e.slug: e for e in self.exercises}
         starter = {s.slug: s for st in self.starters for s in st.sessions}
         general: set[str] = set()
@@ -538,7 +539,7 @@ class PlanSeed(_Strict):
                 raise ValueError(f"{where}: unknown exercise")
             if swap.from_step not in home.ladder:
                 raise ValueError(f"{where}: {swap.from_step!r} is not in its ladder")
-            if len(gym.ladder) != 1 or gym.ladder[0] not in gym.loads:
+            if gym.ladder[-1] not in gym.loads or any(gym.needs.values()):
                 raise ValueError(f"{where}: {swap.gym} is not a gym exercise")
             if home.levels[swap.from_step] < gym.levels[gym.ladder[0]]:
                 raise ValueError(f"{where}: {swap.from_step!r} is below {gym.name}'s level")
