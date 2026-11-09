@@ -124,8 +124,8 @@ export function PlanScreen({
       <ul className="m-0 flex list-none flex-col gap-2 p-0">
         {days === 1 && (
           <li className={card}>
-            One day a week gets the 2-day plan. Each session waits for you, so you do one one week
-            and the other the next.
+            One day a week gets the 2-day plan. Each session waits for you, so you do
+            {` ${starter.sessions[0].name} one week and ${starter.sessions.at(-1)?.name} the next.`}
           </li>
         )}
         {days >= 5 && (
