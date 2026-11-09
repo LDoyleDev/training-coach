@@ -1,8 +1,8 @@
 """A person's gym version of their starter (any-level-any-time.md S1, Decided 5): each exercise
 they are placed high enough on is done as its gym exercise (``plan.toml``'s ``[[gym_swaps]]``).
 
-Setup (builder step 10) writes it when the walk-through makes their plan, on the person's own
-tap, from the steps they were placed on; nothing calls it yet. It changes only sessions that are
+The walk-through's save (``walkthrough.apply``, ADR-0092) writes it when it makes their plan, on
+the person's own tap, from the steps they were placed on. It changes only sessions that are
 a starter's, so the owner's cycle and its written gym versions are never touched."""
 
 from dataclasses import replace
