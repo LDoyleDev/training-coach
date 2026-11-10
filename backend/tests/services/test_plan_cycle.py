@@ -3,7 +3,7 @@ another kind or rest days, moved and removed, in one transaction with the versio
 moved with them, and a notice when the cycle changed."""
 
 from collections.abc import Sequence
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -21,7 +21,7 @@ from training_coach.db.models import (
     Workout,
 )
 from training_coach.domain.enums import Place, WorkoutStatus
-from training_coach.services import plan_edit, users
+from training_coach.services import plan_edit, queue_actions, undo, users
 from training_coach.services.plan_edit import Added, ItemEdit, Kept, VersionEdit
 from training_coach.services.seed import PlanSeed, apply_seed, load_plan
 
@@ -459,3 +459,21 @@ def test_a_copy_of_a_session_retired_in_the_same_save_keeps_its_items(
     copy = _row(session, "arms-2")
     assert [i.exercise.slug for i in copy.items] == ["dip"]
     assert [i.exercise.slug for i in copy.gym_items] == ["dip", "pull-up"]
+
+
+def test_a_save_that_removes_a_session_ends_the_undo_window(
+    session: Session, plan: PlanSeed
+) -> None:
+    """Decided 11 end to end: the event the save writes is the one undo reads, so a push from
+    before the save can't be undone onto a session the save took out."""
+    upper = _row(session, "upper")
+    state = users.plan_state(session)
+    assert state is not None
+    state.next_template_id = upper.id
+    session.commit()
+    queue_actions.push_to_tomorrow(session, upper.id, TODAY)
+    session.commit()
+    assert isinstance(undo.last(session, datetime.now(UTC)), undo.Undoable)
+    saved = _save(session, plan, [Kept("upper", "Upper", "strength", 0)])
+    assert isinstance(saved, plan_edit.Saved)
+    assert undo.last(session, datetime.now(UTC)) == undo.Blocked(undo.CHANGED)

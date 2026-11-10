@@ -214,7 +214,8 @@ plan", dated as the latest of them, so a past day they log still has one.
 
 **The import** (`GET` and `POST /api/plan/import`, the owner's alone, anyone else refused):
 
-- `GET` lists what would change: sessions added or reordered, and each version's items. Empty when
+- `GET` lists what would change: sessions added, reordered, removed or put back, and each
+  version's items. Empty when
   the owner's rows match `plan.toml`.
 - `POST` saves it as one version dated today, named after the latest `[[versions]]` entry. A
   second import that day updates that version, as `(user_id, since)` is unique.
@@ -222,7 +223,8 @@ plan", dated as the latest of them, so a past day they log still has one.
   session refuses one. A workout logged earlier today did the old plan, so that is right.
 - A session in progress today refuses it (`session_progress.sets` holds item positions, which
   would shift): finish or discard the session first.
-- A session in the owner's rows but not in `plan.toml` refuses it, as the seed does today.
+- A session in the owner's rows but not in `plan.toml` is removed on save, and a retired one the
+  file has is put back (ADR-0093 Decided 14; this refused it until #722).
 
 **Reads.** `/api/plan` and coverage read rows through a service (the API layer can't query
 models). `/api/plan/coverage?place=away` keeps today's answer (the home version) when ported.
