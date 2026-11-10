@@ -20,6 +20,48 @@ type Loaded =
 
 const count = (n: number) => n.toLocaleString('en-GB')
 
+/** "Later" on the set-up card puts it off on this device until tomorrow. */
+const LATER_KEY = 'later:walkthrough'
+const today = () => new Date().toLocaleDateString('en-CA')
+function putOffToday(): boolean {
+  try {
+    return localStorage.getItem(LATER_KEY) === today()
+  } catch {
+    return false // storage blocked: show it
+  }
+}
+
+/** For a member until the walk-through is saved, or closed by a first workout (ADR-0092). */
+function SetUpCard() {
+  const [later, setLater] = useState(putOffToday)
+  if (later) return null
+  const putOff = () => {
+    try {
+      localStorage.setItem(LATER_KEY, today())
+    } catch {
+      // storage blocked: it's back next time
+    }
+    setLater(true)
+  }
+  return (
+    <section aria-labelledby="set-up" className={card + ' flex flex-col gap-3'}>
+      <h2 id="set-up" className="m-0 text-xl font-bold">
+        Set up your plan (about 10 minutes)
+      </h2>
+      <p className="m-0">
+        A few questions, so each exercise starts at a step that suits you. Until then, everything
+        starts at the easiest step.
+      </p>
+      <a href="/start" className={primary + ' flex items-center justify-center no-underline'}>
+        Set up your plan
+      </a>
+      <button type="button" className={secondary + ' self-start'} onClick={putOff}>
+        Later
+      </button>
+    </section>
+  )
+}
+
 function Big({ value, label }: { value: number; label: string }) {
   return (
     <div className={card + ' flex flex-col'}>
@@ -79,6 +121,7 @@ export default function HomePage() {
   return (
     <AppShell>
       <PlanNotices />
+      {loaded.home.walkthrough === 'member' && <SetUpCard />}
       <section aria-labelledby="done" className="flex flex-col gap-3">
         <h1 id="done" className="m-0 text-3xl font-extrabold">
           {totals.sessions > 0 ? "What you've done" : 'Your first session is waiting'}

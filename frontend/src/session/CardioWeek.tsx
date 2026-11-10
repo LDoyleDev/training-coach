@@ -69,7 +69,7 @@ export default function CardioWeek({ week }: { week: CardioWeekView }) {
                 aria-hidden="true"
               >
                 <span
-                  className={`block h-full ${r.measured ? 'bg-[var(--bell)]' : 'bg-[var(--slate)]'}`}
+                  className={`flex h-full ${r.measured ? 'bg-[var(--bell)]' : 'bg-[var(--slate)]'}`}
                   style={{ width: `${percent(r.minutes, week.total)}%` }}
                 />
               </span>

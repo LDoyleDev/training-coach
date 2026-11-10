@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchPlan, type Place, type Plan } from './api'
+import { fetchPlan, type Place, type Plan, type Session } from './api'
 import { BodyMap } from './bodymap/BodyMap'
 import { MapPlace } from './bodymap/MapPlace'
 import { useCoverage } from './bodymap/useCoverage'
@@ -15,6 +15,36 @@ const LADDER_PICKS = [
   'pistol-squat',
   'hamstring-curl',
 ]
+
+const NUMBERS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+const KINDS: [Session['type'], string][] = [
+  ['strength', 'Strength'],
+  ['conditioning', 'conditioning'],
+  ['recovery', 'recovery'],
+]
+
+/** The hero's words from the person's plan (ADR-0092, Decided 20): how many sessions, and of
+ * which kinds, in the legend's order. */
+function hero(plan: Plan) {
+  const n = plan.sessions.length
+  const kinds = KINDS.filter(([kind]) => plan.sessions.some((s) => s.type === kind))
+  const names = kinds.map(([, name], i) => (i === 0 ? name[0].toUpperCase() + name.slice(1) : name))
+  const list =
+    names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+  return {
+    title:
+      n === 0
+        ? 'No sessions yet'
+        : `${NUMBERS[n] ?? n} ${n === 1 ? 'session' : 'sessions'}, one fixed order`,
+    // The ladders are the strength work's: a plan without it just names its kinds.
+    lede: !list
+      ? ''
+      : kinds.some(([kind]) => kind === 'strength')
+        ? `${list}: each exercise at the step you're on, moving up as you go.`
+        : `${list}.`,
+    kinds: kinds.map(([kind]) => kind),
+  }
+}
 
 type State =
   | { status: 'loading' }
@@ -51,6 +81,7 @@ export default function App() {
     return () => ctrl.abort()
   }, [])
 
+  const words = state.status === 'ready' ? hero(state.plan) : null
   const toggle = (slug: string) => setOpen((cur) => (cur === slug ? null : slug))
   const selectFromRing = (slug: string) => {
     setOpen(slug)
@@ -80,22 +111,21 @@ export default function App() {
         </p>
       )}
 
-      {state.status === 'ready' && (
+      {state.status === 'ready' && words && (
         <div>
           <section className="hero">
             <div className="hero-text">
-              <h2>Seven sessions, one fixed order</h2>
+              <h2>{words.title}</h2>
+              {words.lede && <p className="lede">{words.lede}</p>}
               <p className="lede">
-                Strength, conditioning and recovery, built for training at home with a pull-up bar,
-                two chairs and an 8 kg kettlebell.
+                Miss a day and the next session waits for you. Nothing gets skipped.
               </p>
-              <p className="lede">
-                Miss a day and the whole week moves back one day. Nothing gets skipped.
-              </p>
-              <ul className="legend">
-                <li className="legend-strength">Strength</li>
-                <li className="legend-conditioning">Conditioning</li>
-                <li className="legend-recovery">Recovery</li>
+              <ul className="legend" aria-label="Kinds of session">
+                {words.kinds.map((kind) => (
+                  <li key={kind} className={`legend-${kind}`}>
+                    {kind[0].toUpperCase() + kind.slice(1)}
+                  </li>
+                ))}
               </ul>
             </div>
             <CycleRing sessions={state.plan.sessions} selected={open} onSelect={selectFromRing} />

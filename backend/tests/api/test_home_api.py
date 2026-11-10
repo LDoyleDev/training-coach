@@ -9,7 +9,7 @@ from sqlalchemy import Engine, select
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import SessionTemplate
+from training_coach.db.models import SessionTemplate, User, UserSettings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.services import auth, users
 from training_coach.services.seed import apply_seed, load_plan
@@ -51,6 +51,32 @@ def test_home_before_anything_is_done(signed_in: TestClient) -> None:
     assert isinstance(found["today"], str)
     assert isinstance(found["today_minutes"], int)
     assert found["today_usual_minutes"] is None  # nothing timed yet
+
+
+def test_the_owner_never_gets_the_set_up_card(signed_in: TestClient) -> None:
+    assert signed_in.get("/api/home").json()["walkthrough"] == "owner_try_out"
+
+
+def test_a_member_gets_the_set_up_card_until_it_is_done(engine: Engine) -> None:
+    """Home says who the walk-through is for, as GET /api/walkthrough does (ADR-0092)."""
+    member = 2
+    with session_scope(make_session_factory(engine)) as shared:
+        shared.add(User(id=member, role=users.MEMBER))
+    with session_scope(make_session_factory(engine)) as shared:
+        apply_seed(shared, load_plan())
+    with make_session_factory(engine, user_id=member)() as bound:
+        token = auth.create_link(bound, datetime.now(UTC))
+        bound.commit()
+    settings = Settings(
+        environment="test", database_url=str(engine.url), public_url=ORIGIN, multi_user=True
+    )
+    with TestClient(create_app(settings), base_url=ORIGIN) as client:
+        assert client.post("/api/auth/redeem", json={"token": token}).status_code == 204
+        assert client.get("/api/home").json()["walkthrough"] == "member"
+        with session_scope(make_session_factory(engine, user_id=member)) as bound:
+            found = bound.scalars(select(UserSettings)).one()
+            found.set_up_on = datetime.now(UTC).date()
+        assert client.get("/api/home").json()["walkthrough"] == "done"
 
 
 def test_home_needs_a_signed_in_browser(engine: Engine) -> None:

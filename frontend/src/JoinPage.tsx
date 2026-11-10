@@ -15,8 +15,9 @@ const SAID: Record<Exclude<State, 'ready' | 'working' | 'joined'>, string> = {
 /**
  * /join#<token> (ADR-0059): an invite to join. The fragment never reaches a server and is cleared
  * from the address bar. The person says they're an adult and joins, signed in; then the passkey,
- * so they can sign in again. The privacy notice comes here too, before anyone is invited
- * (multi-user-plan.md, step 11); until then invites are off.
+ * so they can sign in again, and the walk-through to set up their plan (ADR-0092). The privacy
+ * notice comes here too, before anyone is invited (multi-user-plan.md, step 11); until then
+ * invites are off.
  */
 export default function JoinPage() {
   // Read once, on the first render, and cleared at once: an invite works once.
@@ -101,7 +102,12 @@ export default function JoinPage() {
               </>
             )}
             {offer === 'added' && <p className="m-0">Passkey added.</p>}
-            <a href="/">Go to today</a>
+            <a
+              href="/start"
+              className={`${primaryInline} inline-flex items-center self-start no-underline`}
+            >
+              Set up your plan
+            </a>
           </>
         )}
       </main>
