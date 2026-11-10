@@ -11,7 +11,7 @@ from training_coach.config import Settings
 from training_coach.db.models import SessionProgress, SessionTemplate, User
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.queue import local_date
-from training_coach.services import auth, plan_import
+from training_coach.services import auth, cardio, plan_import
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -250,6 +250,12 @@ def test_the_catalogue_says_who_an_exercise_is_for_and_what_it_needs(client: Tes
     assert catalogue["band-row"]["needs"] == ["a light band"]
     assert catalogue["seated-leg-curl"]["lengthened"]
     assert not catalogue["push-up"]["lengthened"]
+
+
+def test_the_catalogue_marks_the_cardio_a_cardio_session_runs_first(client: TestClient) -> None:
+    """So the editor can warn a Cardio session without exactly one (ADR-0093 Decided 3)."""
+    catalogue = client.get("/api/plan/edit").json()["catalogue"]
+    assert {e["slug"] for e in catalogue if e["cardio"]} == set(cardio.KINDS)
 
 
 def test_a_muscle_names_what_would_add_to_it_where_it_can_be_done(client: TestClient) -> None:

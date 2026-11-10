@@ -655,6 +655,10 @@
       },
       "CatalogueItemView": {
         "properties": {
+          "cardio": {
+            "title": "Cardio",
+            "type": "boolean"
+          },
           "first_step": {
             "title": "First Step",
             "type": "string"
@@ -758,7 +762,8 @@
           "first_step",
           "levels",
           "needs",
-          "lengthened"
+          "lengthened",
+          "cardio"
         ],
         "title": "CatalogueItemView",
         "type": "object"

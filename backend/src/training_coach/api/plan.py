@@ -16,7 +16,7 @@ from training_coach.domain import cycle as cycle_rules
 from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.queue import local_date
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, weekly_sets
-from training_coach.services import plan_edit, plan_import
+from training_coach.services import cardio, plan_edit, plan_import
 from training_coach.services.plan_rows import PlannedItem, PlannedSession, planned_sessions
 from training_coach.services.seed import ExerciseSeed, bundled_plan
 from training_coach.services.users import OWNER
@@ -164,6 +164,9 @@ class CatalogueItemView(BaseModel):
     levels: tuple[int, int] | None  # who it is for, from its first step to its last (ADR-0083)
     needs: list[str]  # what its first step needs, in words; empty: no kit
     lengthened: bool  # a lengthened-position pick (program-builder.md, Decided 5)
+    # One of the cardio exercises a Cardio session runs first (ADR-0066): without exactly one,
+    # the editor warns (ADR-0093 Decided 3).
+    cardio: bool
 
 
 class LimitsView(BaseModel):
@@ -253,6 +256,7 @@ def get_plan_edit(request: Request, user: Owner) -> PlanEditView:
                 levels=plan_edit.level_range(e),
                 needs=plan_edit.first_needs(e),
                 lengthened=e.lengthened,
+                cardio=e.slug in cardio.KINDS,
             )
             for e in exercises
         ],

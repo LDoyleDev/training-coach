@@ -275,3 +275,13 @@ he wants the map counted over the cycle's own length.
   checked against `cycle-cases.json`'s `rest_days_left` cases, which pytest reads too.
 - **An add comes first**: the rest days its split takes from the session before it are listed
   after it, in the note too.
+
+## Addendum (11 Nov 2026): the Cardio warning (#732)
+
+- **Decided 3's warning is built.** The editor's catalogue marks the exercises a Cardio session
+  runs first (`cardio`: `services/cardio.KINDS`). A Cardio session whose home version holds none,
+  or more than one, is warned in the session editor, and so is an empty session made Cardio on
+  the Add form. Nothing is refused. Such a session has no single cardio exercise for
+  `cardio.planned` to run first and, not being Strength, no warm-up, so the words say that.
+- **`days_needed` has shared cases** (`bodymap/coverage-cases.json`), read by
+  `tests/domain/test_coverage.py` and the web's `daysNeeded`, as `cycle-cases.json` is.

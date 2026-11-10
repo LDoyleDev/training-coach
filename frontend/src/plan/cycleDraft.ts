@@ -4,7 +4,7 @@
  * ("n1"), so `cycleLogic` can tell them apart. Nothing is saved until Save.
  */
 
-import type { CycleEntry, EditSession, Place, PlanEdit } from '../api'
+import type { CatalogueItem, CycleEntry, EditItem, EditSession, Place, PlanEdit } from '../api'
 import { landing } from '../walkthrough/days'
 import {
   add,
@@ -43,6 +43,28 @@ export const KINDS: { kind: Kind; label: string; line: string }[] = [
 ]
 
 export const kindLabel = (kind: Kind) => KINDS.find((k) => k.kind === kind)?.label ?? kind
+
+const CARDIO_FIRST = 'A cardio session runs one cardio exercise first.'
+
+/** Why a Cardio session won't run as one (ADR-0093 Decided 3): it runs its one cardio exercise
+ * first (ADR-0066), so with none, or more than one, at home, it is warned, not refused. Null
+ * when it isn't Cardio or has its one. */
+export function cardioWarning(
+  kind: Kind,
+  home: readonly Pick<EditItem, 'exercise'>[],
+  catalogue: readonly CatalogueItem[],
+): string | null {
+  if (kind !== 'conditioning') return null
+  const cardio = new Set(catalogue.filter((e) => e.cardio).map((e) => e.slug))
+  const found = home.filter((i) => cardio.has(i.exercise)).length
+  if (found === 1) return null
+  return found === 0
+    ? `${CARDIO_FIRST} This one has none, so its exercises run as sets, with no warm-up.`
+    : `${CARDIO_FIRST} This one has ${found}, so none runs first: its exercises run as sets, with no warm-up.`
+}
+
+/** The same, on the Add form for an empty session made Cardio. */
+export const EMPTY_CARDIO = `${CARDIO_FIRST} Add one, or its exercises run as sets, with no warm-up.`
 
 export function cycleOf(sessions: EditSession[]): Entry[] {
   return sessions.map((s, i) => ({

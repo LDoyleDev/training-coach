@@ -39,12 +39,25 @@ const PUSH = {
   levels: [1, 6],
   needs: [],
   lengthened: false,
+  cardio: false,
 }
+const cardio = (slug: string, name: string) => ({
+  ...PUSH,
+  slug,
+  name,
+  kind: 'duration_min',
+  muscles: {},
+  pattern: 'cardio',
+  range: null,
+  cardio: true,
+})
+const ZONE2 = cardio('zone2', 'Zone 2')
+const HIIT = cardio('hiit', 'HIIT')
 const DONE_TODAY = { kind: 'done', session: null, since_last: 0, picked: false }
 const view = (sessions: unknown[], queue = {}) => ({
   revision: 'abc',
   sessions,
-  catalogue: [PUSH],
+  catalogue: [PUSH, ZONE2, HIIT],
   limits: { max_sessions: 10, max_cycle_days: 14, max_rest: 6 },
   last_done: null,
   queued: [],
@@ -450,4 +463,48 @@ test('before the plan starts, a rest day stays one', async () => {
   const card = await cycleCard()
   fireEvent.click(card.getByRole('button', { name: 'One rest day fewer after Legs' }))
   expect(savingWill().at(-1)).toBe('Next stays Torso')
+})
+
+const NO_CARDIO =
+  'A cardio session runs one cardio exercise first. This one has none, so its exercises run as sets, with no warm-up.'
+
+test('a cardio session without its one cardio exercise is warned, not refused', async () => {
+  serve(WEEK)
+  render(<PlanEdit />)
+  const editor = within(await screen.findByRole('region', { name: 'Session' }))
+  expect(editor.getByText(NO_CARDIO)).toBeInTheDocument() // Legs is Cardio, with a squat
+  const pick = (name: string) => {
+    fireEvent.click(editor.getByRole('button', { name: 'Add an exercise' }))
+    fireEvent.click(editor.getByRole('button', { name }))
+  }
+  pick('Zone 2')
+  expect(editor.queryByText(/A cardio session runs/)).not.toBeInTheDocument()
+  pick('HIIT')
+  expect(
+    editor.getByText(
+      'A cardio session runs one cardio exercise first. This one has 2, so none runs first: its exercises run as sets, with no warm-up.',
+    ),
+  ).toBeInTheDocument()
+  fireEvent.change(editor.getByRole('combobox', { name: 'Session' }), {
+    target: { value: 'torso' },
+  })
+  expect(editor.queryByText(/A cardio session runs/)).not.toBeInTheDocument() // strength
+})
+
+test('the Add form warns an empty session made Cardio', async () => {
+  serve(WEEK)
+  render(<PlanEdit />)
+  const card = await cycleCard()
+  fireEvent.click(card.getByRole('button', { name: 'Add a session' }))
+  const form = within(card.getByRole('form', { name: 'Add a session' }))
+  const warned =
+    'A cardio session runs one cardio exercise first. Add one, or its exercises run as sets, with no warm-up.'
+  expect(form.queryByText(warned)).not.toBeInTheDocument()
+  fireEvent.click(form.getByRole('radio', { name: 'Cardio' }))
+  expect(form.getByText(warned)).toBeInTheDocument()
+  fireEvent.change(form.getByRole('combobox', { name: 'Start from' }), {
+    target: { value: 'legs' },
+  })
+  expect(form.getByRole('radio', { name: 'Cardio' })).toBeChecked()
+  expect(form.queryByText(warned)).not.toBeInTheDocument() // a copy is checked in the editor
 })

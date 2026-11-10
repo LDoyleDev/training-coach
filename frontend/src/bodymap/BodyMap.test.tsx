@@ -14,6 +14,10 @@ import {
   warnings,
   worksLine,
 } from './words'
+// The cases backend/tests/domain/test_coverage.py reads too, so the two copies can't drift.
+import shared from './coverage-cases.json?raw'
+
+const cases = JSON.parse(shared) as { days_needed: { cycle_days: number; needed: number }[] }
 
 const muscle = (over: Partial<MuscleCoverage>): MuscleCoverage => ({
   muscle: 'quads',
@@ -319,8 +323,8 @@ describe('a cycle that is not a week (ADR-0093)', () => {
     )
   })
 
-  it('counts the days green needs over the cycle, as domain.coverage.days_needed', () => {
-    expect([1, 3, 7, 8, 10, 14].map(daysNeeded)).toEqual([1, 1, 2, 2, 3, 4])
+  it.each(cases.days_needed)('a $cycle_days-day cycle needs $needed green days', (c) => {
+    expect(daysNeeded(c.cycle_days)).toBe(c.needed)
   })
 
   it('words the amounts, the band and the warnings per cycle', () => {
