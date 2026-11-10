@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import {
   cancelTelegramLink,
   checkTelegramCode,
@@ -23,6 +23,17 @@ const REFUSED: Record<CodeRefusal, string> = {
   conflict: 'That Telegram account can’t be connected. Cancel and make a new link.',
 }
 
+const stateOf = (status: TelegramStatus | null) =>
+  !status
+    ? null
+    : status.set_on_server
+      ? 'server'
+      : status.connected
+        ? 'connected'
+        : status.pending
+          ? `pending:${status.pending.expires_at}:${status.pending.claims}`
+          : 'none'
+
 /**
  * Telegram on Account (ADR-0089). A member connects it: Connect makes a link that opens the bot,
  * the bot sends a code, and the code typed here shows the Telegram name before Confirm. A link
@@ -37,9 +48,14 @@ export default function Telegram() {
   const [note, setNote] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const load = useCallback((signal?: AbortSignal) => {
+  const shown = useRef<string | null>(null) // which of the card's states is showing
+  const load = useCallback((signal?: AbortSignal, back = false) => {
     fetchTelegram(signal)
       .then((status) => {
+        // Back on the page and the card has moved on (the link expired, say): an error from
+        // before is about something no longer there.
+        if (back && stateOf(status) !== shown.current) setNote(null)
+        shown.current = stateOf(status)
         setFound(status)
         if (!status?.pending) setUrl(null)
       })
@@ -49,7 +65,7 @@ export default function Telegram() {
     const controller = new AbortController()
     load(controller.signal)
     // Back from Telegram: how many opened the link may have changed.
-    const back = () => load()
+    const back = () => load(undefined, true)
     window.addEventListener('focus', back)
     return () => {
       controller.abort()
