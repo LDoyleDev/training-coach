@@ -168,6 +168,12 @@ describe('App', () => {
     expect(screen.queryByText(/kettlebell/)).not.toBeInTheDocument()
   })
 
+  it('a plan without strength work just names its kinds', async () => {
+    mockFetch({ ok: true, json: () => Promise.resolve({ ...plan, sessions: [zone2] }) })
+    render(<App />)
+    expect(await screen.findByText('Conditioning.')).toBeInTheDocument()
+  })
+
   it('says a plan with no sessions plainly', async () => {
     mockFetch({ ok: true, json: () => Promise.resolve({ ...plan, sessions: [] }) })
     render(<App />)

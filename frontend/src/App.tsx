@@ -36,7 +36,12 @@ function hero(plan: Plan) {
       n === 0
         ? 'No sessions yet'
         : `${NUMBERS[n] ?? n} ${n === 1 ? 'session' : 'sessions'}, one fixed order`,
-    lede: list && `${list}: each exercise at the step you're on, moving up as you go.`,
+    // The ladders are the strength work's: a plan without it just names its kinds.
+    lede: !list
+      ? ''
+      : kinds.some(([kind]) => kind === 'strength')
+        ? `${list}: each exercise at the step you're on, moving up as you go.`
+        : `${list}.`,
     kinds: kinds.map(([kind]) => kind),
   }
 }
