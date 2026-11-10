@@ -49,7 +49,7 @@ from training_coach.services.seed import (
     away_problem,
     sync_version,
 )
-from training_coach.services.undo import CYCLE_CHANGED
+from training_coach.services.undo import CYCLE_CHANGED as CYCLE_CHANGED  # one kind, read by undo
 from training_coach.services.workout_log import TODAY_WORD
 
 log = structlog.get_logger(__name__)
