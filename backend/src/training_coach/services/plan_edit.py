@@ -49,13 +49,13 @@ from training_coach.services.seed import (
     away_problem,
     sync_version,
 )
+from training_coach.services.undo import CYCLE_CHANGED as CYCLE_CHANGED  # one kind, read by undo
 from training_coach.services.workout_log import TODAY_WORD
 
 log = structlog.get_logger(__name__)
 
 STALE = "stale"  # the plan changed since this draft was loaded
 IN_PROGRESS = "in-progress"  # kept sets hold item positions, which an edit would shift
-CYCLE_CHANGED = "plan.cycle_changed"  # sessions added, removed, moved or rest places changed
 NEW = "new:"  # a version of a new session names it by its draft key: "new:n1"
 NAME_MAX = 40  # ADR-0093 Decided 3
 KINDS = {"strength": "strength", "conditioning": "cardio", "recovery": "recovery"}  # in words
