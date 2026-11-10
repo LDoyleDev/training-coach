@@ -287,9 +287,12 @@ export default function StartPage() {
           value={draft.placement[rung.ladder.slug]?.[rung.k]}
           onAnswer={(answer) => {
             const before = (draft.placement[rung.ladder.slug] ?? []).slice(0, rung.k)
+            // A new answer places the exercise again: a step picked on the plan screen goes.
+            const { [rung.ladder.slug]: _, ...chosen } = draft.chosen
             go({
               ...draft,
               placement: { ...draft.placement, [rung.ladder.slug]: [...before, answer] },
+              chosen,
             })
           }}
         />
