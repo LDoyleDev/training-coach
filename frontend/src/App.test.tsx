@@ -168,10 +168,79 @@ describe('App', () => {
     expect(screen.queryByText(/kettlebell/)).not.toBeInTheDocument()
   })
 
+  it("shows the ladders of a member's own plan: a starter's exercises", async () => {
+    const ex = (slug: string, name: string, steps = 3): Exercise => ({
+      ...pullUp,
+      slug,
+      name,
+      ladder: ['Easy', 'Middle', 'Hard'].slice(0, steps),
+      start_step: 0,
+    })
+    const a = {
+      ...torso,
+      name: 'Full body A',
+      slug: 'a',
+      exercises: [
+        ex('goblet-squat', 'Goblet squat'),
+        ex('doorway-row', 'Doorway row'),
+        ex('push-up', 'Push-up'),
+        ex('band-pull-apart', 'Band pull-apart', 1),
+      ],
+    }
+    const b = {
+      ...torso,
+      position: 1,
+      name: 'Full body B',
+      slug: 'b',
+      exercises: [
+        ex('bulgarian-split-squat', 'Bulgarian split squat'),
+        ex('push-up', 'Push-up'),
+        ex('glute-bridge', 'Glute bridge'),
+        ex('plank', 'Plank'),
+      ],
+    }
+    mockFetch({ ok: true, json: () => Promise.resolve({ ...plan, sessions: [a, b, zone2] }) })
+    render(<App />)
+    const ladders = await screen.findByRole('region', { name: 'Harder without heavier weights' })
+    expect(
+      within(ladders)
+        .getAllByRole('heading', { level: 3 })
+        .map((h) => h.textContent),
+    ).toEqual(['Push-up', 'Bulgarian split squat', 'Goblet squat', 'Doorway row', 'Glute bridge'])
+  })
+
+  it("shows the owner's five ladders when his plan has them, whatever else it has", async () => {
+    const ex = (slug: string, name: string): Exercise => ({ ...pullUp, slug, name })
+    const legs = {
+      ...torso,
+      position: 1,
+      name: 'Legs',
+      slug: 'legs',
+      exercises: [
+        ex('kb-swing', 'Kettlebell swing'),
+        ex('hamstring-curl', 'Hamstring curl'),
+        ex('pistol-squat', 'Pistol squat'),
+        ex('bulgarian-split-squat', 'Bulgarian split squat'),
+      ],
+    }
+    const upper = { ...torso, exercises: [ex('dip', 'Dip'), ex('push-up', 'Push-up'), pullUp] }
+    mockFetch({ ok: true, json: () => Promise.resolve({ ...plan, sessions: [legs, upper] }) })
+    render(<App />)
+    const ladders = await screen.findByRole('region', { name: 'Harder without heavier weights' })
+    expect(
+      within(ladders)
+        .getAllByRole('heading', { level: 3 })
+        .map((h) => h.textContent),
+    ).toEqual(['Pull-up', 'Push-up', 'Bulgarian split squat', 'Pistol squat', 'Hamstring curl'])
+  })
+
   it('a plan without strength work just names its kinds', async () => {
     mockFetch({ ok: true, json: () => Promise.resolve({ ...plan, sessions: [zone2] }) })
     render(<App />)
     expect(await screen.findByText('Conditioning.')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Harder without heavier weights' }),
+    ).not.toBeInTheDocument()
   })
 
   it('says a plan with no sessions plainly', async () => {

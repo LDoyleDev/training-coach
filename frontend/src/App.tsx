@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchPlan, type Place, type Plan, type Session } from './api'
+import { fetchPlan, type Exercise, type Place, type Plan, type Session } from './api'
 import { BodyMap } from './bodymap/BodyMap'
 import { MapPlace } from './bodymap/MapPlace'
 import { useCoverage } from './bodymap/useCoverage'
@@ -8,6 +8,7 @@ import { Ladders } from './components/Ladders'
 import { SessionList } from './components/SessionList'
 import { card, primaryInline } from './ui'
 
+// The owner's five, shown first when they are in the plan.
 const LADDER_PICKS = [
   'pull-up',
   'push-up',
@@ -15,6 +16,7 @@ const LADDER_PICKS = [
   'pistol-squat',
   'hamstring-curl',
 ]
+const LADDERS_SHOWN = LADDER_PICKS.length
 
 const NUMBERS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
 const KINDS: [Session['type'], string][] = [
@@ -44,6 +46,20 @@ function hero(plan: Plan) {
         : `${list}.`,
     kinds: kinds.map(([kind]) => kind),
   }
+}
+
+/** The ladders to show, from the person's own plan: the owner's picks that are in it, then its
+ * strength sessions' other exercises with more than one step, in session order. Five at most. */
+function ladders(plan: Plan): Exercise[] {
+  const all = plan.sessions.flatMap((s) => s.exercises)
+  const picks = LADDER_PICKS.flatMap((slug) => all.find((e) => e.slug === slug) ?? [])
+  const rest = plan.sessions
+    .filter((s) => s.type === 'strength')
+    .flatMap((s) => s.exercises)
+    .filter((e) => e.ladder.length > 1 && !LADDER_PICKS.includes(e.slug))
+  return [...picks, ...rest]
+    .filter((e, i, list) => list.findIndex((f) => f.slug === e.slug) === i)
+    .slice(0, LADDERS_SHOWN)
 }
 
 type State =
@@ -82,6 +98,7 @@ export default function App() {
   }, [])
 
   const words = state.status === 'ready' ? hero(state.plan) : null
+  const shown = state.status === 'ready' ? ladders(state.plan) : []
   const toggle = (slug: string) => setOpen((cur) => (cur === slug ? null : slug))
   const selectFromRing = (slug: string) => {
     setOpen(slug)
@@ -145,21 +162,16 @@ export default function App() {
             />
           </section>
 
-          <section className="block" aria-labelledby="ladders">
-            <h2 id="ladders">Harder without heavier weights</h2>
-            <p className="block-intro">
-              Each exercise has a ladder of harder variations. Hit the top of the rep range in two
-              sessions running and the coach suggests the next step.
-            </p>
-            <Ladders
-              exercises={LADDER_PICKS.flatMap((slug) => {
-                const ex = state.plan.sessions
-                  .flatMap((s) => s.exercises)
-                  .find((e) => e.slug === slug)
-                return ex ? [ex] : []
-              })}
-            />
-          </section>
+          {shown.length > 0 && (
+            <section className="block" aria-labelledby="ladders">
+              <h2 id="ladders">Harder without heavier weights</h2>
+              <p className="block-intro">
+                Each exercise has a ladder of harder variations. Hit the top of the rep range in two
+                sessions running and the coach suggests the next step.
+              </p>
+              <Ladders exercises={shown} />
+            </section>
+          )}
 
           <section className="block" aria-labelledby="volume">
             <h2 id="volume">What the week gives each muscle</h2>

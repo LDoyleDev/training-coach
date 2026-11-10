@@ -255,3 +255,7 @@ recommendation says:
   order"), the kinds it has, in the legend too, and "Miss a day and the next session waits for
   you". The owner's kit line ("a pull-up bar, two chairs and an 8 kg kettlebell") went with it:
   the plan doesn't hold the kit.
+- **Its ladders read from the plan too:** five at most, the owner's five first when the plan has
+  them (pull-up, push-up, Bulgarian split squat, pistol squat, hamstring curl), then the strength
+  sessions' other exercises with more than one step, in session order. A plan with none has no
+  ladders section.
