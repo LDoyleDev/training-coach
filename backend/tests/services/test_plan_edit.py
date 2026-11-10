@@ -1,12 +1,14 @@
 """A person editing their own plan (builder step 6): nothing changes until Save, then one version,
 and only what the app couldn't run is refused."""
 
+from collections.abc import Callable
 from datetime import date
 
 import pytest
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from tests import factories
 from tests.services.test_seed import MINI_PLAN
 from training_coach.db.models import (
     PlanVersion,
@@ -212,3 +214,36 @@ def test_my_edit_is_mine(engine: Engine) -> None:
         assert 9 not in set(mine.scalars(select(TemplateItem.sets)))
     with session_scope(make_session_factory(engine, user_id=2)) as theirs:
         assert 9 in set(theirs.scalars(select(TemplateItem.sets)))
+
+
+def _arms(session: Session) -> SessionTemplate:
+    return session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "arms")).one()
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda s, t: setattr(t, "name", "Arms 2"),
+        lambda s, t: setattr(t, "kind", "recovery"),
+        lambda s, t: setattr(t, "rest_after", 1),
+        lambda s, t: factories.retire(s, t, TODAY),
+    ],
+    ids=["name", "kind", "rest days", "retired"],
+)
+def test_the_revision_follows_a_sessions_name_kind_rest_days_and_retiring(
+    session: Session, plan: PlanSeed, change: Callable[[Session, SessionTemplate], None]
+) -> None:
+    """So a draft opened before the cycle changed is stale (ADR-0093)."""
+    before = plan_edit.revision(session)
+    change(session, _arms(session))
+    session.flush()
+    assert plan_edit.revision(session) != before
+
+
+def test_a_retired_session_is_not_edited(session: Session, plan: PlanSeed) -> None:
+    factories.retire(session, _arms(session), TODAY)
+    assert [s.slug for s in plan_edit.editable(session)] == ["upper"]
+    edit = VersionEdit("arms", Place.HOME, (DIP,))
+    found = plan_edit.save(session, [edit], "Back", plan_edit.revision(session), plan, TODAY)
+    assert isinstance(found, str)
+    assert "isn't one of your sessions" in found

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from training_coach.db.models import SessionTemplate, SetLog, Workout
 from training_coach.domain.enums import Place
 from training_coach.domain.session_times import SetTime, Timing, minutes, timing, usual
+from training_coach.services.plan_rows import in_cycle
 
 AS_PLANNED = Workout.minutes.is_(None)  # not run shorter for the day (ADR-0082)
 
@@ -89,14 +90,15 @@ def planned_totals(session: Session, template_id: int, place: Place) -> list[tim
 
 
 def by_session(session: Session) -> list[SessionTimes]:
-    """Each session with timed workouts, in plan order: its usual, last and fastest time."""
+    """Each session in the cycle with timed workouts, in plan order: its usual, last and fastest
+    time."""
     totals: dict[int, list[timedelta]] = {}
     for timed in _timed(session, Workout.template_id.is_not(None), AS_PLANNED):
         assert timed.template_id is not None  # noqa: S101 - filtered above
         totals.setdefault(timed.template_id, []).append(timed.timing.total)
     templates = session.scalars(
         select(SessionTemplate)
-        .where(SessionTemplate.id.in_(totals))
+        .where(SessionTemplate.id.in_(totals), in_cycle())
         .order_by(SessionTemplate.position, SessionTemplate.id)
     )
     out = []

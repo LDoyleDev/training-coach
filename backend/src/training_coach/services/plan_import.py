@@ -18,7 +18,7 @@ from training_coach.db.models import (
 )
 from training_coach.db.session import bound_user
 from training_coach.domain.enums import Place
-from training_coach.services.plan_rows import session_in_progress
+from training_coach.services.plan_rows import in_cycle, session_in_progress
 from training_coach.services.seed import ItemSeed, PlanSeed, SeedResult, sync_sessions
 from training_coach.services.users import OWNER
 
@@ -74,7 +74,7 @@ def _version_changes(
 
 def _changes(session: Session, plan: PlanSeed) -> list[str]:
     names = {e.slug: e.name for e in plan.exercises}
-    rows = {t.slug: t for t in session.scalars(select(SessionTemplate))}
+    rows = {t.slug: t for t in session.scalars(select(SessionTemplate).where(in_cycle()))}
     lines = []
     for position, seed in enumerate(plan.sessions):
         template = rows.get(seed.slug)
@@ -109,11 +109,21 @@ def _changes(session: Session, plan: PlanSeed) -> list[str]:
 
 def _blocked(session: Session, plan: PlanSeed, today: date) -> str | None:
     planned = {s.slug for s in plan.sessions}
-    rows = session.scalars(select(SessionTemplate).order_by(SessionTemplate.position))
+    rows = session.scalars(
+        select(SessionTemplate).where(in_cycle()).order_by(SessionTemplate.position)
+    )
     gone = [t.name for t in rows if t.slug not in planned]
     if gone:
         # Sessions define the queue (ADR-0006), and workouts name them.
         return f"{', '.join(gone)} isn't in plan.toml, and a session can't be removed this way."
+    retired = session.scalars(
+        select(SessionTemplate.name)
+        .where(~in_cycle(), SessionTemplate.slug.in_(planned))
+        .order_by(SessionTemplate.position)
+    ).all()
+    if retired:
+        # Its slug is still taken (ADR-0093); putting a session back is the import's next step.
+        return f"{', '.join(retired)} was removed from your plan and can't be put back this way."
     known = set(session.scalars(select(Exercise.slug)))
     used = {i.exercise for s in plan.sessions for i in s.versions}
     if used - known:

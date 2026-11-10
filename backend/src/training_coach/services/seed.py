@@ -21,7 +21,7 @@ from typing import Annotated, Literal, Self
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import (
@@ -58,6 +58,7 @@ from training_coach.domain.muscles import (
 from training_coach.domain.parser import normalise_name
 from training_coach.domain.step_levels import Mark, StepLevel, first_fall
 from training_coach.domain.stretching import Stretch
+from training_coach.services.plan_rows import in_cycle
 from training_coach.services.users import OWNER
 
 log = structlog.get_logger(__name__)
@@ -728,23 +729,39 @@ def sync_sessions(
     exercises: dict[str, Exercise],
     result: SeedResult,
 ) -> None:
-    """Make this person's sessions match ``sessions``: a new one's items, or an existing one's
-    by position. Items removed from a session are deleted (nothing else references them)."""
+    """Make this person's sessions in the cycle match ``sessions``: a new one's items, or an
+    existing one's by position. Items removed from a session are deleted (nothing else
+    references them). Retired sessions are left as they are, parked (ADR-0093); one of
+    their slugs in ``sessions`` raises, since putting a session back isn't built yet."""
+    wanted = {s.slug: i for i, s in enumerate(sessions)}
+    retired = session.scalars(
+        select(SessionTemplate.slug)
+        .where(SessionTemplate.user_id == user_id, ~in_cycle(), SessionTemplate.slug.in_(wanted))
+        .order_by(SessionTemplate.slug),
+        execution_options={ALL_USERS: True},
+    ).all()
+    if retired:
+        raise SeedError(f"{', '.join(retired)} retired from this plan, so can't be made again")
     templates = {
         t.slug: t
         for t in session.scalars(
-            select(SessionTemplate).where(SessionTemplate.user_id == user_id),
+            select(SessionTemplate).where(SessionTemplate.user_id == user_id, in_cycle()),
             execution_options={ALL_USERS: True},
         )
     }
-    wanted = {s.slug: i for i, s in enumerate(sessions)}
     current = {t.slug: t.position for t in templates.values()}
     if current != {slug: wanted[slug] for slug in current}:
         # Reordering: park existing positions out of the way so the unique index never
         # sees two sessions on one position mid-update. New sessions always get positions
-        # after the existing ones' final positions, so they cannot collide.
+        # after the existing ones' final positions, so they cannot collide. Parked above
+        # every row, retired ones too, which sit at _PARK_OFFSET + id (ADR-0093).
+        top = session.scalar(
+            select(func.max(SessionTemplate.position)).where(SessionTemplate.user_id == user_id),
+            execution_options={ALL_USERS: True},
+        )
+        park = max(_PARK_OFFSET, (top or 0) + 1)
         for existing in templates.values():
-            existing.position += _PARK_OFFSET
+            existing.position += park
         session.flush()
     for position, seed_session in enumerate(sessions):
         template = templates.get(seed_session.slug)
@@ -912,7 +929,7 @@ def start_person(
         is None
     ):
         first = session.scalars(
-            sessions.order_by(SessionTemplate.position), execution_options=mine
+            sessions.where(in_cycle()).order_by(SessionTemplate.position), execution_options=mine
         ).first()
         session.add(PlanState(user_id=user_id, next_template_id=first))
         result.created += 1

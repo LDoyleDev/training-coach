@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests import factories
 from training_coach.db.models import (
     Event,
     Exercise,
@@ -30,6 +31,7 @@ from training_coach.domain.load import LoadKit
 from training_coach.domain.parser import Known, parse_log
 from training_coach.domain.volume import weekly_sets
 from training_coach.services import users
+from training_coach.services.plan_rows import in_cycle
 from training_coach.services.seed import (
     STARTING_VERSION,
     PlanSeed,
@@ -272,6 +274,43 @@ items = [{ exercise = "dip", sets = 2, rep_min = 5, rep_max = 10 }]
 def _sessions(text: str) -> tuple[str, list[str]]:
     head, *blocks = text.split("[[sessions]]")
     return head, ["[[sessions]]" + b for b in blocks]
+
+
+def test_a_retired_session_is_left_parked_and_never_made_again(session: Session) -> None:
+    """Its slug is still taken (ADR-0093): a plan without it, or the seed, leaves it alone, and a
+    plan with it is refused in words, not by the unique slug."""
+    plan = load_plan(MINI_PLAN)
+    apply_seed(session, plan)
+    arms = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "arms")).one()
+    factories.retire(session, arms, date(2026, 11, 10))
+    exercises = {e.slug: e for e in session.scalars(select(Exercise))}
+    sync_sessions(session, plan.sessions[:1], OWNER, exercises, SeedResult())
+    apply_seed(session, plan)  # the start-up seed: it doesn't touch a planned person's sessions
+    assert arms.position == 10_000 + arms.id
+    with pytest.raises(SeedError, match="arms retired from this plan"):
+        sync_sessions(session, plan.sessions, OWNER, exercises, SeedResult())
+
+
+def test_a_reorder_parks_past_a_retired_session(session: Session) -> None:
+    """A retired session sits at 10_000 + id; a reorder parks the live ones above every row, so
+    a live session at the position equal to that id doesn't land on it (ADR-0093)."""
+    head, blocks = _sessions(MINI_PLAN)
+    plan = load_plan(head + "".join([*blocks, NEW_SESSION]))
+    apply_seed(session, plan)
+    upper = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "upper")).one()
+    factories.retire(session, upper, date(2026, 11, 10))
+    live = session.scalars(select(SessionTemplate).where(in_cycle())).all()
+    assert upper.id in {t.position for t in live}  # the clash this guards against
+    exercises = {e.slug: e for e in session.scalars(select(Exercise))}
+    by_slug = {s.slug: s for s in plan.sessions}
+    sync_sessions(session, [by_slug["core"], by_slug["arms"]], OWNER, exercises, SeedResult())
+    session.flush()
+
+    order = session.scalars(
+        select(SessionTemplate.slug).where(in_cycle()).order_by(SessionTemplate.position)
+    ).all()
+    assert order == ["core", "arms"]
+    assert upper.position == 10_000 + upper.id
 
 
 @pytest.mark.parametrize("insert_at", [0, 1, 2], ids=["front", "middle", "end"])

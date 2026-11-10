@@ -7,15 +7,27 @@ from dataclasses import dataclass, replace
 from datetime import date
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select
 from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import SessionProgress, SessionTemplate, TemplateItem
 from training_coach.domain.enums import Place
-from training_coach.services import guided
-from training_coach.services.seed import bundled_plan
 
 log = structlog.get_logger(__name__)
+
+
+def in_cycle() -> ColumnElement[bool]:
+    """The sessions in the cycle: not retired (ADR-0093). Every reader of the cycle filters by
+    it; a reader of a name by id (history) doesn't, so a retired session keeps its name there."""
+    return SessionTemplate.retired_on.is_(None)
+
+
+def _known() -> set[str]:
+    # Imported here, not at the top: the seed, Today and the log import this module for
+    # ``in_cycle``, and the seed and guided (which imports Today) would make it a circle.
+    from training_coach.services.seed import bundled_plan
+
+    return {e.slug for e in bundled_plan().exercises}
 
 
 @dataclass(frozen=True)
@@ -49,6 +61,8 @@ def session_in_progress(session: Session, today: date) -> bool:
             SessionProgress.local_date == today, SessionProgress.saved_workout_id.is_(None)
         )
     )
+    from training_coach.services import guided  # imported here, as in _known
+
     return bool(row is not None and row.sets) or bool(guided.pending(session, today))
 
 
@@ -78,7 +92,7 @@ def with_draft(
 ) -> list[PlannedSession]:
     """The sessions as they would be with a draft's versions, by session slug and place; items
     the catalogue doesn't know are left out, as they are from the rows."""
-    known = {e.slug for e in bundled_plan().exercises}
+    known = _known()
 
     def drafted(
         session: PlannedSession, place: Place, now: tuple[PlannedItem, ...]
@@ -94,9 +108,10 @@ def with_draft(
 
 def planned_sessions(session: Session) -> list[PlannedSession]:
     """The cycle in order, each session with its home and gym versions."""
-    known = {e.slug for e in bundled_plan().exercises}
+    known = _known()
     found = session.scalars(
         select(SessionTemplate)
+        .where(in_cycle())
         .order_by(SessionTemplate.position)
         .options(
             selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise),

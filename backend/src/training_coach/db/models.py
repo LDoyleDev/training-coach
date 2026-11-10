@@ -187,6 +187,9 @@ class SessionTemplate(Owned, Base):
     kind: Mapped[str] = mapped_column(String(16), server_default="strength")
     # The queue's rest places after it (ADR-0091): days with no session once it is done.
     rest_after: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
+    # Removed from the cycle on this day and kept because a workout names it (ADR-0093): no
+    # items, parked at position 10_000 + id. Empty: in the cycle (``plan_rows.in_cycle``).
+    retired_on: Mapped[date | None] = mapped_column(Date)
 
     # The home version (ADR-0071): what every reader of the plan sees unless it asks for a place.
     items: Mapped[list["TemplateItem"]] = relationship(

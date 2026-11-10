@@ -26,7 +26,7 @@ from training_coach.db.models import (
 from training_coach.db.session import bound_user
 from training_coach.domain.enums import Place
 from training_coach.domain.kit import need_label
-from training_coach.services.plan_rows import session_in_progress
+from training_coach.services.plan_rows import in_cycle, session_in_progress
 from training_coach.services.seed import (
     GYM_LOADS,
     ExerciseSeed,
@@ -91,13 +91,13 @@ def _facts(item: TemplateItem) -> ItemEdit:
     )
 
 
-def templates(session: Session) -> list[SessionTemplate]:
-    """This person's sessions in order, with their versions and each item's exercise."""
+def templates(session: Session, *, retired: bool = False) -> list[SessionTemplate]:
+    """This person's sessions in the cycle in order, with their versions and each item's
+    exercise; with ``retired``, the retired ones too, parked last (ADR-0093)."""
+    query = select(SessionTemplate) if retired else select(SessionTemplate).where(in_cycle())
     return list(
         session.scalars(
-            select(SessionTemplate)
-            .order_by(SessionTemplate.position)
-            .options(
+            query.order_by(SessionTemplate.position).options(
                 selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise),
                 selectinload(SessionTemplate.gym_items).selectinload(TemplateItem.exercise),
                 selectinload(SessionTemplate.away_items).selectinload(TemplateItem.exercise),
@@ -122,17 +122,23 @@ def editable(session: Session) -> list[EditableSession]:
 
 def revision(session: Session) -> str:
     """What the plan is now, as a short hash: a draft names the one it was made from, so a save
-    from a tab left open can't overwrite an edit made since (as a day clash asks, ADR-0060)."""
+    from a tab left open can't overwrite an edit made since (as a day clash asks, ADR-0060).
+    Each session's name, kind, rest days and retired day count, retired sessions included
+    (ADR-0093)."""
     state = [
         [
             t.slug,
             t.position,
+            t.name,
+            t.kind,
+            t.rest_after,
+            t.retired_on.isoformat() if t.retired_on is not None else None,
             {
                 place.value: [_facts(i).__dict__ for i in items]
                 for place, items in _versions(t).items()
             },
         ]
-        for t in templates(session)
+        for t in templates(session, retired=True)
     ]
     return hashlib.sha256(json.dumps(state, sort_keys=True).encode()).hexdigest()[:16]
 

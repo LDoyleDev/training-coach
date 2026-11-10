@@ -1,10 +1,14 @@
 """Builders for model rows: sensible defaults, override only what a test cares about."""
 
+from datetime import date
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Exercise, LadderStep, SessionTemplate, TemplateItem
 from training_coach.domain.enums import ExerciseKind
 from training_coach.domain.load import LoadKit
+from training_coach.services.plan_rows import in_cycle
 from training_coach.services.seed import ItemSeed, PlanSeed, load_plan
 
 
@@ -25,6 +29,21 @@ def template(session: Session, of: Exercise, position: int = 0) -> SessionTempla
     session.add(row)
     session.flush()
     return row
+
+
+def retire(session: Session, row: SessionTemplate, on: date) -> None:
+    """Take a session out of the cycle as ADR-0093 says (nothing in the app does yet): the day,
+    no items, parked at 10_000 + id, and the sessions after it closed up."""
+    row.retired_on = on
+    row.items.clear()
+    row.gym_items.clear()
+    row.away_items.clear()
+    row.position = 10_000 + row.id
+    session.flush()
+    live = select(SessionTemplate).where(in_cycle())
+    for position, other in enumerate(session.scalars(live.order_by(SessionTemplate.position))):
+        other.position = position
+        session.flush()  # one at a time, past the unique position
 
 
 def loads(slug: str, kit: LoadKit) -> dict[tuple[str, str], LoadKit]:

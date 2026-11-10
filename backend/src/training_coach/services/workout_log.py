@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -43,6 +43,7 @@ from training_coach.services import blocks, day_clash, undo, user_settings, user
 from training_coach.services.blocks import load_kit, loadable
 from training_coach.services.day_clash import Clash, Refused, Resolution, Resolved
 from training_coach.services.groq import Rewrite
+from training_coach.services.plan_rows import in_cycle
 from training_coach.services.today import away_on, picked_today, position
 
 EXTRA = "Extra session"
@@ -220,12 +221,17 @@ def _activity(text: str, entries: tuple[Entry, ...]) -> str | None:
     return found.value if found is not None else None
 
 
+def _cycle() -> Select[SessionTemplate]:
+    """The sessions in the cycle, in order: a retired one is never named or inferred."""
+    return select(SessionTemplate).where(in_cycle()).order_by(SessionTemplate.position)
+
+
 def _named(session: Session, words: str) -> SessionTemplate | None:
     """The planned session the date line names ("Legs", "Day 3 Torso + neck"), if any: the
     longest session name or slug found among its words."""
     wanted = f" {normalise_name(words)} "
     best: tuple[int, SessionTemplate] | None = None
-    for template in session.scalars(select(SessionTemplate).order_by(SessionTemplate.position)):
+    for template in session.scalars(_cycle()):
         for name in (template.name, template.slug.replace("-", " ")):
             normal = normalise_name(name)
             if normal and f" {normal} " in wanted and (best is None or len(normal) > best[0]):
@@ -239,7 +245,7 @@ def _session_line(session: Session, line: str) -> SessionTemplate | None:
     wanted = normalise_name(TODAY_WORD.sub("", line))
     if not wanted:
         return None
-    for template in session.scalars(select(SessionTemplate).order_by(SessionTemplate.position)):
+    for template in session.scalars(_cycle()):
         if wanted in (normalise_name(template.name), normalise_name(template.slug)):
             return template
     return None
@@ -291,9 +297,7 @@ def _inferred(session: Session, entries: tuple[Entry, ...]) -> SessionTemplate |
     logged = {entry.slug for entry in entries}
     best: tuple[int, SessionTemplate] | None = None
     templates = session.scalars(
-        select(SessionTemplate)
-        .order_by(SessionTemplate.position)
-        .options(
+        _cycle().options(
             selectinload(SessionTemplate.items).selectinload(TemplateItem.exercise),
             selectinload(SessionTemplate.gym_items).selectinload(TemplateItem.exercise),
         )
@@ -491,7 +495,8 @@ def _place(session: Session, confirmed: Draft) -> Place:
 
 
 def _order(session: Session) -> list[int]:
-    return list(session.scalars(select(SessionTemplate.id).order_by(SessionTemplate.position)))
+    query = select(SessionTemplate.id).where(in_cycle()).order_by(SessionTemplate.position)
+    return list(session.scalars(query))
 
 
 def save(

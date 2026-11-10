@@ -24,6 +24,7 @@ from training_coach.domain.records import NewBests
 from training_coach.domain.volume import weekly_sets
 from training_coach.domain.zones import Split
 from training_coach.services import blocks, cardio_totals, habits, progress
+from training_coach.services.plan_rows import in_cycle
 from training_coach.services.seed import bundled_plan
 
 ZONE2 = health.ZONE2  # walks, rides and easy runs log as this exercise through its aliases
@@ -198,7 +199,7 @@ def span(session: Session, start: date, end: date) -> Span:
 
 def planned_sessions(session: Session) -> int:
     """Sessions in the plan's cycle."""
-    return session.scalar(select(func.count()).select_from(SessionTemplate)) or 0
+    return session.scalar(select(func.count()).select_from(SessionTemplate).where(in_cycle())) or 0
 
 
 def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
