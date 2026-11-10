@@ -290,6 +290,26 @@ test("tapped days the pattern can't reach are named", async () => {
   ).toBeInTheDocument()
 })
 
+test('5 days or more: the cardio note, not the days without a session', async () => {
+  serve()
+  show({ draft: { ...DRAFT, days: [0, 1, 2, 3, 4] } })
+  expect(await screen.findByText(/150 minutes a week/)).toBeInTheDocument()
+  expect(screen.queryByText(/get a session/)).not.toBeInTheDocument()
+})
+
+test("a day tapped while the next plan loads isn't named as missed yet", async () => {
+  let answer: (r: Response) => void = () => {}
+  serve()
+  show()
+  await screen.findByText('Mon 9 Nov')
+  vi.mocked(fetch).mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)))
+  tap('Saturday')
+  expect(screen.getByRole('status')).toHaveTextContent('Making your plan…')
+  expect(screen.queryByText(/Saturday doesn't get a session/)).not.toBeInTheDocument()
+  answer(Response.json(PREVIEW()))
+  expect(await screen.findByText(/Saturday doesn't get a session/)).toBeInTheDocument()
+})
+
 test.each([
   [[0], /One day a week gets the 2-day plan.*you do A one week and B the next/],
   [[0, 1, 2, 3, 4], /5 days a week get the 4-day plan.*150 minutes a week/],
