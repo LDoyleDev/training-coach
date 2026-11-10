@@ -1,8 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { Equipment, MessageSettings } from '../api'
+import type { Equipment, MessageSettings, WalkLadder } from '../api'
 import { QUESTIONS, VERSION } from '../readiness/questions'
-import type { WalkLadder } from './api'
 import StartPage from './StartPage'
 
 const SETTINGS = {
@@ -58,6 +57,7 @@ interface Server {
   consent?: boolean // the walkthrough category is open
   country?: string | null
   due?: boolean
+  closed?: boolean // a workout is logged
   status?: number // every GET answers this instead
   told?: number // what telling the server the health questions were answered answers
 }
@@ -70,6 +70,7 @@ function serve({
   due = true,
   status,
   told = 200,
+  closed = false,
 }: Server) {
   const writes: [string, string, unknown][] = []
   vi.stubGlobal(
@@ -84,21 +85,23 @@ function serve({
       }
       if (status) return new Response(null, { status })
       const body: Record<string, unknown> = {
-        '/api/auth/me': { role, user_id: 2, closed: false },
-        '/api/consents': {
-          asked: true,
-          categories: [{ category: 'walkthrough', open: consent, version: 2 }],
+        '/api/walkthrough': {
+          who: role === 'admin' ? 'owner_try_out' : closed ? 'closed' : 'member',
+          revision: 'r1',
+          consent_open: consent,
+          country,
+          readiness: {
+            version: VERSION,
+            due,
+            answered_at: due ? null : ANSWERED,
+            ask_again_after: null,
+          },
+          ladders: [PUSH_UP],
+          starters: [],
         },
         '/api/account/residence': { choices: ['DE', 'IE'], country },
         '/api/settings': SETTINGS,
         '/api/equipment': KIT,
-        '/api/walkthrough': { ladders: [PUSH_UP] },
-        '/api/readiness': {
-          version: VERSION,
-          due,
-          answered_at: due ? null : ANSWERED,
-          ask_again_after: null,
-        },
       }
       return Response.json(body[path])
     }),
@@ -292,6 +295,14 @@ test.each([
   QUESTIONS.forEach(() => tap('Not sure'))
   expect(await screen.findByRole('alert')).toHaveTextContent(said)
   expect(screen.getByText('Talk to a doctor before you start')).toBeInTheDocument()
+})
+
+test('after a workout is logged the walk-through is closed, pointing to Account', async () => {
+  serve({ closed: true })
+  render(<StartPage />)
+  expect(await screen.findByRole('heading', { name: 'Your plan is under way' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Go to Account' })).toHaveAttribute('href', '/account')
+  expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument()
 })
 
 test('signed out, it asks to sign in; an error offers to try again', async () => {

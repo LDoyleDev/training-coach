@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
-import { type Equipment, type KitItemBody, StaleQuestionsError } from '../api'
+import {
+  type Equipment,
+  type KitItemBody,
+  StaleQuestionsError,
+  type WalkLadder,
+  type WalkStep,
+} from '../api'
 import { label } from '../account/kit'
 import { type Editing, KitList } from '../account/MyEquipment'
 import NoteCard from '../readiness/NoteCard'
 import { ANSWER_LABELS, INTRO, noteFor, QUESTIONS } from '../readiness/questions'
 import { primary, secondary } from '../ui'
 import Figure from '../figures/Figure'
-import type { WalkLadder, WalkStep } from './api'
 import { type AvoidKey, type Draft, type Places, WEEKDAYS } from './flow'
 import type { CanDo } from './walk'
 

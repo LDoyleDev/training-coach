@@ -2,15 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   answeredReadiness,
   type Equipment,
-  fetchConsents,
   fetchEquipment,
-  fetchMe,
-  fetchReadiness,
-  fetchResidence,
   fetchSettings,
+  fetchWalkthrough,
+  type Walkthrough,
 } from '../api'
 import { bodyFromItem } from '../account/kit'
-import { fetchWalkthrough } from './api'
 import Residence from '../account/Residence'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { ConsentCard } from '../consent/Consented'
@@ -43,7 +40,7 @@ import {
 } from './Screens'
 
 interface Ready {
-  owner: boolean // the owner's try-out: nothing changes his plan (ADR-0092)
+  who: Walkthrough['who'] // the owner's is a try-out: nothing changes his plan (ADR-0092)
   known: Known
   answeredAt: string | null // when the health questions were last answered
   kinds: Equipment['kinds']
@@ -60,23 +57,18 @@ const day = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
 async function load(signal: AbortSignal): Promise<Ready | null> {
-  const [me, consents, residence, readiness, settings, equipment, walkthrough] = await Promise.all([
-    fetchMe(signal),
-    fetchConsents(signal),
-    fetchResidence(signal),
-    fetchReadiness(signal),
+  const [walkthrough, settings, equipment] = await Promise.all([
+    fetchWalkthrough(signal),
     fetchSettings(signal),
     fetchEquipment(signal),
-    fetchWalkthrough(signal),
   ])
-  if (!me || !consents || !residence || !readiness || !settings || !equipment || !walkthrough)
-    return null
-  const asked = consents.categories.find((c) => c.category === 'walkthrough')
+  if (!walkthrough || !settings || !equipment) return null
+  const { readiness } = walkthrough
   return {
-    owner: me.role === 'admin',
+    who: walkthrough.who,
     known: {
-      consent: asked?.open === false,
-      residence: !residence.country,
+      consent: !walkthrough.consent_open,
+      residence: !walkthrough.country,
       safety: readiness.due,
       ladders: walkthrough.ladders,
     },
@@ -171,8 +163,20 @@ export default function StartPage() {
     return frame(<SignInCard text="Sign in to set up your plan." />)
   if (loaded.status === 'error' || !draft)
     return frame(<RetryCard text="Couldn't load the walk-through. Check your connection." />)
+  if (loaded.ready.who === 'closed')
+    return frame(
+      <div className={card}>
+        <h1 className="m-0 mb-2 text-2xl">Your plan is under way</h1>
+        <p className="m-0 mb-3">
+          You've logged a workout, so the walk-through is closed. Change your minutes, kit and the
+          rest on Account, and each exercise's step on Plan.
+        </p>
+        <a href="/account">Go to Account</a>
+      </div>,
+    )
 
-  const { owner, known, answeredAt, kinds } = loaded.ready
+  const { who, known, answeredAt, kinds } = loaded.ready
+  const owner = who === 'owner_try_out'
   /** A change to what the ladder walk depends on starts its answers again; the same answer
    * given again (a new object, the same values) keeps them. */
   const change = (part: Partial<Draft>): Draft => {
