@@ -47,7 +47,7 @@ from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
 from training_coach.services import blocks, equipment, retests, user_settings, users
 from training_coach.services.blocks import load_kit
-from training_coach.services.plan_rows import in_cycle
+from training_coach.services.plan_rows import in_cycle, in_plan
 from training_coach.services.progress import (
     failure_sets,
     last_loads,
@@ -197,7 +197,8 @@ def first_on(session: Session, on: date) -> date | None:
 
 
 def picked_today(session: Session, on: date, tz: ZoneInfo) -> int | None:
-    """The session last picked for ``on`` with "Pick another" (ADR-0022), if any."""
+    """The session last picked for ``on`` with "Pick another" (ADR-0022), if any. A pick of a
+    session removed since doesn't hold, so a guided start never opens one (ADR-0093)."""
     start, end = (
         datetime.combine(d, time(0), tzinfo=tz).astimezone(UTC)
         for d in (on, on + timedelta(days=1))
@@ -209,7 +210,7 @@ def picked_today(session: Session, on: date, tz: ZoneInfo) -> int | None:
         .limit(1)
     )
     found = picked.get("picked") if isinstance(picked, dict) else None
-    return found if isinstance(found, int) else None
+    return found if isinstance(found, int) and in_plan(session, found) else None
 
 
 def rest_day(session: Session, on: date, tz: ZoneInfo) -> bool:

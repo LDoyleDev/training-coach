@@ -56,6 +56,7 @@ from training_coach.bot.messages import (
     NO_PLAN,
     NUDGE,
     NUDGE_TEST,
+    SESSION_GONE,
     SOMETHING_WENT_WRONG,
     STALE,
     picked_text,
@@ -83,6 +84,7 @@ from training_coach.services import (
     habits,
     health_summary,
     passkeys,
+    plan_rows,
     queue_actions,
     review,
     user_settings,
@@ -410,10 +412,14 @@ class Handlers:
         if press.action == "start":
             with session_scope(me.sessions) as session:
                 block = blocks.current(session, on, self.settings.tz)
-                plan = session_plan(session, tid, block, on=on)
+                gone = not plan_rows.in_plan(session, tid)  # removed since (ADR-0093)
+                plan = None if gone else session_plan(session, tid, block, on=on)
                 shown = guided.at_length(session, on, plan) if plan is not None else None
             await query.answer()
-            await reply(STALE if shown is None else session_detail_text(*shown))
+            if gone:
+                await reply(SESSION_GONE)
+            else:
+                await reply(STALE if shown is None else session_detail_text(*shown))
             return
 
         # Actions that change the queue: one transaction, then retire the old buttons.
@@ -436,7 +442,10 @@ class Handlers:
                 block = blocks.current(session, on, self.settings.tz)
                 offered = session_plan(session, tid, block)
                 picked = queue_actions.pick(session, tid, press.picked_id or 0, block)
-                text = picked_text(picked, offered.name) if picked and offered else None
+                if isinstance(picked, str):  # the picked session has left the plan
+                    text = SESSION_GONE
+                else:
+                    text = picked_text(picked, offered.name) if picked and offered else None
         await query.answer()
         await edit_quietly(query.edit_message_reply_markup(keep(None)))
         await reply(STALE if text is None else text, reply_markup=new_markup)

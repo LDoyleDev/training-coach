@@ -12,6 +12,7 @@ from training_coach.domain.progression import Progress
 from training_coach.domain.trim import TEST_DAY_WARM_UP_MINUTES, WARM_UP_MINUTES, WarmUp
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, shown
 from training_coach.services.guided import Length, work_groups
+from training_coach.services.plan_rows import GONE
 from training_coach.services.progress import NO_OPEN_STEP, Down, Feedback, Standing
 from training_coach.services.queue_actions import RestOutcome
 from training_coach.services.review import Review
@@ -27,6 +28,8 @@ SOMETHING_WENT_WRONG = "Something went wrong on my side. Try again in a minute."
 NUDGE = "Nothing logged today yet. {session} is still waiting: start it, rest or swap it."
 NUDGE_TEST = "Nothing logged today yet. {name} is still waiting: {where}."
 STALE = "That message is out of date. Send /today for the current session."
+# A button naming a session that has left the plan since (ADR-0093 Decided 12).
+SESSION_GONE = f"{GONE}. Send /today for the current session."
 
 
 UNIT = {ExerciseKind.REPS: "", ExerciseKind.SECONDS: "s", ExerciseKind.DURATION_MIN: " min"}

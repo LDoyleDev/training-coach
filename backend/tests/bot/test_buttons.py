@@ -20,7 +20,7 @@ from tests.bot.fakes import (
 )
 from training_coach.bot import buttons
 from training_coach.bot.app import Handlers
-from training_coach.bot.messages import SOMETHING_WENT_WRONG, STALE
+from training_coach.bot.messages import SESSION_GONE, SOMETHING_WENT_WRONG, STALE
 from training_coach.db.models import PlanState, SessionTemplate, Workout
 from training_coach.domain.enums import WorkoutStatus
 
@@ -193,10 +193,19 @@ async def test_push_to_tomorrow(application: App, seeded: Sessions) -> None:
     assert _workouts(seeded) == [(tid, WorkoutStatus.SKIPPED)]
 
 
-@pytest.mark.parametrize("action", ["rest", "push", "next", "start"])
+@pytest.mark.parametrize("action", ["rest", "push", "next"])
 async def test_a_stale_button_says_so(application: App, seeded: Sessions, action: str) -> None:
     calls = await run(application, press(f"q:{action}:999", OWNER))
     assert texts(calls) == [STALE]
+    assert _workouts(seeded) == []
+
+
+async def test_start_on_no_session_of_mine_says_it_is_not_in_the_plan(
+    application: App, seeded: Sessions
+) -> None:
+    """Start opens the session its button names, so it checks that one (ADR-0093)."""
+    calls = await run(application, press("q:start:999", OWNER))
+    assert texts(calls) == [SESSION_GONE]
     assert _workouts(seeded) == []
 
 

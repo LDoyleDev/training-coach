@@ -207,3 +207,22 @@ he wants the map counted over the cycle's own length.
   - a cycle change writes one notice, and an item edit writes none.
 - `plans-per-person.md`'s "Writes", ADR-0091's "every existing session has 0" and the deploy
   runbook's line on removing a session are brought up to date here.
+
+## Addendum (10 Nov 2026): the guards for Decided 11 and 12 (#718)
+
+- **Undo.** `undo.CYCLE_CHANGED` (`"plan.cycle_changed"`) is defined in `services/undo.py`, beside
+  the kinds `_latest` reads; `plan_edit.save` writes it. The newest of those kinds being a cycle
+  change answers "changed" (or "too old" past the window).
+- **Old ids.** `plan_rows.in_plan` and `plan_rows.GONE` are the one check and the one wording:
+  - `pick` answers `GONE`: the web gets 409 with it (the page reloads, as for a stale change),
+    Telegram the words and "Send /today".
+  - The Log page: `GET /api/log/plan` is 404 with it, and a save, as a session or an extra, is
+    422 with it.
+  - A proposal naming a removed session is discarded with "Not saved: that session is no longer
+    in your plan". One that names no session is an extra and saves as before; asked again, the
+    AI's sets are read against the plan as it is now.
+  - A guided start: a pick of a session removed since no longer holds (`today.picked_today`), so
+    the web's guided session and a typed log fall back to the queue's session.
+- **Telegram's Start was not safe**, unlike Rest, Push and Swap: it opened the session the button
+  named without checking the pointer, so an old Start showed a retired session's empty list. It
+  now answers the words too.
