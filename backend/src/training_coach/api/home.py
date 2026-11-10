@@ -1,7 +1,6 @@
 """The home screen for the web app (B1): what has been done, then today. Owner-only."""
 
 from datetime import UTC, date, datetime
-from typing import Literal
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
@@ -67,7 +66,7 @@ class HomeView(BaseModel):
     today_usual_minutes: int | None  # how long it usually takes, once timed (ADR-0061)
     # Who the walk-through is for, as GET /api/walkthrough says it: a member sees the set-up
     # card until it's done or closed (ADR-0092).
-    walkthrough: Literal["member", "owner_try_out", "done", "closed"]
+    walkthrough: walkthrough_preview.Who
 
 
 def _week(found: service.Week) -> HomeWeekView:
