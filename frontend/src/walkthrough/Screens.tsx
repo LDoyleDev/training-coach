@@ -12,15 +12,9 @@ import NoteCard from '../readiness/NoteCard'
 import { ANSWER_LABELS, INTRO, noteFor, QUESTIONS } from '../readiness/questions'
 import { primary, secondary } from '../ui'
 import Figure from '../figures/Figure'
+import { choice } from './choice'
 import { type AvoidKey, type Draft, type Places, WEEKDAYS } from './flow'
 import type { CanDo } from './walk'
-
-/** A one-tap answer, pressed when it's the one chosen (as Account's switches). */
-const choice = (on: boolean) =>
-  'min-h-14 w-full rounded-xl border-2 px-4 py-2 text-left text-lg font-bold ' +
-  (on
-    ? 'border-[var(--bell-ink)] bg-[var(--bell-ink)] text-[var(--chalk)]'
-    : 'border-[var(--ink)] text-[var(--ink)]')
 
 /** A choice with a second line under its name. (Not Tailwind's `block`: index.css has its own
  * `.block`, a page section with a rule above it.) */

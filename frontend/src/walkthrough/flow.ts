@@ -24,9 +24,12 @@ export interface Draft {
   days: number[] // the weekdays tapped, 0 Monday
   minutes: number | null // per session; null as long as it takes
   count: number | null // exercises per session; null as planned
+  chosen: Record<string, number> // per exercise, the step picked on the plan screen over the walk's
+  putBack: boolean // the split squat a level of 1 leaves out, put back
 }
 
-/** What the ladder walk depends on: a change to any of these starts the answers again. */
+/** What the ladder walk depends on: a change to any of these starts the answers again, and the
+ * steps picked on the plan screen. */
 export const WALKED_FROM: (keyof Draft)[] = ['about', 'avoid', 'places', 'kit']
 
 /** What the server already has, read as the walk-through opens: those screens are skipped. */
@@ -64,19 +67,31 @@ export const ORDER: { id: string; n: number }[] = [
   { id: 'days', n: 10 },
   { id: 'minutes', n: 11 },
   { id: 'count', n: 12 },
-  { id: 'next', n: 13 },
+  { id: 'plan', n: 13 },
 ]
 
 export const numberOf = (id: string) =>
   id.startsWith('ladder:') ? 9 : (ORDER.find((s) => s.id === id)?.n ?? 0)
 
-/** A ladder's steps for this person: open unless a lock or a missing question rules it out. A
- * gym has every kit (ADR-0071); at home, or at both, the home kit locks. */
+/** The avoid switches that are on, as the marks they avoid ("floor", ...). */
+export const avoided = (draft: Draft) =>
+  Object.entries(draft.avoid).flatMap(([key, on]) => (on ? [key.slice('avoid_'.length)] : []))
+
+/** What locks a step for this person. A gym has every kit (ADR-0071); at home, or at both, the
+ * home kit locks. */
+const limitsOf = (draft: Draft) => ({
+  kit: draft.places === 'gym' ? null : draft.kit,
+  avoid: new Set(avoided(draft)),
+})
+
+/** The steps of a ladder that can be picked on the plan screen: the bottom, everyone's, and each
+ * step no lock rules out. */
+export const openSteps = (ladder: WalkLadder, draft: Draft) =>
+  ladder.steps.filter((step, i) => i === 0 || isOpen(step, limitsOf(draft)))
+
+/** A ladder's steps for this person: open unless a lock or a missing question rules it out. */
 export function rungsOf(ladder: WalkLadder, draft: Draft): Rung[] {
-  const avoid = new Set(
-    Object.entries(draft.avoid).flatMap(([key, on]) => (on ? [key.slice('avoid_'.length)] : [])),
-  )
-  const limits = { kit: draft.places === 'gym' ? null : draft.kit, avoid }
+  const limits = limitsOf(draft)
   return ladder.steps.map((step) => ({
     id: step.id,
     level: step.level ?? Infinity, // no level: never where a walk starts, still asked on the way
