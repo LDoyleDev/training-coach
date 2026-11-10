@@ -31,17 +31,26 @@ import {
   withItem,
   type Draft,
 } from './editLogic'
+import { baselines, cycleBody, cycleChanged, cycleOf, NEW, type Entry } from './cycleDraft'
+import YourCycle from './YourCycle'
 
 type State =
   | { status: 'loading' }
   | { status: 'signed-out' }
   | { status: 'error' }
-  | { status: 'ready'; loaded: Loaded; draft: Draft }
+  | { status: 'ready'; loaded: Loaded; draft: Draft; cycle: Entry[] }
 
 const WHY: Record<string, string> = {
   stale: 'Your plan changed since you opened this. Reload to see it, then make your edit again.',
   'in-progress': 'Finish or discard your session in progress first: its sets follow today’s list.',
 }
+
+const readyOf = (loaded: Loaded): State => ({
+  status: 'ready',
+  loaded,
+  draft: draftOf(loaded.sessions),
+  cycle: cycleOf(loaded.sessions),
+})
 
 const SETTLE_MS = 400 // after the last tap, ask for the map once
 
@@ -229,7 +238,7 @@ export default function PlanEdit() {
     fetchPlanEdit(controller.signal)
       .then((loaded) => {
         if (loaded === null) return setState({ status: 'signed-out' })
-        setState({ status: 'ready', loaded, draft: draftOf(loaded.sessions) })
+        setState(readyOf(loaded))
         setSlug(loaded.sessions[0]?.slug ?? null)
       })
       .catch(() => setState({ status: 'error' }))
@@ -237,7 +246,18 @@ export default function PlanEdit() {
   }, [])
 
   const pending = useMemo(
-    () => (state.status === 'ready' ? changed(state.draft, state.loaded.sessions) : []),
+    () =>
+      state.status === 'ready'
+        ? changed(state.draft, baselines(state.cycle, state.loaded.sessions))
+        : [],
+    [state],
+  )
+  // The cycle is sent only when it differs: without it nothing structural changes (ADR-0093).
+  const cycle = useMemo(
+    () =>
+      state.status === 'ready' && cycleChanged(state.cycle, state.loaded.sessions)
+        ? cycleBody(state.cycle)
+        : undefined,
     [state],
   )
 
@@ -245,12 +265,12 @@ export default function PlanEdit() {
   const mapPlace: Place = place === 'gym' ? 'gym' : 'home'
   const [map, setMap] = useState<MapState>({ status: 'loading' })
   const ready = state.status === 'ready'
-  const draftKey = JSON.stringify(pending)
+  const draftKey = JSON.stringify([pending, cycle])
   useEffect(() => {
     if (!ready) return
     const controller = new AbortController()
     const timer = setTimeout(() => {
-      previewCoverage({ place: mapPlace, versions: pending }, controller.signal)
+      previewCoverage({ place: mapPlace, versions: pending, cycle }, controller.signal)
         .then((coverage) => setMap(coverage ? { status: 'ready', coverage } : { status: 'hidden' }))
         .catch((err: unknown) => {
           if (controller.signal.aborted) return
@@ -264,7 +284,7 @@ export default function PlanEdit() {
       clearTimeout(timer)
       controller.abort()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- draftKey stands for pending
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- draftKey stands for the draft
   }, [ready, mapPlace, draftKey])
 
   if (state.status === 'loading')
@@ -289,7 +309,7 @@ export default function PlanEdit() {
     )
 
   const { loaded, draft } = state
-  const session = loaded.sessions.find((s) => s.slug === slug) ?? loaded.sessions[0]
+  const session = state.cycle.find((s) => s.slug === slug) ?? state.cycle[0]
   if (!session) return null
   const items = draft[session.slug]![place]
   const set = (next: EditItem[]) => {
@@ -308,10 +328,13 @@ export default function PlanEdit() {
         revision: loaded.revision,
         note: note.trim(),
         versions: pending,
+        ...(cycle && { cycle }),
       })
       if (saved.status !== 'saved') return setSaid(WHY[saved.reason] ?? saved.reason)
+      // A new session being edited reopens under the slug Save gave it.
+      if (session.slug.startsWith(NEW)) setSlug(saved.slugs[session.slug.slice(NEW.length)] ?? null)
       const fresh = await fetchPlanEdit()
-      if (fresh) setState({ status: 'ready', loaded: fresh, draft: draftOf(fresh.sessions) })
+      if (fresh) setState(readyOf(fresh))
       setNote('')
       setSaid('Saved as a new version of your plan.')
     } catch (error) {
@@ -325,13 +348,38 @@ export default function PlanEdit() {
     }
   }
 
-  const empty = place === 'gym' ? 'Done the same way at the gym.' : 'No away version.'
+  const empty =
+    place === 'home'
+      ? 'No exercises yet.'
+      : place === 'gym'
+        ? 'Done the same way at the gym.'
+        : 'No away version.'
+  const next = loaded.sessions.find((s) => s.next)?.slug ?? null
   return (
     <AppShell>
       <h1 className="text-3xl font-extrabold">Edit your plan</h1>
       <p className="m-0">
         Nothing changes until you save. <a href="/plan">Back to your plan</a>
       </p>
+      <YourCycle
+        cycle={state.cycle}
+        next={next}
+        onChange={(now) => {
+          setSaid(null)
+          setState({ ...state, cycle: now })
+        }}
+        onAdd={(now, entry) => {
+          // A copy starts from its session as drafted; an empty one opens the picker at once.
+          const from = entry.copyOf ? draft[entry.copyOf]! : { home: [], gym: [], away: [] }
+          setSaid(null)
+          setState({ ...state, cycle: now, draft: { ...draft, [entry.slug]: from } })
+          setSlug(entry.slug)
+          setPlace('home')
+          setForMuscle('')
+          setPicking(entry.copyOf ? null : 'add')
+          document.getElementById('edit-items')?.scrollIntoView?.({ behavior: 'smooth' })
+        }}
+      />
       <section id="edit-items" className={`${card} flex flex-col gap-3`} aria-label="Session">
         <label className="flex flex-col gap-1">
           <span>Session</span>
@@ -343,7 +391,7 @@ export default function PlanEdit() {
               setPicking(null)
             }}
           >
-            {loaded.sessions.map((s) => (
+            {state.cycle.map((s) => (
               <option key={s.slug} value={s.slug}>
                 {s.name}
               </option>
@@ -438,7 +486,7 @@ export default function PlanEdit() {
         <button
           type="button"
           className={`${primaryInline} self-start`}
-          disabled={busy || pending.length === 0 || note.trim() === ''}
+          disabled={busy || (pending.length === 0 && !cycle) || note.trim() === ''}
           onClick={() => void save()}
         >
           Save as a new version
