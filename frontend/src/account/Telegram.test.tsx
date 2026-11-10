@@ -167,6 +167,28 @@ test('cancel ends the link', async () => {
   expect(asked).toContain(`DELETE ${STATUS}/link`)
 })
 
+test('a link nobody opened, after a reload, can be made again', async () => {
+  // The link is shown once (only its hash is kept), so a reload loses it.
+  const asked = serve({
+    [`GET ${STATUS}`]: [pending(0), pending(0)],
+    [`POST ${STATUS}/link`]: { status: 200, body: { url: URL, expires_at: '2026-11-08T12:10Z' } },
+  })
+  render(<Telegram />)
+  expect(await screen.findByText(/The link to the bot is shown only once/)).toBeVisible()
+  expect(screen.queryByRole('link', { name: 'Open Telegram' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Make a new link' }))
+  expect(await screen.findByRole('link', { name: 'Open Telegram' })).toHaveAttribute('href', URL)
+  expect(screen.queryByRole('button', { name: 'Make a new link' })).toBeNull()
+  expect(asked).toContain(`POST ${STATUS}/link`)
+})
+
+test('a link opened already, after a reload, asks for the code only', async () => {
+  serve({ [`GET ${STATUS}`]: pending(1) })
+  render(<Telegram />)
+  expect(await screen.findByRole('textbox', { name: 'Code from the bot' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Make a new link' })).toBeNull()
+})
+
 test('the bot being off is said plainly', async () => {
   serve({ [`GET ${STATUS}`]: status(), [`POST ${STATUS}/link`]: { status: 503 } })
   render(<Telegram />)
