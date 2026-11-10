@@ -21,6 +21,7 @@ from training_coach.domain.dates import day_problem
 from training_coach.domain.enums import CardioActivity
 from training_coach.services import blocks, cardio, guided, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
+from training_coach.services.plan_rows import in_cycle
 from training_coach.services.today import SessionPlan, session_plan
 
 REST_TODAY = "to rest today, use Rest today on Today"
@@ -39,7 +40,9 @@ class Choice:
 
 def choices(session: Session) -> list[Choice]:
     """Every session in the plan, in plan order."""
-    rows = session.scalars(select(SessionTemplate).order_by(SessionTemplate.position))
+    rows = session.scalars(
+        select(SessionTemplate).where(in_cycle()).order_by(SessionTemplate.position)
+    )
     return [Choice(t.id, t.name, t.kind) for t in rows]
 
 

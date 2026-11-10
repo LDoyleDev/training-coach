@@ -58,6 +58,7 @@ from training_coach.domain.muscles import (
 from training_coach.domain.parser import normalise_name
 from training_coach.domain.step_levels import Mark, StepLevel, first_fall
 from training_coach.domain.stretching import Stretch
+from training_coach.services.plan_rows import in_cycle
 from training_coach.services.users import OWNER
 
 log = structlog.get_logger(__name__)
@@ -728,12 +729,13 @@ def sync_sessions(
     exercises: dict[str, Exercise],
     result: SeedResult,
 ) -> None:
-    """Make this person's sessions match ``sessions``: a new one's items, or an existing one's
-    by position. Items removed from a session are deleted (nothing else references them)."""
+    """Make this person's sessions in the cycle match ``sessions``: a new one's items, or an
+    existing one's by position. Items removed from a session are deleted (nothing else
+    references them). Retired sessions are left as they are, parked (ADR-0093)."""
     templates = {
         t.slug: t
         for t in session.scalars(
-            select(SessionTemplate).where(SessionTemplate.user_id == user_id),
+            select(SessionTemplate).where(SessionTemplate.user_id == user_id, in_cycle()),
             execution_options={ALL_USERS: True},
         )
     }
@@ -912,7 +914,7 @@ def start_person(
         is None
     ):
         first = session.scalars(
-            sessions.order_by(SessionTemplate.position), execution_options=mine
+            sessions.where(in_cycle()).order_by(SessionTemplate.position), execution_options=mine
         ).first()
         session.add(PlanState(user_id=user_id, next_template_id=first))
         result.created += 1

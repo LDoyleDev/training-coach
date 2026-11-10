@@ -47,6 +47,7 @@ from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
 from training_coach.services import blocks, equipment, retests, user_settings, users
 from training_coach.services.blocks import load_kit
+from training_coach.services.plan_rows import in_cycle
 from training_coach.services.progress import (
     failure_sets,
     last_loads,
@@ -131,7 +132,7 @@ class Day:
 
 
 def _order(session: Session) -> list[SessionTemplate]:
-    query = select(SessionTemplate).order_by(SessionTemplate.position)
+    query = select(SessionTemplate).where(in_cycle()).order_by(SessionTemplate.position)
     return list(session.scalars(query))
 
 
@@ -141,7 +142,7 @@ def position(session: Session) -> Position | None:
     if state is None or state.next_template_id is None:
         return None
     # Queued ids have no foreign key; drop any whose session has left the plan.
-    known = set(session.scalars(select(SessionTemplate.id)))
+    known = set(session.scalars(select(SessionTemplate.id).where(in_cycle())))
     return Position(state.next_template_id, tuple(t for t in state.queued if t in known))
 
 
@@ -373,7 +374,8 @@ def today(session: Session, on: date, tz: ZoneInfo | None = None) -> Today | Non
     plan = session_plan(session, current.pointer, block, on=on) if current is not None else None
     if plan is None:
         return None
-    names = {t.id: t.name for t in _order(session)}
+    # Every row, retired ones too: a session done today keeps its name once removed (ADR-0093).
+    names = dict(session.execute(select(SessionTemplate.id, SessionTemplate.name)).all())
     logged = session.scalars(
         select(Workout).where(Workout.local_date == on).order_by(Workout.created_at)
     )

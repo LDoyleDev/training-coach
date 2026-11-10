@@ -17,6 +17,7 @@ from training_coach.domain.blocks import Block
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import Position, complete, swap_with_next
 from training_coach.services import undo, users
+from training_coach.services.plan_rows import in_cycle
 from training_coach.services.today import SessionPlan, position, session_plan
 
 
@@ -52,7 +53,8 @@ def _hold(session: Session, template_id: int, on: date, status: WorkoutStatus) -
 
 
 def _order(session: Session) -> list[int]:
-    return list(session.scalars(select(SessionTemplate.id).order_by(SessionTemplate.position)))
+    query = select(SessionTemplate.id).where(in_cycle()).order_by(SessionTemplate.position)
+    return list(session.scalars(query))
 
 
 def _current(session: Session, template_id: int) -> Position:
@@ -148,6 +150,8 @@ def next_up(session: Session) -> tuple[int, str] | None:
 def choices(session: Session) -> list[tuple[int, str]]:
     """Every session in plan order, for the pick menu."""
     rows = session.execute(
-        select(SessionTemplate.id, SessionTemplate.name).order_by(SessionTemplate.position)
+        select(SessionTemplate.id, SessionTemplate.name)
+        .where(in_cycle())
+        .order_by(SessionTemplate.position)
     )
     return [(template_id, name) for template_id, name in rows]

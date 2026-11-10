@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from tests import factories
 from tests.services.test_seed import MINI_PLAN, _sessions
 from training_coach.db.models import (
     PlanVersion,
@@ -181,6 +182,35 @@ def test_a_session_missing_from_the_file_blocks_it(session: Session, plan: PlanS
     assert "Upper" in found.blocked
     names = session.scalars(select(SessionTemplate.name).order_by(SessionTemplate.position))
     assert list(names) == ["Upper", "Arms"]
+
+
+def _retire_arms(session: Session) -> None:
+    arms = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "arms")).one()
+    factories.retire(session, arms, TODAY)
+    session.commit()
+
+
+def test_a_retired_session_missing_from_the_file_is_left_alone(
+    session: Session, plan: PlanSeed
+) -> None:
+    """A workout names it, so it stays, out of the cycle (ADR-0093); the file need not have it."""
+    _retire_arms(session)
+    head, blocks = _sessions(MORE_SETS)
+    found = plan_import.save(session, load_plan(head + blocks[0]), TODAY)
+    assert found.blocked is None
+    assert found.changes == ("Upper: Pull-up, 4 x 5-12 becomes 5 x 5-12",)
+    rows = session.execute(select(SessionTemplate.slug, SessionTemplate.position)).all()
+    arms = session.scalars(select(SessionTemplate.id).where(SessionTemplate.slug == "arms")).one()
+    assert sorted(rows) == [("arms", 10_000 + arms), ("upper", 0)]  # still parked
+
+
+def test_a_retired_session_the_file_still_has_blocks_it(session: Session, plan: PlanSeed) -> None:
+    """Its slug is taken, so it can't be made again; putting it back is a later step."""
+    _retire_arms(session)
+    found = plan_import.save(session, plan, TODAY)
+    assert found.changes == ("New session: Arms",)
+    assert found.blocked == "Arms was removed from your plan and can't be put back this way."
+    assert session.scalar(select(SessionTemplate.retired_on).where(SessionTemplate.slug == "arms"))
 
 
 def test_an_exercise_the_seed_hasnt_added_blocks_it(session: Session, plan: PlanSeed) -> None:
