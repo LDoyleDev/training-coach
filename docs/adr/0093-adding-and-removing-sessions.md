@@ -260,3 +260,18 @@ he wants the map counted over the cycle's own length.
   `cycle_days`, and the `session_minutes` and `session_exercises` it counted at (null: as
   planned). The saved and draft maps count at the person's settings; the walk-through's at the
   choices it previews. `plan_coverage` takes the cycle's days from the sessions it counts.
+
+## Addendum (11 Nov 2026): what's next and today in "Saving will" (#730)
+
+- **`GET /api/plan/edit`** also answers what Save's queue reads, by slug: `last_done` (the
+  planned session done or rested last, a retired one's too; null: none yet) and `queued` (a
+  swap's sessions). And `today`: `kind` (`done`, `rest` or `session`), `session` (the slug done,
+  picked or next), `since_last` (days since the session done last) and `picked`, from
+  `today.day_state`, which reads Today's own rules (`rest_days`, `picked_today`, the pointer).
+- **The list says what's next exactly**, with `cycleLogic.applied` fed the real last-done and
+  queue, and adds "Today becomes a rest day" or "Today has a session: X" when today changes. A
+  day already done, and a pick whose session stays, don't change. Today after the draft reads
+  `rest_days_left` on the last-done session's new rest days; the web's copy (`restDaysLeft`) is
+  checked against `cycle-cases.json`'s `rest_days_left` cases, which pytest reads too.
+- **An add comes first**: the rest days its split takes from the session before it are listed
+  after it, in the note too.

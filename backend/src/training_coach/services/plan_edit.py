@@ -12,6 +12,7 @@ import unicodedata
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date
+from zoneinfo import ZoneInfo
 
 import structlog
 from pydantic import ValidationError
@@ -173,6 +174,32 @@ def editable(session: Session) -> list[EditableSession]:
         )
         for t in rows
     ]
+
+
+@dataclass(frozen=True)
+class QueueNow:
+    """Where the queue stands, by slug, for the editor's "Saving will" list (ADR-0093): what
+    ``queue_after`` reads at Save, and today."""
+
+    last_done: str | None  # the planned session done or rested last; None: none yet
+    queued: tuple[str, ...]  # a swap's sessions still to come before the cycle resumes
+    today: queue_today.DayState
+    today_slug: str | None  # the session today's state names
+
+
+def queue_now(session: Session, on: date, tz: ZoneInfo) -> QueueNow:
+    """The queue as Save will read it, and ``on`` as Today shows it, by slug. A retired session
+    done last keeps its slug: history names it."""
+    slugs = dict(session.execute(select(SessionTemplate.id, SessionTemplate.slug)).all())
+    position = queue_today.position(session)
+    last = queue_today.last_done(session)
+    day = queue_today.day_state(session, on, tz)
+    return QueueNow(
+        slugs.get(last) if last is not None else None,
+        tuple(slugs[t] for t in position.queued) if position is not None else (),
+        day,
+        slugs.get(day.template_id) if day.template_id is not None else None,
+    )
 
 
 def revision(session: Session) -> str:

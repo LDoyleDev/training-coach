@@ -29,6 +29,9 @@ const VIEW = {
     { ...SESSION, slug: 'arms', name: 'Arms', home: [DIP] },
   ],
   limits: { max_sessions: 10, max_cycle_days: 14, max_rest: 6 },
+  last_done: null,
+  queued: [],
+  today: { kind: 'session', session: 'upper', since_last: null, picked: false },
   catalogue: [
     {
       slug: 'push-up',

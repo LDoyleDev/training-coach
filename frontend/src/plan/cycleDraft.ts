@@ -4,7 +4,7 @@
  * ("n1"), so `cycleLogic` can tell them apart. Nothing is saved until Save.
  */
 
-import type { CycleEntry, EditSession, Place } from '../api'
+import type { CycleEntry, EditSession, Place, PlanEdit } from '../api'
 import { landing } from '../walkthrough/days'
 import {
   add,
@@ -12,6 +12,7 @@ import {
   days,
   move,
   remove,
+  restDaysLeft,
   withRest,
   type Applied,
   type Key,
@@ -174,27 +175,48 @@ export interface Saving {
 
 const restAfter = (n: number) => (n === 0 ? 'no rest days' : plural(n, 'rest day'))
 
-export function savingWill(cycle: Entry[], sessions: EditSession[]): Saving | null {
+/** Today after the draft (build plan item 6): a line when it changes, by Today's own rule
+ * (ADR-0091) on the queue `now`. A day already done, or a pick that still holds, stays. */
+function todayLine(
+  view: PlanEdit,
+  now: Applied,
+  keyOf: (slug: string | null) => number | null,
+  name: (k: Key) => string,
+): string | null {
+  const { today } = view
+  if (today.kind === 'done') return null
+  const picked = today.picked ? keyOf(today.session) : null
+  if (picked !== null && now.cycle.some((s) => s.key === picked)) return null
+  const rest =
+    today.since_last !== null && now.lastRest !== null
+      ? restDaysLeft(now.lastRest, today.since_last) > 0
+      : today.kind === 'rest' // before the start, or done last a session gone since: as it is
+  if (rest) return today.kind === 'rest' ? null : 'Today becomes a rest day'
+  if (today.kind === 'session' && keyOf(today.session) === now.pointer) return null
+  return `Today has a session: ${name(now.pointer)}`
+}
+
+export function savingWill(cycle: Entry[], view: PlanEdit): Saving | null {
+  const { sessions } = view
   if (!cycleChanged(cycle, sessions)) return null
-  const before = cycleOf(sessions)
+  const keyOf = (slug: string | null) => {
+    const at = sessions.findIndex((s) => s.slug === slug)
+    return at >= 0 ? at : null
+  }
   const was = Math.max(
     0,
     sessions.findIndex((s) => s.next),
   )
-  const position = { pointer: was, queued: [] }
-  // Decided 9's exception turns on the session done last, which the edit view doesn't say. The
-  // only one it can be is the session before the next, so both outcomes are worked out.
-  const last = (was - 1 + before.length) % before.length
+  const queued = view.queued.map(keyOf).filter((k): k is number => k !== null)
   let now: Applied
-  let ifLast: Applied
   try {
-    now = applied(before, cycle, position, null)
-    ifLast = applied(before, cycle, position, last)
+    now = applied(cycleOf(sessions), cycle, { pointer: was, queued }, keyOf(view.last_done))
   } catch {
     return null // over a limit: the card says why
   }
   const name = (k: Key) => cycle.find((e) => e.key === k)?.name ?? sessions[k as number]!.name
   const said: [string, string][] = [] // the line, and its words in the note
+  let split: [string, string] | null = null // a rest change an add right after it made
   cycle.forEach((e, i) => {
     if (typeof e.key === 'string') {
       const where = i === 0 ? 'first' : `after ${cycle[i - 1]!.name}`
@@ -202,6 +224,8 @@ export function savingWill(cycle: Entry[], sessions: EditSession[]): Saving | nu
         `Add ${e.name} ${where}, with ${restAfter(e.restAfter)} after it`,
         `added ${e.name}`,
       ])
+      if (split) said.push(split) // after the add that split its rest days
+      split = null
       return
     }
     const s = sessions[e.key]!
@@ -213,23 +237,25 @@ export function savingWill(cycle: Entry[], sessions: EditSession[]): Saving | nu
       const kind = kindLabel(e.kind).toLowerCase()
       said.push([`Make ${e.name} a ${kind} session`, `made ${e.name} a ${kind} session`])
     }
-    if (e.restAfter !== s.rest_after)
-      said.push([
+    if (e.restAfter !== s.rest_after) {
+      const rest: [string, string] = [
         `Give ${e.name} ${restAfter(e.restAfter)} after it`,
         `${e.name} now has ${restAfter(e.restAfter)} after it`,
-      ])
+      ]
+      if (typeof cycle[i + 1]?.key === 'string') split = rest
+      else said.push(rest)
+    }
   })
   for (const k of now.removed) said.push([`Remove ${name(k)}`, `removed ${name(k)}`])
   const next =
-    now.pointer === ifLast.pointer
-      ? now.pointer === was
-        ? `Next stays ${name(was)}`
-        : `Next: ${name(now.pointer)}, instead of ${name(was)}`
-      : `Next: ${name(ifLast.pointer)} if ${name(last)} was your last session, else ${name(now.pointer)}`
+    now.pointer === was
+      ? `Next stays ${name(was)}`
+      : `Next: ${name(now.pointer)}, instead of ${name(was)}`
+  const today = todayLine(view, now, keyOf, name)
   const joined = said.map(([, words]) => words).join('; ')
   const note = joined.length > NOTE_MAX ? `${said.length} changes to your sessions` : joined
   return {
-    lines: [...said.map(([line]) => line), next],
+    lines: [...said.map(([line]) => line), next, ...(today ? [today] : [])],
     note: note.charAt(0).toUpperCase() + note.slice(1),
   }
 }

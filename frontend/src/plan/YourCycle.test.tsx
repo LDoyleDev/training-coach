@@ -40,11 +40,16 @@ const PUSH = {
   needs: [],
   lengthened: false,
 }
-const view = (sessions: unknown[]) => ({
+const DONE_TODAY = { kind: 'done', session: null, since_last: 0, picked: false }
+const view = (sessions: unknown[], queue = {}) => ({
   revision: 'abc',
   sessions,
   catalogue: [PUSH],
   limits: { max_sessions: 10, max_cycle_days: 14, max_rest: 6 },
+  last_done: null,
+  queued: [],
+  today: DONE_TODAY, // today is settled: no Today line unless a test says otherwise
+  ...queue,
 })
 const WEEK = view([
   session('legs', 'Legs', 1, { kind: 'conditioning' }),
@@ -343,7 +348,7 @@ test('what is next: kept, moved off a removed session, or turning on the last se
   fireEvent.change(form.getByRole('combobox', { name: 'Goes after' }), { target: { value: '0' } })
   fireEvent.click(form.getByRole('button', { name: 'Add' }))
   expect(savingWill()).toContain('Add New session after Legs, with 1 rest day after it')
-  expect(savingWill().at(-1)).toBe('Next: New session if Legs was your last session, else Arms')
+  expect(savingWill().at(-1)).toBe('Next: Arms, instead of Torso') // nothing done yet
   expect(noteBox()).toHaveValue('My words') // typed words stay
 })
 
@@ -362,4 +367,87 @@ test('a renamed or rekinded session is listed, and a long list makes a short not
   })
   fireEvent.click(card.getByRole('button', { name: 'Done' }))
   expect(savingWill()[0]).toBe('Rename Session number 1 to First')
+})
+
+const WEEK_ON = (queue: object) => view(WEEK.sessions, queue)
+const removeSession = (card: ReturnType<typeof within>, name: string) => {
+  fireEvent.click(card.getByRole('button', { name: `Remove ${name}` }))
+  fireEvent.click(
+    within(card.getByRole('group', { name: `Remove ${name}` })).getByRole('button', {
+      name: 'Remove',
+    }),
+  )
+}
+
+test('a session added straight after the one done last is next, its split after it', async () => {
+  serve(WEEK_ON({ last_done: 'legs' }))
+  render(<PlanEdit />)
+  const card = await cycleCard()
+  fireEvent.click(card.getByRole('button', { name: 'Add a session' }))
+  const form = within(card.getByRole('form', { name: 'Add a session' }))
+  fireEvent.change(form.getByRole('combobox', { name: 'Goes after' }), { target: { value: '0' } })
+  fireEvent.click(form.getByRole('button', { name: 'Add' }))
+  expect(savingWill()).toEqual([
+    'Add New session after Legs, with no rest days after it',
+    'Give Legs no rest days after it',
+    'Next: New session, instead of Torso',
+  ])
+  expect(noteBox()).toHaveValue('Added New session; Legs now has no rest days after it')
+})
+
+test("a swap's queue is next when the next session goes", async () => {
+  serve(WEEK_ON({ queued: ['legs'] }))
+  render(<PlanEdit />)
+  removeSession(await cycleCard(), 'Torso')
+  expect(savingWill().at(-1)).toBe('Next: Legs, instead of Torso')
+})
+
+test('a rest day today becomes a session day when its rest days go', async () => {
+  const rest = { kind: 'rest', session: null, since_last: 1, picked: false }
+  serve(WEEK_ON({ last_done: 'legs', today: rest }))
+  render(<PlanEdit />)
+  const card = await cycleCard()
+  fireEvent.click(card.getByRole('button', { name: 'One rest day fewer after Legs' }))
+  expect(savingWill().slice(-2)).toEqual(['Next stays Torso', 'Today has a session: Torso'])
+  fireEvent.click(card.getByRole('button', { name: 'One rest day more after Legs' }))
+  fireEvent.click(card.getByRole('button', { name: 'One rest day more after Legs' }))
+  expect(savingWill().at(-1)).toBe('Next stays Torso') // still a rest day
+})
+
+test('a session day today becomes a rest day, or has another session', async () => {
+  const offered = { kind: 'session', session: 'torso', since_last: 2, picked: false }
+  serve(WEEK_ON({ last_done: 'legs', today: offered }))
+  render(<PlanEdit />)
+  const card = await cycleCard()
+  fireEvent.click(card.getByRole('button', { name: 'One rest day more after Legs' }))
+  expect(savingWill().at(-1)).toBe('Today becomes a rest day')
+  fireEvent.click(card.getByRole('button', { name: 'One rest day fewer after Legs' }))
+  fireEvent.click(card.getByRole('button', { name: 'Add a session' }))
+  const form = within(card.getByRole('form', { name: 'Add a session' }))
+  fireEvent.change(form.getByRole('combobox', { name: 'Goes after' }), { target: { value: '0' } })
+  fireEvent.click(form.getByRole('button', { name: 'Add' }))
+  expect(savingWill().slice(-2)).toEqual([
+    'Next: New session, instead of Torso',
+    'Today has a session: New session',
+  ])
+})
+
+test('a pick today holds, unless its session goes; before the start nothing changes', async () => {
+  const picked = { kind: 'session', session: 'arms', since_last: 1, picked: true }
+  serve(WEEK_ON({ last_done: 'legs', today: picked }))
+  render(<PlanEdit />)
+  const card = await cycleCard()
+  fireEvent.click(card.getByRole('button', { name: 'One rest day more after Legs' }))
+  expect(savingWill().at(-1)).toBe('Next stays Torso')
+  removeSession(card, 'Arms')
+  expect(savingWill().at(-1)).toBe('Today becomes a rest day')
+})
+
+test('before the plan starts, a rest day stays one', async () => {
+  const waiting = { kind: 'rest', session: null, since_last: null, picked: false }
+  serve(WEEK_ON({ today: waiting }))
+  render(<PlanEdit />)
+  const card = await cycleCard()
+  fireEvent.click(card.getByRole('button', { name: 'One rest day fewer after Legs' }))
+  expect(savingWill().at(-1)).toBe('Next stays Torso')
 })

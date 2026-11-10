@@ -270,7 +270,7 @@ export default function PlanEdit() {
     [state],
   )
   const saving = useMemo(
-    () => (state.status === 'ready' ? savingWill(state.cycle, state.loaded.sessions) : null),
+    () => (state.status === 'ready' ? savingWill(state.cycle, state.loaded) : null),
     [state],
   )
   const note = typed ?? saving?.note ?? ''

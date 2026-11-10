@@ -2025,6 +2025,54 @@
         "title": "EditSessionView",
         "type": "object"
       },
+      "EditTodayView": {
+        "description": "Today as the queue holds it (ADR-0091), so \"Saving will\" can say whether a cycle change\nchanges it (ADR-0093).",
+        "properties": {
+          "kind": {
+            "enum": [
+              "done",
+              "rest",
+              "session"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "picked": {
+            "title": "Picked",
+            "type": "boolean"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          },
+          "since_last": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since Last"
+          }
+        },
+        "required": [
+          "kind",
+          "session",
+          "since_last",
+          "picked"
+        ],
+        "title": "EditTodayView",
+        "type": "object"
+      },
       "Effort": {
         "description": "How hard: able to talk in sentences, or sometimes out of breath.",
         "enum": [
@@ -6027,8 +6075,26 @@
             "title": "Catalogue",
             "type": "array"
           },
+          "last_done": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Done"
+          },
           "limits": {
             "$ref": "#/components/schemas/LimitsView"
+          },
+          "queued": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Queued",
+            "type": "array"
           },
           "revision": {
             "title": "Revision",
@@ -6040,13 +6106,19 @@
             },
             "title": "Sessions",
             "type": "array"
+          },
+          "today": {
+            "$ref": "#/components/schemas/EditTodayView"
           }
         },
         "required": [
           "revision",
           "sessions",
           "catalogue",
-          "limits"
+          "limits",
+          "last_done",
+          "queued",
+          "today"
         ],
         "title": "PlanEditView",
         "type": "object"

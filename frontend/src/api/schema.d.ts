@@ -3051,6 +3051,24 @@ export interface components {
             slug: string;
         };
         /**
+         * EditTodayView
+         * @description Today as the queue holds it (ADR-0091), so "Saving will" can say whether a cycle change
+         *     changes it (ADR-0093).
+         */
+        EditTodayView: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "done" | "rest" | "session";
+            /** Picked */
+            picked: boolean;
+            /** Session */
+            session: string | null;
+            /** Since Last */
+            since_last: number | null;
+        };
+        /**
          * Effort
          * @description How hard: able to talk in sentences, or sometimes out of breath.
          * @enum {string}
@@ -4409,11 +4427,16 @@ export interface components {
         PlanEditView: {
             /** Catalogue */
             catalogue: components["schemas"]["CatalogueItemView"][];
+            /** Last Done */
+            last_done: string | null;
             limits: components["schemas"]["LimitsView"];
+            /** Queued */
+            queued: string[];
             /** Revision */
             revision: string;
             /** Sessions */
             sessions: components["schemas"]["EditSessionView"][];
+            today: components["schemas"]["EditTodayView"];
         };
         /** PlanImportView */
         PlanImportView: {
