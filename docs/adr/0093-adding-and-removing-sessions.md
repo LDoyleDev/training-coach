@@ -112,7 +112,11 @@ he wants the map counted over the cycle's own length.
     removals are listed too: "Removes Legs 2: its history stays", retired or deleted as in 5. A
     retired row whose slug `plan.toml` has is listed as "Puts back High intensity". He sees the
     list and decides. This ends the 1.18.0 known limit, and the deploy runbook's rule that
-    removing a session needs a data migration.
+    removing a session needs a data migration. The sessions after an import are exactly the
+    file's, under the file's names, so a put-back session takes its name from `plan.toml`, and
+    a live session not in the file is removed in the same save. The names are checked by rule
+    3 over that result: a clash (two sessions with one name, or a name that is an exercise's
+    name or alias) is refused in words before anything is listed, and the file is fixed first.
 15. **The body map counts over the cycle's own length** (Liam's change: "the length of the
     plan, length of the cycle").
     - The sets and the days a muscle is trained are counted over the whole cycle, as the code
