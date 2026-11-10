@@ -1726,6 +1726,9 @@ export async function fetchWalkthrough(signal?: AbortSignal): Promise<Walkthroug
 }
 
 export type Outcomes = Schemas['Outcomes']
+export type WalkAnswers = Schemas['AnswersBody']
+export type WalkSaveBody = Schemas['WalkthroughSaveBody']
+export type WalkSaved = Schemas['WalkthroughSavedView']
 export type Preview = Schemas['PreviewView']
 export type Fitted = Schemas['FittedView']
 export type FittedSession = Schemas['FittedSessionView']
@@ -1748,4 +1751,34 @@ export async function previewWalkthrough(
   if (res.status === 422) return { problem: await reason(res, 'That can’t be saved as it is.') }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Preview
+}
+
+/** Why Save was refused: the answers without a yes to keeping them, a workout logged since
+ * (``closed``), a session under way, or the plan changed since it loaded. */
+export type WalkRefused =
+  'consent_needed' | 'closed' | 'in-progress' | 'stale' | { problem: string }
+
+/** The one Save: the plan from these choices, and the answers only with consent (ADR-0092). */
+export async function saveWalkthrough(body: WalkSaveBody): Promise<WalkSaved | WalkRefused> {
+  const res = signedIn(
+    await fetch('/api/walkthrough', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: json,
+      body: JSON.stringify(body),
+    }),
+  )
+  if (res.status === 403) {
+    const found = (await res.json().catch(() => null)) as {
+      detail?: { consent_needed?: string }
+    } | null
+    if (found?.detail?.consent_needed) return 'consent_needed'
+  }
+  if (res.status === 409) {
+    const detail = ((await res.json().catch(() => ({}))) as { detail?: unknown }).detail
+    if (detail === 'closed' || detail === 'in-progress' || detail === 'stale') return detail
+  }
+  if (res.status === 422) return { problem: await reason(res, 'That can’t be saved as it is.') }
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as WalkSaved
 }
