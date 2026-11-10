@@ -12,12 +12,23 @@ const PULL = {
   pair: null,
 }
 const DIP = { ...PULL, exercise: 'dip', name: 'Dip', sets: 3, rep_min: 8, rep_max: 15 }
+const SESSION = {
+  focus: 'x',
+  kind: 'strength',
+  rest_after: 2,
+  optional: false,
+  next: false,
+  logged: 0,
+  gym: [],
+  away: [],
+}
 const VIEW = {
   revision: 'abc',
   sessions: [
-    { slug: 'upper', name: 'Upper', focus: 'x', home: [PULL, DIP], gym: [], away: [] },
-    { slug: 'arms', name: 'Arms', focus: 'x', home: [DIP], gym: [], away: [] },
+    { ...SESSION, slug: 'upper', name: 'Upper', next: true, home: [PULL, DIP] },
+    { ...SESSION, slug: 'arms', name: 'Arms', home: [DIP] },
   ],
+  limits: { max_sessions: 10, max_cycle_days: 14, max_rest: 6 },
   catalogue: [
     {
       slug: 'push-up',

@@ -27,6 +27,7 @@ export type EditItem = Schemas['EditItemView']
 export type CatalogueItem = Schemas['CatalogueItemView']
 export type ItemChange = Schemas['ItemChange']
 export type PlanChanges = Schemas['PlanChanges']
+export type CycleEntry = NonNullable<PlanChanges['cycle']>[number]
 
 /** Your sessions with every version, and what you can choose from; null when not signed in. */
 export async function fetchPlanEdit(signal?: AbortSignal): Promise<PlanEdit | null> {
@@ -36,10 +37,13 @@ export async function fetchPlanEdit(signal?: AbortSignal): Promise<PlanEdit | nu
   return (await res.json()) as PlanEdit
 }
 
-/** Save a draft as one version. Refused: why ('stale', 'in-progress' or in words). */
+/** Save a draft as one version, with a new session's slug by its draft key. Refused: why
+ * ('stale', 'in-progress' or in words). */
 export async function savePlanChanges(
   body: PlanChanges,
-): Promise<{ status: 'saved' } | { status: 'refused'; reason: string }> {
+): Promise<
+  { status: 'saved'; slugs: Record<string, string> } | { status: 'refused'; reason: string }
+> {
   const res = signedIn(
     await fetch('/api/plan/changes', {
       method: 'POST',
@@ -53,7 +57,8 @@ export async function savePlanChanges(
     return { status: 'refused', reason: typeof detail === 'string' ? detail : 'Check your edits.' }
   }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
-  return { status: 'saved' }
+  const { slugs } = (await res.json()) as Schemas['PlanSavedView']
+  return { status: 'saved', slugs: slugs ?? {} }
 }
 
 export type Notice = Schemas['NoticeView']

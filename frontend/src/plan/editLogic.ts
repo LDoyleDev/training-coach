@@ -24,10 +24,11 @@ const same = (a: EditItem, b: EditItem) =>
   a.per_side === b.per_side &&
   a.pair === b.pair
 
-/** The versions that differ from what was loaded: only these are sent. */
+/** The versions that differ from what was loaded (a new session's: from its copy's, or none):
+ * only these are sent. */
 export function changed(
   draft: Draft,
-  sessions: EditSession[],
+  sessions: (Pick<EditSession, Place> & { slug: string })[],
 ): { slug: string; place: Place; items: ItemChange[] }[] {
   const out: { slug: string; place: Place; items: ItemChange[] }[] = []
   for (const session of sessions) {
