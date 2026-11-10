@@ -386,6 +386,12 @@ def _write_cycle(
     by draft key."""
     user = bound_user(session)
     assert user is not None  # noqa: S101 - checked by save
+    sources = {t.slug: t for t in write.by_id.values()}
+    copies = {  # read first: a copy of a session retired here would find its items gone
+        key: {p: [ItemSeed(**_facts(i).__dict__) for i in v] for p, v in _versions(t).items()}
+        for key, new in draft.added.items()
+        if (t := sources.get(new.copy_of or "")) is not None
+    }
     for sid in applied.removed:
         if sid in write.named:  # history holds it: retired, as exercises are (Decided 5)
             row = write.by_id[sid]
@@ -406,7 +412,7 @@ def _write_cycle(
         row.rest_after = entry.rest_after
     made: dict[str, SessionTemplate] = {}
     for key, new in draft.added.items():
-        source = next((t for t in write.by_id.values() if t.slug == new.copy_of), None)
+        source = sources.get(new.copy_of or "")
         row = SessionTemplate(
             user_id=user,
             slug=_slug(new.name, write.taken),
@@ -418,10 +424,8 @@ def _write_cycle(
             rest_after=new.rest_after,
         )
         session.add(row)
-        if source is not None:  # a copy has all three versions (Decided 17)
-            for place, items in _versions(source).items():
-                seeds = [ItemSeed(**_facts(i).__dict__) for i in items]
-                sync_version(user, _versions(row)[place], seeds, exercises, result)
+        for place, seeds in copies.get(key, {}).items():  # a copy has all three (Decided 17)
+            sync_version(user, _versions(row)[place], seeds, exercises, result)
         made[key] = row
     session.flush()
     state = users.plan_state(session)

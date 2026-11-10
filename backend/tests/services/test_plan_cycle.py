@@ -439,3 +439,23 @@ def test_a_session_in_progress_refuses_a_cycle_change(session: Session, plan: Pl
     assert found == plan_edit.IN_PROGRESS
     assert _live(session) == [(0, "upper"), (1, "arms")]
     assert _notices(session) == []
+
+
+def test_a_copy_of_a_session_retired_in_the_same_save_keeps_its_items(
+    session: Session, plan: PlanSeed
+) -> None:
+    """Replacing Arms with Arms 2: the copy is read before the retire clears Arms (review of
+    #719)."""
+    _save(session, plan, None, VersionEdit("arms", Place.GYM, (DIP, PULL)))
+    arms = _row(session, "arms")
+    session.add(Workout(local_date=TODAY - timedelta(days=1), template_id=arms.id, status="done"))
+    session.commit()
+    cycle = [
+        Kept("upper", "Upper", "strength", 0),
+        Added("n1", "Arms 2", "strength", 0, copy_of="arms"),
+    ]
+    assert isinstance(_save(session, plan, cycle), plan_edit.Saved)
+    assert _row(session, "arms").retired_on == TODAY
+    copy = _row(session, "arms-2")
+    assert [i.exercise.slug for i in copy.items] == ["dip"]
+    assert [i.exercise.slug for i in copy.gym_items] == ["dip", "pull-up"]
