@@ -48,13 +48,17 @@ he wants the map counted over the cycle's own length.
 1. **Where a new session goes.** The person picks "goes after". The suggestion is the session
    with the most rest days after it (on a tie, the later one), or the last session when none has
    rest days. The new session takes one of those rest days and the rest are split around it:
-   after X with r rest days, X keeps ceil((r-1)/2) and the new one gets floor((r-1)/2).
+   after X with r rest days (r of 1 or more), X keeps ceil((r-1)/2) and the new one gets
+   floor((r-1)/2), so the cycle keeps its length. With r = 0 (the owner's sessions today) both
+   get 0 and the cycle grows by one day.
 2. **What it starts as.** Empty (the picker opens at once; Save still needs one home exercise),
    or a copy of one of your sessions with its home, gym and away versions, kind and optional flag.
 3. **Name, focus and kind.**
    - Name: 1-40 characters, unique among your live sessions once normalised. It can't be an
      exercise's name or alias, and it can't read as a date or "today", because typed logs find
-     sessions by name.
+     sessions by name. Typed logs and every chooser read live sessions only, so a retired
+     session's name can be used again: the old days keep showing the name they were logged
+     under, which is the same words, and nothing looks a session up by name across retired rows.
    - Focus: a copy keeps it; an empty session gets its two most-trained muscles in words, at Save.
      It can be edited.
    - Kind: Strength, Cardio or Recovery, preselected from the copy (else Strength), each with a
