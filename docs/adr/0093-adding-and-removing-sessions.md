@@ -116,7 +116,9 @@ he wants the map counted over the cycle's own length.
     - The bands each region is coloured by (program-builder.md Decided 3) are weekly. They are
       stretched to the cycle: a band of 10-20 sets a week is 11.4-22.9 per 8-day cycle. So the
       colours stay true to the weekly evidence and the numbers stay what the cycle really holds.
-    - "On only one day a week" becomes "on only one day of your cycle".
+    - Green's two days a week are stretched the same way: 2 per 7 days of the cycle, rounded
+      half up and never under 1 (an 8-day cycle still needs 2 days, a 10-day cycle 3). "On only
+      one day a week" becomes "on only one day of your cycle".
     - A 7-day cycle (every plan today) changes nothing.
 16. **The map counts what will run**: at the person's `session_minutes` and `session_exercises`
     (`guided.fitted`, as the walk-through's preview does), with "Counted at your 30 minutes a
