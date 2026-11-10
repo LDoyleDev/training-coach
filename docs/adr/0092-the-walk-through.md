@@ -243,3 +243,15 @@ recommendation says:
   name, as everywhere else.
 - **The lock cases** both copies of the rule are tested on: `frontend/src/walkthrough/lock-cases.json`
   (`backend/tests/domain/test_lock_cases.py` runs `domain.locks` against it).
+
+## Addendum (10 Nov 2026): the ways in, as built
+
+- **Home learns who the walk-through is for from `GET /api/home`:** its `walkthrough` field has
+  the same values as `GET /api/walkthrough`'s `who`, so Home needs no second request. The card
+  shows only for `member`; `done`, `closed` and the owner's `owner_try_out` get none.
+- **"Later" puts the card off on that device until the next day,** as the daily check's "Not now"
+  does: one date in device storage, holding no answer.
+- **The Plan page's hero reads from the plan:** how many sessions ("Three sessions, one fixed
+  order"), the kinds it has, in the legend too, and "Miss a day and the next session waits for
+  you". The owner's kit line ("a pull-up bar, two chairs and an 8 kg kettlebell") went with it:
+  the plan doesn't hold the kit.

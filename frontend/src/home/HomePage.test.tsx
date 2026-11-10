@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Home } from '../api'
 import { emptyWeek } from '../test/cardioWeek'
@@ -43,6 +43,7 @@ const make = (over: Partial<Home> = {}): Home => ({
   today: 'Legs',
   today_minutes: 45,
   today_usual_minutes: null,
+  walkthrough: 'owner_try_out',
   ...over,
 })
 
@@ -56,7 +57,11 @@ function serve(answer: Home | 401 | 500, notices: { id: number; text: string }[]
   )
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  localStorage.clear()
+})
 
 test('totals first, then progress and the week, then the button to today', async () => {
   serve(make())
@@ -202,4 +207,44 @@ test('signed out, or the server down', async () => {
 
 test('a day reads as the local date it names', () => {
   expect(day('2026-10-11')).toMatch(/^Sun 11 Oct/)
+})
+
+test('a member gets the set-up card, and Later puts it off until tomorrow', async () => {
+  serve(make({ walkthrough: 'member' }))
+  const { unmount } = render(<HomePage />)
+  const card = await screen.findByRole('region', { name: 'Set up your plan (about 10 minutes)' })
+  expect(within(card).getByRole('link', { name: 'Set up your plan' })).toHaveAttribute(
+    'href',
+    '/start',
+  )
+  fireEvent.click(within(card).getByRole('button', { name: 'Later' }))
+  expect(card).not.toBeInTheDocument()
+  unmount()
+  render(<HomePage />)
+  expect(await screen.findByRole('heading', { name: "What you've done" })).toBeInTheDocument()
+  expect(screen.queryByText(/Set up your plan/)).not.toBeInTheDocument()
+  localStorage.setItem('later:walkthrough', '2020-01-01') // a day long gone
+  cleanup()
+  render(<HomePage />)
+  expect(await screen.findByRole('link', { name: 'Set up your plan' })).toBeInTheDocument()
+})
+
+test.each(['done', 'closed', 'owner_try_out'] as const)('%s: no set-up card', async (who) => {
+  serve(make({ walkthrough: who }))
+  render(<HomePage />)
+  expect(await screen.findByRole('heading', { name: "What you've done" })).toBeInTheDocument()
+  expect(screen.queryByText(/Set up your plan/)).not.toBeInTheDocument()
+})
+
+test('with storage blocked, the card shows and Later still hides it', async () => {
+  vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    throw new Error('blocked')
+  })
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    throw new Error('blocked')
+  })
+  serve(make({ walkthrough: 'member' }))
+  render(<HomePage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Later' }))
+  expect(screen.queryByText(/Set up your plan/)).not.toBeInTheDocument()
 })

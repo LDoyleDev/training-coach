@@ -123,14 +123,62 @@ describe('App', () => {
     mockFetch({ ok: true, json: () => Promise.resolve(plan) })
     render(<App />)
     expect(
-      await screen.findByRole('heading', { name: 'Seven sessions, one fixed order' }),
+      await screen.findByRole('heading', { name: 'Two sessions, one fixed order' }),
     ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Strength and conditioning: each exercise at the step you're on, moving up as you go.",
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('list', { name: 'Kinds of session' }))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Strength', 'Conditioning'])
     expect(
       screen.getByRole('button', { name: /Torso \+ neck/, expanded: false }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('heading', { name: 'What the week gives each muscle' }),
     ).toBeInTheDocument()
+  })
+
+  it("reads the hero from a member's plan: a starter's sessions, all strength", async () => {
+    const day = (position: number, name: string): Session => ({
+      ...torso,
+      position,
+      slug: name,
+      name,
+    })
+    mockFetch({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          ...plan,
+          sessions: [day(0, 'Full body A'), day(1, 'Full body B'), day(2, 'Full body C')],
+        }),
+    })
+    render(<App />)
+    expect(
+      await screen.findByRole('heading', { name: 'Three sessions, one fixed order' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("Strength: each exercise at the step you're on, moving up as you go."),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/kettlebell/)).not.toBeInTheDocument()
+  })
+
+  it('a plan without strength work just names its kinds', async () => {
+    mockFetch({ ok: true, json: () => Promise.resolve({ ...plan, sessions: [zone2] }) })
+    render(<App />)
+    expect(await screen.findByText('Conditioning.')).toBeInTheDocument()
+  })
+
+  it('says a plan with no sessions plainly', async () => {
+    mockFetch({ ok: true, json: () => Promise.resolve({ ...plan, sessions: [] }) })
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'No sessions yet' })).toBeInTheDocument()
+    expect(screen.queryByText(/^: each exercise/)).not.toBeInTheDocument()
   })
 
   it('opens a session to show its exercises', async () => {
