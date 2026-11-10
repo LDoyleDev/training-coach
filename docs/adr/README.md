@@ -38,7 +38,7 @@ Code). Template: [template.md](template.md).
 | [0031](0031-exercise-pairs-and-work-order.md) | Resistance sessions are done in fixed pairs, listed set by set | Accepted |
 | [0032](0032-stretching-after-resistance.md) | Stretching after a resistance session is chosen for the muscles worked | Accepted |
 | [0033](0033-logging-a-past-day.md) | A past day is logged with a date line, and catching up moves the queue | Accepted; extended by 0060 |
-| [0034](0034-plan-changes-keep-history-per-exercise.md) | Plan changes keep history per exercise | Accepted |
+| [0034](0034-plan-changes-keep-history-per-exercise.md) | Plan changes keep history per exercise | Accepted; sessions retired the same way by 0093 |
 | [0035](0035-web-app-first-telegram-for-reminders.md) | The web app is the main surface; Telegram is for reminders | Accepted |
 | [0036](0036-sign-in-with-passkeys-and-a-telegram-link.md) | Sign in with passkeys, started and recovered with a Telegram link | Accepted |
 | [0037](0037-baseline-tests-as-test-days.md) | Baseline tests are test days, defined in plan.toml, entered in the web app | Accepted |
@@ -77,7 +77,7 @@ Code). Template: [template.md](template.md).
 | [0070](0070-our-own-android-reader.md) | Our own Android reader replaces HC Webhook as the bridge from Health Connect | Accepted |
 | [0071](0071-equipment-and-places.md) | Each person lists their home kit; a gym has everything; steps lock by kit | Accepted; "no away place" amended by 0086 |
 | [0072](0072-load-and-double-progression.md) | Sets record their load; loaded exercises progress by reps, then weight | Accepted |
-| [0073](0073-each-person-owns-their-sessions.md) | Each person owns their sessions; exercises are a shared catalogue | Accepted |
+| [0073](0073-each-person-owns-their-sessions.md) | Each person owns their sessions; exercises are a shared catalogue | Accepted; the import lists removed sessions by 0093 |
 | [0074](0074-boxing-bell-timer-sound.md) | A boxing-ring bell is everyone's timer sound, for every guided timer | Accepted |
 | [0075](0075-levels-by-hand-on-the-web.md) | Move up, Not yet and any level by hand, on the web | Accepted |
 | [0076](0076-body-measurement-protocol-and-tape-estimate.md) | One way to take each measurement, and a tape body-fat estimate | Accepted |
@@ -91,9 +91,10 @@ Code). Template: [template.md](template.md).
 | [0084](0084-short-days-last-set-and-stepping-down.md) | Progress on a shorter day, an as-many-as-you-can last set, and stepping down | Accepted |
 | [0085](0085-safety-questions-in-europe-and-europe-only.md) | Safety questions fit for Europe, answered on the device; the app serves the EU and EEA only | Accepted |
 | [0086](0086-away-no-equipment-version.md) | Away, no equipment: a third place with a written version of every session | Accepted |
-| [0087](0087-notices-of-background-plan-changes.md) | A release that changes an exercise in someone's plan tells them | Accepted |
+| [0087](0087-notices-of-background-plan-changes.md) | A release that changes an exercise in someone's plan tells them | Accepted; a change to your own cycle added by 0093 |
 | [0088](0088-leaving-and-the-left-list.md) | Leaving deletes a member outright, and a list outside the database keeps them gone | Accepted |
 | [0089](0089-telegram-for-members.md) | Telegram for members: one sender gate, and a connection confirmed on the web | Accepted |
 | [0090](0090-consent-per-category-family-and-friends.md) | Consent per category, and a private test with invited family and friends first | Accepted; the walk-through's category narrowed by 0092 |
-| [0091](0091-rest-places-in-the-queue.md) | Rest places in the queue, kept as rest days after a session | Accepted; a start date added by 0092 |
+| [0091](0091-rest-places-in-the-queue.md) | Rest places in the queue, kept as rest days after a session | Accepted; a start date added by 0092, rest places set by the person by 0093 |
 | [0092](0092-the-walk-through.md) | The walk-through: a new person's plan from their answers, saved in one tap | Accepted |
+| [0093](0093-adding-and-removing-sessions.md) | Adding and removing sessions in your own plan | Accepted |
