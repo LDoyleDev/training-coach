@@ -173,10 +173,29 @@ export default function Telegram() {
         </div>
       ) : pending ? (
         <div className="flex flex-col gap-2">
-          {url && (
+          {url ? (
             <a href={url} target="_blank" rel="noopener noreferrer" className="self-start">
               Open Telegram
             </a>
+          ) : (
+            pending.claims === 0 && (
+              // Back on the page (a reload): only the link's hash is kept, so it can't be shown
+              // again. Nobody has opened it, so a new one replaces it.
+              <>
+                <p className="m-0">
+                  The link to the bot is shown only once, when it&apos;s made. If you didn&apos;t
+                  open it, make a new one.
+                </p>
+                <button
+                  type="button"
+                  className={`${primaryInline} self-start`}
+                  disabled={busy}
+                  onClick={connect}
+                >
+                  Make a new link
+                </button>
+              </>
+            )
           )}
           <p className="m-0">
             The bot sends you a 6-digit code. Type it here. Type only the code the bot sent you
