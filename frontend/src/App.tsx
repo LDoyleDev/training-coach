@@ -16,7 +16,7 @@ const LADDER_PICKS = [
   'hamstring-curl',
 ]
 
-const NUMBERS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+const NUMBERS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
 const KINDS: [Session['type'], string][] = [
   ['strength', 'Strength'],
   ['conditioning', 'conditioning'],
@@ -32,8 +32,11 @@ function hero(plan: Plan) {
   const list =
     names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
   return {
-    title: `${NUMBERS[n] ?? n} ${n === 1 ? 'session' : 'sessions'}, one fixed order`,
-    lede: `${list}: each exercise at the step you're on, moving up as you go.`,
+    title:
+      n === 0
+        ? 'No sessions yet'
+        : `${NUMBERS[n] ?? n} ${n === 1 ? 'session' : 'sessions'}, one fixed order`,
+    lede: list && `${list}: each exercise at the step you're on, moving up as you go.`,
     kinds: kinds.map(([kind]) => kind),
   }
 }
@@ -108,7 +111,7 @@ export default function App() {
           <section className="hero">
             <div className="hero-text">
               <h2>{words.title}</h2>
-              <p className="lede">{words.lede}</p>
+              {words.lede && <p className="lede">{words.lede}</p>}
               <p className="lede">
                 Miss a day and the next session waits for you. Nothing gets skipped.
               </p>

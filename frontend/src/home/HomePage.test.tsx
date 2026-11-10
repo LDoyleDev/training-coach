@@ -58,6 +58,7 @@ function serve(answer: Home | 401 | 500, notices: { id: number; text: string }[]
 }
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   localStorage.clear()
 })
@@ -246,5 +247,4 @@ test('with storage blocked, the card shows and Later still hides it', async () =
   render(<HomePage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Later' }))
   expect(screen.queryByText(/Set up your plan/)).not.toBeInTheDocument()
-  vi.restoreAllMocks()
 })

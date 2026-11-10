@@ -168,6 +168,13 @@ describe('App', () => {
     expect(screen.queryByText(/kettlebell/)).not.toBeInTheDocument()
   })
 
+  it('says a plan with no sessions plainly', async () => {
+    mockFetch({ ok: true, json: () => Promise.resolve({ ...plan, sessions: [] }) })
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'No sessions yet' })).toBeInTheDocument()
+    expect(screen.queryByText(/^: each exercise/)).not.toBeInTheDocument()
+  })
+
   it('opens a session to show its exercises', async () => {
     mockFetch({ ok: true, json: () => Promise.resolve(plan) })
     render(<App />)
