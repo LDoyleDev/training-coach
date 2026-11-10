@@ -57,6 +57,27 @@ def test_other_kit_is_there_or_not() -> None:
     assert need_label("kettlebell:18") == "an 18 kg kettlebell"
 
 
+NEED_LABELS = {  # a kettlebell need always names its weight
+    Kit.KETTLEBELL: "a 16 kg kettlebell",
+    Kit.DUMBBELLS: "dumbbells",
+    Kit.PULL_UP_BAR: "a pull-up bar",
+    Kit.DIP_BARS: "dip bars or two chairs",  # was "a dip bars or two chairs"
+    Kit.BENCH: "a bench, stools or bed to lie on",
+    Kit.BAND: "a band",
+    Kit.BACKPACK: "a weighted vest or backpack",
+    Kit.RINGS: "rings",
+    Kit.MAT: "a mat",
+    Kit.AB_WHEEL: "an ab wheel",
+    Kit.BOX: "a step or box",
+}
+
+
+@pytest.mark.parametrize("kit", list(Kit))
+def test_every_kind_reads_right_with_or_without_an_a(kit: Kit) -> None:
+    need = "kettlebell:16" if kit is Kit.KETTLEBELL else kit
+    assert need_label(need) == NEED_LABELS[kit]
+
+
 def test_a_band_step_takes_that_strength_or_a_stronger_one() -> None:
     medium = Item(Kit.BAND, resistance=Resistance.MEDIUM)
     assert missing([medium], ["band:light"]) == []
