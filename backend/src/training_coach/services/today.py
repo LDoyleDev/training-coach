@@ -137,7 +137,10 @@ def _order(session: Session) -> list[SessionTemplate]:
 
 
 def position(session: Session) -> Position | None:
-    """The queue position, or None when there is no plan (or it points nowhere)."""
+    """The queue position, or None when there is no plan (or it points nowhere). The pointer is
+    always in the cycle: the save that retires or deletes its session moves it in the same
+    transaction (ADR-0093 Decided 9), so only ``queued``, which an old swap can hold, is
+    filtered here."""
     state = users.plan_state(session)
     if state is None or state.next_template_id is None:
         return None
