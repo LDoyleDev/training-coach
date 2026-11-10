@@ -56,7 +56,25 @@ const STARTER = {
   slug: 'three-days',
   name: '3 days a week',
   days: 3,
-  sessions: [{ slug: 'a', name: 'Full body A', focus: '', rest_after: 6, items: [] }],
+  sessions: [
+    {
+      slug: 'a',
+      name: 'Full body A',
+      focus: '',
+      rest_after: 6,
+      items: [
+        {
+          exercise: 'push-up',
+          name: 'Push-up',
+          sets: 3,
+          rep_min: 8,
+          rep_max: 15,
+          per_side: false,
+          pair: null,
+        },
+      ],
+    },
+  ],
 }
 const PREVIEW = {
   sessions: [],
@@ -367,4 +385,30 @@ test('Save makes the plan, with the answers after a yes, and Done follows', asyn
       placement: { 'push-up': [{ step: 4, answer: 'yes' }] },
     },
   })
+})
+
+test('a ladder answered again drops the step picked for it on the plan screen', async () => {
+  serve({ consent: true, country: 'IE', due: false })
+  render(<StartPage />)
+  await screen.findByRole('button', { name: 'Start' })
+  tap('Start')
+  for (let i = 0; i < 8; i++) tap('Skip')
+  tap('Next') // avoid
+  tap(/Gym/)
+  tap('No') // Standard: no, then the table
+  tap('No') // the table: no, then the counter
+  tap('Yes') // the counter
+  tap('Next') // days
+  tap('Skip')
+  tap('Skip')
+  const push = await screen.findByRole('combobox', { name: 'Push-up' })
+  expect(push).toHaveValue('2') // the counter
+  fireEvent.change(push, { target: { value: '1' } })
+  expect(screen.getByRole('combobox', { name: 'Push-up' })).toHaveValue('1')
+  for (let i = 0; i < 4; i++) tap('Back') // to the counter's question
+  tap('Yes') // the same answer, given again
+  tap('Next')
+  tap('Skip')
+  tap('Skip')
+  expect(await screen.findByRole('combobox', { name: 'Push-up' })).toHaveValue('2')
 })
