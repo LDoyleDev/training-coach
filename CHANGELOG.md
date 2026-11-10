@@ -4,6 +4,40 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.21.0](https://github.com/LDoyleDev/training-coach/compare/v1.20.0...v1.21.0) (2026-11-10)
+
+
+### Features
+
+* **api:** the walk-through's routes: what it asks, a preview and the one save ([#685](https://github.com/LDoyleDev/training-coach/issues/685)) ([329f24b](https://github.com/LDoyleDev/training-coach/commit/329f24bda211ff7ab71425fd93b0eb0c1369c4ef))
+* **db:** the 45° back extension keeps the lower back at 4 at the gym ([#671](https://github.com/LDoyleDev/training-coach/issues/671)) ([fa2912f](https://github.com/LDoyleDev/training-coach/commit/fa2912fc61a5c80441f6588a6106613627a040e9))
+* **db:** walk-through answers, start date and exercises per session in the schema ([#673](https://github.com/LDoyleDev/training-coach/issues/673)) ([d554091](https://github.com/LDoyleDev/training-coach/commit/d5540911842c669cf8ba602c16c8e4033f968c6f))
+* **domain:** exercises per session in the trim, and a plan that starts on a day ([#674](https://github.com/LDoyleDev/training-coach/issues/674)) ([9614a1c](https://github.com/LDoyleDev/training-coach/commit/9614a1ce86369211c65d60cb456fb0a34b444a55))
+* **domain:** the walk-through's one save makes a member's plan from their choices ([#679](https://github.com/LDoyleDev/training-coach/issues/679)) ([31094a6](https://github.com/LDoyleDev/training-coach/commit/31094a66dc6e2aae33632fcdbd24dbac090aee88))
+* **web:** /start, the walk-through's shell, with consent, where you live and the health questions ([#683](https://github.com/LDoyleDev/training-coach/issues/683)) ([37344e8](https://github.com/LDoyleDev/training-coach/commit/37344e801732b9fb63477582689e21ab0317848e))
+* **web:** the walk-through reads GET /api/walkthrough, with the starter and start day in TS ([#688](https://github.com/LDoyleDev/training-coach/issues/688)) ([999bdde](https://github.com/LDoyleDev/training-coach/commit/999bdde3243e843ec5d968ae6340a877781871c2))
+* **web:** the walk-through's ladder walker, and the days, minutes and exercises per session ([#686](https://github.com/LDoyleDev/training-coach/issues/686)) ([ac4a64f](https://github.com/LDoyleDev/training-coach/commit/ac4a64fe1457874e70c9dbfd1d7080d230ec32f3))
+* **web:** the walk-through's level rule, ladder walk and lock rule in TypeScript ([#676](https://github.com/LDoyleDev/training-coach/issues/676)) ([dc0bf5b](https://github.com/LDoyleDev/training-coach/commit/dc0bf5bdf972fc48d48a5f6233ffbc021081c434))
+* **web:** the walk-through's plan screen, previewed and changeable ([#696](https://github.com/LDoyleDev/training-coach/issues/696)) ([b7093a0](https://github.com/LDoyleDev/training-coach/commit/b7093a017aebe4bca4de2aed7216e01cf5fff330))
+* **web:** the walk-through's questions about you, what to avoid, where you train and the home kit ([#684](https://github.com/LDoyleDev/training-coach/issues/684)) ([0b13d23](https://github.com/LDoyleDev/training-coach/commit/0b13d23a7155ec8112521c4f3e3db8b5c3c495e9))
+* **web:** the walk-through's Save, with the answers only after a yes, and Done ([#697](https://github.com/LDoyleDev/training-coach/issues/697)) ([10d01d3](https://github.com/LDoyleDev/training-coach/commit/10d01d32286bc36aa78cf5b0fa9a1550449da717))
+* **web:** the ways into the walk-through, and the Plan hero from the plan ([#698](https://github.com/LDoyleDev/training-coach/issues/698)) ([dade830](https://github.com/LDoyleDev/training-coach/commit/dade83093df4c4cd46fe0699a59fe755b3fa0b40))
+
+
+### Bug Fixes
+
+* **domain:** say "dip bars or two chairs" without an "a" ([#705](https://github.com/LDoyleDev/training-coach/issues/705)) ([da95012](https://github.com/LDoyleDev/training-coach/commit/da950120c94b12b3a728bede4d4aed453e591773))
+* **web:** Account's two-line choices without Tailwind's block ([#693](https://github.com/LDoyleDev/training-coach/issues/693)) ([ed0d0d9](https://github.com/LDoyleDev/training-coach/commit/ed0d0d94a9847a601679044d3cc843b2881ae5b5))
+* **web:** drop a Telegram card error once the card has moved on ([#702](https://github.com/LDoyleDev/training-coach/issues/702)) ([9450c54](https://github.com/LDoyleDev/training-coach/commit/9450c54ceb3290758a026d8ef05ccc77186bd924))
+* **web:** offer a new Telegram link when a reload lost the one shown ([#701](https://github.com/LDoyleDev/training-coach/issues/701)) ([e867696](https://github.com/LDoyleDev/training-coach/commit/e867696b5586041a86afed574af595fe4ee0bc22))
+* **web:** read the Plan page's ladders from the person's plan ([#706](https://github.com/LDoyleDev/training-coach/issues/706)) ([746745e](https://github.com/LDoyleDev/training-coach/commit/746745e907b0a5952e264e0282dbeafae912582c))
+
+
+### Documentation
+
+* **docs:** ADR-0092, the walk-through, with Liam's 23 decisions taken as recommended ([#666](https://github.com/LDoyleDev/training-coach/issues/666)) ([b2f3a82](https://github.com/LDoyleDev/training-coach/commit/b2f3a825da308844e40840f65cd386f243ccd820))
+* **docs:** session log for 1.20.0 ([#670](https://github.com/LDoyleDev/training-coach/issues/670)) ([7cb612b](https://github.com/LDoyleDev/training-coach/commit/7cb612bf5f9f8849613e684ca2089fad35351e1a))
+
 ## [1.20.0](https://github.com/LDoyleDev/training-coach/compare/v1.19.0...v1.20.0) (2026-11-08)
 
 
