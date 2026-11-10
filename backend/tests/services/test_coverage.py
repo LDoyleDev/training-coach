@@ -37,6 +37,12 @@ def test_the_plan_puts_every_main_muscle_on_target(plan: Session) -> None:
     assert plan_coverage(plan).main_on_target == 10
 
 
+def test_the_owners_7_day_cycle_counts_as_it_did(plan: Session) -> None:
+    assert plan_coverage(plan, cycle_days=7) == plan_coverage(plan)
+    eight = {m.muscle: m for m in plan_coverage(plan, cycle_days=8).muscles}
+    assert (eight[Muscle.LATS].sets, eight[Muscle.LATS].band) == (10, Band.LIGHT_GREEN)
+
+
 def test_the_core_block_covers_the_trunk_and_hips(plan: Session) -> None:
     by = {m.muscle: m for m in plan_coverage(plan).muscles}
     # program-builder-research.md, Core and hips: Recovery and Cardio + core
