@@ -124,6 +124,35 @@ test.each([
   expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull()
 })
 
+test('an error goes when the card has moved on by the time they are back', async () => {
+  serve({
+    [`GET ${STATUS}`]: [pending(1), status()], // back from Telegram: the link has expired
+    [`POST ${STATUS}/code`]: { status: 400 },
+  })
+  render(<Telegram />)
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Code from the bot' }), {
+    target: { value: '654321' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Check the code' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('That’s not the code.')
+  fireEvent(window, new Event('focus'))
+  expect(await screen.findByRole('button', { name: 'Connect Telegram' })).toBeVisible()
+  expect(screen.queryByRole('alert')).toBeNull()
+})
+
+test('an error stays when they are back and nothing has changed', async () => {
+  serve({ [`GET ${STATUS}`]: pending(1), [`POST ${STATUS}/code`]: { status: 400 } })
+  render(<Telegram />)
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Code from the bot' }), {
+    target: { value: '654321' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Check the code' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('That’s not the code.')
+  fireEvent(window, new Event('focus'))
+  await new Promise((r) => setTimeout(r, 0))
+  expect(screen.getByRole('alert')).toHaveTextContent('That’s not the code.')
+})
+
 test('cancel ends the link', async () => {
   const asked = serve({
     [`GET ${STATUS}`]: [pending(1), status()],
