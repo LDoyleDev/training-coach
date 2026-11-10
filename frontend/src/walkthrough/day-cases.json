@@ -1,0 +1,117 @@
+{
+  "_about": "Cases for the starter and the start day (ADR-0092, How the plan is made 3 and 8), shared by the backend test tests/domain/test_day_cases.py and the web's copy in walkthrough/days.ts, so the two can't drift. Weekdays are 0 Monday to 6 Sunday; dates are local days. The rest places are the starters' in plan.toml: the 2-day [2, 3], the 3-day [1, 1, 2], the 4-day [0, 1, 0, 2]. 9 Nov 2026 is a Monday.",
+  "starter_days": [
+    { "tapped": 0, "days": 3 },
+    { "tapped": 1, "days": 2 },
+    { "tapped": 2, "days": 2 },
+    { "tapped": 3, "days": 3 },
+    { "tapped": 4, "days": 4 },
+    { "tapped": 5, "days": 4 },
+    { "tapped": 6, "days": 4 },
+    { "tapped": 7, "days": 4 }
+  ],
+  "landing": [
+    {
+      "case": "the 3-day from a Monday",
+      "start": "2026-11-09",
+      "rest_after": [1, 1, 2],
+      "days": ["2026-11-09", "2026-11-11", "2026-11-13"]
+    },
+    {
+      "case": "the 4-day from a Thursday, into the next week",
+      "start": "2026-11-12",
+      "rest_after": [0, 1, 0, 2],
+      "days": ["2026-11-12", "2026-11-13", "2026-11-15", "2026-11-16"]
+    }
+  ],
+  "start_day": [
+    {
+      "case": "Monday, Wednesday, Friday starts today on the 3-day and misses nothing",
+      "today": "2026-11-09",
+      "weekdays": [0, 2, 4],
+      "rest_after": [1, 1, 2],
+      "on": "2026-11-09",
+      "missed": []
+    },
+    {
+      "case": "the start is the tapped day that lands the most sessions, not the first",
+      "today": "2026-11-09",
+      "weekdays": [5, 1, 3],
+      "rest_after": [1, 1, 2],
+      "on": "2026-11-10",
+      "missed": []
+    },
+    {
+      "case": "Monday and Tuesday on the 2-day: one is always missed, so the first, today, wins",
+      "today": "2026-11-09",
+      "weekdays": [0, 1],
+      "rest_after": [2, 3],
+      "on": "2026-11-09",
+      "missed": [1]
+    },
+    {
+      "case": "a tapped day later in the week starts then",
+      "today": "2026-11-09",
+      "weekdays": [3, 4, 5, 6],
+      "rest_after": [0, 1, 0, 2],
+      "on": "2026-11-12",
+      "missed": [5]
+    },
+    {
+      "case": "nothing tapped starts tomorrow",
+      "today": "2026-11-09",
+      "weekdays": [],
+      "rest_after": [1, 1, 2],
+      "on": "2026-11-10",
+      "missed": []
+    },
+    {
+      "case": "one day on the 2-day starts on it, later this week",
+      "today": "2026-11-09",
+      "weekdays": [2],
+      "rest_after": [2, 3],
+      "on": "2026-11-11",
+      "missed": []
+    },
+    {
+      "case": "a Saturday with only Monday tapped starts next Monday",
+      "today": "2026-11-14",
+      "weekdays": [0],
+      "rest_after": [2, 3],
+      "on": "2026-11-16",
+      "missed": []
+    },
+    {
+      "case": "a Saturday with Monday, Wednesday, Friday starts next Monday",
+      "today": "2026-11-14",
+      "weekdays": [0, 2, 4],
+      "rest_after": [1, 1, 2],
+      "on": "2026-11-16",
+      "missed": []
+    },
+    {
+      "case": "Sunday tapped on a Sunday starts today",
+      "today": "2026-11-15",
+      "weekdays": [6],
+      "rest_after": [1, 1, 2],
+      "on": "2026-11-15",
+      "missed": []
+    },
+    {
+      "case": "five days on the 4-day misses Wednesday",
+      "today": "2026-11-09",
+      "weekdays": [0, 1, 2, 3, 4],
+      "rest_after": [0, 1, 0, 2],
+      "on": "2026-11-09",
+      "missed": [2]
+    },
+    {
+      "case": "every day on the 4-day misses three of them",
+      "today": "2026-11-09",
+      "weekdays": [0, 1, 2, 3, 4, 5, 6],
+      "rest_after": [0, 1, 0, 2],
+      "on": "2026-11-09",
+      "missed": [2, 5, 6]
+    }
+  ]
+}
