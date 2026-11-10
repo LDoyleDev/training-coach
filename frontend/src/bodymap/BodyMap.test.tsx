@@ -4,7 +4,16 @@ import type { Coverage, MuscleCoverage } from '../api'
 import { BodyMap, ExerciseFigures, SessionMap } from './BodyMap'
 import { useCoverage } from './useCoverage'
 import { BACK, FRONT } from './regions'
-import { amount, goal, sessionWarnings, warnings, worksLine } from './words'
+import {
+  amount,
+  countedLine,
+  cycleLine,
+  daysNeeded,
+  goal,
+  sessionWarnings,
+  warnings,
+  worksLine,
+} from './words'
 
 const muscle = (over: Partial<MuscleCoverage>): MuscleCoverage => ({
   muscle: 'quads',
@@ -285,6 +294,59 @@ describe('words', () => {
     ).toEqual([
       'Legs: about 72 minutes, over an hour.',
       '12 pushing sets a week and 3 pulling: a rule of thumb is at least one pulling set for two pushing.',
+    ])
+  })
+})
+
+describe('a cycle that is not a week (ADR-0093)', () => {
+  const eight = { ...coverage, cycle_days: 8, session_minutes: 30, session_exercises: 5 }
+
+  it('says the map is per cycle and what it was counted at', async () => {
+    answer({ ok: true, json: () => Promise.resolve(eight) })
+    render(<Week />)
+    expect(await screen.findByText('Sets per 8-day cycle.')).toBeInTheDocument()
+    expect(screen.getByText('Counted at your 30 minutes and 5 exercises a session.')).toBeVisible()
+    expect(
+      screen.getByText(/on target in its green band on 2 days of the 8-day cycle\./),
+    ).toBeVisible()
+    expect(cycleLine(coverage)).toBeNull()
+    expect(countedLine(coverage)).toBeNull()
+    expect(countedLine({ ...coverage, session_minutes: 20 })).toBe(
+      'Counted at your 20 minutes a session.',
+    )
+    expect(countedLine({ ...coverage, session_exercises: 1 })).toBe(
+      'Counted at your 1 exercise a session.',
+    )
+  })
+
+  it('counts the days green needs over the cycle, as domain.coverage.days_needed', () => {
+    expect([1, 3, 7, 8, 10, 14].map(daysNeeded)).toEqual([1, 1, 2, 2, 3, 4])
+  })
+
+  it('words the amounts, the band and the warnings per cycle', () => {
+    const stretched = { ...lats, low: 11.428571, high: 22.857142, sets: 8.5, days: 1 }
+    expect(amount(stretched, 8)).toBe('8.5 sets per 8-day cycle on 1 day')
+    expect(amount(muscle({}), 8)).toBe('Not trained in your cycle')
+    expect(goal(stretched, 8)).toBe('Green: 11.4–22.9 sets on 2 days')
+    expect(goal(neck, 8)).toBe('Green: 3–9 sets')
+    const ten = { ...coverage, cycle_days: 10 }
+    expect(warnings(muscle({ band: 'warning', sets: 50, one_day: true, days: 2 }), ten)).toEqual([
+      'Over 42.9 sets per 10-day cycle: more showed no extra growth.',
+      'Trained on 2 days of your cycle: green needs 3.',
+    ])
+    expect(
+      warnings(muscle({ band: 'light green', sets: 20, low: 14, one_day: true, days: 1 }), ten),
+    ).toEqual(['Enough sets, but on only one day: green needs 3 days of your cycle.'])
+    expect(
+      sessionWarnings({
+        ...ten,
+        sessions: [],
+        push_sets: 12,
+        pull_sets: 3,
+        pushing_without_pulling: true,
+      }),
+    ).toEqual([
+      '12 pushing sets per 10-day cycle and 3 pulling: a rule of thumb is at least one pulling set for two pushing.',
     ])
   })
 })

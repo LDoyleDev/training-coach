@@ -43,6 +43,8 @@ const CLASH: Clash = {
 
 type Answer = Response | (() => Response)
 
+let plan = () => Response.json(LEGS)
+
 function serve(posts: Answer[] = [], options: Answer = Response.json(OPTIONS)) {
   const sent: Record<string, unknown>[] = []
   vi.stubGlobal(
@@ -55,7 +57,7 @@ function serve(posts: Answer[] = [], options: Answer = Response.json(OPTIONS)) {
           Response.json({ workout_id: 3, already_saved: false, next_session: 'Torso' })
         return typeof next === 'function' ? next() : next
       }
-      if (path.startsWith('/api/log/plan')) return Response.json(LEGS)
+      if (path.startsWith('/api/log/plan')) return plan()
       return typeof options === 'function' ? options() : options
     }),
   )
@@ -69,6 +71,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  plan = () => Response.json(LEGS)
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
@@ -108,6 +111,16 @@ test('a session for yesterday starts at its targets and saves what was done', as
       ],
     },
   ])
+})
+
+test('a session removed from the plan meanwhile says so in the server words', async () => {
+  serve()
+  plan = () => Response.json({ detail: 'That session is no longer in your plan' }, { status: 404 })
+  render(<LogDay onSaved={vi.fn()} />)
+  click('Log another day')
+  fireEvent.click(await screen.findByRole('button', { name: 'Yesterday' }))
+  click('Legs')
+  expect(await screen.findByText('That session is no longer in your plan.')).toBeInTheDocument()
 })
 
 test('a day that has its session asks, and the answer goes with the same log', async () => {

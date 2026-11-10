@@ -49,7 +49,7 @@ const view = (sessions: unknown[]) => ({
 const WEEK = view([
   session('legs', 'Legs', 1, { kind: 'conditioning' }),
   session('torso', 'Torso', 1, { next: true }),
-  session('arms', 'Arms', 2),
+  session('arms', 'Arms', 2, { logged: 14 }),
 ])
 
 const drafts: { cycle?: unknown }[] = []
@@ -98,7 +98,7 @@ test('the card lists the sessions in order, marks the next and says the week', a
     expect.stringContaining('ArmsStrength · then 2 rest days'),
   ])
   expect(
-    card.getByText('Your cycle: Legs, rest, Torso, rest, Arms, rest, rest. 7 days.'),
+    card.getByText('Your cycle, 7 days: Legs, rest, Torso, rest, Arms, rest, rest.'),
   ).toBeInTheDocument()
   expect(card.queryByText(/comes round/)).not.toBeInTheDocument()
 })
@@ -109,7 +109,7 @@ test('rest days after − and + change the week, held to 0-6', async () => {
   const card = await cycleCard()
   fireEvent.click(card.getByRole('button', { name: 'One rest day more after Legs' }))
   expect(
-    card.getByText('Your cycle: Legs, rest, rest, Torso, rest, Arms, rest, rest. 8 days.'),
+    card.getByText('Your cycle, 8 days: Legs, rest, rest, Torso, rest, Arms, rest, rest.'),
   ).toBeInTheDocument()
   expect(
     card.getByText('Each session comes round less often than once a week.'),
@@ -147,7 +147,7 @@ test('an empty session goes after the suggestion, opens the picker and saves wit
   expect(form.getByRole('combobox', { name: 'Goes after' })).toHaveDisplayValue('Arms')
   expect(
     form.getByText(
-      'With it, your cycle: Legs, rest, Torso, rest, Arms, rest, New session. 7 days.',
+      'With it, your cycle, 7 days: Legs, rest, Torso, rest, Arms, rest, New session.',
     ),
   ).toBeInTheDocument()
   fireEvent.click(form.getByRole('button', { name: 'Add' }))
@@ -189,7 +189,7 @@ test('a copy is named, kinded and filled from its session, and goes where it is 
   fireEvent.click(form.getByRole('radio', { name: 'Recovery' }))
   fireEvent.click(form.getByRole('button', { name: 'Add' }))
   expect(
-    card.getByText('Your cycle: Legs, Legs 2, Torso, rest, Arms, rest, rest. 7 days.'),
+    card.getByText('Your cycle, 7 days: Legs, Legs 2, Torso, rest, Arms, rest, rest.'),
   ).toBeInTheDocument()
   expect(screen.queryByText('Add: what should it train?')).not.toBeInTheDocument()
   expect(screen.getByRole('group', { name: 'Sets of Squat' })).toBeInTheDocument()
@@ -250,11 +250,116 @@ test('a rename is drafted, and the server’s refusal is shown in its words', as
 test('the week line, names and keys', () => {
   const cycle = cycleOf(WEEK.sessions as never)
   expect(weekLine(cycle.slice(2, 3).map((e) => ({ ...e, restAfter: 0 })))).toBe(
-    'Your cycle: Arms. 1 day.',
+    'Your cycle, 1 day: Arms.',
   )
   expect(lengthLine(5)).toBe('Each session comes round more often than once a week.')
   expect(thenRest(0)).toBe('then no rest days')
   expect(freeName('Legs 2', [...cycle, { ...cycle[0]!, name: 'Legs 2' }], false)).toBe('Legs 3')
   expect(freeName('Legs', cycle, true)).toBe('Legs 2')
   expect(newKey([...cycle, { ...cycle[0]!, key: 'n1' }])).toBe('n2')
+})
+
+const savingWill = () =>
+  within(screen.getByRole('group', { name: 'Saving will' }))
+    .getAllByRole('listitem')
+    .map((li) => li.textContent)
+const noteBox = () => screen.getByRole('textbox', { name: /What changed/ })
+
+test('Remove asks first, in words by its history, and saves without it', async () => {
+  const sent = serve(WEEK)
+  render(<PlanEdit />)
+  const card = await cycleCard()
+  fireEvent.click(card.getByRole('button', { name: 'Remove Legs' }))
+  expect(card.getByRole('group', { name: 'Remove Legs' })).toHaveTextContent(
+    'Remove Legs? Nothing is logged for it, so it goes.',
+  )
+  fireEvent.click(card.getByRole('button', { name: 'Keep it' }))
+  expect(screen.queryByRole('group', { name: 'Saving will' })).not.toBeInTheDocument()
+  fireEvent.click(card.getByRole('button', { name: 'Remove Arms' }))
+  const ask = within(card.getByRole('group', { name: 'Remove Arms' }))
+  expect(
+    ask.getByText('Remove Arms? Its 14 logged days stay in your history under its name.'),
+  ).toBeInTheDocument()
+  fireEvent.click(ask.getByRole('button', { name: 'Remove' }))
+  expect(
+    card.getByText('Your cycle, 7 days: Legs, rest, Torso, rest, rest, rest, rest.'),
+  ).toBeInTheDocument()
+  expect(savingWill()).toEqual([
+    'Give Torso 4 rest days after it',
+    'Remove Arms',
+    'Next stays Torso',
+  ])
+  expect(noteBox()).toHaveValue('Torso now has 4 rest days after it; removed Arms')
+  fireEvent.click(screen.getByRole('button', { name: 'Save as a new version' }))
+  await screen.findByText('Saved as a new version of your plan.')
+  expect(sent[0]).toMatchObject({
+    note: 'Torso now has 4 rest days after it; removed Arms',
+    cycle: [
+      { slug: 'legs', name: 'Legs', kind: 'conditioning', rest_after: 1 },
+      { slug: 'torso', name: 'Torso', kind: 'strength', rest_after: 4 },
+    ],
+  })
+})
+
+test('the last session has no Remove', async () => {
+  serve(view([session('only', 'Only', 6)]))
+  render(<PlanEdit />)
+  const card = await cycleCard()
+  expect(card.getByRole('button', { name: 'Rename Only' })).toBeInTheDocument()
+  expect(card.queryByRole('button', { name: 'Remove Only' })).not.toBeInTheDocument()
+})
+
+test('Up and Down move a session, held at the ends, and the list says so', async () => {
+  serve(WEEK)
+  render(<PlanEdit />)
+  const card = await cycleCard()
+  expect(card.getByRole('button', { name: 'Move Legs up' })).toBeDisabled()
+  expect(card.getByRole('button', { name: 'Move Arms down' })).toBeDisabled()
+  fireEvent.click(card.getByRole('button', { name: 'Move Arms up' }))
+  expect(
+    card.getByText('Your cycle, 7 days: Legs, rest, Arms, rest, rest, Torso, rest.'),
+  ).toBeInTheDocument()
+  expect(savingWill()).toEqual(['Move Arms to place 2', 'Next stays Torso'])
+  expect(noteBox()).toHaveValue('Moved Arms')
+  fireEvent.click(card.getByRole('button', { name: 'Move Arms down' }))
+  expect(screen.queryByRole('group', { name: 'Saving will' })).not.toBeInTheDocument()
+  expect(noteBox()).toHaveValue('')
+})
+
+test('what is next: kept, moved off a removed session, or turning on the last session', async () => {
+  serve(WEEK)
+  render(<PlanEdit />)
+  const card = await cycleCard()
+  fireEvent.click(card.getByRole('button', { name: 'Remove Torso' }))
+  fireEvent.click(
+    within(card.getByRole('group', { name: 'Remove Torso' })).getByRole('button', {
+      name: 'Remove',
+    }),
+  )
+  expect(savingWill().at(-1)).toBe('Next: Arms, instead of Torso')
+  fireEvent.change(noteBox(), { target: { value: 'My words' } })
+  fireEvent.click(card.getByRole('button', { name: 'Add a session' }))
+  const form = within(card.getByRole('form', { name: 'Add a session' }))
+  fireEvent.change(form.getByRole('combobox', { name: 'Goes after' }), { target: { value: '0' } })
+  fireEvent.click(form.getByRole('button', { name: 'Add' }))
+  expect(savingWill()).toContain('Add New session after Legs, with 1 rest day after it')
+  expect(savingWill().at(-1)).toBe('Next: New session if Legs was your last session, else Arms')
+  expect(noteBox()).toHaveValue('My words') // typed words stay
+})
+
+test('a renamed or rekinded session is listed, and a long list makes a short note', async () => {
+  serve(view([...Array(6).keys()].map((i) => session(`s${i}`, `Session number ${i + 1}`, 0))))
+  render(<PlanEdit />)
+  const card = await cycleCard()
+  for (let i = 1; i <= 6; i++)
+    fireEvent.click(
+      card.getByRole('button', { name: `One rest day more after Session number ${i}` }),
+    )
+  expect(noteBox()).toHaveValue('6 changes to your sessions')
+  fireEvent.click(card.getByRole('button', { name: 'Rename Session number 1' }))
+  fireEvent.change(card.getByRole('textbox', { name: 'New name for Session number 1' }), {
+    target: { value: 'First' },
+  })
+  fireEvent.click(card.getByRole('button', { name: 'Done' }))
+  expect(savingWill()[0]).toBe('Rename Session number 1 to First')
 })

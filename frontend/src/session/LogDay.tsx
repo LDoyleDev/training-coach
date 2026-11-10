@@ -100,6 +100,7 @@ export default function LogDay({
     setNote(null)
     try {
       const found = await fetchLogPlan(day, templateId)
+      if ('words' in found) return setNote(found.words) // no longer in the plan (ADR-0093)
       const start: Record<string, number> = {}
       found.items.forEach((item, i) =>
         item.targets.forEach((t, n) => (start[setKey(i, n + 1)] = t)),

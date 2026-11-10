@@ -394,6 +394,7 @@ test("the owner's try-out: the plan, and no Save", async () => {
   show({ who: 'owner_try_out' })
   await screen.findByText('Mon 9 Nov')
   expect(screen.getByText("This is a try-out: your plan won't change.")).toBeInTheDocument()
+  expect(screen.queryByText(/This replaces your plan/)).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Save my plan' })).not.toBeInTheDocument()
 })
 

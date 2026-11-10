@@ -1,5 +1,6 @@
 import { prescription, sessionAt, sessionSize, type Coverage, type Session } from '../api'
 import { SessionMap } from '../bodymap/BodyMap'
+import { thenRest } from '../plan/cycleDraft'
 
 type Props = {
   sessions: Session[]
@@ -39,6 +40,7 @@ export function SessionList({ sessions, open, onToggle, coverage }: Props) {
               <span className="session-meta">
                 <span className="session-type">{TYPE_LABEL[s.type]}</span>
                 <span className="session-size">{sessionSize(s)}</span>
+                <span className="session-type">{thenRest(s.rest_after)}</span>
               </span>
               <span className="session-chevron" aria-hidden="true" />
             </button>

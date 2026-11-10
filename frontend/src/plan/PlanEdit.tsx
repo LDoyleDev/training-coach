@@ -31,7 +31,16 @@ import {
   withItem,
   type Draft,
 } from './editLogic'
-import { baselines, cycleBody, cycleChanged, cycleOf, NEW, type Entry } from './cycleDraft'
+import {
+  baselines,
+  cycleBody,
+  cycleChanged,
+  cycleOf,
+  NEW,
+  savingWill,
+  type Entry,
+} from './cycleDraft'
+import { days } from './cycleLogic'
 import YourCycle from './YourCycle'
 
 type State =
@@ -229,7 +238,7 @@ export default function PlanEdit() {
   const [place, setPlace] = useState<Place>('home')
   const [picking, setPicking] = useState<'add' | number | null>(null)
   const [forMuscle, setForMuscle] = useState('')
-  const [note, setNote] = useState('')
+  const [typed, setNote] = useState<string | null>(null) // null: the note Saving will prefills
   const [said, setSaid] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -260,6 +269,11 @@ export default function PlanEdit() {
         : undefined,
     [state],
   )
+  const saving = useMemo(
+    () => (state.status === 'ready' ? savingWill(state.cycle, state.loaded.sessions) : null),
+    [state],
+  )
+  const note = typed ?? saving?.note ?? ''
 
   // The map follows the draft (program-builder.md F); away has no map, so it shows home's.
   const mapPlace: Place = place === 'gym' ? 'gym' : 'home'
@@ -335,7 +349,7 @@ export default function PlanEdit() {
       if (session.slug.startsWith(NEW)) setSlug(saved.slugs[session.slug.slice(NEW.length)] ?? null)
       const fresh = await fetchPlanEdit()
       if (fresh) setState(readyOf(fresh))
-      setNote('')
+      setNote(null)
       setSaid('Saved as a new version of your plan.')
     } catch (error) {
       setSaid(
@@ -458,7 +472,7 @@ export default function PlanEdit() {
       </section>
       <section className={`${card} flex flex-col gap-3`} aria-labelledby="edit-map">
         <h2 id="edit-map" className="m-0 text-xl font-bold">
-          What the week would give each muscle
+          What {days(state.cycle) === 7 ? 'the week' : 'your cycle'} would give each muscle
         </h2>
         <p className="m-0 text-[var(--slate)]">
           It follows your edits. Warnings are for you to weigh: nothing stops you saving.
@@ -473,6 +487,18 @@ export default function PlanEdit() {
         />
       </section>
       <section className={`${card} flex flex-col gap-3`} aria-label="Save">
+        {saving && (
+          <div aria-labelledby="saving-will" role="group">
+            <h2 id="saving-will" className="m-0 text-lg font-bold">
+              Saving will
+            </h2>
+            <ul className="m-0 list-disc pl-5">
+              {saving.lines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <label className="flex flex-col gap-1">
           <span>What changed? A short note, for your history.</span>
           <input

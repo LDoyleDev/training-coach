@@ -71,6 +71,7 @@ function Version({ fitted, label }: { fitted: Fitted; label?: string }) {
  */
 export function PlanScreen({
   who,
+  added = false,
   known,
   starters,
   revision,
@@ -80,6 +81,7 @@ export function PlanScreen({
   onSaved,
 }: {
   who: Walkthrough['who']
+  added?: boolean // the plan has sessions the person added, which Save replaces too
   known: Known
   starters: Walkthrough['starters']
   revision: string
@@ -347,14 +349,21 @@ export function PlanScreen({
       {who === 'owner_try_out' ? (
         <p className={`${card} m-0 font-bold`}>This is a try-out: your plan won't change.</p>
       ) : (
-        <button
-          type="button"
-          className={primary}
-          disabled={busy || !current}
-          onClick={() => void save()}
-        >
-          {busy ? 'Saving…' : 'Save my plan'}
-        </button>
+        <>
+          {added && (
+            <p className="m-0 font-bold">
+              This replaces your plan, including the sessions you added.
+            </p>
+          )}
+          <button
+            type="button"
+            className={primary}
+            disabled={busy || !current}
+            onClick={() => void save()}
+          >
+            {busy ? 'Saving…' : 'Save my plan'}
+          </button>
+        </>
       )}
     </>
   )

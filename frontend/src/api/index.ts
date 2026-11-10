@@ -472,10 +472,26 @@ export async function fetchLogOptions(signal?: AbortSignal): Promise<LogOptions 
   return (await res.json()) as LogOptions
 }
 
-/** A session's exercises with that day's targets. */
-export async function fetchLogPlan(day: string, templateId: number): Promise<LogPlan> {
+/** The server's refusal in words, as a sentence: "That session is no longer in your plan." */
+export type Words = { words: string }
+
+async function detailOf(res: Response): Promise<string | null> {
+  const detail = ((await res.json().catch(() => ({}))) as { detail?: unknown }).detail
+  return typeof detail === 'string' && detail !== '' ? detail : null
+}
+
+function sentence(detail: string): Words {
+  const said = detail.charAt(0).toUpperCase() + detail.slice(1)
+  return { words: /[.!?]$/.test(said) ? said : `${said}.` }
+}
+
+/** A session's exercises with that day's targets; its words when it's no longer in the plan
+ * (ADR-0093). */
+export async function fetchLogPlan(day: string, templateId: number): Promise<LogPlan | Words> {
   const query = new URLSearchParams({ day, template_id: String(templateId) })
   const res = signedIn(await fetch(`/api/log/plan?${query}`, { credentials: 'same-origin' }))
+  const gone = res.status === 404 ? await detailOf(res) : null
+  if (gone) return sentence(gone)
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as LogPlan
 }
@@ -693,10 +709,19 @@ export async function changeToday(
   return (await res.json()) as Changed
 }
 
-/** Do another session today instead of the one shown. 'stale': today changed meanwhile. */
-export async function pickToday(templateId: number, pickedId: number): Promise<Changed | 'stale'> {
+const STALE_TODAY = "today's session has changed" // api/change.py's STALE
+
+/** Do another session today instead of the one shown. 'stale': today changed meanwhile; words:
+ * why else not, such as a session no longer in the plan (ADR-0093). */
+export async function pickToday(
+  templateId: number,
+  pickedId: number,
+): Promise<Changed | 'stale' | Words> {
   const res = await post('/api/today/pick', { template_id: templateId, picked_id: pickedId })
-  if (res.status === 409) return 'stale'
+  if (res.status === 409) {
+    const detail = await detailOf(res)
+    return detail === null || detail === STALE_TODAY ? 'stale' : sentence(detail)
+  }
   if (!res.ok) throw new Error(`The server answered ${res.status}.`)
   return (await res.json()) as Changed
 }

@@ -298,6 +298,7 @@ export default function SessionPage() {
     try {
       const result = await pickToday(next.template_id, next.template_id)
       if (result === 'stale') return stale()
+      if ('words' in result) return stale(result.words)
       changed(result.today, `${next.name} is on for today.`, result.undo)
     } catch (error) {
       if (error instanceof SignedOutError) setLoaded({ status: 'signed-out' })
