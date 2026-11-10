@@ -10,10 +10,14 @@ from training_coach.domain.coverage import (
     Evidence,
     Heat,
     Item,
+    Target,
     band,
     coverage,
+    days_needed,
     heat,
     needs_two_days,
+    per_cycle,
+    stretched,
     target,
 )
 from training_coach.domain.enums import Place
@@ -223,3 +227,71 @@ def test_each_session_lists_the_muscles_it_works_main_first() -> None:
 def test_each_session_says_which_version_it_counts() -> None:
     gym, home = coverage([Day("Legs", [], place=Place.GYM), Day("Recovery", [])]).days
     assert (gym.place, home.place) == (Place.GYM, Place.HOME)
+
+
+@pytest.mark.parametrize(
+    ("cycle_days", "needed"),
+    [(1, 1), (3, 1), (4, 1), (5, 1), (6, 2), (7, 2), (8, 2), (9, 3), (10, 3), (14, 4)],
+)
+def test_greens_two_days_a_week_per_cycle_rounded_half_up(cycle_days: int, needed: int) -> None:
+    assert days_needed(cycle_days) == needed  # 2 per 7 days, never under 1 (ADR-0093)
+
+
+def test_a_weekly_band_stretched_to_the_cycle() -> None:
+    assert stretched(GENERAL, 7) == GENERAL
+    eight = stretched(GENERAL, 8)
+    assert (round(eight.low, 1), round(eight.high, 1)) == (11.4, 22.9)
+    assert stretched(target(Muscle.CALVES), 14) == Target(16, 32, Evidence.MODERATE)
+    with pytest.raises(ValueError, match="at least one day"):
+        per_cycle(10, 0)
+
+
+@pytest.mark.parametrize(
+    ("sets", "expected"),
+    [
+        (4.5, Band.AMBER),  # under 4 a week stretched: 4.57
+        (4.75, Band.LIGHT_GREEN),
+        (11, Band.LIGHT_GREEN),  # under 10 a week: 11.43
+        (11.5, Band.GREEN),
+        (22.75, Band.GREEN),
+        (23, Band.BLUE),  # over 20 a week: 22.86
+        (34.25, Band.BLUE),
+        (34.5, Band.WARNING),  # over 30 a week: 34.29
+    ],
+)
+def test_every_edge_of_the_bands_is_stretched_to_an_8_day_cycle(
+    sets: float, expected: Band
+) -> None:
+    assert band(sets, GENERAL, 8) is expected
+
+
+def test_a_7_day_cycle_changes_nothing() -> None:
+    week = [
+        Day("A", [_item(6, {Q: 1, G: 0.5})], rest_after=1),
+        Day("B", [_item(5, {Q: 1, T: 1})]),
+        Day("C", [_item(3, {T: 1})], rest_after=3),
+    ]
+    assert coverage(week, 7) == coverage(week)
+    assert coverage(week).cycle_days == 7
+
+
+def test_an_8_day_cycle_counts_its_sets_against_stretched_bands() -> None:
+    week = [Day("A", [_item(5, {Q: 1})], rest_after=3), Day("B", [_item(5, {Q: 1})], rest_after=3)]
+    seven, eight = (coverage(week, d).muscles[0] for d in (7, 8))
+    assert (seven.sets, seven.band, seven.target) == (10, Band.GREEN, GENERAL)
+    assert (eight.sets, eight.days, eight.band) == (10, 2, Band.LIGHT_GREEN)  # under 11.4
+    assert eight.target == stretched(GENERAL, 8)
+
+
+def test_a_10_day_cycle_needs_three_days_for_green() -> None:
+    two = [Day(n, [_item(8, {Q: 1})], rest_after=4) for n in "AB"]
+    found = coverage(two, 10).muscles[0]  # 16 sets is green's 14.3-28.6, but on two days
+    assert (found.sets, found.days, found.band, found.one_day) == (16, 2, Band.LIGHT_GREEN, True)
+    three = [Day(n, [_item(5, {Q: 1})], rest_after=r) for n, r in (("A", 2), ("B", 2), ("C", 3))]
+    found = coverage(three, 10).muscles[0]
+    assert (found.sets, found.days, found.band, found.one_day) == (15, 3, Band.GREEN, False)
+
+
+def test_a_cycle_has_at_least_one_day() -> None:
+    with pytest.raises(ValueError, match="at least one day"):
+        coverage([], 0)
