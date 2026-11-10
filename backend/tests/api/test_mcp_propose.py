@@ -16,6 +16,7 @@ from sqlalchemy import Engine, select
 from sqlalchemy.exc import OperationalError
 from structlog.testing import capture_logs
 
+from tests import factories
 from tests import oauth_flow as flow
 from tests.api.test_mcp import call, rpc
 from training_coach.config import Settings
@@ -25,6 +26,8 @@ from training_coach.db.models import (
     LogProposal,
     McpConnection,
     Measurement,
+    PlanState,
+    SessionTemplate,
     SetLog,
     Workout,
 )
@@ -306,6 +309,46 @@ def test_today_changed_meanwhile_is_stale(client: TestClient, engine: Engine, to
     assert answer.status_code == 409
     assert answer.json()["detail"] == "today's session changed"
     assert [s.value for s in _rows(engine, SetLog)] == [5]
+
+
+def _remove_named(engine: Engine, how: str) -> int:
+    """Take the session the waiting proposal names out of the cycle (ADR-0093); its id."""
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        (row,) = mine.scalars(select(LogProposal))
+        named = mine.get_one(SessionTemplate, row.payload["template_id"])
+        state = mine.scalars(select(PlanState)).one()
+        if state.next_template_id == named.id:  # the save moves the pointer on (Decided 9)
+            state.next_template_id = mine.scalars(
+                select(SessionTemplate.id).where(SessionTemplate.id != named.id)
+            ).first()
+            mine.flush()
+        if how == "retired":
+            factories.retire(mine, named, _today())
+        else:
+            mine.delete(named)
+        return named.id
+
+
+@pytest.mark.parametrize("how", ["retired", "deleted"])
+def test_a_proposal_naming_a_removed_session_is_refused_in_words(
+    client: TestClient, engine: Engine, token: str, how: str
+) -> None:
+    """Decided 12. Asked again, the AI's sets are read against the plan as it is now: another
+    session's, or an extra."""
+    yesterday = (_today() - timedelta(days=1)).isoformat()
+    waiting = proposed(client, token, kind="strength", day=yesterday, exercises=[PULL_UPS])
+    gone = _remove_named(engine, how)
+    answer = save(client, waiting)
+    assert (answer.status_code, answer.json()["detail"]) == (
+        409,
+        "that session is no longer in your plan",
+    )
+    assert _rows(engine, Workout) == []
+    assert client.get("/api/proposals").json() == []  # discarded, as a changed one is
+    again = proposed(client, token, kind="strength", day=yesterday, exercises=[PULL_UPS])
+    assert save(client, again).status_code == 200
+    (workout,) = _rows(engine, Workout)
+    assert workout.template_id != gone
 
 
 # ------------------------------------------------------------------- the other kinds

@@ -17,7 +17,7 @@ from training_coach.domain.blocks import Block
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import Position, complete, swap_with_next
 from training_coach.services import undo, users
-from training_coach.services.plan_rows import in_cycle
+from training_coach.services.plan_rows import GONE, in_cycle, in_plan
 from training_coach.services.today import SessionPlan, position, session_plan
 
 
@@ -122,12 +122,15 @@ def swap_next(session: Session, template_id: int, block: Block | None = None) ->
 
 def pick(
     session: Session, template_id: int, picked_id: int, block: Block | None = None
-) -> SessionPlan | None:
+) -> SessionPlan | str | None:
     """Show another session for today. The queue stays put: doing it is an out-of-order
     session (ADR-0016), so the offered one is still next tomorrow. Picking the offered one
-    itself takes back an earlier pick today (the web app lists it after a pick)."""
+    itself takes back an earlier pick today (the web app lists it after a pick). ``GONE``
+    when the picked session has left the plan since the menu was shown (ADR-0093)."""
     if _state_at(session, template_id) is None:
         return None
+    if not in_plan(session, picked_id):
+        return GONE
     plan = session_plan(session, picked_id, block)
     if plan is not None:
         session.add(

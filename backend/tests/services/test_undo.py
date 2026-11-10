@@ -164,3 +164,31 @@ def test_events_from_before_undo_existed_are_not_undone(seeded: Session) -> None
     seeded.add(Event(kind="queue.rest", payload={"template_id": 1, "status": "skipped"}))
     seeded.flush()
     assert undo.last(seeded, _now()) == undo.Blocked(undo.NOTHING)
+
+
+def _cycle_changed(session: Session) -> None:
+    """What ``plan_edit.save`` writes on a save that changes the cycle (ADR-0093): counts only."""
+    session.add(Event(kind=undo.CYCLE_CHANGED, payload={"added": 0, "removed": 1}))
+    session.flush()
+
+
+def test_a_cycle_change_ends_the_undo_window(seeded: Session) -> None:
+    """Decided 11: the queue the push left is still there, but undoing it could point the queue
+    at a session the save removed, so it answers "changed", as a newer change does."""
+    held = _point_at(seeded, "zone2")
+    queue_actions.push_to_tomorrow(seeded, held, TODAY)
+    old = undo.last(seeded, _now())
+    assert isinstance(old, undo.Undoable)
+    _cycle_changed(seeded)
+    assert undo.last(seeded, _now()) == undo.Blocked(undo.CHANGED)
+    assert undo.apply(seeded, old.event_id, _now()) == undo.Blocked(undo.CHANGED)
+    assert _workouts(seeded) == 1  # the push stays
+    later = _now() + undo.WINDOW + timedelta(minutes=1)
+    assert undo.last(seeded, later) == undo.Blocked(undo.TOO_OLD)
+
+
+def test_a_change_after_a_cycle_change_can_be_undone(seeded: Session) -> None:
+    _cycle_changed(seeded)
+    held = _point_at(seeded, "zone2")
+    queue_actions.push_to_tomorrow(seeded, held, TODAY)
+    assert isinstance(undo.last(seeded, _now()), undo.Undoable)

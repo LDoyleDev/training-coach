@@ -20,7 +20,7 @@ from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.dates import day_problem
 from training_coach.domain.enums import CardioActivity
 from training_coach.domain.queue import local_date
-from training_coach.services import day_log, guided, workout_log
+from training_coach.services import day_log, guided, plan_rows, workout_log
 from training_coach.services.day_clash import Clash, Refused
 
 router = APIRouter(prefix="/api/log", tags=["log"])
@@ -92,7 +92,7 @@ def plan(day: date, template_id: int, request: Request, user: Owner) -> LogPlanV
     with session_scope(_bound(request, user)) as session:
         found = day_log.plan(session, day, template_id, settings.tz)
     if found is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, day_log.NO_SESSION)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, plan_rows.GONE)
     return LogPlanView(
         day=day,
         template_id=found.template_id,

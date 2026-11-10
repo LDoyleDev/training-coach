@@ -190,7 +190,8 @@ def next_first(body: ChangeBody, request: Request, user: Owner) -> ChangedView:
 
 @router.post("/pick", response_model=ChangedView)
 def pick(body: PickBody, request: Request, user: Owner) -> ChangedView:
-    """Do another session today; the planned one is still next (ADR-0022)."""
+    """Do another session today; the planned one is still next (ADR-0022). 409 in words when
+    the picked session is no longer in the plan (ADR-0093)."""
     settings, on = _settings_and_day(request)
     with session_scope(_bound(request, user)) as session:
         planned = _planned(session, on, settings, body.template_id, picked=True)
@@ -202,6 +203,8 @@ def pick(body: PickBody, request: Request, user: Owner) -> ChangedView:
         )
         if picked is None:
             raise _stale()
+        if isinstance(picked, str):  # a menu left open names a session no longer in the plan
+            raise HTTPException(status.HTTP_409_CONFLICT, picked)
         return _changed(session, on, settings, picked.name)
 
 

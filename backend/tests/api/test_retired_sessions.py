@@ -30,6 +30,7 @@ from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import local_date
 from training_coach.services import ai_summary, auth, erase, export, today, workout_log
+from training_coach.services.plan_rows import GONE
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -106,6 +107,15 @@ def _retire(engine: Engine, hiit_id: int) -> None:
         factories.retire(mine, mine.get_one(SessionTemplate, hiit_id), on)
 
 
+def _delete(engine: Engine, name: str) -> int:
+    """A session no workout names is deleted, not retired (ADR-0093 Decided 5); its id."""
+    with session_scope(make_session_factory(engine, user_id=OWNER)) as mine:
+        row = mine.scalars(select(SessionTemplate).where(SessionTemplate.name == name)).one()
+        gone = row.id
+        mine.delete(row)
+        return gone
+
+
 def _week(engine: Engine) -> list[str]:
     with make_session_factory(engine, user_id=OWNER)() as mine:
         found = today.week(mine, local_date(_today(), TZ), days=7)
@@ -176,3 +186,26 @@ def test_a_retired_session_is_exported_and_erased_with_the_rest(
         rows = list(mine.scalars(select(SessionTemplate)))
     assert [t.retired_on for t in rows] == [None] * 7
     assert NAME in [t.name for t in rows]
+
+
+@pytest.mark.parametrize("how", ["retired", "deleted"])
+def test_an_old_id_from_the_browser_is_refused_in_words(
+    client: TestClient, engine: Engine, how: str
+) -> None:
+    """Decided 12: the pick menu and the Log page, left open while the session went."""
+    shown = client.get("/api/today/choices").json()["template_id"]
+    if how == "retired":
+        gone = _done_two_days_ago(engine)
+        _retire(engine, gone)
+    else:
+        gone = _delete(engine, NAME)
+    picked = client.post("/api/today/pick", json={"template_id": shown, "picked_id": gone})
+    assert (picked.status_code, picked.json()["detail"]) == (409, GONE)
+    day = local_date(_today(), TZ).isoformat()
+    plan = client.get("/api/log/plan", params={"day": day, "template_id": gone})
+    assert (plan.status_code, plan.json()["detail"]) == (404, GONE)
+    sets = [{"item": 0, "set_no": 1, "left": 8}]
+    for what in ("session", "extra"):
+        body = {"token": "ab" * 16, "day": day, "what": what, "template_id": gone, "sets": sets}
+        saved = client.post("/api/log", json=body)
+        assert (saved.status_code, saved.json()["detail"]) == (422, GONE), what

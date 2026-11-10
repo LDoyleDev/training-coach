@@ -4,9 +4,9 @@ saved workout log.
 Each of those records, in its event, the queue before and after it and the workout row it
 added; a log that replaced or moved a day's session (ADR-0060) also what it set aside or moved,
 which undoing puts back. Undoing puts the queue back and removes that workout, but only while
-nothing has moved since: the queue must still be where the change left it. One step only:
-after an undo there is nothing left to undo until the next change. The caller owns the
-transaction.
+nothing has moved since: the queue must still be where the change left it, and the plan's
+cycle must not have changed (ADR-0093). One step only: after an undo there is nothing left to
+undo until the next change. The caller owns the transaction.
 """
 
 from dataclasses import dataclass
@@ -27,6 +27,9 @@ from training_coach.services import day_clash, users
 
 UNDOABLE = ("queue.rest", "queue.pushed", "queue.swapped", "workout.logged")
 UNDONE = "undo.applied"
+# A save that changes the cycle (``plan_edit.save``, ADR-0093 Decided 11) ends the undo window:
+# a queue from before it could name a session it removed.
+CYCLE_CHANGED = "plan.cycle_changed"
 WINDOW = day_clash.KEPT  # 24 hours
 
 
@@ -107,13 +110,18 @@ def _put_back(session: Session, payload: dict[str, Any]) -> str:
 
 def _latest(session: Session) -> Event | None:
     return session.scalar(
-        select(Event).where(Event.kind.in_((*UNDOABLE, UNDONE))).order_by(Event.id.desc()).limit(1)
+        select(Event)
+        .where(Event.kind.in_((*UNDOABLE, UNDONE, CYCLE_CHANGED)))
+        .order_by(Event.id.desc())
+        .limit(1)
     )
 
 
 def last(session: Session, now: datetime) -> Undoable | Blocked:
     """The change /undo would take back, or why there is none."""
     event = _latest(session)
+    if event is not None and event.kind == CYCLE_CHANGED:  # as a newer change does
+        return Blocked(TOO_OLD if now - event.at > WINDOW else CHANGED)
     if event is None or event.kind == UNDONE or not isinstance(event.payload.get("undo"), dict):
         return Blocked(NOTHING)
     if now - event.at > WINDOW:

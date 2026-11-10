@@ -13748,7 +13748,7 @@
     },
     "/api/today/pick": {
       "post": {
-        "description": "Do another session today; the planned one is still next (ADR-0022).",
+        "description": "Do another session today; the planned one is still next (ADR-0022). 409 in words when\nthe picked session is no longer in the plan (ADR-0093).",
         "operationId": "pick_api_today_pick_post",
         "requestBody": {
           "content": {

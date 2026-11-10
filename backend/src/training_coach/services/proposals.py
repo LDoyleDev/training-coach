@@ -55,6 +55,7 @@ from training_coach.services import (
     day_clash,
     habits,
     measurements,
+    plan_rows,
     user_settings,
     workout_log,
 )
@@ -729,8 +730,8 @@ class Gone:
 
 @dataclass(frozen=True)
 class Changed:
-    """It can't be saved as proposed any more (today's session changed, the day is too long
-    ago now): it was discarded, nothing was written."""
+    """It can't be saved as proposed any more (today's session changed, its session has left
+    the plan, the day is too long ago now): it was discarded, nothing was written."""
 
     reason: str
 
@@ -808,6 +809,11 @@ def _write(
     if row.kind in (STRENGTH, CARDIO) and (today - day).days > MAX_DAYS_BACK:
         return f"{_when(day)} is too long ago now"
     if row.kind == STRENGTH:
+        named = data["template_id"]
+        if named is not None and not plan_rows.in_plan(session, named):
+            # Removed since it was proposed (ADR-0093): one that names no session is an extra,
+            # and the AI's next proposal of the same sets is read against the plan as it is now.
+            return plan_rows.GONE[0].lower() + plan_rows.GONE[1:]
         if not data["backdated"] and day < today:  # proposed for a today that has passed
             return f"it was proposed for {_when(day)}, which has passed"
         draft = workout_log.Draft(

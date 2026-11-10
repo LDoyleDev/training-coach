@@ -22,6 +22,19 @@ def in_cycle() -> ColumnElement[bool]:
     return SessionTemplate.retired_on.is_(None)
 
 
+# An id from a client (a pick menu left open, a Telegram button, the Log page, a proposal) that
+# names a session no longer in the cycle, retired or deleted (ADR-0093 Decided 12).
+GONE = "That session is no longer in your plan"
+
+
+def in_plan(session: Session, template_id: int) -> bool:
+    """Whether ``template_id`` names a session in the cycle: not retired, not deleted."""
+    found = session.scalar(
+        select(SessionTemplate.id).where(SessionTemplate.id == template_id, in_cycle())
+    )
+    return found is not None
+
+
 def _known() -> set[str]:
     # Imported here, not at the top: the seed, Today and the log import this module for
     # ``in_cycle``, and the seed and guided (which imports Today) would make it a circle.

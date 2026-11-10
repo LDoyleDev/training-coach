@@ -2133,7 +2133,8 @@ export interface paths {
         put?: never;
         /**
          * Pick
-         * @description Do another session today; the planned one is still next (ADR-0022).
+         * @description Do another session today; the planned one is still next (ADR-0022). 409 in words when
+         *     the picked session is no longer in the plan (ADR-0093).
          */
         post: operations["pick_api_today_pick_post"];
         delete?: never;

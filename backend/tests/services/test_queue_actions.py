@@ -8,6 +8,7 @@ from tests.services.test_today import PLAN
 from training_coach.db.models import Event, PlanState, SessionTemplate, Workout
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.services import queue_actions
+from training_coach.services.plan_rows import GONE
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.today import week
 
@@ -99,7 +100,7 @@ def test_pick_shows_another_session_and_keeps_the_queue(seeded: Session) -> None
 
 def test_pick_rejects_an_unknown_session(seeded: Session) -> None:
     upper = _ids(seeded)["upper"]
-    assert queue_actions.pick(seeded, upper, 999) is None
+    assert queue_actions.pick(seeded, upper, 999) == GONE  # none of mine: as a deleted one
     assert _events(seeded) == []
 
 

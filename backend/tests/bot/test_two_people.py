@@ -35,7 +35,7 @@ from training_coach.bot import stretching as stretching_ui
 from training_coach.bot import undo as undo_ui
 from training_coach.bot.app import ASK_ADMIN, HELP_TEXT, MEMBER_HELP_TEXT, build_bot
 from training_coach.bot.gate import NOT_OPEN, WHAT
-from training_coach.bot.messages import LOG_EXPIRED, STALE
+from training_coach.bot.messages import LOG_EXPIRED, SESSION_GONE, STALE
 from training_coach.db.models import (
     DailyCheck,
     Event,
@@ -159,9 +159,12 @@ async def test_a_morning_button_changes_only_the_pressers_queue(
     (text,) = texts(await run(both, press(f"q:rest:{theirs}", MEMBER)))
     assert "moves to tomorrow" in text
     assert (_count(seeded, Workout), _count(member, Workout)) == (0, 1)
-    # The member's old button, forged by the owner, names nothing of the owner's: stale.
-    for data in (f"q:rest:{theirs}", f"q:next:{theirs}", f"q:pick:{mine}:{theirs}"):
+    # The member's old button, forged by the owner, names nothing of the owner's: stale, or
+    # (the id the button would open) no session in the owner's plan (ADR-0093).
+    for data in (f"q:rest:{theirs}", f"q:next:{theirs}"):
         assert texts(await run(both, press(data, OWNER))) == [STALE]
+    for data in (f"q:pick:{mine}:{theirs}", f"q:start:{theirs}"):
+        assert texts(await run(both, press(data, OWNER))) == [SESSION_GONE]
     assert (_count(seeded, Workout), _count(member, Workout)) == (0, 1)
     assert _next(seeded) == mine
 

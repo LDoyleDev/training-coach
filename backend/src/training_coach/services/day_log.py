@@ -21,7 +21,7 @@ from training_coach.domain.dates import day_problem
 from training_coach.domain.enums import CardioActivity
 from training_coach.services import blocks, cardio, guided, workout_log
 from training_coach.services.day_clash import Clash, Refused, Resolution
-from training_coach.services.plan_rows import in_cycle
+from training_coach.services.plan_rows import GONE, in_cycle, in_plan
 from training_coach.services.today import SessionPlan, session_plan
 
 REST_TODAY = "to rest today, use Rest today on Today"
@@ -47,7 +47,10 @@ def choices(session: Session) -> list[Choice]:
 
 
 def plan(session: Session, day: date, template_id: int, tz: ZoneInfo) -> SessionPlan | None:
-    """The session's exercises and targets, in the training block of ``day`` (ADR-0028)."""
+    """The session's exercises and targets, in the training block of ``day`` (ADR-0028). None
+    when it isn't in the plan: a choice left open while it was removed (ADR-0093)."""
+    if not in_plan(session, template_id):
+        return None
     return session_plan(session, template_id, blocks.current(session, day, tz), on=day)
 
 
@@ -68,13 +71,14 @@ def save_sets(
     answer: Resolution | None = None,
 ) -> Saving:
     """Save the sets done of a session's exercises on ``day``, as that session or, with
-    ``extra``, as an extra that completes nothing. A problem message when it can't be."""
+    ``extra``, as an extra that completes nothing. A problem message when it can't be: a
+    session no longer in the plan, as session or extra, among them."""
     if (problem := day_problem(day, today)) is not None:
         return problem
     template = session.get(SessionTemplate, template_id)
     found = plan(session, day, template_id, tz) if template is not None else None
     if template is None or found is None:
-        return NO_SESSION
+        return GONE  # retired or deleted since the choice was shown (ADR-0093)
     if not sets:
         return NO_SETS
     if (problem := guided.sets_problem(found.items, sets)) is not None:
