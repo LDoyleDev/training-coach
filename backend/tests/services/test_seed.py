@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests import factories
 from training_coach.db.models import (
     Event,
     Exercise,
@@ -272,6 +273,20 @@ items = [{ exercise = "dip", sets = 2, rep_min = 5, rep_max = 10 }]
 def _sessions(text: str) -> tuple[str, list[str]]:
     head, *blocks = text.split("[[sessions]]")
     return head, ["[[sessions]]" + b for b in blocks]
+
+
+def test_a_retired_session_is_left_parked_and_never_made_again(session: Session) -> None:
+    """Its slug is still taken (ADR-0093): a plan without it leaves it alone, and a plan with it
+    is refused in words, not by the unique slug."""
+    plan = load_plan(MINI_PLAN)
+    apply_seed(session, plan)
+    arms = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "arms")).one()
+    factories.retire(session, arms, date(2026, 11, 10))
+    exercises = {e.slug: e for e in session.scalars(select(Exercise))}
+    sync_sessions(session, plan.sessions[:1], OWNER, exercises, SeedResult())
+    assert arms.position == 10_000 + arms.id
+    with pytest.raises(SeedError, match="arms retired from this plan"):
+        sync_sessions(session, plan.sessions, OWNER, exercises, SeedResult())
 
 
 @pytest.mark.parametrize("insert_at", [0, 1, 2], ids=["front", "middle", "end"])

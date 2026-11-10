@@ -731,7 +731,17 @@ def sync_sessions(
 ) -> None:
     """Make this person's sessions in the cycle match ``sessions``: a new one's items, or an
     existing one's by position. Items removed from a session are deleted (nothing else
-    references them). Retired sessions are left as they are, parked (ADR-0093)."""
+    references them). Retired sessions are left as they are, parked (ADR-0093); one of
+    their slugs in ``sessions`` raises, since putting a session back isn't built yet."""
+    wanted = {s.slug: i for i, s in enumerate(sessions)}
+    retired = session.scalars(
+        select(SessionTemplate.slug)
+        .where(SessionTemplate.user_id == user_id, ~in_cycle(), SessionTemplate.slug.in_(wanted))
+        .order_by(SessionTemplate.slug),
+        execution_options={ALL_USERS: True},
+    ).all()
+    if retired:
+        raise SeedError(f"{', '.join(retired)} retired from this plan, so can't be made again")
     templates = {
         t.slug: t
         for t in session.scalars(
@@ -739,7 +749,6 @@ def sync_sessions(
             execution_options={ALL_USERS: True},
         )
     }
-    wanted = {s.slug: i for i, s in enumerate(sessions)}
     current = {t.slug: t.position for t in templates.values()}
     if current != {slug: wanted[slug] for slug in current}:
         # Reordering: park existing positions out of the way so the unique index never
