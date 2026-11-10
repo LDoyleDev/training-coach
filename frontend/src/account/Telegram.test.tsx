@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import Telegram from './Telegram'
 
@@ -141,7 +141,7 @@ test('an error goes when the card has moved on by the time they are back', async
 })
 
 test('an error stays when they are back and nothing has changed', async () => {
-  serve({ [`GET ${STATUS}`]: pending(1), [`POST ${STATUS}/code`]: { status: 400 } })
+  const asked = serve({ [`GET ${STATUS}`]: pending(1), [`POST ${STATUS}/code`]: { status: 400 } })
   render(<Telegram />)
   fireEvent.change(await screen.findByRole('textbox', { name: 'Code from the bot' }), {
     target: { value: '654321' },
@@ -149,7 +149,10 @@ test('an error stays when they are back and nothing has changed', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Check the code' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('That’s not the code.')
   fireEvent(window, new Event('focus'))
-  await new Promise((r) => setTimeout(r, 0))
+  // The status asked for again, and its answer handled, before looking.
+  await waitFor(() => expect(asked.filter((a) => a === `GET ${STATUS}`)).toHaveLength(2))
+  await act(() => vi.mocked(fetch).mock.results.at(-1)?.value)
+  await act(() => new Promise((r) => setTimeout(r, 0)))
   expect(screen.getByRole('alert')).toHaveTextContent('That’s not the code.')
 })
 
