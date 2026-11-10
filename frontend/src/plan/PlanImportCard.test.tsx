@@ -82,3 +82,12 @@ test.each([
   fireEvent.click(await screen.findByRole('button', { name: 'Save as a new version' }))
   expect(await screen.findByRole('status')).toHaveTextContent(message)
 })
+
+test('a file that is refused says why, with nothing listed or offered', async () => {
+  const refusal = "Fix plan.toml first. Two sessions can't both be called Legs."
+  serve({ changes: [], blocked: refusal, version: null })
+  render(<PlanImportCard />)
+  expect(await screen.findByText(refusal)).toBeInTheDocument()
+  expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button')).not.toBeInTheDocument()
+})

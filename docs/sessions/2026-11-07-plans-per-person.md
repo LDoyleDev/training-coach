@@ -57,7 +57,8 @@ match the drill's counts, and the first start logged `seed.unchanged` with no `s
    - `draft/traps-rear-delts` (local only, superseded by the face pulls): keep or delete. The
      remote branches `feat/507-entry-figures-a` and `-b` are his to delete, if he wants.
 3. **Known limit:** a session the owner adds in the app that isn't in `plan.toml` blocks the
-   import. It can't happen until the editor can add a session (#577, stage 4).
+   import. It can't happen until the editor can add a session (#577, stage 4). Closed by #722
+   (ADR-0093 Decided 14): the import lists such a session as removed instead.
 4. **Follow-ups:** the Tests page could say "about 10 minutes" for the warm-up;
    `api/settings.py` and `db/models.py` comments still say "where it's safe"; the APK guard and
    the release job take the highest `build-tools` folder, which could be a preview.

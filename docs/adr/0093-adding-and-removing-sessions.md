@@ -226,3 +226,19 @@ he wants the map counted over the cycle's own length.
 - **Telegram's Start was not safe**, unlike Rest, Push and Swap: it opened the session the button
   named without checking the pointer, so an old Start showed a retired session's empty list. It
   now answers the words too.
+
+## Addendum (10 Nov 2026): the import (#722)
+
+- **One way to remove.** The import retires or deletes a session with the editor's own steps
+  (`plan_edit.retire`, `plan_edit.requeue`), works the queue out with the editor's
+  `queue_after` (Decided 9), and writes its notice with the editor's `notice` and `tell`
+  (Decided 10 and 11). A put-back is said as "put back High intensity". The notice is written
+  only when a session is added, removed or put back; `plan.cycle_changed` whenever the cycle
+  changes, as for the editor.
+- **Putting back** is `seed.sync_sessions`: a retired row whose slug the file has gets
+  `retired_on` cleared, the file's name, items and place. The same row, so its history joins up.
+- **Refused before anything is listed**, with "Fix plan.toml first.": a name clash by Decided 3
+  over every name in the file, and a cycle past Decided 13's limits. The Plan page's import
+  card shows the refusal on its own.
+- **"Moves to place N"** is said only for the sessions a reorder moved (the fewest, as the
+  editor counts them), not for every session an add or a removal shifts.

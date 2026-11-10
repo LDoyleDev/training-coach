@@ -27,8 +27,8 @@ from training_coach.services import day_clash, users
 
 UNDOABLE = ("queue.rest", "queue.pushed", "queue.swapped", "workout.logged")
 UNDONE = "undo.applied"
-# A save that changes the cycle (``plan_edit.save``, ADR-0093 Decided 11) ends the undo window:
-# a queue from before it could name a session it removed.
+# A save that changes the cycle (``plan_edit.save`` or the import, ADR-0093 Decided 11) ends the
+# undo window: a queue from before it could name a session it removed.
 CYCLE_CHANGED = "plan.cycle_changed"
 WINDOW = day_clash.KEPT  # 24 hours
 

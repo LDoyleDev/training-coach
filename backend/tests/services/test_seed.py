@@ -276,9 +276,9 @@ def _sessions(text: str) -> tuple[str, list[str]]:
     return head, ["[[sessions]]" + b for b in blocks]
 
 
-def test_a_retired_session_is_left_parked_and_never_made_again(session: Session) -> None:
+def test_a_retired_session_is_left_parked_until_a_plan_has_it(session: Session) -> None:
     """Its slug is still taken (ADR-0093): a plan without it, or the seed, leaves it alone, and a
-    plan with it is refused in words, not by the unique slug."""
+    plan with it puts the same row back, not a second one (the owner's import, Decided 14)."""
     plan = load_plan(MINI_PLAN)
     apply_seed(session, plan)
     arms = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "arms")).one()
@@ -287,8 +287,9 @@ def test_a_retired_session_is_left_parked_and_never_made_again(session: Session)
     sync_sessions(session, plan.sessions[:1], OWNER, exercises, SeedResult())
     apply_seed(session, plan)  # the start-up seed: it doesn't touch a planned person's sessions
     assert arms.position == 10_000 + arms.id
-    with pytest.raises(SeedError, match="arms retired from this plan"):
-        sync_sessions(session, plan.sessions, OWNER, exercises, SeedResult())
+    sync_sessions(session, plan.sessions, OWNER, exercises, SeedResult())
+    assert (arms.retired_on, arms.position) == (None, 1)
+    assert [i.exercise.slug for i in arms.items] == ["dip"]
 
 
 def test_a_reorder_parks_past_a_retired_session(session: Session) -> None:

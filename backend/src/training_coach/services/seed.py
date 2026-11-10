@@ -731,26 +731,21 @@ def sync_sessions(
 ) -> None:
     """Make this person's sessions in the cycle match ``sessions``: a new one's items, or an
     existing one's by position. Items removed from a session are deleted (nothing else
-    references them). Retired sessions are left as they are, parked (ADR-0093); one of
-    their slugs in ``sessions`` raises, since putting a session back isn't built yet."""
+    references them). A retired session whose slug ``sessions`` has is put back, its items and
+    place from ``sessions``; the other retired ones are left as they are, parked (ADR-0093). A
+    session in the cycle that ``sessions`` lacks is left parked, for the caller to remove."""
     wanted = {s.slug: i for i, s in enumerate(sessions)}
-    retired = session.scalars(
-        select(SessionTemplate.slug)
-        .where(SessionTemplate.user_id == user_id, ~in_cycle(), SessionTemplate.slug.in_(wanted))
-        .order_by(SessionTemplate.slug),
-        execution_options={ALL_USERS: True},
-    ).all()
-    if retired:
-        raise SeedError(f"{', '.join(retired)} retired from this plan, so can't be made again")
     templates = {
         t.slug: t
         for t in session.scalars(
-            select(SessionTemplate).where(SessionTemplate.user_id == user_id, in_cycle()),
+            select(SessionTemplate).where(
+                SessionTemplate.user_id == user_id, in_cycle() | SessionTemplate.slug.in_(wanted)
+            ),
             execution_options={ALL_USERS: True},
         )
     }
     current = {t.slug: t.position for t in templates.values()}
-    if current != {slug: wanted[slug] for slug in current}:
+    if any(wanted.get(slug) != position for slug, position in current.items()):
         # Reordering: park existing positions out of the way so the unique index never
         # sees two sessions on one position mid-update. New sessions always get positions
         # after the existing ones' final positions, so they cannot collide. Parked above
@@ -784,6 +779,7 @@ def sync_sessions(
                 is_rest_optional=seed_session.is_rest_optional,
                 kind=seed_session.type,
                 rest_after=seed_session.rest_after,
+                retired_on=None,
             )
         sync_version(user_id, template.items, seed_session.items, exercises, result)
         sync_version(user_id, template.gym_items, seed_session.gym, exercises, result)

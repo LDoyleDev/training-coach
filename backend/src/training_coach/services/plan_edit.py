@@ -9,7 +9,7 @@ import hashlib
 import json
 import re
 import unicodedata
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date
 
@@ -246,7 +246,7 @@ def _both(earlier: str, note: str) -> str:
 
 
 @dataclass(frozen=True)
-class _Draft:
+class Draft:
     """A cycle draft checked against the saved sessions: each entry by its domain key."""
 
     slots: tuple[Slot, ...]
@@ -271,7 +271,7 @@ def _draft(
     cycle: Sequence[Kept | Added],
     plan: PlanSeed,
     today: date,
-) -> _Draft | str:
+) -> Draft | str:
     """The draft by keys, or why it can't be saved, in words."""
     kept: dict[int, Kept] = {}
     added: dict[str, Added] = {}
@@ -295,17 +295,27 @@ def _draft(
     problem = cycle_rules.problem(slots)
     if problem is not None:
         return problem
+    # A saved session's name is checked only once renamed.
+    named = [(e.name, isinstance(e, Added) or rows[e.slug].name != e.name) for e in cycle]
+    problem = names_problem(named, plan, today)
+    if problem is not None:
+        return problem
+    return Draft(tuple(slots), kept, added)
+
+
+def names_problem(names: Sequence[tuple[str, bool]], plan: PlanSeed, today: date) -> str | None:
+    """Why a cycle's session names can't be saved (Decided 3), in words; None when they can.
+    Each name says whether to check it against the rules: any two the same are refused."""
     exercise_names = {normalise_name(n) for e in plan.exercises for n in (e.name, *e.aliases)}
     seen: set[str] = set()
-    for entry in cycle:
-        renamed = isinstance(entry, Added) or rows[entry.slug].name != entry.name
-        problem = _name_problem(entry.name, exercise_names, today) if renamed else None
+    for name, checked in names:
+        problem = _name_problem(name, exercise_names, today) if checked else None
         if problem is not None:
             return problem
-        if normalise_name(entry.name) in seen:
-            return f"Two sessions can't both be called {entry.name}."
-        seen.add(normalise_name(entry.name))
-    return _Draft(tuple(slots), kept, added)
+        if normalise_name(name) in seen:
+            return f"Two sessions can't both be called {name}."
+        seen.add(normalise_name(name))
+    return None
 
 
 def _slug(name: str, taken: set[str]) -> str:
@@ -337,10 +347,18 @@ def _rest_days(n: int) -> str:
     return "no rest days" if n == 0 else f"{n} rest day{'s' if n > 1 else ''}"
 
 
-def _notice(draft: _Draft, by_id: Mapping[int, SessionTemplate], applied: Applied) -> str | None:
+def notice(
+    draft: Draft,
+    by_id: Mapping[int, SessionTemplate],
+    applied: Applied,
+    back: Collection[str] = frozenset(),
+) -> str | None:
     """What a cycle change tells the person (Decided 10, ADR-0087), and what's next; None when
-    no session was added, removed, renamed, moved, or given another kind or rest days."""
-    said = [f"added {draft.added[key].name}" for key in applied.added]
+    no session was added, removed, renamed, moved, or given another kind or rest days. ``back``:
+    the added keys that put a retired session back (the owner's import, Decided 14)."""
+    said = [
+        f"{'put back' if key in back else 'added'} {draft.added[key].name}" for key in applied.added
+    ]
     said += [f"removed {by_id[sid].name}" for sid in applied.removed]
     for sid, entry in draft.kept.items():
         row = by_id[sid]
@@ -375,7 +393,7 @@ class _Write:
 
 def _write_cycle(
     session: Session,
-    draft: _Draft,
+    draft: Draft,
     applied: Applied,
     write: _Write,
     exercises: dict[str, Exercise],
@@ -392,13 +410,7 @@ def _write_cycle(
         for key, new in draft.added.items()
         if (t := sources.get(new.copy_of or "")) is not None
     }
-    for sid in applied.removed:
-        if sid in write.named:  # history holds it: retired, as exercises are (Decided 5)
-            row = write.by_id[sid]
-            row.retired_on, row.position = write.today, 10_000 + sid
-            row.items.clear()
-            row.gym_items.clear()
-            row.away_items.clear()
+    retire([write.by_id[sid] for sid in applied.removed if sid in write.named], write.today)
     session.flush()
     # Parked above every row, retired ones too, so no two share a position mid-update.
     park = max(t.position for t in templates(session, retired=True)) + 1
@@ -428,17 +440,68 @@ def _write_cycle(
             sync_version(user, _versions(row)[place], seeds, exercises, result)
         made[key] = row
     session.flush()
-    state = users.plan_state(session)
-    if state is not None:  # moved before a session it names goes
-        pointer = applied.pointer
-        state.next_template_id = made[pointer].id if isinstance(pointer, str) else pointer
-        state.queued = list(applied.queued)
-        session.flush()
-    for sid in applied.removed:
-        if sid not in write.named:  # nothing logged for it, so it goes (Decided 5)
-            session.delete(write.by_id[sid])
-    session.flush()
+    pointer = applied.pointer
+    gone = [write.by_id[sid] for sid in applied.removed if sid not in write.named]
+    requeue(
+        session, made[pointer].id if isinstance(pointer, str) else pointer, applied.queued, gone
+    )
     return made
+
+
+def tell(session: Session, applied: Applied, retired: int, text: str | None) -> None:
+    """A changed cycle ends the undo window (Decided 11): ``plan.cycle_changed``, counts only.
+    ``text``, when there is one, is the person's notice (Decided 10)."""
+    if applied.changed:
+        counts = {
+            "added": len(applied.added),
+            "removed": len(applied.removed),
+            "retired": retired,
+            "moved": len(applied.moved),
+        }
+        session.add(Event(kind=CYCLE_CHANGED, payload=counts))
+        log.info(CYCLE_CHANGED, **counts)
+    if text is not None:
+        session.add(PlanNotice(text=text))
+
+
+def queue_after(
+    session: Session, before: Sequence[SessionTemplate], draft: Sequence[Slot]
+) -> Applied:
+    """``draft`` in place of the live sessions ``before`` (in order), with the queue after it
+    (Decided 9)."""
+    slots = tuple(Slot(t.id, t.rest_after) for t in before)
+    position = queue_today.position(session) or Position(before[0].id if before else 0)
+    return cycle_rules.applied(slots, draft, position, queue_today.last_done(session))
+
+
+def logged(session: Session, ids: Collection[int]) -> set[int]:
+    """The sessions of ``ids`` a workout names: removing one retires it (Decided 5)."""
+    named = Workout.template_id.in_(ids)
+    return {sid for sid in session.scalars(select(Workout.template_id).where(named)) if sid}
+
+
+def retire(rows: Iterable[SessionTemplate], today: date) -> None:
+    """Take sessions history names out of the cycle, as exercises are (Decided 5, ADR-0034): the
+    day set, the items deleted, parked at 10_000 + id. Row and name stay for history."""
+    for row in rows:
+        row.retired_on, row.position = today, 10_000 + row.id
+        row.items.clear()
+        row.gym_items.clear()
+        row.away_items.clear()
+
+
+def requeue(
+    session: Session, pointer: int, queued: Sequence[int], gone: Iterable[SessionTemplate]
+) -> None:
+    """Point the queue at ``pointer`` with ``queued`` (Decided 9), then delete the removed
+    sessions nothing names (Decided 5): the pointer moves first, so none it names goes."""
+    state = users.plan_state(session)
+    if state is not None:
+        state.next_template_id, state.queued = pointer, list(queued)
+        session.flush()
+    for row in gone:
+        session.delete(row)
+    session.flush()
 
 
 def save(
@@ -491,13 +554,11 @@ def save(
     for key, new in added.items():
         if new.copy_of is None and NEW + key not in homes:
             return f"{new.name} needs at least one exercise."
-    applied = notice = None
+    applied = told = None
     if draft is not None:
-        before = tuple(Slot(t.id, t.rest_after) for t in rows.values())
-        position = queue_today.position(session) or Position(next(iter(by_id), 0))
-        applied = cycle_rules.applied(before, draft.slots, position, queue_today.last_done(session))
-        notice = _notice(draft, by_id, applied)
-    if notice is None and all(now[e.slug][1][e.place] == list(e.items) for e in edits):
+        applied = queue_after(session, list(rows.values()), draft.slots)
+        told = notice(draft, by_id, applied)
+    if told is None and all(now[e.slug][1][e.place] == list(e.items) for e in edits):
         return Saved(draft_of, None)
     if session_in_progress(session, today):
         return IN_PROGRESS
@@ -507,8 +568,7 @@ def save(
     made: dict[str, SessionTemplate] = {}
     named: set[int] = set()
     if draft is not None and applied is not None:
-        removed = Workout.template_id.in_(applied.removed)
-        named = {sid for sid in session.scalars(select(Workout.template_id).where(removed)) if sid}
+        named = logged(session, applied.removed)
         taken = set(session.scalars(select(SessionTemplate.slug)))
         taken |= {s.slug for starter in plan.starters for s in starter.sessions}
         focus = {k: _focus(homes.get(NEW + k, ()), catalogue, new.kind) for k, new in added.items()}
@@ -526,17 +586,8 @@ def save(
         version.name = _both(version.name, note)
     name = version.name
     session.add(Event(kind="plan.edited", payload={"versions": len(edits)}))
-    if applied is not None and applied.changed:
-        counts = {
-            "added": len(applied.added),
-            "removed": len(applied.removed),
-            "retired": len(named),
-            "moved": len(applied.moved),
-        }
-        session.add(Event(kind=CYCLE_CHANGED, payload=counts))
-        log.info(CYCLE_CHANGED, **counts)
-    if notice is not None:
-        session.add(PlanNotice(text=notice))
+    if applied is not None:
+        tell(session, applied, len(named), told)
     session.flush()
     slugs = {key: row.slug for key, row in made.items()}
     session.expire_all()

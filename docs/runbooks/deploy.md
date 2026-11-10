@@ -275,8 +275,11 @@ the file in a new PR.
 
 The seed changes only the catalogue (exercises, ladders) and gives a starter to anyone with no plan
 (ADR-0073). A change to the owner's sessions waits on the Plan page, which lists what would change, until
-the owner saves it as one version (`POST /api/plan/import`). A session the file no longer has
-is listed as removed and retired or deleted on save (ADR-0093). An exercise someone's plan uses can't be dropped or retired:
+the owner saves it as one version (`POST /api/plan/import`). The file is his whole plan
+(ADR-0093 Decided 14): a session it no longer has is listed as removed and retired (if logged) or
+deleted on save, and a removed session whose slug it has again is listed as put back. No data
+migration is needed for either. Two sessions with one name, or a session named as an exercise, is
+refused with nothing listed: fix the file first. An exercise someone's plan uses can't be dropped or retired:
 the seed fails with its name.
 
 Before any workouts are logged (no history to keep), the simpler fix is to start from an empty

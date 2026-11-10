@@ -3,8 +3,9 @@ import { fetchPlanImport, savePlanImport, SignedOutError, type PlanImport } from
 import { card, primaryInline } from '../ui'
 
 /** A change to plan.toml waiting for the owner (ADR-0073): the seed no longer changes anyone's
- * sessions, so this lists what would change, and saving makes it one version. Hidden when
- * nothing waits, and for everyone else. */
+ * sessions, so this lists what would change, and saving makes it one version. A file that
+ * can't be a plan is refused in words, with nothing listed (ADR-0093). Hidden when nothing
+ * waits, and for everyone else. */
 export default function PlanImportCard() {
   const [found, setFound] = useState<PlanImport | null>(null)
   const [busy, setBusy] = useState(false)
@@ -18,7 +19,8 @@ export default function PlanImportCard() {
     return () => controller.abort()
   }, [])
 
-  if (note === null && (found === null || found.changes.length === 0)) return null
+  const refused = found !== null && found.changes.length === 0 ? found.blocked : null
+  if (note === null && (found === null || found.changes.length === 0) && !refused) return null
 
   const save = async () => {
     setBusy(true)
@@ -71,6 +73,7 @@ export default function PlanImportCard() {
           )}
         </>
       )}
+      {refused && <p className="m-0">{refused}</p>}
       {note && (
         <p role="status" className="status m-0">
           {note}
