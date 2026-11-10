@@ -1,0 +1,838 @@
+{
+  "_about": "Cases for a cycle draft (ADR-0093, Decided 1, 6, 8, 9 and 13), shared by the backend test tests/domain/test_cycle.py and the web's copy in plan/cycleLogic.ts, so the two can't drift. A cycle is its sessions in queue order, each [key, rest_after]: a number is a saved session's id, a string a new session's key in the draft. The owner's 7 sessions are 10 to 70 with no rest places; the starters' rest places are plan.toml's: the 2-day [2, 3], the 3-day [1, 1, 2], the 4-day [0, 1, 0, 2].",
+  "split": [
+    { "rest_after": 0, "before": 0, "new": 0 },
+    { "rest_after": 1, "before": 0, "new": 0 },
+    { "rest_after": 2, "before": 1, "new": 0 },
+    { "rest_after": 3, "before": 1, "new": 1 },
+    { "rest_after": 4, "before": 2, "new": 1 },
+    { "rest_after": 5, "before": 2, "new": 2 },
+    { "rest_after": 6, "before": 3, "new": 2 }
+  ],
+  "add": [
+    {
+      "case": "the owner's 7, none with rest days: after the last, both 0, and the cycle is 8 days",
+      "cycle": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "after": null,
+      "suggested": 70,
+      "result": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0],
+        ["n1", 0]
+      ],
+      "days": 8
+    },
+    {
+      "case": "the 3-day: after C, its 2 rest days give C 1 and the new one 0",
+      "cycle": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ],
+      "after": null,
+      "suggested": 3,
+      "result": [
+        [1, 1],
+        [2, 1],
+        [3, 1],
+        ["n1", 0]
+      ],
+      "days": 7
+    },
+    {
+      "case": "the 2-day: after B, its 3 rest days give B 1 and the new one 1",
+      "cycle": [
+        [1, 2],
+        [2, 3]
+      ],
+      "after": null,
+      "suggested": 2,
+      "result": [
+        [1, 2],
+        [2, 1],
+        ["n1", 1]
+      ],
+      "days": 7
+    },
+    {
+      "case": "on a tie the later session",
+      "cycle": [
+        [1, 2],
+        [2, 2],
+        [3, 0]
+      ],
+      "after": null,
+      "suggested": 2,
+      "result": [
+        [1, 2],
+        [2, 1],
+        ["n1", 0],
+        [3, 0]
+      ],
+      "days": 7
+    },
+    {
+      "case": "the person picks a session with 0 rest days: both get 0 and the cycle is a day longer",
+      "cycle": [
+        [1, 0],
+        [2, 1],
+        [3, 0],
+        [4, 2]
+      ],
+      "after": 1,
+      "suggested": 4,
+      "result": [
+        [1, 0],
+        ["n1", 0],
+        [2, 1],
+        [3, 0],
+        [4, 2]
+      ],
+      "days": 8
+    },
+    {
+      "case": "the person picks a session with 1 rest day: the new one takes it, both get 0",
+      "cycle": [
+        [1, 0],
+        [2, 1],
+        [3, 0],
+        [4, 2]
+      ],
+      "after": 2,
+      "suggested": 4,
+      "result": [
+        [1, 0],
+        [2, 0],
+        ["n1", 0],
+        [3, 0],
+        [4, 2]
+      ],
+      "days": 7
+    }
+  ],
+  "remove": [
+    {
+      "case": "the 2-day without B is A with 6 rest days",
+      "cycle": [
+        [1, 2],
+        [2, 3]
+      ],
+      "key": 2,
+      "result": [[1, 6]],
+      "days": 7
+    },
+    {
+      "case": "the first session's days go to the last",
+      "cycle": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ],
+      "key": 1,
+      "result": [
+        [2, 1],
+        [3, 4]
+      ],
+      "days": 7
+    },
+    {
+      "case": "the owner's 7 without the fourth: the third gets its day",
+      "cycle": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "key": 40,
+      "result": [
+        [10, 0],
+        [20, 0],
+        [30, 1],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "days": 7
+    },
+    {
+      "case": "capped at 6 rest days, so the cycle shrinks",
+      "cycle": [
+        [1, 3],
+        [2, 4]
+      ],
+      "key": 2,
+      "result": [[1, 6]],
+      "days": 7
+    },
+    {
+      "case": "a new session removed from the draft",
+      "cycle": [
+        [1, 1],
+        [2, 1],
+        [3, 1],
+        ["n1", 0]
+      ],
+      "key": "n1",
+      "result": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ],
+      "days": 7
+    },
+    {
+      "case": "the only session leaves nothing, which can't be saved",
+      "cycle": [[1, 6]],
+      "key": 1,
+      "result": [],
+      "days": 0
+    }
+  ],
+  "move": [
+    {
+      "case": "up one",
+      "cycle": [
+        [10, 0],
+        [20, 0],
+        [30, 0]
+      ],
+      "key": 30,
+      "by": -1,
+      "result": [
+        [10, 0],
+        [30, 0],
+        [20, 0]
+      ]
+    },
+    {
+      "case": "down one, its rest days with it",
+      "cycle": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ],
+      "key": 1,
+      "by": 1,
+      "result": [
+        [2, 1],
+        [1, 1],
+        [3, 2]
+      ]
+    },
+    {
+      "case": "up from the top stays put",
+      "cycle": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ],
+      "key": 1,
+      "by": -1,
+      "result": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ]
+    },
+    {
+      "case": "down from the bottom stays put",
+      "cycle": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ],
+      "key": 3,
+      "by": 1,
+      "result": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ]
+    }
+  ],
+  "problem": [
+    {
+      "case": "the owner's 7",
+      "cycle": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "problem": null
+    },
+    {
+      "case": "10 sessions over 14 days",
+      "cycle": [
+        [1, 1],
+        [2, 0],
+        [3, 1],
+        [4, 0],
+        [5, 1],
+        [6, 0],
+        [7, 1],
+        [8, 0],
+        [9, 0],
+        [10, 0]
+      ],
+      "problem": null
+    },
+    { "case": "no session", "cycle": [], "problem": "Your cycle needs at least one session." },
+    {
+      "case": "a session twice",
+      "cycle": [
+        [1, 1],
+        [1, 1]
+      ],
+      "problem": "A session can be in your cycle only once."
+    },
+    {
+      "case": "11 sessions",
+      "cycle": [
+        [1, 0],
+        [2, 0],
+        [3, 0],
+        [4, 0],
+        [5, 0],
+        [6, 0],
+        [7, 0],
+        [8, 0],
+        [9, 0],
+        [10, 0],
+        ["n1", 0]
+      ],
+      "problem": "A cycle can have at most 10 sessions."
+    },
+    {
+      "case": "7 rest days after one",
+      "cycle": [[1, 7]],
+      "problem": "Rest days after a session can be 0 to 6."
+    },
+    {
+      "case": "fewer than none",
+      "cycle": [
+        [1, -1],
+        [2, 1]
+      ],
+      "problem": "Rest days after a session can be 0 to 6."
+    },
+    {
+      "case": "16 days",
+      "cycle": [
+        [1, 6],
+        [2, 6],
+        [3, 1]
+      ],
+      "problem": "Your cycle would be 16 days; it can be at most 14."
+    }
+  ],
+  "cannot_add": [
+    {
+      "case": "the owner's 7",
+      "cycle": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "reason": null
+    },
+    {
+      "case": "14 days with rest places to take",
+      "cycle": [
+        [1, 6],
+        [2, 6]
+      ],
+      "reason": null
+    },
+    {
+      "case": "10 sessions",
+      "cycle": [
+        [1, 0],
+        [2, 0],
+        [3, 0],
+        [4, 0],
+        [5, 0],
+        [6, 0],
+        [7, 0],
+        [8, 0],
+        [9, 0],
+        [10, 0]
+      ],
+      "reason": "You have 10 sessions, the most a cycle can have."
+    }
+  ],
+  "applied": [
+    {
+      "case": "nothing changed",
+      "before": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ],
+      "draft": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ],
+      "pointer": 2,
+      "queued": [],
+      "last_done": 1,
+      "then": {
+        "pointer": 2,
+        "queued": [],
+        "added": [],
+        "removed": [],
+        "moved": [],
+        "last_rest": 1,
+        "days": 7,
+        "changed": false
+      }
+    },
+    {
+      "case": "added straight after the session done last, where the queue stands: it is next",
+      "before": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "draft": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0],
+        ["n1", 0]
+      ],
+      "pointer": 10,
+      "queued": [],
+      "last_done": 70,
+      "then": {
+        "pointer": "n1",
+        "queued": [],
+        "added": ["n1"],
+        "removed": [],
+        "moved": [],
+        "last_rest": 0,
+        "days": 8,
+        "changed": true
+      }
+    },
+    {
+      "case": "added elsewhere: the pointer stays",
+      "before": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "draft": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0],
+        ["n1", 0]
+      ],
+      "pointer": 40,
+      "queued": [],
+      "last_done": 30,
+      "then": {
+        "pointer": 40,
+        "queued": [],
+        "added": ["n1"],
+        "removed": [],
+        "moved": [],
+        "last_rest": 0,
+        "days": 8,
+        "changed": true
+      }
+    },
+    {
+      "case": "added after the session done last, but a swap moved the queue on: the pointer stays",
+      "before": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "draft": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        ["n1", 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "pointer": 50,
+      "queued": [40, 60],
+      "last_done": 30,
+      "then": {
+        "pointer": 50,
+        "queued": [40, 60],
+        "added": ["n1"],
+        "removed": [],
+        "moved": [],
+        "last_rest": 0,
+        "days": 8,
+        "changed": true
+      }
+    },
+    {
+      "case": "nothing done yet: a new session after the first doesn't jump the queue",
+      "before": [
+        [1, 2],
+        [2, 3]
+      ],
+      "draft": [
+        [1, 2],
+        [2, 1],
+        ["n1", 1]
+      ],
+      "pointer": 1,
+      "queued": [],
+      "last_done": null,
+      "then": {
+        "pointer": 1,
+        "queued": [],
+        "added": ["n1"],
+        "removed": [],
+        "moved": [],
+        "last_rest": null,
+        "days": 7,
+        "changed": true
+      }
+    },
+    {
+      "case": "the next session removed: the one after it is next",
+      "before": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "draft": [
+        [10, 0],
+        [20, 0],
+        [30, 1],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "pointer": 40,
+      "queued": [],
+      "last_done": 30,
+      "then": {
+        "pointer": 50,
+        "queued": [],
+        "added": [],
+        "removed": [40],
+        "moved": [],
+        "last_rest": 1,
+        "days": 7,
+        "changed": true
+      }
+    },
+    {
+      "case": "the next session and the one after it removed: the next one left is next",
+      "before": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "draft": [
+        [10, 0],
+        [20, 0],
+        [30, 2],
+        [60, 0],
+        [70, 0]
+      ],
+      "pointer": 40,
+      "queued": [],
+      "last_done": 30,
+      "then": {
+        "pointer": 60,
+        "queued": [],
+        "added": [],
+        "removed": [40, 50],
+        "moved": [],
+        "last_rest": 2,
+        "days": 7,
+        "changed": true
+      }
+    },
+    {
+      "case": "the next session removed, the last of the cycle: it wraps to the first",
+      "before": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ],
+      "draft": [
+        [1, 1],
+        [2, 4]
+      ],
+      "pointer": 3,
+      "queued": [],
+      "last_done": 2,
+      "then": {
+        "pointer": 1,
+        "queued": [],
+        "added": [],
+        "removed": [3],
+        "moved": [],
+        "last_rest": 4,
+        "days": 7,
+        "changed": true
+      }
+    },
+    {
+      "case": "the next session removed during a swap: the swap's first is next",
+      "before": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "draft": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 1],
+        [60, 0],
+        [70, 0]
+      ],
+      "pointer": 50,
+      "queued": [40, 60],
+      "last_done": 30,
+      "then": {
+        "pointer": 40,
+        "queued": [60],
+        "added": [],
+        "removed": [50],
+        "moved": [],
+        "last_rest": 0,
+        "days": 7,
+        "changed": true
+      }
+    },
+    {
+      "case": "a queued session removed leaves the queue",
+      "before": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "draft": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 1],
+        [70, 0]
+      ],
+      "pointer": 50,
+      "queued": [40, 60],
+      "last_done": 30,
+      "then": {
+        "pointer": 50,
+        "queued": [40],
+        "added": [],
+        "removed": [60],
+        "moved": [],
+        "last_rest": 0,
+        "days": 7,
+        "changed": true
+      }
+    },
+    {
+      "case": "the session done last removed: its rest places as saved still count today",
+      "before": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ],
+      "draft": [
+        [1, 3],
+        [3, 2]
+      ],
+      "pointer": 3,
+      "queued": [],
+      "last_done": 2,
+      "then": {
+        "pointer": 3,
+        "queued": [],
+        "added": [],
+        "removed": [2],
+        "moved": [],
+        "last_rest": 1,
+        "days": 7,
+        "changed": true
+      }
+    },
+    {
+      "case": "every saved session replaced: the new one is next",
+      "before": [[1, 6]],
+      "draft": [["n1", 6]],
+      "pointer": 1,
+      "queued": [],
+      "last_done": 1,
+      "then": {
+        "pointer": "n1",
+        "queued": [],
+        "added": ["n1"],
+        "removed": [1],
+        "moved": [],
+        "last_rest": 6,
+        "days": 7,
+        "changed": true
+      }
+    },
+    {
+      "case": "moved up one: the pointer stays on its session",
+      "before": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "draft": [
+        [10, 0],
+        [30, 0],
+        [20, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "pointer": 20,
+      "queued": [],
+      "last_done": 10,
+      "then": {
+        "pointer": 20,
+        "queued": [],
+        "added": [],
+        "removed": [],
+        "moved": [30],
+        "last_rest": 0,
+        "days": 7,
+        "changed": true
+      }
+    },
+    {
+      "case": "the first moved to the end: one move, not six",
+      "before": [
+        [10, 0],
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0]
+      ],
+      "draft": [
+        [20, 0],
+        [30, 0],
+        [40, 0],
+        [50, 0],
+        [60, 0],
+        [70, 0],
+        [10, 0]
+      ],
+      "pointer": 10,
+      "queued": [],
+      "last_done": 70,
+      "then": {
+        "pointer": 10,
+        "queued": [],
+        "added": [],
+        "removed": [],
+        "moved": [10],
+        "last_rest": 0,
+        "days": 7,
+        "changed": true
+      }
+    },
+    {
+      "case": "only a rest day changed",
+      "before": [
+        [1, 1],
+        [2, 1],
+        [3, 2]
+      ],
+      "draft": [
+        [1, 2],
+        [2, 1],
+        [3, 1]
+      ],
+      "pointer": 2,
+      "queued": [],
+      "last_done": 1,
+      "then": {
+        "pointer": 2,
+        "queued": [],
+        "added": [],
+        "removed": [],
+        "moved": [],
+        "last_rest": 2,
+        "days": 7,
+        "changed": true
+      }
+    }
+  ]
+}

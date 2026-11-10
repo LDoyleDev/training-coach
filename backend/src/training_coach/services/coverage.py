@@ -91,11 +91,13 @@ def plan_coverage(
     *,
     sessions: Sequence[PlannedSession] | None = None,
     steps: Mapping[str, str] | None = None,
+    cycle_days: int = domain.WEEK,
 ) -> domain.Coverage:
     """The week with each session's version at ``place``, and with ``draft``'s versions in place
     of the saved ones, for the map as a plan is edited (program-builder.md F). ``sessions`` in
     place of the whole plan and ``steps`` (slug -> step name) over the person's own: a plan not
-    saved yet, as the walk-through previews it (ADR-0092). Nothing is saved."""
+    saved yet, as the walk-through previews it (ADR-0092). The bands are stretched to
+    ``cycle_days`` (ADR-0093, Decided 15). Nothing is saved."""
     exercises = {e.slug: e for e in bundled_plan().exercises}
     steps = {**trained_steps(session), **(steps or {})}
     week = []
@@ -128,4 +130,4 @@ def plan_coverage(
                 rest_after=planned.rest_after,
             )
         )
-    return domain.coverage(week)
+    return domain.coverage(week, cycle_days)

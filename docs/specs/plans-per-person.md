@@ -114,7 +114,10 @@ stretches, tests and mobility, not sessions.
 
 ### Writes
 
-Only the seed writes `session_templates`, `template_items` and `plan_versions`. `plan_state` is
+The seed (a starter for someone with no plan), `plan_edit.save` (the editor; with ADR-0093 also
+adding, retiring and deleting sessions), `plan_import.save` (the owner's import), `gym_version.write`
+and `walkthrough._swap` (which deletes the old sessions) write `session_templates`,
+`template_items` and `plan_versions`, each for the bound person. `plan_state` is
 written by the seed (new rows), `queue_actions`, `workout_log._commit`, `undo.apply` and the
 guided save, all bound. `workouts.plan_version_id` is written by the hook, `day_clash._date` and
 the seed.

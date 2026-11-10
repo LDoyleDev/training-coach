@@ -642,6 +642,8 @@ one): 56 sets on the 3-day, 52 on the 4-day, sessions of 22-41 minutes, the main
    **Built** (`/plan/edit`, `POST /api/plan/changes`): a draft in the browser, saved against the
    plan's revision, with a short note. The picker's first form came with it (step 7).
 7. **The picker and an interactive map:** add and remove exercises; add a session.
+   Adding and removing exercises shipped with step 6. Adding, removing and reordering sessions:
+   decided (ADR-0093, Liam, 10 Nov 2026), being built.
 8. **Load:** the 29 gym exercises in the catalogue, `load_kg`, carry-over with − and +, double
    progression. **Built** (ADR-0072, Built): `set_logs.load_kg`, the weight on the set screen
    with − and + from last time, typed and spoken weights ("rows 10 10 9 at 16"), the suggested
