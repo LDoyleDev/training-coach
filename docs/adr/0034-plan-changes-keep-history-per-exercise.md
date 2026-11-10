@@ -58,3 +58,9 @@ way to leave `/progress`, and nothing marks when the plan changed.
   squat's "squat"/"squats" aliases are dropped, so a casual "squats 10" can't land on an
   exercise that is no longer trained.
 - Retiring an exercise later is one line in `plan.toml`, after taking it out of its sessions.
+
+## Addendum (10 Nov 2026): sessions are retired the same way (ADR-0093)
+
+A session a person removes from their plan is retired like an exercise when a workout names it
+(`session_templates.retired_on`, its items deleted), so its days keep its name; one no workout
+names is deleted. There is no Put back in the app; the owner's import puts one back by slug.

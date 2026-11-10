@@ -42,3 +42,11 @@ the background, they should be notified."
 - `apply_seed` compares before it writes, so it says what changed once, on the start that changes it.
 - `plan_notices` is per person: in the export, gone on erase, and in the two-person canary.
 - A migration that changes a step must remember its notices: the migration reviewer's to check.
+
+## Addendum (10 Nov 2026): a change to your own cycle is a notice too (ADR-0093)
+
+Liam, 10 Nov 2026: "if there's a change to the cycle, it should be notified". A save that adds,
+removes, renames, moves or changes the kind or rest days of a session writes one `plan_notices`
+row saying what changed and what's next, shown and sent like any other. So does the owner's
+import when it adds, retires or puts back a session. An edit to the exercises inside a session
+still tells nobody, as above.
