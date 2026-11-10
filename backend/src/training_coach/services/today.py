@@ -163,16 +163,23 @@ def rest_days(session: Session, on: date) -> int:
     return rest_days_left(last[1], last[0], on)
 
 
-def _last_advanced(session: Session) -> tuple[date, int] | None:
-    """The day and rest places of the planned session done or rested last."""
+def _last_advanced(session: Session) -> tuple[date, int, int] | None:
+    """The day, rest places and id of the planned session done or rested last."""
     found = session.execute(
-        select(Workout.local_date, SessionTemplate.rest_after)
+        select(Workout.local_date, SessionTemplate.rest_after, SessionTemplate.id)
         .join(SessionTemplate, SessionTemplate.id == Workout.template_id)
         .where(Workout.status.in_(ADVANCING))
         .order_by(Workout.local_date.desc(), Workout.id.desc())
         .limit(1)
     ).first()
-    return (found[0], found[1]) if found is not None else None
+    return (found[0], found[1], found[2]) if found is not None else None
+
+
+def last_done(session: Session) -> int | None:
+    """The planned session done or rested last, which the queue after a cycle change reads
+    (ADR-0093 Decided 9); None: none yet."""
+    last = _last_advanced(session)
+    return last[2] if last is not None else None
 
 
 def _starts_on(session: Session) -> date | None:

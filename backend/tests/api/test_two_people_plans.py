@@ -30,7 +30,7 @@ from training_coach.config import Settings
 from training_coach.db.models import PlanVersion, SessionTemplate, TemplateItem, User, Workout
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
-from training_coach.services import ai_summary, auth, seed, users
+from training_coach.services import ai_summary, auth, plan_edit, seed, users
 
 ORIGIN = "https://coach.example.com"
 NOW = datetime(2026, 10, 12, 10, tzinfo=UTC)  # a Monday
@@ -229,3 +229,27 @@ def test_the_seed_changes_nobodys_sessions(pair: Pair) -> None:
     with session_scope(make_session_factory(engine)) as shared:
         seed.apply_seed(shared, plan.model_copy(update={"sessions": [changed, *plan.sessions[1:]]}))
     assert {user: _today(client) for user, client in clients.items()} == before
+
+
+def test_my_added_and_removed_sessions_leave_the_others_plan_alone(pair: Pair) -> None:
+    """A cycle change (ADR-0093) writes my sessions, my queue, my version and my notice only."""
+    app, clients, engine = pair
+    before = _reads(app, clients[1], engine, 1)
+    with session_scope(make_session_factory(engine, user_id=2)) as bound:
+        mine = plan_edit.templates(bound)
+        cycle: list[plan_edit.Kept | plan_edit.Added] = [
+            plan_edit.Kept(t.slug, t.name, t.kind, t.rest_after) for t in mine[1:]
+        ]
+        cycle.append(plan_edit.Added("n1", "Bravo copy", "strength", 0, copy_of=mine[1].slug))
+        revision = plan_edit.revision(bound)
+        saved = plan_edit.save(bound, [], "Mine", revision, seed.bundled_plan(), TODAY, cycle)
+        assert isinstance(saved, plan_edit.Saved)
+        assert [t.name for t in plan_edit.templates(bound)][-1] == "Bravo copy"
+    after = _reads(app, clients[1], engine, 1)
+    changed = sorted(path for path in before if before[path] != after[path])
+    assert not changed, f"my cycle change changed what the other sees: {changed}"
+    assert "/api/notices" in before
+    [notice] = clients[2].get("/api/notices").json()
+    assert "added Bravo copy" in notice["text"]
+    with make_session_factory(engine, user_id=1)() as theirs:
+        assert "Bravo copy" not in {t.name for t in plan_edit.templates(theirs, retired=True)}
