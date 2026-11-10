@@ -85,3 +85,11 @@ names kit. That lets in the 45° back extension (bodyweight, then holding a plat
 glute bridge becomes in 2-day B, 3-day B and Lower 2 so the lower back stays at 4 sets at the
 gym (any-level-any-time.md S1, Decided 10). Someone swapped to it starts on its bodyweight
 step, as on every exercise of a starter. A swap still replaces one item; nothing is added.
+
+## Addendum (10 Nov 2026): the import lists removed sessions too (ADR-0093)
+
+The import treats `plan.toml` as the owner's whole plan. A session of his that the file doesn't
+have is listed as removed ("Removes Legs 2: its history stays") and retired or deleted when he
+saves; a retired session whose slug the file has is listed as put back. It no longer refuses. A
+session made in the app gets a slug from its name that never equals a starter's, since
+`gym_version` decides by slug.

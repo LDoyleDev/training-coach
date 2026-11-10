@@ -78,3 +78,10 @@ that says when the first session is ("Rest day. Your first session is on Monday.
 is quiet the same way. "Train today instead" still works; once a planned session is done, the
 rest places count from it as before and `starts_on` no longer matters. Empty, as for the owner
 and everyone before the walk-through, changes nothing.
+
+## Addendum (10 Nov 2026): the person sets rest places (ADR-0093)
+
+`plan.toml` is no longer the only place that sets `rest_after`: in `/plan/edit` each session has
+"Rest days after" − N + (0-6), and adding or removing a session moves rest days as ADR-0093
+decides. A cycle need not be 7 days: the editor warns when it isn't, and the body map counts per
+cycle.
