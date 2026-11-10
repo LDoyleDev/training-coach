@@ -174,11 +174,27 @@ class LimitsView(BaseModel):
     max_rest: int  # rest places after one session
 
 
+class EditTodayView(BaseModel):
+    """Today as the queue holds it (ADR-0091), so "Saving will" can say whether a cycle change
+    changes it (ADR-0093)."""
+
+    # A planned session done or rested today, a rest place's day, or a session offered.
+    kind: Literal["done", "rest", "session"]
+    session: str | None  # the slug of the session done, picked or next; None on a rest day
+    since_last: int | None  # days since the planned session done or rested last; None: none yet
+    picked: bool  # a session was picked for today: it holds whatever rest days are left
+
+
 class PlanEditView(BaseModel):
     revision: str
     sessions: list[EditSessionView]  # the cycle, in queue order
     catalogue: list[CatalogueItemView]
     limits: LimitsView
+    # What Save's queue reads (Decided 9), by slug: the session done or rested last (a retired
+    # one's too), and a swap's sessions queued before the cycle resumes.
+    last_done: str | None
+    queued: list[str]
+    today: EditTodayView
 
 
 def _edit_items(rows: Iterable[plan_edit.ItemEdit], names: dict[str, str]) -> list[EditItemView]:
@@ -219,6 +235,7 @@ def get_plan_edit(request: Request, user: Owner) -> PlanEditView:
             for t in plan_edit.editable(session)
         ]
         revision = plan_edit.revision(session)
+        queue = plan_edit.queue_now(session, _today(request), request.app.state.settings.tz)
     return PlanEditView(
         revision=revision,
         sessions=sessions,
@@ -243,6 +260,14 @@ def get_plan_edit(request: Request, user: Owner) -> PlanEditView:
             max_sessions=cycle_rules.MAX_SESSIONS,
             max_cycle_days=cycle_rules.MAX_DAYS,
             max_rest=cycle_rules.MAX_REST,
+        ),
+        last_done=queue.last_done,
+        queued=list(queue.queued),
+        today=EditTodayView(
+            kind=queue.today.kind,
+            session=queue.today_slug,
+            since_last=queue.today.since_last,
+            picked=queue.today.picked,
         ),
     )
 

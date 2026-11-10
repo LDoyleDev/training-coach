@@ -160,6 +160,19 @@ def test_the_others_progress_through_the_plan_changes_nothing_i_see(
     assert not changed, f"the other person's progress changed what I see: {changed}"
 
 
+def test_the_editors_queue_and_today_are_each_persons_own(pair: Pair) -> None:
+    """What "Saving will" reads (ADR-0093): the session done last, the queue and today are mine,
+    whatever the other has done."""
+    _, clients, engine = pair
+    queue = ("last_done", "queued", "today")
+    mine = {k: clients[2].get("/api/plan/edit").json()[k] for k in queue}
+    _move_through_the_plan(clients[1], engine, 1)
+    theirs = clients[1].get("/api/plan/edit").json()
+    assert theirs["last_done"] is not None
+    assert {k: clients[2].get("/api/plan/edit").json()[k] for k in queue} == mine
+    assert mine["last_done"] is None
+
+
 def _edit_first_session(engine: Engine, user: int, name: str) -> None:
     """What step 6's editor will do, done by hand: rename a session and add sets to its first
     exercise, through a session bound to ``user``."""

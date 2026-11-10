@@ -3,6 +3,7 @@ works out the "Saving will" list from the same rules Save checks, so ``domain.cy
 ``plan/cycleLogic.ts`` read one file of cases."""
 
 import json
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +23,7 @@ from training_coach.domain.cycle import (
     suggested_after,
     with_rest,
 )
-from training_coach.domain.queue import Position
+from training_coach.domain.queue import Position, rest_days_left
 
 CASES = Path(__file__).resolve().parents[3] / "frontend/src/plan/cycle-cases.json"
 OWNER = tuple(Slot(k) for k in (10, 20, 30, 40, 50, 60, 70))
@@ -91,6 +92,14 @@ def test_the_queue_after_a_draft(case: dict[str, Any]) -> None:
     assert found.last_rest == then["last_rest"]
     assert found.days == then["days"]
     assert found.changed is then["changed"]
+
+
+@pytest.mark.parametrize("case", _cases("rest_days_left"), ids=lambda c: c["case"])
+def test_the_rest_places_left_as_the_list_reads_them(case: dict[str, Any]) -> None:
+    """The queue's rule the "Saving will" list copies to say what today becomes (ADR-0091)."""
+    done = date(2026, 11, 10)
+    found = rest_days_left(case["rest_after"], done, done + timedelta(days=case["gone"]))
+    assert found == case["left"]
 
 
 def test_positions_follow_the_new_order() -> None:

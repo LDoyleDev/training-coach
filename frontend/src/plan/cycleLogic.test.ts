@@ -10,6 +10,7 @@ import {
   move,
   problem,
   remove,
+  restDaysLeft,
   split,
   suggestedAfter,
   withRest,
@@ -50,7 +51,9 @@ interface Cases {
     }
   }[]
 }
-const cases = JSON.parse(shared) as Cases
+const cases = JSON.parse(shared) as Cases & {
+  rest_days_left: { case: string; rest_after: number; gone: number; left: number }[]
+}
 
 /** [key, rest_after] pairs as the JSON writes a cycle. */
 const cycleOf = (pairs: Pairs): Slot[] => pairs.map(([key, restAfter]) => ({ key, restAfter }))
@@ -182,4 +185,8 @@ test("the editor's steps leave the cycle they were given as it was", () => {
   withRest(cycle, 2, 4)
   applied(cycle, cycle.slice(1), { pointer: 1, queued: [] }, 3)
   expect(cycle).toEqual(copy)
+})
+
+test.each(cases.rest_days_left)('$case', ({ rest_after, gone, left }) => {
+  expect(restDaysLeft(rest_after, gone)).toBe(left)
 })

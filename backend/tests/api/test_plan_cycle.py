@@ -3,20 +3,21 @@ session, a save that adds, copies, removes and moves sessions, and the map per c
 person's minutes a session."""
 
 from collections.abc import Iterator
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
+from sqlalchemy.orm import Session
 
 from training_coach.api.app import create_app
 from training_coach.config import Settings
-from training_coach.db.models import SessionProgress, SessionTemplate, Workout
+from training_coach.db.models import Event, SessionProgress, SessionTemplate, Workout
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.domain.queue import local_date
-from training_coach.services import auth, user_settings
+from training_coach.services import auth, user_settings, users
 from training_coach.services.seed import apply_seed, load_plan
 from training_coach.services.users import OWNER
 
@@ -295,3 +296,52 @@ def test_every_map_counts_at_the_persons_minutes_a_session(
     assert sum(m["sets"] for m in at_30["muscles"]) < sum(m["sets"] for m in planned["muscles"])
     assert _map(client) == at_30
     assert _map(client, cycle=_kept(client)) == at_30
+
+
+def _ids(bound: Session) -> dict[str, int]:
+    return dict(bound.execute(select(SessionTemplate.slug, SessionTemplate.id)).all())
+
+
+def test_the_editor_gets_the_queue_and_today_as_save_will_read_them(
+    client: TestClient, engine: Engine
+) -> None:
+    """What the "Saving will" list needs to say what's next and what today becomes (ADR-0093):
+    the session done last, a swap's queue and today, by Today's own rules (ADR-0091)."""
+    first = client.get("/api/plan/edit").json()
+    assert (first["last_done"], first["queued"]) == (None, [])
+    assert first["today"] == {
+        "kind": "session",
+        "session": "legs",
+        "since_last": None,
+        "picked": False,
+    }
+    today = local_date(datetime.now(UTC), Settings().tz)
+    factory = make_session_factory(engine, user_id=OWNER)
+    with session_scope(factory) as bound:
+        ids = _ids(bound)
+        bound.get_one(SessionTemplate, ids["legs"]).rest_after = 1
+        bound.add(
+            Workout(
+                local_date=today - timedelta(days=1),
+                status=WorkoutStatus.DONE,
+                template_id=ids["legs"],
+            )
+        )
+        state = users.plan_state(bound)
+        assert state is not None
+        state.next_template_id, state.queued = ids["torso"], [ids["recovery"]]
+    rest = client.get("/api/plan/edit").json()
+    assert (rest["last_done"], rest["queued"]) == ("legs", ["recovery"])
+    assert rest["today"] == {"kind": "rest", "session": None, "since_last": 1, "picked": False}
+    with session_scope(factory) as bound:
+        payload = {"planned": _ids(bound)["torso"], "picked": _ids(bound)["zone2"]}
+        bound.add(Event(kind="queue.picked", payload=payload))
+    picked = client.get("/api/plan/edit").json()["today"]
+    assert picked == {"kind": "session", "session": "zone2", "since_last": 1, "picked": True}
+    with session_scope(factory) as bound:
+        bound.add(
+            Workout(local_date=today, status=WorkoutStatus.DONE, template_id=_ids(bound)["torso"])
+        )
+    done = client.get("/api/plan/edit").json()
+    assert done["last_done"] == "torso"
+    assert done["today"] == {"kind": "done", "session": "torso", "since_last": 0, "picked": False}

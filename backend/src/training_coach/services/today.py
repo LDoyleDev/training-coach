@@ -8,6 +8,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from functools import lru_cache
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -217,6 +218,34 @@ def rest_day(session: Session, on: date, tz: ZoneInfo) -> bool:
     """A rest place's day (ADR-0091) offers no session, unless one was picked for it: the
     person chose to train ("Train today instead", or Pick another)."""
     return rest_days(session, on) > 0 and picked_today(session, on, tz) is None
+
+
+@dataclass(frozen=True)
+class DayState:
+    """What ``on`` holds for the queue, as Today reads it (ADR-0091, ADR-0022): the planned session
+    done or rested on it, a rest place's day, or a session offered. The plan editor's "Saving
+    will" list works out from it whether a cycle change changes today (ADR-0093)."""
+
+    kind: Literal["done", "rest", "session"]
+    template_id: int | None  # the session done, picked or next; None on a rest day
+    since_last: int | None  # days since the planned session done or rested last; None: none yet
+    picked: bool = False  # a session was picked for the day: it holds whatever rests are left
+
+
+def day_state(session: Session, on: date, tz: ZoneInfo) -> DayState:
+    """``on`` by Today's own rules: ``rest_days`` (``rest_days_left`` after the session done
+    last, else ``days_to_start``), a pick holding over a rest day, and the queue's pointer."""
+    last = _last_advanced(session)
+    since = (on - last[0]).days if last is not None else None
+    if last is not None and since == 0:
+        return DayState("done", last[2], since)
+    picked = picked_today(session, on, tz)
+    if picked is not None:
+        return DayState("session", picked, since, picked=True)
+    if rest_days(session, on) > 0:
+        return DayState("rest", None, since)
+    found = position(session)
+    return DayState("session", found.pointer if found is not None else None, since)
 
 
 def summary(slug: str) -> str | None:

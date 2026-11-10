@@ -28,6 +28,14 @@ export interface Position {
   queued: readonly number[]
 }
 
+/** The rest places still to come `gone` days after a session with `restAfter` rest places was
+ * done (ADR-0091), a TS copy of `domain/queue.py`'s `rest_days_left`. 0: a day for the next
+ * session, or the day it was done. */
+export function restDaysLeft(restAfter: number, gone: number): number {
+  if (gone < 1) return 0
+  return Math.max(0, restAfter - gone + 1)
+}
+
 /** How many days the cycle takes: a day per session and one per rest place. */
 export function days(cycle: Cycle): number {
   return cycle.reduce((n, s) => n + 1 + s.restAfter, 0)
