@@ -59,7 +59,8 @@ belongs to the same exercise. Migrations never import application code.
   rep ranges, references between sessions and exercises.
 - Upserts by slug/position: edits and additions apply; sessions can be reordered or inserted
   anywhere. Removing a session or shortening a ladder is rejected before any write (history
-  depends on them) and needs a data migration. Ladder steps are matched by position, so a step
+  depends on them) and needs a data migration. (Since ADR-0073 the seed no longer changes
+  sessions; the owner's import removes or puts one back, ADR-0093 Decided 14.) Ladder steps are matched by position, so a step
   that logged sets or current progress use can't change name unless the exercise lists it in
   `renames = { "old" = "new" }`; new steps go at the end of a ladder (#18).
 - Items removed from a session are deleted. A failed seed logs `seed.failed` with the reason and does not stop the container (ADR-0015). Progress is never reset: existing exercise state, queue pointer and settings stay.

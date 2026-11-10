@@ -1,6 +1,9 @@
 """The owner's plan brought to ``plan.toml`` (program-builder.md Decided 1, ADR-0073): the seed no
 longer changes anyone's sessions, so a change to the file waits here, as a list of what would
-change, until the owner saves it as one version. It is the owner's alone."""
+change, until the owner saves it as one version. It is the owner's alone.
+
+The file is his whole plan (ADR-0093 Decided 14): a session it lacks is removed as the editor
+removes one, and a retired session it has is put back."""
 
 from dataclasses import dataclass
 from datetime import date
@@ -17,13 +20,18 @@ from training_coach.db.models import (
     TemplateItem,
 )
 from training_coach.db.session import bound_user
+from training_coach.domain import cycle as cycle_rules
+from training_coach.domain.cycle import Applied, Slot
 from training_coach.domain.enums import Place
-from training_coach.services.plan_rows import in_cycle, session_in_progress
+from training_coach.services import plan_edit
+from training_coach.services.plan_edit import Added, Kept
+from training_coach.services.plan_rows import session_in_progress
 from training_coach.services.seed import ItemSeed, PlanSeed, SeedResult, sync_sessions
 from training_coach.services.users import OWNER
 
 log = structlog.get_logger(__name__)
 
+FIX = "Fix plan.toml first. "  # the file can't be a plan as it is (Decided 13 and 14)
 IN_PROGRESS = "Finish or discard your session in progress first: its sets follow today's list."
 LABELS = {Place.HOME: "", Place.GYM: " (gym)", Place.AWAY: " (away)"}
 # An item as the plan and the rows both say it: exercise slug, sets, reps, per side and pair.
@@ -72,18 +80,59 @@ def _version_changes(
     return lines
 
 
-def _changes(session: Session, plan: PlanSeed) -> list[str]:
+@dataclass(frozen=True)
+class _Cycle:
+    """The owner's sessions against the file's: a session in the draft by its id when it is in
+    the cycle, by its slug when it is new or put back."""
+
+    live: dict[str, SessionTemplate]  # in the cycle now, by slug, in order
+    back: dict[str, SessionTemplate]  # retired, and the file has them: put back
+    gone: list[SessionTemplate]  # in the cycle, and the file lacks them: removed
+    logged: set[int]  # the removed ones a workout names: retired, not deleted (Decided 5)
+    draft: plan_edit.Draft
+    applied: Applied
+
+
+def _cycle(session: Session, plan: PlanSeed) -> _Cycle | str:
+    """The cycle the file makes, or why it can't be one, in words (Decided 13)."""
+    rows = plan_edit.templates(session, retired=True)
+    planned = {s.slug for s in plan.sessions}
+    live = {t.slug: t for t in rows if t.retired_on is None}
+    back = {t.slug: t for t in rows if t.retired_on is not None and t.slug in planned}
+    gone = [t for t in live.values() if t.slug not in planned]
+    kept: dict[int, Kept] = {}
+    added: dict[str, Added] = {}
+    slots: list[Slot] = []
+    for seed in plan.sessions:
+        row = live.get(seed.slug)
+        if row is None:
+            added[seed.slug] = Added(seed.slug, seed.name, seed.type, seed.rest_after)
+            slots.append(Slot(seed.slug, seed.rest_after))
+        else:
+            kept[row.id] = Kept(seed.slug, seed.name, seed.type, seed.rest_after)
+            slots.append(Slot(row.id, seed.rest_after))
+    problem = cycle_rules.problem(slots)
+    if problem is not None:
+        return problem
+    applied = plan_edit.queue_after(session, list(live.values()), slots)
+    logged = plan_edit.logged(session, [t.id for t in gone])
+    return _Cycle(live, back, gone, logged, plan_edit.Draft(tuple(slots), kept, added), applied)
+
+
+def _changes(plan: PlanSeed, cycle: _Cycle) -> list[str]:
     names = {e.slug: e.name for e in plan.exercises}
-    rows = {t.slug: t for t in session.scalars(select(SessionTemplate).where(in_cycle()))}
     lines = []
     for position, seed in enumerate(plan.sessions):
-        template = rows.get(seed.slug)
+        if seed.slug in cycle.back:
+            lines.append(f"Puts back {seed.name}")
+            continue
+        template = cycle.live.get(seed.slug)
         if template is None:
             lines.append(f"New session: {seed.name}")
             continue
         if template.name != seed.name:
             lines.append(f"{template.name}: now called {seed.name}")
-        if template.position != position:
+        if template.id in cycle.applied.moved:  # not the ones an add or a removal shifts
             lines.append(f"{seed.name}: moves to place {position + 1} in the cycle")
         if (
             template.focus != seed.focus
@@ -104,26 +153,13 @@ def _changes(session: Session, plan: PlanSeed) -> list[str]:
             lines += _version_changes(
                 f"{seed.name}{LABELS[place]}", _stored(stored), _planned(planned), names
             )
+    for row in cycle.gone:
+        kept = ": its history stays" if row.id in cycle.logged else ""
+        lines.append(f"Removes {row.name}{kept}")
     return lines
 
 
 def _blocked(session: Session, plan: PlanSeed, today: date) -> str | None:
-    planned = {s.slug for s in plan.sessions}
-    rows = session.scalars(
-        select(SessionTemplate).where(in_cycle()).order_by(SessionTemplate.position)
-    )
-    gone = [t.name for t in rows if t.slug not in planned]
-    if gone:
-        # Sessions define the queue (ADR-0006), and workouts name them.
-        return f"{', '.join(gone)} isn't in plan.toml, and a session can't be removed this way."
-    retired = session.scalars(
-        select(SessionTemplate.name)
-        .where(~in_cycle(), SessionTemplate.slug.in_(planned))
-        .order_by(SessionTemplate.position)
-    ).all()
-    if retired:
-        # Its slug is still taken (ADR-0093); putting a session back is the import's next step.
-        return f"{', '.join(retired)} was removed from your plan and can't be put back this way."
     known = set(session.scalars(select(Exercise.slug)))
     used = {i.exercise for s in plan.sessions for i in s.versions}
     if used - known:
@@ -131,30 +167,58 @@ def _blocked(session: Session, plan: PlanSeed, today: date) -> str | None:
     return IN_PROGRESS if session_in_progress(session, today) else None
 
 
-def preview(session: Session, plan: PlanSeed, today: date) -> Preview:
-    """What saving would change for the person this session is bound to. Nothing for anyone but
-    the owner, who alone has a plan that follows the file."""
+def _preview(session: Session, plan: PlanSeed, today: date) -> tuple[Preview, _Cycle | None]:
     if bound_user(session) != OWNER:
-        return Preview(())
-    changes = _changes(session, plan)
+        return Preview(()), None
+    cycle = _cycle(session, plan)
+    if isinstance(cycle, str):
+        return Preview((), FIX + cycle), None
+    changes = _changes(plan, cycle)
     if not changes:
-        return Preview(())
-    return Preview(
+        return Preview(()), None
+    # The sessions after it are exactly the file's, so every name is checked (Decided 14).
+    problem = plan_edit.names_problem([(s.name, True) for s in plan.sessions], plan, today)
+    if problem is not None:
+        return Preview((), FIX + problem), None
+    found = Preview(
         tuple(changes),
         _blocked(session, plan, today),
         plan.versions[-1].name if plan.versions else None,
     )
+    return found, cycle
+
+
+def preview(session: Session, plan: PlanSeed, today: date) -> Preview:
+    """What saving would change for the person this session is bound to. Nothing for anyone but
+    the owner, who alone has a plan that follows the file. A file that can't be a plan (two
+    sessions with one name, say) is refused in words, with nothing listed."""
+    return _preview(session, plan, today)[0]
 
 
 def save(session: Session, plan: PlanSeed, today: date) -> Preview:
     """Make the change, as one version dated ``today``: a second save that day updates it, and
-    workouts keep the version they have. Returns what it changed; ``blocked`` set: nothing did."""
-    found = preview(session, plan, today)
-    if found.blocked or not found.changes:
+    workouts keep the version they have. A session the file lacks is retired or deleted as the
+    editor does it, and a retired one it has is put back, with the queue moved off the removed
+    ones (Decided 9). Returns what it changed; ``blocked`` set: nothing did."""
+    found, cycle = _preview(session, plan, today)
+    if found.blocked or cycle is None:
         return found
+    told = None  # read before the rows change: it names them as they were
+    if cycle.applied.added or cycle.applied.removed:  # a session added, removed or put back
+        by_id = {t.id: t for t in cycle.live.values()}
+        told = plan_edit.notice(cycle.draft, by_id, cycle.applied, cycle.back.keys())
     result = SeedResult()
     exercises = {e.slug: e for e in session.scalars(select(Exercise))}
+    plan_edit.retire([t for t in cycle.gone if t.id in cycle.logged], today)
+    session.flush()
     sync_sessions(session, plan.sessions, OWNER, exercises, result)
+    pointer = cycle.applied.pointer
+    if isinstance(pointer, str):  # a new or put-back session, by its slug
+        pointer = session.scalars(
+            select(SessionTemplate.id).where(SessionTemplate.slug == pointer)
+        ).one()
+    gone = [t for t in cycle.gone if t.id not in cycle.logged]
+    plan_edit.requeue(session, pointer, cycle.applied.queued, gone)
     name = found.version or "Imported from plan.toml"
     version = session.scalar(select(PlanVersion).where(PlanVersion.since == today))
     if version is None:
@@ -162,5 +226,7 @@ def save(session: Session, plan: PlanSeed, today: date) -> Preview:
     else:
         version.name = name
     session.add(Event(kind="plan.imported", payload={"changes": len(found.changes)}))
+    plan_edit.tell(session, cycle.applied, len(cycle.logged), told)
+    session.flush()
     log.info("plan.imported", changes=len(found.changes))
     return found
