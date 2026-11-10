@@ -6,6 +6,7 @@ screen and keeps nothing."""
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
+from typing import Final, Literal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -23,10 +24,15 @@ from training_coach.services.seed import ExerciseSeed, PlanSeed
 from training_coach.services.today import ItemPlan
 from training_coach.services.walkthrough import Setup
 
-MEMBER, OWNER_TRY_OUT, DONE, CLOSED = "member", "owner_try_out", "done", "closed"
+# Who the walk-through is for; GET /api/walkthrough and Home both answer with it.
+Who = Literal["member", "owner_try_out", "done", "closed"]
+MEMBER: Final = "member"
+OWNER_TRY_OUT: Final = "owner_try_out"
+DONE: Final = "done"
+CLOSED: Final = "closed"
 
 
-def who(session: Session) -> str:
+def who(session: Session) -> Who:
     """Who the walk-through is for: the owner only as a try-out; a member until their first
     workout (``CLOSED`` after it), ``DONE`` once saved (it can be run again until then)."""
     if bound_user(session) == users.OWNER:

@@ -93,7 +93,7 @@ class StarterView(BaseModel):
 
 
 class WalkthroughView(BaseModel):
-    who: Literal["member", "owner_try_out", "done", "closed"]
+    who: views.Who
     revision: str  # the plan's now: Save sends it back
     consent_open: bool  # the answers may be sent with Save
     ladders: list[WalkthroughLadderView]  # in the order they are asked

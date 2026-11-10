@@ -2765,6 +2765,16 @@
           "totals": {
             "$ref": "#/components/schemas/TotalsView"
           },
+          "walkthrough": {
+            "enum": [
+              "member",
+              "owner_try_out",
+              "done",
+              "closed"
+            ],
+            "title": "Walkthrough",
+            "type": "string"
+          },
           "week": {
             "$ref": "#/components/schemas/HomeWeekView"
           }
@@ -2776,7 +2786,8 @@
           "recent",
           "today",
           "today_minutes",
-          "today_usual_minutes"
+          "today_usual_minutes",
+          "walkthrough"
         ],
         "title": "HomeView",
         "type": "object"

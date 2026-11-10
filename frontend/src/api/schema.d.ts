@@ -3300,6 +3300,11 @@ export interface components {
             /** Today Usual Minutes */
             today_usual_minutes: number | null;
             totals: components["schemas"]["TotalsView"];
+            /**
+             * Walkthrough
+             * @enum {string}
+             */
+            walkthrough: "member" | "owner_try_out" | "done" | "closed";
             week: components["schemas"]["HomeWeekView"];
         };
         /**
