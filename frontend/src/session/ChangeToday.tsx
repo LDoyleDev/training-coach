@@ -5,6 +5,7 @@ import {
   pickToday,
   SignedOutError,
   type Changed,
+  type Words,
   type Choices,
   type Queued,
   type TodayChange,
@@ -45,7 +46,7 @@ export default function ChangeToday({
   name: string
   planned?: Queued | null
   onChanged: (result: Changed, text: string) => void
-  onStale: () => void
+  onStale: (words?: string) => void // words: the server's, when it said why
 }) {
   const [open, setOpen] = useState(false)
   const [choices, setChoices] = useState<Choices | null>(null)
@@ -55,7 +56,7 @@ export default function ChangeToday({
 
   const run = async (
     change: TodayChange | 'pick' | 'back',
-    send: () => Promise<Changed | 'stale'>,
+    send: () => Promise<Changed | 'stale' | Words>,
   ) => {
     if (busy) return
     setBusy(true)
@@ -64,6 +65,7 @@ export default function ChangeToday({
     try {
       const result = await send()
       if (result === 'stale') return onStale()
+      if ('words' in result) return onStale(result.words)
       onChanged(result, changedText(change, result, name))
     } catch (error) {
       if (error instanceof SignedOutError) setSignedOut(true)

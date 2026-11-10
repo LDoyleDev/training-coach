@@ -30,16 +30,51 @@ export const sets = (n: number) => `${Math.round(n * 100) / 100}`
 
 const plural = (n: number, one: string, many: string) => `${sets(n)} ${n === 1 ? one : many}`
 
-/** "8.5 sets a week on 1 day" */
-export function amount(m: MuscleCoverage): string {
-  if (m.sets === 0) return 'Not trained this week'
-  return `${plural(m.sets, 'set', 'sets')} a week on ${plural(m.days, 'day', 'days')}`
+const WEEK = 7
+
+/** Over a week, or over the cycle's own days when it isn't 7 (ADR-0093 Decided 15). */
+export const per = (cycleDays: number) =>
+  cycleDays === WEEK ? 'a week' : `per ${cycleDays}-day cycle`
+
+/** The days green needs in a cycle: two per 7 days, rounded half up and never under one, as
+ * `domain.coverage.days_needed`: 2 in an 8-day cycle, 3 in a 10-day one. */
+export const daysNeeded = (cycleDays: number) =>
+  Math.max(1, Math.floor((4 * cycleDays + WEEK) / (2 * WEEK)))
+
+/** A weekly number stretched to the cycle, to one decimal: 10 a week is 11.4 per 8 days. */
+const stretched = (weekly: number, cycleDays: number) =>
+  Math.round((weekly * cycleDays * 10) / WEEK) / 10
+
+/** "Sets per 8-day cycle." when the cycle isn't 7 days; null when it is. */
+export const cycleLine = (c: Coverage) =>
+  c.cycle_days === WEEK ? null : `Sets per ${c.cycle_days}-day cycle.`
+
+/** "Counted at your 30 minutes and 5 exercises a session." when the map counted the plan at the
+ * person's settings (Decided 16); null when it counted it as planned. */
+export function countedLine(c: Coverage): string | null {
+  const minutes = c.session_minutes === null ? null : `${c.session_minutes} minutes`
+  const count =
+    c.session_exercises === null ? null : plural(c.session_exercises, 'exercise', 'exercises')
+  const what = [minutes, count].filter(Boolean).join(' and ')
+  return what ? `Counted at your ${what} a session.` : null
 }
 
-/** "Green: 10–20 sets on two days" */
-export function goal(m: MuscleCoverage): string {
-  const days = m.main || m.evidence === null ? ' on two days' : ''
-  return `Green: ${sets(m.low)}–${sets(m.high)} sets${days}`
+/** "8.5 sets a week on 1 day", "8.5 sets per 8-day cycle on 1 day" */
+export function amount(m: MuscleCoverage, cycleDays = WEEK): string {
+  if (m.sets === 0)
+    return cycleDays === WEEK ? 'Not trained this week' : 'Not trained in your cycle'
+  return `${plural(m.sets, 'set', 'sets')} ${per(cycleDays)} on ${plural(m.days, 'day', 'days')}`
+}
+
+/** "Green: 10–20 sets on two days"; over an 8-day cycle "Green: 11.4–22.9 sets on 2 days" */
+export function goal(m: MuscleCoverage, cycleDays = WEEK): string {
+  const both = m.main || m.evidence === null
+  if (cycleDays === WEEK)
+    return `Green: ${sets(m.low)}–${sets(m.high)} sets${both ? ' on two days' : ''}`
+  const days = both ? ` on ${plural(daysNeeded(cycleDays), 'day', 'days')}` : ''
+  // The band comes stretched to the cycle already (Decided 15): to one decimal.
+  const one = (n: number) => sets(Math.round(n * 10) / 10)
+  return `Green: ${one(m.low)}–${one(m.high)} sets${days}`
 }
 
 const PARTS: Record<string, string> = {
@@ -51,18 +86,29 @@ const PARTS: Record<string, string> = {
 /** The warnings on one muscle, in the order they matter. */
 export function warnings(m: MuscleCoverage, c: Coverage): string[] {
   const found: string[] = []
+  const d = c.cycle_days
+  const ceiling = d === WEEK ? c.ceiling : stretched(c.ceiling, d)
   if (m.band === 'warning')
-    found.push(`Over ${c.ceiling} sets a week: more showed no extra growth.`)
+    found.push(`Over ${sets(ceiling)} sets ${per(d)}: more showed no extra growth.`)
   if (m.over_session_cap && m.most_in)
     found.push(
       `${sets(m.most)} sets in ${m.most_in}: more than ${c.session_cap} in one session adds little.`,
     )
-  if (m.one_day)
+  if (m.one_day && d === WEEK)
     found.push(
       m.band === 'light green' && m.sets >= m.low
         ? 'Enough sets, but on one day: green needs two days a week.'
         : 'Trained on one day a week: green needs two.',
     )
+  else if (m.one_day) {
+    const on = m.days === 1 ? 'only one day' : plural(m.days, 'day', 'days')
+    const need = daysNeeded(d)
+    found.push(
+      m.band === 'light green' && m.sets >= m.low
+        ? `Enough sets, but on ${on}: green needs ${need} days of your cycle.`
+        : `Trained on ${on} of your cycle: green needs ${need}.`,
+    )
+  }
   const [a, b] = m.back_to_back
   if (a && b)
     found.push(
@@ -77,7 +123,7 @@ export function warnings(m: MuscleCoverage, c: Coverage): string[] {
 export function sessionWarnings(c: Coverage): string[] {
   const week = c.pushing_without_pulling
     ? [
-        `${c.push_sets} pushing sets a week and ${c.pull_sets} pulling: a rule of thumb is at least one pulling set for two pushing.`,
+        `${c.push_sets} pushing sets ${per(c.cycle_days)} and ${c.pull_sets} pulling: a rule of thumb is at least one pulling set for two pushing.`,
       ]
     : []
   const sessions = c.sessions.flatMap((s) => [

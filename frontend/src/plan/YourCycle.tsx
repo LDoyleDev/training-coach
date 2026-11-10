@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { card, primaryInline, small } from '../ui'
+import { card, danger, primaryInline, small } from '../ui'
 import { cannotAdd, days, MAX_DAYS, MAX_REST, problem, suggestedAfter } from './cycleLogic'
 import {
   added,
@@ -7,8 +7,11 @@ import {
   KINDS,
   kindLabel,
   lengthLine,
+  moved,
   NEW,
   newKey,
+  removed,
+  removeQuestion,
   renamed,
   rested,
   thenRest,
@@ -34,7 +37,15 @@ function AddForm({
   const [kind, setKind] = useState<Kind>('strength')
   const [after, setAfter] = useState(() => String(suggestedAfter(cycle)))
   const key = newKey(cycle)
-  const entry: Entry = { key, restAfter: 0, slug: NEW + key, name, kind, copyOf: from || null }
+  const entry: Entry = {
+    key,
+    restAfter: 0,
+    slug: NEW + key,
+    name,
+    kind,
+    copyOf: from || null,
+    logged: 0,
+  }
   const goesAfter = cycle.find((e) => String(e.key) === after)!.key
   const next = added(cycle, entry, goesAfter)
   const refused = problem(next)
@@ -168,7 +179,8 @@ function Rename({
 }
 
 /** The Your cycle card on /plan/edit (ADR-0093): the sessions in queue order with their rest
- * days, the week they make, and Add a session. Every change is a draft until Save. */
+ * days, the week they make, Add a session, and per session Rename, Up and Down, Remove and its
+ * rest days. Every change is a draft until Save. */
 export default function YourCycle({
   cycle,
   next,
@@ -182,6 +194,7 @@ export default function YourCycle({
 }) {
   const [adding, setAdding] = useState(false)
   const [renaming, setRenaming] = useState<Entry['key'] | null>(null)
+  const [removing, setRemoving] = useState<Entry['key'] | null>(null)
   const full = cannotAdd(cycle)
   const length = days(cycle)
   const often = lengthLine(length)
@@ -191,7 +204,7 @@ export default function YourCycle({
         Your cycle
       </h2>
       <ol className="m-0 flex list-none flex-col gap-2 p-0">
-        {cycle.map((e) => (
+        {cycle.map((e, at) => (
           <li
             key={e.slug}
             className="flex flex-col gap-2 rounded-xl border border-[var(--line)] p-3"
@@ -216,6 +229,25 @@ export default function YourCycle({
                   setRenaming(null)
                 }}
               />
+            ) : removing === e.key ? (
+              <div className="flex flex-col gap-2" role="group" aria-label={`Remove ${e.name}`}>
+                <p className="m-0">{removeQuestion(e)}</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className={danger}
+                    onClick={() => {
+                      onChange(removed(cycle, e.key))
+                      setRemoving(null)
+                    }}
+                  >
+                    Remove
+                  </button>
+                  <button type="button" className={small} onClick={() => setRemoving(null)}>
+                    Keep it
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -226,6 +258,34 @@ export default function YourCycle({
                 >
                   Rename
                 </button>
+                <button
+                  type="button"
+                  className={small}
+                  aria-label={`Move ${e.name} up`}
+                  disabled={at === 0}
+                  onClick={() => onChange(moved(cycle, e.key, -1))}
+                >
+                  Up
+                </button>
+                <button
+                  type="button"
+                  className={small}
+                  aria-label={`Move ${e.name} down`}
+                  disabled={at === cycle.length - 1}
+                  onClick={() => onChange(moved(cycle, e.key, 1))}
+                >
+                  Down
+                </button>
+                {cycle.length > 1 && ( // the last session can't be removed (Decided 5)
+                  <button
+                    type="button"
+                    className={small}
+                    aria-label={`Remove ${e.name}`}
+                    onClick={() => setRemoving(e.key)}
+                  >
+                    Remove
+                  </button>
+                )}
                 <div
                   className="flex items-center gap-2"
                   role="group"

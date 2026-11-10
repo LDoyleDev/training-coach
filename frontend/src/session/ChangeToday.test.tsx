@@ -272,6 +272,36 @@ test('a change from an out-of-date page (409) reloads today and says so', async 
   expect(screen.getByRole('status')).toHaveTextContent("Today's session changed")
 })
 
+test("a pick of a session no longer in the plan says so in the server's words", async () => {
+  serve({
+    'GET /api/today/choices': Response.json(CHOICES),
+    'POST /api/today/pick': Response.json(
+      { detail: 'That session is no longer in your plan' },
+      { status: 409 },
+    ),
+  })
+  await openChangeToday()
+  click('Swap session')
+  fireEvent.click(await screen.findByRole('button', { name: 'Torso + neck' }))
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'That session is no longer in your plan.',
+  )
+})
+
+test("a pick refused as stale keeps the page's own words", async () => {
+  serve({
+    'GET /api/today/choices': Response.json(CHOICES),
+    'POST /api/today/pick': Response.json(
+      { detail: "today's session has changed" },
+      { status: 409 },
+    ),
+  })
+  await openChangeToday()
+  click('Swap session')
+  fireEvent.click(await screen.findByRole('button', { name: 'Torso + neck' }))
+  expect(await screen.findByText(/on another device or in Telegram/)).toBeInTheDocument()
+})
+
 test('Swap with nothing planned any more (409) reloads too', async () => {
   serve({ 'GET /api/today/choices': new Response(null, { status: 409 }) })
   await openChangeToday()

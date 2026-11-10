@@ -90,6 +90,7 @@ interface Server {
   closed?: boolean // a workout is logged
   status?: number // every GET answers this instead
   told?: number // what telling the server the health questions were answered answers
+  plan?: string[] // the slugs of the person's sessions now
 }
 
 /** A fake API by path; every request with a method is kept, to show what was written. */
@@ -101,6 +102,7 @@ function serve({
   status,
   told = 200,
   closed = false,
+  plan = ['a'],
 }: Server) {
   const writes: [string, string, unknown][] = []
   vi.stubGlobal(
@@ -137,6 +139,7 @@ function serve({
         '/api/account/residence': { choices: ['DE', 'IE'], country },
         '/api/settings': SETTINGS,
         '/api/equipment': KIT,
+        '/api/plan': { sessions: plan.map((slug) => ({ slug })) },
       }
       return Response.json(body[path])
     }),
@@ -351,7 +354,7 @@ test('signed out, it asks to sign in; an error offers to try again', async () =>
 })
 
 test('Save makes the plan, with the answers after a yes, and Done follows', async () => {
-  const writes = serve({ country: 'IE', due: false })
+  const writes = serve({ country: 'IE', due: false, plan: ['a', 'legs-2'] })
   render(<StartPage />)
   await screen.findByRole('button', { name: 'Start' })
   tap('Start')
@@ -367,6 +370,10 @@ test('Save makes the plan, with the answers after a yes, and Done follows', asyn
   tap('Skip') // minutes
   tap('Skip') // count
   expect(await screen.findByText('Full body A')).toBeInTheDocument()
+  // legs-2 is no starter's: a session the person added (ADR-0093 Decided 18)
+  expect(
+    screen.getByText('This replaces your plan, including the sessions you added.'),
+  ).toBeInTheDocument()
   tap('Save my plan')
   expect(
     await screen.findByRole('heading', { name: /Your first session is on Thursday 12 November/ }),
@@ -403,6 +410,7 @@ test('a ladder answered again drops the step picked for it on the plan screen', 
   tap('Skip')
   const push = await screen.findByRole('combobox', { name: 'Push-up' })
   expect(push).toHaveValue('2') // the counter
+  expect(screen.queryByText(/This replaces your plan/)).not.toBeInTheDocument() // a starter's only
   fireEvent.change(push, { target: { value: '1' } })
   expect(screen.getByRole('combobox', { name: 'Push-up' })).toHaveValue('1')
   for (let i = 0; i < 4; i++) tap('Back') // to the counter's question

@@ -4,6 +4,7 @@ import {
   type Equipment,
   fetchEquipment,
   fetchSettings,
+  fetchPlan,
   fetchWalkthrough,
   type Walkthrough,
 } from '../api'
@@ -49,6 +50,7 @@ interface Ready {
   answeredAt: string | null // when the health questions were last answered
   kinds: Equipment['kinds']
   draft: Draft
+  added: boolean // the plan has a session no starter has: one the person added (ADR-0093)
 }
 
 type Loaded =
@@ -61,12 +63,15 @@ const day = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
 async function load(signal: AbortSignal): Promise<Ready | null> {
-  const [walkthrough, settings, equipment] = await Promise.all([
+  const [walkthrough, settings, equipment, plan] = await Promise.all([
     fetchWalkthrough(signal),
     fetchSettings(signal),
     fetchEquipment(signal),
+    fetchPlan(signal).catch(() => null), // only for the replace line: none, no line
   ])
   if (!walkthrough || !settings || !equipment) return null
+  // A new session's slug is never a starter session's (ADR-0093), so any other is one added.
+  const starterSlugs = new Set(walkthrough.starters.flatMap((s) => s.sessions.map((t) => t.slug)))
   const { readiness } = walkthrough
   return {
     who: walkthrough.who,
@@ -81,6 +86,7 @@ async function load(signal: AbortSignal): Promise<Ready | null> {
     consented: walkthrough.consent_open,
     answeredAt: readiness.answered_at,
     kinds: equipment.kinds,
+    added: (plan?.sessions ?? []).some((s) => !starterSlugs.has(s.slug)),
     draft: {
       about: NOTHING_ANSWERED,
       safety: {},
@@ -336,6 +342,7 @@ export default function StartPage() {
       {here === 'plan' && (
         <PlanScreen
           who={who}
+          added={loaded.ready.added}
           known={known}
           starters={starters}
           revision={revision}

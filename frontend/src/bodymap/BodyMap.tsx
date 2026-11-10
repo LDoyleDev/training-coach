@@ -13,6 +13,9 @@ import {
   BANDS,
   HEATS,
   amount,
+  countedLine,
+  cycleLine,
+  daysNeeded,
   bandLabel,
   goal,
   heatLabel,
@@ -149,9 +152,9 @@ function MuscleRow({
       </button>
       {open && (
         <div className="pb-3 pl-6 text-[0.9375rem]">
-          <p className="m-0">{amount(m)}.</p>
+          <p className="m-0">{amount(m, coverage.cycle_days)}.</p>
           <p className="m-0 text-[var(--slate)]">
-            {goal(m)}.{m.evidence === 'low' && ' Low evidence for this band.'}
+            {goal(m, coverage.cycle_days)}.{m.evidence === 'low' && ' Low evidence for this band.'}
             {m.evidence === 'very low' && ' Very low evidence for this band.'}
           </p>
           {found.length > 0 && (
@@ -230,6 +233,14 @@ export function BodyMap({ state, onAdd }: { state: State; onAdd?: (muscle: strin
       <p className="mt-0 font-bold">
         {coverage.main_on_target} of {coverage.main_total} main muscles on target
       </p>
+      {[cycleLine(coverage), countedLine(coverage)].map(
+        (line) =>
+          line && (
+            <p key={line} className="m-0 text-[var(--slate)]">
+              {line}
+            </p>
+          ),
+      )}
       <div
         className="flex gap-2"
         role="img"
@@ -259,9 +270,12 @@ export function BodyMap({ state, onAdd }: { state: State; onAdd?: (muscle: strin
       <ul className="m-0 list-none p-0">{rows(rest)}</ul>
       <p className="mt-3 text-sm text-[var(--slate)]">
         Sets are counted by how much each exercise works a muscle: 1 for the main mover, ½ or ¼ for
-        a helper. A muscle is on target in its green band on two days a week. Tap a muscle, on the
-        figure or in the list, to see where its sets come from. The spine, grip and rest-day
-        warnings are rules of thumb, not study results.
+        a helper. A muscle is on target in its green band on{' '}
+        {coverage.cycle_days === 7
+          ? 'two days a week'
+          : `${daysNeeded(coverage.cycle_days)} days of the ${coverage.cycle_days}-day cycle`}
+        . Tap a muscle, on the figure or in the list, to see where its sets come from. The spine,
+        grip and rest-day warnings are rules of thumb, not study results.
       </p>
     </div>
   )

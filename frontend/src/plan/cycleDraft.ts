@@ -6,7 +6,17 @@
 
 import type { CycleEntry, EditSession, Place } from '../api'
 import { landing } from '../walkthrough/days'
-import { add, days, withRest, type Key, type Slot } from './cycleLogic'
+import {
+  add,
+  applied,
+  days,
+  move,
+  remove,
+  withRest,
+  type Applied,
+  type Key,
+  type Slot,
+} from './cycleLogic'
 
 export type Kind = EditSession['kind']
 
@@ -15,6 +25,7 @@ export interface Entry extends Slot {
   name: string
   kind: Kind
   copyOf: string | null // a new session copied from this saved one's versions
+  logged: number // workouts naming it, so Remove can say what happens to them
 }
 
 export const NEW = 'new:'
@@ -40,6 +51,7 @@ export function cycleOf(sessions: EditSession[]): Entry[] {
     name: s.name,
     kind: s.kind,
     copyOf: null,
+    logged: s.logged,
   }))
 }
 
@@ -58,6 +70,20 @@ export function added(cycle: Entry[], entry: Entry, after: Key): Entry[] {
 
 export const rested = (cycle: Entry[], key: Key, restAfter: number) =>
   merged(cycle, withRest(cycle, key, restAfter))
+
+/** Up (-1) or Down (+1), its rest places with it (Decided 8). */
+export const moved = (cycle: Entry[], key: Key, by: number) => merged(cycle, move(cycle, key, by))
+
+/** Without it, its days to the session before it (Decided 6). */
+export const removed = (cycle: Entry[], key: Key) => merged(cycle, remove(cycle, key))
+
+/** What Remove asks first, by its history (Decided 5). */
+export function removeQuestion(entry: Entry): string {
+  if (entry.logged === 0) return `Remove ${entry.name}? Nothing is logged for it, so it goes.`
+  const days =
+    entry.logged === 1 ? 'Its 1 logged day stays' : `Its ${entry.logged} logged days stay`
+  return `Remove ${entry.name}? ${days} in your history under its name.`
+}
 
 export const renamed = (cycle: Entry[], key: Key, name: string) =>
   cycle.map((e) => (e.key === key ? { ...e, name } : e))
@@ -83,7 +109,7 @@ export const thenRest = (n: number) =>
 
 const DAY_MS = 86_400_000
 
-/** "Your cycle: A, rest, B, rest, C, rest, rest. 7 days." (Decided 4), each session on the day
+/** "Your cycle, 7 days: A, rest, B, rest, C, rest, rest." (Decided 4), each session on the day
  * the rest places before it land it, as the walk-through lands a starter's. */
 export function weekLine(cycle: Entry[], lead = 'Your cycle'): string {
   const start = new Date(2026, 0, 5)
@@ -94,7 +120,7 @@ export function weekLine(cycle: Entry[], lead = 'Your cycle'): string {
   ).forEach((day, i) => {
     line[Math.round((day.getTime() - start.getTime()) / DAY_MS)] = cycle[i]!.name
   })
-  return `${lead}: ${line.join(', ')}. ${plural(line.length, 'day')}.`
+  return `${lead}, ${plural(line.length, 'day')}: ${line.join(', ')}.`
 }
 
 /** When the cycle isn't a week, how often each session comes round (Decided 4). */
@@ -135,4 +161,75 @@ export function baselines(
     const from = sessions.find((s) => s.slug === (e.copyOf ?? e.slug))
     return { slug: e.slug, home: from?.home ?? [], gym: from?.gym ?? [], away: from?.away ?? [] }
   })
+}
+
+const NOTE_MAX = 120 // PlanChanges.note
+
+/** What Save would change in the cycle, a line each, and the note it prefills (Decided 9 and 10,
+ * ADR-0073). Null when the cycle is as loaded. */
+export interface Saving {
+  lines: string[]
+  note: string
+}
+
+const restAfter = (n: number) => (n === 0 ? 'no rest days' : plural(n, 'rest day'))
+
+export function savingWill(cycle: Entry[], sessions: EditSession[]): Saving | null {
+  if (!cycleChanged(cycle, sessions)) return null
+  const before = cycleOf(sessions)
+  const was = Math.max(
+    0,
+    sessions.findIndex((s) => s.next),
+  )
+  const position = { pointer: was, queued: [] }
+  // Decided 9's exception turns on the session done last, which the edit view doesn't say. The
+  // only one it can be is the session before the next, so both outcomes are worked out.
+  const last = (was - 1 + before.length) % before.length
+  let now: Applied
+  let ifLast: Applied
+  try {
+    now = applied(before, cycle, position, null)
+    ifLast = applied(before, cycle, position, last)
+  } catch {
+    return null // over a limit: the card says why
+  }
+  const name = (k: Key) => cycle.find((e) => e.key === k)?.name ?? sessions[k as number]!.name
+  const said: [string, string][] = [] // the line, and its words in the note
+  cycle.forEach((e, i) => {
+    if (typeof e.key === 'string') {
+      const where = i === 0 ? 'first' : `after ${cycle[i - 1]!.name}`
+      said.push([
+        `Add ${e.name} ${where}, with ${restAfter(e.restAfter)} after it`,
+        `added ${e.name}`,
+      ])
+      return
+    }
+    const s = sessions[e.key]!
+    if (e.name !== s.name)
+      said.push([`Rename ${s.name} to ${e.name}`, `renamed ${s.name} to ${e.name}`])
+    if (now.moved.includes(e.key))
+      said.push([`Move ${e.name} to place ${i + 1}`, `moved ${e.name}`])
+    if (e.kind !== s.kind) {
+      const kind = kindLabel(e.kind).toLowerCase()
+      said.push([`Make ${e.name} a ${kind} session`, `made ${e.name} a ${kind} session`])
+    }
+    if (e.restAfter !== s.rest_after)
+      said.push([
+        `Give ${e.name} ${restAfter(e.restAfter)} after it`,
+        `${e.name} now has ${restAfter(e.restAfter)} after it`,
+      ])
+  })
+  for (const k of now.removed) said.push([`Remove ${name(k)}`, `removed ${name(k)}`])
+  const next =
+    now.pointer === ifLast.pointer
+      ? now.pointer === was
+        ? `Next stays ${name(was)}`
+        : `Next: ${name(now.pointer)}, instead of ${name(was)}`
+      : `Next: ${name(ifLast.pointer)} if ${name(last)} was your last session, else ${name(now.pointer)}`
+  const joined = said.map(([, words]) => words).join('; ')
+  const note = joined.length > NOTE_MAX ? `${said.length} changes to your sessions` : joined
+  return {
+    lines: [...said.map(([line]) => line), next],
+    note: note.charAt(0).toUpperCase() + note.slice(1),
+  }
 }

@@ -56,7 +56,7 @@ const zone2: Session = {
   focus: 'Conversational pace',
   type: 'conditioning',
   optional: false,
-  rest_after: 0,
+  rest_after: 2,
   total_sets: 1,
   gym: [],
   exercises: [
@@ -143,6 +143,7 @@ describe('App', () => {
     expect(
       screen.getByRole('button', { name: /Torso \+ neck/, expanded: false }),
     ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Long zone 2.*then 2 rest days$/ })).toBeVisible()
     expect(
       screen.getByRole('heading', { name: 'What the week gives each muscle' }),
     ).toBeInTheDocument()
