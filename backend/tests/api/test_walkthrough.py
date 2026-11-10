@@ -16,7 +16,7 @@ from training_coach.config import Settings
 from training_coach.db.models import Exercise, LadderStep, User, Workout
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.consent import VERSIONS, Category
-from training_coach.services import auth, users
+from training_coach.services import auth, plan_edit, users
 from training_coach.services.seed import apply_seed, bundled_plan
 
 BASE = "https://testserver"
@@ -216,9 +216,15 @@ def test_the_owner_cant_save(owner: TestClient, engine: Engine) -> None:
     assert found.status_code == 403
 
 
-def test_after_a_workout_it_is_closed(member: TestClient, engine: Engine) -> None:
+def test_a_walk_leaves_it_open_and_a_planned_session_closes_it(
+    member: TestClient, engine: Engine
+) -> None:
     with session_scope(make_session_factory(engine, user_id=MEMBER)) as theirs:
-        theirs.add(Workout(local_date=date(2026, 11, 8), status="done"))
+        theirs.add(Workout(local_date=date(2026, 11, 7), status="done", activity="walk"))
+    assert member.get("/api/walkthrough").json()["who"] == "member"
+    with session_scope(make_session_factory(engine, user_id=MEMBER)) as theirs:
+        first = plan_edit.templates(theirs)[0].id
+        theirs.add(Workout(local_date=date(2026, 11, 8), status="done", template_id=first))
     view = member.get("/api/walkthrough").json()
     assert view["who"] == "closed"
     saved = member.post("/api/walkthrough", json={**_body(engine), "revision": view["revision"]})
