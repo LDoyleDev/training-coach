@@ -15,7 +15,7 @@ from datetime import date
 
 import structlog
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from training_coach.db.models import (
@@ -86,6 +86,11 @@ class EditableSession:
     home: tuple[ItemEdit, ...]
     gym: tuple[ItemEdit, ...]  # empty: done the same way at the gym
     away: tuple[ItemEdit, ...]  # empty: no away version
+    kind: str = "strength"  # strength | conditioning | recovery
+    rest_after: int = 0  # rest places after it (ADR-0091)
+    optional: bool = False  # can be rested instead
+    next: bool = False  # the queue offers it next
+    logged: int = 0  # workouts that name it: removing it retires it, and they stay (ADR-0093)
 
 
 @dataclass(frozen=True)
@@ -147,6 +152,15 @@ def templates(session: Session, *, retired: bool = False) -> list[SessionTemplat
 
 
 def editable(session: Session) -> list[EditableSession]:
+    """The cycle as the editor shows it: each session's versions, its place in the cycle, and
+    how many workouts name it (ADR-0093)."""
+    position = queue_today.position(session)
+    counts = session.execute(
+        select(Workout.template_id, func.count())
+        .where(Workout.template_id.is_not(None))
+        .group_by(Workout.template_id)
+    )
+    logged = dict(counts.all())
     return [
         EditableSession(
             t.slug,
@@ -155,6 +169,11 @@ def editable(session: Session) -> list[EditableSession]:
             tuple(_facts(i) for i in t.items),
             tuple(_facts(i) for i in t.gym_items),
             tuple(_facts(i) for i in t.away_items),
+            kind=t.kind,
+            rest_after=t.rest_after,
+            optional=t.is_rest_optional,
+            next=position is not None and position.pointer == t.id,
+            logged=logged.get(t.id, 0),
         )
         for t in templates(session)
     ]

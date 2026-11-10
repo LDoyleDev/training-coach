@@ -120,6 +120,10 @@ def test_the_preview_trims_names_the_week_and_maps_both_places(
     assert week[3] == ("2026-11-12", "two-days-b")  # A, two rest places, B
     assert [d["session"] for d in found["week"]].count(None) == 5
     assert [c["place"] for c in found["coverage"]] == ["home", "gym"]
+    counted = {
+        (c["cycle_days"], c["session_minutes"], c["session_exercises"]) for c in found["coverage"]
+    }
+    assert counted == {(7, 20, 4)}  # the map says what it counted at (ADR-0093 Decided 16)
 
 
 def test_the_preview_saves_nothing_and_the_owner_gets_one_too(

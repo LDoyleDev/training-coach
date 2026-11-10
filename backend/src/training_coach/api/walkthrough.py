@@ -25,6 +25,7 @@ from training_coach.domain.step_levels import Mark
 from training_coach.domain.walkthrough import AgeBand, Answers, CanDo, Effort, HowLong, Often
 from training_coach.services import consent, plan_edit, readiness, users, walkthrough
 from training_coach.services import walkthrough_preview as views
+from training_coach.services.coverage import CountedAt
 from training_coach.services.seed import bundled_plan
 from training_coach.services.walkthrough import Setup
 
@@ -307,6 +308,7 @@ def post_preview(request: Request, user: Owner, body: Outcomes) -> PreviewView:
         found = views.preview(session, bundled_plan(), _setup(body), _today(request))
     if isinstance(found, str):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, found)
+    counted = CountedAt(body.session_minutes, body.session_exercises)  # as its preview trims
     return PreviewView(
         sessions=[
             FittedSessionView(
@@ -321,7 +323,7 @@ def post_preview(request: Request, user: Owner, body: Outcomes) -> PreviewView:
             for s in found.sessions
         ],
         week=[WeekDayView(date=day, session=slug) for day, slug in found.week],
-        coverage=[coverage_view(c, place, body.places) for place, c in found.coverage],
+        coverage=[coverage_view(c, place, body.places, counted) for place, c in found.coverage],
     )
 
 

@@ -1,18 +1,21 @@
 """The body map on the Plan tab (``GET /api/plan/coverage``, program-builder.md F). Owner-only.
 
 It counts the person's own sessions (ADR-0073), the spine warning at their own ladder steps,
-and the home or gym versions (``place``, ADR-0071).
+and the home or gym versions (``place``, ADR-0071), per cycle (ADR-0093 Decided 15) at the
+person's minutes and exercises a session (Decided 16).
 """
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 from training_coach.api.auth import Owner
+from training_coach.api.plan import CYCLE_MAX, CycleEntry, cycle_entries
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain import coverage as domain
 from training_coach.domain.coverage import Band, Evidence, Heat
 from training_coach.domain.enums import Place, Places
 from training_coach.services import coverage as service
+from training_coach.services.coverage import CountedAt
 from training_coach.services.plan_rows import PlannedItem
 
 router = APIRouter(prefix="/api/plan", tags=["plan"])
@@ -28,7 +31,7 @@ class SourceView(BaseModel):
 class MuscleView(BaseModel):
     muscle: str
     main: bool  # one of the ten main muscles
-    sets: float  # fractional hard sets a week
+    sets: float  # fractional hard sets over the cycle
     days: int  # sessions with at least 2 sets for it
     most: float  # the most in one session
     most_in: str | None
@@ -68,7 +71,10 @@ class CoverageView(BaseModel):
     places: Places  # where the person trains: Home | Gym is offered at both
     muscles: list[MuscleView]  # main muscles first
     sessions: list[SessionLoadView]  # queue order
-    push_sets: int  # a week
+    cycle_days: int  # the cycle's days, rest places included: what the sets and bands are per
+    session_minutes: int | None  # what each session was counted at; None: as planned
+    session_exercises: int | None
+    push_sets: int  # over the cycle
     pull_sets: int
     pushing_without_pulling: bool  # less than one pulling set for two pushing
     main_on_target: int  # main muscles in the green band
@@ -99,7 +105,9 @@ class DraftVersion(BaseModel):
 
 class CoverageDraft(BaseModel):
     place: Place = Place.HOME
-    versions: list[DraftVersion] = Field(max_length=30)
+    versions: list[DraftVersion] = Field(max_length=30)  # a new session's slug is "new:<key>"
+    # The cycle as the draft has it, as POST /api/plan/changes takes it; None: as saved.
+    cycle: list[CycleEntry] | None = Field(default=None, min_length=1, max_length=CYCLE_MAX)
 
 
 @router.get("/coverage", response_model=CoverageView)
@@ -110,13 +118,15 @@ def get_coverage(request: Request, user: Owner, place: Place | None = None) -> C
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         places, day = service.map_place(session)
         at = day if place is None else place
-        found = service.plan_coverage(session, at)
-    return coverage_view(found, at, places)
+        counted = service.counted_at(session)
+        found = service.plan_coverage(session, at, counted=counted)
+    return coverage_view(found, at, places, counted)
 
 
 @router.post("/coverage/draft", response_model=CoverageView)
 def post_coverage_draft(request: Request, user: Owner, body: CoverageDraft) -> CoverageView:
-    """The map as a draft of the plan would make it, while editing: it saves nothing."""
+    """The map as a draft of the plan would make it, while editing, its cycle too: sessions
+    added, removed and moved, and their rest places (ADR-0093). It saves nothing."""
     draft = {
         (v.slug, v.place): [
             PlannedItem(i.exercise, i.sets, i.rep_min, i.rep_max, i.per_side, i.pair)
@@ -126,11 +136,19 @@ def post_coverage_draft(request: Request, user: Owner, body: CoverageDraft) -> C
     }
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         places, _ = service.map_place(session)
-        found = service.plan_coverage(session, body.place, draft)
-    return coverage_view(found, body.place, places)
+        counted = service.counted_at(session)
+        drafted = (
+            service.drafted_cycle(session, cycle_entries(body.cycle))
+            if body.cycle is not None
+            else None
+        )
+        found = service.plan_coverage(session, body.place, draft, sessions=drafted, counted=counted)
+    return coverage_view(found, body.place, places, counted)
 
 
-def coverage_view(found: domain.Coverage, at: Place, places: Places) -> CoverageView:
+def coverage_view(
+    found: domain.Coverage, at: Place, places: Places, counted: CountedAt
+) -> CoverageView:
     adds = service.would_add(found, at)
     return CoverageView(
         place=at,
@@ -173,6 +191,9 @@ def coverage_view(found: domain.Coverage, at: Place, places: Places) -> Coverage
             )
             for d in found.days
         ],
+        cycle_days=found.cycle_days,
+        session_minutes=counted.minutes,
+        session_exercises=counted.exercises,
         push_sets=found.push_sets,
         pull_sets=found.pull_sets,
         pushing_without_pulling=found.pushing_without_pulling,

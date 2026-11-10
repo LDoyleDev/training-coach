@@ -1189,6 +1189,29 @@
       },
       "CoverageDraft": {
         "properties": {
+          "cycle": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/CycleKept"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CycleAdded"
+                    }
+                  ]
+                },
+                "maxItems": 20,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cycle"
+          },
           "place": {
             "$ref": "#/components/schemas/Place",
             "default": "home"
@@ -1216,6 +1239,10 @@
           },
           "ceiling": {
             "title": "Ceiling",
+            "type": "integer"
+          },
+          "cycle_days": {
+            "title": "Cycle Days",
             "type": "integer"
           },
           "grip_cap": {
@@ -1267,6 +1294,28 @@
             "title": "Session Cap",
             "type": "integer"
           },
+          "session_exercises": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Exercises"
+          },
+          "session_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Minutes"
+          },
           "sessions": {
             "items": {
               "$ref": "#/components/schemas/SessionLoadView"
@@ -1284,6 +1333,9 @@
           "places",
           "muscles",
           "sessions",
+          "cycle_days",
+          "session_minutes",
+          "session_exercises",
           "push_sets",
           "pull_sets",
           "pushing_without_pulling",
@@ -1298,6 +1350,98 @@
           "ceiling"
         ],
         "title": "CoverageView",
+        "type": "object"
+      },
+      "CycleAdded": {
+        "additionalProperties": false,
+        "description": "A new session, by the draft's own key: its versions name it ``new:<key>``, and the answer\ngives its slug. Empty, or a copy of a saved session's versions (Decided 2).",
+        "properties": {
+          "copy_of": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copy Of"
+          },
+          "kind": {
+            "enum": [
+              "strength",
+              "conditioning",
+              "recovery"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 64,
+            "title": "Name",
+            "type": "string"
+          },
+          "new": {
+            "maxLength": 16,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+$",
+            "title": "New",
+            "type": "string"
+          },
+          "rest_after": {
+            "maximum": 14.0,
+            "minimum": 0.0,
+            "title": "Rest After",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "new",
+          "name",
+          "kind",
+          "rest_after"
+        ],
+        "title": "CycleAdded",
+        "type": "object"
+      },
+      "CycleKept": {
+        "additionalProperties": false,
+        "description": "A saved session in the cycle, as it should be (ADR-0093).",
+        "properties": {
+          "kind": {
+            "enum": [
+              "strength",
+              "conditioning",
+              "recovery"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 64,
+            "title": "Name",
+            "type": "string"
+          },
+          "rest_after": {
+            "maximum": 14.0,
+            "minimum": 0.0,
+            "title": "Rest After",
+            "type": "integer"
+          },
+          "slug": {
+            "maxLength": 64,
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "kind",
+          "rest_after"
+        ],
+        "title": "CycleKept",
         "type": "object"
       },
       "DailyCheckView": {
@@ -1831,9 +1975,34 @@
             "title": "Home",
             "type": "array"
           },
+          "kind": {
+            "enum": [
+              "strength",
+              "conditioning",
+              "recovery"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "logged": {
+            "title": "Logged",
+            "type": "integer"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "next": {
+            "title": "Next",
+            "type": "boolean"
+          },
+          "optional": {
+            "title": "Optional",
+            "type": "boolean"
+          },
+          "rest_after": {
+            "title": "Rest After",
+            "type": "integer"
           },
           "slug": {
             "title": "Slug",
@@ -1844,6 +2013,11 @@
           "slug",
           "name",
           "focus",
+          "kind",
+          "rest_after",
+          "optional",
+          "next",
+          "logged",
           "home",
           "gym",
           "away"
@@ -4126,6 +4300,30 @@
         "title": "LevelView",
         "type": "object"
       },
+      "LimitsView": {
+        "description": "What a cycle can hold (ADR-0093 Decided 13): over one, Add is greyed with the reason.",
+        "properties": {
+          "max_cycle_days": {
+            "title": "Max Cycle Days",
+            "type": "integer"
+          },
+          "max_rest": {
+            "title": "Max Rest",
+            "type": "integer"
+          },
+          "max_sessions": {
+            "title": "Max Sessions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_sessions",
+          "max_cycle_days",
+          "max_rest"
+        ],
+        "title": "LimitsView",
+        "type": "object"
+      },
       "LoadView": {
         "description": "A loaded step (ADR-0072): - and + move the weight by ``increment``, or at home through\nthe weights ``owned``; each set starts at its ``kg``, the same set's weight last time when\n``carried``, else the kit's first weight (at home, the lightest owned).",
         "properties": {
@@ -5770,6 +5968,29 @@
       },
       "PlanChanges": {
         "properties": {
+          "cycle": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/CycleKept"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CycleAdded"
+                    }
+                  ]
+                },
+                "maxItems": 20,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cycle"
+          },
           "note": {
             "maxLength": 120,
             "minLength": 1,
@@ -5786,15 +6007,13 @@
               "$ref": "#/components/schemas/VersionChange"
             },
             "maxItems": 30,
-            "minItems": 1,
             "title": "Versions",
             "type": "array"
           }
         },
         "required": [
           "revision",
-          "note",
-          "versions"
+          "note"
         ],
         "title": "PlanChanges",
         "type": "object"
@@ -5807,6 +6026,9 @@
             },
             "title": "Catalogue",
             "type": "array"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/LimitsView"
           },
           "revision": {
             "title": "Revision",
@@ -5823,7 +6045,8 @@
         "required": [
           "revision",
           "sessions",
-          "catalogue"
+          "catalogue",
+          "limits"
         ],
         "title": "PlanEditView",
         "type": "object"
@@ -5874,6 +6097,13 @@
             "title": "Revision",
             "type": "string"
           },
+          "slugs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Slugs",
+            "type": "object"
+          },
           "version": {
             "anyOf": [
               {
@@ -5888,7 +6118,8 @@
         },
         "required": [
           "revision",
-          "version"
+          "version",
+          "slugs"
         ],
         "title": "PlanSavedView",
         "type": "object"
@@ -7297,6 +7528,10 @@
             "title": "Position",
             "type": "integer"
           },
+          "rest_after": {
+            "title": "Rest After",
+            "type": "integer"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -7322,6 +7557,7 @@
           "focus",
           "type",
           "optional",
+          "rest_after",
           "total_sets",
           "exercises",
           "gym"
@@ -12345,7 +12581,7 @@
     },
     "/api/plan/changes": {
       "post": {
-        "description": "Save a draft of the person's own plan as one version. A draft of an older plan, or a\nsession in progress, is a conflict; what the app couldn't run is refused with the reason.",
+        "description": "Save a draft of the person's own plan as one version, its cycle too when it has one\n(ADR-0093 Decided 19). A draft of an older plan, or a session in progress, is a conflict;\nwhat the app couldn't run is refused with the reason.",
         "operationId": "post_plan_changes_api_plan_changes_post",
         "requestBody": {
           "content": {
@@ -12437,7 +12673,7 @@
     },
     "/api/plan/coverage/draft": {
       "post": {
-        "description": "The map as a draft of the plan would make it, while editing: it saves nothing.",
+        "description": "The map as a draft of the plan would make it, while editing, its cycle too: sessions\nadded, removed and moved, and their rest places (ADR-0093). It saves nothing.",
         "operationId": "post_coverage_draft_api_plan_coverage_draft_post",
         "requestBody": {
           "content": {
