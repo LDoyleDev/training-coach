@@ -236,7 +236,9 @@ recommendation says:
 - **"Starting plan" is dated at `plan.toml`'s newest version**, not the day someone joins, so the
   save's "Set up with the walk-through" usually comes after it rather than replacing it; it
   renames a version dated today when there is one.
-- **A workout logged** is any workout, extras included: it closes the walk-through.
+- **A workout logged** means a workout of a planned session (done, rested or skipped): it holds
+  that session in place, so it closes the walk-through. A walk or an extra names no session and
+  leaves it open.
 - **No figure field:** a step's figure is the web's own, found by the ladder's slug and the step's
   name, as everywhere else.
 - **The lock cases** both copies of the rule are tested on: `frontend/src/walkthrough/lock-cases.json`
