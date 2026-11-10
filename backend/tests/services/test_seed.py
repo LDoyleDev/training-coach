@@ -276,14 +276,15 @@ def _sessions(text: str) -> tuple[str, list[str]]:
 
 
 def test_a_retired_session_is_left_parked_and_never_made_again(session: Session) -> None:
-    """Its slug is still taken (ADR-0093): a plan without it leaves it alone, and a plan with it
-    is refused in words, not by the unique slug."""
+    """Its slug is still taken (ADR-0093): a plan without it, or the seed, leaves it alone, and a
+    plan with it is refused in words, not by the unique slug."""
     plan = load_plan(MINI_PLAN)
     apply_seed(session, plan)
     arms = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "arms")).one()
     factories.retire(session, arms, date(2026, 11, 10))
     exercises = {e.slug: e for e in session.scalars(select(Exercise))}
     sync_sessions(session, plan.sessions[:1], OWNER, exercises, SeedResult())
+    apply_seed(session, plan)  # the start-up seed: it doesn't touch a planned person's sessions
     assert arms.position == 10_000 + arms.id
     with pytest.raises(SeedError, match="arms retired from this plan"):
         sync_sessions(session, plan.sessions, OWNER, exercises, SeedResult())
