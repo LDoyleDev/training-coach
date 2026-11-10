@@ -12,6 +12,7 @@ import ReviewPage from './review/ReviewPage'
 import SessionPage from './session/SessionPage'
 import SignIn from './SignIn'
 import useClosed from './useClosed'
+import StartPage from './walkthrough/StartPage'
 
 /** The web app's pages by path; the server serves index.html for each (SPA_PAGES). While the app
  * is closed to a member (ADR-0059), every page but sign-in is the closing page. */
@@ -45,6 +46,7 @@ function Page() {
   if (window.location.pathname === '/review') return <ReviewPage />
   if (window.location.pathname === '/connect') return <ConnectPage />
   if (window.location.pathname === '/join') return <JoinPage />
+  if (window.location.pathname === '/start') return <StartPage />
   if (window.location.pathname === '/') return <HomePage />
   return (
     <p className="status">

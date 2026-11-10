@@ -151,7 +151,7 @@ test('the page that was opened is the one shown after answering', async () => {
   expect(window.location.pathname + window.location.search).toBe('/session?day=3')
 })
 
-test.each(['/signin', '/readiness'])('%s opens without the check', (path) => {
+test.each(['/signin', '/readiness', '/start'])('%s opens without the check', (path) => {
   open(path)
   const { fetch } = serve(DUE)
   show()

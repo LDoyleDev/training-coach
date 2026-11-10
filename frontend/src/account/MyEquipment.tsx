@@ -32,7 +32,7 @@ type Loaded =
   | { status: 'ready'; kit: Equipment }
 
 /** Which item the form is for: a new one, or the saved one at `index`. */
-type Editing = { draft: Draft; index: number | null }
+export type Editing = { draft: Draft; index: number | null }
 
 const FAILED = "That didn't work. Nothing was saved; check your connection and try again."
 const SIGNED_OUT = 'Your sign-in ended. Sign in again, then retry.'
@@ -119,7 +119,7 @@ export default function MyEquipment() {
         </>
       )}
       {loaded.status === 'ready' && (
-        <Ready
+        <KitList
           kit={loaded.kit}
           editing={editing}
           setEditing={(e) => {
@@ -141,13 +141,16 @@ export default function MyEquipment() {
   )
 }
 
-function Ready({
+/** The kit list with its tap-to-add form. `save` gets the whole new list; the walk-through
+ * keeps it in memory until its Save, so there it asks nothing of the server (`unlocks` off). */
+export function KitList({
   kit,
   editing,
   setEditing,
   busy,
   refused,
   save,
+  unlocks = true,
 }: {
   kit: Equipment
   editing: Editing | null
@@ -155,6 +158,7 @@ function Ready({
   busy: boolean
   refused: string | null
   save: (items: KitItemBody[], done: string) => void
+  unlocks?: boolean
 }) {
   const bodies = kit.items.map(bodyFromItem)
   const names = new Map(kit.kinds.map((k) => [k.kit, k.name]))
@@ -218,6 +222,7 @@ function Ready({
           kindName={name(editing.draft.kit)}
           busy={busy}
           refused={refused}
+          unlocks={unlocks}
           onCancel={() => setEditing(null)}
           onSave={(body) => {
             const items =
@@ -302,6 +307,7 @@ function ItemForm({
   kindName,
   busy,
   refused,
+  unlocks,
   onCancel,
   onSave,
 }: {
@@ -310,6 +316,7 @@ function ItemForm({
   kindName: string
   busy: boolean
   refused: string | null
+  unlocks: boolean
   onCancel: () => void
   onSave: (body: KitItemBody) => void
 }) {
@@ -396,7 +403,7 @@ function ItemForm({
           />
         </label>
 
-        {preview && <Unlocks add={preview} />}
+        {unlocks && preview && <Unlocks add={preview} />}
         {refused && (
           <p className="status-error m-0" role="alert">
             {refused}

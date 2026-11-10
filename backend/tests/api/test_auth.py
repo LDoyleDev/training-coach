@@ -151,6 +151,7 @@ def test_the_signin_page_serves_the_web_app(engine: Engine, tmp_path: Path) -> N
             "/progress",
             "/plan",
             "/join",
+            "/start",
         ):
             page = client.get(path)
             assert page.status_code == 200, path

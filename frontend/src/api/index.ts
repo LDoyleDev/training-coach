@@ -1709,3 +1709,18 @@ export async function unlinkTelegram(): Promise<void> {
   if (res.status !== 204 && res.status !== 404)
     throw new Error(`The server answered ${res.status}.`)
 }
+
+// ------------------------------------------------------------- the walk-through (ADR-0092)
+
+export type Walkthrough = Schemas['WalkthroughView']
+export type WalkLadder = Schemas['WalkthroughLadderView']
+export type WalkStep = Schemas['WalkthroughStepView']
+
+/** Who it's for, the ladders to walk, the starters, and the consent, residence and readiness
+ * the screens skip on; null when not signed in. */
+export async function fetchWalkthrough(signal?: AbortSignal): Promise<Walkthrough | null> {
+  const res = await fetch('/api/walkthrough', { signal, credentials: 'same-origin' })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as Walkthrough
+}

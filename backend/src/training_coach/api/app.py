@@ -59,6 +59,7 @@ from training_coach.api.security import request_guard, security_headers_middlewa
 from training_coach.api.session import router as session_router
 from training_coach.api.settings import router as settings_router
 from training_coach.api.telegram_link import router as telegram_link_router
+from training_coach.api.walkthrough import router as walkthrough_router
 from training_coach.bot.app import (
     ALLOWED_UPDATES,
     ANNOUNCE,
@@ -256,6 +257,7 @@ SPA_PAGES = (
     "/review",
     "/connect",  # the consent page for connecting an AI app (ADR-0047 C)
     "/join",  # an invite (ADR-0059); its routes answer 404 while TC_MULTI_USER is off
+    "/start",  # the walk-through (ADR-0092), linked from /join's last step and Home
 )
 
 
@@ -395,6 +397,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(account_router)
     app.include_router(telegram_link_router)
     app.include_router(residence_router)
+    app.include_router(walkthrough_router)
     app.include_router(ai_router)
     app.include_router(session_router)
     app.include_router(cardio_router)
