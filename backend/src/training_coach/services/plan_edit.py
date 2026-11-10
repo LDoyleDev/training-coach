@@ -155,12 +155,8 @@ def editable(session: Session) -> list[EditableSession]:
     """The cycle as the editor shows it: each session's versions, its place in the cycle, and
     how many workouts name it (ADR-0093)."""
     position = queue_today.position(session)
-    counts = session.execute(
-        select(Workout.template_id, func.count())
-        .where(Workout.template_id.is_not(None))
-        .group_by(Workout.template_id)
-    )
-    logged = dict(counts.all())
+    rows = templates(session)
+    counts = logged_counts(session, [t.id for t in rows])
     return [
         EditableSession(
             t.slug,
@@ -173,9 +169,9 @@ def editable(session: Session) -> list[EditableSession]:
             rest_after=t.rest_after,
             optional=t.is_rest_optional,
             next=position is not None and position.pointer == t.id,
-            logged=logged.get(t.id, 0),
+            logged=counts.get(t.id, 0),
         )
-        for t in templates(session)
+        for t in rows
     ]
 
 
@@ -493,10 +489,19 @@ def queue_after(
     return cycle_rules.applied(slots, draft, position, queue_today.last_done(session))
 
 
+def logged_counts(session: Session, ids: Collection[int]) -> dict[int, int]:
+    """How many workouts name each session of ``ids`` that any names."""
+    found = session.execute(
+        select(Workout.template_id, func.count())
+        .where(Workout.template_id.in_(ids))
+        .group_by(Workout.template_id)
+    )
+    return {sid: n for sid, n in found if sid is not None}
+
+
 def logged(session: Session, ids: Collection[int]) -> set[int]:
     """The sessions of ``ids`` a workout names: removing one retires it (Decided 5)."""
-    named = Workout.template_id.in_(ids)
-    return {sid for sid in session.scalars(select(Workout.template_id).where(named)) if sid}
+    return set(logged_counts(session, ids))
 
 
 def retire(rows: Iterable[SessionTemplate], today: date) -> None:
