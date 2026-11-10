@@ -221,7 +221,9 @@ export function PlanScreen({
           ))}
         </ul>
       )}
-      {preview && missed.length > 0 && (
+      {/* Not while the next plan loads (the week is the last one's), and not at 5 days or more,
+          where the cardio note says what the other days are for. */}
+      {preview && !waiting && days < 5 && missed.length > 0 && (
         <p className="m-0">
           {and(missed)} {missed.length === 1 ? "doesn't" : "don't"} get a session, to keep the rest
           days between them.
