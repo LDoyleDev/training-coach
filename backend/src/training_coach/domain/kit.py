@@ -47,7 +47,7 @@ NAMES = {
     Kit.MAT: "mat",
     Kit.AB_WHEEL: "ab wheel",
 }
-PLURAL = frozenset({Kit.DUMBBELLS, Kit.RINGS})  # no "a" in front
+PLURAL = frozenset({Kit.DUMBBELLS, Kit.DIP_BARS, Kit.RINGS})  # no "a" in front
 
 
 @dataclass(frozen=True)
