@@ -21,7 +21,7 @@ from typing import Annotated, Literal, Self
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import (
@@ -753,9 +753,15 @@ def sync_sessions(
     if current != {slug: wanted[slug] for slug in current}:
         # Reordering: park existing positions out of the way so the unique index never
         # sees two sessions on one position mid-update. New sessions always get positions
-        # after the existing ones' final positions, so they cannot collide.
+        # after the existing ones' final positions, so they cannot collide. Parked above
+        # every row, retired ones too, which sit at _PARK_OFFSET + id (ADR-0093).
+        top = session.scalar(
+            select(func.max(SessionTemplate.position)).where(SessionTemplate.user_id == user_id),
+            execution_options={ALL_USERS: True},
+        )
+        park = max(_PARK_OFFSET, (top or 0) + 1)
         for existing in templates.values():
-            existing.position += _PARK_OFFSET
+            existing.position += park
         session.flush()
     for position, seed_session in enumerate(sessions):
         template = templates.get(seed_session.slug)
