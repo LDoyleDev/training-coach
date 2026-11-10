@@ -10,17 +10,32 @@ import {
   fetchSettings,
 } from '../api'
 import { bodyFromItem } from '../account/kit'
+import { fetchWalkthrough } from './api'
 import Residence from '../account/Residence'
 import { RetryCard, SignInCard } from '../components/StateCards'
 import { ConsentCard } from '../consent/Consented'
 import { QUESTIONS, VERSION } from '../readiness/questions'
 import { card, primary, secondary } from '../ui'
-import { after, CHOICES, type Draft, type Known, LAST, numberOf, SAFETY } from './flow'
+import {
+  after,
+  CHOICES,
+  COUNTS,
+  type Draft,
+  type Known,
+  LAST,
+  ladderAt,
+  MINUTES,
+  numberOf,
+  SAFETY,
+  WALKED_FROM,
+} from './flow'
 import { NOTHING_ANSWERED } from './level'
 import {
   AvoidScreen,
   ChoiceScreen,
+  DaysScreen,
   KitScreen,
+  LadderScreen,
   PlacesScreen,
   SafetyNote,
   SafetyQuestion,
@@ -45,22 +60,25 @@ const day = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
 async function load(signal: AbortSignal): Promise<Ready | null> {
-  const [me, consents, residence, readiness, settings, equipment] = await Promise.all([
+  const [me, consents, residence, readiness, settings, equipment, walkthrough] = await Promise.all([
     fetchMe(signal),
     fetchConsents(signal),
     fetchResidence(signal),
     fetchReadiness(signal),
     fetchSettings(signal),
     fetchEquipment(signal),
+    fetchWalkthrough(signal),
   ])
-  if (!me || !consents || !residence || !readiness || !settings || !equipment) return null
-  const walkthrough = consents.categories.find((c) => c.category === 'walkthrough')
+  if (!me || !consents || !residence || !readiness || !settings || !equipment || !walkthrough)
+    return null
+  const asked = consents.categories.find((c) => c.category === 'walkthrough')
   return {
     owner: me.role === 'admin',
     known: {
-      consent: walkthrough?.open === false,
+      consent: asked?.open === false,
       residence: !residence.country,
       safety: readiness.due,
+      ladders: walkthrough.ladders,
     },
     answeredAt: readiness.answered_at,
     kinds: equipment.kinds,
@@ -77,6 +95,11 @@ async function load(signal: AbortSignal): Promise<Ready | null> {
       },
       places: settings.places,
       kit: equipment.listed ? equipment.items.map(bodyFromItem) : null,
+      placement: {},
+      days: [],
+      // What Account holds now, so Save keeps them unless they're changed here.
+      minutes: settings.session_minutes,
+      count: settings.session_exercises,
     },
   }
 }
@@ -150,6 +173,13 @@ export default function StartPage() {
     return frame(<RetryCard text="Couldn't load the walk-through. Check your connection." />)
 
   const { owner, known, answeredAt, kinds } = loaded.ready
+  /** A change to what the ladder walk depends on starts its answers again; the same answer
+   * given again (a new object, the same values) keeps them. */
+  const change = (part: Partial<Draft>): Draft => {
+    const same = (key: keyof Draft) => JSON.stringify(part[key]) === JSON.stringify(draft[key])
+    const restart = WALKED_FROM.some((key) => key in part && !same(key))
+    return { ...draft, ...part, ...(restart && { placement: {} }) }
+  }
   const go = (next: Draft = draft) => {
     const to = after(here, known, next)
     setDraft(next)
@@ -163,6 +193,7 @@ export default function StartPage() {
   const n = numberOf(here)
   const safety = SAFETY.indexOf(here)
   const question = CHOICES[here]
+  const rung = ladderAt(here, known, draft)
 
   return frame(
     <>
@@ -215,32 +246,73 @@ export default function StartPage() {
         <ChoiceScreen
           question={question}
           value={draft.about[question.key]}
-          onAnswer={(value) => go({ ...draft, about: { ...draft.about, [question.key]: value } })}
+          onAnswer={(value) => go(change({ about: { ...draft.about, [question.key]: value } }))}
+          onSkip={() => go(change({ about: { ...draft.about, [question.key]: null } }))}
         />
       )}
       {here === 'avoid' && (
         <AvoidScreen
           draft={draft}
-          onChange={(avoid) => setDraft({ ...draft, avoid })}
+          onChange={(avoid) => setDraft(change({ avoid }))}
           onNext={() => go()}
         />
       )}
       {here === 'places' && (
-        <PlacesScreen value={draft.places} onAnswer={(places) => go({ ...draft, places })} />
+        <PlacesScreen value={draft.places} onAnswer={(places) => go(change({ places }))} />
       )}
       {here === 'kit' && (
         <KitScreen
           kinds={kinds}
           kit={draft.kit}
-          onChange={(kit) => setDraft({ ...draft, kit })}
+          onChange={(kit) => setDraft(change({ kit }))}
           onNext={() => go()}
+        />
+      )}
+      {rung && (
+        <LadderScreen
+          key={here}
+          ladder={rung.ladder}
+          step={rung.step}
+          index={known.ladders.indexOf(rung.ladder)}
+          of={known.ladders.length}
+          value={draft.placement[rung.ladder.slug]?.[rung.k]}
+          onAnswer={(answer) => {
+            const before = (draft.placement[rung.ladder.slug] ?? []).slice(0, rung.k)
+            go({
+              ...draft,
+              placement: { ...draft.placement, [rung.ladder.slug]: [...before, answer] },
+            })
+          }}
+        />
+      )}
+      {here === 'days' && (
+        <DaysScreen
+          days={draft.days}
+          onChange={(days) => setDraft({ ...draft, days })}
+          onNext={() => go()}
+        />
+      )}
+      {here === 'minutes' && (
+        <ChoiceScreen
+          question={{ title: 'How long can a session be?', options: MINUTES }}
+          value={draft.minutes}
+          onAnswer={(minutes) => go({ ...draft, minutes })}
+          onSkip={() => go()}
+        />
+      )}
+      {here === 'count' && (
+        <ChoiceScreen
+          question={{ title: 'How many exercises in a session?', options: COUNTS }}
+          value={draft.count}
+          onAnswer={(count) => go({ ...draft, count })}
+          onSkip={() => go()}
         />
       )}
       {here === 'next' && (
         <>
-          <h1 className="m-0 text-2xl">Next: what you can do</h1>
+          <h1 className="m-0 text-2xl">Next: your plan</h1>
           <p className="m-0">
-            The questions about each exercise come in the next version. Nothing was saved.
+            Your plan, made from these answers, comes in the next version. Nothing was saved.
           </p>
         </>
       )}
