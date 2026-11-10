@@ -2,18 +2,21 @@ import { useEffect, useState } from 'react'
 import {
   type Coverage,
   type Fitted,
+  fetchWalkthrough,
   type Place,
   type Preview,
   previewWalkthrough,
+  saveWalkthrough,
   type Walkthrough,
 } from '../api'
 import { BodyMap } from '../bodymap/BodyMap'
 import { MapPlace } from '../bodymap/MapPlace'
-import { card, secondary } from '../ui'
+import { AllStopSigns } from '../session/StopSigns'
+import { card, primary, secondary } from '../ui'
 import { COUNTS, type Draft, type Known, MINUTES, openSteps, WEEKDAYS } from './flow'
 import { weekday } from './days'
 import { suggestedLevel } from './level'
-import { iso, LEFT_OUT, local, pick, stepsOf } from './outcomes'
+import { answersOf, iso, LEFT_OUT, local, pick, stepsOf } from './outcomes'
 import { tight } from './choice'
 
 /** "Monday 16 November" */
@@ -24,6 +27,14 @@ const shortDay = (day: string) =>
   local(day).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 const and = (names: string[]) =>
   names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+
+/** Why Save was refused, in words. Consent withdrawn is said where it happens. */
+const REFUSED = {
+  closed:
+    "You've logged a workout since this opened, so the walk-through is closed. Change your minutes, kit and the rest on Account.",
+  'in-progress': 'A session is under way. Finish or end it on Today, then save.',
+  stale: 'Your plan changed somewhere else since this opened. Check this one, then save again.',
+}
 
 type Shown =
   | { status: 'loading' }
@@ -56,22 +67,32 @@ function Version({ fitted, label }: { fitted: Fitted; label?: string }) {
  * Screen 13, "Your plan" (ADR-0092): the starter the tapped days pick, each exercise at its
  * step, trimmed to the minutes and count, the week, the body map and the notes. Any open step,
  * the days, minutes and count can be changed here, and each change asks for the plan again;
- * nothing is saved. Save comes next (#695). The owner's try-out sees it all.
+ * nothing is saved until Save. The owner's try-out sees it all, without Save.
  */
 export function PlanScreen({
   who,
   known,
   starters,
+  revision,
+  consented,
   draft,
   onChange,
+  onSaved,
 }: {
   who: Walkthrough['who']
   known: Known
   starters: Walkthrough['starters']
+  revision: string
+  consented: boolean // the answers may be sent
   draft: Draft
   onChange: (draft: Draft) => void
+  onSaved: (startsOn: string) => void
 }) {
   const [shown, setShown] = useState<Shown>({ status: 'loading' })
+  const [busy, setBusy] = useState(false)
+  const [said, setSaid] = useState<string | null>(null)
+  const [keep, setKeep] = useState(consented)
+  const [plan, setPlan] = useState(revision)
   const [place, setPlace] = useState<Place>('home')
   const [today] = useState(() => new Date())
   const { starter, start, leftOut, body } = pick(known, starters, draft, today)
@@ -93,6 +114,36 @@ export function PlanScreen({
     return () => ctrl.abort()
   }, [asked])
 
+  const save = async () => {
+    setBusy(true)
+    setSaid(null)
+    try {
+      const found = await saveWalkthrough({
+        ...body,
+        revision: plan,
+        ...(keep && { answers: answersOf(known, draft) }),
+      })
+      if (typeof found === 'object' && 'revision' in found) return onSaved(found.starts_on)
+      if (found === 'consent_needed') {
+        setKeep(false)
+        setSaid(
+          "Your yes to keeping your answers was taken back, so they weren't sent. Save again to make your plan without them.",
+        )
+      } else if (typeof found === 'object') setSaid(found.problem)
+      else {
+        if (found === 'stale') {
+          // The revision now, so the next tap saves over it; failing that, the next tap asks again.
+          const now = await fetchWalkthrough().catch(() => null)
+          if (now) setPlan(now.revision)
+        }
+        setSaid(REFUSED[found])
+      }
+    } catch {
+      setSaid("Couldn't save. Check your connection and try again.")
+    }
+    setBusy(false)
+  }
+
   const level = suggestedLevel(draft.about)
   const days = draft.days.length
   const steps = stepsOf(known, draft)
@@ -100,6 +151,7 @@ export function PlanScreen({
   const ladders = known.ladders.filter((l) => mine.has(l.slug))
   const preview = shown.status === 'ready' ? shown.preview : null // the last, while the next loads
   const waiting = shown.status === 'loading' || shown.for !== asked // the next is on its way
+  const current = shown.status === 'ready' && !waiting
   const names = new Map(starter.sessions.map((s) => [s.slug, s.name]))
   const landed = new Set(preview?.week.flatMap((d) => (d.session ? [weekday(local(d.date))] : [])))
   const missed = draft.days.filter((d) => !landed.has(d)).map((d) => WEEKDAYS[d])
@@ -287,11 +339,46 @@ export function PlanScreen({
         </>
       )}
 
+      {said && (
+        <p className="status-error m-0" role="alert">
+          {said}
+        </p>
+      )}
       {who === 'owner_try_out' ? (
         <p className={`${card} m-0 font-bold`}>This is a try-out: your plan won't change.</p>
       ) : (
-        <p className="m-0">Saving it comes in the next version. Nothing was saved.</p>
+        <button
+          type="button"
+          className={primary}
+          disabled={busy || !current}
+          onClick={() => void save()}
+        >
+          {busy ? 'Saving…' : 'Save my plan'}
+        </button>
       )}
+    </>
+  )
+}
+
+/** Screen 14, "Done": the first session's day, then Today and the stop signs. */
+export function DoneScreen({ startsOn }: { startsOn: string }) {
+  const [today] = useState(() => startsOn === iso(new Date()))
+  return (
+    <>
+      <h1 className="m-0 text-2xl">
+        {today ? 'Your first session is today' : `Your first session is on ${longDay(startsOn)}`}
+      </h1>
+      <p className="m-0">
+        Your plan is saved. Change your minutes, kit and the rest on Account, and each exercise's
+        step on Plan.
+      </p>
+      <a href="/session" className={primary + ' flex items-center justify-center no-underline'}>
+        Go to today
+      </a>
+      <div className={card}>
+        <p className="m-0 mb-2">Before your first session, read the stop signs.</p>
+        <AllStopSigns />
+      </div>
     </>
   )
 }

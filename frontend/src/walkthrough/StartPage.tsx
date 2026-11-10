@@ -27,7 +27,7 @@ import {
   WALKED_FROM,
 } from './flow'
 import { NOTHING_ANSWERED } from './level'
-import { PlanScreen } from './PlanScreen'
+import { DoneScreen, PlanScreen } from './PlanScreen'
 import {
   AvoidScreen,
   ChoiceScreen,
@@ -44,6 +44,8 @@ interface Ready {
   who: Walkthrough['who'] // the owner's is a try-out: nothing changes his plan (ADR-0092)
   known: Known
   starters: Walkthrough['starters']
+  revision: string // the plan's as it loaded: Save sends it back
+  consented: boolean // the walkthrough category was open as it loaded
   answeredAt: string | null // when the health questions were last answered
   kinds: Equipment['kinds']
   draft: Draft
@@ -75,6 +77,8 @@ async function load(signal: AbortSignal): Promise<Ready | null> {
       ladders: walkthrough.ladders,
     },
     starters: walkthrough.starters,
+    revision: walkthrough.revision,
+    consented: walkthrough.consent_open,
     answeredAt: readiness.answered_at,
     kinds: equipment.kinds,
     draft: {
@@ -112,6 +116,8 @@ export default function StartPage() {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
   const [trail, setTrail] = useState<string[]>(['welcome'])
   const [draft, setDraft] = useState<Draft | null>(null)
+  const [consented, setConsented] = useState<boolean | null>(null) // null: as it loaded
+  const [startsOn, setStartsOn] = useState<string | null>(null) // saved: the first session's day
   const main = useRef<HTMLElement>(null)
   const moved = useRef(false)
   const told = useRef(false)
@@ -180,7 +186,7 @@ export default function StartPage() {
       </div>,
     )
 
-  const { who, known, answeredAt, kinds, starters } = loaded.ready
+  const { who, known, answeredAt, kinds, starters, revision } = loaded.ready
   const owner = who === 'owner_try_out'
   /** A change to what the ladder walk depends on starts its answers again; the same answer
    * given again (a new object, the same values) keeps them. */
@@ -223,7 +229,14 @@ export default function StartPage() {
       )}
       {here === 'welcome' && <Welcome onStart={() => go()} />}
       {here === 'consent' && (
-        <ConsentCard category="walkthrough" onGiven={() => go()} onNotNow={() => go()} />
+        <ConsentCard
+          category="walkthrough"
+          onGiven={() => {
+            setConsented(true)
+            go()
+          }}
+          onNotNow={() => go()}
+        />
       )}
       {here === 'residence' && (
         <>
@@ -321,8 +334,22 @@ export default function StartPage() {
         />
       )}
       {here === 'plan' && (
-        <PlanScreen who={who} known={known} starters={starters} draft={draft} onChange={setDraft} />
+        <PlanScreen
+          who={who}
+          known={known}
+          starters={starters}
+          revision={revision}
+          consented={consented ?? loaded.ready.consented}
+          draft={draft}
+          onChange={setDraft}
+          onSaved={(on) => {
+            setStartsOn(on)
+            moved.current = true
+            setTrail(['done']) // saved: nothing to go back to
+          }}
+        />
       )}
+      {here === 'done' && startsOn && <DoneScreen startsOn={startsOn} />}
       {trail.length > 1 && (
         <button type="button" className={`${secondary} self-start`} onClick={back}>
           Back
