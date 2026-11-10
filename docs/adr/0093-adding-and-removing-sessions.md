@@ -242,3 +242,21 @@ he wants the map counted over the cycle's own length.
   card shows the refusal on its own.
 - **"Moves to place N"** is said only for the sessions a reorder moved (the fewest, as the
   editor counts them), not for every session an add or a removal shifts.
+
+## Addendum (10 Nov 2026): the API's shapes (#723)
+
+- **`GET /api/plan/edit`**: each session has `kind`, `rest_after`, `optional`, `next` (the
+  queue's pointer) and `logged` (workouts naming it, so Remove can say which wording); the view
+  has `limits` (`max_sessions`, `max_cycle_days`, `max_rest`).
+- **`cycle`** on `POST /api/plan/changes` and `POST /api/plan/coverage/draft`: entries are
+  `{slug, name, kind, rest_after}` or `{new, name, kind, rest_after, copy_of?}`, extra fields
+  refused. Pydantic only keeps the request small (up to 20 entries, `rest_after` up to 14, names
+  up to 64): the limits of Decided 13 and the name rules of 3 are Save's, so the 422 says what's
+  wrong in words. With `cycle`, `versions` may be empty; without it, one is still needed.
+- **The draft map draws what it can**, as it does for a version naming no session: an entry
+  naming none of the person's sessions, or one already drawn, is left out, and Save refuses it.
+  A new session is drawn under the slug `new:<key>`, as its versions name it.
+- **Every map** (`GET /api/plan/coverage`, the draft, the walk-through's preview) answers
+  `cycle_days`, and the `session_minutes` and `session_exercises` it counted at (null: as
+  planned). The saved and draft maps count at the person's settings; the walk-through's at the
+  choices it previews. `plan_coverage` takes the cycle's days from the sessions it counts.

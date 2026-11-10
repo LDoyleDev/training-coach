@@ -253,3 +253,38 @@ def test_my_added_and_removed_sessions_leave_the_others_plan_alone(pair: Pair) -
     assert "added Bravo copy" in notice["text"]
     with make_session_factory(engine, user_id=1)() as theirs:
         assert "Bravo copy" not in {t.name for t in plan_edit.templates(theirs, retired=True)}
+
+
+def test_my_cycle_through_the_editors_routes_leaves_the_others_plan_alone(pair: Pair) -> None:
+    """The same through HTTP: my draft map and my save read and write my sessions, and a slug
+    only I have names nothing of the other's."""
+    app, clients, engine = pair
+    before = _reads(app, clients[1], engine, 1)
+    mine = clients[2].get("/api/plan/edit").json()
+    cycle = [
+        {k: s[k] for k in ("slug", "name", "kind", "rest_after")} for s in mine["sessions"][1:]
+    ]
+    copy = {"new": "n1", "name": "Bravo copy", "kind": "strength", "rest_after": 0}
+    cycle.append({**copy, "copy_of": mine["sessions"][1]["slug"]})
+    drafted = clients[2].post("/api/plan/coverage/draft", json={"versions": [], "cycle": cycle})
+    assert [s["slug"] for s in drafted.json()["sessions"]][-1] == "new:n1"
+    body = {"revision": mine["revision"], "note": "Mine", "cycle": cycle}
+    saved = clients[2].post("/api/plan/changes", json=body)
+    assert saved.status_code == 200, saved.text
+    [slug] = saved.json()["slugs"].values()
+    after = _reads(app, clients[1], engine, 1)
+    changed = sorted(path for path in before if before[path] != after[path])
+    assert not changed, f"my cycle change changed what the other sees: {changed}"
+    theirs = clients[1].get("/api/plan/edit").json()
+    kept = [{k: s[k] for k in ("slug", "name", "kind", "rest_after")} for s in theirs["sessions"]]
+    named = {"slug": slug, "name": "Bravo copy", "kind": "strength", "rest_after": 0}
+    their_map = clients[1].post(
+        "/api/plan/coverage/draft", json={"versions": [], "cycle": [*kept, named]}
+    )
+    assert slug not in [s["slug"] for s in their_map.json()["sessions"]]
+    refused = clients[1].post(
+        "/api/plan/changes",
+        json={"revision": theirs["revision"], "note": "Theirs", "cycle": [*kept, named]},
+    )
+    assert refused.status_code == 422
+    assert refused.json()["detail"] == f"{slug} isn't one of your sessions."

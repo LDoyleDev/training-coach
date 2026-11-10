@@ -3,15 +3,16 @@ session with its home version and its gym one (ADR-0071), from their rows (ADR-0
 exercise is comes from the catalogue. Progress stays out: it has its own routes.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import UTC, date, datetime
-from typing import Literal, cast
+from typing import Literal, Self, cast
 
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from training_coach.api.auth import Owner
 from training_coach.db.session import make_session_factory, session_scope
+from training_coach.domain import cycle as cycle_rules
 from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.queue import local_date
 from training_coach.domain.volume import TARGET_MAX_SETS, TARGET_MIN_SETS, weekly_sets
@@ -48,6 +49,7 @@ class SessionView(BaseModel):
     focus: str
     type: SessionKind
     optional: bool
+    rest_after: int  # rest places after it in the queue (ADR-0091)
     total_sets: int
     exercises: list[ExerciseView]  # the home version
     gym: list[ExerciseView]  # the gym version (ADR-0071); empty: done the same way at the gym
@@ -100,6 +102,7 @@ def build_plan_view(planned: list[PlannedSession]) -> PlanView:
             focus=session.focus,
             type=cast(SessionKind, session.kind),  # the column's check holds it to these
             optional=session.optional,
+            rest_after=session.rest_after,
             total_sets=sum(i.sets for i in session.items),
             exercises=_exercise_views(session.items, exercises),
             gym=_exercise_views(session.gym, exercises),
@@ -138,6 +141,11 @@ class EditSessionView(BaseModel):
     slug: str
     name: str
     focus: str
+    kind: SessionKind
+    rest_after: int  # rest places after it (ADR-0091)
+    optional: bool  # can be rested instead
+    next: bool  # the queue offers it next
+    logged: int  # workouts that name it: removing it retires it, and they stay (ADR-0093)
     home: list[EditItemView]
     gym: list[EditItemView]  # empty: done the same way at the gym
     away: list[EditItemView]  # empty: no away version
@@ -158,10 +166,19 @@ class CatalogueItemView(BaseModel):
     lengthened: bool  # a lengthened-position pick (program-builder.md, Decided 5)
 
 
+class LimitsView(BaseModel):
+    """What a cycle can hold (ADR-0093 Decided 13): over one, Add is greyed with the reason."""
+
+    max_sessions: int
+    max_cycle_days: int  # its rest places included
+    max_rest: int  # rest places after one session
+
+
 class PlanEditView(BaseModel):
     revision: str
-    sessions: list[EditSessionView]
+    sessions: list[EditSessionView]  # the cycle, in queue order
     catalogue: list[CatalogueItemView]
+    limits: LimitsView
 
 
 def _edit_items(rows: Iterable[plan_edit.ItemEdit], names: dict[str, str]) -> list[EditItemView]:
@@ -190,6 +207,11 @@ def get_plan_edit(request: Request, user: Owner) -> PlanEditView:
                 slug=t.slug,
                 name=t.name,
                 focus=t.focus,
+                kind=cast(SessionKind, t.kind),  # the column's check holds it to these
+                rest_after=t.rest_after,
+                optional=t.optional,
+                next=t.next,
+                logged=t.logged,
                 home=_edit_items(t.home, names),
                 gym=_edit_items(t.gym, names),
                 away=_edit_items(t.away, names),
@@ -217,6 +239,11 @@ def get_plan_edit(request: Request, user: Owner) -> PlanEditView:
             )
             for e in exercises
         ],
+        limits=LimitsView(
+            max_sessions=cycle_rules.MAX_SESSIONS,
+            max_cycle_days=cycle_rules.MAX_DAYS,
+            max_rest=cycle_rules.MAX_REST,
+        ),
     )
 
 
@@ -235,21 +262,71 @@ class VersionChange(BaseModel):
     items: list[ItemChange] = Field(max_length=40)
 
 
+# The bounds below only keep a request small: the cycle's own limits (Decided 13) and a name's
+# rules (Decided 3) are checked at Save, which says what's wrong in words.
+class CycleKept(BaseModel):
+    """A saved session in the cycle, as it should be (ADR-0093)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    slug: str = Field(max_length=64)
+    name: str = Field(max_length=64)
+    kind: SessionKind
+    rest_after: int = Field(ge=0, le=cycle_rules.MAX_DAYS)
+
+
+class CycleAdded(BaseModel):
+    """A new session, by the draft's own key: its versions name it ``new:<key>``, and the answer
+    gives its slug. Empty, or a copy of a saved session's versions (Decided 2)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    new: str = Field(min_length=1, max_length=16, pattern=r"^[a-z0-9]+$")  # "n1"
+    name: str = Field(max_length=64)
+    kind: SessionKind
+    rest_after: int = Field(ge=0, le=cycle_rules.MAX_DAYS)
+    copy_of: str | None = Field(default=None, max_length=64)  # a saved session's slug
+
+
+CycleEntry = CycleKept | CycleAdded
+CYCLE_MAX = 2 * cycle_rules.MAX_SESSIONS  # past MAX_SESSIONS, Save says so in words
+
+
+def cycle_entries(cycle: Sequence[CycleEntry]) -> list[plan_edit.Kept | plan_edit.Added]:
+    return [
+        plan_edit.Kept(e.slug, e.name, e.kind, e.rest_after)
+        if isinstance(e, CycleKept)
+        else plan_edit.Added(e.new, e.name, e.kind, e.rest_after, e.copy_of)
+        for e in cycle
+    ]
+
+
 class PlanChanges(BaseModel):
     revision: str = Field(max_length=32)
     note: str = Field(min_length=1, max_length=120)  # a short "what changed" (ADR-0073)
-    versions: list[VersionChange] = Field(min_length=1, max_length=30)
+    versions: list[VersionChange] = Field(default_factory=list, max_length=30)
+    # The live sessions as they should be, in order (ADR-0093): one missing is removed. None:
+    # nothing structural changes, and a version is needed.
+    cycle: list[CycleEntry] | None = Field(default=None, min_length=1, max_length=CYCLE_MAX)
+
+    @model_validator(mode="after")
+    def _something(self) -> Self:
+        if self.cycle is None and not self.versions:
+            raise ValueError("a change needs a version or a cycle")
+        return self
 
 
 class PlanSavedView(BaseModel):
     revision: str
     version: str | None  # the note it was saved under; None: nothing differed
+    slugs: dict[str, str]  # a new session's draft key -> its slug: {"n1": "legs-2"}
 
 
 @router.post("/plan/changes", response_model=PlanSavedView)
 def post_plan_changes(request: Request, user: Owner, body: PlanChanges) -> PlanSavedView:
-    """Save a draft of the person's own plan as one version. A draft of an older plan, or a
-    session in progress, is a conflict; what the app couldn't run is refused with the reason."""
+    """Save a draft of the person's own plan as one version, its cycle too when it has one
+    (ADR-0093 Decided 19). A draft of an older plan, or a session in progress, is a conflict;
+    what the app couldn't run is refused with the reason."""
     edits = [
         plan_edit.VersionEdit(
             slug=v.slug,
@@ -260,13 +337,19 @@ def post_plan_changes(request: Request, user: Owner, body: PlanChanges) -> PlanS
     ]
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         saved = plan_edit.save(
-            session, edits, body.note.strip(), body.revision, bundled_plan(), _today(request)
+            session,
+            edits,
+            body.note.strip(),
+            body.revision,
+            bundled_plan(),
+            _today(request),
+            cycle_entries(body.cycle) if body.cycle is not None else None,
         )
     if saved in (plan_edit.STALE, plan_edit.IN_PROGRESS):
         raise HTTPException(status.HTTP_409_CONFLICT, saved)
     if isinstance(saved, str):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, saved)
-    return PlanSavedView(revision=saved.revision, version=saved.version)
+    return PlanSavedView(revision=saved.revision, version=saved.version, slugs=dict(saved.slugs))
 
 
 class PlanImportView(BaseModel):

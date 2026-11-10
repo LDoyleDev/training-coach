@@ -1461,8 +1461,9 @@ export interface paths {
         put?: never;
         /**
          * Post Plan Changes
-         * @description Save a draft of the person's own plan as one version. A draft of an older plan, or a
-         *     session in progress, is a conflict; what the app couldn't run is refused with the reason.
+         * @description Save a draft of the person's own plan as one version, its cycle too when it has one
+         *     (ADR-0093 Decided 19). A draft of an older plan, or a session in progress, is a conflict;
+         *     what the app couldn't run is refused with the reason.
          */
         post: operations["post_plan_changes_api_plan_changes_post"];
         delete?: never;
@@ -1504,7 +1505,8 @@ export interface paths {
         put?: never;
         /**
          * Post Coverage Draft
-         * @description The map as a draft of the plan would make it, while editing: it saves nothing.
+         * @description The map as a draft of the plan would make it, while editing, its cycle too: sessions
+         *     added, removed and moved, and their rest places (ADR-0093). It saves nothing.
          */
         post: operations["post_coverage_draft_api_plan_coverage_draft_post"];
         delete?: never;
@@ -2763,6 +2765,8 @@ export interface components {
         };
         /** CoverageDraft */
         CoverageDraft: {
+            /** Cycle */
+            cycle?: (components["schemas"]["CycleKept"] | components["schemas"]["CycleAdded"])[] | null;
             /** @default home */
             place: components["schemas"]["Place"];
             /** Versions */
@@ -2774,6 +2778,8 @@ export interface components {
             back_to_back: number;
             /** Ceiling */
             ceiling: number;
+            /** Cycle Days */
+            cycle_days: number;
             /** Grip Cap */
             grip_cap: number;
             /** Hard From */
@@ -2796,10 +2802,51 @@ export interface components {
             pushing_without_pulling: boolean;
             /** Session Cap */
             session_cap: number;
+            /** Session Exercises */
+            session_exercises: number | null;
+            /** Session Minutes */
+            session_minutes: number | null;
             /** Sessions */
             sessions: components["schemas"]["SessionLoadView"][];
             /** Spine Cap */
             spine_cap: number;
+        };
+        /**
+         * CycleAdded
+         * @description A new session, by the draft's own key: its versions name it ``new:<key>``, and the answer
+         *     gives its slug. Empty, or a copy of a saved session's versions (Decided 2).
+         */
+        CycleAdded: {
+            /** Copy Of */
+            copy_of?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "strength" | "conditioning" | "recovery";
+            /** Name */
+            name: string;
+            /** New */
+            new: string;
+            /** Rest After */
+            rest_after: number;
+        };
+        /**
+         * CycleKept
+         * @description A saved session in the cycle, as it should be (ADR-0093).
+         */
+        CycleKept: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "strength" | "conditioning" | "recovery";
+            /** Name */
+            name: string;
+            /** Rest After */
+            rest_after: number;
+            /** Slug */
+            slug: string;
         };
         /**
          * DailyCheckView
@@ -2985,8 +3032,21 @@ export interface components {
             gym: components["schemas"]["EditItemView"][];
             /** Home */
             home: components["schemas"]["EditItemView"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "strength" | "conditioning" | "recovery";
+            /** Logged */
+            logged: number;
             /** Name */
             name: string;
+            /** Next */
+            next: boolean;
+            /** Optional */
+            optional: boolean;
+            /** Rest After */
+            rest_after: number;
             /** Slug */
             slug: string;
         };
@@ -3776,6 +3836,18 @@ export interface components {
             name: string;
         };
         /**
+         * LimitsView
+         * @description What a cycle can hold (ADR-0093 Decided 13): over one, Add is greyed with the reason.
+         */
+        LimitsView: {
+            /** Max Cycle Days */
+            max_cycle_days: number;
+            /** Max Rest */
+            max_rest: number;
+            /** Max Sessions */
+            max_sessions: number;
+        };
+        /**
          * LoadView
          * @description A loaded step (ADR-0072): - and + move the weight by ``increment``, or at home through
          *     the weights ``owned``; each set starts at its ``kg``, the same set's weight last time when
@@ -4324,17 +4396,20 @@ export interface components {
         Places: "home" | "gym" | "both";
         /** PlanChanges */
         PlanChanges: {
+            /** Cycle */
+            cycle?: (components["schemas"]["CycleKept"] | components["schemas"]["CycleAdded"])[] | null;
             /** Note */
             note: string;
             /** Revision */
             revision: string;
             /** Versions */
-            versions: components["schemas"]["VersionChange"][];
+            versions?: components["schemas"]["VersionChange"][];
         };
         /** PlanEditView */
         PlanEditView: {
             /** Catalogue */
             catalogue: components["schemas"]["CatalogueItemView"][];
+            limits: components["schemas"]["LimitsView"];
             /** Revision */
             revision: string;
             /** Sessions */
@@ -4353,6 +4428,10 @@ export interface components {
         PlanSavedView: {
             /** Revision */
             revision: string;
+            /** Slugs */
+            slugs: {
+                [key: string]: string;
+            };
             /** Version */
             version: string | null;
         };
@@ -4843,6 +4922,8 @@ export interface components {
             optional: boolean;
             /** Position */
             position: number;
+            /** Rest After */
+            rest_after: number;
             /** Slug */
             slug: string;
             /** Total Sets */

@@ -391,6 +391,7 @@ def test_plan_endpoint_exposes_only_static_plan_fields(client: TestClient) -> No
         "focus",
         "type",
         "optional",
+        "rest_after",
         "total_sets",
         "exercises",
         "gym",
