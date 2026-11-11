@@ -380,6 +380,11 @@ test('a renamed or rekinded session is listed, and a long list makes a short not
   })
   fireEvent.click(card.getByRole('button', { name: 'Done' }))
   expect(savingWill()[0]).toBe('Rename Session number 1 to First')
+  fireEvent.change(card.getByRole('combobox', { name: 'Kind of Session number 2' }), {
+    target: { value: 'conditioning' },
+  })
+  expect(savingWill()).toContain('Make Session number 2 a cardio session')
+  expect(card.getByText(/^Cardio · /)).toBeInTheDocument()
 })
 
 const WEEK_ON = (queue: object) => view(WEEK.sessions, queue)

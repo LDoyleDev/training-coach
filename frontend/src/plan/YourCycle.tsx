@@ -6,6 +6,7 @@ import {
   EMPTY_CARDIO,
   freeName,
   KINDS,
+  kinded,
   kindLabel,
   lengthLine,
   moved,
@@ -183,8 +184,8 @@ function Rename({
 }
 
 /** The Your cycle card on /plan/edit (ADR-0093): the sessions in queue order with their rest
- * days, the week they make, Add a session, and per session Rename, Up and Down, Remove and its
- * rest days. Every change is a draft until Save. */
+ * days, the week they make, Add a session, and per session Rename, its kind, Up and Down, Remove
+ * and its rest days. Every change is a draft until Save. */
 export default function YourCycle({
   cycle,
   next,
@@ -280,6 +281,21 @@ export default function YourCycle({
                 >
                   Down
                 </button>
+                <label className="flex items-center gap-2">
+                  <span>Kind</span>
+                  <select
+                    className="min-h-11"
+                    aria-label={`Kind of ${e.name}`}
+                    value={e.kind}
+                    onChange={(ev) => onChange(kinded(cycle, e.key, ev.target.value as Kind))}
+                  >
+                    {KINDS.map((k) => (
+                      <option key={k.kind} value={k.kind}>
+                        {k.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 {cycle.length > 1 && ( // the last session can't be removed (Decided 5)
                   <button
                     type="button"
