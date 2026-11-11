@@ -111,6 +111,9 @@ export function removeQuestion(entry: Entry): string {
 export const renamed = (cycle: Entry[], key: Key, name: string) =>
   cycle.map((e) => (e.key === key ? { ...e, name } : e))
 
+export const kinded = (cycle: Entry[], key: Key, kind: Kind) =>
+  cycle.map((e) => (e.key === key ? { ...e, kind } : e))
+
 /** The next free draft key: "n1", "n2", ... */
 export function newKey(cycle: Entry[]): string {
   const used = cycle.map((e) => (typeof e.key === 'string' ? Number(e.key.slice(1)) : 0))
