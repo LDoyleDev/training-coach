@@ -4,6 +4,35 @@ All notable changes are documented here by [release-please](https://github.com/g
 from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow
 [SemVer](https://semver.org/).
 
+## [1.22.0](https://github.com/LDoyleDev/training-coach/compare/v1.21.0...v1.22.0) (2026-11-11)
+
+
+### Features
+
+* **api:** the cycle in the plan editor's routes, and the map per cycle ([#725](https://github.com/LDoyleDev/training-coach/issues/725)) ([a650bf9](https://github.com/LDoyleDev/training-coach/commit/a650bf9e5ff10d27b9d985d680d828a93a0bfc55))
+* **db:** retired sessions, and every reader of the cycle through one helper ([#714](https://github.com/LDoyleDev/training-coach/issues/714)) ([84edb7e](https://github.com/LDoyleDev/training-coach/commit/84edb7e40210623987b8d333f9133bf0ece2c123))
+* **domain:** a cycle draft applied, the queue after it, and the map's bands per cycle ([#712](https://github.com/LDoyleDev/training-coach/issues/712)) ([b4877ed](https://github.com/LDoyleDev/training-coach/commit/b4877edeeecdfaa95aa9bef0d17a4c469b85d413))
+* **domain:** a plan saves its sessions: add, copy, rename, move, remove ([#719](https://github.com/LDoyleDev/training-coach/issues/719)) ([90b83f1](https://github.com/LDoyleDev/training-coach/commit/90b83f1b4b41111668f6951cf5e818dde07c3cc3))
+* **domain:** a removed session is refused in words, and ends undo ([#720](https://github.com/LDoyleDev/training-coach/issues/720)) ([f2428a2](https://github.com/LDoyleDev/training-coach/commit/f2428a25ce4c52c26325cd960ee3b9488f916da1))
+* **domain:** the import removes and puts back sessions, history kept ([#724](https://github.com/LDoyleDev/training-coach/issues/724)) ([0bf8602](https://github.com/LDoyleDev/training-coach/commit/0bf8602f200eca91fb3b14cc2e228f3bb705aaec))
+* **web:** a cardio session without its cardio exercise is warned ([#733](https://github.com/LDoyleDev/training-coach/issues/733)) ([fded6e7](https://github.com/LDoyleDev/training-coach/commit/fded6e7f3a801db7e323cbfd11f1a05487449509))
+* **web:** a session's kind can be changed on the cycle card ([#734](https://github.com/LDoyleDev/training-coach/issues/734)) ([b20dcfc](https://github.com/LDoyleDev/training-coach/commit/b20dcfca67439b5be41ec68c20af2e5a6129b5fb))
+* **web:** move and remove sessions, and see what saving will do ([#729](https://github.com/LDoyleDev/training-coach/issues/729)) ([db53cba](https://github.com/LDoyleDev/training-coach/commit/db53cbac4c3eac9cff3fc54ade533766f27b4ed5))
+* **web:** saving will says what's next and what today becomes ([#731](https://github.com/LDoyleDev/training-coach/issues/731)) ([93ad25c](https://github.com/LDoyleDev/training-coach/commit/93ad25c9312d7ad71f393fce4cd2ebcc0e7f5735))
+* **web:** the cycle rules in TypeScript, held to the shared cases ([#716](https://github.com/LDoyleDev/training-coach/issues/716)) ([3c707a1](https://github.com/LDoyleDev/training-coach/commit/3c707a1997b7a93ae6c098ce3fc63e03b9f28368))
+* **web:** your cycle on the plan editor: add a session, rename, rest days ([#728](https://github.com/LDoyleDev/training-coach/issues/728)) ([20baa46](https://github.com/LDoyleDev/training-coach/commit/20baa4683849f6418b5bf7e7acd6269a4a438ede))
+
+
+### Bug Fixes
+
+* **domain:** the cycle save writes the event kind undo reads, from one place ([#721](https://github.com/LDoyleDev/training-coach/issues/721)) ([3b65a1d](https://github.com/LDoyleDev/training-coach/commit/3b65a1dad6567b8c150e1153f3ee5d6c3ca68967))
+
+
+### Documentation
+
+* **docs:** ADR-0093, adding and removing sessions, with Liam's 20 decisions ([#707](https://github.com/LDoyleDev/training-coach/issues/707)) ([112dcad](https://github.com/LDoyleDev/training-coach/commit/112dcad9ff13282fb3940980ca07a9b884c9f795))
+* **docs:** session log for 1.21.0 ([#711](https://github.com/LDoyleDev/training-coach/issues/711)) ([e2dadb0](https://github.com/LDoyleDev/training-coach/commit/e2dadb0b2a43e4db12e2276630b788378c4e956f))
+
 ## [1.21.0](https://github.com/LDoyleDev/training-coach/compare/v1.20.0...v1.21.0) (2026-11-10)
 
 
