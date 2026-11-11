@@ -1,0 +1,19 @@
+{
+  "_about": "The days green needs in a cycle (ADR-0093 Decided 15): two per 7 days, rounded half up and never under one. Shared by the backend test tests/domain/test_coverage.py (domain.coverage.days_needed) and the web's copy in bodymap/words.ts (daysNeeded), so the two can't drift.",
+  "days_needed": [
+    { "cycle_days": 1, "needed": 1 },
+    { "cycle_days": 2, "needed": 1 },
+    { "cycle_days": 3, "needed": 1 },
+    { "cycle_days": 4, "needed": 1 },
+    { "cycle_days": 5, "needed": 1 },
+    { "cycle_days": 6, "needed": 2 },
+    { "cycle_days": 7, "needed": 2 },
+    { "cycle_days": 8, "needed": 2 },
+    { "cycle_days": 9, "needed": 3 },
+    { "cycle_days": 10, "needed": 3 },
+    { "cycle_days": 11, "needed": 3 },
+    { "cycle_days": 12, "needed": 3 },
+    { "cycle_days": 13, "needed": 4 },
+    { "cycle_days": 14, "needed": 4 }
+  ]
+}

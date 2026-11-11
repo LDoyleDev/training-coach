@@ -1,5 +1,8 @@
 """The body map's bands and warnings (program-builder.md, Decided 3 and F)."""
 
+import json
+from pathlib import Path
+
 import pytest
 
 from training_coach.domain.coverage import (
@@ -229,12 +232,15 @@ def test_each_session_says_which_version_it_counts() -> None:
     assert (gym.place, home.place) == (Place.GYM, Place.HOME)
 
 
-@pytest.mark.parametrize(
-    ("cycle_days", "needed"),
-    [(1, 1), (3, 1), (4, 1), (5, 1), (6, 2), (7, 2), (8, 2), (9, 3), (10, 3), (14, 4)],
-)
-def test_greens_two_days_a_week_per_cycle_rounded_half_up(cycle_days: int, needed: int) -> None:
-    assert days_needed(cycle_days) == needed  # 2 per 7 days, never under 1 (ADR-0093)
+# Shared with the web's copy (bodymap/words.ts daysNeeded), so the two can't drift.
+CASES = Path(__file__).resolve().parents[3] / "frontend/src/bodymap/coverage-cases.json"
+DAYS_NEEDED = json.loads(CASES.read_text(encoding="utf-8"))["days_needed"]
+
+
+@pytest.mark.parametrize("case", DAYS_NEEDED, ids=lambda c: f"{c['cycle_days']} days")
+def test_greens_two_days_a_week_per_cycle_rounded_half_up(case: dict[str, int]) -> None:
+    # 2 per 7 days, never under 1 (ADR-0093)
+    assert days_needed(case["cycle_days"]) == case["needed"]
 
 
 def test_a_weekly_band_stretched_to_the_cycle() -> None:

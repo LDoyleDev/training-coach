@@ -3,6 +3,7 @@ import { card, danger, primaryInline, small } from '../ui'
 import { cannotAdd, days, MAX_DAYS, MAX_REST, problem, suggestedAfter } from './cycleLogic'
 import {
   added,
+  EMPTY_CARDIO,
   freeName,
   KINDS,
   kindLabel,
@@ -112,6 +113,9 @@ function AddForm({
           </label>
         ))}
       </fieldset>
+      {!from && kind === 'conditioning' && (
+        <p className="m-0 text-[var(--bell-ink)]">{EMPTY_CARDIO}</p>
+      )}
       <label className="flex flex-col gap-1">
         <span>Goes after</span>
         <select className="min-h-11" value={after} onChange={(e) => setAfter(e.target.value)}>

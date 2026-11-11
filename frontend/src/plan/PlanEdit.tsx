@@ -33,6 +33,7 @@ import {
 } from './editLogic'
 import {
   baselines,
+  cardioWarning,
   cycleBody,
   cycleChanged,
   cycleOf,
@@ -326,6 +327,7 @@ export default function PlanEdit() {
   const session = state.cycle.find((s) => s.slug === slug) ?? state.cycle[0]
   if (!session) return null
   const items = draft[session.slug]![place]
+  const cardio = cardioWarning(session.kind, draft[session.slug]!.home, loaded.catalogue)
   const set = (next: EditItem[]) => {
     setSaid(null)
     setState({
@@ -428,6 +430,7 @@ export default function PlanEdit() {
             </button>
           ))}
         </div>
+        {cardio && <p className="m-0 text-[var(--bell-ink)]">{cardio}</p>}
         {items.length === 0 ? (
           <p className="m-0 text-[var(--slate)]">{empty}</p>
         ) : (

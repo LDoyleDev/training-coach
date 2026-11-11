@@ -2579,6 +2579,8 @@ export interface components {
         };
         /** CatalogueItemView */
         CatalogueItemView: {
+            /** Cardio */
+            cardio: boolean;
             /** First Step */
             first_step: string;
             kind: components["schemas"]["ExerciseKind"];
