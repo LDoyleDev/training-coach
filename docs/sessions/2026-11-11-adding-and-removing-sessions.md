@@ -32,7 +32,7 @@ Live at 23:36:02 CET by the deploy timer. The Pi's head is `b3d5f7a9c1e4`, `/hea
 1.22.0 with the bot on, the first start logged `seed.unchanged` with no errors, and the live rows
 match the drill: integrity and foreign keys clean, plan tables at 7, 7 and 124, `retired_on` in
 place with no session retired, and no plan notice yet. The owner's cycle is untouched; adding,
-moving and removing sessions is his to try from Plan, Edit.
+moving and removing sessions is the owner's to try from Plan, Edit.
 
 ## Decisions and where they live
 
@@ -47,6 +47,6 @@ moving and removing sessions is his to try from Plan, Edit.
    open items, multi-user-plan step 11); the clinician's and lawyer's lists in #556's body
    before anyone outside family and friends; the Dependabot PRs (#660's Gradle plugin needs its
    verification metadata trusted); a look at the cycle card's wording on the phone.
-3. **Follow-ups:** after the owner's own erase his scheduled messages restart at the default
+3. **Follow-ups:** after the owner's own erase their scheduled messages restart at the default
    times (from the 1.20.0 log, unchecked); the easy start (B6). The follow-ups from the 1.18.0
    log still stand.
