@@ -330,9 +330,8 @@ Builder H's flow, with what the research adds (Part 3, Implications; Part 2, Scr
 
 ### B6. The first weeks, and stepping down
 
-Status (9 Nov 2026): the step-down suggestion is built (#530); the easy start and the re-check are
-follow-ups to the walk-through, which will offer the easy start as a switch (ADR-0092, Decided 12
-and 13).
+Status (16 Nov 2026): the step-down suggestion is built (#530); the easy start is proposed in
+ADR-0094, with decisions for Liam; the re-check is later work (ADR-0092, Decided 13).
 
 - **An easy start for a new person:** two weeks of one or two sets of three or four exercises,
   well short of failure, and 5-10 minutes of cardio (ICFSR 2021). An easy first bout protects

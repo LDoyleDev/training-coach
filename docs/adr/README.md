@@ -98,3 +98,4 @@ Code). Template: [template.md](template.md).
 | [0091](0091-rest-places-in-the-queue.md) | Rest places in the queue, kept as rest days after a session | Accepted; a start date added by 0092, rest places set by the person by 0093 |
 | [0092](0092-the-walk-through.md) | The walk-through: a new person's plan from their answers, saved in one tap | Accepted |
 | [0093](0093-adding-and-removing-sessions.md) | Adding and removing sessions in your own plan | Accepted |
+| [0094](0094-the-easy-start.md) | The easy start: two light weeks, then one set lower for four | Proposed |
