@@ -65,7 +65,7 @@ dependencies {
     // and needs no exact alarm or foreground service (Android 12, MIUI).
     implementation("androidx.work:work-runtime-ktx:2.12.0")
     // JSON built as JsonObject, no compiler plugin; also what the unit tests parse.
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
 
     testImplementation("junit:junit:4.13.2")
 }
