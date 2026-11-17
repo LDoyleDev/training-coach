@@ -5,16 +5,21 @@ and the home or gym versions (``place``, ADR-0071), per cycle (ADR-0093 Decided 
 person's minutes and exercises a session (Decided 16).
 """
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 from training_coach.api.auth import Owner
 from training_coach.api.plan import CYCLE_MAX, CycleEntry, cycle_entries
+from training_coach.api.session import EasyStartView, easy_start_view
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain import coverage as domain
 from training_coach.domain.coverage import Band, Evidence, Heat
 from training_coach.domain.enums import Place, Places
+from training_coach.domain.queue import local_date
 from training_coach.services import coverage as service
+from training_coach.services import easy_start
 from training_coach.services.coverage import CountedAt
 from training_coach.services.plan_rows import PlannedItem
 
@@ -86,6 +91,9 @@ class CoverageView(BaseModel):
     hard_from: int  # one session's sets from which a muscle is worked hard
     minimum: int
     ceiling: int
+    # Where the easy start stands (ADR-0094), for the line over the plan and the map: they show
+    # the plan as it is, lighter until then. Null while it's off, and on a draft or a preview.
+    easy_start: EasyStartView | None = None
 
 
 class DraftItem(BaseModel):
@@ -115,12 +123,14 @@ def get_coverage(request: Request, user: Owner, place: Place | None = None) -> C
     """Weekly fractional sets per muscle with its band and warnings, from the plan as it
     stands, counting each session's version at ``place`` (default: the day's place); nothing
     here changes it, not even the place Today starts at."""
+    on = local_date(datetime.now(UTC), request.app.state.settings.tz)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
         places, day = service.map_place(session)
         at = day if place is None else place
         counted = service.counted_at(session)
         found = service.plan_coverage(session, at, counted=counted)
-    return coverage_view(found, at, places, counted)
+        easy = easy_start_view(easy_start.current(session, on))
+    return coverage_view(found, at, places, counted).model_copy(update={"easy_start": easy})
 
 
 @router.post("/coverage/draft", response_model=CoverageView)

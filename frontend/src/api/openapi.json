@@ -1250,6 +1250,16 @@
             "title": "Cycle Days",
             "type": "integer"
           },
+          "easy_start": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EasyStartView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "grip_cap": {
             "title": "Grip Cap",
             "type": "integer"

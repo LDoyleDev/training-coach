@@ -9,6 +9,13 @@ export const EASY_START_LINE =
 /** At a suggested level of 4, where it starts off (Decided 4). */
 export const EASY_START_NEW = 'New to strength work? Turn this on.'
 
+/** Today's word after an offer is taken: a restart, or one more easy week of a phase. */
+export const EASY_TAKEN = {
+  restart: 'The easy start begins again with your next session.',
+  light: 'One more easy week: one set of each.',
+  lower: 'One more easy week: one set fewer of each.',
+}
+
 /** "31 Dec", from "2026-12-31". */
 const short = (day: string) => {
   const [y, m, d] = day.split('-').map(Number)

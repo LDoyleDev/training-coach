@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchPlan, type Exercise, type Place, type Plan, type Session } from './api'
 import { BodyMap } from './bodymap/BodyMap'
+import { lighterLine } from './easyStart'
 import { MapPlace } from './bodymap/MapPlace'
 import { useCoverage } from './bodymap/useCoverage'
 import { CycleRing } from './components/CycleRing'
@@ -98,6 +99,9 @@ export default function App() {
   }, [])
 
   const words = state.status === 'ready' ? hero(state.plan) : null
+  // While the easy start runs, the plan shows more than the person does (ADR-0094, Decided 11).
+  const easy = counted?.easy_start
+  const lighter = easy && easy.phase !== 'done' ? lighterLine(easy.over_from) : null
   const shown = state.status === 'ready' ? ladders(state.plan) : []
   const toggle = (slug: string) => setOpen((cur) => (cur === slug ? null : slug))
   const selectFromRing = (slug: string) => {
@@ -137,6 +141,7 @@ export default function App() {
               <p className="lede">
                 Miss a day and the next session waits for you. Nothing gets skipped.
               </p>
+              {lighter && <p className="lede">{lighter}</p>}
               <ul className="legend" aria-label="Kinds of session">
                 {words.kinds.map((kind) => (
                   <li key={kind} className={`legend-${kind}`}>
@@ -179,6 +184,7 @@ export default function App() {
               The whole week{counted?.place === 'gym' && ' at the gym'}: hard sets per muscle,
               coloured by how close each is to its target.
             </p>
+            {lighter && <p className="block-intro">{lighter}</p>}
             {choice}
             <BodyMap state={coverage} />
           </section>
