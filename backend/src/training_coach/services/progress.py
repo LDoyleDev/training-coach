@@ -15,10 +15,13 @@ Stepping down is suggested, never done for the person (ADR-0084): ``Down`` says 
 the range was out of reach twice; ``step_down`` applies the step below as a by-hand change once
 the rule is checked again, and ``not_yet_down`` dismisses the suggestion until a new session at
 the step meets the rule again.
+
+Move up waits in the easy start's light start (ADR-0094 Decided 10): the rule is judged as ever,
+only not offered (``holding``), so it is offered again from one set lower. Step down doesn't wait.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 from zoneinfo import ZoneInfo
@@ -35,6 +38,7 @@ from training_coach.db.models import (
     TemplateItem,
     Workout,
 )
+from training_coach.domain import easy_start as easy_rules
 from training_coach.domain import locks
 from training_coach.domain.blocks import BlockKind, history_kind
 from training_coach.domain.enums import ExerciseKind, Place, Places, Side, WorkoutStatus
@@ -54,7 +58,7 @@ from training_coach.domain.progression import step_down as step_down_rule
 from training_coach.domain.queue import local_date
 from training_coach.domain.records import NewBests, new_bests
 from training_coach.domain.targets import Pace, Prescription
-from training_coach.services import blocks, step_locks, user_settings, users
+from training_coach.services import blocks, easy_start, step_locks, user_settings, users
 from training_coach.services.seed import bundled_plan
 
 TOP_NOTED = "progress.top_of_ladder"
@@ -449,7 +453,8 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
     """Bests and progression for each exercise in a just-saved workout, in logged order.
 
     Records the top-of-ladder note as given, so it is said once per exercise and step. With
-    ``tz``, no Move up is offered while a strength block is on (ADR-0028)."""
+    ``tz``, no Move up is offered while a strength block is on (ADR-0028). Nor in the light
+    start, on the workout's day or today (ADR-0094); a top waits with it, to be said after."""
     workout = session.get(Workout, workout_id)
     if workout is None:
         return []
@@ -461,6 +466,7 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
         for day in days
         if tz is not None
     )
+    in_light = any(holding(session, day) for day in {workout.local_date, *days})
     logged: dict[tuple[int, int], None] = {}
     for row in sorted(workout.sets, key=lambda s: s.id):
         logged.setdefault((row.exercise_id, row.ladder_step_id), None)
@@ -491,7 +497,12 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
         state = users.exercise_state(session, exercise_id)
         # Progression is about the step being trained now, outside strength blocks; a log at
         # an older step, or a strength-block session, only counts for bests (ADR-0028).
-        on_current = state is not None and state.ladder_step_id == step_id and not in_strength
+        on_current = (
+            state is not None
+            and state.ladder_step_id == step_id
+            and not in_strength
+            and not in_light
+        )
         status = _status(session, item, step, limits) if on_current else Progress.HOLD
         # A step down is judged on the step trained now; strength-block sessions are passed
         # over inside the rule, so a block doesn't hold it (ADR-0084).
@@ -585,6 +596,11 @@ def not_yet(session: Session, exercise_id: int, step_id: int) -> str | None:
 def exercise_id_for(session: Session, slug: str) -> int | None:
     """The exercise with this slug, or None."""
     return session.scalar(select(Exercise.id).where(Exercise.slug == slug))
+
+
+def holding(session: Session, on: date) -> bool:
+    """Whether Move up waits on ``on``: the easy start's light start (ADR-0094 Decided 10)."""
+    return easy_rules.holds_move_up(easy_start.current(session, on).phase)
 
 
 def in_strength_block(session: Session, on: date, tz: ZoneInfo) -> bool:
@@ -935,6 +951,14 @@ def overview(session: Session, on: date | None = None) -> list[Standing]:
 def ready(standings: list[Standing]) -> list[Ready]:
     """The exercises ready to move up, in plan order."""
     return [Ready(s.exercise, s.slug) for s in standings if s.status is Progress.READY]
+
+
+def held(standings: list[Standing]) -> list[Standing]:
+    """``standings`` while Move up waits (``holding``): ready reads as hold, nothing else
+    changes. The rule is still judged, so it is offered again once the wait is over."""
+    return [
+        replace(s, status=Progress.HOLD) if s.status is Progress.READY else s for s in standings
+    ]
 
 
 def stepping_down(standings: list[Standing]) -> list[Ready]:

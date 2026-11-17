@@ -101,6 +101,8 @@ def standings(request: Request, user: Owner) -> StandingsView:
     on = local_date(datetime.now(UTC), settings.tz)
     with session_scope(_bound(request, user)) as session:
         found = progress.overview(session, on)
+        if progress.holding(session, on):  # the light start holds Move up (ADR-0094)
+            found = progress.held(found)
         strength = progress.in_strength_block(session, on, settings.tz)
         listed = equipment.saved_at(session) is not None
     return StandingsView(

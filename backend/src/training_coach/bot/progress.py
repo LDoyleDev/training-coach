@@ -145,6 +145,8 @@ class ProgressHandlers:
         during a strength block, ADR-0028)."""
         with session_scope(me.sessions) as session:
             standings = progress.overview(session)
+            if progress.holding(session, local_date(datetime.now(UTC), self.settings.tz)):
+                standings = progress.held(standings)  # the light start (ADR-0094)
             strength = self._in_strength_block(session)
         if update.effective_message is not None:
             text = progress_text(standings)

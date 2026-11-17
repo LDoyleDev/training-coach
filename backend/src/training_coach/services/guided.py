@@ -14,7 +14,9 @@ Short on time today (ADR-0082): a strength or conditioning session runs at the m
 for the day, or with no choice for the day at the person's minutes per session, trimmed by
 ``domain.trim``. Items are never removed, so every set keeps its index:
 a dropped item has no targets left. The set counts, the minutes and the person's pace are fixed
-in the day's progress when its first set is kept, so nothing moves under the indexes after.
+in the day's progress when its first set is kept, so nothing moves under the indexes after. The
+easy start changes the day's sets and timed minutes before the trim (ADR-0094), the plan's
+``easy`` phase.
 
 Last set: as many good reps as you can (ADR-0084): with the option on, in a session that has a
 length, the last set the day plans of each exercise it applies to is one. Whether the day has it
@@ -40,6 +42,7 @@ from training_coach.db.models import (
     SetLog,
     Workout,
 )
+from training_coach.domain import easy_start
 from training_coach.domain import last_set as last_set_rules
 from training_coach.domain import trim as trimming
 from training_coach.domain.blocks import Block
@@ -239,6 +242,17 @@ def _shapes(items: tuple[ItemPlan, ...], keep: Collection[str]) -> tuple[trimmin
     return tuple(shapes)
 
 
+def _eased(shapes: tuple[trimming.Item, ...], phase: easy_start.Phase) -> tuple[trimming.Item, ...]:
+    """The day's plan under the easy start (ADR-0094): each exercise's sets and a timed item's
+    minutes as its phase has them, before exercises per session and the minutes trim it."""
+    return tuple(
+        replace(
+            s, sets=easy_start.sets(phase, s.sets), minutes=easy_start.minutes(phase, s.minutes)
+        )
+        for s in shapes
+    )
+
+
 def _estimator(items: tuple[ItemPlan, ...], first: Collection[int], at: float) -> trimming.Estimate:
     """Minutes of work for given set counts and durations, warm-up not included: the real
     order and rests over the cut items, at the person's pace ``at``."""
@@ -336,14 +350,15 @@ def _length(
         at = _pace(session, plan, shapes, _estimator(items, first, 1.0), after_run)
     estimate = _estimator(items, first, at)
     has_warm_up = plan.kind == "strength"
+    eased = _eased(shapes, plan.easy)  # the pace above is on the plan as it is
     # Exercises per session is part of the plan as this person runs it (ADR-0082 addendum).
-    planned = trimming.trim(shapes, None, estimate, has_warm_up=has_warm_up, exercises=count)
+    planned = trimming.trim(eased, None, estimate, has_warm_up=has_warm_up, exercises=count)
     # Only what would be shorter than the session is on offer. A length it already fits is as
     # planned, whether chosen earlier or from the setting, so nothing is lost to it.
     options = tuple(m for m in OPTIONS if m < planned.minutes)
     if fixed is None:
         minutes = minutes if minutes in options else None
-        trimmed = trimming.trim(shapes, minutes, estimate, has_warm_up=has_warm_up, exercises=count)
+        trimmed = trimming.trim(eased, minutes, estimate, has_warm_up=has_warm_up, exercises=count)
     else:  # a started session keeps its sets, whatever the minutes or count since (ADR-0082)
         minutes, amrap = fixed.minutes, fixed.last_set
         how = trimming.warm_up(shapes, fixed.sets, minutes) if has_warm_up else WarmUp.NONE

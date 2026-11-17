@@ -211,6 +211,7 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
     ticked = habits.week(session, start, on)
     targets = cardio_totals.targets(session)
     standings = progress.overview(session)
+    waits = progress.holding(session, on)  # the light start holds Move up (ADR-0094)
     return Review(
         start=start,
         planned=planned_sessions(session),
@@ -219,9 +220,9 @@ def weekly(session: Session, on: date, tz: ZoneInfo | None = None) -> Review:
         extras=found.extras,
         volume=_volume(session, start, end),
         bests=found.bests,
-        ready=progress.ready(standings),
+        ready=[] if waits else progress.ready(standings),
         step_down=progress.stepping_down(standings),
-        top=progress.tops(session, standings, start, tz) if tz is not None else [],
+        top=progress.tops(session, standings, start, tz) if tz is not None and not waits else [],
         strength_block=(
             tz is not None
             and (block := blocks.current(session, on, tz)) is not None
