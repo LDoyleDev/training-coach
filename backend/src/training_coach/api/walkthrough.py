@@ -179,6 +179,7 @@ class Outcomes(BaseModel):
     session_minutes: Literal[40, 30, 20] | None = None  # None: as planned
     session_exercises: Literal[4, 6, 8] | None = None
     left_out: list[Slug] = Field(default_factory=list, max_length=LADDERS)
+    easy_start: bool = False  # screen 13's switch (ADR-0094); the owner's try-out saves nothing
 
 
 class Asked(BaseModel):
@@ -221,6 +222,7 @@ def _setup(body: Outcomes, answers: Answers | None = None) -> Setup:
         minutes=body.session_minutes,
         exercises=body.session_exercises,
         left_out=frozenset(body.left_out),
+        easy_start=body.easy_start,
         answers=answers,
     )
 

@@ -39,6 +39,7 @@ from training_coach.domain.walkthrough import (
 )
 from training_coach.services import (
     consent,
+    easy_start,
     equipment,
     gym_version,
     plan_edit,
@@ -140,6 +141,7 @@ class Setup:
     minutes: int | None = None  # per session; None: as planned
     exercises: int | None = None  # per session; None: as planned
     left_out: frozenset[str] = frozenset()  # exercise slugs taken out of the sessions
+    easy_start: bool = False  # the switch, set as sent (ADR-0094)
     answers: Answers | None = None  # kept only if the category is still open
 
 
@@ -200,6 +202,8 @@ def apply(
         session_exercises=setup.exercises,
         clear_session_exercises=setup.exercises is None,
     )
+    # Before the first planned workout (``closed``) nothing counts, so this is never refused.
+    easy_start.turn(session, setup.easy_start, today)
     if setup.kit is not None:
         equipment.save(session, setup.kit, now)
     moved = _place(session, setup.steps)

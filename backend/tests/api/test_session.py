@@ -108,6 +108,7 @@ def test_nothing_to_guide_once_today_is_done(signed_in: TestClient, engine: Engi
         "readiness_note": None,
         "daily_check": None,
         "rest_day": None,
+        "easy_start": None,
     }
 
 
@@ -283,6 +284,7 @@ def test_saving_logs_the_sets_once_and_moves_the_queue(
         "readiness_note": None,
         "daily_check": None,
         "rest_day": None,
+        "easy_start": None,
     }
 
 

@@ -1021,6 +1021,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/easy-start/extend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Extend
+         * @description "One more easy week": 7 more days of the phase that just ended, at most twice.
+         */
+        post: operations["post_extend_api_easy_start_extend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/easy-start/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Restart
+         * @description "Start the easy start again" after 14 days or more without a workout.
+         */
+        post: operations["post_restart_api_easy_start_restart_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/equipment": {
         parameters: {
             query?: never;
@@ -1274,7 +1314,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Notices */
+        /**
+         * Get Notices
+         * @description Unseen notices, after writing any the easy start has come to (ADR-0094), so a step up
+         *     shows on the first page that lists them.
+         */
         get: operations["get_notices_api_notices_get"];
         put?: never;
         post?: never;
@@ -3007,6 +3051,38 @@ export interface components {
             /** Step */
             step: string;
         };
+        /**
+         * EasyStartView
+         * @description Where the easy start stands today (ADR-0094), as ``domain.easy_start.State`` says it:
+         *     sessions done in this phase before today (``count``) of the ``of`` it runs at least, until at
+         *     least ``until``; the whole easy start over from ``over_from`` at the soonest. ``fresh``: the
+         *     phase's first day with no session in it yet; ``ending``: the next session can be its last;
+         *     ``restart``: offer "Start the easy start again"; ``extend``: the phase "One more easy week"
+         *     would bring back.
+         */
+        EasyStartView: {
+            /** Count */
+            count: number;
+            /** Ending */
+            ending: boolean;
+            /** Extend */
+            extend: ("light" | "lower") | null;
+            /** Fresh */
+            fresh: boolean;
+            /** Of */
+            of: number;
+            /** Over From */
+            over_from: string | null;
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "waiting" | "light" | "lower" | "done";
+            /** Restart */
+            restart: boolean;
+            /** Until */
+            until: string | null;
+        };
         /** EditItemView */
         EditItemView: {
             /** Exercise */
@@ -4297,6 +4373,11 @@ export interface components {
         Outcomes: {
             /** Avoid */
             avoid?: ("floor" | "kneeling" | "impact" | "hanging" | "knees")[];
+            /**
+             * Easy Start
+             * @default false
+             */
+            easy_start: boolean;
             /** Kit */
             kit?: components["schemas"]["KitItemBody"][] | null;
             /** Left Out */
@@ -4995,6 +5076,8 @@ export interface components {
             avoid_knees?: boolean | null;
             /** Blocks */
             blocks?: boolean | null;
+            /** Easy Start */
+            easy_start?: boolean | null;
             /** Extra Cardio Min */
             extra_cardio_min?: number | null;
             /** Habits Enabled */
@@ -5041,6 +5124,10 @@ export interface components {
             /** Blocks Since */
             blocks_since: string | null;
             default_increments: components["schemas"]["IncrementsView"];
+            /** Easy Start */
+            easy_start: boolean;
+            /** Easy Start Open */
+            easy_start_open: boolean;
             /** Extra Cardio Min */
             extra_cardio_min: number;
             /** Habits Enabled */
@@ -5409,6 +5496,7 @@ export interface components {
         TodayView: {
             /** Daily Check */
             daily_check?: string | null;
+            easy_start?: components["schemas"]["EasyStartView"] | null;
             planned?: components["schemas"]["QueuedView"] | null;
             progress?: components["schemas"]["ProgressView"] | null;
             /** Readiness Note */
@@ -5521,6 +5609,11 @@ export interface components {
             answers?: components["schemas"]["AnswersBody"] | null;
             /** Avoid */
             avoid?: ("floor" | "kneeling" | "impact" | "hanging" | "knees")[];
+            /**
+             * Easy Start
+             * @default false
+             */
+            easy_start: boolean;
             /** Kit */
             kit?: components["schemas"]["KitItemBody"][] | null;
             /** Left Out */
@@ -7287,6 +7380,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_extend_api_easy_start_extend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TodayView"];
+                };
+            };
+        };
+    };
+    post_restart_api_easy_start_restart_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TodayView"];
                 };
             };
         };

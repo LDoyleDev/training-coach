@@ -13,6 +13,8 @@ from training_coach.api.clash import CLASH, ClashReply, conflict, resolution
 from training_coach.config import Settings
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.daily_check import summary as daily_summary
+from training_coach.domain.easy_start import Phase
+from training_coach.domain.easy_start import State as EasyState
 from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.last_set import applies
 from training_coach.domain.load import MAX_KG, Load
@@ -25,6 +27,7 @@ from training_coach.domain.stretching import HOLD_SECONDS, POSITION_SECONDS, REL
 from training_coach.services import (
     daily_check,
     ease_back,
+    easy_start,
     guided,
     mobility_flow,
     queue_actions,
@@ -344,6 +347,34 @@ def rest_day_view(session: Session, on: date, settings: Settings) -> RestDayView
     return RestDayView(template_id=queue.pointer, name=name, first_on=first_on(session, on))
 
 
+class EasyStartView(BaseModel):
+    """Where the easy start stands today (ADR-0094), as ``domain.easy_start.State`` says it:
+    sessions done in this phase before today (``count``) of the ``of`` it runs at least, until at
+    least ``until``; the whole easy start over from ``over_from`` at the soonest. ``fresh``: the
+    phase's first day with no session in it yet; ``ending``: the next session can be its last;
+    ``restart``: offer "Start the easy start again"; ``extend``: the phase "One more easy week"
+    would bring back."""
+
+    phase: Literal["waiting", "light", "lower", "done"]
+    count: int
+    of: int
+    until: date | None
+    over_from: date | None
+    fresh: bool
+    ending: bool
+    restart: bool
+    extend: Literal["light", "lower"] | None
+
+
+def easy_start_view(found: EasyState) -> EasyStartView | None:
+    if found.phase is Phase.OFF:
+        return None
+    extend = found.extend.value if found.extend is not None else None
+    return EasyStartView.model_validate(
+        {**vars(found), "phase": found.phase.value, "extend": extend}
+    )
+
+
 class TodayView(BaseModel):
     """``session`` is empty when nothing planned is left today (done or rested); ``progress``
     is where the person left off, to resume."""
@@ -360,6 +391,7 @@ class TodayView(BaseModel):
     daily_check: str | None = None
     # A rest place's day (ADR-0091): no session today, and this is the next one.
     rest_day: RestDayView | None = None
+    easy_start: EasyStartView | None = None  # empty while the easy start is off (ADR-0094)
 
 
 class KeepBody(BaseModel):
@@ -465,7 +497,10 @@ def today(request: Request, user: Owner) -> TodayView:
 
 
 def today_view(session: Session, on: date, settings: Settings) -> TodayView:
-    """What GET /today answers, inside the caller's transaction (also after a change to today)."""
+    """What GET /today answers, inside the caller's transaction (also after a change to today).
+    A step up of the easy start reached today is told here, once (ADR-0094)."""
+    easy_start.tell_due(session, on)
+    easy = easy_start_view(easy_start.current(session, on))
     kept = guided.kept(session, on)
     plan = guided.today(session, on, settings.tz)
     test_day = test_day_view(retests.due(session, on, settings.tz))
@@ -494,6 +529,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
             readiness_note=caution,
             daily_check=daily,
             rest_day=rest_day_view(session, on, settings),
+            easy_start=easy,
         )
     ladders = session_levels.ladders(
         session, (i.slug for i in plan.items), away=plan.place is Place.AWAY
@@ -515,6 +551,7 @@ def today_view(session: Session, on: date, settings: Settings) -> TodayView:
             revision=kept.revision,
         )
     return TodayView(
+        easy_start=easy,
         planned=planned,
         progress=progress,
         test_day=test_day,

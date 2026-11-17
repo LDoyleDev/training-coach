@@ -16,7 +16,7 @@ from training_coach.config import Settings
 from training_coach.db.models import Exercise, LadderStep, User, Workout
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.consent import VERSIONS, Category
-from training_coach.services import auth, plan_edit, users
+from training_coach.services import auth, easy_start, plan_edit, users
 from training_coach.services.seed import apply_seed, bundled_plan
 
 BASE = "https://testserver"
@@ -160,6 +160,22 @@ def test_save_makes_the_plan_and_the_card_is_done(member: TestClient, engine: En
     assert view["revision"] == saved.json()["revision"]
     again = member.post("/api/walkthrough", json={**_body(engine), "revision": revision})
     assert again.status_code == 409  # a tab left open on the old plan
+
+
+def test_save_turns_the_easy_start_on_with_the_rest(member: TestClient, engine: Engine) -> None:
+    revision = member.get("/api/walkthrough").json()["revision"]
+    assert member.get("/api/settings").json()["easy_start"] is False
+    body = {**_body(engine), "revision": revision, "easy_start": True}
+    assert member.post("/api/walkthrough", json=body).status_code == 200
+    found = member.get("/api/settings").json()
+    assert (found["easy_start"], found["easy_start_open"]) == (True, True)
+    assert member.get("/api/session/today").json()["easy_start"]["phase"] == "waiting"
+    with make_session_factory(engine, user_id=MEMBER)() as theirs:
+        assert easy_start.setting(theirs).since == date.fromisoformat(TODAY)
+    revision = member.get("/api/walkthrough").json()["revision"]
+    again = {**_body(engine), "revision": revision}  # run again with the switch off
+    assert member.post("/api/walkthrough", json=again).status_code == 200
+    assert member.get("/api/settings").json()["easy_start"] is False
 
 
 ANSWERS = {

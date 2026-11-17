@@ -1903,6 +1903,93 @@
         "title": "EaseBackView",
         "type": "object"
       },
+      "EasyStartView": {
+        "description": "Where the easy start stands today (ADR-0094), as ``domain.easy_start.State`` says it:\nsessions done in this phase before today (``count``) of the ``of`` it runs at least, until at\nleast ``until``; the whole easy start over from ``over_from`` at the soonest. ``fresh``: the\nphase's first day with no session in it yet; ``ending``: the next session can be its last;\n``restart``: offer \"Start the easy start again\"; ``extend``: the phase \"One more easy week\"\nwould bring back.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "ending": {
+            "title": "Ending",
+            "type": "boolean"
+          },
+          "extend": {
+            "anyOf": [
+              {
+                "enum": [
+                  "light",
+                  "lower"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extend"
+          },
+          "fresh": {
+            "title": "Fresh",
+            "type": "boolean"
+          },
+          "of": {
+            "title": "Of",
+            "type": "integer"
+          },
+          "over_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Over From"
+          },
+          "phase": {
+            "enum": [
+              "waiting",
+              "light",
+              "lower",
+              "done"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "restart": {
+            "title": "Restart",
+            "type": "boolean"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "required": [
+          "phase",
+          "count",
+          "of",
+          "until",
+          "over_from",
+          "fresh",
+          "ending",
+          "restart",
+          "extend"
+        ],
+        "title": "EasyStartView",
+        "type": "object"
+      },
       "EditItemView": {
         "properties": {
           "exercise": {
@@ -5726,6 +5813,11 @@
             "title": "Avoid",
             "type": "array"
           },
+          "easy_start": {
+            "default": false,
+            "title": "Easy Start",
+            "type": "boolean"
+          },
           "kit": {
             "anyOf": [
               {
@@ -7744,6 +7836,17 @@
             ],
             "title": "Blocks"
           },
+          "easy_start": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Easy Start"
+          },
           "extra_cardio_min": {
             "anyOf": [
               {
@@ -7979,6 +8082,14 @@
           "default_increments": {
             "$ref": "#/components/schemas/IncrementsView"
           },
+          "easy_start": {
+            "title": "Easy Start",
+            "type": "boolean"
+          },
+          "easy_start_open": {
+            "title": "Easy Start Open",
+            "type": "boolean"
+          },
           "extra_cardio_min": {
             "title": "Extra Cardio Min",
             "type": "integer"
@@ -8108,6 +8219,8 @@
           "session_exercises",
           "last_set_amrap",
           "last_set_locked",
+          "easy_start",
+          "easy_start_open",
           "paused",
           "timezone"
         ],
@@ -9006,6 +9119,16 @@
             ],
             "title": "Daily Check"
           },
+          "easy_start": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EasyStartView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "planned": {
             "anyOf": [
               {
@@ -9398,6 +9521,11 @@
             "maxItems": 5,
             "title": "Avoid",
             "type": "array"
+          },
+          "easy_start": {
+            "default": false,
+            "title": "Easy Start",
+            "type": "boolean"
           },
           "kit": {
             "anyOf": [
@@ -11777,6 +11905,50 @@
         ]
       }
     },
+    "/api/easy-start/extend": {
+      "post": {
+        "description": "\"One more easy week\": 7 more days of the phase that just ended, at most twice.",
+        "operationId": "post_extend_api_easy_start_extend_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Post Extend",
+        "tags": [
+          "easy-start"
+        ]
+      }
+    },
+    "/api/easy-start/restart": {
+      "post": {
+        "description": "\"Start the easy start again\" after 14 days or more without a workout.",
+        "operationId": "post_restart_api_easy_start_restart_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Post Restart",
+        "tags": [
+          "easy-start"
+        ]
+      }
+    },
     "/api/equipment": {
       "get": {
         "description": "The kit as listed; ``listed`` is false until it has been saved once.",
@@ -12309,6 +12481,7 @@
     },
     "/api/notices": {
       "get": {
+        "description": "Unseen notices, after writing any the easy start has come to (ADR-0094), so a step up\nshows on the first page that lists them.",
         "operationId": "get_notices_api_notices_get",
         "responses": {
           "200": {
