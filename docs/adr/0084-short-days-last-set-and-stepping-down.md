@@ -123,3 +123,11 @@ for people starting low (ADR-0083).
   target it is an ordinary miss, held or eased.
 - **The lock:** 8 weeks from the first done workout. "Or at level 3 or below" joins
   `domain.last_set.available` once placement gives a person a level (ADR-0083).
+
+## Addendum (17 Nov 2026): the easy start is ADR-0094
+
+The easy start above is built as ADR-0094 decides, which replaces its first two weeks of three or
+four exercises of one or two sets. ICFSR 2021 doesn't prescribe that: it says programmes start
+with 1-2 sets, progressing to 2-3, and that a routine "may be further broken down into sets of 3-4
+exercises for novice trainees", with no duration. ADR-0094's light start keeps every exercise at
+one set, counted in sessions with days as a floor; one set lower follows, as Decided 7 says.

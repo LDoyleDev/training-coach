@@ -259,3 +259,10 @@ recommendation says:
   them (pull-up, push-up, Bulgarian split squat, pistol squat, hamstring curl), then the strength
   sessions' other exercises with more than one step, in session order. A plan with none has no
   ladders section.
+
+## Addendum (17 Nov 2026): the easy start on screen 13 (ADR-0094)
+
+Decided 12's switch: screen 13 shows "Easy start: lighter first weeks, less soreness", on with the
+word "Suggested" at a suggested level of 3 or below or when more than half of screens 4-6's
+questions were skipped, and off at level 4 with "New to strength work? Turn this on." Save sends
+it with the rest; the preview shows the plan with the easy-start line. The try-out shows it too.
