@@ -118,6 +118,8 @@ def test_today_says_where_it_stands(member: TestClient, engine: Engine) -> None:
         "ending": False,
         "restart": False,
         "extend": None,
+        "line": "Easy start: light, session 3 of 4 (until at least 15 Dec). Then a 5-10 minute"
+        " walk, if you can walk safely on your own.",
     }
 
 

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, PlanNotice, SessionTemplate, User, Workout
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.domain.easy_start import Phase, Setting
+from training_coach.domain.easy_start import Phase, Setting, State
 from training_coach.domain.enums import WorkoutStatus
 from training_coach.services import easy_start, users
 from training_coach.services.seed import apply_seed, load_plan
@@ -228,3 +228,47 @@ def test_a_restart_after_a_gap_counts_again_from_today(member: Session) -> None:
     assert easy_start.current(member, day(30)).phase is Phase.WAITING
     kinds = member.scalars(select(Event.kind).where(Event.kind.like("easy_start.%"))).all()
     assert kinds == ["easy_start.extended", "easy_start.restarted"]
+
+
+WALK = " Then a 5-10 minute walk, if you can walk safely on your own."
+DEC_3, DEC_31 = date(2026, 12, 3), date(2026, 12, 31)
+
+
+@pytest.mark.parametrize(
+    ("found", "line"),
+    [
+        (State(Phase.OFF), None),
+        (
+            State(Phase.WAITING),
+            "Easy start: light, session 1 of 4. One set of each, at the bottom of its range."
+            + WALK,
+        ),
+        (
+            State(Phase.LIGHT, count=1, of=4, until=DEC_3),
+            "Easy start: light, session 2 of 4 (until at least 3 Dec)." + WALK,
+        ),
+        (
+            State(Phase.LIGHT, count=4, of=4, until=DEC_3, ending=True),
+            "Easy start: light (until at least 3 Dec). Next: one set fewer than planned of each."
+            + WALK,
+        ),
+        (
+            State(Phase.LOWER, count=0, of=8, until=DEC_31, fresh=True),
+            "New today: Easy start: one set fewer of each, session 1 of 8 (until at least 31 Dec)."
+            + WALK,
+        ),
+        (
+            State(Phase.LOWER, count=7, of=8, until=DEC_31, ending=True),
+            "Easy start: one set fewer of each, session 8 of 8 (until at least 31 Dec). Next: full"
+            " sessions." + WALK,
+        ),
+        (
+            State(Phase.LOWER, count=9, of=8, until=DEC_31),
+            "Easy start: one set fewer of each (until at least 31 Dec)." + WALK,
+        ),
+        (State(Phase.DONE, fresh=True), "Full sessions from today: your easy start is done."),
+        (State(Phase.DONE), None),
+    ],
+)
+def test_the_overviews_line(found: State, line: str | None) -> None:
+    assert easy_start.line(found) == line

@@ -353,7 +353,7 @@ class EasyStartView(BaseModel):
     least ``until``; the whole easy start over from ``over_from`` at the soonest. ``fresh``: the
     phase's first day with no session in it yet; ``ending``: the next session can be its last;
     ``restart``: offer "Start the easy start again"; ``extend``: the phase "One more easy week"
-    would bring back."""
+    would bring back. ``line``: the overview's words for it, null when there is nothing to say."""
 
     phase: Literal["waiting", "light", "lower", "done"]
     count: int
@@ -364,6 +364,7 @@ class EasyStartView(BaseModel):
     ending: bool
     restart: bool
     extend: Literal["light", "lower"] | None
+    line: str | None
 
 
 def easy_start_view(found: EasyState) -> EasyStartView | None:
@@ -371,7 +372,12 @@ def easy_start_view(found: EasyState) -> EasyStartView | None:
         return None
     extend = found.extend.value if found.extend is not None else None
     return EasyStartView.model_validate(
-        {**vars(found), "phase": found.phase.value, "extend": extend}
+        {
+            **vars(found),
+            "phase": found.phase.value,
+            "extend": extend,
+            "line": easy_start.line(found),
+        }
     )
 
 

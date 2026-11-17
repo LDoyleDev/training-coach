@@ -845,6 +845,32 @@ test("today's daily check shows as a line, with or without a session left", asyn
   expect(await screen.findByText(`Today's check: ${line}.`)).toBeInTheDocument()
 })
 
+test("the easy start's line is named before Start, and nothing while it is off", async () => {
+  const line =
+    'Easy start: light, session 2 of 4 (until at least 3 Dec). Then a 5-10 minute walk, if you can walk safely on your own.'
+  const easy = {
+    phase: 'light' as const,
+    count: 1,
+    of: 4,
+    until: '2026-12-03',
+    over_from: '2027-01-14',
+    fresh: false,
+    ending: false,
+    restart: false,
+    extend: null,
+    line,
+  }
+  serve({ today: { session: SESSION, progress: null, easy_start: easy } })
+  const { unmount } = render(<SessionPage />)
+  expect(await screen.findByText(line)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Start session' })).toBeInTheDocument()
+  unmount()
+  serve({ today: { session: SESSION, progress: null, easy_start: { ...easy, line: null } } })
+  render(<SessionPage />)
+  await screen.findByRole('button', { name: 'Start session' })
+  expect(screen.queryByText(/Easy start/)).not.toBeInTheDocument()
+})
+
 test('an ended sign-in while confirming a set points to sign in and keeps the set', async () => {
   serve({ keep: 'signed-out' })
   render(<SessionPage />)

@@ -4,8 +4,10 @@ a forged id names nothing of the other's. Strangers, and a member while the swit
 nothing. A member's health buttons need that category open to them (ADR-0090)."""
 
 import copy
-from datetime import UTC, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
+from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import func, select
@@ -22,6 +24,7 @@ from tests.bot.fakes import (
     command,
     press,
     run,
+    scheduled,
     text_message,
     texts,
     voice,
@@ -33,7 +36,7 @@ from training_coach.bot import proposals as proposals_ui
 from training_coach.bot import schedules
 from training_coach.bot import stretching as stretching_ui
 from training_coach.bot import undo as undo_ui
-from training_coach.bot.app import ASK_ADMIN, HELP_TEXT, MEMBER_HELP_TEXT, build_bot
+from training_coach.bot.app import ASK_ADMIN, HELP_TEXT, MEMBER_HELP_TEXT, Handlers, build_bot
 from training_coach.bot.gate import NOT_OPEN, WHAT
 from training_coach.bot.messages import LOG_EXPIRED, SESSION_GONE, STALE
 from training_coach.db.models import (
@@ -45,6 +48,7 @@ from training_coach.db.models import (
     LogProposal,
     McpConnection,
     Measurement,
+    PlanNotice,
     PlanState,
     SessionTemplate,
     SetLog,
@@ -54,7 +58,7 @@ from training_coach.db.session import bound_user
 from training_coach.domain import consent as consent_rules
 from training_coach.domain.consent import Category
 from training_coach.domain.queue import local_date
-from training_coach.services import consent, proposals, share_card, user_settings
+from training_coach.services import consent, easy_start, proposals, share_card, user_settings
 
 App = Application  # type: ignore[type-arg]  # see build_bot
 Sessions = sessionmaker[Session]
@@ -149,6 +153,46 @@ async def test_a_member_gets_the_passkey_pointer_never_a_link(
 
 
 # ------------------------------------------------------------------ buttons
+
+
+def _easy_start(member: Sessions, today: date) -> None:
+    """The member's easy start on 20 days ago, with four sessions in its first week: one set
+    lower from 6 days ago, not yet told."""
+    with member() as session:
+        easy_start.turn(session, True, today - timedelta(days=20))
+        first = _next(member)
+        for n in (20, 18, 16, 14):
+            day = today - timedelta(days=n)
+            session.add(Workout(local_date=day, template_id=first, status="done"))
+        session.commit()
+
+
+async def test_the_easy_start_is_the_members_own_in_today_and_the_morning(
+    both: App, seeded: Sessions, member: Sessions
+) -> None:
+    """ADR-0094: the line in the member's /today and morning message only, and the step up
+    told once from the morning job, into the member's notices."""
+    today = local_date(datetime.now(UTC), MULTI.tz)
+    _easy_start(member, today)
+    told = _count(seeded, PlanNotice)
+    owner_today = texts(await run(both, command("/today", OWNER)))[0]
+    assert "Easy start" not in owner_today
+    context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
+    person = scheduled(member, _member_id(member), MEMBER)
+    await Handlers(MULTI).morning(context, person)  # type: ignore[arg-type]  # fake context
+    sent = context.bot.send_message.await_args.kwargs
+    assert sent["chat_id"] == MEMBER
+    assert "New today: Easy start: one set fewer of each, session 1 of 8" in sent["text"]
+    assert "if you can walk safely on your own" in sent["text"]
+    with member() as session:
+        (notice,) = session.scalars(select(PlanNotice)).all()
+        assert notice.text == easy_start.TOLD[easy_start.Phase.LOWER]
+    await Handlers(MULTI).morning(context, person)  # type: ignore[arg-type]
+    with member() as session:
+        assert len(session.scalars(select(PlanNotice)).all()) == 1  # once
+    assert _count(seeded, PlanNotice) == told  # nothing for the owner
+    member_today = texts(await run(both, command("/today", MEMBER)))[0]
+    assert "Easy start: one set fewer of each" in member_today
 
 
 async def test_a_morning_button_changes_only_the_pressers_queue(

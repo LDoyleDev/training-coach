@@ -26,6 +26,40 @@ OWNER = "The easy start isn't for the owner's plan."
 OVER = "Your easy start is over, so it can't be changed."
 NO_WEEK = "One more easy week isn't on offer now."
 NO_RESTART = "Starting the easy start again is offered after 14 days without a workout."
+WALK = " Then a 5-10 minute walk, if you can walk safely on your own."  # Decided 12
+FULL = "Full sessions from today: your easy start is done."
+
+
+def _on(day: date) -> str:
+    """A date as the line says it: "3 Dec"."""
+    return f"{day.day} {day:%b}"
+
+
+def line(found: State) -> str | None:
+    """The overview's line for the easy start (ADR-0094), as the web and the bot show it: the
+    phase, its session and the day it runs until at least, what comes next near its end, and the
+    walk. None when there is nothing to say: off, or done before today."""
+    until = f" (until at least {_on(found.until)})" if found.until is not None else ""
+    if found.phase is Phase.WAITING:
+        text = (
+            f"Easy start: light, session 1 of {domain.LIGHT_SESSIONS}. One set of each, at the"
+            " bottom of its range."
+        )
+    elif found.phase is Phase.LIGHT:
+        at = f", session {found.count + 1} of {found.of}" if found.count < found.of else ""
+        text = f"Easy start: light{at}{until}."
+        if found.ending:
+            text += " Next: one set fewer than planned of each."
+    elif found.phase is Phase.LOWER:
+        at = f", session {found.count + 1} of {found.of}" if found.count < found.of else ""
+        text = f"Easy start: one set fewer of each{at}{until}."
+        if found.fresh:
+            text = "New today: " + text
+        if found.ending:
+            text += " Next: full sessions."
+    else:
+        return FULL if found.phase is Phase.DONE and found.fresh else None
+    return text + WALK
 
 
 def setting(session: Session) -> Setting:
