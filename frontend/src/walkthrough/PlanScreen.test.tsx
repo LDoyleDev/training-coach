@@ -271,7 +271,6 @@ test('the plan the walk makes: the week, each session trimmed, the steps and the
       session_minutes: 20,
       session_exercises: null,
       left_out: [],
-      easy_start: false,
     },
   ])
   expect(screen.queryByRole('combobox', { name: /Tibialis raise/ })).not.toBeInTheDocument() // not in the 3-day

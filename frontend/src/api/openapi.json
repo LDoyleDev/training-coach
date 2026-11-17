@@ -5814,9 +5814,15 @@
             "type": "array"
           },
           "easy_start": {
-            "default": false,
-            "title": "Easy Start",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Easy Start"
           },
           "kit": {
             "anyOf": [
@@ -9523,9 +9529,15 @@
             "type": "array"
           },
           "easy_start": {
-            "default": false,
-            "title": "Easy Start",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Easy Start"
           },
           "kit": {
             "anyOf": [

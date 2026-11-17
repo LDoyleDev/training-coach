@@ -62,7 +62,6 @@ export function pick(known: Known, starters: Starter[], draft: Draft, today: Dat
       session_minutes: draft.minutes as Outcomes['session_minutes'],
       session_exercises: draft.count as Outcomes['session_exercises'],
       left_out: leftOut,
-      easy_start: false, // screen 13's switch comes with step 4 of the easy start (ADR-0094)
     },
   }
 }

@@ -173,9 +173,18 @@ def test_save_turns_the_easy_start_on_with_the_rest(member: TestClient, engine: 
     with make_session_factory(engine, user_id=MEMBER)() as theirs:
         assert easy_start.setting(theirs).since == date.fromisoformat(TODAY)
     revision = member.get("/api/walkthrough").json()["revision"]
-    again = {**_body(engine), "revision": revision}  # run again with the switch off
+    again = {**_body(engine), "revision": revision, "easy_start": False}  # run again, off
     assert member.post("/api/walkthrough", json=again).status_code == 200
     assert member.get("/api/settings").json()["easy_start"] is False
+
+
+def test_a_save_without_the_switch_leaves_it_as_it_is(member: TestClient, engine: Engine) -> None:
+    """Turned on in Account, then the walk-through run from a page that doesn't send it."""
+    assert member.patch("/api/settings", json={"easy_start": True}).status_code == 200
+    revision = member.get("/api/walkthrough").json()["revision"]
+    saved = member.post("/api/walkthrough", json={**_body(engine), "revision": revision})
+    assert saved.status_code == 200
+    assert member.get("/api/settings").json()["easy_start"] is True
 
 
 ANSWERS = {

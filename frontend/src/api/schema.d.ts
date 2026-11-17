@@ -4373,11 +4373,8 @@ export interface components {
         Outcomes: {
             /** Avoid */
             avoid?: ("floor" | "kneeling" | "impact" | "hanging" | "knees")[];
-            /**
-             * Easy Start
-             * @default false
-             */
-            easy_start: boolean;
+            /** Easy Start */
+            easy_start?: boolean | null;
             /** Kit */
             kit?: components["schemas"]["KitItemBody"][] | null;
             /** Left Out */
@@ -5609,11 +5606,8 @@ export interface components {
             answers?: components["schemas"]["AnswersBody"] | null;
             /** Avoid */
             avoid?: ("floor" | "kneeling" | "impact" | "hanging" | "knees")[];
-            /**
-             * Easy Start
-             * @default false
-             */
-            easy_start: boolean;
+            /** Easy Start */
+            easy_start?: boolean | null;
             /** Kit */
             kit?: components["schemas"]["KitItemBody"][] | null;
             /** Left Out */

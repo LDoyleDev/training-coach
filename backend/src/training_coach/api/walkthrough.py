@@ -179,7 +179,8 @@ class Outcomes(BaseModel):
     session_minutes: Literal[40, 30, 20] | None = None  # None: as planned
     session_exercises: Literal[4, 6, 8] | None = None
     left_out: list[Slug] = Field(default_factory=list, max_length=LADDERS)
-    easy_start: bool = False  # screen 13's switch (ADR-0094); the owner's try-out saves nothing
+    # Screen 13's switch (ADR-0094); None leaves it as it is. The owner's try-out saves nothing.
+    easy_start: bool | None = None
 
 
 class Asked(BaseModel):

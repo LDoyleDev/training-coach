@@ -141,7 +141,7 @@ class Setup:
     minutes: int | None = None  # per session; None: as planned
     exercises: int | None = None  # per session; None: as planned
     left_out: frozenset[str] = frozenset()  # exercise slugs taken out of the sessions
-    easy_start: bool = False  # the switch, set as sent (ADR-0094)
+    easy_start: bool | None = None  # the switch (ADR-0094); None leaves it as it is
     answers: Answers | None = None  # kept only if the category is still open
 
 
@@ -202,8 +202,8 @@ def apply(
         session_exercises=setup.exercises,
         clear_session_exercises=setup.exercises is None,
     )
-    # Before the first planned workout (``closed``) nothing counts, so this is never refused.
-    easy_start.turn(session, setup.easy_start, today)
+    if setup.easy_start is not None:  # checked in ``_problem``
+        easy_start.turn(session, setup.easy_start, today)
     if setup.kit is not None:
         equipment.save(session, setup.kit, now)
     moved = _place(session, setup.steps)
@@ -249,6 +249,10 @@ def _problem(
         return "Exercises per session are 4, 6 or 8, or as planned."
     if not today <= setup.starts_on <= today + timedelta(days=START_WITHIN):
         return "The plan starts within the next week."
+    if setup.easy_start is not None and (
+        found := easy_start.refused(session, setup.easy_start, today)
+    ):
+        return found
     if setup.kit is not None and (found := kit_rules.problems(setup.kit)) is not None:
         return found
     mine = ladders(plan)
