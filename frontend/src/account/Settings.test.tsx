@@ -31,6 +31,8 @@ const PREFS: MessageSettings = {
   session_exercises: null,
   last_set_amrap: false,
   last_set_locked: false,
+  easy_start: false,
+  easy_start_open: true,
   paused: false,
   timezone: 'Europe/Berlin',
 }

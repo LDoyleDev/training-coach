@@ -82,6 +82,8 @@ def test_the_defaults_before_anything_is_changed(signed_in: TestClient) -> None:
         "session_exercises": None,
         "last_set_amrap": False,
         "last_set_locked": True,  # nothing logged yet (ADR-0084)
+        "easy_start": False,  # and never for the owner (ADR-0094)
+        "easy_start_open": False,
         "paused": False,
         "timezone": "Europe/Berlin",
     }

@@ -7,7 +7,8 @@ from pydantic import BaseModel, Field
 
 from training_coach.api.auth import Owner
 from training_coach.db.session import make_session_factory, session_scope
-from training_coach.services import plan_notices
+from training_coach.domain.queue import local_date
+from training_coach.services import easy_start, plan_notices
 
 router = APIRouter(prefix="/api/notices", tags=["notices"])
 
@@ -23,7 +24,11 @@ class ReadBody(BaseModel):
 
 @router.get("", response_model=list[NoticeView])
 def get_notices(request: Request, user: Owner) -> list[NoticeView]:
+    """Unseen notices, after writing any the easy start has come to (ADR-0094), so a step up
+    shows on the first page that lists them."""
+    on = local_date(datetime.now(UTC), request.app.state.settings.tz)
     with session_scope(make_session_factory(request.app.state.engine, user_id=user)) as session:
+        easy_start.tell_due(session, on)
         return [NoticeView(id=n.id, text=n.text) for n in plan_notices.unread(session)]
 
 

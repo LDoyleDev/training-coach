@@ -2,7 +2,7 @@
 same rules. Owner-only. Times are local wall-clock in ``settings.tz``; changing one moves the
 bot's jobs straight away, as a /settings button does."""
 
-from datetime import UTC, datetime, time
+from datetime import UTC, date, datetime, time
 from typing import Annotated, Literal
 
 import structlog
@@ -21,7 +21,7 @@ from training_coach.domain.habits import PROTEIN_GRAMS
 from training_coach.domain.load import DEFAULTS, INCREMENT_KG, Increments, LoadKit, valid_increment
 from training_coach.domain.queue import local_date
 from training_coach.domain.targets import Pace
-from training_coach.services import last_set, user_settings
+from training_coach.services import easy_start, last_set, user_settings
 from training_coach.services.user_settings import Prefs
 
 log = structlog.get_logger(__name__)
@@ -110,6 +110,10 @@ class SettingsView(BaseModel):
     # person is new ("Available after your first 8 weeks"), when it can't be turned on.
     last_set_amrap: bool
     last_set_locked: bool
+    # The easy start (ADR-0094): its switch, and whether it can be changed (a member, and the
+    # easy start not over).
+    easy_start: bool
+    easy_start_open: bool
     paused: bool
     timezone: str  # the server's, for every time above
 
@@ -140,6 +144,7 @@ class SettingsChange(BaseModel):
     session_minutes: Literal[40, 30, 20] | None = None
     session_exercises: Literal[4, 6, 8] | None = None  # null too: as planned
     last_set_amrap: bool | None = None  # true is refused with 409 while locked
+    easy_start: bool | None = None  # a change is refused with 409 when it can't be changed
     paused: bool | None = None
 
 
@@ -162,7 +167,7 @@ def _time(text: str | None) -> time | None:
     return None if text is None else time.fromisoformat(text)
 
 
-def _view(prefs: Prefs, settings: Settings, locked: bool) -> SettingsView:
+def _view(prefs: Prefs, settings: Settings, locked: bool, easy: tuple[bool, bool]) -> SettingsView:
     started = prefs.blocks_started_on
     return SettingsView(
         morning_time=f"{prefs.morning_time:%H:%M}",
@@ -189,18 +194,26 @@ def _view(prefs: Prefs, settings: Settings, locked: bool) -> SettingsView:
         session_exercises=prefs.session_exercises,
         last_set_amrap=prefs.last_set_amrap,
         last_set_locked=locked,
+        easy_start=easy[0],
+        easy_start_open=easy[1],
         paused=prefs.paused,
         timezone=settings.timezone,
     )
+
+
+def _easy(session: Session, today: date) -> tuple[bool, bool]:
+    return easy_start.setting(session).on, easy_start.changeable(session, today)
 
 
 @router.get("", response_model=SettingsView)
 def get_settings(request: Request, user: Owner) -> SettingsView:
     settings: Settings = request.app.state.settings
     with session_scope(_bound(request, user)) as session:
+        today = local_date(datetime.now(UTC), settings.tz)
         prefs = user_settings.load(session)
-        locked = not last_set.available(session, local_date(datetime.now(UTC), settings.tz))
-    return _view(prefs, settings, locked)
+        locked = not last_set.available(session, today)
+        easy = _easy(session, today)
+    return _view(prefs, settings, locked, easy)
 
 
 @router.patch("", response_model=SettingsView)
@@ -211,6 +224,10 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
         locked = not last_set.available(session, today)
         if body.last_set_amrap and locked:  # nothing else changes either
             raise HTTPException(status.HTTP_409_CONFLICT, last_set.LOCKED)
+        if body.easy_start is not None:  # first, so a refusal changes nothing else
+            problem = easy_start.turn(session, body.easy_start, today)
+            if problem is not None:
+                raise HTTPException(status.HTTP_409_CONFLICT, problem)
         prefs = user_settings.update(
             session,
             morning_time=_time(body.morning_time),
@@ -243,8 +260,9 @@ def patch_settings(body: SettingsChange, request: Request, user: Owner) -> Setti
             last_set_amrap=body.last_set_amrap,
             today=today,
         )
+        easy = _easy(session, today)
     moved = (body.morning_time, body.nudge_time, body.review_time) != (None, None, None)
     if moved:
         reschedule(request, user)  # only this person's jobs (step 9)
     log.info("api.settings_changed", what=sorted(body.model_dump(exclude_none=True)))
-    return _view(prefs, settings, locked)
+    return _view(prefs, settings, locked, easy)
