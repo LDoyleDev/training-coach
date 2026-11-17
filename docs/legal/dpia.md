@@ -31,6 +31,10 @@ is required at this size (at most 5 members) is a question for the lawyer; it is
 - **The walk-through's answers** (ADR-0092) are one of those categories, `walkthrough`. Its rules
   run on the device, so without the yes the answers never reach the server; the plan, levels and
   settings made from them are training data and stay after a withdrawal.
+- **The easy start** (ADR-0094) is one of those settings. Its default comes from the answers (65
+  and over is capped at level 3), so a stored "on" sits close to "65 or over, or low function".
+  The person sees it and decides before Save, as with the levels, and it stays after a
+  withdrawal like minutes and kit.
 - **Not processed on the server:** the health questions' answers are worked out on the device and
   never sent (ADR-0085). Voice notes are transcribed and discarded, never written to disk.
 - **Where:** one server run by the controller [in Germany], on a Raspberry Pi; Telegram, Groq,
@@ -77,8 +81,8 @@ is required at this size (at most 5 members) is a question for the lawyer; it is
 - **R2:** each category opens only on a yes to its current wording, checked on every health
   route, MCP scope, proposal and band post; a 403 names the category; an append-only record shows
   each yes and withdrawal with the wording version (ADR-0090). Threat model rows for ADR-0090.
-  The walk-through's answers are refused without the yes, and withdrawing deletes them (ADR-0092).
-  [Open: built with the walk-through, #577 stage 5.]
+  The walk-through's answers are refused without the yes, and withdrawing deletes them (ADR-0092,
+  live in 1.21.0).
 - **R3:** invites as in section 1; passkeys with user verification; sign-in links single use,
   10 minutes, hashed; every sign-in and passkey change alerted (ADR-0036, ADR-0040, ADR-0059).
 - **R4:** the sender gate stops every Telegram update not from a linked person in their own
