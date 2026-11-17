@@ -113,3 +113,10 @@ exercise). Then the minutes apply to what's left, rules 1 to 5 as before. Short 
 trims on top, in the same way. Recovery sessions and test days aren't trimmed, as for the
 minutes. A session with the count or fewer is as planned. The count dropped is named before
 Start, as the minutes' are.
+
+## Addendum (17 Nov 2026): the easy start comes first (ADR-0094)
+
+While a person's easy start runs, it changes the day's plan before the trim: one set of each
+exercise with targets at the bottom of the range and timed items at most 10 minutes (the light
+start), or one set fewer of each (one set lower). Exercises per session and the minutes then trim
+what's left, as on any day. A started session keeps its sets, as ever.

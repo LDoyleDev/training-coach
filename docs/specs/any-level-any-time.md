@@ -330,13 +330,11 @@ Builder H's flow, with what the research adds (Part 3, Implications; Part 2, Scr
 
 ### B6. The first weeks, and stepping down
 
-Status (16 Nov 2026): the step-down suggestion is built (#530); the easy start is proposed in
-ADR-0094, with decisions for Liam; the re-check is later work (ADR-0092, Decided 13).
+Status (17 Nov 2026): the step-down suggestion is built (#530); the easy start is decided in
+ADR-0094 (Liam, 17 Nov); the re-check is later work (ADR-0092, Decided 13).
 
-- **An easy start for a new person:** two weeks of one or two sets of three or four exercises,
-  well short of failure, and 5-10 minutes of cardio (ICFSR 2021). An easy first bout protects
-  against soreness for about two weeks (Chen and Nosaka, small studies). This generalises
-  Decided 7's "one set lower for four weeks".
+- **An easy start for a new person:** ADR-0094 (a light start of one set of every exercise, then
+  one set lower).
 - **A step-down suggestion** (new; no published system has one): two sessions in a row with most
   sets below the bottom of the range, the weaker side counted, offer the step below with a tap.
   After three weeks or more off, offer a step down too. The person decides, as with Move up.
@@ -596,8 +594,7 @@ chair seat (2), the side plank at a counter (2) and the glute bridge at its stan
   per step.
 - **No neck work, HIIT, jumps or heavy loading**, as before. The 65-and-over balance and
   sit-to-stand "snack" is still the walk-through's suggestion, not part of these lists.
-- **The easy start (B6) sits on top:** for the first two weeks, one or two sets of three or four of
-  these exercises, with 5-10 minutes of walking.
+- **The easy start (B6) sits on top:** ADR-0094.
 
 **What the seed needs to accept these:** an exercise with a catalogue `range` can't also be used
 by a session, so `range` comes off the squat, hip hinge and balance, and each session item sets
