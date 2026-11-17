@@ -400,6 +400,15 @@ class UserSettings(Owned, Base):
             "session_exercises IS NULL OR session_exercises IN (4, 6, 8)",
             name="session_exercises_valid",
         ),
+        CheckConstraint(
+            "easy_start_weeks_light >= 0 AND easy_start_weeks_lower >= 0"
+            " AND easy_start_weeks_light + easy_start_weeks_lower <= 2",
+            name="easy_start_weeks_range",
+        ),
+        CheckConstraint(
+            "easy_start_told IS NULL OR easy_start_told IN ('light', 'lower', 'done')",
+            name="easy_start_told_valid",
+        ),
         CheckConstraint(_in("places", Places), name="places_valid"),
         # The place Today starts at is never away: an away day is an exception (ADR-0086).
         CheckConstraint("place IN ('home', 'gym')", name="place_valid"),
@@ -479,6 +488,14 @@ class UserSettings(Owned, Base):
     set_up_on: Mapped[date | None] = mapped_column(Date)
     # Last set: as many good reps as you can, where it's safe (ADR-0084). Off unless turned on.
     last_set_amrap: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    # The easy start (ADR-0094): the switch; the day it was first turned on or restarted, which
+    # off and on keeps (workouts before it don't count); "One more easy week" taps per phase, 2
+    # at most together; and the last phase a notice was written for, so each is written once.
+    easy_start: Mapped[bool] = mapped_column(Boolean, server_default=false(), default=False)
+    easy_start_from: Mapped[date | None] = mapped_column(Date)
+    easy_start_weeks_light: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
+    easy_start_weeks_lower: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
+    easy_start_told: Mapped[str | None] = mapped_column(String(8))
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
 

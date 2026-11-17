@@ -89,6 +89,14 @@ def test_the_export_holds_my_data_and_photos_but_no_secrets(
     assert tables["settings"][0]["avoid_knees"] is True
     assert tables["settings"][0]["session_minutes"] == 30
     assert tables["settings"][0]["last_set_amrap"] is False  # the last-set option (ADR-0084)
+    easy = {k: v for k, v in tables["settings"][0].items() if k.startswith("easy_start")}
+    assert easy == {  # the easy start (ADR-0094), off for the owner
+        "easy_start": False,
+        "easy_start_from": None,
+        "easy_start_weeks_light": 0,
+        "easy_start_weeks_lower": 0,
+        "easy_start_told": None,
+    }
     assert tables["signed_in_browsers"][0]["label"]
     assert all("token_hash" not in row for row in tables["signed_in_browsers"])
     assert all("jpeg" not in row for row in tables["progress_photos"])
