@@ -190,6 +190,50 @@ test('a refused last set says when it opens', async () => {
   expect(await screen.findByText('Available after your first 8 weeks.')).toBeVisible()
 })
 
+test('the easy start is a switch, with its reason, while it can change (ADR-0094)', async () => {
+  const sent = serve()
+  render(<Settings />)
+  expect(
+    await screen.findByText('Easy start: lighter first weeks, less soreness. Off.'),
+  ).toBeVisible()
+  expect(
+    screen.getByText('One set of each exercise at first, then one set fewer, for 6 weeks or more.'),
+  ).toBeVisible()
+  fireEvent.click(button('Turn the easy start on'))
+  expect(
+    await screen.findByText('Easy start: lighter first weeks, less soreness. On.'),
+  ).toBeVisible()
+  fireEvent.click(button('Turn the easy start off'))
+  expect(
+    await screen.findByText('Easy start: lighter first weeks, less soreness. Off.'),
+  ).toBeVisible()
+  expect(sent).toEqual([{ easy_start: true }, { easy_start: false }])
+})
+
+test("a refused easy start says why in the server's words", async () => {
+  serve()
+  vi.mocked(fetch).mockImplementation(async (_path, init) =>
+    init?.method === 'PATCH'
+      ? Response.json(
+          { detail: "Your easy start is over, so it can't be changed." },
+          { status: 409 },
+        )
+      : Response.json({ ...PREFS, easy_start: true }),
+  )
+  render(<Settings />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Turn the easy start off' }))
+  expect(await screen.findByText("Your easy start is over, so it can't be changed.")).toBeVisible()
+  expect(screen.getByText('Easy start: lighter first weeks, less soreness. On.')).toBeVisible()
+})
+
+test("the easy start isn't shown once closed: over, or the owner", async () => {
+  serve({ ...PREFS, easy_start_open: false })
+  render(<Settings />)
+  await screen.findByText('Last set: as many good reps as you can. Off.')
+  expect(screen.queryByText(/Easy start/)).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /easy start/ })).not.toBeInTheDocument()
+})
+
 test('the pace is one of three, with a line saying what each means', async () => {
   const sent = serve()
   render(<Settings />)

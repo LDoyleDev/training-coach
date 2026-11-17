@@ -26,6 +26,7 @@ export interface Draft {
   count: number | null // exercises per session; null as planned
   chosen: Record<string, number> // per exercise, the step picked on the plan screen over the walk's
   putBack: boolean // the split squat a level of 1 leaves out, put back
+  easyStart: boolean | null // screen 13's switch as tapped; null: as suggested (ADR-0094)
 }
 
 /** What the ladder walk depends on: a change to any of these starts the answers again, and the

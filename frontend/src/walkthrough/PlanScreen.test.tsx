@@ -115,6 +115,7 @@ const DRAFT: Draft = {
   count: null,
   chosen: {},
   putBack: false,
+  easyStart: null,
 }
 
 const COVERAGE = (place: 'home' | 'gym'): Coverage => ({
@@ -390,12 +391,19 @@ test('gym only: the gym version, and no home kit sent', async () => {
 })
 
 test("the owner's try-out: the plan, and no Save", async () => {
-  serve()
+  const calls = serve()
   show({ who: 'owner_try_out' })
   await screen.findByText('Mon 9 Nov')
   expect(screen.getByText("This is a try-out: your plan won't change.")).toBeInTheDocument()
   expect(screen.queryByText(/This replaces your plan/)).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Save my plan' })).not.toBeInTheDocument()
+  // The easy start as a member sees it, and nothing to save it with.
+  tap(/Easy start/)
+  expect(screen.getByRole('button', { name: /Easy start/ })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
+  expect(saves(calls)).toEqual([])
 })
 
 test.each([
@@ -451,7 +459,60 @@ test('Save sends the outcomes and the revision; without consent, no answers', as
   await screen.findByText('Mon 9 Nov')
   tap('Save my plan')
   await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith('2026-11-09'))
-  expect(saves(calls)).toEqual([{ ...previews(calls)[0], revision: 'r1' }])
+  // Mostly skipped, so the easy start goes on as suggested; only Save sends it.
+  expect(saves(calls)).toEqual([{ ...previews(calls)[0], easy_start: true, revision: 'r1' }])
+})
+
+const EASY = /Easy start: lighter first weeks, less soreness/
+const LIGHTER = 'Lighter for the first 6 weeks or more (easy start); this is the plan from then.'
+const FIT: Draft['about'] = {
+  age: '35-49',
+  often: 'three_plus',
+  effort: 'breathless',
+  howLong: 'over_30',
+  chair: true,
+  stairs: true,
+  walk: true,
+  floor: true,
+}
+
+test('the easy start: on and suggested from the answers, with the line over the plan', async () => {
+  const calls = serve()
+  show({ draft: { ...DRAFT, about: { ...FIT, often: 'one_two' } } }) // level 3
+  await screen.findByText('Mon 9 Nov')
+  const easy = screen.getByRole('button', { name: EASY })
+  expect(easy).toHaveAttribute('aria-pressed', 'true')
+  expect(easy).toHaveTextContent('On · Suggested')
+  expect(
+    screen.getByText('One set of each exercise at first, then one set fewer, for 6 weeks or more.'),
+  ).toBeInTheDocument()
+  expect(screen.getByText(LIGHTER)).toBeInTheDocument()
+  expect(screen.queryByText('New to strength work? Turn this on.')).not.toBeInTheDocument()
+  tap(EASY) // turned off: no line, and Save sends it off
+  expect(easy).toHaveAttribute('aria-pressed', 'false')
+  expect(easy).toHaveTextContent('Off · Suggested')
+  expect(screen.queryByText(LIGHTER)).not.toBeInTheDocument()
+  tap('Save my plan')
+  await vi.waitFor(() => expect(saves(calls)).toHaveLength(1))
+  expect(saves(calls)[0].easy_start).toBe(false)
+  expect(previews(calls)).toHaveLength(1) // the switch doesn't ask for the plan again
+  expect(previews(calls)[0]).not.toHaveProperty('easy_start')
+})
+
+test('the easy start at level 4: off, for someone new to strength work to turn on', async () => {
+  const calls = serve()
+  show({ draft: { ...DRAFT, about: FIT } })
+  await screen.findByText('Mon 9 Nov')
+  const easy = screen.getByRole('button', { name: EASY })
+  expect(easy).toHaveAttribute('aria-pressed', 'false')
+  expect(easy).not.toHaveTextContent('Suggested')
+  expect(screen.getByText('New to strength work? Turn this on.')).toBeInTheDocument()
+  expect(screen.queryByText(LIGHTER)).not.toBeInTheDocument()
+  tap(EASY)
+  expect(screen.getByText(LIGHTER)).toBeInTheDocument()
+  tap('Save my plan')
+  await vi.waitFor(() => expect(saves(calls)).toHaveLength(1))
+  expect(saves(calls)[0].easy_start).toBe(true)
 })
 
 test('with consent, the answers of the screens still asked go too', async () => {

@@ -1159,6 +1159,23 @@ export async function saveSettings(change: SettingsChange): Promise<MessageSetti
   return (await res.json()) as MessageSettings
 }
 
+/** The easy start's switch (ADR-0094): the settings after it, or why it can't change (the
+ * owner, or the easy start over), in words. */
+export async function saveEasyStart(on: boolean): Promise<MessageSettings | Words> {
+  const res = signedIn(
+    await fetch('/api/settings', {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: json,
+      body: JSON.stringify({ easy_start: on }),
+    }),
+  )
+  const refused = res.status === 409 ? await detailOf(res) : null
+  if (refused) return sentence(refused)
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as MessageSettings
+}
+
 // ---------------------------------------------------------------- habits (ux-flow-plan C5)
 
 export type Habits = Schemas['HabitsView']
