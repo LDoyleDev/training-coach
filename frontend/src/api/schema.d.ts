@@ -2826,6 +2826,7 @@ export interface components {
             ceiling: number;
             /** Cycle Days */
             cycle_days: number;
+            easy_start?: components["schemas"]["EasyStartView"] | null;
             /** Grip Cap */
             grip_cap: number;
             /** Hard From */

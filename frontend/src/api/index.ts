@@ -388,6 +388,20 @@ export async function chooseLength(body: LengthBody): Promise<TodayView | 'stale
   return (await res.json()) as TodayView
 }
 
+export type EasyStart = Schemas['EasyStartView']
+
+/** The easy start's offers on Today (ADR-0094): "One more easy week" or "Start the easy start
+ * again". Today after it, or why it isn't on offer now, in words. */
+export async function takeEasyStart(offer: 'extend' | 'restart'): Promise<TodayView | Words> {
+  const res = signedIn(
+    await fetch(`/api/easy-start/${offer}`, { method: 'POST', credentials: 'same-origin' }),
+  )
+  const refused = res.status === 409 ? await detailOf(res) : null
+  if (refused) return sentence(refused)
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+  return (await res.json()) as TodayView
+}
+
 export type EaseBackBody = Schemas['EaseBackBody']
 
 /** Ease back in after three weeks or more away (ADR-0084): one step down for today only on

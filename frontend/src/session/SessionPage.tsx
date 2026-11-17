@@ -13,7 +13,9 @@ import {
   saveSession,
   saveSettings,
   SignedOutError,
+  takeEasyStart,
   type Answer,
+  type EasyStart,
   type Clash,
   type Guided,
   type Pending,
@@ -68,6 +70,8 @@ import LogDay from './LogDay'
 import LevelChange from './LevelChange'
 import LengthChoice, { KeepToggle } from './Length'
 import EaseBack from './EaseBack'
+import EasyStartOffers from './EasyStartOffers'
+import { EASY_TAKEN } from '../easyStart'
 import { levelNote, type LevelScope } from './levels'
 import ClashQuestion from './ClashQuestion'
 import { ExerciseFigures } from '../bodymap/BodyMap'
@@ -121,6 +125,7 @@ export default function SessionPage() {
   const [saving, setSaving] = useState<string[]>([]) // earlier days being saved
   const [signedOut, setSignedOut] = useState(false) // the sign-in ended on the page
   const [testDay, setTestDay] = useState<TestDayDue | null>(null) // due in front (ADR-0038)
+  const [easy, setEasy] = useState<EasyStart | null>(null) // the easy start's offers (ADR-0094)
   const [readinessNote, setReadinessNote] = useState<string | null>(null) // hard days (ADR-0046)
   const [dailyCheck, setDailyCheck] = useState<string | null>(null) // today's answers (ADR-0053)
   // What Undo takes back: a change's answer, or undefined to ask the server (C3). The key
@@ -229,6 +234,7 @@ export default function SessionPage() {
   /** Show today as the server has it: loaded, or answered by a change or an undo. */
   const show = useCallback((today: TodayView) => {
     setTestDay(today.test_day ?? null)
+    setEasy(today.easy_start ?? null)
     setReadinessNote(today.readiness_note ?? null)
     setDailyCheck(today.daily_check ?? null)
     setPlanned(today.planned ?? null)
@@ -306,6 +312,24 @@ export default function SessionPage() {
     }
   }
 
+  /** An easy-start offer taken (ADR-0094): Today as it is after it; not on offer any more
+   * (taken elsewhere), its reason and Today again. */
+  const takeEasy = async (offer: 'extend' | 'restart') => {
+    const said = offer === 'restart' ? EASY_TAKEN.restart : EASY_TAKEN[easy?.extend ?? 'light']
+    setBusy(true)
+    try {
+      const result = await takeEasyStart(offer)
+      if ('words' in result) return stale(result.words)
+      changed(result, said)
+    } catch (error) {
+      if (error instanceof SignedOutError) setLoaded({ status: 'signed-out' })
+      else setNote("Couldn't change that. Check your connection and try again.")
+    } finally {
+      setBusy(false)
+    }
+  }
+  const easyOffers = <EasyStartOffers easy={easy} busy={busy} onTake={takeEasy} />
+
   const counted = (text: string) => {
     setNote(text)
     refreshUndo()
@@ -337,6 +361,7 @@ export default function SessionPage() {
         {loaded.status === 'none' && dailyLine}
         {loaded.status === 'none' && readinessNote && <ReadinessNotice text={readinessNote} />}
         {loaded.status === 'none' && testDay && <TestDayNotice due={testDay} />}
+        {loaded.status === 'none' && easyOffers}
         <Status loaded={loaded} onTrain={trainToday} />
         {loaded.status === 'none' && <DayCard refresh={undoKey} />}
         {loaded.status === 'none' && bandOffers}
@@ -678,7 +703,9 @@ export default function SessionPage() {
               onStale={stale}
             />
           )}
-          {session.ease_back.length > 0 && (
+          {easyOffers}
+          {/* The restart stands in for Ease back in on that return: one prompt (ADR-0094). */}
+          {session.ease_back.length > 0 && !easy?.restart && (
             <EaseBack ease={session.ease_back} busy={busy} onAnswer={answerEaseBack} />
           )}
           {session.length && (

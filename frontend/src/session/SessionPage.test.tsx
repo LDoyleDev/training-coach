@@ -1683,3 +1683,87 @@ test.each([
     { template_id: 3, revision: 0, first: [], ease: false },
   ])
 })
+
+const EASY: NonNullable<TodayView['easy_start']> = {
+  phase: 'light',
+  count: 0,
+  of: 4,
+  until: '2026-12-15',
+  over_from: '2027-01-12',
+  fresh: false,
+  ending: false,
+  restart: false,
+  extend: null,
+}
+
+/** serve(), with the easy start's offers answering `offer` (ADR-0094); the paths POSTed. */
+function serveEasy(today: TodayView, offer: () => Response, after: TodayView = today) {
+  serve({ today })
+  const base = vi.mocked(fetch).getMockImplementation()!
+  const posted: string[] = []
+  let current = today
+  vi.mocked(fetch).mockImplementation(async (path, init) => {
+    if (String(path).startsWith('/api/easy-start/')) {
+      posted.push(`${init?.method} ${String(path)}`)
+      current = after
+      return offer()
+    }
+    if (path === '/api/session/today') return Response.json(current)
+    return base(path, init)
+  })
+  return posted
+}
+
+test('after 14 days away, the restart takes the place of Ease back in (ADR-0094)', async () => {
+  const after = { session: SESSION, progress: null, easy_start: { ...EASY, phase: 'waiting' } }
+  const posted = serveEasy(
+    { session: RETURNING, progress: null, easy_start: { ...EASY, restart: true } },
+    () => Response.json(after),
+    after as TodayView,
+  )
+  render(<SessionPage />)
+  const card = await screen.findByRole('region', { name: 'Start the easy start again' })
+  expect(card).toHaveTextContent("It's been 14 days or more since your last session.")
+  expect(screen.queryByRole('region', { name: /Ease back in/ })).not.toBeInTheDocument()
+  click('Start it again')
+  expect(
+    await screen.findByText('The easy start begins again with your next session.'),
+  ).toBeInTheDocument()
+  expect(posted).toEqual(['POST /api/easy-start/restart'])
+  expect(screen.queryByRole('region', { name: /Start the easy start/ })).not.toBeInTheDocument()
+})
+
+test('after a step up, one more easy week of one set of each (ADR-0094)', async () => {
+  const today = { session: SESSION, progress: null, easy_start: { ...EASY, extend: 'light' } }
+  const after = { session: SESSION, progress: null, easy_start: EASY }
+  const posted = serveEasy(today as TodayView, () => Response.json(after), after)
+  render(<SessionPage />)
+  const card = await screen.findByRole('region', { name: 'One more easy week' })
+  expect(card).toHaveTextContent('Stay on one set of each for another week.')
+  click('One more easy week')
+  expect(await screen.findByText('One more easy week: one set of each.')).toBeInTheDocument()
+  expect(posted).toEqual(['POST /api/easy-start/extend'])
+  expect(screen.queryByRole('region', { name: 'One more easy week' })).not.toBeInTheDocument()
+})
+
+test('one more easy week of one set fewer shows on a day with nothing left, too', async () => {
+  const today = { session: null, progress: null, easy_start: { ...EASY, extend: 'lower' } }
+  serveEasy(today as TodayView, () => Response.json(today))
+  render(<SessionPage />)
+  const card = await screen.findByRole('region', { name: 'One more easy week' })
+  expect(card).toHaveTextContent('Stay on one set fewer for another week.')
+})
+
+test.each([
+  [
+    () => Response.json({ detail: "One more easy week isn't on offer now." }, { status: 409 }),
+    "One more easy week isn't on offer now.",
+  ],
+  [() => new Response(null, { status: 500 }), "Couldn't change that. Check your connection"],
+])('a refused or failed easy week says so (%#)', async (offer, said) => {
+  const today = { session: SESSION, progress: null, easy_start: { ...EASY, extend: 'light' } }
+  serveEasy(today as TodayView, offer)
+  render(<SessionPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'One more easy week' }))
+  expect(await screen.findByText(new RegExp(said))).toBeInTheDocument()
+})

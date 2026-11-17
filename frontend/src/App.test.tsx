@@ -123,6 +123,16 @@ function mockFetch(response: Partial<Response>) {
   ) as unknown as typeof fetch
 }
 
+/** The plan, and the map answering ``map``. */
+function serveMap(map: Coverage) {
+  globalThis.fetch = vi.fn((url: string) =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(url.startsWith('/api/plan/coverage') ? map : plan),
+    }),
+  ) as unknown as typeof fetch
+}
+
 describe('App', () => {
   it('renders the week once the plan loads', async () => {
     mockFetch({ ok: true, json: () => Promise.resolve(plan) })
@@ -147,6 +157,41 @@ describe('App', () => {
     expect(
       screen.getByRole('heading', { name: 'What the week gives each muscle' }),
     ).toBeInTheDocument()
+  })
+
+  it.each([
+    ['waiting', null, 'Lighter for the first 6 weeks or more (easy start)'],
+    ['light', '2026-12-31', 'Lighter until at least 31 Dec (easy start)'],
+    ['lower', '2026-12-31', 'Lighter until at least 31 Dec (easy start)'],
+  ] as const)(
+    'in the easy start (%s), the plan and the map say it is lighter until then',
+    async (phase, over_from, line) => {
+      const easy_start = {
+        phase,
+        count: 0,
+        of: 4,
+        until: null,
+        over_from,
+        fresh: false,
+        ending: false,
+        restart: false,
+        extend: null,
+      }
+      serveMap({ ...coverage, easy_start })
+      render(<App />)
+      const said = await screen.findAllByText(`${line}; this is the plan from then.`)
+      expect(said).toHaveLength(2) // under the hero, and over the week's map
+    },
+  )
+
+  it('once the easy start is over, no line', async () => {
+    const done = { phase: 'done', count: 0, of: 0, until: null, over_from: '2026-12-31' } as const
+    const easy_start = { ...done, fresh: false, ending: false, restart: false, extend: null }
+    serveMap({ ...coverage, easy_start })
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Two sessions, one fixed order' })
+    expect(await screen.findByText('0 of 10 main muscles on target')).toBeInTheDocument()
+    expect(screen.queryByText(/easy start/)).not.toBeInTheDocument()
   })
 
   it("reads the hero from a member's plan: a starter's sessions, all strength", async () => {

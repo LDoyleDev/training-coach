@@ -121,6 +121,20 @@ def test_today_says_where_it_stands(member: TestClient, engine: Engine) -> None:
     }
 
 
+def test_the_map_says_where_it_stands(member: TestClient, engine: Engine) -> None:
+    """For the line on Plan and over the map (Decided 11): none while off, no date before the
+    first workout, then the day it can be over."""
+    assert member.get("/api/plan/coverage").json()["easy_start"] is None
+    _on(engine)
+    with at(1):
+        waiting = member.get("/api/plan/coverage").json()["easy_start"]
+    assert (waiting["phase"], waiting["over_from"]) == ("waiting", None)
+    _on(engine, 2)
+    with at(3):
+        light = member.get("/api/plan/coverage").json()["easy_start"]
+    assert (light["phase"], light["over_from"]) == ("light", "2027-01-14")  # day 2 + 14 + 28
+
+
 def test_a_workout_from_before_midnight_counts_just_after_it(
     member: TestClient, engine: Engine
 ) -> None:
