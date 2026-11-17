@@ -107,6 +107,7 @@ async function load(signal: AbortSignal): Promise<Ready | null> {
       count: settings.session_exercises,
       chosen: {},
       putBack: false,
+      easyStart: null,
     },
   }
 }

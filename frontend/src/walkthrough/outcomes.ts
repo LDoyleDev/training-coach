@@ -1,7 +1,8 @@
 /**
  * What Save sends (ADR-0092, "What runs in the browser"): the outcomes always, worked out here,
  * and the answers only with consent. The starter and the start day come from the tapped days on
- * this device, so without consent the days never leave it.
+ * this device, so without consent the days never leave it. The easy start goes with Save only:
+ * the preview is the plan as it is, under one line (ADR-0094, Decided 11).
  */
 import type { Outcomes, WalkAnswers, Walkthrough } from '../api'
 import { avoided, type Draft, type Known, shown, walked } from './flow'
@@ -27,7 +28,26 @@ export interface Picked {
   starter: Starter
   start: Start
   leftOut: string[]
+  easy: EasyStart
   body: Outcomes
+}
+
+/** Screen 13's easy-start switch (ADR-0094, Decided 4): as tapped, else as suggested. */
+export interface EasyStart {
+  on: boolean
+  suggested: boolean
+}
+
+/** Screens 4-6's questions, each asked unless the answers before it skip it. */
+const ABOUT = ['age', 'often', 'effort', 'howLong', 'chair', 'stairs', 'walk', 'floor'] as const
+
+/** Suggested at a level of 3 or below, or when more than half of the questions on screens 4-6
+ * that were asked were skipped (no answer, so no sign the person is used to training). */
+export function easyStartOf(known: Known, draft: Draft): EasyStart {
+  const asked = ABOUT.filter((id) => shown(id, known, draft))
+  const skipped = asked.filter((id) => draft.about[id] === null).length
+  const suggested = suggestedLevel(draft.about) <= 3 || skipped * 2 > asked.length
+  return { on: draft.easyStart ?? suggested, suggested }
 }
 
 /** The step each exercise starts on: the one picked on the plan screen, else where its walk
@@ -52,6 +72,7 @@ export function pick(known: Known, starters: Starter[], draft: Draft, today: Dat
     starter,
     start,
     leftOut,
+    easy: easyStartOf(known, draft),
     body: {
       starter: starter.slug,
       steps: stepsOf(known, draft),

@@ -2,10 +2,13 @@ import { type FormEvent, useEffect, useState } from 'react'
 import {
   fetchSettings,
   type MessageSettings,
+  saveEasyStart,
   saveSettings,
   type SettingsChange,
   SignedOutError,
+  type Words,
 } from '../api'
+import { EASY_START, EASY_START_LINE } from '../easyStart'
 import { type Sound, playChange, unlockAudio } from '../hiit/sounds'
 import { card, primaryInline, secondary } from '../ui'
 import { LAST_SET, LAST_SET_LINE, LAST_SET_LOCKED } from '../session/safety'
@@ -142,12 +145,20 @@ export default function Settings() {
 
   if (!prefs || !times) return null
 
-  const save = async (at: string, change: SettingsChange, done: string, refused: string) => {
+  /** `send`: a change refused with its reason in words answers them. */
+  const save = async (
+    at: string,
+    change: SettingsChange,
+    done: string,
+    refused: string,
+    send: (change: SettingsChange) => Promise<MessageSettings | 'invalid' | Words> = saveSettings,
+  ) => {
     setBusy(true)
     setNote(null)
     try {
-      const next = await saveSettings(change)
+      const next = await send(change)
       if (next === 'invalid') return setNote({ at, text: refused })
+      if ('words' in next) return setNote({ at, text: next.words })
       show(next)
       setNote({ at, text: done })
     } catch (error) {
@@ -321,6 +332,35 @@ export default function Settings() {
           </button>
           {noteAt('last-set')}
         </div>
+      )}
+
+      {/* Until the easy start is over, and never for the owner (ADR-0094, Decided 5 and 13). */}
+      {prefs.easy_start_open && (
+        <>
+          <p className="m-0">
+            {EASY_START}. {prefs.easy_start ? 'On' : 'Off'}.
+          </p>
+          <p className="m-0 text-sm text-[var(--slate)]">{EASY_START_LINE}</p>
+          <div className={row}>
+            <button
+              type="button"
+              className={secondary}
+              disabled={busy}
+              onClick={() =>
+                save(
+                  'easy-start',
+                  { easy_start: !prefs.easy_start },
+                  'Saved.',
+                  "That couldn't be saved.",
+                  (change) => saveEasyStart(change.easy_start === true),
+                )
+              }
+            >
+              {prefs.easy_start ? 'Turn the easy start off' : 'Turn the easy start on'}
+            </button>
+            {noteAt('easy-start')}
+          </div>
+        </>
       )}
 
       <form className={row} onSubmit={saveProtein}>

@@ -10,6 +10,7 @@ import {
   type Walkthrough,
 } from '../api'
 import { BodyMap } from '../bodymap/BodyMap'
+import { EASY_START, EASY_START_LINE, EASY_START_NEW, lighterLine } from '../easyStart'
 import { MapPlace } from '../bodymap/MapPlace'
 import { AllStopSigns } from '../session/StopSigns'
 import { card, primary, secondary } from '../ui'
@@ -17,7 +18,7 @@ import { COUNTS, type Draft, type Known, MINUTES, openSteps, WEEKDAYS } from './
 import { weekday } from './days'
 import { suggestedLevel } from './level'
 import { answersOf, iso, LEFT_OUT, local, pick, stepsOf } from './outcomes'
-import { tight } from './choice'
+import { choice, tight } from './choice'
 
 /** "Monday 16 November" */
 const longDay = (day: string) =>
@@ -67,7 +68,7 @@ function Version({ fitted, label }: { fitted: Fitted; label?: string }) {
  * Screen 13, "Your plan" (ADR-0092): the starter the tapped days pick, each exercise at its
  * step, trimmed to the minutes and count, the week, the body map and the notes. Any open step,
  * the days, minutes and count can be changed here, and each change asks for the plan again;
- * nothing is saved until Save. The owner's try-out sees it all, without Save.
+ * the easy start's switch (ADR-0094) only adds a line over it. Nothing is saved until Save. The owner's try-out sees it all, without Save.
  */
 export function PlanScreen({
   who,
@@ -97,7 +98,7 @@ export function PlanScreen({
   const [plan, setPlan] = useState(revision)
   const [place, setPlace] = useState<Place>('home')
   const [today] = useState(() => new Date())
-  const { starter, start, leftOut, body } = pick(known, starters, draft, today)
+  const { starter, start, leftOut, easy, body } = pick(known, starters, draft, today)
   const asked = JSON.stringify(body)
 
   useEffect(() => {
@@ -122,6 +123,7 @@ export function PlanScreen({
     try {
       const found = await saveWalkthrough({
         ...body,
+        easy_start: easy.on,
         revision: plan,
         ...(keep && { answers: answersOf(known, draft) }),
       })
@@ -270,6 +272,23 @@ export function PlanScreen({
         </div>
       ))}
 
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          aria-pressed={easy.on}
+          className={choice(easy.on) + ' flex flex-col items-start justify-center'}
+          onClick={() => onChange({ ...draft, easyStart: !easy.on })}
+        >
+          {EASY_START}
+          <span className="font-normal">
+            {easy.on ? 'On' : 'Off'}
+            {easy.suggested && ' · Suggested'}
+          </span>
+        </button>
+        <p className="m-0 text-sm text-[var(--slate)]">{EASY_START_LINE}</p>
+        {!easy.suggested && !easy.on && <p className="m-0">{EASY_START_NEW}</p>}
+      </div>
+
       {waiting && (
         <p className="status" role="status">
           Making your plan…
@@ -289,6 +308,7 @@ export function PlanScreen({
       {preview && (
         <>
           <h2 className="m-0 text-xl">The sessions</h2>
+          {easy.on && <p className="m-0">{lighterLine(null)}</p>}
           {preview.sessions.map((s) => (
             <section key={s.slug} className={`${card} flex flex-col gap-2`}>
               <h3 className="m-0 text-lg">

@@ -52,6 +52,7 @@ const NEW: Draft = {
   count: null,
   chosen: {},
   putBack: false,
+  easyStart: null,
 }
 const ALL: Known = { consent: true, residence: true, safety: true, ladders: LADDERS }
 const NONE: Known = { consent: false, residence: false, safety: false, ladders: LADDERS }
