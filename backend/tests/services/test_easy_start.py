@@ -132,6 +132,17 @@ def test_one_set_lower_is_told_once(member: Session) -> None:
     assert notice.text.startswith("Your light start is done: from today, one set fewer")
 
 
+def test_after_one_more_easy_week_one_set_lower_isnt_told_again(member: Session) -> None:
+    """Each step up is written once (ADR-0094 Stored): back to one set lower after the extra
+    week, the notice already written stands."""
+    _to_lower(member)
+    assert easy_start.tell_due(member, day(14)) is Phase.LOWER
+    assert easy_start.extend(member, day(14)) is None  # the light start until day 21
+    assert easy_start.current(member, day(21)).phase is Phase.LOWER
+    assert easy_start.tell_due(member, day(21)) is None
+    assert len(member.scalars(select(PlanNotice)).all()) == 1
+
+
 def test_the_end_is_told_once_with_the_walks_and_account(member: Session) -> None:
     _to_lower(member)
     _sessions(member, *range(14, 30, 2))  # 8 sessions in one set lower
