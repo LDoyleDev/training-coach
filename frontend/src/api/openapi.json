@@ -1904,7 +1904,7 @@
         "type": "object"
       },
       "EasyStartView": {
-        "description": "Where the easy start stands today (ADR-0094), as ``domain.easy_start.State`` says it:\nsessions done in this phase before today (``count``) of the ``of`` it runs at least, until at\nleast ``until``; the whole easy start over from ``over_from`` at the soonest. ``fresh``: the\nphase's first day with no session in it yet; ``ending``: the next session can be its last;\n``restart``: offer \"Start the easy start again\"; ``extend``: the phase \"One more easy week\"\nwould bring back.",
+        "description": "Where the easy start stands today (ADR-0094), as ``domain.easy_start.State`` says it:\nsessions done in this phase before today (``count``) of the ``of`` it runs at least, until at\nleast ``until``; the whole easy start over from ``over_from`` at the soonest. ``fresh``: the\nphase's first day with no session in it yet; ``ending``: the next session can be its last;\n``restart``: offer \"Start the easy start again\"; ``extend``: the phase \"One more easy week\"\nwould bring back. ``line``: the overview's words for it, null when there is nothing to say.",
         "properties": {
           "count": {
             "title": "Count",
@@ -1932,6 +1932,17 @@
           "fresh": {
             "title": "Fresh",
             "type": "boolean"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
           },
           "of": {
             "title": "Of",
@@ -1985,7 +1996,8 @@
           "fresh",
           "ending",
           "restart",
-          "extend"
+          "extend",
+          "line"
         ],
         "title": "EasyStartView",
         "type": "object"

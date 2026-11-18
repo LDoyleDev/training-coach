@@ -80,6 +80,7 @@ from training_coach.services import (
     blocks,
     daily_check,
     day_clash,
+    easy_start,
     guided,
     habits,
     health_summary,
@@ -233,8 +234,9 @@ class Handlers:
                 return rest_day_text(plan), links.with_open(None, url, links.SESSION)
             # The day's length chosen in the app, if any (ADR-0082).
             shown, length = guided.at_length(session, on, plan.session)
+            easy = easy_start.line(easy_start.current(session, on))  # ADR-0094
             markup = buttons.morning(plan.session.template_id)
-            text = today_text(replace(plan, session=shown), length)
+            text = today_text(replace(plan, session=shown), length, easy)
             return text, links.with_open(markup, url, links.SESSION)
 
     async def help(self, update: Update, _context: ContextTypes.DEFAULT_TYPE, me: Person) -> None:
@@ -317,6 +319,9 @@ class Handlers:
         try:
             with session_scope(me.sessions) as session:
                 day_clash.sweep(session, datetime.now(UTC))  # also on days with no save
+                # A step up of the easy start, written once and told by the notices check, for
+                # someone who never opens the app (ADR-0094, ADR-0087).
+                easy_start.tell_due(session, on)
                 paused = user_settings.load(session).paused
                 checked = daily_check.on(session, on) is not None
                 band = health_summary.morning_line(session, on)

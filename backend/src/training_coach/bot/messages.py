@@ -151,14 +151,17 @@ def _baseline(items: tuple[ItemPlan, ...]) -> list[str]:
     return [BASELINE.format(names=_joined(names))]
 
 
-def today_text(today: Today, length: Length | None = None) -> str:
+def today_text(today: Today, length: Length | None = None, easy: str | None = None) -> str:
     """The morning message and /today. ``length`` is the day's (ADR-0082), with
-    ``today.session`` already cut to it: a dropped exercise has no targets."""
+    ``today.session`` already cut to it: a dropped exercise has no targets. ``easy``: the easy
+    start's line, as the overview says it (ADR-0094)."""
     session = today.session
     lines = [f"Today: {session.name}", session.focus, *_place(session)]
     if today.block is not None:
         lines.append(f"Week {today.block.week} of {WEEKS}, {today.block.kind} block.")
     lines += _length(session, length)
+    if easy is not None:
+        lines.append(easy)
     if session.kind == "strength":
         lines.append(_warm_up(length))
     lines.append(STOP)

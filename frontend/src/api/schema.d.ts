@@ -3058,7 +3058,7 @@ export interface components {
          *     least ``until``; the whole easy start over from ``over_from`` at the soonest. ``fresh``: the
          *     phase's first day with no session in it yet; ``ending``: the next session can be its last;
          *     ``restart``: offer "Start the easy start again"; ``extend``: the phase "One more easy week"
-         *     would bring back.
+         *     would bring back. ``line``: the overview's words for it, null when there is nothing to say.
          */
         EasyStartView: {
             /** Count */
@@ -3069,6 +3069,8 @@ export interface components {
             extend: ("light" | "lower") | null;
             /** Fresh */
             fresh: boolean;
+            /** Line */
+            line: string | null;
             /** Of */
             of: number;
             /** Over From */

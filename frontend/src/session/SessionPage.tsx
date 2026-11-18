@@ -123,6 +123,7 @@ export default function SessionPage() {
   const [testDay, setTestDay] = useState<TestDayDue | null>(null) // due in front (ADR-0038)
   const [readinessNote, setReadinessNote] = useState<string | null>(null) // hard days (ADR-0046)
   const [dailyCheck, setDailyCheck] = useState<string | null>(null) // today's answers (ADR-0053)
+  const [easyLine, setEasyLine] = useState<string | null>(null) // the easy start's (ADR-0094)
   // What Undo takes back: a change's answer, or undefined to ask the server (C3). The key
   // starts the Undo afresh whenever today changes.
   const [undoOffer, setUndoOffer] = useState<UndoOffer | null | undefined>(undefined)
@@ -231,6 +232,7 @@ export default function SessionPage() {
     setTestDay(today.test_day ?? null)
     setReadinessNote(today.readiness_note ?? null)
     setDailyCheck(today.daily_check ?? null)
+    setEasyLine(today.easy_start?.line ?? null)
     setPlanned(today.planned ?? null)
     // An empty order can't be guided; treat it like nothing planned.
     if (!today.session || today.session.order.length === 0)
@@ -681,6 +683,7 @@ export default function SessionPage() {
           {session.ease_back.length > 0 && (
             <EaseBack ease={session.ease_back} busy={busy} onAnswer={answerEaseBack} />
           )}
+          {easyLine && <p className={card}>{easyLine}</p>}
           {session.length && (
             <LengthChoice
               session={session}
