@@ -63,6 +63,7 @@ from training_coach.services import (
     workout_log,
 )
 from training_coach.services.day_clash import Clash, Refused, Resolution
+from training_coach.services.easy_start import current as easy_start_on
 from training_coach.services.seed import bundled_plan
 from training_coach.services.today import (
     ItemPlan,
@@ -933,6 +934,19 @@ def _mark_today(session: Session, workout_id: int, steps: dict[str, int]) -> Non
     workout.planned = plan  # a new dict, so the JSON column sees the change
 
 
+def _mark_light(session: Session, workout_id: int, day: date, items: tuple[ItemPlan, ...]) -> None:
+    """On a day of the easy start's light start, note in the saved workout's plan the most each
+    exercise aimed for, the bottom of its range, so its targets replay as given (ADR-0094)."""
+    if easy_start_on(session, day).phase not in (easy_start.Phase.WAITING, easy_start.Phase.LIGHT):
+        return
+    workout = session.get_one(Workout, workout_id)
+    plan = dict(workout.planned or {})
+    for item in items:
+        if item.slug in plan:
+            plan[item.slug] = {**plan[item.slug], "aim": item.bottom}
+    workout.planned = plan  # a new dict, so the JSON column sees the change
+
+
 def _stamp(
     session: Session, workout_id: int, items: tuple[ItemPlan, ...], sets: Sequence[Done]
 ) -> None:
@@ -993,6 +1007,7 @@ def save(
         if not result.already_saved:
             _stamp(session, result.workout_id, plan.items, sets)
             _mark_today(session, result.workout_id, row.steps)
+            _mark_light(session, result.workout_id, day, plan.items)
     return result if result is not None else "no sets recorded"
 
 
@@ -1039,6 +1054,7 @@ def _save_after_run(
                 row.saved_workout_id = result.workout_id
                 _stamp(session, result.workout_id, items, sets)
                 _mark_today(session, result.workout_id, row.steps)
+                _mark_light(session, result.workout_id, day, items)
                 session.flush()
     except IntegrityError:
         session.expire_all()

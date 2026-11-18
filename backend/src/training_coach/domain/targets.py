@@ -26,6 +26,10 @@ A last set of as many good reps as you can (ADR-0084) counts as its target met w
 it: that set's next target is its target plus the step, not its reps plus the step, so one big
 set doesn't set a target the next ordinary day can't reach. Below its target it is a miss, as
 any set's would be. Other sets are judged as ever. Readiness and bests take the reps as done.
+
+A day of the easy start's light start (ADR-0094) aimed no higher than the bottom of the range:
+its ``aim`` caps the targets that session was given, so a set done at the bottom met its target,
+and the next targets grow from it.
 """
 
 from collections.abc import Sequence
@@ -116,6 +120,18 @@ def failure_counts(
     return list(failure_sets)
 
 
+def aim_counts(
+    history: Sequence[Sequence[int]], aims: Sequence[int | None] | None
+) -> list[int | None]:
+    """The most each session in ``history`` aimed for, in the same order; ``None`` for one with
+    no cap, and for every session when ``aims`` is None."""
+    if aims is None:
+        return [None] * len(history)
+    if len(aims) != len(history):
+        raise ValueError(f"{len(aims)} aims for {len(history)} sessions")
+    return list(aims)
+
+
 def _performed(item: Prescription, values: Sequence[int], planned: int | None) -> list[int]:
     """One value per set the session planned, at most the prescription's (all of them when
     ``planned`` is None). Missing sets start from the weakest logged set."""
@@ -132,6 +148,7 @@ def _replay(
     pace: Pace,
     planned: Sequence[int | None] | None,
     failure_sets: Sequence[int | None] | None,
+    aims: Sequence[int | None] | None = None,
 ) -> tuple[list[tuple[tuple[int, ...], tuple[int, ...]]], tuple[int, ...]]:
     """Each session's targets and what it did, as performed, oldest first; then the next
     session's targets."""
@@ -141,9 +158,12 @@ def _replay(
     sessions = []
     counts = planned_counts(history, planned)
     fails = failure_counts(history, failure_sets)
-    for values, count, fail in zip(
-        reversed(history), reversed(counts), reversed(fails), strict=True
+    caps = aim_counts(history, aims)
+    for values, count, fail, cap in zip(
+        reversed(history), reversed(counts), reversed(fails), reversed(caps), strict=True
     ):
+        if cap is not None:  # the light start asked no more that day (ADR-0094)
+            given = [min(g, cap) for g in given]
         done = _performed(item, values, count)
         if (
             fail is not None
@@ -178,12 +198,14 @@ def targets(
     pace: Pace = Pace.STANDARD,
     planned: Sequence[int | None] | None = None,
     failure_sets: Sequence[int | None] | None = None,
+    aims: Sequence[int | None] | None = None,
 ) -> tuple[int, ...]:
     """Target value per planned set at the person's ``pace``. ``history`` holds every
     session's per-set values at this ladder step, newest first (as ``progression.assess``
-    takes them); ``planned``, in the same order, the sets each one planned, and
-    ``failure_sets`` the set each one ran to as many good reps as it could (ADR-0084)."""
-    return _replay(item, history, pace, planned, failure_sets)[1]
+    takes them); ``planned``, in the same order, the sets each one planned, ``failure_sets``
+    the set each one ran to as many good reps as it could (ADR-0084), and ``aims`` the most a
+    light-start day aimed for (ADR-0094)."""
+    return _replay(item, history, pace, planned, failure_sets, aims)[1]
 
 
 def judged(

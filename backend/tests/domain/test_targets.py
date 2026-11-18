@@ -399,3 +399,17 @@ def test_a_failure_set_on_a_shorter_day_at_a_fast_pace() -> None:
 def test_invalid_failure_sets(failure: list[int | None], message: str) -> None:
     with pytest.raises(ValueError, match=message):
         targets(PULL_UPS, [[8, 7, 6, 5]], failure_sets=failure)
+
+
+def test_a_light_start_day_is_judged_on_the_bottom_it_aimed_for() -> None:
+    """ADR-0094: a day capped at the bottom of the range met its targets at the bottom, so the
+    next targets grow from it; uncapped, the same day reads as a miss and holds."""
+    history = [[5, 5, 5, 5], [10, 10, 10, 10]]  # newest first: a light day after a baseline
+    assert targets(PULL_UPS, history) == (11, 11, 11, 11)
+    assert targets(PULL_UPS, history, aims=[5, None]) == (6, 6, 6, 6)
+    assert targets(PULL_UPS, history, aims=None) == targets(PULL_UPS, history, aims=[None] * 2)
+
+
+def test_invalid_aims() -> None:
+    with pytest.raises(ValueError, match="1 aims for 2 sessions"):
+        targets(PULL_UPS, [[5], [5]], aims=[5])
