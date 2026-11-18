@@ -110,6 +110,7 @@ class MoveOutcome(StrEnum):
     NOT_READY = "not_ready"
     NO_NEXT_STEP = "no_next_step"
     STRENGTH_BLOCK = "strength_block"  # moving up waits for the hypertrophy block (ADR-0028)
+    LIGHT_START = "light_start"  # moving up waits for one set lower (ADR-0094)
     STAYED = "stayed"  # Not yet, recorded
     LEVEL_SET = "level_set"  # put on a step by hand (ADR-0075)
     SAME_LEVEL = "same_level"  # already on that step: nothing to do
@@ -541,17 +542,24 @@ def feedback(session: Session, workout_id: int, tz: ZoneInfo | None = None) -> l
 
 
 def move_up(
-    session: Session, exercise_id: int, from_step_id: int, *, strength_block: bool = False
+    session: Session,
+    exercise_id: int,
+    from_step_id: int,
+    *,
+    strength_block: bool = False,
+    light_start: bool = False,
 ) -> Move | None:
     """Move to the next ladder step if the exercise is still on ``from_step_id`` and still
-    ready under one of its prescriptions, and it isn't a strength block (ADR-0028). None for
-    an exercise that doesn't exist."""
+    ready under one of its prescriptions, and it isn't a strength block (ADR-0028) or the easy
+    start's light start (``holding``, ADR-0094). None for an exercise that doesn't exist."""
     exercise = session.get(Exercise, exercise_id)
     state = users.exercise_state(session, exercise_id)
     if exercise is None or state is None:
         return None
     if strength_block:
         return Move(MoveOutcome.STRENGTH_BLOCK, exercise.name)
+    if light_start:
+        return Move(MoveOutcome.LIGHT_START, exercise.name)
     if state.ladder_step_id != from_step_id:
         return Move(MoveOutcome.ALREADY_MOVED, exercise.name)
     step = session.get(LadderStep, from_step_id)

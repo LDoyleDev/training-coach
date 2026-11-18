@@ -99,6 +99,8 @@ export function said(m: Moved): string {
       return `${exercise} is on the last step in your plan, or the last one open to you.`
     case 'strength_block':
       return `${exercise} waits for the hypertrophy block: this is a strength block.`
+    case 'light_start':
+      return `${exercise} waits for one set lower: this is the light start of your easy start.`
     case 'stayed':
       return `Staying on ${step}. You'll be asked again after your next session at the top of the range.`
     case 'level_set':

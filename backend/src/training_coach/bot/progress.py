@@ -30,6 +30,7 @@ from training_coach.services.progress import Feedback, MoveOutcome, Standing
 
 PREFIX = "p"
 STRENGTH_BLOCK_WAIT = "{exercise} waits for the hypertrophy block: this is a strength block."
+LIGHT_START_WAIT = "{exercise} waits for one set lower: this is the light start of your easy start."
 MAX_ROWS = 40  # two buttons each, well under Telegram's 100
 ACTIONS = {"up", "no", "dn", "nd"}
 
@@ -116,6 +117,8 @@ def reply(outcome: progress.Move | None) -> str:
         return f"{name} is on the last step in your plan, or the last one open to you."
     if outcome.outcome is MoveOutcome.STRENGTH_BLOCK:
         return STRENGTH_BLOCK_WAIT.format(exercise=name)
+    if outcome.outcome is MoveOutcome.LIGHT_START:
+        return LIGHT_START_WAIT.format(exercise=name)
     if outcome.outcome is MoveOutcome.STEPPED_DOWN:
         warning = f" {outcome.warning}" if outcome.warning else ""
         return (
@@ -188,6 +191,9 @@ class ProgressHandlers:
                         press.exercise_id,
                         press.step_id,
                         strength_block=self._in_strength_block(session),
+                        light_start=progress.holding(
+                            session, local_date(datetime.now(UTC), self.settings.tz)
+                        ),
                     )
                 )
             elif press.action == "dn":

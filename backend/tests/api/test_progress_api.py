@@ -12,7 +12,7 @@ from tests.routes import api_routes
 from training_coach.api.app import create_app
 from training_coach.api.auth import owner
 from training_coach.config import Settings
-from training_coach.db.models import Event, Exercise, SetLog, Workout
+from training_coach.db.models import Event, Exercise, SetLog, UserSettings, Workout
 from training_coach.db.session import make_session_factory, session_scope
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.services import auth, user_settings, users
@@ -248,6 +248,23 @@ def test_move_up_waits_in_a_strength_block(signed_in: TestClient, engine: Engine
     assert _pull_up(engine)["step_id"] == start["step_id"]
     by_hand = signed_in.post("/api/progress/pull-up/level", json={"step_id": start["ladder"][2]})
     assert by_hand.json()["outcome"] == "level_set"
+
+
+def test_move_up_waits_in_the_light_start(signed_in: TestClient, engine: Engine) -> None:
+    """ADR-0094 Decided 10: ready reads as hold on the levels, and a press (a stale page, an old
+    bot button) is refused. The owner is never offered the easy start: the row is set by hand."""
+    _ready(engine)  # extras, so the easy start is still waiting for its first workout
+    with make_session_factory(engine, user_id=OWNER)() as bound:
+        row = users.settings_row(bound) or UserSettings()
+        row.easy_start, row.easy_start_from = True, datetime.now(UTC).date() - timedelta(days=1)
+        bound.add(row)
+        bound.commit()
+    start = _pull_up(engine)
+    levels = signed_in.get("/api/progress").json()["standings"]
+    assert next(s for s in levels if s["slug"] == "pull-up")["status"] == "hold"
+    held = signed_in.post("/api/progress/pull-up/move-up", json={"from_step_id": start["step_id"]})
+    assert held.json()["outcome"] == "light_start"
+    assert _pull_up(engine)["step_id"] == start["step_id"]
 
 
 def test_not_yet_is_recorded_once_and_not_from_a_stale_page(
