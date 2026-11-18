@@ -6,8 +6,9 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from tests.services.test_easy_start import day, member, people
+from tests.services.test_easy_start import _sessions, day, member, people
 from training_coach.db.models import Workout
+from training_coach.domain.easy_start import Phase
 from training_coach.services import easy_start, guided, workout_log
 from training_coach.services.today import session_plan
 
@@ -54,3 +55,14 @@ def test_any_other_day_keeps_no_aims(member: Session) -> None:
     _, workout = _save_at_the_bottom(member, 0)
     assert workout.planned is not None
     assert all("aim" not in p for p in workout.planned.values())
+
+
+def test_the_last_light_session_keeps_its_aims(member: Session) -> None:
+    """A day's phase counts the days before it, so the save that ends the light start is still
+    a light day."""
+    easy_start.turn(member, True, day(0))
+    _sessions(member, 0, 2, 4)
+    _, workout = _save_at_the_bottom(member, 14)  # the fourth, on the 14 days' floor
+    assert easy_start.current(member, day(15)).phase is Phase.LOWER
+    assert workout.planned is not None
+    assert all("aim" in p for p in workout.planned.values())
