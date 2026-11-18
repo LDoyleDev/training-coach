@@ -1676,7 +1676,7 @@ export interface paths {
         /**
          * Move Up
          * @description Move up, as the bot's button: checked again now, so a stale or forged press changes
-         *     nothing, and held in a strength block (ADR-0025, ADR-0028).
+         *     nothing, and held in a strength block or the light start (ADR-0025, ADR-0028, ADR-0094).
          */
         post: operations["move_up_api_progress__slug__move_up_post"];
         delete?: never;
@@ -4235,7 +4235,7 @@ export interface components {
              * Outcome
              * @enum {string}
              */
-            outcome: "moved" | "already_moved" | "not_ready" | "no_next_step" | "strength_block" | "stayed" | "level_set" | "same_level" | "stepped_down" | "no_step_below" | "stayed_down";
+            outcome: "moved" | "already_moved" | "not_ready" | "no_next_step" | "strength_block" | "light_start" | "stayed" | "level_set" | "same_level" | "stepped_down" | "no_step_below" | "stayed_down";
             /** Step */
             step: string | null;
             /** Warning */

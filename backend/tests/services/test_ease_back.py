@@ -10,10 +10,19 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from training_coach.db.models import Event, Exercise, LadderStep, SetLog, Workout
+from training_coach.db.models import (
+    Event,
+    Exercise,
+    LadderStep,
+    SessionTemplate,
+    SetLog,
+    UserSettings,
+    Workout,
+)
+from training_coach.domain.easy_start import Phase
 from training_coach.domain.enums import Side, WorkoutStatus
 from training_coach.domain.load import LoadKit
-from training_coach.services import blocks, ease_back, guided, progress, users
+from training_coach.services import blocks, ease_back, easy_start, guided, progress, users
 from training_coach.services.seed import apply_seed, load_plan
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -138,3 +147,44 @@ def test_a_stale_browser_changes_nothing(seeded: Session) -> None:
     guided.keep(seeded, plan, 0, 0, [], [])  # started elsewhere, nothing done yet
     found = ease_back.answer(seeded, plan, guided.kept(seeded, DAY), 0, ease=True)
     assert found == guided.STALE
+
+
+def _easy_start(session: Session, since: int, *sessions: int) -> None:
+    """The easy start on from ``since`` days before DAY, with Legs done ``sessions`` days before
+    it (no sets: the jump squat's last day stays 21 days back). The owner is never offered it
+    (ADR-0094 Decided 13): the row is set by hand, as a member's would be."""
+    row = users.settings_row(session) or UserSettings()
+    row.easy_start, row.easy_start_from = True, DAY - timedelta(days=since)
+    session.add(row)
+    legs = session.scalars(select(SessionTemplate).where(SessionTemplate.slug == "legs")).one()
+    for days_before in sessions:
+        day = DAY - timedelta(days=days_before)
+        session.add(Workout(local_date=day, template_id=legs.id, status=WorkoutStatus.DONE))
+    session.flush()
+
+
+@pytest.mark.parametrize(
+    ("since", "sessions", "phase", "restart", "offered"),
+    [
+        (30, (), Phase.WAITING, False, False),
+        (10, (8, 6), Phase.LIGHT, False, False),
+        (60, (60, 58, 56, 54), Phase.LOWER, True, False),  # the restart takes its place
+        (20, (20, 18, 16, 14, 3), Phase.LOWER, False, True),
+        (100, (100, 98, 96, 94, *range(86, 70, -2)), Phase.DONE, False, True),
+    ],
+)
+def test_not_in_the_light_start_or_with_a_restart_on_offer(
+    seeded: Session,
+    since: int,
+    sessions: tuple[int, ...],
+    phase: Phase,
+    restart: bool,
+    offered: bool,
+) -> None:
+    """ADR-0094 Decided 9: one prompt for the return."""
+    _on_pause(seeded)
+    _done(seeded, 21)
+    _easy_start(seeded, since, *sessions)
+    found = easy_start.current(seeded, DAY)
+    assert (found.phase, found.restart) == (phase, restart)
+    assert bool(_offered(seeded)) is offered

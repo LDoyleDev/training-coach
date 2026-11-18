@@ -6,6 +6,10 @@ however many exercises it covers. Taken, each of them is done one step down for 
 (ADR-0080's "For today", through ``session_levels.change``): the person's levels stay. Either
 answer is recorded with each exercise's last day, so the prompt is shown once per return, and a
 later return (a new break) asks again. Nothing changes without a tap.
+
+While the easy start's light start runs, or "Start the easy start again" is offered, it isn't
+offered: the light day is easier already, and the restart takes its place for that return, so
+there is one prompt (ADR-0094 Decided 9).
 """
 
 from dataclasses import dataclass
@@ -15,9 +19,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from training_coach.db.models import Event, Exercise, LadderStep, SetLog, Workout
+from training_coach.domain.easy_start import Phase
 from training_coach.domain.enums import Place, WorkoutStatus
 from training_coach.domain.progression import returning
-from training_coach.services import blocks, guided, progress, step_locks, users
+from training_coach.services import blocks, easy_start, guided, progress, step_locks, users
 from training_coach.services.session_levels import Changed, Scope, change
 
 ANSWERED = "progress.ease_back"
@@ -59,7 +64,10 @@ def offered(session: Session, plan: guided.Guided, kept: guided.Kept | None) -> 
     open step below their level (kit and avoided marks lock steps, ADR-0083), not on a loaded
     step (the weight is what to lower, ADR-0072) and not asked about for this return. Only
     before the session starts, and never for the block after a run. Empty when there is nothing
-    to offer."""
+    to offer, as in the easy start's light start or while it offers a restart (ADR-0094)."""
+    easy = easy_start.current(session, plan.day)
+    if easy.restart or easy.phase in (Phase.WAITING, Phase.LIGHT):
+        return []
     mine = (plan.template_id, plan.after_run, plan.place)
     if kept is not None and (kept.template_id, kept.after_run, kept.place) != mine:
         kept = None  # kept for a session that isn't today's

@@ -5379,6 +5379,7 @@
               "not_ready",
               "no_next_step",
               "strength_block",
+              "light_start",
               "stayed",
               "level_set",
               "same_level",
@@ -13154,7 +13155,7 @@
     },
     "/api/progress/{slug}/move-up": {
       "post": {
-        "description": "Move up, as the bot's button: checked again now, so a stale or forged press changes\nnothing, and held in a strength block (ADR-0025, ADR-0028).",
+        "description": "Move up, as the bot's button: checked again now, so a stale or forged press changes\nnothing, and held in a strength block or the light start (ADR-0025, ADR-0028, ADR-0094).",
         "operationId": "move_up_api_progress__slug__move_up_post",
         "parameters": [
           {

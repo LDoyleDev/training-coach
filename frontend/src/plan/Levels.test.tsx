@@ -285,6 +285,7 @@ test('every outcome is said in plain words', () => {
     'Pull-up is on the last step in your plan, or the last one open to you.',
   )
   expect(say('strength_block')).toMatch(/waits for the hypertrophy block/)
+  expect(say('light_start')).toMatch(/waits for one set lower/)
   expect(say('same_level')).toBe('Pull-up is already on Pause at top.')
   expect(say('level_set', null)).toMatch(/Targets for it start fresh/)
   expect(say('stepped_down', 'Slow negatives')).toBe(
