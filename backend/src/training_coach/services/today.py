@@ -54,6 +54,7 @@ from training_coach.services.plan_rows import in_cycle, in_plan
 from training_coach.services.progress import (
     failure_sets,
     last_loads,
+    light_aims,
     planned_sets,
     sessions_at_step,
 )
@@ -87,6 +88,7 @@ class ItemPlan:
     # has one: the last of ``targets`` is its floor.
     failure_ok: bool = False
     last_set_amrap: bool = False
+    bottom: int = 0  # the bottom of its range: a light-start day aims no higher (ADR-0094)
 
 
 @dataclass(frozen=True)
@@ -321,8 +323,10 @@ def _item_plan(
     planned = planned_sets(session, item.exercise.slug, ids)
     # A last set of as many as you can counts as its target met for its next one (ADR-0084).
     failure = failure_sets(session, item.exercise.slug, ids)
+    # A light-start day was given no more than the bottom of the range (ADR-0094).
+    light = light_aims(session, item.exercise.slug, ids)
     bottom = plan.prescription.rep_min
-    aims = targets(plan.prescription, history, pace, planned, failure)
+    aims = targets(plan.prescription, history, pace, planned, failure, light)
     load = None
     if kit is not None:
         owned = owned_weights(kit, home_kit, increments)
@@ -346,6 +350,7 @@ def _item_plan(
         step_id=plan.step.id,
         no_kit=plan.no_kit,
         failure_ok=item.exercise.failure_ok,
+        bottom=bottom,
     )
 
 

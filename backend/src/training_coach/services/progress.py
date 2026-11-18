@@ -226,6 +226,12 @@ def failure_sets(session: Session, slug: str, workout_ids: Sequence[int]) -> lis
     return _plan_values(session, slug, workout_ids, "failure_set", 1)
 
 
+def light_aims(session: Session, slug: str, workout_ids: Sequence[int]) -> list[int | None]:
+    """The most each workout aimed for of the exercise ``slug`` on a day of the easy start's
+    light start (ADR-0094), in the order given: None for any other day."""
+    return _plan_values(session, slug, workout_ids, "aim", 1)
+
+
 def _in_block[*Ts](query: Select[*Ts], block: BlockKind | None) -> Select[*Ts]:
     """``query`` kept to one block's workouts (ADR-0028): ``STRENGTH`` only strength-block
     workouts, ``HYPERTROPHY`` everything else, None both."""
