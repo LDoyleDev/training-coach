@@ -160,6 +160,7 @@ def home(session: Session, on: date, tz: ZoneInfo) -> Home:
     targets = cardio_totals.targets(session)
     climbed = session.scalar(select(func.count()).select_from(Event).where(Event.kind == MOVED_UP))
     standings = progress.overview(session)
+    waits = progress.holding(session, on)  # the light start holds Move up (ADR-0094)
     return Home(
         totals=_totals(session, on),
         week=Week(
@@ -175,9 +176,9 @@ def home(session: Session, on: date, tz: ZoneInfo) -> Home:
         ),
         progress=Ladder(
             steps_climbed=climbed or 0,
-            ready=progress.ready(standings),
+            ready=[] if waits else progress.ready(standings),
             bests=list(dict.fromkeys(b.exercise for b in span.bests)),
-            top=progress.tops(session, standings, start, tz),
+            top=[] if waits else progress.tops(session, standings, start, tz),
         ),
         recent=_recent(session, on),
         today=today,

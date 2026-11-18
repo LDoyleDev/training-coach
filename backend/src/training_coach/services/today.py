@@ -23,7 +23,9 @@ from training_coach.db.models import (
     TemplateItem,
     Workout,
 )
+from training_coach.domain import easy_start as easy_rules
 from training_coach.domain.blocks import Block
+from training_coach.domain.easy_start import Phase
 from training_coach.domain.enums import ExerciseKind, Place
 from training_coach.domain.kit import Item
 from training_coach.domain.load import (
@@ -46,7 +48,7 @@ from training_coach.domain.queue import (
 )
 from training_coach.domain.retests import PastTest
 from training_coach.domain.targets import Pace, targets
-from training_coach.services import blocks, equipment, retests, user_settings, users
+from training_coach.services import blocks, easy_start, equipment, retests, user_settings, users
 from training_coach.services.blocks import load_kit
 from training_coach.services.plan_rows import in_cycle, in_plan
 from training_coach.services.progress import (
@@ -106,11 +108,17 @@ class SessionPlan:
     # (Home | Gym, and Away with an away version, ADR-0086), one place when there is no choice.
     place: Place = Place.HOME
     places: tuple[Place, ...] = (Place.HOME,)
+    # The easy start's phase on the day it is for (ADR-0094): OFF with no day, or for a recovery
+    # session, which it never changes.
+    easy: Phase = Phase.OFF
 
     @property
     def switch(self) -> bool:
         """Today shows the switch: there is a place to choose."""
         return len(self.places) > 1
+
+
+EASED = ("strength", "conditioning")  # the sessions the easy start changes (ADR-0094)
 
 
 @dataclass(frozen=True)
@@ -281,13 +289,15 @@ def _item_plan(
     home_kit: Sequence[Item] | None = None,
     at_gym: bool = False,
     away: bool = False,
+    easy: Phase = Phase.OFF,
 ) -> ItemPlan:
     """One exercise: its step, cue and targets, under the strength prescription if it applies
     (ADR-0028), with targets from the matching block's history (ADR-0027) at the person's
     ``pace`` (ADR-0057). ``chosen``: a step of its ladder picked for today (ADR-0080). A loaded
     step moves by the person's own ``increments``, or on a home day through the weights in
     ``home_kit`` (ADR-0072). ``away``: steps that need kit give way to ones that don't
-    (ADR-0086)."""
+    (ADR-0086). ``easy``: the light start caps each set at the bottom of its range, a weight as
+    it is (ADR-0094)."""
     step = session.get(LadderStep, chosen) if chosen is not None else None
     plan = blocks.assign(
         session,
@@ -311,6 +321,8 @@ def _item_plan(
     planned = planned_sets(session, item.exercise.slug, ids)
     # A last set of as many as you can counts as its target met for its next one (ADR-0084).
     failure = failure_sets(session, item.exercise.slug, ids)
+    bottom = plan.prescription.rep_min
+    aims = targets(plan.prescription, history, pace, planned, failure)
     load = None
     if kit is not None:
         owned = owned_weights(kit, home_kit, increments)
@@ -325,7 +337,7 @@ def _item_plan(
         summary=summary(item.exercise.slug),
         slug=item.exercise.slug,
         per_side=item.per_side,
-        targets=targets(plan.prescription, history, pace, planned, failure),
+        targets=tuple(easy_rules.target(easy, aim, bottom) for aim in aims),
         pair=item.pair,
         baseline=not history,
         muscles=found.muscles,
@@ -357,7 +369,8 @@ def session_plan(
     version for ``place``, by default the day's (ADR-0071), so the bot's messages, a typed
     log and the guided session all see the same exercises. ``on``: the day it is for, away
     when that day was chosen as away (ADR-0086). ``steps`` holds levels chosen for today in the
-    guided session, by exercise slug (ADR-0080)."""
+    guided session, by exercise slug (ADR-0080). With ``on``, a strength or conditioning
+    session has the easy start's phase that day (ADR-0094), its targets capped by it."""
     template = session.scalar(
         select(SessionTemplate)
         .where(SessionTemplate.id == template_id)
@@ -380,6 +393,9 @@ def session_plan(
     done_at = template.done_at(at)  # the version's place, not only the one asked for
     # At home, a loaded kit the person lists goes up by the weights they own (ADR-0072).
     home_kit = equipment.kit(session) if done_at is Place.HOME else None
+    easy = Phase.OFF
+    if on is not None and template.kind in EASED:
+        easy = easy_start.current(session, on).phase
     return SessionPlan(
         template_id=template.id,
         name=template.name,
@@ -396,6 +412,7 @@ def session_plan(
                 home_kit,
                 done_at is Place.GYM,
                 done_at is Place.AWAY,
+                easy,
             )
             for item in template.version(at)
         ),
@@ -403,6 +420,7 @@ def session_plan(
         slug=template.slug,
         place=done_at,
         places=choices(prefs.places, bool(template.gym_items), bool(template.away_items)),
+        easy=easy,
     )
 
 

@@ -101,6 +101,8 @@ def standings(request: Request, user: Owner) -> StandingsView:
     on = local_date(datetime.now(UTC), settings.tz)
     with session_scope(_bound(request, user)) as session:
         found = progress.overview(session, on)
+        if progress.holding(session, on):  # the light start holds Move up (ADR-0094)
+            found = progress.held(found)
         strength = progress.in_strength_block(session, on, settings.tz)
         listed = equipment.saved_at(session) is not None
     return StandingsView(
@@ -186,6 +188,7 @@ class MovedView(BaseModel):
         "not_ready",
         "no_next_step",
         "strength_block",
+        "light_start",
         "stayed",
         "level_set",
         "same_level",
@@ -218,7 +221,7 @@ def _moved(found: progress.Move | None) -> MovedView:
 @router.post("/{slug}/move-up", response_model=MovedView)
 def move_up(slug: str, body: MoveUpBody, request: Request, user: Owner) -> MovedView:
     """Move up, as the bot's button: checked again now, so a stale or forged press changes
-    nothing, and held in a strength block (ADR-0025, ADR-0028)."""
+    nothing, and held in a strength block or the light start (ADR-0025, ADR-0028, ADR-0094)."""
     settings: Settings = request.app.state.settings
     on = local_date(datetime.now(UTC), settings.tz)
     with session_scope(_bound(request, user)) as session:
@@ -227,6 +230,7 @@ def move_up(slug: str, body: MoveUpBody, request: Request, user: Owner) -> Moved
             _exercise(session, slug),
             body.from_step_id,
             strength_block=progress.in_strength_block(session, on, settings.tz),
+            light_start=progress.holding(session, on),
         )
         return _moved(found)
 
